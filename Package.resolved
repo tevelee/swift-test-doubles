@@ -1,0 +1,24 @@
+{
+  "originHash" : "a29725e988aa1c8e769585c05bb946610d82cf40c53872038124d9cf087d4556",
+  "pins" : [
+    {
+      "identity" : "swift-atomics",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-atomics.git",
+      "state" : {
+        "revision" : "3e95ba32cd1b4c877f6163e8eea54afc4e63bf9f",
+        "version" : "0.0.3"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-syntax.git",
+      "state" : {
+        "revision" : "0687f71944021d616d34d922343dcef086855920",
+        "version" : "600.0.1"
+      }
+    }
+  ],
+  "version" : 3
+}
