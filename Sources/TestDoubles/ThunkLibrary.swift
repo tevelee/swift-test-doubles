@@ -15,19 +15,7 @@ public struct MethodSignature: Hashable, Sendable {
 @inline(__always)
 private func rec(_ w: UnsafeRawPointer) -> StubRecorder { MockRegistry.resolve(w) }
 
-/// Dispatch and cast, returning zero value in recording/verifying modes.
-@inline(__always)
-private func call<R>(_ w: UnsafeRawPointer, _ m: Int, _ args: [Any]) -> R {
-    let r = rec(w)
-    _ = r.dispatch(method: m, args: args)
-    if r.mode != .normal { return zeroValue(R.self) }
-    // Re-dispatch in normal mode to get the actual return value
-    // (dispatch already recorded the call and returned, so we need the stub result)
-    // Actually, dispatch handles everything. Let's restructure:
-    return zeroValue(R.self) // placeholder, need to fix
-}
-
-// Better approach: dispatch returns Any, we cast it in normal mode
+/// Dispatch and cast result, returning zero value in recording/verifying modes.
 @inline(__always)
 private func d<R>(_ w: UnsafeRawPointer, _ m: Int, _ a: [Any]) -> R {
     let r = rec(w)
@@ -77,10 +65,18 @@ private let m1_si_2: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPoint
 private let m1_si_3: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d(w, 3, [a]) }
 private let m1_ss_0: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d(w, 0, [a]) }
 private let m1_ss_1: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d(w, 1, [a]) }
+private let m1_ss_2: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d(w, 2, [a]) }
+private let m1_ss_3: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d(w, 3, [a]) }
+private let m1_ss_4: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d(w, 4, [a]) }
+private let m1_ss_5: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d(w, 5, [a]) }
 private let m1_sb_0: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Bool = { a, _, w in d(w, 0, [a]) }
 private let m1_sb_1: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Bool = { a, _, w in d(w, 1, [a]) }
+private let m1_sb_2: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Bool = { a, _, w in d(w, 2, [a]) }
+private let m1_sb_3: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Bool = { a, _, w in d(w, 3, [a]) }
 private let m1_sv_0: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 0, [a]) }
 private let m1_sv_1: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 1, [a]) }
+private let m1_sv_2: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 2, [a]) }
+private let m1_sv_3: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 3, [a]) }
 private let m1_is_0: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d(w, 0, [a]) }
 private let m1_is_1: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d(w, 1, [a]) }
 private let m1_ii_0: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d(w, 0, [a]) }
@@ -103,6 +99,25 @@ private let m2_iii_0: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPo
 private let m2_iib_0: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Bool = { a, b, _, w in d(w, 0, [a, b]) }
 private let m2_ssb_0: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> Bool = { a, b, _, w in d(w, 0, [a, b]) }
 private let m2_sss_0: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d(w, 0, [a, b]) }
+
+// --- 2-arg: (Int, String) → reversed order ---
+
+private let m2_isb_0: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Bool = { a, b, _, w in d(w, 0, [a, b]) }
+private let m2_isi_0: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d(w, 0, [a, b]) }
+private let m2_isv_0: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 0, [a, b]) }
+private let m2_iss_0: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d(w, 0, [a, b]) }
+
+// --- 1-arg: (Bool) ---
+
+private let m1_bv_0: @convention(thin) (Bool, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 0, [a]) }
+private let m1_bb_0: @convention(thin) (Bool, UnsafeRawPointer, UnsafeRawPointer) -> Bool = { a, _, w in d(w, 0, [a]) }
+private let m1_bi_0: @convention(thin) (Bool, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d(w, 0, [a]) }
+
+// --- 1-arg: (Double) ---
+
+private let m1_di_0: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d(w, 0, [a]) }
+private let m1_ds_0: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d(w, 0, [a]) }
+private let m1_dd_0: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in d(w, 0, [a]) }
 
 // --- 3-arg methods ---
 
@@ -140,11 +155,11 @@ public enum ThunkLibrary {
         let si = MethodSignature(args: ["String"], ret: "Int")
         for (i, fn) in [m1_si_0, m1_si_1, m1_si_2, m1_si_3].enumerated() { add(si, i, cast(fn)) }
         let ss = MethodSignature(args: ["String"], ret: "String")
-        for (i, fn) in [m1_ss_0, m1_ss_1].enumerated() { add(ss, i, cast(fn)) }
+        for (i, fn) in [m1_ss_0, m1_ss_1, m1_ss_2, m1_ss_3, m1_ss_4, m1_ss_5].enumerated() { add(ss, i, cast(fn)) }
         let sb1 = MethodSignature(args: ["String"], ret: "Bool")
-        for (i, fn) in [m1_sb_0, m1_sb_1].enumerated() { add(sb1, i, cast(fn)) }
+        for (i, fn) in [m1_sb_0, m1_sb_1, m1_sb_2, m1_sb_3].enumerated() { add(sb1, i, cast(fn)) }
         let sv = MethodSignature(args: ["String"], ret: "Void")
-        for (i, fn) in [m1_sv_0, m1_sv_1].enumerated() { add(sv, i, cast(fn)) }
+        for (i, fn) in [m1_sv_0, m1_sv_1, m1_sv_2, m1_sv_3].enumerated() { add(sv, i, cast(fn)) }
         let is_ = MethodSignature(args: ["Int"], ret: "String")
         for (i, fn) in [m1_is_0, m1_is_1].enumerated() { add(is_, i, cast(fn)) }
         let ii = MethodSignature(args: ["Int"], ret: "Int")
@@ -164,6 +179,22 @@ public enum ThunkLibrary {
         add(MethodSignature(args: ["Int", "Int"], ret: "Bool"), 0, cast(m2_iib_0))
         add(MethodSignature(args: ["String", "String"], ret: "Bool"), 0, cast(m2_ssb_0))
         add(MethodSignature(args: ["String", "String"], ret: "String"), 0, cast(m2_sss_0))
+
+        // 2-arg: (Int, String)
+        add(MethodSignature(args: ["Int", "String"], ret: "Bool"), 0, cast(m2_isb_0))
+        add(MethodSignature(args: ["Int", "String"], ret: "Int"), 0, cast(m2_isi_0))
+        add(MethodSignature(args: ["Int", "String"], ret: "Void"), 0, cast(m2_isv_0))
+        add(MethodSignature(args: ["Int", "String"], ret: "String"), 0, cast(m2_iss_0))
+
+        // 1-arg: (Bool)
+        add(MethodSignature(args: ["Bool"], ret: "Void"), 0, cast(m1_bv_0))
+        add(MethodSignature(args: ["Bool"], ret: "Bool"), 0, cast(m1_bb_0))
+        add(MethodSignature(args: ["Bool"], ret: "Int"), 0, cast(m1_bi_0))
+
+        // 1-arg: (Double)
+        add(MethodSignature(args: ["Double"], ret: "Int"), 0, cast(m1_di_0))
+        add(MethodSignature(args: ["Double"], ret: "String"), 0, cast(m1_ds_0))
+        add(MethodSignature(args: ["Double"], ret: "Double"), 0, cast(m1_dd_0))
 
         add(MethodSignature(args: ["String", "Int", "Int"], ret: "Void"), 0, cast(m3_siiv_0))
         add(MethodSignature(args: ["String", "String", "Int"], ret: "Void"), 0, cast(m3_ssiv_0))

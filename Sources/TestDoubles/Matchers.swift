@@ -1,5 +1,9 @@
 /// Thread-local matcher stack used by free-function matchers.
 /// Populated by `any()`, `equal()`, `match()` and consumed by `RuntimeStub.when`.
+///
+/// Note: `_matcherStack` is designed for single-threaded test execution.
+/// The record/consume cycle within `RuntimeStub.when` is not synchronized;
+/// concurrent calls from multiple threads would corrupt the stack.
 nonisolated(unsafe) var _matcherStack: [ParameterMatcher] = []
 
 /// Matches any value.

@@ -26,30 +26,20 @@ public class RuntimeStub<P> {
     /// Requires that at least one type conforming to the protocol exists
     /// in the binary (which it does if you import the module that defines it).
     public init() {
-        let protocolName = Self.extractProtocolName()
-        guard let conformance = findConformance(toProtocolNamed: protocolName) else {
-            fatalError("No conformance found for protocol '\(protocolName)' in the binary")
-        }
-
+        let conformance = Self.findConformance()
         self.recorder = StubRecorder()
 
-        // Auto-discover all method signatures from the witness table
-        let proto = conformance.protocol
+        // Auto-discover method signatures via dladdr + demangling
         let signatures = discoverSignatures(
             witnessTable: conformance.witnessTablePattern,
-            proto: proto
+            proto: conformance.protocol
         )
-
-        // Skip modify coroutines and read coroutines — leave the real implementation
-        // for those slots (they use a special calling convention we can't replace)
+        // Skip coroutines/associated types — keep real implementation for those
         let methods = signatures.compactMap { sig -> MethodDescriptor? in
             switch sig.kind {
             case .modifyCoroutine, .readCoroutine, .baseProtocol,
                  .associatedTypeAccessFunction, .associatedConformanceAccessFunction:
-                return nil // keep real implementation
-            case .setter:
-                // Setter: (newValue, selfPtr, wtPtr) -> Void — treated as a 1-arg void method
-                return MethodDescriptor(name: sig.methodName, signature: sig.methodSignature, index: sig.slot)
+                return nil
             default:
                 return MethodDescriptor(name: sig.methodName, signature: sig.methodSignature, index: sig.slot)
             }
@@ -73,49 +63,23 @@ public class RuntimeStub<P> {
     /// )
     /// ```
     public init(_ slots: Slot...) {
-        let protocolName = Self.extractProtocolName()
-        guard let conformance = findConformance(toProtocolNamed: protocolName) else {
-            fatalError("No conformance found for protocol '\(protocolName)' in the binary")
-        }
-
+        let conformance = Self.findConformance()
         let proto = conformance.protocol
         precondition(slots.count == proto.numRequirements,
-            "Expected \(proto.numRequirements) slots for '\(protocolName)', got \(slots.count)")
+            "Expected \(proto.numRequirements) slots for '\(proto.name)', got \(slots.count)")
 
         self.recorder = StubRecorder()
-
-        // Convert slots to method descriptors
         let methods = slots.enumerated().map { (i, slot) in
             MethodDescriptor(name: "slot_\(i)", signature: slot.signature, index: i)
         }
-
-        let sourceWT = conformance.witnessTablePattern
-        let wordSize = MemoryLayout<UnsafeRawPointer>.size
-        let totalWords = 1 + proto.numRequirements
-        let clonedWT = UnsafeMutableRawPointer.allocate(byteCount: totalWords * wordSize, alignment: wordSize)
-        clonedWT.copyMemory(from: sourceWT.ptr, byteCount: totalWords * wordSize)
+        let (clonedWT, _) = Self.patchWitnessTable(from: conformance, methods: methods, recorder: recorder)
         self.wtAllocation = clonedWT
-
-        for method in methods {
-            guard let thunkPtr = ThunkLibrary.thunk(for: method.signature, slot: method.index) else {
-                fatalError("No thunk for slot \(method.index) (\(method.signature))")
-            }
-            (clonedWT + (1 + method.index) * wordSize).storeBytes(of: thunkPtr, as: UnsafeRawPointer.self)
-            recorder.setName(method.name, for: method.index)
-        }
-
-        MockRegistry.register(recorder, for: UnsafeRawPointer(clonedWT))
-
         self.containerBytes = Self.buildExistentialContainer(from: conformance, witnessTable: clonedWT)
     }
 
     /// Create a stub with explicit method descriptors for full control.
     public init(methods: [MethodDescriptor]) {
-        let protocolName = Self.extractProtocolName()
-        guard let conformance = findConformance(toProtocolNamed: protocolName) else {
-            fatalError("No conformance found for '\(protocolName)'")
-        }
-
+        let conformance = Self.findConformance()
         self.recorder = StubRecorder()
         let (clonedWT, _) = Self.patchWitnessTable(from: conformance, methods: methods, recorder: recorder)
         self.wtAllocation = clonedWT
@@ -144,6 +108,9 @@ public class RuntimeStub<P> {
     /// The protocol existential proxy.
     public var proxy: P { callAsFunction() }
 
+    /// Recorded calls — forwarded from the recorder for convenience.
+    public var calls: [RecordedCall] { recorder.calls }
+
     // MARK: - When (#1: unified for getters, methods, and setters)
 
     /// Stub a method or getter.
@@ -162,7 +129,7 @@ public class RuntimeStub<P> {
         let matchers = recording.matchers.isEmpty
             ? recording.args.map { DescriptionMatcher(value: $0) }
             : recording.matchers
-        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { () })
+        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { _ in () })
         return StubBuilder(recorder: recorder, recording: recording)
     }
 
@@ -177,7 +144,7 @@ public class RuntimeStub<P> {
         let matchers = recording.matchers.isEmpty
             ? recording.args.map { DescriptionMatcher(value: $0) }
             : recording.matchers
-        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { () })
+        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { _ in () })
         return StubBuilder(recorder: recorder, recording: recording)
     }
 
@@ -231,18 +198,19 @@ public class RuntimeStub<P> {
 
     // MARK: - Internal helpers
 
-    /// Extract protocol name from the generic parameter P (e.g., `any Calculator` → "Calculator").
-    private static func extractProtocolName() -> String {
+    private static func findConformance() -> ConformanceDescriptor {
         let meta = reflect(P.self)
-        if let existential = meta as? ExistentialMetadata {
-            guard let first = existential.protocols.first else {
-                fatalError("Could not extract protocol from type \(P.self)")
-            }
-            return first.name
+        guard let existential = meta as? ExistentialMetadata,
+              let protoDesc = existential.protocols.first else {
+            fatalError("Could not extract protocol from type \(P.self). Use `RuntimeStub<any YourProtocol>`.")
         }
-        // Fallback: parse from type name
-        let name = String(describing: P.self)
-        return name.replacingOccurrences(of: "any ", with: "")
+        guard let conformance = Echo.findConformance(to: protoDesc) else {
+            fatalError("""
+            No conformance found for protocol '\(protoDesc.name)' in the binary. \
+            Ensure at least one type conforming to \(protoDesc.name) is compiled into the test target.
+            """)
+        }
+        return conformance
     }
 
     private static func patchWitnessTable(
@@ -303,16 +271,17 @@ public struct StubBuilder<R> {
         let matchers = recording.matchers.isEmpty
             ? recording.args.map { DescriptionMatcher(value: $0) }
             : recording.matchers
-        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { value() })
+        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { _ in value() })
         return self
     }
 
+    /// Dynamic stub — handler receives the actual arguments at call time.
     @discardableResult
     public func answers(_ handler: @escaping ([Any]) -> R) -> Self {
         let matchers = recording.matchers.isEmpty
             ? recording.args.map { DescriptionMatcher(value: $0) }
             : recording.matchers
-        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { handler([]) })
+        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { handler($0) })
         return self
     }
 }
@@ -323,7 +292,7 @@ extension StubBuilder where R == Void {
         let matchers = recording.matchers.isEmpty
             ? recording.args.map { DescriptionMatcher(value: $0) }
             : recording.matchers
-        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { () }, action: { _ in action() })
+        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { _ in () }, action: { _ in action() })
         return self
     }
 }

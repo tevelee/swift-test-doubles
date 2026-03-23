@@ -1,6 +1,15 @@
 {
-  "originHash" : "a29725e988aa1c8e769585c05bb946610d82cf40c53872038124d9cf087d4556",
+  "originHash" : "faa6f1f7542341210bb986c1ffbee0ebc75636ee3a2414e9d025ad7b4a4b3f56",
   "pins" : [
+    {
+      "identity" : "echo",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tevelee/Echo.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "f3a2906ee86916deda3ca3b6b559bf0d0d5e1efc"
+      }
+    },
     {
       "identity" : "swift-atomics",
       "kind" : "remoteSourceControl",
@@ -8,15 +17,6 @@
       "state" : {
         "revision" : "3e95ba32cd1b4c877f6163e8eea54afc4e63bf9f",
         "version" : "0.0.3"
-      }
-    },
-    {
-      "identity" : "swift-syntax",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swiftlang/swift-syntax.git",
-      "state" : {
-        "revision" : "0687f71944021d616d34d922343dcef086855920",
-        "version" : "600.0.1"
       }
     }
   ],

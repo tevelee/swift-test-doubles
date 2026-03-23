@@ -1,3 +1,24 @@
+/// Describes a protocol requirement for thunk matching (full descriptor with name).
+public struct MethodDescriptor: Sendable {
+    public let name: String
+    public let signature: MethodSignature
+    public let index: Int
+
+    public init(name: String, signature: MethodSignature, index: Int) {
+        self.name = name
+        self.signature = signature
+        self.index = index
+    }
+
+    public static func getter(_ name: String, type: String, at index: Int) -> MethodDescriptor {
+        MethodDescriptor(name: name, signature: .getter(type), index: index)
+    }
+
+    public static func method(_ name: String, args: [String], returns ret: String, at index: Int) -> MethodDescriptor {
+        MethodDescriptor(name: name, signature: .init(args: args, ret: ret), index: index)
+    }
+}
+
 /// Describes a protocol requirement slot by its signature.
 /// Used in the simplified `RuntimeStub` init that doesn't require method names.
 public struct Slot {
@@ -31,6 +52,16 @@ public struct Slot {
     /// A void method with 2 arguments.
     public static func method(_ a: Any.Type, _ b: Any.Type) -> Slot {
         Slot(signature: .init(args: [typeName(a), typeName(b)], ret: "Void"))
+    }
+
+    /// A no-arg method with return value.
+    public static func method(returns: Any.Type) -> Slot {
+        Slot(signature: .init(args: [], ret: typeName(returns)))
+    }
+
+    /// A no-arg void method.
+    public static var void: Slot {
+        Slot(signature: .getter("Void"))
     }
 }
 

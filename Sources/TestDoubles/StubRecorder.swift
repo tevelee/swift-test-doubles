@@ -27,7 +27,7 @@ public class StubRecorder: @unchecked Sendable {
 
     struct StubEntry {
         let matchers: [ParameterMatcher]
-        let returnValue: () -> Any
+        let returnValue: ([Any]) -> Any
         let action: (([Any]) -> Void)?
     }
 
@@ -64,7 +64,7 @@ public class StubRecorder: @unchecked Sendable {
                 if entry.matchers.isEmpty || matchArgs(args, against: entry.matchers) {
                     calls.append(RecordedCall(methodIndex: method, name: name, args: args, matchers: []))
                     entry.action?(args)
-                    return entry.returnValue()
+                    return entry.returnValue(args)
                 }
             }
             fatalError("No matching stub for '\(name)' with args \(args)")
@@ -73,7 +73,7 @@ public class StubRecorder: @unchecked Sendable {
 
     // MARK: - Stub registration
 
-    func addStub(method: Int, matchers: [ParameterMatcher], returnValue: @escaping () -> Any, action: (([Any]) -> Void)? = nil) {
+    func addStub(method: Int, matchers: [ParameterMatcher], returnValue: @escaping ([Any]) -> Any, action: (([Any]) -> Void)? = nil) {
         stubs[method, default: []].append(StubEntry(matchers: matchers, returnValue: returnValue, action: action))
     }
 
