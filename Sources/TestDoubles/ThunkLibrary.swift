@@ -43,6 +43,14 @@ private func dv(_ w: UnsafeRawPointer, _ m: Int, _ a: [Any]) {
     _ = r.dispatch(method: m, args: a)
 }
 
+// --- Void getters / no-arg void methods: (selfPtr, wtPtr) -> Void ---
+
+private let g_v_0: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Void = { _, w in dv(w, 0, []) }
+private let g_v_1: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Void = { _, w in dv(w, 1, []) }
+private let g_v_2: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Void = { _, w in dv(w, 2, []) }
+private let g_v_3: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Void = { _, w in dv(w, 3, []) }
+private let g_v_4: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Void = { _, w in dv(w, 4, []) }
+
 // --- Getters: (selfPtr, wtPtr) -> T ---
 
 private let g_i_0: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Int = { _, w in d(w, 0, []) }
@@ -118,6 +126,8 @@ public enum ThunkLibrary {
         func add(_ s: MethodSignature, _ slot: Int, _ p: UnsafeRawPointer) { c[s, default: [:]][slot] = p }
         func cast<T>(_ fn: T) -> UnsafeRawPointer { unsafeBitCast(fn, to: UnsafeRawPointer.self) }
 
+        let gv = MethodSignature.getter("Void")
+        for (i, fn) in [g_v_0, g_v_1, g_v_2, g_v_3, g_v_4].enumerated() { add(gv, i, cast(fn)) }
         let gi = MethodSignature.getter("Int")
         for (i, fn) in [g_i_0, g_i_1, g_i_2, g_i_3, g_i_4, g_i_5].enumerated() { add(gi, i, cast(fn)) }
         let gs = MethodSignature.getter("String")

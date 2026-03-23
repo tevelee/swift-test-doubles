@@ -104,7 +104,7 @@ public struct RecordedCall {
     public let methodIndex: Int
     public let name: String
     public let args: [Any]
-    let matchers: [ParameterMatcher]
+    var matchers: [ParameterMatcher]
 }
 
 // MARK: - Parameter Matchers

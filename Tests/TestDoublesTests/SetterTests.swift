@@ -15,35 +15,34 @@ struct RealConfigurable: Configurable {
 
 final class SetterTests: XCTestCase {
 
-    func testGetterAndSetter() {
+    func testGetterSetterAndVoidMethod() {
         let stub = RuntimeStub<any Configurable>()
 
         // Getters
         stub.when { $0.name }.returns("MockName")
         stub.when { $0.count }.returns(42)
 
-        // Setter — uses whenSetting for mutable access
-        stub.whenSetting { $0.name = "test" }.performs()
+        // #1: setter — unified `when` with inout
+        stub.when { $0.name = "test" }
 
-        // Void method
-        stub.when { $0.reset() }.performs()
+        // #3: void methods — no .performs() needed
+        stub.when { $0.reset() }
 
-        // Test getters
-        let sut = stub.proxy
+        // #4: use stub directly
+        let sut: any Configurable = stub()
         XCTAssertEqual(sut.name, "MockName")
         XCTAssertEqual(sut.count, 42)
 
         // Test setter
-        var mutableSut = stub.proxy
-        mutableSut.name = "test"
+        var mutable: any Configurable = stub()
+        mutable.name = "test"
 
         // Test void method
         sut.reset()
 
-        // Verify
-        stub.verify { $0.name }.wasCalled()
-        stub.verify { $0.count }.wasCalled(times: 1)
-        stub.verifySetting { $0.name = "test" }.wasCalled()
+        // Verify — #1: unified verify for setters too
+        stub.verify(called: 1) { $0.count }
+        stub.verify(setting: { $0.name = "test" }).wasCalled()
         stub.verify { $0.reset() }.wasCalled()
     }
 }

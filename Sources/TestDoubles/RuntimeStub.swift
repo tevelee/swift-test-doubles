@@ -127,10 +127,13 @@ public class RuntimeStub<P> {
         wtAllocation.deallocate()
     }
 
-    // MARK: - Proxy
+    // MARK: - Use as protocol (#4: direct usage)
 
-    /// The protocol existential proxy — use as your SUT or in when/verify closures.
-    public var proxy: P {
+    /// Use the stub directly as the protocol existential.
+    /// ```swift
+    /// let sut: any Calculator = stub()
+    /// ```
+    public func callAsFunction() -> P {
         let size = MemoryLayout<ExistentialContainer>.size
         let ptr = UnsafeMutableRawPointer.allocate(byteCount: size, alignment: MemoryLayout<ExistentialContainer>.alignment)
         defer { ptr.deallocate() }
@@ -138,96 +141,92 @@ public class RuntimeStub<P> {
         return ptr.load(as: P.self)
     }
 
-    // MARK: - When / Returns
+    /// The protocol existential proxy.
+    public var proxy: P { callAsFunction() }
 
+    // MARK: - When (#1: unified for getters, methods, and setters)
+
+    /// Stub a method or getter.
+    @_disfavoredOverload
     @discardableResult
     public func when<R>(_ call: (P) -> R) -> StubBuilder<R> {
-        recorder.mode = .recording
-        _ = call(proxy)
-        recorder.mode = .normal
-        guard let recording = recorder.lastRecording else {
-            fatalError("No method was called in the when closure")
-        }
-        recorder.lastRecording = nil
+        let recording = record { _ = call(self.callAsFunction()) }
         return StubBuilder(recorder: recorder, recording: recording)
     }
 
-    /// Record a setter or mutating call.
-    /// The closure receives a mutable copy of the proxy.
-    @discardableResult
-    public func whenSetting(_ call: (inout P) -> Void) -> StubBuilder<Void> {
-        recorder.mode = .recording
-        var mutableProxy = proxy
-        call(&mutableProxy)
-        recorder.mode = .normal
-        guard let recording = recorder.lastRecording else {
-            fatalError("No method was called in the whenSetting closure")
-        }
-        recorder.lastRecording = nil
-        return StubBuilder(recorder: recorder, recording: recording)
-    }
-
-    /// Verify a setter or mutating call.
-    public func verifySetting(_ call: (inout P) -> Void) -> VerifyBuilder {
-        recorder.mode = .verifying
-        var mutableProxy = proxy
-        call(&mutableProxy)
-        recorder.mode = .normal
-        guard let recording = recorder.lastRecording else {
-            fatalError("No method was called in the verifySetting closure")
-        }
-        recorder.lastRecording = nil
-        return VerifyBuilder(recorder: recorder, recording: recording)
-    }
-
+    /// Stub a void method — auto-registers without needing `.performs()`. (#3)
     @discardableResult
     public func when(_ call: (P) -> Void) -> StubBuilder<Void> {
-        recorder.mode = .recording
-        call(proxy)
-        recorder.mode = .normal
-        guard let recording = recorder.lastRecording else {
-            fatalError("No method was called in the when closure")
-        }
-        recorder.lastRecording = nil
+        let recording = record { call(self.callAsFunction()) }
+        // Auto-register void stub (#3: no .performs() needed)
+        let matchers = recording.matchers.isEmpty
+            ? recording.args.map { DescriptionMatcher(value: $0) }
+            : recording.matchers
+        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { () })
         return StubBuilder(recorder: recorder, recording: recording)
     }
 
-    // MARK: - Verify
-
-    public func verify(_ call: (P) -> some Any) -> VerifyBuilder {
-        recorder.mode = .verifying
-        _ = call(proxy)
-        recorder.mode = .normal
-        guard let recording = recorder.lastRecording else {
-            fatalError("No method was called in the verify closure")
+    /// Stub a setter: `stub.when(setting: { $0.name = "x" })`
+    @_disfavoredOverload
+    @discardableResult
+    public func when(setting call: (inout P) -> Void) -> StubBuilder<Void> {
+        let recording = record {
+            var mutable = self.callAsFunction()
+            call(&mutable)
         }
-        recorder.lastRecording = nil
+        let matchers = recording.matchers.isEmpty
+            ? recording.args.map { DescriptionMatcher(value: $0) }
+            : recording.matchers
+        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { () })
+        return StubBuilder(recorder: recorder, recording: recording)
+    }
+
+    // MARK: - Verify (#5: concise)
+
+    /// Verify a method/getter was called.
+    public func verify(_ call: (P) -> some Any) -> VerifyBuilder {
+        let recording = record(mode: .verifying) { _ = call(self.callAsFunction()) }
         return VerifyBuilder(recorder: recorder, recording: recording)
     }
 
-    // MARK: - Matchers
-
-    public func any<T>(_ type: T.Type = T.self) -> T {
-        recorder.activeMatchers.append(AnyMatcher())
-        return zeroValue(T.self)
-    }
-
-    public func equal<T: Equatable>(_ value: T) -> T {
-        recorder.activeMatchers.append(EqualMatcher(expected: value))
-        return value
-    }
-
-    public func match<T>(_ predicate: @escaping (T) -> Bool) -> T {
-        recorder.activeMatchers.append(PredicateMatcher(predicate: predicate))
-        return zeroValue(T.self)
-    }
-
-    // MARK: - Apply
-
-    public func apply(to existential: inout P) {
-        withUnsafeMutablePointer(to: &existential) { ptr in
-            UnsafeMutableRawPointer(ptr).storeBytes(of: containerBytes, as: ExistentialContainer.self)
+    /// Verify a setter was called.
+    public func verify(setting call: (inout P) -> Void) -> VerifyBuilder {
+        let recording = record(mode: .verifying) {
+            var mutable = self.callAsFunction()
+            call(&mutable)
         }
+        return VerifyBuilder(recorder: recorder, recording: recording)
+    }
+
+    /// Concise verify: `stub.verify(called: 2) { $0.add(1, 2) }` (#5)
+    public func verify(called times: Int, _ call: (P) -> some Any) {
+        let recording = record(mode: .verifying) { _ = call(self.callAsFunction()) }
+        VerifyBuilder(recorder: recorder, recording: recording).wasCalled(times: times)
+    }
+
+    /// Concise verify never: `stub.verify(never: { $0.reset() })` (#5)
+    public func verify(never call: (P) -> some Any) {
+        verify(called: 0, call)
+    }
+
+    // MARK: - Internal recording
+
+    private func record(mode: StubRecorder.Mode = .recording, _ block: () -> Void) -> RecordedCall {
+        _matcherStack = [] // clear any stale matchers
+        recorder.activeMatchers = []
+        recorder.mode = mode
+        block()
+        // Collect matchers pushed by free functions during the closure (#2)
+        if !_matcherStack.isEmpty {
+            recorder.lastRecording?.matchers = _matcherStack
+            _matcherStack = []
+        }
+        recorder.mode = .normal
+        guard let recording = recorder.lastRecording else {
+            fatalError("No method was called in the closure")
+        }
+        recorder.lastRecording = nil
+        return recording
     }
 
     // MARK: - Internal helpers
