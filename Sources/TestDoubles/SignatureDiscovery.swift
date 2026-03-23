@@ -174,7 +174,9 @@ private func removeModulePrefixes(_ str: String) -> String {
 }
 
 private func simplifyType(_ fullType: String) -> String {
-    fullType
+    let cleaned = fullType
         .replacingOccurrences(of: "Swift.", with: "")
         .trimmingCharacters(in: .whitespaces)
+    // Normalize "()" to "Void"
+    return cleaned == "()" ? "Void" : cleaned
 }

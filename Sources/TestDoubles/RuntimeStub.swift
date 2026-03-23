@@ -40,8 +40,19 @@ public class RuntimeStub<P> {
             proto: proto
         )
 
-        let methods = signatures.map { sig in
-            MethodDescriptor(name: sig.methodName, signature: sig.methodSignature, index: sig.slot)
+        // Skip modify coroutines and read coroutines — leave the real implementation
+        // for those slots (they use a special calling convention we can't replace)
+        let methods = signatures.compactMap { sig -> MethodDescriptor? in
+            switch sig.kind {
+            case .modifyCoroutine, .readCoroutine, .baseProtocol,
+                 .associatedTypeAccessFunction, .associatedConformanceAccessFunction:
+                return nil // keep real implementation
+            case .setter:
+                // Setter: (newValue, selfPtr, wtPtr) -> Void — treated as a 1-arg void method
+                return MethodDescriptor(name: sig.methodName, signature: sig.methodSignature, index: sig.slot)
+            default:
+                return MethodDescriptor(name: sig.methodName, signature: sig.methodSignature, index: sig.slot)
+            }
         }
 
         let (clonedWT, _) = Self.patchWitnessTable(from: conformance, methods: methods, recorder: recorder)
@@ -139,6 +150,34 @@ public class RuntimeStub<P> {
         }
         recorder.lastRecording = nil
         return StubBuilder(recorder: recorder, recording: recording)
+    }
+
+    /// Record a setter or mutating call.
+    /// The closure receives a mutable copy of the proxy.
+    @discardableResult
+    public func whenSetting(_ call: (inout P) -> Void) -> StubBuilder<Void> {
+        recorder.mode = .recording
+        var mutableProxy = proxy
+        call(&mutableProxy)
+        recorder.mode = .normal
+        guard let recording = recorder.lastRecording else {
+            fatalError("No method was called in the whenSetting closure")
+        }
+        recorder.lastRecording = nil
+        return StubBuilder(recorder: recorder, recording: recording)
+    }
+
+    /// Verify a setter or mutating call.
+    public func verifySetting(_ call: (inout P) -> Void) -> VerifyBuilder {
+        recorder.mode = .verifying
+        var mutableProxy = proxy
+        call(&mutableProxy)
+        recorder.mode = .normal
+        guard let recording = recorder.lastRecording else {
+            fatalError("No method was called in the verifySetting closure")
+        }
+        recorder.lastRecording = nil
+        return VerifyBuilder(recorder: recorder, recording: recording)
     }
 
     @discardableResult
