@@ -3,7 +3,8 @@ import Echo
 /// A typed runtime mock. No macros, no source access to the protocol needed.
 ///
 /// ```swift
-/// let stub = RuntimeStub<any Calculator>([Int.self, String.self, Int.self])
+/// // Zero-config: signatures auto-discovered from the binary
+/// let stub = RuntimeStub<any Calculator>()
 ///
 /// stub.when { $0.add(1, 2) }.returns(42)
 /// stub.when { $0.add(stub.any(), stub.any()) }.returns(0)
@@ -16,6 +17,37 @@ public class RuntimeStub<P> {
     public let recorder: StubRecorder
     private let wtAllocation: UnsafeMutableRawPointer
     private let containerBytes: ExistentialContainer
+
+    // MARK: - Zero-config init: auto-discover everything
+
+    /// Create a stub with zero configuration. All method signatures are
+    /// auto-discovered from the binary via dladdr + demangling.
+    ///
+    /// Requires that at least one type conforming to the protocol exists
+    /// in the binary (which it does if you import the module that defines it).
+    public init() {
+        let protocolName = Self.extractProtocolName()
+        guard let conformance = findConformance(toProtocolNamed: protocolName) else {
+            fatalError("No conformance found for protocol '\(protocolName)' in the binary")
+        }
+
+        self.recorder = StubRecorder()
+
+        // Auto-discover all method signatures from the witness table
+        let proto = conformance.protocol
+        let signatures = discoverSignatures(
+            witnessTable: conformance.witnessTablePattern,
+            proto: proto
+        )
+
+        let methods = signatures.map { sig in
+            MethodDescriptor(name: sig.methodName, signature: sig.methodSignature, index: sig.slot)
+        }
+
+        let (clonedWT, _) = Self.patchWitnessTable(from: conformance, methods: methods, recorder: recorder)
+        self.wtAllocation = clonedWT
+        self.containerBytes = Self.buildExistentialContainer(from: conformance, witnessTable: clonedWT)
+    }
 
     // MARK: - Init: return types only (Echo auto-discovers the rest)
 
