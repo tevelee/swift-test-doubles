@@ -18,18 +18,14 @@ nonisolated(unsafe) private var _compiledCache: [String: UnsafeRawPointer] = [:]
 
 public enum RuntimeCompiler {
 
-    /// Compile a mock type for the given protocol and return its witness table pointer.
+    /// Compile a mock type for the given protocol and return the dylib path.
     /// Returns nil if compilation fails.
     static func compileMock(
         protocolName: String,
         moduleName: String,
         signatures: [DiscoveredSignature]
-    ) -> (witnessTable: UnsafeRawPointer, typeMetadata: Any.Type)? {
+    ) -> String? {
         let cacheKey = "\(moduleName).\(protocolName)"
-        if let cached = _compiledCache[cacheKey] {
-            // TODO: return cached type metadata too
-            return nil // caching needs more work
-        }
 
         let source = generateSource(
             protocolName: protocolName,
@@ -46,9 +42,19 @@ public enum RuntimeCompiler {
             return nil
         }
 
-        // TODO: use Echo to find the conformance in the newly loaded dylib
-        // For now, return nil — the infrastructure is in place
-        return nil
+        return dylibPath
+    }
+
+    /// Extract the module name from a demangled witness string.
+    /// e.g. "protocol witness for MyModule.MyService.load(...) in conformance MyModule.RealService : MyModule.MyService"
+    /// → "MyModule"
+    static func extractModuleName(from demangled: String) -> String? {
+        // Pattern: "in conformance ModuleName.TypeName : ModuleName.ProtocolName"
+        guard let confRange = demangled.range(of: " in conformance ") else { return nil }
+        let afterConf = String(demangled[confRange.upperBound...])
+        // First component before "." is the module name
+        let parts = afterConf.components(separatedBy: ".")
+        return parts.first
     }
 
     // MARK: - Source Generation
@@ -108,8 +114,7 @@ public enum RuntimeCompiler {
     }
 
     private static func generateMethod(_ sig: DiscoveredSignature) -> String {
-        let isThrows = sig.methodName.contains("throws") || sig.isThrows
-        let throwsKw = isThrows ? "throws " : ""
+        let throwsKw = sig.isThrowing ? "throws " : ""
         let slot = sig.slot
 
         switch sig.kind {
@@ -160,9 +165,10 @@ public enum RuntimeCompiler {
         let cleanName = sig.methodName.components(separatedBy: "(").first ?? sig.methodName
         let isThrows = !throwsKw.isEmpty
 
-        // Build parameter list from discovered arg names
+        // Build parameter list using discovered labels
         let params = sig.args.enumerated().map { i, type in
-            "_ arg\(i): \(type)"
+            let label = i < sig.paramLabels.count ? sig.paramLabels[i] : "_"
+            return "\(label) arg\(i): \(type)"
         }.joined(separator: ", ")
 
         // Throwing preamble: check should_throw before dispatch
@@ -266,10 +272,3 @@ public enum RuntimeCompiler {
     }
 }
 
-// Extend DiscoveredSignature to include throws info
-extension DiscoveredSignature {
-    var isThrows: Bool {
-        // Check if the demangled name contained "throws"
-        methodName.contains("throws")
-    }
-}

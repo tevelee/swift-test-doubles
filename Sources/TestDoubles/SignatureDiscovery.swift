@@ -12,6 +12,21 @@ struct DiscoveredSignature {
     let methodName: String
     let args: [String]
     let ret: String
+    let isThrowing: Bool
+    let rawDemangled: String
+    let paramLabels: [String]
+
+    init(slot: Int, kind: ProtocolRequirement.Kind, methodName: String, args: [String], ret: String,
+         isThrowing: Bool = false, rawDemangled: String = "", paramLabels: [String] = []) {
+        self.slot = slot
+        self.kind = kind
+        self.methodName = methodName
+        self.args = args
+        self.ret = ret
+        self.isThrowing = isThrowing
+        self.rawDemangled = rawDemangled
+        self.paramLabels = paramLabels
+    }
 
     var methodSignature: MethodSignature {
         MethodSignature(args: args, ret: ret)
@@ -49,7 +64,10 @@ func discoverSignatures(
             kind: req.flags.kind,
             methodName: parsed.name,
             args: parsed.args,
-            ret: parsed.ret
+            ret: parsed.ret,
+            isThrowing: demangled.contains(") throws ->"),
+            rawDemangled: demangled,
+            paramLabels: parsed.labels
         ))
     }
 
@@ -90,6 +108,7 @@ private struct ParsedWitnessSignature {
     let name: String
     let args: [String]
     let ret: String
+    let labels: [String]
 }
 
 private func parseWitnessSignature(_ demangled: String, kind: ProtocolRequirement.Kind) -> ParsedWitnessSignature {
@@ -111,7 +130,7 @@ private func parseWitnessSignature(_ demangled: String, kind: ProtocolRequiremen
         let propName = String(cleaned[..<getterRange.lowerBound])
             .components(separatedBy: ".").last ?? "unknown"
         let retType = simplifyType(String(cleaned[getterRange.upperBound...]))
-        return ParsedWitnessSignature(name: propName, args: [], ret: retType)
+        return ParsedWitnessSignature(name: propName, args: [], ret: retType, labels: [])
     }
 
     // Setter: "count.setter : Int"
@@ -119,7 +138,7 @@ private func parseWitnessSignature(_ demangled: String, kind: ProtocolRequiremen
         let propName = String(cleaned[..<setterRange.lowerBound])
             .components(separatedBy: ".").last ?? "unknown"
         let retType = simplifyType(String(cleaned[setterRange.upperBound...]))
-        return ParsedWitnessSignature(name: propName, args: [retType], ret: "Void")
+        return ParsedWitnessSignature(name: propName, args: [retType], ret: "Void", labels: ["newValue"])
     }
 
     // Method: "fetch(id: Swift.Int) -> Swift.String"
@@ -141,18 +160,28 @@ private func parseWitnessSignature(_ demangled: String, kind: ProtocolRequiremen
             let paramsStr = String(cleaned[cleaned.index(after: parenOpen)..<arrow.lowerBound])
             let retType = simplifyType(String(cleaned[arrow.upperBound...]))
             let args = parseParams(paramsStr)
+            let labels = parseLabels(paramsStr)
             let fullName = buildMethodName(methodName, params: paramsStr)
-            return ParsedWitnessSignature(name: fullName, args: args, ret: retType)
+            return ParsedWitnessSignature(name: fullName, args: args, ret: retType, labels: labels)
         } else if let closeParen = cleaned.firstIndex(of: ")") {
             // No return type → Void
             let paramsStr = String(cleaned[cleaned.index(after: parenOpen)..<closeParen])
             let args = parseParams(paramsStr)
+            let labels = parseLabels(paramsStr)
             let fullName = buildMethodName(methodName, params: paramsStr)
-            return ParsedWitnessSignature(name: fullName, args: args, ret: "Void")
+            return ParsedWitnessSignature(name: fullName, args: args, ret: "Void", labels: labels)
         }
     }
 
-    return ParsedWitnessSignature(name: "unknown", args: [], ret: "Int")
+    return ParsedWitnessSignature(name: "unknown", args: [], ret: "Int", labels: [])
+}
+
+private func parseLabels(_ paramsStr: String) -> [String] {
+    guard !paramsStr.isEmpty else { return [] }
+    return paramsStr.components(separatedBy: ", ").map { param in
+        let parts = param.components(separatedBy: ": ")
+        return parts.count >= 2 ? parts[0].trimmingCharacters(in: .whitespaces) : "_"
+    }
 }
 
 private func parseParams(_ paramsStr: String) -> [String] {

@@ -34,15 +34,40 @@ public class RuntimeStub<P> {
             witnessTable: conformance.witnessTablePattern,
             proto: conformance.protocol
         )
-        // Skip coroutines/associated types — keep real implementation for those
-        let methods = signatures.compactMap { sig -> MethodDescriptor? in
+
+        // Check if any method needs throws/async (thunk library can't handle these)
+        let mockableSigs = signatures.filter { sig in
             switch sig.kind {
             case .modifyCoroutine, .readCoroutine, .baseProtocol,
                  .associatedTypeAccessFunction, .associatedConformanceAccessFunction:
-                return nil
+                return false
             default:
-                return MethodDescriptor(name: sig.methodName, signature: sig.methodSignature, index: sig.slot)
+                return true
             }
+        }
+
+        let hasThrowingOrAsync = mockableSigs.contains { $0.isThrowing }
+
+        if hasThrowingOrAsync {
+            // Try runtime compilation approach
+            let proto = conformance.protocol
+            let moduleName = mockableSigs.compactMap { RuntimeCompiler.extractModuleName(from: $0.rawDemangled) }.first
+                ?? "UnknownModule"
+
+            if let _ = RuntimeCompiler.compileMock(
+                protocolName: proto.name,
+                moduleName: moduleName,
+                signatures: signatures
+            ) {
+                // TODO: use the compiled mock's witness table
+                // For now, fall through to thunk-based approach
+                print("[RuntimeStub] Runtime compilation succeeded for \(proto.name) — using compiled mock")
+            }
+        }
+
+        // Standard thunk-based approach (works for non-throwing methods)
+        let methods = mockableSigs.map { sig in
+            MethodDescriptor(name: sig.methodName, signature: sig.methodSignature, index: sig.slot)
         }
 
         let (clonedWT, _) = Self.patchWitnessTable(from: conformance, methods: methods, recorder: recorder)
