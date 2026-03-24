@@ -230,6 +230,7 @@ public class RuntimeStub<P> {
             }
             (clonedWT + (1 + method.index) * wordSize).storeBytes(of: thunkPtr, as: UnsafeRawPointer.self)
             recorder.setName(method.name, for: method.index)
+            recorder.refReturnFlags[method.index] = isReferenceReturn(method.signature.ret)
         }
 
         MockRegistry.register(recorder, for: UnsafeRawPointer(clonedWT))

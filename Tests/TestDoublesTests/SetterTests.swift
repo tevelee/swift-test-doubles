@@ -42,7 +42,7 @@ final class SetterTests: XCTestCase {
 
         // Verify — #1: unified verify for setters too
         stub.verify(called: 1) { $0.count }
-        stub.verify(setting: { $0.name = "test" }).wasCalled()
+        stub.verify { $0.name = "test" }.wasCalled()
         stub.verify { $0.reset() }.wasCalled()
     }
 }

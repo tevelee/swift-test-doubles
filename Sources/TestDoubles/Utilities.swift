@@ -1,5 +1,5 @@
 /// Creates a zero-initialized value of any type.
-func zeroValue<V>(_ type: V.Type) -> V {
+func zeroValue<V>(_ type: V.Type = V.self) -> V {
     let size = MemoryLayout<V>.size
     guard size > 0 else {
         return unsafeBitCast((), to: V.self)

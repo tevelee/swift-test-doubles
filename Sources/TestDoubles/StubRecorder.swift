@@ -16,6 +16,15 @@ public class StubRecorder: @unchecked Sendable {
     var stubs: [Int: [StubEntry]] = [:]
     var names: [Int: String] = [:]
 
+    // ARC flags: tracks which method slots return reference types
+    var refReturnFlags: [Int: Bool] = [:]
+
+    /// Returns true if the method at the given index returns a reference type
+    /// (needs +1 retain when returned as raw bits through ABI-class thunks).
+    public func isRefReturn(_ methodIndex: Int) -> Bool {
+        refReturnFlags[methodIndex] ?? false
+    }
+
     // Call log
     public private(set) var calls: [RecordedCall] = []
 
