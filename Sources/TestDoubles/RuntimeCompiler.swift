@@ -1,0 +1,275 @@
+import Foundation
+import Echo
+
+// ============================================================================
+// Runtime Compiler — generates and compiles mock conforming types at test time
+//
+// Flow:
+// 1. Discover protocol requirements via Echo + dladdr
+// 2. Generate Swift source for a conforming type that dispatches to MockBridge
+// 3. Compile to dylib with swiftc
+// 4. dlopen the result
+// 5. Find the conformance via Echo
+// 6. Return the witness table for use in RuntimeStub
+// ============================================================================
+
+/// Cache of compiled mock dylibs to avoid recompilation.
+nonisolated(unsafe) private var _compiledCache: [String: UnsafeRawPointer] = [:]
+
+public enum RuntimeCompiler {
+
+    /// Compile a mock type for the given protocol and return its witness table pointer.
+    /// Returns nil if compilation fails.
+    static func compileMock(
+        protocolName: String,
+        moduleName: String,
+        signatures: [DiscoveredSignature]
+    ) -> (witnessTable: UnsafeRawPointer, typeMetadata: Any.Type)? {
+        let cacheKey = "\(moduleName).\(protocolName)"
+        if let cached = _compiledCache[cacheKey] {
+            // TODO: return cached type metadata too
+            return nil // caching needs more work
+        }
+
+        let source = generateSource(
+            protocolName: protocolName,
+            moduleName: moduleName,
+            signatures: signatures
+        )
+
+        guard let dylibPath = compile(source: source, key: cacheKey) else {
+            return nil
+        }
+
+        guard dlopen(dylibPath, RTLD_NOW) != nil else {
+            print("[RuntimeCompiler] dlopen failed: \(String(cString: dlerror()))")
+            return nil
+        }
+
+        // TODO: use Echo to find the conformance in the newly loaded dylib
+        // For now, return nil — the infrastructure is in place
+        return nil
+    }
+
+    // MARK: - Source Generation
+
+    static func generateSource(
+        protocolName: String,
+        moduleName: String,
+        signatures: [DiscoveredSignature]
+    ) -> String {
+        var src = """
+        import Foundation
+
+        // Bridge functions resolved from host process via dynamic_lookup
+        @_silgen_name("td_bridge_dispatch_int")
+        func td_bridge_dispatch_int(_ ctx: UnsafeRawPointer, _ method: Int32) -> Int
+
+        @_silgen_name("td_bridge_dispatch_string")
+        func td_bridge_dispatch_string(_ ctx: UnsafeRawPointer, _ method: Int32) -> UnsafePointer<CChar>?
+
+        @_silgen_name("td_bridge_dispatch_s_s")
+        func td_bridge_dispatch_s_s(_ ctx: UnsafeRawPointer, _ method: Int32, _ a: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar>?
+
+        @_silgen_name("td_bridge_dispatch_i_i")
+        func td_bridge_dispatch_i_i(_ ctx: UnsafeRawPointer, _ method: Int32, _ a: Int) -> Int
+
+        @_silgen_name("td_bridge_should_throw")
+        func td_bridge_should_throw(_ ctx: UnsafeRawPointer, _ method: Int32) -> Int
+
+        @_silgen_name("td_bridge_get_error")
+        func td_bridge_get_error() -> NSError
+
+        import \(moduleName)
+
+        public struct _TDMock: \(protocolName) {
+            public let _ctx: UnsafeRawPointer
+            public init(_ctx: UnsafeRawPointer) { self._ctx = _ctx }
+
+
+        """
+
+        let mockableSignatures = signatures.filter { sig in
+            switch sig.kind {
+            case .modifyCoroutine, .readCoroutine, .baseProtocol,
+                 .associatedTypeAccessFunction, .associatedConformanceAccessFunction:
+                return false
+            default:
+                return true
+            }
+        }
+
+        for sig in mockableSignatures {
+            src += generateMethod(sig) + "\n"
+        }
+
+        src += "}\n"
+        return src
+    }
+
+    private static func generateMethod(_ sig: DiscoveredSignature) -> String {
+        let isThrows = sig.methodName.contains("throws") || sig.isThrows
+        let throwsKw = isThrows ? "throws " : ""
+        let slot = sig.slot
+
+        switch sig.kind {
+        case .getter:
+            return generateGetter(name: sig.methodName, ret: sig.ret, slot: slot)
+        case .setter:
+            return generateSetter(name: sig.methodName, argType: sig.args.first ?? "Int", slot: slot)
+        case .method:
+            return generateMethodBody(sig: sig, throwsKw: throwsKw, slot: slot)
+        default:
+            return "    // Unsupported requirement kind: \(sig.kind)"
+        }
+    }
+
+    private static func generateGetter(name: String, ret: String, slot: Int) -> String {
+        switch ret {
+        case "String":
+            return """
+                public var \(name): String {
+                    guard let cStr = td_bridge_dispatch_string(_ctx, \(slot)) else { return "" }
+                    defer { free(UnsafeMutablePointer(mutating: cStr)) }
+                    return String(cString: cStr)
+                }
+            """
+        case "Bool":
+            return """
+                public var \(name): Bool {
+                    td_bridge_dispatch_int(_ctx, \(slot)) != 0
+                }
+            """
+        default:
+            return """
+                public var \(name): \(ret) {
+                    \(ret)(td_bridge_dispatch_int(_ctx, \(slot)))
+                }
+            """
+        }
+    }
+
+    private static func generateSetter(name: String, argType: String, slot: Int) -> String {
+        // Setters are complex — for now generate a no-op
+        return """
+            // TODO: setter for \(name)
+        """
+    }
+
+    private static func generateMethodBody(sig: DiscoveredSignature, throwsKw: String, slot: Int) -> String {
+        let cleanName = sig.methodName.components(separatedBy: "(").first ?? sig.methodName
+        let isThrows = !throwsKw.isEmpty
+
+        // Build parameter list from discovered arg names
+        let params = sig.args.enumerated().map { i, type in
+            "_ arg\(i): \(type)"
+        }.joined(separator: ", ")
+
+        // Throwing preamble: check should_throw before dispatch
+        let throwCheck = isThrows ? """
+                if td_bridge_should_throw(_ctx, \(slot)) != 0 {
+                    throw td_bridge_get_error()
+                }
+        """ : ""
+
+        // Build dispatch call based on signature
+        if sig.args.count == 1 && sig.args[0] == "String" && sig.ret == "String" {
+            return """
+                public func \(cleanName)(\(params)) \(throwsKw)-> String {
+            \(throwCheck)
+                    guard let cStr = td_bridge_dispatch_s_s(_ctx, \(slot), arg0) else { return "" }
+                    defer { free(cStr) }
+                    return String(cString: cStr)
+                }
+            """
+        }
+
+        if sig.args.isEmpty {
+            switch sig.ret {
+            case "String":
+                return """
+                    public func \(cleanName)() \(throwsKw)-> String {
+                \(throwCheck)
+                        guard let cStr = td_bridge_dispatch_string(_ctx, \(slot)) else { return "" }
+                        defer { free(cStr) }
+                        return String(cString: cStr)
+                    }
+                """
+            case "Void":
+                return """
+                    public func \(cleanName)() \(throwsKw){
+                \(throwCheck)
+                        _ = td_bridge_dispatch_int(_ctx, \(slot))
+                    }
+                """
+            default:
+                return """
+                    public func \(cleanName)() \(throwsKw)-> \(sig.ret) {
+                \(throwCheck)
+                        \(sig.ret)(td_bridge_dispatch_int(_ctx, \(slot)))
+                    }
+                """
+            }
+        }
+
+        return """
+            public func \(cleanName)(\(params)) \(throwsKw)-> \(sig.ret) {
+        \(throwCheck)
+                \(sig.ret == "Void" ? "_ = " : "return \(sig.ret)(")td_bridge_dispatch_int(_ctx, \(slot))\(sig.ret == "Void" ? "" : ")")
+            }
+        """
+    }
+
+    // MARK: - Compilation
+
+    private static func compile(source: String, key: String) -> String? {
+        let tmpDir = NSTemporaryDirectory()
+        let hash = abs(key.hashValue)
+        let srcPath = "\(tmpDir)td_mock_\(hash).swift"
+        let dylibPath = "\(tmpDir)td_mock_\(hash).dylib"
+
+        // Check cache
+        if FileManager.default.fileExists(atPath: dylibPath) {
+            return dylibPath
+        }
+
+        try? source.write(toFile: srcPath, atomically: true, encoding: .utf8)
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/swiftc")
+        process.arguments = [
+            "-emit-library",
+            "-module-name", "TDMockGen",
+            "-Xlinker", "-undefined", "-Xlinker", "dynamic_lookup",
+            "-o", dylibPath,
+            srcPath
+        ]
+
+        let pipe = Pipe()
+        process.standardError = pipe
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+
+            if process.terminationStatus != 0 {
+                let stderr = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+                print("[RuntimeCompiler] Compilation failed:\n\(stderr)")
+                return nil
+            }
+
+            return dylibPath
+        } catch {
+            print("[RuntimeCompiler] Process error: \(error)")
+            return nil
+        }
+    }
+}
+
+// Extend DiscoveredSignature to include throws info
+extension DiscoveredSignature {
+    var isThrows: Bool {
+        // Check if the demangled name contained "throws"
+        methodName.contains("throws")
+    }
+}

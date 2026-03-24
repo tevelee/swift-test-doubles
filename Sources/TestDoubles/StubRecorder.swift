@@ -91,6 +91,37 @@ public class StubRecorder: @unchecked Sendable {
         }
     }
 
+    // MARK: - Throwing stubs
+
+    var throwingStubs: [Int: [ThrowingStubEntry]] = [:]
+
+    struct ThrowingStubEntry {
+        let matchers: [ParameterMatcher]
+        let handler: ([Any]) throws -> Any
+    }
+
+    /// Register a stub that throws.
+    func addThrowingStub(method: Int, matchers: [ParameterMatcher], handler: @escaping ([Any]) throws -> Any) {
+        throwingStubs[method, default: []].append(ThrowingStubEntry(matchers: matchers, handler: handler))
+    }
+
+    /// Dispatch a throwing call. Returns nil if no throwing stub is registered.
+    public func dispatchThrowing(method: Int, args: [Any]) -> Result<Any, any Error>? {
+        guard let entries = throwingStubs[method] else { return nil }
+        for entry in entries {
+            if entry.matchers.isEmpty || matchArgs(args, against: entry.matchers) {
+                let name = names[method] ?? "method_\(method)"
+                calls.append(RecordedCall(methodIndex: method, name: name, args: args, matchers: []))
+                do {
+                    return .success(try entry.handler(args))
+                } catch {
+                    return .failure(error)
+                }
+            }
+        }
+        return nil
+    }
+
     // MARK: - Stub registration
 
     func addStub(method: Int, matchers: [ParameterMatcher], returnValue: @escaping ([Any]) -> Any, action: (([Any]) -> Void)? = nil) {

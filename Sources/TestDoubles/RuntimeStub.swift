@@ -337,6 +337,19 @@ public struct StubBuilder<R> {
         return self
     }
 
+    /// Stub that throws an error.
+    /// ```swift
+    /// stub.when { try $0.load(path: "missing") }.throws(NotFoundError())
+    /// ```
+    @discardableResult
+    public func `throws`(_ error: any Error) -> Self {
+        let matchers = recording.matchers.isEmpty
+            ? recording.args.map { DescriptionMatcher(value: $0) }
+            : recording.matchers
+        recorder.addThrowingStub(method: recording.methodIndex, matchers: matchers) { _ in throw error }
+        return self
+    }
+
     /// Dynamic stub — handler receives the actual arguments at call time.
     @discardableResult
     public func answers(_ handler: @escaping ([Any]) -> R) -> Self {

@@ -33,4 +33,12 @@ public enum MockRegistry {
         }
         return recorder
     }
+
+    /// Non-fatal resolve — returns nil if not found (used by bridge functions).
+    @inline(__always)
+    public static func resolveOptional(_ wtPtr: UnsafeRawPointer) -> StubRecorder? {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage[wtPtr]
+    }
 }
