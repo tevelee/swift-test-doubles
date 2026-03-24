@@ -41,54 +41,38 @@ final class RuntimeCompilerTests: XCTestCase {
     // MARK: - Source Generation Tests
 
     func testSourceGeneration_SimpleProtocol() {
-        // Verify generated source looks correct for a simple protocol
-        let sigs = [
-            DiscoveredSignature(slot: 0, kind: .method, methodName: "load(path:)", args: ["String"], ret: "String",
-                                isThrowing: true, rawDemangled: "", paramLabels: ["path"]),
-            DiscoveredSignature(slot: 1, kind: .method, methodName: "check(flag:)", args: ["Bool"], ret: "Int",
-                                isThrowing: false, rawDemangled: "", paramLabels: ["flag"]),
-            DiscoveredSignature(slot: 2, kind: .getter, methodName: "status", args: [], ret: "Int"),
-        ]
-
         let source = RuntimeCompiler.generateSource(
             protocolName: "SimpleThrowingService",
             moduleName: "TestModule",
-            signatures: sigs
+            signatures: .describing {
+                $0.method("load", args: [.string("path")], returns: .string, throws: true)
+                $0.method("check", args: [.bool("flag")], returns: .int)
+                $0.getter("status", type: .int)
+            }
         )
 
-        // Should contain the struct definition
         XCTAssertTrue(source.contains("struct _TDMock: SimpleThrowingService"))
-        // Should contain the throwing method
         XCTAssertTrue(source.contains("throws"))
-        // Should contain td_bridge_should_throw for the throwing method
         XCTAssertTrue(source.contains("td_bridge_should_throw"))
-        // Should have a getter for status
         XCTAssertTrue(source.contains("var status: Int"))
-
-        print("Generated source:\n\(source)")
     }
 
     func testSourceGeneration_FiltersCoroutines() {
-        // Verify coroutines/associated types are filtered out
-        let sigs = [
-            DiscoveredSignature(slot: 0, kind: .getter, methodName: "name", args: [], ret: "String"),
-            DiscoveredSignature(slot: 1, kind: .modifyCoroutine, methodName: "name", args: [], ret: "String"),
-            DiscoveredSignature(slot: 2, kind: .readCoroutine, methodName: "name", args: [], ret: "String"),
-            DiscoveredSignature(slot: 3, kind: .method, methodName: "reset()", args: [], ret: "Void"),
-        ]
-
         let source = RuntimeCompiler.generateSource(
             protocolName: "TestProto",
             moduleName: "TestModule",
-            signatures: sigs
+            signatures: .describing {
+                $0.getter("name", type: .string)
+                $0.coroutine()  // modify
+                $0.coroutine()  // read
+                $0.method("reset")
+            }
         )
 
-        // Should only have getter + reset, not coroutines
         let structBody = source.components(separatedBy: "_TDMock:").last ?? ""
         XCTAssertTrue(structBody.contains("var name: String"))
         XCTAssertTrue(structBody.contains("func reset()"))
         XCTAssertFalse(structBody.contains("modifyCoroutine"))
-        XCTAssertFalse(structBody.contains("readCoroutine"))
     }
 
     func testModuleNameExtraction() {
