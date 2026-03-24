@@ -6,17 +6,17 @@ import Glibc
 #endif
 
 /// Discovered signature for a protocol requirement.
-struct DiscoveredSignature {
-    let slot: Int
-    let kind: ProtocolRequirement.Kind
-    let methodName: String
-    let args: [String]
-    let ret: String
-    let isThrowing: Bool
-    let rawDemangled: String
-    let paramLabels: [String]
+public struct DiscoveredSignature {
+    public let slot: Int
+    public let kind: ProtocolRequirement.Kind
+    public let methodName: String
+    public let args: [String]
+    public let ret: String
+    public let isThrowing: Bool
+    public let rawDemangled: String
+    public let paramLabels: [String]
 
-    init(slot: Int, kind: ProtocolRequirement.Kind, methodName: String, args: [String], ret: String,
+    public init(slot: Int, kind: ProtocolRequirement.Kind = .method, methodName: String, args: [String] = [], ret: String = "Int",
          isThrowing: Bool = false, rawDemangled: String = "", paramLabels: [String] = []) {
         self.slot = slot
         self.kind = kind
