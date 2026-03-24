@@ -154,6 +154,10 @@ private let m1_1v_0: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer)
 private let m1_1v_1: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 1, [a]) }
 private let m1_1v_2: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 2, [a]) }
 private let m1_1v_3: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 3, [a]) }
+private let m1_1v_4: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 4, [a]) }
+private let m1_1v_5: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 5, [a]) }
+private let m1_1v_6: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 6, [a]) }
+private let m1_1v_7: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 7, [a]) }
 
 // --- 1-arg: (W2, ptr, ptr) -> T ---
 
@@ -175,6 +179,10 @@ private let m1_2v_0: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPoint
 private let m1_2v_1: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 1, [a]) }
 private let m1_2v_2: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 2, [a]) }
 private let m1_2v_3: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 3, [a]) }
+private let m1_2v_4: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 4, [a]) }
+private let m1_2v_5: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 5, [a]) }
+private let m1_2v_6: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 6, [a]) }
+private let m1_2v_7: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 7, [a]) }
 
 // --- 2-arg: (W1, W1, ptr, ptr) -> T ---
 
@@ -259,7 +267,7 @@ public enum ThunkLibrary {
         for (i, fn) in [m1_12_0, m1_12_1, m1_12_2, m1_12_3].enumerated() {
             add(.init(args: ["W1"], ret: "W2"), i, cast(fn))
         }
-        for (i, fn) in [m1_1v_0, m1_1v_1, m1_1v_2, m1_1v_3].enumerated() {
+        for (i, fn) in [m1_1v_0, m1_1v_1, m1_1v_2, m1_1v_3, m1_1v_4, m1_1v_5, m1_1v_6, m1_1v_7].enumerated() {
             add(.init(args: ["W1"], ret: "V"), i, cast(fn))
         }
 
@@ -270,7 +278,7 @@ public enum ThunkLibrary {
         for (i, fn) in [m1_22_0, m1_22_1, m1_22_2, m1_22_3, m1_22_4, m1_22_5].enumerated() {
             add(.init(args: ["W2"], ret: "W2"), i, cast(fn))
         }
-        for (i, fn) in [m1_2v_0, m1_2v_1, m1_2v_2, m1_2v_3].enumerated() {
+        for (i, fn) in [m1_2v_0, m1_2v_1, m1_2v_2, m1_2v_3, m1_2v_4, m1_2v_5, m1_2v_6, m1_2v_7].enumerated() {
             add(.init(args: ["W2"], ret: "V"), i, cast(fn))
         }
 
