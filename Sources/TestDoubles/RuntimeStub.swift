@@ -54,14 +54,48 @@ public class RuntimeStub<P> {
             let moduleName = mockableSigs.compactMap { RuntimeCompiler.extractModuleName(from: $0.rawDemangled) }.first
                 ?? "UnknownModule"
 
-            if let _ = RuntimeCompiler.compileMock(
+            if let dylibPath = RuntimeCompiler.compileMock(
                 protocolName: proto.name,
                 moduleName: moduleName,
                 signatures: signatures
             ) {
-                // TODO: use the compiled mock's witness table
-                // For now, fall through to thunk-based approach
-                print("[RuntimeStub] Runtime compilation succeeded for \(proto.name) — using compiled mock")
+                // After dlopen, Echo can find the new conformance.
+                // Search for _TDMock's conformance to the protocol.
+                if let mockConf = Self.findCompiledConformance(protocolName: proto.name) {
+                    let mockWt = mockConf.witnessTablePattern
+                    let totalWords = 1 + proto.numRequirements
+                    let wordSize = MemoryLayout<UnsafeRawPointer>.size
+                    let clonedWT = UnsafeMutableRawPointer.allocate(byteCount: totalWords * wordSize, alignment: wordSize)
+                    clonedWT.copyMemory(from: mockWt.ptr, byteCount: totalWords * wordSize)
+
+                    MockRegistry.register(recorder, for: UnsafeRawPointer(clonedWT))
+
+                    // Set method names from discovered signatures
+                    for sig in mockableSigs {
+                        recorder.setName(sig.methodName, for: sig.slot)
+                    }
+
+                    self.wtAllocation = clonedWT
+
+                    // Build existential using _TDMock's type metadata
+                    let typeDesc = mockConf.contextDescriptor!
+                    let resp: MetadataResponse
+                    if let s = typeDesc as? StructDescriptor { resp = s.accessor(.complete) }
+                    else if let c = typeDesc as? ClassDescriptor { resp = c.accessor(.complete) }
+                    else { fatalError("Unsupported compiled mock descriptor") }
+
+                    var base = AnyExistentialContainer(type: resp.type)
+                    // Store the witness table pointer in the value buffer
+                    // so _TDMock._ctx can find its mock context
+                    withUnsafeMutablePointer(to: &base) { ptr in
+                        UnsafeMutableRawPointer(ptr).storeBytes(of: UnsafeRawPointer(clonedWT), as: UnsafeRawPointer.self)
+                    }
+                    self.containerBytes = ExistentialContainer(
+                        base: base,
+                        witnessTable: WitnessTable(ptr: UnsafeRawPointer(clonedWT))
+                    )
+                    return
+                }
             }
         }
 
@@ -283,6 +317,27 @@ public class RuntimeStub<P> {
     }
 
     // MARK: - Internal helpers
+
+    /// Find a conformance from a dynamically-loaded compiled mock.
+    /// After dlopen, Echo.types and Echo.protocols are refreshed.
+    /// We search for a type named "_TDMock" that conforms to our protocol.
+    private static func findCompiledConformance(protocolName: String) -> ConformanceDescriptor? {
+        // Search registered types for _TDMock
+        for type in Echo.types {
+            if let structDesc = type as? StructDescriptor, structDesc.name == "_TDMock" {
+                // Get type metadata and check conformances
+                let response = structDesc.accessor(.complete)
+                if let structMeta = reflectStruct(response.type) {
+                    for conf in structMeta.conformances {
+                        if conf.protocol.name == protocolName {
+                            return conf
+                        }
+                    }
+                }
+            }
+        }
+        return nil
+    }
 
     private static func findConformance() -> ConformanceDescriptor {
         let meta = reflect(P.self)

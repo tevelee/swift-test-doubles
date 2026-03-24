@@ -228,6 +228,14 @@ public enum RuntimeCompiler {
 
     // MARK: - Compilation
 
+    // MARK: - Compilation
+
+    /// Additional module search paths for the compiler.
+    /// Set this before creating stubs if your protocol is in a custom framework.
+    nonisolated(unsafe) public static var additionalImportPaths: [String] = []
+    nonisolated(unsafe) public static var additionalLibraryPaths: [String] = []
+    nonisolated(unsafe) public static var additionalFrameworkPaths: [String] = []
+
     private static func compile(source: String, key: String) -> String? {
         let tmpDir = NSTemporaryDirectory()
         let hash = abs(key.hashValue)
@@ -241,15 +249,40 @@ public enum RuntimeCompiler {
 
         try? source.write(toFile: srcPath, atomically: true, encoding: .utf8)
 
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/swiftc")
-        process.arguments = [
+        // Find SDK path
+        let sdkPath = Self.findSDKPath()
+
+        // Find swiftc
+        let swiftc = Self.findSwiftc()
+
+        var args = [
             "-emit-library",
             "-module-name", "TDMockGen",
             "-Xlinker", "-undefined", "-Xlinker", "dynamic_lookup",
             "-o", dylibPath,
-            srcPath
         ]
+
+        // SDK
+        if let sdk = sdkPath {
+            args += ["-sdk", sdk]
+        }
+
+        // Import paths: include the build directory for SPM modules
+        for path in additionalImportPaths {
+            args += ["-I", path]
+        }
+        for path in additionalLibraryPaths {
+            args += ["-L", path]
+        }
+        for path in additionalFrameworkPaths {
+            args += ["-F", path]
+        }
+
+        args.append(srcPath)
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: swiftc)
+        process.arguments = args
 
         let pipe = Pipe()
         process.standardError = pipe
@@ -261,6 +294,7 @@ public enum RuntimeCompiler {
             if process.terminationStatus != 0 {
                 let stderr = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
                 print("[RuntimeCompiler] Compilation failed:\n\(stderr)")
+                print("[RuntimeCompiler] Source: \(srcPath)")
                 return nil
             }
 
@@ -269,6 +303,31 @@ public enum RuntimeCompiler {
             print("[RuntimeCompiler] Process error: \(error)")
             return nil
         }
+    }
+
+    private static func findSDKPath() -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+        process.arguments = ["--show-sdk-path"]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        try? process.run()
+        process.waitUntilExit()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func findSwiftc() -> String {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+        process.arguments = ["--find", "swiftc"]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        try? process.run()
+        process.waitUntilExit()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let path = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return path ?? "/usr/bin/swiftc"
     }
 }
 
