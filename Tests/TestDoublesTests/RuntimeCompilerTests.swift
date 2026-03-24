@@ -51,10 +51,31 @@ final class RuntimeCompilerTests: XCTestCase {
             }
         )
 
+        // Clean, generic source — no type-specific dispatch
         XCTAssertTrue(source.contains("struct _TDMock: SimpleThrowingService"))
+        XCTAssertTrue(source.contains("MockBridge.dispatch"))
         XCTAssertTrue(source.contains("throws"))
-        XCTAssertTrue(source.contains("td_bridge_should_throw"))
         XCTAssertTrue(source.contains("var status: Int"))
+        // Should NOT contain type-specific bridge functions
+        XCTAssertFalse(source.contains("td_bridge_dispatch_int"))
+        XCTAssertFalse(source.contains("td_bridge_dispatch_string"))
+    }
+
+    func testSourceGeneration_TypeAgnostic() {
+        // Generated code should work for ANY type without special-casing
+        let source = RuntimeCompiler.generateSource(
+            protocolName: "MyService",
+            moduleName: "MyFramework",
+            signatures: .describing {
+                $0.method("process", args: [.type("input", "CustomStruct")], returns: .custom("CustomResult"))
+                $0.getter("config", type: .custom("AppConfig"))
+            }
+        )
+
+        // Same MockBridge.dispatch for custom types as for Int/String
+        XCTAssertTrue(source.contains("-> CustomResult { MockBridge.dispatch"))
+        XCTAssertTrue(source.contains("var config: AppConfig { MockBridge.dispatch"))
+        XCTAssertTrue(source.contains("import MyFramework"))
     }
 
     func testSourceGeneration_FiltersCoroutines() {
@@ -63,8 +84,8 @@ final class RuntimeCompilerTests: XCTestCase {
             moduleName: "TestModule",
             signatures: .describing {
                 $0.getter("name", type: .string)
-                $0.coroutine()  // modify
-                $0.coroutine()  // read
+                $0.coroutine()
+                $0.coroutine()
                 $0.method("reset")
             }
         )
@@ -72,7 +93,7 @@ final class RuntimeCompilerTests: XCTestCase {
         let structBody = source.components(separatedBy: "_TDMock:").last ?? ""
         XCTAssertTrue(structBody.contains("var name: String"))
         XCTAssertTrue(structBody.contains("func reset()"))
-        XCTAssertFalse(structBody.contains("modifyCoroutine"))
+        XCTAssertFalse(structBody.contains("coroutine"))
     }
 
     func testModuleNameExtraction() {

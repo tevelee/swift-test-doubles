@@ -64,45 +64,9 @@ public enum RuntimeCompiler {
         moduleName: String,
         signatures: [DiscoveredSignature]
     ) -> String {
-        var src = """
-        import Foundation
-        import \(moduleName)
-
-        // Bridge functions are available via TestDoubles module.
-        // If TestDoubles isn't the imported module, declare them:
-        """
-        if moduleName != "TestDoubles" {
-            src += """
-
-        @_silgen_name("td_bridge_dispatch_int")
-        func td_bridge_dispatch_int(_ ctx: UnsafeRawPointer, _ method: Int32) -> Int
-
-        @_silgen_name("td_bridge_dispatch_string")
-        func td_bridge_dispatch_string(_ ctx: UnsafeRawPointer, _ method: Int32) -> UnsafeMutablePointer<CChar>?
-
-        @_silgen_name("td_bridge_dispatch_s_s")
-        func td_bridge_dispatch_s_s(_ ctx: UnsafeRawPointer, _ method: Int32, _ a: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar>?
-
-        @_silgen_name("td_bridge_dispatch_i_i")
-        func td_bridge_dispatch_i_i(_ ctx: UnsafeRawPointer, _ method: Int32, _ a: Int) -> Int
-
-        @_silgen_name("td_bridge_should_throw")
-        func td_bridge_should_throw(_ ctx: UnsafeRawPointer, _ method: Int32) -> Int
-
-        @_silgen_name("td_bridge_get_error")
-        func td_bridge_get_error() -> NSError
-        """
-        }
-
-        src += """
-
-
-        public struct _TDMock: \(protocolName) {
-            public let _ctx: UnsafeRawPointer
-            public init(_ctx: UnsafeRawPointer) { self._ctx = _ctx }
-
-
-        """
+        let imports = moduleName == "TestDoubles"
+            ? "import TestDoubles"
+            : "import TestDoubles\nimport \(moduleName)"
 
         let mockableSignatures = signatures.filter { sig in
             switch sig.kind {
@@ -114,133 +78,54 @@ public enum RuntimeCompiler {
             }
         }
 
-        for sig in mockableSignatures {
-            src += generateMethod(sig) + "\n"
-        }
+        let members = mockableSignatures.map { generateMember($0) }.joined(separator: "\n")
 
-        src += "}\n"
-        return src
-    }
-
-    private static func generateMethod(_ sig: DiscoveredSignature) -> String {
-        let throwsKw = sig.isThrowing ? "throws " : ""
-        let slot = sig.slot
-
-        switch sig.kind {
-        case .getter:
-            return generateGetter(name: sig.methodName, ret: sig.ret, slot: slot)
-        case .setter:
-            return generateSetter(name: sig.methodName, argType: sig.args.first ?? "Int", slot: slot)
-        case .method:
-            return generateMethodBody(sig: sig, throwsKw: throwsKw, slot: slot)
-        default:
-            return "    // Unsupported requirement kind: \(sig.kind)"
-        }
-    }
-
-    private static func generateGetter(name: String, ret: String, slot: Int) -> String {
-        switch ret {
-        case "String":
-            return """
-                    public var \(name): String {
-                        guard let cStr = td_bridge_dispatch_string(_ctx, \(slot)) else { return "" }
-                        defer { free(cStr) }
-                        return String(cString: cStr)
-                    }
-                """
-        case "Bool":
-            return """
-                    public var \(name): Bool {
-                        td_bridge_dispatch_int(_ctx, \(slot)) != 0
-                    }
-                """
-        default:
-            return """
-                    public var \(name): \(ret) {
-                        td_bridge_dispatch_int(_ctx, \(slot))
-                    }
-                """
-        }
-    }
-
-    private static func generateSetter(name: String, argType: String, slot: Int) -> String {
-        // Setters are complex — for now generate a no-op
         return """
-            // TODO: setter for \(name)
+        \(imports)
+
+        public struct _TDMock: \(protocolName) {
+            public let _ctx: UnsafeRawPointer
+            public init(_ctx: UnsafeRawPointer) { self._ctx = _ctx }
+
+        \(members)
+        }
         """
     }
 
-    private static func generateMethodBody(sig: DiscoveredSignature, throwsKw: String, slot: Int) -> String {
-        let cleanName = sig.methodName.components(separatedBy: "(").first ?? sig.methodName
-        let isThrows = !throwsKw.isEmpty
+    private static func generateMember(_ sig: DiscoveredSignature) -> String {
+        switch sig.kind {
+        case .getter:
+            let ret: String = sig.ret
+            return "    public var \(sig.methodName): \(ret) { MockBridge.dispatch(_ctx, slot: \(sig.slot)) }"
+        case .setter:
+            return "    // setter for \(sig.methodName) — handled by modify coroutine"
+        case .method:
+            return generateMethod(sig)
+        default:
+            return "    // unsupported: \(sig.kind)"
+        }
+    }
 
-        // Build parameter list using discovered labels
+    private static func generateMethod(_ sig: DiscoveredSignature) -> String {
+        let name = sig.methodName.components(separatedBy: "(").first ?? sig.methodName
+        let throwsKw = sig.isThrowing ? "throws " : ""
+        let bridgePrefix = sig.isThrowing ? "try MockBridge.throwingDispatch" : "MockBridge.dispatch"
+        let bridgeVoidPrefix = sig.isThrowing ? "try MockBridge.throwingDispatchVoid" : "MockBridge.dispatchVoid"
+
         let params = sig.args.enumerated().map { i, type in
             let label = i < sig.paramLabels.count ? sig.paramLabels[i] : "_"
             return "\(label) arg\(i): \(type)"
         }.joined(separator: ", ")
 
-        // Throwing preamble: check should_throw before dispatch
-        let throwCheck = isThrows ? """
-                if td_bridge_should_throw(_ctx, \(slot)) != 0 {
-                    throw td_bridge_get_error()
-                }
-        """ : ""
+        let argList = sig.args.isEmpty ? "" : sig.args.enumerated()
+            .map { "arg\($0.offset)" }.joined(separator: ", ")
+        let argsExpr = sig.args.isEmpty ? "[]" : "[\(argList)]"
 
-        // Build dispatch call based on signature
-        if sig.args.count == 1 && sig.args[0] == "String" && sig.ret == "String" {
-            return """
-                public func \(cleanName)(\(params)) \(throwsKw)-> String {
-            \(throwCheck)
-                    guard let cStr = td_bridge_dispatch_s_s(_ctx, \(slot), arg0) else { return "" }
-                    defer { free(cStr) }
-                    return String(cString: cStr)
-                }
-            """
+        if sig.ret == "Void" {
+            return "    public func \(name)(\(params)) \(throwsKw){ \(bridgeVoidPrefix)(_ctx, slot: \(sig.slot), args: \(argsExpr)) }"
         }
 
-        if sig.args.isEmpty {
-            switch sig.ret {
-            case "String":
-                return """
-                    public func \(cleanName)() \(throwsKw)-> String {
-                \(throwCheck)
-                        guard let cStr = td_bridge_dispatch_string(_ctx, \(slot)) else { return "" }
-                        defer { free(cStr) }
-                        return String(cString: cStr)
-                    }
-                """
-            case "Void":
-                return """
-                    public func \(cleanName)() \(throwsKw){
-                \(throwCheck)
-                        _ = td_bridge_dispatch_int(_ctx, \(slot))
-                    }
-                """
-            default:
-                return """
-                    public func \(cleanName)() \(throwsKw)-> \(sig.ret) {
-                \(throwCheck)
-                        \(sig.ret)(td_bridge_dispatch_int(_ctx, \(slot)))
-                    }
-                """
-            }
-        }
-
-        let retExpr: String
-        switch sig.ret {
-        case "Bool": retExpr = "return td_bridge_dispatch_int(_ctx, \(slot)) != 0"
-        case "Void": retExpr = "_ = td_bridge_dispatch_int(_ctx, \(slot))"
-        case "Int": retExpr = "return td_bridge_dispatch_int(_ctx, \(slot))"
-        default: retExpr = "return td_bridge_dispatch_int(_ctx, \(slot))"
-        }
-
-        return """
-            public func \(cleanName)(\(params)) \(throwsKw)-> \(sig.ret) {
-        \(throwCheck)
-                \(retExpr)
-            }
-        """
+        return "    public func \(name)(\(params)) \(throwsKw)-> \(sig.ret) { \(bridgePrefix)(_ctx, slot: \(sig.slot), args: \(argsExpr)) }"
     }
 
     // MARK: - Compilation
