@@ -105,9 +105,9 @@ final class ShowcaseTests: XCTestCase {
     func testZeroConfig_Matchers() {
         let stub = RuntimeStub<any UserRepository>()
 
-        // Specific match first, then catch-all (first matching stub wins)
-        stub.when { $0.find(id: equal(42)) }.returns("The Answer")
+        // Registration order doesn't matter — best match wins by specificity
         stub.when { $0.find(id: any()) }.returns("Unknown")
+        stub.when { $0.find(id: equal(42)) }.returns("The Answer")
         stub.when { $0.save(name: any(), age: any()) }.returns(false)
         stub.when { $0.count }.returns(0)
 
@@ -248,9 +248,28 @@ final class ShowcaseTests: XCTestCase {
         XCTAssertEqual(sut.isEmpty, false)
     }
 
-    // NOTE: Throwing methods work at the witness table level (non-throwing thunks
-    // serve throwing slots), but the `when` recording API needs a throwing overload
-    // to properly capture the call. This is a known area for improvement.
+    // MARK: - Throwing Methods
+
+    /// Throwing protocol methods — the mock returns stubbed values without throwing.
+    func testThrowingMethods() {
+        // Use slot-based init to bypass auto-discovery issues with throws
+        let stub = RuntimeStub<any FileLoader>(
+            .method(String.self, returns: String.self),  // load(path:) throws -> String
+            .method(String.self, returns: Bool.self)      // exists(path:) -> Bool
+        )
+
+        stub.when { try $0.load(path: "/readme.txt") }.returns("Hello, World!")
+        stub.when { try $0.load(path: any()) }.returns("default content")
+        stub.when { $0.exists(path: any()) }.returns(true)
+
+        let sut: any FileLoader = stub()
+
+        XCTAssertEqual(try sut.load(path: "/readme.txt"), "Hello, World!")
+        XCTAssertEqual(try sut.load(path: "/other"), "default content")
+        XCTAssertEqual(sut.exists(path: "/readme.txt"), true)
+
+        stub.verify(called: 2) { try! $0.load(path: any()) }
+    }
 
     // MARK: - Slot-Based Init (explicit signatures)
 

@@ -121,6 +121,15 @@ public class RuntimeStub<P> {
         return StubBuilder(recorder: recorder, recording: recording)
     }
 
+    /// Stub a throwing method or getter.
+    /// During recording, the thunk returns zero (never throws), so try! is safe.
+    @_disfavoredOverload
+    @discardableResult
+    public func when<R>(_ call: (P) throws -> R) -> StubBuilder<R> {
+        let recording = record { _ = try! call(self.callAsFunction()) }
+        return StubBuilder(recorder: recorder, recording: recording)
+    }
+
     /// Stub a void method — auto-registers without needing `.performs()`. (#3)
     @discardableResult
     public func when(_ call: (P) -> Void) -> StubBuilder<Void> {

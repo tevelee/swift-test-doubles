@@ -1,10 +1,20 @@
+import Foundation
+
 /// Thread-local matcher stack used by free-function matchers.
 /// Populated by `any()`, `equal()`, `match()` and consumed by `RuntimeStub.when`.
 ///
-/// Note: `_matcherStack` is designed for single-threaded test execution.
-/// The record/consume cycle within `RuntimeStub.when` is not synchronized;
-/// concurrent calls from multiple threads would corrupt the stack.
-nonisolated(unsafe) var _matcherStack: [ParameterMatcher] = []
+/// Uses `Thread.current.threadDictionary` for thread safety — safe for
+/// XCTest parallel execution in Xcode 16+.
+private let matcherStackKey = "_TestDoubles_matcherStack"
+
+var _matcherStack: [ParameterMatcher] {
+    get {
+        Thread.current.threadDictionary[matcherStackKey] as? [ParameterMatcher] ?? []
+    }
+    set {
+        Thread.current.threadDictionary[matcherStackKey] = newValue
+    }
+}
 
 /// Matches any value.
 public func any<T>(_ type: T.Type = T.self) -> T {

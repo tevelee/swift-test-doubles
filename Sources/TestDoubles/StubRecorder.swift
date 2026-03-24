@@ -69,14 +69,25 @@ public class StubRecorder: @unchecked Sendable {
             guard let entries = stubs[method] else {
                 fatalError("No stub configured for '\(name)' (index \(method))")
             }
+            // Best-match: prefer entries with the most specific matchers.
+            // Specificity = number of non-any matchers. Higher is better.
+            var bestEntry: StubEntry?
+            var bestSpecificity = -1
             for entry in entries {
                 if entry.matchers.isEmpty || matchArgs(args, against: entry.matchers) {
-                    calls.append(RecordedCall(methodIndex: method, name: name, args: args, matchers: []))
-                    entry.action?(args)
-                    return entry.returnValue(args)
+                    let specificity = entry.matchers.reduce(0) { $0 + ($1 is AnyMatcher ? 0 : 1) }
+                    if specificity > bestSpecificity {
+                        bestSpecificity = specificity
+                        bestEntry = entry
+                    }
                 }
             }
-            fatalError("No matching stub for '\(name)' with args \(args)")
+            guard let entry = bestEntry else {
+                fatalError("No matching stub for '\(name)' with args \(args)")
+            }
+            calls.append(RecordedCall(methodIndex: method, name: name, args: args, matchers: []))
+            entry.action?(args)
+            return entry.returnValue(args)
         }
     }
 
