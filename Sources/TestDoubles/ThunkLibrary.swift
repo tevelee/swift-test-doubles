@@ -27,6 +27,7 @@ public struct MethodSignature: Hashable, Sendable {
 }
 private func argABI(_ typeName: String) -> String {
     switch typeName {
+    case "W1", "W2": return typeName  // already ABI class (from Slot.from())
     case "String": return "W2"
     default: return "W1"
     }
@@ -34,6 +35,7 @@ private func argABI(_ typeName: String) -> String {
 
 private func retABI(_ typeName: String) -> String {
     switch typeName {
+    case "W1", "W2", "V": return typeName  // already ABI class
     case "Void": return "V"
     case "String": return "W2"
     default: return "W1"
@@ -45,8 +47,13 @@ func isReferenceReturn(_ typeName: String) -> Bool {
     switch typeName {
     case "Int", "Bool", "Double", "Float", "String", "Void",
          "UInt", "Int8", "Int16", "Int32", "Int64",
-         "UInt8", "UInt16", "UInt32", "UInt64":
+         "UInt8", "UInt16", "UInt32", "UInt64",
+         "V", "W2":  // ABI classes: V=Void (no retain), W2=String (handled by d2)
         return false
+    case "W1":
+        // W1 from Slot.from() — we don't know the concrete type.
+        // Conservative: assume reference. Over-retaining leaks but doesn't crash.
+        return true
     default:
         return true
     }

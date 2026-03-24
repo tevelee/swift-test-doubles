@@ -72,6 +72,7 @@ public class RuntimeStub<P> {
         let methods = slots.enumerated().map { (i, slot) in
             MethodDescriptor(name: "slot_\(i)", signature: slot.signature, index: i)
         }
+
         let (clonedWT, _) = Self.patchWitnessTable(from: conformance, methods: methods, recorder: recorder)
         self.wtAllocation = clonedWT
         self.containerBytes = Self.buildExistentialContainer(from: conformance, witnessTable: clonedWT)
