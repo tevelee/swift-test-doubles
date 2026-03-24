@@ -248,18 +248,72 @@ final class ShowcaseTests: XCTestCase {
         XCTAssertEqual(sut.isEmpty, false)
     }
 
-    // NOTE: Throwing methods work at the ABI level (validated in echo-spike),
-    // but the slot-based init needs the coroutine-skipping fix to work reliably.
-    // The throwing `when` overload is available for zero-config stubs.
+    // MARK: - Throwing Methods
+
+    /// Throwing methods with slot-based init.
+    func testThrowingMethods() {
+        let real: any FileLoader = RealFileLoader()
+
+        let stub = RuntimeStub<any FileLoader>(
+            .from(real.load),     // (String) throws -> String
+            .from(real.exists)    // (String) -> Bool
+        )
+
+        stub.when { try $0.load(path: any()) }.returns("content")
+        stub.when { $0.exists(path: any()) }.returns(true)
+
+        let sut: any FileLoader = stub()
+
+        XCTAssertEqual(try sut.load(path: "/test"), "content")
+        XCTAssertEqual(sut.exists(path: "/test"), true)
+    }
+
+    /// Slot-based init with type-based API.
+    func testSlotBasedInit() {
+        let stub = RuntimeStub<any UserRepository>(
+            .method(Int.self, returns: String.self),
+            .method(String.self, returns: Int.self),
+            .method(String.self, Int.self, returns: Bool.self),
+            .getter(Int.self)
+        )
+
+        stub.when { $0.find(id: 1) }.returns("Manual")
+        stub.when { $0.count }.returns(7)
+
+        let sut: any UserRepository = stub()
+
+        XCTAssertEqual(sut.find(id: 1), "Manual")
+        XCTAssertEqual(sut.count, 7)
+    }
 
     // MARK: - Slot-Based Init (explicit signatures)
 
     /// When zero-config isn't available, provide slot signatures manually.
     // MARK: - Type-Safe Method References
-    // NOTE: Slot-based init currently requires knowing the EXACT requirement count
-    // including coroutines. The .from() API computes correct ABI signatures from
-    // method references but the init needs work to auto-skip coroutine slots.
-    // For now, use zero-config init() which handles this automatically.
+
+    /// Use method references for type-safe slot signatures.
+    func testTypedMethodReferences() {
+        let real: any UserRepository = RealUserRepository()
+
+        let stub = RuntimeStub<any UserRepository>(
+            .from(real.find),     // (Int) -> String
+            .from(real.search),   // (String) -> [String]
+            .from(real.save),     // (String, Int) -> Bool
+            .getter(real.count)   // Int
+        )
+
+        stub.when { $0.find(id: any()) }.returns("TypeSafe")
+        stub.when { $0.search(query: any()) }.returns(["found"])
+        stub.when { $0.save(name: any(), age: any()) }.returns(true)
+        stub.when { $0.count }.returns(42)
+
+        let sut: any UserRepository = stub()
+
+        XCTAssertEqual(sut.find(id: 1), "TypeSafe")
+        XCTAssertEqual(sut.search(query: "x"), ["found"])
+        XCTAssertEqual(sut.save(name: "a", age: 1), true)
+        XCTAssertEqual(sut.count, 42)
+    }
 
     // MARK: - Side Effects
 

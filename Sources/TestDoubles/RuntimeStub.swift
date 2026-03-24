@@ -65,15 +65,35 @@ public class RuntimeStub<P> {
     public init(_ slots: Slot...) {
         let conformance = Self.findConformance()
         let proto = conformance.protocol
-        precondition(slots.count == proto.numRequirements,
-            "Expected \(proto.numRequirements) slots for '\(proto.name)', got \(slots.count)")
+
+        // Find the requirement indices that are actually mockable
+        // (skip coroutines, associated types, base protocol conformances)
+        let mockableIndices = proto.requirements.enumerated().compactMap { i, req -> Int? in
+            switch req.flags.kind {
+            case .modifyCoroutine, .readCoroutine, .baseProtocol,
+                 .associatedTypeAccessFunction, .associatedConformanceAccessFunction:
+                return nil
+            default:
+                return i
+            }
+        }
+
+        precondition(slots.count == mockableIndices.count,
+            "Expected \(mockableIndices.count) slots for '\(proto.name)', got \(slots.count)")
 
         self.recorder = StubRecorder()
-        let methods = slots.enumerated().map { (i, slot) in
-            MethodDescriptor(name: "slot_\(i)", signature: slot.signature, index: i)
+        let methods = zip(slots, mockableIndices).enumerated().map { userIdx, pair in
+            MethodDescriptor(name: "slot_\(userIdx)", signature: pair.0.signature, index: pair.1)
         }
 
         let (clonedWT, _) = Self.patchWitnessTable(from: conformance, methods: methods, recorder: recorder)
+
+        // For slot-based init, disable retain (keepAlive handles ARC instead).
+        // The string heuristic isReferenceReturn("W1") incorrectly retains value types.
+        for reqIdx in mockableIndices {
+            recorder.refReturnFlags[reqIdx] = false
+        }
+
         self.wtAllocation = clonedWT
         self.containerBytes = Self.buildExistentialContainer(from: conformance, witnessTable: clonedWT)
     }

@@ -63,12 +63,21 @@ func isReferenceReturn(_ typeName: String) -> Bool {
 @inline(__always)
 private func rec(_ w: UnsafeRawPointer) -> StubRecorder { MockRegistry.resolve(w) }
 
-/// W1 dispatch: 8-byte return. Auto-retains if the slot returns a reference type.
+/// Keeps dispatch results alive to prevent ARC from releasing reference-counted
+/// values (Array, class refs) before the caller receives the raw bits.
+/// Cleared periodically to avoid unbounded growth.
+nonisolated(unsafe) private var _keepAlive: [Any] = []
+
+/// W1 dispatch: 8-byte return.
+/// Uses isRefReturn flag (from auto-discovery or slot metadata) to retain
+/// reference types. Falls back to keepAlive for unknown cases.
 @inline(__always)
 private func d1(_ w: UnsafeRawPointer, _ m: Int, _ a: [Any]) -> Int {
     let r = rec(w)
     let result = r.dispatch(method: m, args: a)
     if r.mode != .normal { return 0 }
+    _keepAlive.append(result)
+    if _keepAlive.count > 64 { _keepAlive.removeFirst(32) } // prevent unbounded growth
     let word = withUnsafePointer(to: result) { UnsafeRawPointer($0).load(as: Int.self) }
     if r.isRefReturn(m), let rawPtr = UnsafeRawPointer(bitPattern: word) {
         _ = Unmanaged<AnyObject>.fromOpaque(rawPtr).retain()

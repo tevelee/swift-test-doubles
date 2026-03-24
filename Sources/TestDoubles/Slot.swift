@@ -49,39 +49,31 @@ public struct MethodDescriptor: Sendable {
 /// ```
 public struct Slot {
     public let signature: MethodSignature
+    public let isRefReturn: Bool
 
     // MARK: - From method references (type-safe, MemoryLayout-based)
 
     /// Create a slot from a no-arg method reference.
-    /// ```swift
-    /// .from(sut.items)         // () -> [Int]
-    /// ```
     public static func from<R>(_ ref: () -> R) -> Slot {
-        Slot(signature: .init(args: [], ret: abiFromSize(MemoryLayout<R>.size)))
+        Slot(signature: .init(args: [], ret: abiFromSize(MemoryLayout<R>.size)), isRefReturn: R.self is AnyClass)
     }
 
     /// Create a slot from a no-arg throwing method reference.
     public static func from<R>(_ ref: () throws -> R) -> Slot {
-        Slot(signature: .init(args: [], ret: abiFromSize(MemoryLayout<R>.size)))
+        Slot(signature: .init(args: [], ret: abiFromSize(MemoryLayout<R>.size)), isRefReturn: R.self is AnyClass)
     }
 
     /// Create a slot from a getter value (e.g. `sut.count` which is `Int`).
-    /// ```swift
-    /// .getter(sut.count)       // Int getter
-    /// ```
     public static func getter<R>(_ ref: R) -> Slot {
-        Slot(signature: .init(args: [], ret: abiFromSize(MemoryLayout<R>.size)))
+        Slot(signature: .init(args: [], ret: abiFromSize(MemoryLayout<R>.size)), isRefReturn: R.self is AnyClass)
     }
 
     /// Create a slot from a 1-arg method reference.
-    /// ```swift
-    /// .from(sut.find)          // (Int) -> String
-    /// ```
     public static func from<A, R>(_ ref: (A) -> R) -> Slot {
         Slot(signature: .init(
             args: [abiFromSize(MemoryLayout<A>.size)],
             ret: abiFromSize(MemoryLayout<R>.size)
-        ))
+        ), isRefReturn: R.self is AnyClass)
     }
 
     /// Create a slot from a 1-arg throwing method reference.
@@ -89,18 +81,15 @@ public struct Slot {
         Slot(signature: .init(
             args: [abiFromSize(MemoryLayout<A>.size)],
             ret: abiFromSize(MemoryLayout<R>.size)
-        ))
+        ), isRefReturn: R.self is AnyClass)
     }
 
     /// Create a slot from a 2-arg method reference.
-    /// ```swift
-    /// .from(sut.save)          // (String, Int) -> Bool
-    /// ```
     public static func from<A, B, R>(_ ref: (A, B) -> R) -> Slot {
         Slot(signature: .init(
             args: [abiFromSize(MemoryLayout<A>.size), abiFromSize(MemoryLayout<B>.size)],
             ret: abiFromSize(MemoryLayout<R>.size)
-        ))
+        ), isRefReturn: R.self is AnyClass)
     }
 
     /// Create a slot from a 2-arg throwing method reference.
@@ -108,7 +97,7 @@ public struct Slot {
         Slot(signature: .init(
             args: [abiFromSize(MemoryLayout<A>.size), abiFromSize(MemoryLayout<B>.size)],
             ret: abiFromSize(MemoryLayout<R>.size)
-        ))
+        ), isRefReturn: R.self is AnyClass)
     }
 
     /// Create a slot from a 3-arg method reference.
@@ -116,62 +105,59 @@ public struct Slot {
         Slot(signature: .init(
             args: [abiFromSize(MemoryLayout<A>.size), abiFromSize(MemoryLayout<B>.size), abiFromSize(MemoryLayout<C>.size)],
             ret: abiFromSize(MemoryLayout<R>.size)
-        ))
+        ), isRefReturn: R.self is AnyClass)
     }
 
     /// Create a slot from a void method reference (1 arg).
     public static func from<A>(_ ref: (A) -> Void) -> Slot {
-        Slot(signature: .init(
-            args: [abiFromSize(MemoryLayout<A>.size)],
-            ret: "V"
-        ))
+        Slot(signature: .init(args: [abiFromSize(MemoryLayout<A>.size)], ret: "V"), isRefReturn: false)
     }
 
     /// Create a slot from a no-arg void method reference.
     public static func from(_ ref: () -> Void) -> Slot {
-        Slot(signature: .init(args: [], ret: "V"))
+        Slot(signature: .init(args: [], ret: "V"), isRefReturn: false)
     }
 
     // MARK: - Type-based (existing API, kept for compatibility)
 
     /// A property getter returning `T`.
     public static func getter(_ type: Any.Type) -> Slot {
-        Slot(signature: .getter(abiFromType(type)))
+        Slot(signature: .getter(abiFromType(type)), isRefReturn: false)
     }
 
     /// A method with 1 argument.
     public static func method(_ a: Any.Type, returns: Any.Type) -> Slot {
-        Slot(signature: .init(args: [abiFromType(a)], ret: abiFromType(returns)))
+        Slot(signature: .init(args: [abiFromType(a)], ret: abiFromType(returns)), isRefReturn: false)
     }
 
     /// A method with 2 arguments.
     public static func method(_ a: Any.Type, _ b: Any.Type, returns: Any.Type) -> Slot {
-        Slot(signature: .init(args: [abiFromType(a), abiFromType(b)], ret: abiFromType(returns)))
+        Slot(signature: .init(args: [abiFromType(a), abiFromType(b)], ret: abiFromType(returns)), isRefReturn: false)
     }
 
     /// A method with 3 arguments.
     public static func method(_ a: Any.Type, _ b: Any.Type, _ c: Any.Type, returns: Any.Type) -> Slot {
-        Slot(signature: .init(args: [abiFromType(a), abiFromType(b), abiFromType(c)], ret: abiFromType(returns)))
+        Slot(signature: .init(args: [abiFromType(a), abiFromType(b), abiFromType(c)], ret: abiFromType(returns)), isRefReturn: false)
     }
 
     /// A void method with 1 argument.
     public static func method(_ a: Any.Type) -> Slot {
-        Slot(signature: .init(args: [abiFromType(a)], ret: "V"))
+        Slot(signature: .init(args: [abiFromType(a)], ret: "V"), isRefReturn: false)
     }
 
     /// A void method with 2 arguments.
     public static func method(_ a: Any.Type, _ b: Any.Type) -> Slot {
-        Slot(signature: .init(args: [abiFromType(a), abiFromType(b)], ret: "V"))
+        Slot(signature: .init(args: [abiFromType(a), abiFromType(b)], ret: "V"), isRefReturn: false)
     }
 
     /// A no-arg method with return value.
     public static func method(returns: Any.Type) -> Slot {
-        Slot(signature: .init(args: [], ret: abiFromType(returns)))
+        Slot(signature: .init(args: [], ret: abiFromType(returns)), isRefReturn: false)
     }
 
     /// A no-arg void method.
     public static var void: Slot {
-        Slot(signature: .getter("V"))
+        Slot(signature: .getter("V"), isRefReturn: false)
     }
 }
 
