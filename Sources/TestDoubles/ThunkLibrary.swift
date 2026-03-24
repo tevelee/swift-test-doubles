@@ -5,7 +5,9 @@
 // W2 = 16-byte (String)
 // V  = Void
 //
-// Thunks: 336 total across 0-3 arg arities.
+// Thunks: 520 total across 0-3 arg arities.
+
+import Foundation
 
 /// Describes a method signature for thunk lookup.
 public struct MethodSignature: Hashable, Sendable {
@@ -27,17 +29,19 @@ public struct MethodSignature: Hashable, Sendable {
 }
 private func argABI(_ typeName: String) -> String {
     switch typeName {
-    case "W1", "W2": return typeName  // already ABI class (from Slot.from())
+    case "W1", "W2", "FX": return typeName
     case "String": return "W2"
+    case "Double", "Float": return "FX"
     default: return "W1"
     }
 }
 
 private func retABI(_ typeName: String) -> String {
     switch typeName {
-    case "W1", "W2", "V": return typeName  // already ABI class
+    case "W1", "W2", "FX", "V": return typeName
     case "Void": return "V"
     case "String": return "W2"
+    case "Double", "Float": return "FX"
     default: return "W1"
     }
 }
@@ -48,12 +52,8 @@ func isReferenceReturn(_ typeName: String) -> Bool {
     case "Int", "Bool", "Double", "Float", "String", "Void",
          "UInt", "Int8", "Int16", "Int32", "Int64",
          "UInt8", "UInt16", "UInt32", "UInt64",
-         "V", "W2":  // ABI classes: V=Void (no retain), W2=String (handled by d2)
+         "V", "W2", "FX":
         return false
-    case "W1":
-        // W1 from Slot.from() — we don't know the concrete type.
-        // Conservative: assume reference. Over-retaining leaks but doesn't crash.
-        return true
     default:
         return true
     }
@@ -63,26 +63,34 @@ func isReferenceReturn(_ typeName: String) -> Bool {
 @inline(__always)
 private func rec(_ w: UnsafeRawPointer) -> StubRecorder { MockRegistry.resolve(w) }
 
-/// Keeps dispatch results alive to prevent ARC from releasing reference-counted
-/// values (Array, class refs) before the caller receives the raw bits.
-/// Cleared periodically to avoid unbounded growth.
+/// Keepalive buffer — prevents ARC release of reference-counted values.
 nonisolated(unsafe) private var _keepAlive: [Any] = []
+private func keepAlive(_ value: Any) {
+    _keepAlive.append(value)
+    if _keepAlive.count > 64 { _keepAlive.removeFirst(32) }
+}
 
-/// W1 dispatch: 8-byte return.
-/// Uses isRefReturn flag (from auto-discovery or slot metadata) to retain
-/// reference types. Falls back to keepAlive for unknown cases.
+/// W1 dispatch: 8-byte integer-register return.
 @inline(__always)
 private func d1(_ w: UnsafeRawPointer, _ m: Int, _ a: [Any]) -> Int {
     let r = rec(w)
     let result = r.dispatch(method: m, args: a)
     if r.mode != .normal { return 0 }
-    _keepAlive.append(result)
-    if _keepAlive.count > 64 { _keepAlive.removeFirst(32) } // prevent unbounded growth
+    keepAlive(result)
     let word = withUnsafePointer(to: result) { UnsafeRawPointer($0).load(as: Int.self) }
     if r.isRefReturn(m), let rawPtr = UnsafeRawPointer(bitPattern: word) {
         _ = Unmanaged<AnyObject>.fromOpaque(rawPtr).retain()
     }
     return word
+}
+
+/// FX dispatch: 8-byte SIMD-register return (Double, Float).
+@inline(__always)
+private func df(_ w: UnsafeRawPointer, _ m: Int, _ a: [Any]) -> Double {
+    let r = rec(w)
+    let result = r.dispatch(method: m, args: a)
+    if r.mode != .normal { return 0.0 }
+    return withUnsafePointer(to: result) { UnsafeRawPointer($0).load(as: Double.self) }
 }
 
 /// W2 dispatch: String return.
@@ -118,6 +126,23 @@ private let g_w1_12: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> I
 private let g_w1_13: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Int = { _, w in d1(w, 13, []) }
 private let g_w1_14: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Int = { _, w in d1(w, 14, []) }
 private let g_w1_15: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Int = { _, w in d1(w, 15, []) }
+
+private let g_fx_0: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Double = { _, w in df(w, 0, []) }
+private let g_fx_1: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Double = { _, w in df(w, 1, []) }
+private let g_fx_2: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Double = { _, w in df(w, 2, []) }
+private let g_fx_3: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Double = { _, w in df(w, 3, []) }
+private let g_fx_4: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Double = { _, w in df(w, 4, []) }
+private let g_fx_5: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Double = { _, w in df(w, 5, []) }
+private let g_fx_6: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Double = { _, w in df(w, 6, []) }
+private let g_fx_7: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Double = { _, w in df(w, 7, []) }
+private let g_fx_8: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Double = { _, w in df(w, 8, []) }
+private let g_fx_9: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Double = { _, w in df(w, 9, []) }
+private let g_fx_10: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Double = { _, w in df(w, 10, []) }
+private let g_fx_11: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Double = { _, w in df(w, 11, []) }
+private let g_fx_12: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Double = { _, w in df(w, 12, []) }
+private let g_fx_13: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Double = { _, w in df(w, 13, []) }
+private let g_fx_14: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Double = { _, w in df(w, 14, []) }
+private let g_fx_15: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Double = { _, w in df(w, 15, []) }
 
 private let g_w2_0: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> String = { _, w in d2(w, 0, []) }
 private let g_w2_1: @convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> String = { _, w in d2(w, 1, []) }
@@ -163,14 +188,15 @@ private let m1_w1w1_4: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointe
 private let m1_w1w1_5: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 5, [a]) }
 private let m1_w1w1_6: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 6, [a]) }
 private let m1_w1w1_7: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 7, [a]) }
-private let m1_w1w1_8: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 8, [a]) }
-private let m1_w1w1_9: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 9, [a]) }
-private let m1_w1w1_10: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 10, [a]) }
-private let m1_w1w1_11: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 11, [a]) }
-private let m1_w1w1_12: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 12, [a]) }
-private let m1_w1w1_13: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 13, [a]) }
-private let m1_w1w1_14: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 14, [a]) }
-private let m1_w1w1_15: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 15, [a]) }
+
+private let m1_w1fx_0: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 0, [a]) }
+private let m1_w1fx_1: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 1, [a]) }
+private let m1_w1fx_2: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 2, [a]) }
+private let m1_w1fx_3: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 3, [a]) }
+private let m1_w1fx_4: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 4, [a]) }
+private let m1_w1fx_5: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 5, [a]) }
+private let m1_w1fx_6: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 6, [a]) }
+private let m1_w1fx_7: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 7, [a]) }
 
 private let m1_w1w2_0: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 0, [a]) }
 private let m1_w1w2_1: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 1, [a]) }
@@ -180,14 +206,6 @@ private let m1_w1w2_4: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointe
 private let m1_w1w2_5: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 5, [a]) }
 private let m1_w1w2_6: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 6, [a]) }
 private let m1_w1w2_7: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 7, [a]) }
-private let m1_w1w2_8: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 8, [a]) }
-private let m1_w1w2_9: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 9, [a]) }
-private let m1_w1w2_10: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 10, [a]) }
-private let m1_w1w2_11: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 11, [a]) }
-private let m1_w1w2_12: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 12, [a]) }
-private let m1_w1w2_13: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 13, [a]) }
-private let m1_w1w2_14: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 14, [a]) }
-private let m1_w1w2_15: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 15, [a]) }
 
 private let m1_w1v_0: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 0, [a]) }
 private let m1_w1v_1: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 1, [a]) }
@@ -197,14 +215,42 @@ private let m1_w1v_4: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer
 private let m1_w1v_5: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 5, [a]) }
 private let m1_w1v_6: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 6, [a]) }
 private let m1_w1v_7: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 7, [a]) }
-private let m1_w1v_8: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 8, [a]) }
-private let m1_w1v_9: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 9, [a]) }
-private let m1_w1v_10: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 10, [a]) }
-private let m1_w1v_11: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 11, [a]) }
-private let m1_w1v_12: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 12, [a]) }
-private let m1_w1v_13: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 13, [a]) }
-private let m1_w1v_14: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 14, [a]) }
-private let m1_w1v_15: @convention(thin) (Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 15, [a]) }
+
+private let m1_fxw1_0: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 0, [a]) }
+private let m1_fxw1_1: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 1, [a]) }
+private let m1_fxw1_2: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 2, [a]) }
+private let m1_fxw1_3: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 3, [a]) }
+private let m1_fxw1_4: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 4, [a]) }
+private let m1_fxw1_5: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 5, [a]) }
+private let m1_fxw1_6: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 6, [a]) }
+private let m1_fxw1_7: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 7, [a]) }
+
+private let m1_fxfx_0: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 0, [a]) }
+private let m1_fxfx_1: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 1, [a]) }
+private let m1_fxfx_2: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 2, [a]) }
+private let m1_fxfx_3: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 3, [a]) }
+private let m1_fxfx_4: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 4, [a]) }
+private let m1_fxfx_5: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 5, [a]) }
+private let m1_fxfx_6: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 6, [a]) }
+private let m1_fxfx_7: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 7, [a]) }
+
+private let m1_fxw2_0: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 0, [a]) }
+private let m1_fxw2_1: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 1, [a]) }
+private let m1_fxw2_2: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 2, [a]) }
+private let m1_fxw2_3: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 3, [a]) }
+private let m1_fxw2_4: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 4, [a]) }
+private let m1_fxw2_5: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 5, [a]) }
+private let m1_fxw2_6: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 6, [a]) }
+private let m1_fxw2_7: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 7, [a]) }
+
+private let m1_fxv_0: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 0, [a]) }
+private let m1_fxv_1: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 1, [a]) }
+private let m1_fxv_2: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 2, [a]) }
+private let m1_fxv_3: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 3, [a]) }
+private let m1_fxv_4: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 4, [a]) }
+private let m1_fxv_5: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 5, [a]) }
+private let m1_fxv_6: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 6, [a]) }
+private let m1_fxv_7: @convention(thin) (Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 7, [a]) }
 
 private let m1_w2w1_0: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 0, [a]) }
 private let m1_w2w1_1: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 1, [a]) }
@@ -214,14 +260,15 @@ private let m1_w2w1_4: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPoi
 private let m1_w2w1_5: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 5, [a]) }
 private let m1_w2w1_6: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 6, [a]) }
 private let m1_w2w1_7: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 7, [a]) }
-private let m1_w2w1_8: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 8, [a]) }
-private let m1_w2w1_9: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 9, [a]) }
-private let m1_w2w1_10: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 10, [a]) }
-private let m1_w2w1_11: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 11, [a]) }
-private let m1_w2w1_12: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 12, [a]) }
-private let m1_w2w1_13: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 13, [a]) }
-private let m1_w2w1_14: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 14, [a]) }
-private let m1_w2w1_15: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, _, w in d1(w, 15, [a]) }
+
+private let m1_w2fx_0: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 0, [a]) }
+private let m1_w2fx_1: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 1, [a]) }
+private let m1_w2fx_2: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 2, [a]) }
+private let m1_w2fx_3: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 3, [a]) }
+private let m1_w2fx_4: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 4, [a]) }
+private let m1_w2fx_5: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 5, [a]) }
+private let m1_w2fx_6: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 6, [a]) }
+private let m1_w2fx_7: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, _, w in df(w, 7, [a]) }
 
 private let m1_w2w2_0: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 0, [a]) }
 private let m1_w2w2_1: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 1, [a]) }
@@ -231,14 +278,6 @@ private let m1_w2w2_4: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPoi
 private let m1_w2w2_5: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 5, [a]) }
 private let m1_w2w2_6: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 6, [a]) }
 private let m1_w2w2_7: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 7, [a]) }
-private let m1_w2w2_8: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 8, [a]) }
-private let m1_w2w2_9: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 9, [a]) }
-private let m1_w2w2_10: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 10, [a]) }
-private let m1_w2w2_11: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 11, [a]) }
-private let m1_w2w2_12: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 12, [a]) }
-private let m1_w2w2_13: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 13, [a]) }
-private let m1_w2w2_14: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 14, [a]) }
-private let m1_w2w2_15: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, _, w in d2(w, 15, [a]) }
 
 private let m1_w2v_0: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 0, [a]) }
 private let m1_w2v_1: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 1, [a]) }
@@ -248,14 +287,6 @@ private let m1_w2v_4: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPoin
 private let m1_w2v_5: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 5, [a]) }
 private let m1_w2v_6: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 6, [a]) }
 private let m1_w2v_7: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 7, [a]) }
-private let m1_w2v_8: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 8, [a]) }
-private let m1_w2v_9: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 9, [a]) }
-private let m1_w2v_10: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 10, [a]) }
-private let m1_w2v_11: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 11, [a]) }
-private let m1_w2v_12: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 12, [a]) }
-private let m1_w2v_13: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 13, [a]) }
-private let m1_w2v_14: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 14, [a]) }
-private let m1_w2v_15: @convention(thin) (String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, _, w in dv(w, 15, [a]) }
 
 // MARK: - 2-arg Methods
 
@@ -263,231 +294,507 @@ private let m2_w1w1w1_0: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRa
 private let m2_w1w1w1_1: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 1, [a, b]) }
 private let m2_w1w1w1_2: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 2, [a, b]) }
 private let m2_w1w1w1_3: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 3, [a, b]) }
-private let m2_w1w1w1_4: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 4, [a, b]) }
-private let m2_w1w1w1_5: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 5, [a, b]) }
-private let m2_w1w1w1_6: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 6, [a, b]) }
-private let m2_w1w1w1_7: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 7, [a, b]) }
+
+private let m2_w1w1fx_0: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 0, [a, b]) }
+private let m2_w1w1fx_1: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 1, [a, b]) }
+private let m2_w1w1fx_2: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 2, [a, b]) }
+private let m2_w1w1fx_3: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 3, [a, b]) }
 
 private let m2_w1w1w2_0: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 0, [a, b]) }
 private let m2_w1w1w2_1: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 1, [a, b]) }
 private let m2_w1w1w2_2: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 2, [a, b]) }
 private let m2_w1w1w2_3: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 3, [a, b]) }
-private let m2_w1w1w2_4: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 4, [a, b]) }
-private let m2_w1w1w2_5: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 5, [a, b]) }
-private let m2_w1w1w2_6: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 6, [a, b]) }
-private let m2_w1w1w2_7: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 7, [a, b]) }
 
 private let m2_w1w1v_0: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 0, [a, b]) }
 private let m2_w1w1v_1: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 1, [a, b]) }
 private let m2_w1w1v_2: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 2, [a, b]) }
 private let m2_w1w1v_3: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 3, [a, b]) }
-private let m2_w1w1v_4: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 4, [a, b]) }
-private let m2_w1w1v_5: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 5, [a, b]) }
-private let m2_w1w1v_6: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 6, [a, b]) }
-private let m2_w1w1v_7: @convention(thin) (Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 7, [a, b]) }
+
+private let m2_w1fxw1_0: @convention(thin) (Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 0, [a, b]) }
+private let m2_w1fxw1_1: @convention(thin) (Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 1, [a, b]) }
+private let m2_w1fxw1_2: @convention(thin) (Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 2, [a, b]) }
+private let m2_w1fxw1_3: @convention(thin) (Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 3, [a, b]) }
+
+private let m2_w1fxfx_0: @convention(thin) (Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 0, [a, b]) }
+private let m2_w1fxfx_1: @convention(thin) (Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 1, [a, b]) }
+private let m2_w1fxfx_2: @convention(thin) (Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 2, [a, b]) }
+private let m2_w1fxfx_3: @convention(thin) (Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 3, [a, b]) }
+
+private let m2_w1fxw2_0: @convention(thin) (Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 0, [a, b]) }
+private let m2_w1fxw2_1: @convention(thin) (Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 1, [a, b]) }
+private let m2_w1fxw2_2: @convention(thin) (Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 2, [a, b]) }
+private let m2_w1fxw2_3: @convention(thin) (Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 3, [a, b]) }
+
+private let m2_w1fxv_0: @convention(thin) (Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 0, [a, b]) }
+private let m2_w1fxv_1: @convention(thin) (Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 1, [a, b]) }
+private let m2_w1fxv_2: @convention(thin) (Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 2, [a, b]) }
+private let m2_w1fxv_3: @convention(thin) (Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 3, [a, b]) }
 
 private let m2_w1w2w1_0: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 0, [a, b]) }
 private let m2_w1w2w1_1: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 1, [a, b]) }
 private let m2_w1w2w1_2: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 2, [a, b]) }
 private let m2_w1w2w1_3: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 3, [a, b]) }
-private let m2_w1w2w1_4: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 4, [a, b]) }
-private let m2_w1w2w1_5: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 5, [a, b]) }
-private let m2_w1w2w1_6: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 6, [a, b]) }
-private let m2_w1w2w1_7: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 7, [a, b]) }
+
+private let m2_w1w2fx_0: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 0, [a, b]) }
+private let m2_w1w2fx_1: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 1, [a, b]) }
+private let m2_w1w2fx_2: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 2, [a, b]) }
+private let m2_w1w2fx_3: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 3, [a, b]) }
 
 private let m2_w1w2w2_0: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 0, [a, b]) }
 private let m2_w1w2w2_1: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 1, [a, b]) }
 private let m2_w1w2w2_2: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 2, [a, b]) }
 private let m2_w1w2w2_3: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 3, [a, b]) }
-private let m2_w1w2w2_4: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 4, [a, b]) }
-private let m2_w1w2w2_5: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 5, [a, b]) }
-private let m2_w1w2w2_6: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 6, [a, b]) }
-private let m2_w1w2w2_7: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 7, [a, b]) }
 
 private let m2_w1w2v_0: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 0, [a, b]) }
 private let m2_w1w2v_1: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 1, [a, b]) }
 private let m2_w1w2v_2: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 2, [a, b]) }
 private let m2_w1w2v_3: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 3, [a, b]) }
-private let m2_w1w2v_4: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 4, [a, b]) }
-private let m2_w1w2v_5: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 5, [a, b]) }
-private let m2_w1w2v_6: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 6, [a, b]) }
-private let m2_w1w2v_7: @convention(thin) (Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 7, [a, b]) }
+
+private let m2_fxw1w1_0: @convention(thin) (Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 0, [a, b]) }
+private let m2_fxw1w1_1: @convention(thin) (Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 1, [a, b]) }
+private let m2_fxw1w1_2: @convention(thin) (Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 2, [a, b]) }
+private let m2_fxw1w1_3: @convention(thin) (Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 3, [a, b]) }
+
+private let m2_fxw1fx_0: @convention(thin) (Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 0, [a, b]) }
+private let m2_fxw1fx_1: @convention(thin) (Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 1, [a, b]) }
+private let m2_fxw1fx_2: @convention(thin) (Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 2, [a, b]) }
+private let m2_fxw1fx_3: @convention(thin) (Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 3, [a, b]) }
+
+private let m2_fxw1w2_0: @convention(thin) (Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 0, [a, b]) }
+private let m2_fxw1w2_1: @convention(thin) (Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 1, [a, b]) }
+private let m2_fxw1w2_2: @convention(thin) (Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 2, [a, b]) }
+private let m2_fxw1w2_3: @convention(thin) (Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 3, [a, b]) }
+
+private let m2_fxw1v_0: @convention(thin) (Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 0, [a, b]) }
+private let m2_fxw1v_1: @convention(thin) (Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 1, [a, b]) }
+private let m2_fxw1v_2: @convention(thin) (Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 2, [a, b]) }
+private let m2_fxw1v_3: @convention(thin) (Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 3, [a, b]) }
+
+private let m2_fxfxw1_0: @convention(thin) (Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 0, [a, b]) }
+private let m2_fxfxw1_1: @convention(thin) (Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 1, [a, b]) }
+private let m2_fxfxw1_2: @convention(thin) (Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 2, [a, b]) }
+private let m2_fxfxw1_3: @convention(thin) (Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 3, [a, b]) }
+
+private let m2_fxfxfx_0: @convention(thin) (Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 0, [a, b]) }
+private let m2_fxfxfx_1: @convention(thin) (Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 1, [a, b]) }
+private let m2_fxfxfx_2: @convention(thin) (Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 2, [a, b]) }
+private let m2_fxfxfx_3: @convention(thin) (Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 3, [a, b]) }
+
+private let m2_fxfxw2_0: @convention(thin) (Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 0, [a, b]) }
+private let m2_fxfxw2_1: @convention(thin) (Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 1, [a, b]) }
+private let m2_fxfxw2_2: @convention(thin) (Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 2, [a, b]) }
+private let m2_fxfxw2_3: @convention(thin) (Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 3, [a, b]) }
+
+private let m2_fxfxv_0: @convention(thin) (Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 0, [a, b]) }
+private let m2_fxfxv_1: @convention(thin) (Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 1, [a, b]) }
+private let m2_fxfxv_2: @convention(thin) (Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 2, [a, b]) }
+private let m2_fxfxv_3: @convention(thin) (Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 3, [a, b]) }
+
+private let m2_fxw2w1_0: @convention(thin) (Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 0, [a, b]) }
+private let m2_fxw2w1_1: @convention(thin) (Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 1, [a, b]) }
+private let m2_fxw2w1_2: @convention(thin) (Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 2, [a, b]) }
+private let m2_fxw2w1_3: @convention(thin) (Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 3, [a, b]) }
+
+private let m2_fxw2fx_0: @convention(thin) (Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 0, [a, b]) }
+private let m2_fxw2fx_1: @convention(thin) (Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 1, [a, b]) }
+private let m2_fxw2fx_2: @convention(thin) (Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 2, [a, b]) }
+private let m2_fxw2fx_3: @convention(thin) (Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 3, [a, b]) }
+
+private let m2_fxw2w2_0: @convention(thin) (Double, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 0, [a, b]) }
+private let m2_fxw2w2_1: @convention(thin) (Double, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 1, [a, b]) }
+private let m2_fxw2w2_2: @convention(thin) (Double, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 2, [a, b]) }
+private let m2_fxw2w2_3: @convention(thin) (Double, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 3, [a, b]) }
+
+private let m2_fxw2v_0: @convention(thin) (Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 0, [a, b]) }
+private let m2_fxw2v_1: @convention(thin) (Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 1, [a, b]) }
+private let m2_fxw2v_2: @convention(thin) (Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 2, [a, b]) }
+private let m2_fxw2v_3: @convention(thin) (Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 3, [a, b]) }
 
 private let m2_w2w1w1_0: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 0, [a, b]) }
 private let m2_w2w1w1_1: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 1, [a, b]) }
 private let m2_w2w1w1_2: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 2, [a, b]) }
 private let m2_w2w1w1_3: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 3, [a, b]) }
-private let m2_w2w1w1_4: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 4, [a, b]) }
-private let m2_w2w1w1_5: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 5, [a, b]) }
-private let m2_w2w1w1_6: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 6, [a, b]) }
-private let m2_w2w1w1_7: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 7, [a, b]) }
+
+private let m2_w2w1fx_0: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 0, [a, b]) }
+private let m2_w2w1fx_1: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 1, [a, b]) }
+private let m2_w2w1fx_2: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 2, [a, b]) }
+private let m2_w2w1fx_3: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 3, [a, b]) }
 
 private let m2_w2w1w2_0: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 0, [a, b]) }
 private let m2_w2w1w2_1: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 1, [a, b]) }
 private let m2_w2w1w2_2: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 2, [a, b]) }
 private let m2_w2w1w2_3: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 3, [a, b]) }
-private let m2_w2w1w2_4: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 4, [a, b]) }
-private let m2_w2w1w2_5: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 5, [a, b]) }
-private let m2_w2w1w2_6: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 6, [a, b]) }
-private let m2_w2w1w2_7: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 7, [a, b]) }
 
 private let m2_w2w1v_0: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 0, [a, b]) }
 private let m2_w2w1v_1: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 1, [a, b]) }
 private let m2_w2w1v_2: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 2, [a, b]) }
 private let m2_w2w1v_3: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 3, [a, b]) }
-private let m2_w2w1v_4: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 4, [a, b]) }
-private let m2_w2w1v_5: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 5, [a, b]) }
-private let m2_w2w1v_6: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 6, [a, b]) }
-private let m2_w2w1v_7: @convention(thin) (String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 7, [a, b]) }
+
+private let m2_w2fxw1_0: @convention(thin) (String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 0, [a, b]) }
+private let m2_w2fxw1_1: @convention(thin) (String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 1, [a, b]) }
+private let m2_w2fxw1_2: @convention(thin) (String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 2, [a, b]) }
+private let m2_w2fxw1_3: @convention(thin) (String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 3, [a, b]) }
+
+private let m2_w2fxfx_0: @convention(thin) (String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 0, [a, b]) }
+private let m2_w2fxfx_1: @convention(thin) (String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 1, [a, b]) }
+private let m2_w2fxfx_2: @convention(thin) (String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 2, [a, b]) }
+private let m2_w2fxfx_3: @convention(thin) (String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 3, [a, b]) }
+
+private let m2_w2fxw2_0: @convention(thin) (String, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 0, [a, b]) }
+private let m2_w2fxw2_1: @convention(thin) (String, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 1, [a, b]) }
+private let m2_w2fxw2_2: @convention(thin) (String, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 2, [a, b]) }
+private let m2_w2fxw2_3: @convention(thin) (String, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 3, [a, b]) }
+
+private let m2_w2fxv_0: @convention(thin) (String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 0, [a, b]) }
+private let m2_w2fxv_1: @convention(thin) (String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 1, [a, b]) }
+private let m2_w2fxv_2: @convention(thin) (String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 2, [a, b]) }
+private let m2_w2fxv_3: @convention(thin) (String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 3, [a, b]) }
 
 private let m2_w2w2w1_0: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 0, [a, b]) }
 private let m2_w2w2w1_1: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 1, [a, b]) }
 private let m2_w2w2w1_2: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 2, [a, b]) }
 private let m2_w2w2w1_3: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 3, [a, b]) }
-private let m2_w2w2w1_4: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 4, [a, b]) }
-private let m2_w2w2w1_5: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 5, [a, b]) }
-private let m2_w2w2w1_6: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 6, [a, b]) }
-private let m2_w2w2w1_7: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, _, w in d1(w, 7, [a, b]) }
+
+private let m2_w2w2fx_0: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 0, [a, b]) }
+private let m2_w2w2fx_1: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 1, [a, b]) }
+private let m2_w2w2fx_2: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 2, [a, b]) }
+private let m2_w2w2fx_3: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, _, w in df(w, 3, [a, b]) }
 
 private let m2_w2w2w2_0: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 0, [a, b]) }
 private let m2_w2w2w2_1: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 1, [a, b]) }
 private let m2_w2w2w2_2: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 2, [a, b]) }
 private let m2_w2w2w2_3: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 3, [a, b]) }
-private let m2_w2w2w2_4: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 4, [a, b]) }
-private let m2_w2w2w2_5: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 5, [a, b]) }
-private let m2_w2w2w2_6: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 6, [a, b]) }
-private let m2_w2w2w2_7: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, _, w in d2(w, 7, [a, b]) }
 
 private let m2_w2w2v_0: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 0, [a, b]) }
 private let m2_w2w2v_1: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 1, [a, b]) }
 private let m2_w2w2v_2: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 2, [a, b]) }
 private let m2_w2w2v_3: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 3, [a, b]) }
-private let m2_w2w2v_4: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 4, [a, b]) }
-private let m2_w2w2v_5: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 5, [a, b]) }
-private let m2_w2w2v_6: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 6, [a, b]) }
-private let m2_w2w2v_7: @convention(thin) (String, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, _, w in dv(w, 7, [a, b]) }
 
 // MARK: - 3-arg Methods
 
 private let m3_w1w1w1w1_0: @convention(thin) (Int, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
 private let m3_w1w1w1w1_1: @convention(thin) (Int, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
-private let m3_w1w1w1w1_2: @convention(thin) (Int, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 2, [a, b, c]) }
-private let m3_w1w1w1w1_3: @convention(thin) (Int, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 3, [a, b, c]) }
+
+private let m3_w1w1w1fx_0: @convention(thin) (Int, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_w1w1w1fx_1: @convention(thin) (Int, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
 
 private let m3_w1w1w1w2_0: @convention(thin) (Int, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
 private let m3_w1w1w1w2_1: @convention(thin) (Int, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
-private let m3_w1w1w1w2_2: @convention(thin) (Int, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 2, [a, b, c]) }
-private let m3_w1w1w1w2_3: @convention(thin) (Int, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 3, [a, b, c]) }
 
 private let m3_w1w1w1v_0: @convention(thin) (Int, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
 private let m3_w1w1w1v_1: @convention(thin) (Int, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
-private let m3_w1w1w1v_2: @convention(thin) (Int, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 2, [a, b, c]) }
-private let m3_w1w1w1v_3: @convention(thin) (Int, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 3, [a, b, c]) }
+
+private let m3_w1w1fxw1_0: @convention(thin) (Int, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
+private let m3_w1w1fxw1_1: @convention(thin) (Int, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
+
+private let m3_w1w1fxfx_0: @convention(thin) (Int, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_w1w1fxfx_1: @convention(thin) (Int, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
+
+private let m3_w1w1fxw2_0: @convention(thin) (Int, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
+private let m3_w1w1fxw2_1: @convention(thin) (Int, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
+
+private let m3_w1w1fxv_0: @convention(thin) (Int, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
+private let m3_w1w1fxv_1: @convention(thin) (Int, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
 
 private let m3_w1w1w2w1_0: @convention(thin) (Int, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
 private let m3_w1w1w2w1_1: @convention(thin) (Int, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
-private let m3_w1w1w2w1_2: @convention(thin) (Int, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 2, [a, b, c]) }
-private let m3_w1w1w2w1_3: @convention(thin) (Int, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 3, [a, b, c]) }
+
+private let m3_w1w1w2fx_0: @convention(thin) (Int, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_w1w1w2fx_1: @convention(thin) (Int, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
 
 private let m3_w1w1w2w2_0: @convention(thin) (Int, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
 private let m3_w1w1w2w2_1: @convention(thin) (Int, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
-private let m3_w1w1w2w2_2: @convention(thin) (Int, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 2, [a, b, c]) }
-private let m3_w1w1w2w2_3: @convention(thin) (Int, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 3, [a, b, c]) }
 
 private let m3_w1w1w2v_0: @convention(thin) (Int, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
 private let m3_w1w1w2v_1: @convention(thin) (Int, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
-private let m3_w1w1w2v_2: @convention(thin) (Int, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 2, [a, b, c]) }
-private let m3_w1w1w2v_3: @convention(thin) (Int, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 3, [a, b, c]) }
+
+private let m3_w1fxw1w1_0: @convention(thin) (Int, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
+private let m3_w1fxw1w1_1: @convention(thin) (Int, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
+
+private let m3_w1fxw1fx_0: @convention(thin) (Int, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_w1fxw1fx_1: @convention(thin) (Int, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
+
+private let m3_w1fxw1w2_0: @convention(thin) (Int, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
+private let m3_w1fxw1w2_1: @convention(thin) (Int, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
+
+private let m3_w1fxw1v_0: @convention(thin) (Int, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
+private let m3_w1fxw1v_1: @convention(thin) (Int, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
+
+private let m3_w1fxfxw1_0: @convention(thin) (Int, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
+private let m3_w1fxfxw1_1: @convention(thin) (Int, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
+
+private let m3_w1fxfxfx_0: @convention(thin) (Int, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_w1fxfxfx_1: @convention(thin) (Int, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
+
+private let m3_w1fxfxw2_0: @convention(thin) (Int, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
+private let m3_w1fxfxw2_1: @convention(thin) (Int, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
+
+private let m3_w1fxfxv_0: @convention(thin) (Int, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
+private let m3_w1fxfxv_1: @convention(thin) (Int, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
+
+private let m3_w1fxw2w1_0: @convention(thin) (Int, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
+private let m3_w1fxw2w1_1: @convention(thin) (Int, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
+
+private let m3_w1fxw2fx_0: @convention(thin) (Int, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_w1fxw2fx_1: @convention(thin) (Int, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
+
+private let m3_w1fxw2w2_0: @convention(thin) (Int, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
+private let m3_w1fxw2w2_1: @convention(thin) (Int, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
+
+private let m3_w1fxw2v_0: @convention(thin) (Int, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
+private let m3_w1fxw2v_1: @convention(thin) (Int, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
 
 private let m3_w1w2w1w1_0: @convention(thin) (Int, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
 private let m3_w1w2w1w1_1: @convention(thin) (Int, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
-private let m3_w1w2w1w1_2: @convention(thin) (Int, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 2, [a, b, c]) }
-private let m3_w1w2w1w1_3: @convention(thin) (Int, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 3, [a, b, c]) }
+
+private let m3_w1w2w1fx_0: @convention(thin) (Int, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_w1w2w1fx_1: @convention(thin) (Int, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
 
 private let m3_w1w2w1w2_0: @convention(thin) (Int, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
 private let m3_w1w2w1w2_1: @convention(thin) (Int, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
-private let m3_w1w2w1w2_2: @convention(thin) (Int, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 2, [a, b, c]) }
-private let m3_w1w2w1w2_3: @convention(thin) (Int, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 3, [a, b, c]) }
 
 private let m3_w1w2w1v_0: @convention(thin) (Int, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
 private let m3_w1w2w1v_1: @convention(thin) (Int, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
-private let m3_w1w2w1v_2: @convention(thin) (Int, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 2, [a, b, c]) }
-private let m3_w1w2w1v_3: @convention(thin) (Int, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 3, [a, b, c]) }
+
+private let m3_w1w2fxw1_0: @convention(thin) (Int, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
+private let m3_w1w2fxw1_1: @convention(thin) (Int, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
+
+private let m3_w1w2fxfx_0: @convention(thin) (Int, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_w1w2fxfx_1: @convention(thin) (Int, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
+
+private let m3_w1w2fxw2_0: @convention(thin) (Int, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
+private let m3_w1w2fxw2_1: @convention(thin) (Int, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
+
+private let m3_w1w2fxv_0: @convention(thin) (Int, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
+private let m3_w1w2fxv_1: @convention(thin) (Int, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
 
 private let m3_w1w2w2w1_0: @convention(thin) (Int, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
 private let m3_w1w2w2w1_1: @convention(thin) (Int, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
-private let m3_w1w2w2w1_2: @convention(thin) (Int, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 2, [a, b, c]) }
-private let m3_w1w2w2w1_3: @convention(thin) (Int, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 3, [a, b, c]) }
+
+private let m3_w1w2w2fx_0: @convention(thin) (Int, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_w1w2w2fx_1: @convention(thin) (Int, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
 
 private let m3_w1w2w2w2_0: @convention(thin) (Int, String, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
 private let m3_w1w2w2w2_1: @convention(thin) (Int, String, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
-private let m3_w1w2w2w2_2: @convention(thin) (Int, String, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 2, [a, b, c]) }
-private let m3_w1w2w2w2_3: @convention(thin) (Int, String, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 3, [a, b, c]) }
 
 private let m3_w1w2w2v_0: @convention(thin) (Int, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
 private let m3_w1w2w2v_1: @convention(thin) (Int, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
-private let m3_w1w2w2v_2: @convention(thin) (Int, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 2, [a, b, c]) }
-private let m3_w1w2w2v_3: @convention(thin) (Int, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 3, [a, b, c]) }
+
+private let m3_fxw1w1w1_0: @convention(thin) (Double, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
+private let m3_fxw1w1w1_1: @convention(thin) (Double, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
+
+private let m3_fxw1w1fx_0: @convention(thin) (Double, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_fxw1w1fx_1: @convention(thin) (Double, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
+
+private let m3_fxw1w1w2_0: @convention(thin) (Double, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
+private let m3_fxw1w1w2_1: @convention(thin) (Double, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
+
+private let m3_fxw1w1v_0: @convention(thin) (Double, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
+private let m3_fxw1w1v_1: @convention(thin) (Double, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
+
+private let m3_fxw1fxw1_0: @convention(thin) (Double, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
+private let m3_fxw1fxw1_1: @convention(thin) (Double, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
+
+private let m3_fxw1fxfx_0: @convention(thin) (Double, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_fxw1fxfx_1: @convention(thin) (Double, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
+
+private let m3_fxw1fxw2_0: @convention(thin) (Double, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
+private let m3_fxw1fxw2_1: @convention(thin) (Double, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
+
+private let m3_fxw1fxv_0: @convention(thin) (Double, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
+private let m3_fxw1fxv_1: @convention(thin) (Double, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
+
+private let m3_fxw1w2w1_0: @convention(thin) (Double, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
+private let m3_fxw1w2w1_1: @convention(thin) (Double, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
+
+private let m3_fxw1w2fx_0: @convention(thin) (Double, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_fxw1w2fx_1: @convention(thin) (Double, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
+
+private let m3_fxw1w2w2_0: @convention(thin) (Double, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
+private let m3_fxw1w2w2_1: @convention(thin) (Double, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
+
+private let m3_fxw1w2v_0: @convention(thin) (Double, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
+private let m3_fxw1w2v_1: @convention(thin) (Double, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
+
+private let m3_fxfxw1w1_0: @convention(thin) (Double, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
+private let m3_fxfxw1w1_1: @convention(thin) (Double, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
+
+private let m3_fxfxw1fx_0: @convention(thin) (Double, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_fxfxw1fx_1: @convention(thin) (Double, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
+
+private let m3_fxfxw1w2_0: @convention(thin) (Double, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
+private let m3_fxfxw1w2_1: @convention(thin) (Double, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
+
+private let m3_fxfxw1v_0: @convention(thin) (Double, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
+private let m3_fxfxw1v_1: @convention(thin) (Double, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
+
+private let m3_fxfxfxw1_0: @convention(thin) (Double, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
+private let m3_fxfxfxw1_1: @convention(thin) (Double, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
+
+private let m3_fxfxfxfx_0: @convention(thin) (Double, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_fxfxfxfx_1: @convention(thin) (Double, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
+
+private let m3_fxfxfxw2_0: @convention(thin) (Double, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
+private let m3_fxfxfxw2_1: @convention(thin) (Double, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
+
+private let m3_fxfxfxv_0: @convention(thin) (Double, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
+private let m3_fxfxfxv_1: @convention(thin) (Double, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
+
+private let m3_fxfxw2w1_0: @convention(thin) (Double, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
+private let m3_fxfxw2w1_1: @convention(thin) (Double, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
+
+private let m3_fxfxw2fx_0: @convention(thin) (Double, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_fxfxw2fx_1: @convention(thin) (Double, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
+
+private let m3_fxfxw2w2_0: @convention(thin) (Double, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
+private let m3_fxfxw2w2_1: @convention(thin) (Double, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
+
+private let m3_fxfxw2v_0: @convention(thin) (Double, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
+private let m3_fxfxw2v_1: @convention(thin) (Double, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
+
+private let m3_fxw2w1w1_0: @convention(thin) (Double, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
+private let m3_fxw2w1w1_1: @convention(thin) (Double, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
+
+private let m3_fxw2w1fx_0: @convention(thin) (Double, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_fxw2w1fx_1: @convention(thin) (Double, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
+
+private let m3_fxw2w1w2_0: @convention(thin) (Double, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
+private let m3_fxw2w1w2_1: @convention(thin) (Double, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
+
+private let m3_fxw2w1v_0: @convention(thin) (Double, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
+private let m3_fxw2w1v_1: @convention(thin) (Double, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
+
+private let m3_fxw2fxw1_0: @convention(thin) (Double, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
+private let m3_fxw2fxw1_1: @convention(thin) (Double, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
+
+private let m3_fxw2fxfx_0: @convention(thin) (Double, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_fxw2fxfx_1: @convention(thin) (Double, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
+
+private let m3_fxw2fxw2_0: @convention(thin) (Double, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
+private let m3_fxw2fxw2_1: @convention(thin) (Double, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
+
+private let m3_fxw2fxv_0: @convention(thin) (Double, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
+private let m3_fxw2fxv_1: @convention(thin) (Double, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
+
+private let m3_fxw2w2w1_0: @convention(thin) (Double, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
+private let m3_fxw2w2w1_1: @convention(thin) (Double, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
+
+private let m3_fxw2w2fx_0: @convention(thin) (Double, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_fxw2w2fx_1: @convention(thin) (Double, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
+
+private let m3_fxw2w2w2_0: @convention(thin) (Double, String, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
+private let m3_fxw2w2w2_1: @convention(thin) (Double, String, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
+
+private let m3_fxw2w2v_0: @convention(thin) (Double, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
+private let m3_fxw2w2v_1: @convention(thin) (Double, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
 
 private let m3_w2w1w1w1_0: @convention(thin) (String, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
 private let m3_w2w1w1w1_1: @convention(thin) (String, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
-private let m3_w2w1w1w1_2: @convention(thin) (String, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 2, [a, b, c]) }
-private let m3_w2w1w1w1_3: @convention(thin) (String, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 3, [a, b, c]) }
+
+private let m3_w2w1w1fx_0: @convention(thin) (String, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_w2w1w1fx_1: @convention(thin) (String, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
 
 private let m3_w2w1w1w2_0: @convention(thin) (String, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
 private let m3_w2w1w1w2_1: @convention(thin) (String, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
-private let m3_w2w1w1w2_2: @convention(thin) (String, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 2, [a, b, c]) }
-private let m3_w2w1w1w2_3: @convention(thin) (String, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 3, [a, b, c]) }
 
 private let m3_w2w1w1v_0: @convention(thin) (String, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
 private let m3_w2w1w1v_1: @convention(thin) (String, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
-private let m3_w2w1w1v_2: @convention(thin) (String, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 2, [a, b, c]) }
-private let m3_w2w1w1v_3: @convention(thin) (String, Int, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 3, [a, b, c]) }
+
+private let m3_w2w1fxw1_0: @convention(thin) (String, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
+private let m3_w2w1fxw1_1: @convention(thin) (String, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
+
+private let m3_w2w1fxfx_0: @convention(thin) (String, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_w2w1fxfx_1: @convention(thin) (String, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
+
+private let m3_w2w1fxw2_0: @convention(thin) (String, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
+private let m3_w2w1fxw2_1: @convention(thin) (String, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
+
+private let m3_w2w1fxv_0: @convention(thin) (String, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
+private let m3_w2w1fxv_1: @convention(thin) (String, Int, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
 
 private let m3_w2w1w2w1_0: @convention(thin) (String, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
 private let m3_w2w1w2w1_1: @convention(thin) (String, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
-private let m3_w2w1w2w1_2: @convention(thin) (String, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 2, [a, b, c]) }
-private let m3_w2w1w2w1_3: @convention(thin) (String, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 3, [a, b, c]) }
+
+private let m3_w2w1w2fx_0: @convention(thin) (String, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_w2w1w2fx_1: @convention(thin) (String, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
 
 private let m3_w2w1w2w2_0: @convention(thin) (String, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
 private let m3_w2w1w2w2_1: @convention(thin) (String, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
-private let m3_w2w1w2w2_2: @convention(thin) (String, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 2, [a, b, c]) }
-private let m3_w2w1w2w2_3: @convention(thin) (String, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 3, [a, b, c]) }
 
 private let m3_w2w1w2v_0: @convention(thin) (String, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
 private let m3_w2w1w2v_1: @convention(thin) (String, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
-private let m3_w2w1w2v_2: @convention(thin) (String, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 2, [a, b, c]) }
-private let m3_w2w1w2v_3: @convention(thin) (String, Int, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 3, [a, b, c]) }
+
+private let m3_w2fxw1w1_0: @convention(thin) (String, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
+private let m3_w2fxw1w1_1: @convention(thin) (String, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
+
+private let m3_w2fxw1fx_0: @convention(thin) (String, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_w2fxw1fx_1: @convention(thin) (String, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
+
+private let m3_w2fxw1w2_0: @convention(thin) (String, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
+private let m3_w2fxw1w2_1: @convention(thin) (String, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
+
+private let m3_w2fxw1v_0: @convention(thin) (String, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
+private let m3_w2fxw1v_1: @convention(thin) (String, Double, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
+
+private let m3_w2fxfxw1_0: @convention(thin) (String, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
+private let m3_w2fxfxw1_1: @convention(thin) (String, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
+
+private let m3_w2fxfxfx_0: @convention(thin) (String, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_w2fxfxfx_1: @convention(thin) (String, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
+
+private let m3_w2fxfxw2_0: @convention(thin) (String, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
+private let m3_w2fxfxw2_1: @convention(thin) (String, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
+
+private let m3_w2fxfxv_0: @convention(thin) (String, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
+private let m3_w2fxfxv_1: @convention(thin) (String, Double, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
+
+private let m3_w2fxw2w1_0: @convention(thin) (String, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
+private let m3_w2fxw2w1_1: @convention(thin) (String, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
+
+private let m3_w2fxw2fx_0: @convention(thin) (String, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_w2fxw2fx_1: @convention(thin) (String, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
+
+private let m3_w2fxw2w2_0: @convention(thin) (String, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
+private let m3_w2fxw2w2_1: @convention(thin) (String, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
+
+private let m3_w2fxw2v_0: @convention(thin) (String, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
+private let m3_w2fxw2v_1: @convention(thin) (String, Double, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
 
 private let m3_w2w2w1w1_0: @convention(thin) (String, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
 private let m3_w2w2w1w1_1: @convention(thin) (String, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
-private let m3_w2w2w1w1_2: @convention(thin) (String, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 2, [a, b, c]) }
-private let m3_w2w2w1w1_3: @convention(thin) (String, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 3, [a, b, c]) }
+
+private let m3_w2w2w1fx_0: @convention(thin) (String, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_w2w2w1fx_1: @convention(thin) (String, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
 
 private let m3_w2w2w1w2_0: @convention(thin) (String, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
 private let m3_w2w2w1w2_1: @convention(thin) (String, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
-private let m3_w2w2w1w2_2: @convention(thin) (String, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 2, [a, b, c]) }
-private let m3_w2w2w1w2_3: @convention(thin) (String, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 3, [a, b, c]) }
 
 private let m3_w2w2w1v_0: @convention(thin) (String, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
 private let m3_w2w2w1v_1: @convention(thin) (String, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
-private let m3_w2w2w1v_2: @convention(thin) (String, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 2, [a, b, c]) }
-private let m3_w2w2w1v_3: @convention(thin) (String, String, Int, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 3, [a, b, c]) }
+
+private let m3_w2w2fxw1_0: @convention(thin) (String, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
+private let m3_w2w2fxw1_1: @convention(thin) (String, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
+
+private let m3_w2w2fxfx_0: @convention(thin) (String, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_w2w2fxfx_1: @convention(thin) (String, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
+
+private let m3_w2w2fxw2_0: @convention(thin) (String, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
+private let m3_w2w2fxw2_1: @convention(thin) (String, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
+
+private let m3_w2w2fxv_0: @convention(thin) (String, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
+private let m3_w2w2fxv_1: @convention(thin) (String, String, Double, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
 
 private let m3_w2w2w2w1_0: @convention(thin) (String, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 0, [a, b, c]) }
 private let m3_w2w2w2w1_1: @convention(thin) (String, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 1, [a, b, c]) }
-private let m3_w2w2w2w1_2: @convention(thin) (String, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 2, [a, b, c]) }
-private let m3_w2w2w2w1_3: @convention(thin) (String, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Int = { a, b, c, _, w in d1(w, 3, [a, b, c]) }
+
+private let m3_w2w2w2fx_0: @convention(thin) (String, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 0, [a, b, c]) }
+private let m3_w2w2w2fx_1: @convention(thin) (String, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Double = { a, b, c, _, w in df(w, 1, [a, b, c]) }
 
 private let m3_w2w2w2w2_0: @convention(thin) (String, String, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 0, [a, b, c]) }
 private let m3_w2w2w2w2_1: @convention(thin) (String, String, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 1, [a, b, c]) }
-private let m3_w2w2w2w2_2: @convention(thin) (String, String, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 2, [a, b, c]) }
-private let m3_w2w2w2w2_3: @convention(thin) (String, String, String, UnsafeRawPointer, UnsafeRawPointer) -> String = { a, b, c, _, w in d2(w, 3, [a, b, c]) }
 
 private let m3_w2w2w2v_0: @convention(thin) (String, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 0, [a, b, c]) }
 private let m3_w2w2w2v_1: @convention(thin) (String, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 1, [a, b, c]) }
-private let m3_w2w2w2v_2: @convention(thin) (String, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 2, [a, b, c]) }
-private let m3_w2w2w2v_3: @convention(thin) (String, String, String, UnsafeRawPointer, UnsafeRawPointer) -> Void = { a, b, c, _, w in dv(w, 3, [a, b, c]) }
 
 // MARK: - Thunk Catalog
 
@@ -505,53 +812,168 @@ public enum ThunkLibrary {
         func cast<T>(_ fn: T) -> UnsafeRawPointer { unsafeBitCast(fn, to: UnsafeRawPointer.self) }
 
         for (i, fn) in [g_w1_0, g_w1_1, g_w1_2, g_w1_3, g_w1_4, g_w1_5, g_w1_6, g_w1_7, g_w1_8, g_w1_9, g_w1_10, g_w1_11, g_w1_12, g_w1_13, g_w1_14, g_w1_15].enumerated() { add(MethodSignature.getter("W1"), i, cast(fn)) }
+        for (i, fn) in [g_fx_0, g_fx_1, g_fx_2, g_fx_3, g_fx_4, g_fx_5, g_fx_6, g_fx_7, g_fx_8, g_fx_9, g_fx_10, g_fx_11, g_fx_12, g_fx_13, g_fx_14, g_fx_15].enumerated() { add(MethodSignature.getter("FX"), i, cast(fn)) }
         for (i, fn) in [g_w2_0, g_w2_1, g_w2_2, g_w2_3, g_w2_4, g_w2_5, g_w2_6, g_w2_7, g_w2_8, g_w2_9, g_w2_10, g_w2_11, g_w2_12, g_w2_13, g_w2_14, g_w2_15].enumerated() { add(MethodSignature.getter("W2"), i, cast(fn)) }
         for (i, fn) in [g_v_0, g_v_1, g_v_2, g_v_3, g_v_4, g_v_5, g_v_6, g_v_7, g_v_8, g_v_9, g_v_10, g_v_11, g_v_12, g_v_13, g_v_14, g_v_15].enumerated() { add(MethodSignature.getter("V"), i, cast(fn)) }
 
-        for (i, fn) in [m1_w1w1_0, m1_w1w1_1, m1_w1w1_2, m1_w1w1_3, m1_w1w1_4, m1_w1w1_5, m1_w1w1_6, m1_w1w1_7, m1_w1w1_8, m1_w1w1_9, m1_w1w1_10, m1_w1w1_11, m1_w1w1_12, m1_w1w1_13, m1_w1w1_14, m1_w1w1_15].enumerated() { add(MethodSignature(args: ["W1"], ret: "W1"), i, cast(fn)) }
-        for (i, fn) in [m1_w1w2_0, m1_w1w2_1, m1_w1w2_2, m1_w1w2_3, m1_w1w2_4, m1_w1w2_5, m1_w1w2_6, m1_w1w2_7, m1_w1w2_8, m1_w1w2_9, m1_w1w2_10, m1_w1w2_11, m1_w1w2_12, m1_w1w2_13, m1_w1w2_14, m1_w1w2_15].enumerated() { add(MethodSignature(args: ["W1"], ret: "W2"), i, cast(fn)) }
-        for (i, fn) in [m1_w1v_0, m1_w1v_1, m1_w1v_2, m1_w1v_3, m1_w1v_4, m1_w1v_5, m1_w1v_6, m1_w1v_7, m1_w1v_8, m1_w1v_9, m1_w1v_10, m1_w1v_11, m1_w1v_12, m1_w1v_13, m1_w1v_14, m1_w1v_15].enumerated() { add(MethodSignature(args: ["W1"], ret: "V"), i, cast(fn)) }
-        for (i, fn) in [m1_w2w1_0, m1_w2w1_1, m1_w2w1_2, m1_w2w1_3, m1_w2w1_4, m1_w2w1_5, m1_w2w1_6, m1_w2w1_7, m1_w2w1_8, m1_w2w1_9, m1_w2w1_10, m1_w2w1_11, m1_w2w1_12, m1_w2w1_13, m1_w2w1_14, m1_w2w1_15].enumerated() { add(MethodSignature(args: ["W2"], ret: "W1"), i, cast(fn)) }
-        for (i, fn) in [m1_w2w2_0, m1_w2w2_1, m1_w2w2_2, m1_w2w2_3, m1_w2w2_4, m1_w2w2_5, m1_w2w2_6, m1_w2w2_7, m1_w2w2_8, m1_w2w2_9, m1_w2w2_10, m1_w2w2_11, m1_w2w2_12, m1_w2w2_13, m1_w2w2_14, m1_w2w2_15].enumerated() { add(MethodSignature(args: ["W2"], ret: "W2"), i, cast(fn)) }
-        for (i, fn) in [m1_w2v_0, m1_w2v_1, m1_w2v_2, m1_w2v_3, m1_w2v_4, m1_w2v_5, m1_w2v_6, m1_w2v_7, m1_w2v_8, m1_w2v_9, m1_w2v_10, m1_w2v_11, m1_w2v_12, m1_w2v_13, m1_w2v_14, m1_w2v_15].enumerated() { add(MethodSignature(args: ["W2"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m1_w1w1_0, m1_w1w1_1, m1_w1w1_2, m1_w1w1_3, m1_w1w1_4, m1_w1w1_5, m1_w1w1_6, m1_w1w1_7].enumerated() { add(MethodSignature(args: ["W1"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m1_w1fx_0, m1_w1fx_1, m1_w1fx_2, m1_w1fx_3, m1_w1fx_4, m1_w1fx_5, m1_w1fx_6, m1_w1fx_7].enumerated() { add(MethodSignature(args: ["W1"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m1_w1w2_0, m1_w1w2_1, m1_w1w2_2, m1_w1w2_3, m1_w1w2_4, m1_w1w2_5, m1_w1w2_6, m1_w1w2_7].enumerated() { add(MethodSignature(args: ["W1"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m1_w1v_0, m1_w1v_1, m1_w1v_2, m1_w1v_3, m1_w1v_4, m1_w1v_5, m1_w1v_6, m1_w1v_7].enumerated() { add(MethodSignature(args: ["W1"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m1_fxw1_0, m1_fxw1_1, m1_fxw1_2, m1_fxw1_3, m1_fxw1_4, m1_fxw1_5, m1_fxw1_6, m1_fxw1_7].enumerated() { add(MethodSignature(args: ["FX"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m1_fxfx_0, m1_fxfx_1, m1_fxfx_2, m1_fxfx_3, m1_fxfx_4, m1_fxfx_5, m1_fxfx_6, m1_fxfx_7].enumerated() { add(MethodSignature(args: ["FX"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m1_fxw2_0, m1_fxw2_1, m1_fxw2_2, m1_fxw2_3, m1_fxw2_4, m1_fxw2_5, m1_fxw2_6, m1_fxw2_7].enumerated() { add(MethodSignature(args: ["FX"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m1_fxv_0, m1_fxv_1, m1_fxv_2, m1_fxv_3, m1_fxv_4, m1_fxv_5, m1_fxv_6, m1_fxv_7].enumerated() { add(MethodSignature(args: ["FX"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m1_w2w1_0, m1_w2w1_1, m1_w2w1_2, m1_w2w1_3, m1_w2w1_4, m1_w2w1_5, m1_w2w1_6, m1_w2w1_7].enumerated() { add(MethodSignature(args: ["W2"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m1_w2fx_0, m1_w2fx_1, m1_w2fx_2, m1_w2fx_3, m1_w2fx_4, m1_w2fx_5, m1_w2fx_6, m1_w2fx_7].enumerated() { add(MethodSignature(args: ["W2"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m1_w2w2_0, m1_w2w2_1, m1_w2w2_2, m1_w2w2_3, m1_w2w2_4, m1_w2w2_5, m1_w2w2_6, m1_w2w2_7].enumerated() { add(MethodSignature(args: ["W2"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m1_w2v_0, m1_w2v_1, m1_w2v_2, m1_w2v_3, m1_w2v_4, m1_w2v_5, m1_w2v_6, m1_w2v_7].enumerated() { add(MethodSignature(args: ["W2"], ret: "V"), i, cast(fn)) }
 
-        for (i, fn) in [m2_w1w1w1_0, m2_w1w1w1_1, m2_w1w1w1_2, m2_w1w1w1_3, m2_w1w1w1_4, m2_w1w1w1_5, m2_w1w1w1_6, m2_w1w1w1_7].enumerated() { add(MethodSignature(args: ["W1", "W1"], ret: "W1"), i, cast(fn)) }
-        for (i, fn) in [m2_w1w1w2_0, m2_w1w1w2_1, m2_w1w1w2_2, m2_w1w1w2_3, m2_w1w1w2_4, m2_w1w1w2_5, m2_w1w1w2_6, m2_w1w1w2_7].enumerated() { add(MethodSignature(args: ["W1", "W1"], ret: "W2"), i, cast(fn)) }
-        for (i, fn) in [m2_w1w1v_0, m2_w1w1v_1, m2_w1w1v_2, m2_w1w1v_3, m2_w1w1v_4, m2_w1w1v_5, m2_w1w1v_6, m2_w1w1v_7].enumerated() { add(MethodSignature(args: ["W1", "W1"], ret: "V"), i, cast(fn)) }
-        for (i, fn) in [m2_w1w2w1_0, m2_w1w2w1_1, m2_w1w2w1_2, m2_w1w2w1_3, m2_w1w2w1_4, m2_w1w2w1_5, m2_w1w2w1_6, m2_w1w2w1_7].enumerated() { add(MethodSignature(args: ["W1", "W2"], ret: "W1"), i, cast(fn)) }
-        for (i, fn) in [m2_w1w2w2_0, m2_w1w2w2_1, m2_w1w2w2_2, m2_w1w2w2_3, m2_w1w2w2_4, m2_w1w2w2_5, m2_w1w2w2_6, m2_w1w2w2_7].enumerated() { add(MethodSignature(args: ["W1", "W2"], ret: "W2"), i, cast(fn)) }
-        for (i, fn) in [m2_w1w2v_0, m2_w1w2v_1, m2_w1w2v_2, m2_w1w2v_3, m2_w1w2v_4, m2_w1w2v_5, m2_w1w2v_6, m2_w1w2v_7].enumerated() { add(MethodSignature(args: ["W1", "W2"], ret: "V"), i, cast(fn)) }
-        for (i, fn) in [m2_w2w1w1_0, m2_w2w1w1_1, m2_w2w1w1_2, m2_w2w1w1_3, m2_w2w1w1_4, m2_w2w1w1_5, m2_w2w1w1_6, m2_w2w1w1_7].enumerated() { add(MethodSignature(args: ["W2", "W1"], ret: "W1"), i, cast(fn)) }
-        for (i, fn) in [m2_w2w1w2_0, m2_w2w1w2_1, m2_w2w1w2_2, m2_w2w1w2_3, m2_w2w1w2_4, m2_w2w1w2_5, m2_w2w1w2_6, m2_w2w1w2_7].enumerated() { add(MethodSignature(args: ["W2", "W1"], ret: "W2"), i, cast(fn)) }
-        for (i, fn) in [m2_w2w1v_0, m2_w2w1v_1, m2_w2w1v_2, m2_w2w1v_3, m2_w2w1v_4, m2_w2w1v_5, m2_w2w1v_6, m2_w2w1v_7].enumerated() { add(MethodSignature(args: ["W2", "W1"], ret: "V"), i, cast(fn)) }
-        for (i, fn) in [m2_w2w2w1_0, m2_w2w2w1_1, m2_w2w2w1_2, m2_w2w2w1_3, m2_w2w2w1_4, m2_w2w2w1_5, m2_w2w2w1_6, m2_w2w2w1_7].enumerated() { add(MethodSignature(args: ["W2", "W2"], ret: "W1"), i, cast(fn)) }
-        for (i, fn) in [m2_w2w2w2_0, m2_w2w2w2_1, m2_w2w2w2_2, m2_w2w2w2_3, m2_w2w2w2_4, m2_w2w2w2_5, m2_w2w2w2_6, m2_w2w2w2_7].enumerated() { add(MethodSignature(args: ["W2", "W2"], ret: "W2"), i, cast(fn)) }
-        for (i, fn) in [m2_w2w2v_0, m2_w2w2v_1, m2_w2w2v_2, m2_w2w2v_3, m2_w2w2v_4, m2_w2w2v_5, m2_w2w2v_6, m2_w2w2v_7].enumerated() { add(MethodSignature(args: ["W2", "W2"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m2_w1w1w1_0, m2_w1w1w1_1, m2_w1w1w1_2, m2_w1w1w1_3].enumerated() { add(MethodSignature(args: ["W1", "W1"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m2_w1w1fx_0, m2_w1w1fx_1, m2_w1w1fx_2, m2_w1w1fx_3].enumerated() { add(MethodSignature(args: ["W1", "W1"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m2_w1w1w2_0, m2_w1w1w2_1, m2_w1w1w2_2, m2_w1w1w2_3].enumerated() { add(MethodSignature(args: ["W1", "W1"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m2_w1w1v_0, m2_w1w1v_1, m2_w1w1v_2, m2_w1w1v_3].enumerated() { add(MethodSignature(args: ["W1", "W1"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m2_w1fxw1_0, m2_w1fxw1_1, m2_w1fxw1_2, m2_w1fxw1_3].enumerated() { add(MethodSignature(args: ["W1", "FX"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m2_w1fxfx_0, m2_w1fxfx_1, m2_w1fxfx_2, m2_w1fxfx_3].enumerated() { add(MethodSignature(args: ["W1", "FX"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m2_w1fxw2_0, m2_w1fxw2_1, m2_w1fxw2_2, m2_w1fxw2_3].enumerated() { add(MethodSignature(args: ["W1", "FX"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m2_w1fxv_0, m2_w1fxv_1, m2_w1fxv_2, m2_w1fxv_3].enumerated() { add(MethodSignature(args: ["W1", "FX"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m2_w1w2w1_0, m2_w1w2w1_1, m2_w1w2w1_2, m2_w1w2w1_3].enumerated() { add(MethodSignature(args: ["W1", "W2"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m2_w1w2fx_0, m2_w1w2fx_1, m2_w1w2fx_2, m2_w1w2fx_3].enumerated() { add(MethodSignature(args: ["W1", "W2"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m2_w1w2w2_0, m2_w1w2w2_1, m2_w1w2w2_2, m2_w1w2w2_3].enumerated() { add(MethodSignature(args: ["W1", "W2"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m2_w1w2v_0, m2_w1w2v_1, m2_w1w2v_2, m2_w1w2v_3].enumerated() { add(MethodSignature(args: ["W1", "W2"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m2_fxw1w1_0, m2_fxw1w1_1, m2_fxw1w1_2, m2_fxw1w1_3].enumerated() { add(MethodSignature(args: ["FX", "W1"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m2_fxw1fx_0, m2_fxw1fx_1, m2_fxw1fx_2, m2_fxw1fx_3].enumerated() { add(MethodSignature(args: ["FX", "W1"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m2_fxw1w2_0, m2_fxw1w2_1, m2_fxw1w2_2, m2_fxw1w2_3].enumerated() { add(MethodSignature(args: ["FX", "W1"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m2_fxw1v_0, m2_fxw1v_1, m2_fxw1v_2, m2_fxw1v_3].enumerated() { add(MethodSignature(args: ["FX", "W1"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m2_fxfxw1_0, m2_fxfxw1_1, m2_fxfxw1_2, m2_fxfxw1_3].enumerated() { add(MethodSignature(args: ["FX", "FX"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m2_fxfxfx_0, m2_fxfxfx_1, m2_fxfxfx_2, m2_fxfxfx_3].enumerated() { add(MethodSignature(args: ["FX", "FX"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m2_fxfxw2_0, m2_fxfxw2_1, m2_fxfxw2_2, m2_fxfxw2_3].enumerated() { add(MethodSignature(args: ["FX", "FX"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m2_fxfxv_0, m2_fxfxv_1, m2_fxfxv_2, m2_fxfxv_3].enumerated() { add(MethodSignature(args: ["FX", "FX"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m2_fxw2w1_0, m2_fxw2w1_1, m2_fxw2w1_2, m2_fxw2w1_3].enumerated() { add(MethodSignature(args: ["FX", "W2"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m2_fxw2fx_0, m2_fxw2fx_1, m2_fxw2fx_2, m2_fxw2fx_3].enumerated() { add(MethodSignature(args: ["FX", "W2"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m2_fxw2w2_0, m2_fxw2w2_1, m2_fxw2w2_2, m2_fxw2w2_3].enumerated() { add(MethodSignature(args: ["FX", "W2"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m2_fxw2v_0, m2_fxw2v_1, m2_fxw2v_2, m2_fxw2v_3].enumerated() { add(MethodSignature(args: ["FX", "W2"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m2_w2w1w1_0, m2_w2w1w1_1, m2_w2w1w1_2, m2_w2w1w1_3].enumerated() { add(MethodSignature(args: ["W2", "W1"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m2_w2w1fx_0, m2_w2w1fx_1, m2_w2w1fx_2, m2_w2w1fx_3].enumerated() { add(MethodSignature(args: ["W2", "W1"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m2_w2w1w2_0, m2_w2w1w2_1, m2_w2w1w2_2, m2_w2w1w2_3].enumerated() { add(MethodSignature(args: ["W2", "W1"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m2_w2w1v_0, m2_w2w1v_1, m2_w2w1v_2, m2_w2w1v_3].enumerated() { add(MethodSignature(args: ["W2", "W1"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m2_w2fxw1_0, m2_w2fxw1_1, m2_w2fxw1_2, m2_w2fxw1_3].enumerated() { add(MethodSignature(args: ["W2", "FX"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m2_w2fxfx_0, m2_w2fxfx_1, m2_w2fxfx_2, m2_w2fxfx_3].enumerated() { add(MethodSignature(args: ["W2", "FX"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m2_w2fxw2_0, m2_w2fxw2_1, m2_w2fxw2_2, m2_w2fxw2_3].enumerated() { add(MethodSignature(args: ["W2", "FX"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m2_w2fxv_0, m2_w2fxv_1, m2_w2fxv_2, m2_w2fxv_3].enumerated() { add(MethodSignature(args: ["W2", "FX"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m2_w2w2w1_0, m2_w2w2w1_1, m2_w2w2w1_2, m2_w2w2w1_3].enumerated() { add(MethodSignature(args: ["W2", "W2"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m2_w2w2fx_0, m2_w2w2fx_1, m2_w2w2fx_2, m2_w2w2fx_3].enumerated() { add(MethodSignature(args: ["W2", "W2"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m2_w2w2w2_0, m2_w2w2w2_1, m2_w2w2w2_2, m2_w2w2w2_3].enumerated() { add(MethodSignature(args: ["W2", "W2"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m2_w2w2v_0, m2_w2w2v_1, m2_w2w2v_2, m2_w2w2v_3].enumerated() { add(MethodSignature(args: ["W2", "W2"], ret: "V"), i, cast(fn)) }
 
-        for (i, fn) in [m3_w1w1w1w1_0, m3_w1w1w1w1_1, m3_w1w1w1w1_2, m3_w1w1w1w1_3].enumerated() { add(MethodSignature(args: ["W1", "W1", "W1"], ret: "W1"), i, cast(fn)) }
-        for (i, fn) in [m3_w1w1w1w2_0, m3_w1w1w1w2_1, m3_w1w1w1w2_2, m3_w1w1w1w2_3].enumerated() { add(MethodSignature(args: ["W1", "W1", "W1"], ret: "W2"), i, cast(fn)) }
-        for (i, fn) in [m3_w1w1w1v_0, m3_w1w1w1v_1, m3_w1w1w1v_2, m3_w1w1w1v_3].enumerated() { add(MethodSignature(args: ["W1", "W1", "W1"], ret: "V"), i, cast(fn)) }
-        for (i, fn) in [m3_w1w1w2w1_0, m3_w1w1w2w1_1, m3_w1w1w2w1_2, m3_w1w1w2w1_3].enumerated() { add(MethodSignature(args: ["W1", "W1", "W2"], ret: "W1"), i, cast(fn)) }
-        for (i, fn) in [m3_w1w1w2w2_0, m3_w1w1w2w2_1, m3_w1w1w2w2_2, m3_w1w1w2w2_3].enumerated() { add(MethodSignature(args: ["W1", "W1", "W2"], ret: "W2"), i, cast(fn)) }
-        for (i, fn) in [m3_w1w1w2v_0, m3_w1w1w2v_1, m3_w1w1w2v_2, m3_w1w1w2v_3].enumerated() { add(MethodSignature(args: ["W1", "W1", "W2"], ret: "V"), i, cast(fn)) }
-        for (i, fn) in [m3_w1w2w1w1_0, m3_w1w2w1w1_1, m3_w1w2w1w1_2, m3_w1w2w1w1_3].enumerated() { add(MethodSignature(args: ["W1", "W2", "W1"], ret: "W1"), i, cast(fn)) }
-        for (i, fn) in [m3_w1w2w1w2_0, m3_w1w2w1w2_1, m3_w1w2w1w2_2, m3_w1w2w1w2_3].enumerated() { add(MethodSignature(args: ["W1", "W2", "W1"], ret: "W2"), i, cast(fn)) }
-        for (i, fn) in [m3_w1w2w1v_0, m3_w1w2w1v_1, m3_w1w2w1v_2, m3_w1w2w1v_3].enumerated() { add(MethodSignature(args: ["W1", "W2", "W1"], ret: "V"), i, cast(fn)) }
-        for (i, fn) in [m3_w1w2w2w1_0, m3_w1w2w2w1_1, m3_w1w2w2w1_2, m3_w1w2w2w1_3].enumerated() { add(MethodSignature(args: ["W1", "W2", "W2"], ret: "W1"), i, cast(fn)) }
-        for (i, fn) in [m3_w1w2w2w2_0, m3_w1w2w2w2_1, m3_w1w2w2w2_2, m3_w1w2w2w2_3].enumerated() { add(MethodSignature(args: ["W1", "W2", "W2"], ret: "W2"), i, cast(fn)) }
-        for (i, fn) in [m3_w1w2w2v_0, m3_w1w2w2v_1, m3_w1w2w2v_2, m3_w1w2w2v_3].enumerated() { add(MethodSignature(args: ["W1", "W2", "W2"], ret: "V"), i, cast(fn)) }
-        for (i, fn) in [m3_w2w1w1w1_0, m3_w2w1w1w1_1, m3_w2w1w1w1_2, m3_w2w1w1w1_3].enumerated() { add(MethodSignature(args: ["W2", "W1", "W1"], ret: "W1"), i, cast(fn)) }
-        for (i, fn) in [m3_w2w1w1w2_0, m3_w2w1w1w2_1, m3_w2w1w1w2_2, m3_w2w1w1w2_3].enumerated() { add(MethodSignature(args: ["W2", "W1", "W1"], ret: "W2"), i, cast(fn)) }
-        for (i, fn) in [m3_w2w1w1v_0, m3_w2w1w1v_1, m3_w2w1w1v_2, m3_w2w1w1v_3].enumerated() { add(MethodSignature(args: ["W2", "W1", "W1"], ret: "V"), i, cast(fn)) }
-        for (i, fn) in [m3_w2w1w2w1_0, m3_w2w1w2w1_1, m3_w2w1w2w1_2, m3_w2w1w2w1_3].enumerated() { add(MethodSignature(args: ["W2", "W1", "W2"], ret: "W1"), i, cast(fn)) }
-        for (i, fn) in [m3_w2w1w2w2_0, m3_w2w1w2w2_1, m3_w2w1w2w2_2, m3_w2w1w2w2_3].enumerated() { add(MethodSignature(args: ["W2", "W1", "W2"], ret: "W2"), i, cast(fn)) }
-        for (i, fn) in [m3_w2w1w2v_0, m3_w2w1w2v_1, m3_w2w1w2v_2, m3_w2w1w2v_3].enumerated() { add(MethodSignature(args: ["W2", "W1", "W2"], ret: "V"), i, cast(fn)) }
-        for (i, fn) in [m3_w2w2w1w1_0, m3_w2w2w1w1_1, m3_w2w2w1w1_2, m3_w2w2w1w1_3].enumerated() { add(MethodSignature(args: ["W2", "W2", "W1"], ret: "W1"), i, cast(fn)) }
-        for (i, fn) in [m3_w2w2w1w2_0, m3_w2w2w1w2_1, m3_w2w2w1w2_2, m3_w2w2w1w2_3].enumerated() { add(MethodSignature(args: ["W2", "W2", "W1"], ret: "W2"), i, cast(fn)) }
-        for (i, fn) in [m3_w2w2w1v_0, m3_w2w2w1v_1, m3_w2w2w1v_2, m3_w2w2w1v_3].enumerated() { add(MethodSignature(args: ["W2", "W2", "W1"], ret: "V"), i, cast(fn)) }
-        for (i, fn) in [m3_w2w2w2w1_0, m3_w2w2w2w1_1, m3_w2w2w2w1_2, m3_w2w2w2w1_3].enumerated() { add(MethodSignature(args: ["W2", "W2", "W2"], ret: "W1"), i, cast(fn)) }
-        for (i, fn) in [m3_w2w2w2w2_0, m3_w2w2w2w2_1, m3_w2w2w2w2_2, m3_w2w2w2w2_3].enumerated() { add(MethodSignature(args: ["W2", "W2", "W2"], ret: "W2"), i, cast(fn)) }
-        for (i, fn) in [m3_w2w2w2v_0, m3_w2w2w2v_1, m3_w2w2w2v_2, m3_w2w2w2v_3].enumerated() { add(MethodSignature(args: ["W2", "W2", "W2"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w1w1w1_0, m3_w1w1w1w1_1].enumerated() { add(MethodSignature(args: ["W1", "W1", "W1"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w1w1fx_0, m3_w1w1w1fx_1].enumerated() { add(MethodSignature(args: ["W1", "W1", "W1"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w1w1w2_0, m3_w1w1w1w2_1].enumerated() { add(MethodSignature(args: ["W1", "W1", "W1"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w1w1v_0, m3_w1w1w1v_1].enumerated() { add(MethodSignature(args: ["W1", "W1", "W1"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w1fxw1_0, m3_w1w1fxw1_1].enumerated() { add(MethodSignature(args: ["W1", "W1", "FX"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w1fxfx_0, m3_w1w1fxfx_1].enumerated() { add(MethodSignature(args: ["W1", "W1", "FX"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w1fxw2_0, m3_w1w1fxw2_1].enumerated() { add(MethodSignature(args: ["W1", "W1", "FX"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w1fxv_0, m3_w1w1fxv_1].enumerated() { add(MethodSignature(args: ["W1", "W1", "FX"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w1w2w1_0, m3_w1w1w2w1_1].enumerated() { add(MethodSignature(args: ["W1", "W1", "W2"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w1w2fx_0, m3_w1w1w2fx_1].enumerated() { add(MethodSignature(args: ["W1", "W1", "W2"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w1w2w2_0, m3_w1w1w2w2_1].enumerated() { add(MethodSignature(args: ["W1", "W1", "W2"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w1w2v_0, m3_w1w1w2v_1].enumerated() { add(MethodSignature(args: ["W1", "W1", "W2"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_w1fxw1w1_0, m3_w1fxw1w1_1].enumerated() { add(MethodSignature(args: ["W1", "FX", "W1"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_w1fxw1fx_0, m3_w1fxw1fx_1].enumerated() { add(MethodSignature(args: ["W1", "FX", "W1"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_w1fxw1w2_0, m3_w1fxw1w2_1].enumerated() { add(MethodSignature(args: ["W1", "FX", "W1"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_w1fxw1v_0, m3_w1fxw1v_1].enumerated() { add(MethodSignature(args: ["W1", "FX", "W1"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_w1fxfxw1_0, m3_w1fxfxw1_1].enumerated() { add(MethodSignature(args: ["W1", "FX", "FX"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_w1fxfxfx_0, m3_w1fxfxfx_1].enumerated() { add(MethodSignature(args: ["W1", "FX", "FX"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_w1fxfxw2_0, m3_w1fxfxw2_1].enumerated() { add(MethodSignature(args: ["W1", "FX", "FX"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_w1fxfxv_0, m3_w1fxfxv_1].enumerated() { add(MethodSignature(args: ["W1", "FX", "FX"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_w1fxw2w1_0, m3_w1fxw2w1_1].enumerated() { add(MethodSignature(args: ["W1", "FX", "W2"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_w1fxw2fx_0, m3_w1fxw2fx_1].enumerated() { add(MethodSignature(args: ["W1", "FX", "W2"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_w1fxw2w2_0, m3_w1fxw2w2_1].enumerated() { add(MethodSignature(args: ["W1", "FX", "W2"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_w1fxw2v_0, m3_w1fxw2v_1].enumerated() { add(MethodSignature(args: ["W1", "FX", "W2"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w2w1w1_0, m3_w1w2w1w1_1].enumerated() { add(MethodSignature(args: ["W1", "W2", "W1"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w2w1fx_0, m3_w1w2w1fx_1].enumerated() { add(MethodSignature(args: ["W1", "W2", "W1"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w2w1w2_0, m3_w1w2w1w2_1].enumerated() { add(MethodSignature(args: ["W1", "W2", "W1"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w2w1v_0, m3_w1w2w1v_1].enumerated() { add(MethodSignature(args: ["W1", "W2", "W1"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w2fxw1_0, m3_w1w2fxw1_1].enumerated() { add(MethodSignature(args: ["W1", "W2", "FX"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w2fxfx_0, m3_w1w2fxfx_1].enumerated() { add(MethodSignature(args: ["W1", "W2", "FX"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w2fxw2_0, m3_w1w2fxw2_1].enumerated() { add(MethodSignature(args: ["W1", "W2", "FX"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w2fxv_0, m3_w1w2fxv_1].enumerated() { add(MethodSignature(args: ["W1", "W2", "FX"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w2w2w1_0, m3_w1w2w2w1_1].enumerated() { add(MethodSignature(args: ["W1", "W2", "W2"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w2w2fx_0, m3_w1w2w2fx_1].enumerated() { add(MethodSignature(args: ["W1", "W2", "W2"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w2w2w2_0, m3_w1w2w2w2_1].enumerated() { add(MethodSignature(args: ["W1", "W2", "W2"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_w1w2w2v_0, m3_w1w2w2v_1].enumerated() { add(MethodSignature(args: ["W1", "W2", "W2"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw1w1w1_0, m3_fxw1w1w1_1].enumerated() { add(MethodSignature(args: ["FX", "W1", "W1"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw1w1fx_0, m3_fxw1w1fx_1].enumerated() { add(MethodSignature(args: ["FX", "W1", "W1"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw1w1w2_0, m3_fxw1w1w2_1].enumerated() { add(MethodSignature(args: ["FX", "W1", "W1"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw1w1v_0, m3_fxw1w1v_1].enumerated() { add(MethodSignature(args: ["FX", "W1", "W1"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw1fxw1_0, m3_fxw1fxw1_1].enumerated() { add(MethodSignature(args: ["FX", "W1", "FX"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw1fxfx_0, m3_fxw1fxfx_1].enumerated() { add(MethodSignature(args: ["FX", "W1", "FX"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw1fxw2_0, m3_fxw1fxw2_1].enumerated() { add(MethodSignature(args: ["FX", "W1", "FX"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw1fxv_0, m3_fxw1fxv_1].enumerated() { add(MethodSignature(args: ["FX", "W1", "FX"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw1w2w1_0, m3_fxw1w2w1_1].enumerated() { add(MethodSignature(args: ["FX", "W1", "W2"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw1w2fx_0, m3_fxw1w2fx_1].enumerated() { add(MethodSignature(args: ["FX", "W1", "W2"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw1w2w2_0, m3_fxw1w2w2_1].enumerated() { add(MethodSignature(args: ["FX", "W1", "W2"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw1w2v_0, m3_fxw1w2v_1].enumerated() { add(MethodSignature(args: ["FX", "W1", "W2"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_fxfxw1w1_0, m3_fxfxw1w1_1].enumerated() { add(MethodSignature(args: ["FX", "FX", "W1"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_fxfxw1fx_0, m3_fxfxw1fx_1].enumerated() { add(MethodSignature(args: ["FX", "FX", "W1"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_fxfxw1w2_0, m3_fxfxw1w2_1].enumerated() { add(MethodSignature(args: ["FX", "FX", "W1"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_fxfxw1v_0, m3_fxfxw1v_1].enumerated() { add(MethodSignature(args: ["FX", "FX", "W1"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_fxfxfxw1_0, m3_fxfxfxw1_1].enumerated() { add(MethodSignature(args: ["FX", "FX", "FX"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_fxfxfxfx_0, m3_fxfxfxfx_1].enumerated() { add(MethodSignature(args: ["FX", "FX", "FX"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_fxfxfxw2_0, m3_fxfxfxw2_1].enumerated() { add(MethodSignature(args: ["FX", "FX", "FX"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_fxfxfxv_0, m3_fxfxfxv_1].enumerated() { add(MethodSignature(args: ["FX", "FX", "FX"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_fxfxw2w1_0, m3_fxfxw2w1_1].enumerated() { add(MethodSignature(args: ["FX", "FX", "W2"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_fxfxw2fx_0, m3_fxfxw2fx_1].enumerated() { add(MethodSignature(args: ["FX", "FX", "W2"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_fxfxw2w2_0, m3_fxfxw2w2_1].enumerated() { add(MethodSignature(args: ["FX", "FX", "W2"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_fxfxw2v_0, m3_fxfxw2v_1].enumerated() { add(MethodSignature(args: ["FX", "FX", "W2"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw2w1w1_0, m3_fxw2w1w1_1].enumerated() { add(MethodSignature(args: ["FX", "W2", "W1"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw2w1fx_0, m3_fxw2w1fx_1].enumerated() { add(MethodSignature(args: ["FX", "W2", "W1"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw2w1w2_0, m3_fxw2w1w2_1].enumerated() { add(MethodSignature(args: ["FX", "W2", "W1"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw2w1v_0, m3_fxw2w1v_1].enumerated() { add(MethodSignature(args: ["FX", "W2", "W1"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw2fxw1_0, m3_fxw2fxw1_1].enumerated() { add(MethodSignature(args: ["FX", "W2", "FX"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw2fxfx_0, m3_fxw2fxfx_1].enumerated() { add(MethodSignature(args: ["FX", "W2", "FX"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw2fxw2_0, m3_fxw2fxw2_1].enumerated() { add(MethodSignature(args: ["FX", "W2", "FX"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw2fxv_0, m3_fxw2fxv_1].enumerated() { add(MethodSignature(args: ["FX", "W2", "FX"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw2w2w1_0, m3_fxw2w2w1_1].enumerated() { add(MethodSignature(args: ["FX", "W2", "W2"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw2w2fx_0, m3_fxw2w2fx_1].enumerated() { add(MethodSignature(args: ["FX", "W2", "W2"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw2w2w2_0, m3_fxw2w2w2_1].enumerated() { add(MethodSignature(args: ["FX", "W2", "W2"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_fxw2w2v_0, m3_fxw2w2v_1].enumerated() { add(MethodSignature(args: ["FX", "W2", "W2"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w1w1w1_0, m3_w2w1w1w1_1].enumerated() { add(MethodSignature(args: ["W2", "W1", "W1"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w1w1fx_0, m3_w2w1w1fx_1].enumerated() { add(MethodSignature(args: ["W2", "W1", "W1"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w1w1w2_0, m3_w2w1w1w2_1].enumerated() { add(MethodSignature(args: ["W2", "W1", "W1"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w1w1v_0, m3_w2w1w1v_1].enumerated() { add(MethodSignature(args: ["W2", "W1", "W1"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w1fxw1_0, m3_w2w1fxw1_1].enumerated() { add(MethodSignature(args: ["W2", "W1", "FX"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w1fxfx_0, m3_w2w1fxfx_1].enumerated() { add(MethodSignature(args: ["W2", "W1", "FX"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w1fxw2_0, m3_w2w1fxw2_1].enumerated() { add(MethodSignature(args: ["W2", "W1", "FX"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w1fxv_0, m3_w2w1fxv_1].enumerated() { add(MethodSignature(args: ["W2", "W1", "FX"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w1w2w1_0, m3_w2w1w2w1_1].enumerated() { add(MethodSignature(args: ["W2", "W1", "W2"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w1w2fx_0, m3_w2w1w2fx_1].enumerated() { add(MethodSignature(args: ["W2", "W1", "W2"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w1w2w2_0, m3_w2w1w2w2_1].enumerated() { add(MethodSignature(args: ["W2", "W1", "W2"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w1w2v_0, m3_w2w1w2v_1].enumerated() { add(MethodSignature(args: ["W2", "W1", "W2"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_w2fxw1w1_0, m3_w2fxw1w1_1].enumerated() { add(MethodSignature(args: ["W2", "FX", "W1"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_w2fxw1fx_0, m3_w2fxw1fx_1].enumerated() { add(MethodSignature(args: ["W2", "FX", "W1"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_w2fxw1w2_0, m3_w2fxw1w2_1].enumerated() { add(MethodSignature(args: ["W2", "FX", "W1"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_w2fxw1v_0, m3_w2fxw1v_1].enumerated() { add(MethodSignature(args: ["W2", "FX", "W1"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_w2fxfxw1_0, m3_w2fxfxw1_1].enumerated() { add(MethodSignature(args: ["W2", "FX", "FX"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_w2fxfxfx_0, m3_w2fxfxfx_1].enumerated() { add(MethodSignature(args: ["W2", "FX", "FX"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_w2fxfxw2_0, m3_w2fxfxw2_1].enumerated() { add(MethodSignature(args: ["W2", "FX", "FX"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_w2fxfxv_0, m3_w2fxfxv_1].enumerated() { add(MethodSignature(args: ["W2", "FX", "FX"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_w2fxw2w1_0, m3_w2fxw2w1_1].enumerated() { add(MethodSignature(args: ["W2", "FX", "W2"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_w2fxw2fx_0, m3_w2fxw2fx_1].enumerated() { add(MethodSignature(args: ["W2", "FX", "W2"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_w2fxw2w2_0, m3_w2fxw2w2_1].enumerated() { add(MethodSignature(args: ["W2", "FX", "W2"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_w2fxw2v_0, m3_w2fxw2v_1].enumerated() { add(MethodSignature(args: ["W2", "FX", "W2"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w2w1w1_0, m3_w2w2w1w1_1].enumerated() { add(MethodSignature(args: ["W2", "W2", "W1"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w2w1fx_0, m3_w2w2w1fx_1].enumerated() { add(MethodSignature(args: ["W2", "W2", "W1"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w2w1w2_0, m3_w2w2w1w2_1].enumerated() { add(MethodSignature(args: ["W2", "W2", "W1"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w2w1v_0, m3_w2w2w1v_1].enumerated() { add(MethodSignature(args: ["W2", "W2", "W1"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w2fxw1_0, m3_w2w2fxw1_1].enumerated() { add(MethodSignature(args: ["W2", "W2", "FX"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w2fxfx_0, m3_w2w2fxfx_1].enumerated() { add(MethodSignature(args: ["W2", "W2", "FX"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w2fxw2_0, m3_w2w2fxw2_1].enumerated() { add(MethodSignature(args: ["W2", "W2", "FX"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w2fxv_0, m3_w2w2fxv_1].enumerated() { add(MethodSignature(args: ["W2", "W2", "FX"], ret: "V"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w2w2w1_0, m3_w2w2w2w1_1].enumerated() { add(MethodSignature(args: ["W2", "W2", "W2"], ret: "W1"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w2w2fx_0, m3_w2w2w2fx_1].enumerated() { add(MethodSignature(args: ["W2", "W2", "W2"], ret: "FX"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w2w2w2_0, m3_w2w2w2w2_1].enumerated() { add(MethodSignature(args: ["W2", "W2", "W2"], ret: "W2"), i, cast(fn)) }
+        for (i, fn) in [m3_w2w2w2v_0, m3_w2w2w2v_1].enumerated() { add(MethodSignature(args: ["W2", "W2", "W2"], ret: "V"), i, cast(fn)) }
 
         return c
     }

@@ -123,10 +123,21 @@ private func parseWitnessSignature(_ demangled: String, kind: ProtocolRequiremen
     }
 
     // Method: "fetch(id: Swift.Int) -> Swift.String"
+    // Also handles: "fetch(id: Swift.Int) throws -> Swift.String"
     if let parenOpen = cleaned.firstIndex(of: "(") {
         let methodName = extractMethodName(String(cleaned[..<parenOpen]))
 
-        if let arrow = cleaned.range(of: ") -> ") {
+        // Match both ") -> " and ") throws -> "
+        let arrowPatterns = [") throws -> ", ") -> "]
+        var arrowRange: Range<String.Index>?
+        for pattern in arrowPatterns {
+            if let range = cleaned.range(of: pattern) {
+                arrowRange = range
+                break
+            }
+        }
+
+        if let arrow = arrowRange {
             let paramsStr = String(cleaned[cleaned.index(after: parenOpen)..<arrow.lowerBound])
             let retType = simplifyType(String(cleaned[arrow.upperBound...]))
             let args = parseParams(paramsStr)

@@ -26,7 +26,7 @@ public class StubRecorder: @unchecked Sendable {
     }
 
     // Call log
-    public private(set) var calls: [RecordedCall] = []
+    public var calls: [RecordedCall] = []
 
     // Last recording (set during recording mode)
     var lastRecording: RecordedCall?
@@ -105,7 +105,9 @@ public class StubRecorder: @unchecked Sendable {
         }.count
     }
 
-    public func reset() { calls.removeAll() }
+    public func reset() {
+        calls.removeAll()
+    }
 
     // MARK: - Matching
 

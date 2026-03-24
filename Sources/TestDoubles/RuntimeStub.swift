@@ -206,6 +206,37 @@ public class RuntimeStub<P> {
         verify(called: 0, call)
     }
 
+    /// Verify that methods were called in a specific order.
+    /// ```swift
+    /// stub.verifyOrder {
+    ///     $0.find(id: 1)
+    ///     $0.save(name: "x", age: 1)
+    /// }
+    /// ```
+    public func verifyOrder(_ calls: (P) -> Void) {
+        recorder.mode = .normal  // calls execute normally
+        var expectedOrder: [Int] = []
+        let originalCalls = recorder.calls
+
+        // Record which methods are called in the closure by tracking the call log
+        let beforeCount = recorder.calls.count
+        calls(self.callAsFunction())
+        let newCalls = Array(recorder.calls[beforeCount...])
+        expectedOrder = newCalls.map(\.methodIndex)
+
+        // Restore original call log
+        recorder.calls = Array(originalCalls)
+
+        // Find matching calls in original log in order
+        var searchFrom = 0
+        for (i, expectedMethod) in expectedOrder.enumerated() {
+            guard let idx = recorder.calls[searchFrom...].firstIndex(where: { $0.methodIndex == expectedMethod }) else {
+                preconditionFailure("verifyOrder: call \(i) (\(recorder.calls.first { $0.methodIndex == expectedMethod }?.name ?? "method_\(expectedMethod)")) not found after position \(searchFrom)")
+            }
+            searchFrom = idx + 1
+        }
+    }
+
     // MARK: - Internal recording
 
     private func record(mode: StubRecorder.Mode = .recording, _ block: () -> Void) -> RecordedCall {
@@ -349,4 +380,26 @@ public struct VerifyBuilder {
     }
 
     public func wasNotCalled() { wasCalled(times: 0) }
+
+    /// Inspect arguments of matching calls.
+    /// ```swift
+    /// stub.verify { $0.find(id: any()) }.withArgs { calls in
+    ///     XCTAssertEqual(calls[0][0] as! Int, 42)
+    /// }
+    /// ```
+    public func withArgs(_ handler: ([[Any]]) -> Void) {
+        let matchers = recording.matchers.isEmpty
+            ? recording.args.map { DescriptionMatcher(value: $0) }
+            : recording.matchers
+        let matching = recorder.calls.filter { call in
+            call.methodIndex == recording.methodIndex &&
+            (matchers.isEmpty || matchArgs(call.args, against: matchers))
+        }
+        handler(matching.map(\.args))
+    }
+
+    private func matchArgs(_ args: [Any], against matchers: [ParameterMatcher]) -> Bool {
+        guard args.count == matchers.count else { return matchers.isEmpty }
+        return zip(args, matchers).allSatisfy { $0.1.matches(value: $0.0) }
+    }
 }

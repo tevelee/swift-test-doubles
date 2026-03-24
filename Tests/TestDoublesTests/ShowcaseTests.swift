@@ -156,6 +156,23 @@ final class ShowcaseTests: XCTestCase {
 
     // MARK: - Verification
 
+    /// Inspect actual arguments passed to method calls.
+    func testVerification_ArgumentInspection() {
+        let stub = RuntimeStub<any UserRepository>()
+        stub.when { $0.find(id: any()) }.returns("X")
+        stub.when { $0.count }.returns(0)
+
+        let sut: any UserRepository = stub()
+        _ = sut.find(id: 42)
+        _ = sut.find(id: 99)
+
+        stub.verify { $0.find(id: any()) }.withArgs { calls in
+            XCTAssertEqual(calls.count, 2)
+            XCTAssertEqual(calls[0][0] as! Int, 42)
+            XCTAssertEqual(calls[1][0] as! Int, 99)
+        }
+    }
+
     /// Verify call counts with various styles.
     func testVerification_CallCounts() {
         let stub = RuntimeStub<any UserRepository>()
@@ -178,6 +195,25 @@ final class ShowcaseTests: XCTestCase {
 
         // Never-called
         stub.verify(never: { $0.save(name: any(), age: any()) })
+    }
+
+    /// Verify calls happened in order.
+    func testVerification_Ordered() {
+        let stub = RuntimeStub<any UserRepository>()
+        stub.when { $0.find(id: any()) }.returns("X")
+        stub.when { $0.save(name: any(), age: any()) }.returns(true)
+        stub.when { $0.count }.returns(0)
+
+        let sut: any UserRepository = stub()
+        _ = sut.find(id: 1)
+        _ = sut.save(name: "test", age: 25)
+        _ = sut.count
+
+        // Verify find was called before save
+        stub.verifyOrder {
+            $0.find(id: any())
+            $0.save(name: any(), age: any())
+        }
     }
 
     // MARK: - Getters, Setters, and Void Methods
@@ -250,14 +286,9 @@ final class ShowcaseTests: XCTestCase {
 
     // MARK: - Throwing Methods
 
-    /// Throwing methods with slot-based init.
-    func testThrowingMethods() {
-        let real: any FileLoader = RealFileLoader()
-
-        let stub = RuntimeStub<any FileLoader>(
-            .from(real.load),     // (String) throws -> String
-            .from(real.exists)    // (String) -> Bool
-        )
+    /// Throwing methods with zero-config auto-discovery.
+    func testThrowingMethods_ZeroConfig() {
+        let stub = RuntimeStub<any FileLoader>()
 
         stub.when { try $0.load(path: any()) }.returns("content")
         stub.when { $0.exists(path: any()) }.returns(true)
@@ -266,6 +297,24 @@ final class ShowcaseTests: XCTestCase {
 
         XCTAssertEqual(try sut.load(path: "/test"), "content")
         XCTAssertEqual(sut.exists(path: "/test"), true)
+    }
+
+    /// Throwing methods with typed method references.
+    func testThrowingMethods_TypedRefs() {
+        let real: any FileLoader = RealFileLoader()
+
+        let stub = RuntimeStub<any FileLoader>(
+            .from(real.load),
+            .from(real.exists)
+        )
+
+        stub.when { try $0.load(path: any()) }.returns("typed-content")
+        stub.when { $0.exists(path: any()) }.returns(false)
+
+        let sut: any FileLoader = stub()
+
+        XCTAssertEqual(try sut.load(path: "/x"), "typed-content")
+        XCTAssertEqual(sut.exists(path: "/x"), false)
     }
 
     /// Slot-based init with type-based API.

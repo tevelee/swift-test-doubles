@@ -22,18 +22,19 @@ struct ABI: CustomStringConvertible {
 }
 
 let W1 = ABI(id: "W1", swiftType: "Int")
+let FX = ABI(id: "FX", swiftType: "Double")
 let W2 = ABI(id: "W2", swiftType: "String")
 let V  = ABI(id: "V",  swiftType: "Void")
 
-let argClasses = [W1, W2]  // V not used as arg (no Void parameters)
-let retClasses = [W1, W2, V]
+let argClasses = [W1, FX, W2]  // V not used as arg
+let retClasses = [W1, FX, W2, V]
 
 // Slot counts per arity (higher arities get fewer slots to keep file size reasonable)
 let slotsForArity: [Int: Int] = [
     0: maxSlots,   // getters: 16 slots
-    1: maxSlots,   // 1-arg: 16 slots
-    2: 8,          // 2-arg: 8 slots
-    3: 4,          // 3-arg: 4 slots
+    1: 8,          // 1-arg: 8 slots
+    2: 4,          // 2-arg: 4 slots
+    3: 2,          // 3-arg: 2 slots
 ]
 
 var output = ""
@@ -49,6 +50,8 @@ emit("// W2 = 16-byte (String)")
 emit("// V  = Void")
 emit("//")
 emit("// Thunks: \\(totalThunks) total across 0-3 arg arities.")
+emit("")
+emit("import Foundation")
 emit("")
 
 // MARK: - MethodSignature
@@ -79,15 +82,19 @@ public struct MethodSignature: Hashable, Sendable {
 emit("""
 private func argABI(_ typeName: String) -> String {
     switch typeName {
+    case "W1", "W2", "FX": return typeName
     case "String": return "W2"
+    case "Double", "Float": return "FX"
     default: return "W1"
     }
 }
 
 private func retABI(_ typeName: String) -> String {
     switch typeName {
+    case "W1", "W2", "FX", "V": return typeName
     case "Void": return "V"
     case "String": return "W2"
+    case "Double", "Float": return "FX"
     default: return "W1"
     }
 }
@@ -97,7 +104,8 @@ func isReferenceReturn(_ typeName: String) -> Bool {
     switch typeName {
     case "Int", "Bool", "Double", "Float", "String", "Void",
          "UInt", "Int8", "Int16", "Int32", "Int64",
-         "UInt8", "UInt16", "UInt32", "UInt64":
+         "UInt8", "UInt16", "UInt32", "UInt64",
+         "V", "W2", "FX":
         return false
     default:
         return true
@@ -113,17 +121,36 @@ emit("""
 @inline(__always)
 private func rec(_ w: UnsafeRawPointer) -> StubRecorder { MockRegistry.resolve(w) }
 
-/// W1 dispatch: 8-byte return. Auto-retains if the slot returns a reference type.
+/// Thread-local keepalive for dispatch results.
+private let _keepAliveKey = "_TestDoubles_keepAlive"
+private func keepAlive(_ value: Any) {
+    var arr = Thread.current.threadDictionary[_keepAliveKey] as? [Any] ?? []
+    arr.append(value)
+    if arr.count > 32 { arr.removeFirst(16) }
+    Thread.current.threadDictionary[_keepAliveKey] = arr
+}
+
+/// W1 dispatch: 8-byte integer-register return.
 @inline(__always)
 private func d1(_ w: UnsafeRawPointer, _ m: Int, _ a: [Any]) -> Int {
     let r = rec(w)
     let result = r.dispatch(method: m, args: a)
     if r.mode != .normal { return 0 }
+    keepAlive(result)
     let word = withUnsafePointer(to: result) { UnsafeRawPointer($0).load(as: Int.self) }
     if r.isRefReturn(m), let rawPtr = UnsafeRawPointer(bitPattern: word) {
         _ = Unmanaged<AnyObject>.fromOpaque(rawPtr).retain()
     }
     return word
+}
+
+/// FX dispatch: 8-byte SIMD-register return (Double, Float).
+@inline(__always)
+private func df(_ w: UnsafeRawPointer, _ m: Int, _ a: [Any]) -> Double {
+    let r = rec(w)
+    let result = r.dispatch(method: m, args: a)
+    if r.mode != .normal { return 0.0 }
+    return withUnsafePointer(to: result) { UnsafeRawPointer($0).load(as: Double.self) }
 }
 
 /// W2 dispatch: String return.
@@ -150,6 +177,7 @@ var totalThunks = 0
 func dispatchCall(ret: ABI, slot: String, args: String) -> String {
     switch ret.id {
     case "W1": return "d1(w, \(slot), \(args))"
+    case "FX": return "df(w, \(slot), \(args))"
     case "W2": return "d2(w, \(slot), \(args))"
     case "V":  return "dv(w, \(slot), \(args))"
     default: fatalError()
