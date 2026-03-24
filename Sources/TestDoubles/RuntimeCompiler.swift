@@ -66,13 +66,19 @@ public enum RuntimeCompiler {
     ) -> String {
         var src = """
         import Foundation
+        import \(moduleName)
 
-        // Bridge functions resolved from host process via dynamic_lookup
+        // Bridge functions are available via TestDoubles module.
+        // If TestDoubles isn't the imported module, declare them:
+        """
+        if moduleName != "TestDoubles" {
+            src += """
+
         @_silgen_name("td_bridge_dispatch_int")
         func td_bridge_dispatch_int(_ ctx: UnsafeRawPointer, _ method: Int32) -> Int
 
         @_silgen_name("td_bridge_dispatch_string")
-        func td_bridge_dispatch_string(_ ctx: UnsafeRawPointer, _ method: Int32) -> UnsafePointer<CChar>?
+        func td_bridge_dispatch_string(_ ctx: UnsafeRawPointer, _ method: Int32) -> UnsafeMutablePointer<CChar>?
 
         @_silgen_name("td_bridge_dispatch_s_s")
         func td_bridge_dispatch_s_s(_ ctx: UnsafeRawPointer, _ method: Int32, _ a: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar>?
@@ -85,8 +91,11 @@ public enum RuntimeCompiler {
 
         @_silgen_name("td_bridge_get_error")
         func td_bridge_get_error() -> NSError
+        """
+        }
 
-        import \(moduleName)
+        src += """
+
 
         public struct _TDMock: \(protocolName) {
             public let _ctx: UnsafeRawPointer
@@ -133,24 +142,24 @@ public enum RuntimeCompiler {
         switch ret {
         case "String":
             return """
-                public var \(name): String {
-                    guard let cStr = td_bridge_dispatch_string(_ctx, \(slot)) else { return "" }
-                    defer { free(UnsafeMutablePointer(mutating: cStr)) }
-                    return String(cString: cStr)
-                }
-            """
+                    public var \(name): String {
+                        guard let cStr = td_bridge_dispatch_string(_ctx, \(slot)) else { return "" }
+                        defer { free(cStr) }
+                        return String(cString: cStr)
+                    }
+                """
         case "Bool":
             return """
-                public var \(name): Bool {
-                    td_bridge_dispatch_int(_ctx, \(slot)) != 0
-                }
-            """
+                    public var \(name): Bool {
+                        td_bridge_dispatch_int(_ctx, \(slot)) != 0
+                    }
+                """
         default:
             return """
-                public var \(name): \(ret) {
-                    \(ret)(td_bridge_dispatch_int(_ctx, \(slot)))
-                }
-            """
+                    public var \(name): \(ret) {
+                        td_bridge_dispatch_int(_ctx, \(slot))
+                    }
+                """
         }
     }
 
@@ -218,10 +227,18 @@ public enum RuntimeCompiler {
             }
         }
 
+        let retExpr: String
+        switch sig.ret {
+        case "Bool": retExpr = "return td_bridge_dispatch_int(_ctx, \(slot)) != 0"
+        case "Void": retExpr = "_ = td_bridge_dispatch_int(_ctx, \(slot))"
+        case "Int": retExpr = "return td_bridge_dispatch_int(_ctx, \(slot))"
+        default: retExpr = "return td_bridge_dispatch_int(_ctx, \(slot))"
+        }
+
         return """
             public func \(cleanName)(\(params)) \(throwsKw)-> \(sig.ret) {
         \(throwCheck)
-                \(sig.ret == "Void" ? "_ = " : "return \(sig.ret)(")td_bridge_dispatch_int(_ctx, \(slot))\(sig.ret == "Void" ? "" : ")")
+                \(retExpr)
             }
         """
     }
@@ -232,6 +249,9 @@ public enum RuntimeCompiler {
 
     /// Additional module search paths for the compiler.
     /// Set this before creating stubs if your protocol is in a custom framework.
+    /// Enable/disable runtime compilation. Disabled by default until stable.
+    nonisolated(unsafe) public static var isEnabled = false
+
     nonisolated(unsafe) public static var additionalImportPaths: [String] = []
     nonisolated(unsafe) public static var additionalLibraryPaths: [String] = []
     nonisolated(unsafe) public static var additionalFrameworkPaths: [String] = []
@@ -267,11 +287,12 @@ public enum RuntimeCompiler {
             args += ["-sdk", sdk]
         }
 
-        // Import paths: include the build directory for SPM modules
-        for path in additionalImportPaths {
+        // Auto-detect module search paths from the running binary
+        let autoImportPaths = Self.detectImportPaths()
+        for path in autoImportPaths + additionalImportPaths {
             args += ["-I", path]
         }
-        for path in additionalLibraryPaths {
+        for path in autoImportPaths + additionalLibraryPaths {
             args += ["-L", path]
         }
         for path in additionalFrameworkPaths {
@@ -305,6 +326,42 @@ public enum RuntimeCompiler {
         }
     }
 
+    /// Auto-detect module import paths from the running binary's location.
+    /// For SPM builds, modules are in .build/<arch>/debug/Modules.
+    private static func detectImportPaths() -> [String] {
+        var paths: [String] = []
+
+        // Try to find .build directory by walking up from the executable
+        let execURL = URL(fileURLWithPath: ProcessInfo.processInfo.arguments[0])
+        var dir = execURL.deletingLastPathComponent()
+
+        // Walk up looking for a directory containing Modules/
+        for _ in 0..<10 {
+            let modulesDir = dir.appendingPathComponent("Modules")
+            if FileManager.default.fileExists(atPath: modulesDir.path) {
+                paths.append(modulesDir.path)
+                paths.append(dir.path) // for -L (library search)
+                break
+            }
+            dir = dir.deletingLastPathComponent()
+        }
+
+        // Also check standard SPM build paths relative to current working directory
+        let cwd = FileManager.default.currentDirectoryPath
+        for buildDir in [
+            "\(cwd)/.build/arm64-apple-macosx/debug",
+            "\(cwd)/.build/debug",
+        ] {
+            let modulesPath = "\(buildDir)/Modules"
+            if FileManager.default.fileExists(atPath: modulesPath) {
+                paths.append(modulesPath)
+                paths.append(buildDir)
+            }
+        }
+
+        return Array(Set(paths)) // deduplicate
+    }
+
     private static func findSDKPath() -> String? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
@@ -318,6 +375,21 @@ public enum RuntimeCompiler {
     }
 
     private static func findSwiftc() -> String {
+        // Prefer the swiftc from PATH (matches the toolchain that built the module)
+        let whichProcess = Process()
+        whichProcess.executableURL = URL(fileURLWithPath: "/usr/bin/which")
+        whichProcess.arguments = ["swiftc"]
+        let whichPipe = Pipe()
+        whichProcess.standardOutput = whichPipe
+        try? whichProcess.run()
+        whichProcess.waitUntilExit()
+        if whichProcess.terminationStatus == 0 {
+            let path = String(data: whichPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if let p = path, !p.isEmpty { return p }
+        }
+
+        // Fallback to xcrun
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
         process.arguments = ["--find", "swiftc"]
@@ -326,8 +398,7 @@ public enum RuntimeCompiler {
         try? process.run()
         process.waitUntilExit()
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let path = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
-        return path ?? "/usr/bin/swiftc"
+        return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "/usr/bin/swiftc"
     }
 }
 
