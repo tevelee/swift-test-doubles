@@ -265,6 +265,25 @@ public class RuntimeStub<P> {
         verify(called: 0, call)
     }
 
+    // MARK: - Throwing verify variants
+
+    /// Verify a throwing method/getter was called.
+    public func verify(_ call: (P) throws -> some Any) -> VerifyBuilder {
+        let recording = record(mode: .verifying) { _ = try! call(self.callAsFunction()) }
+        return VerifyBuilder(recorder: recorder, recording: recording)
+    }
+
+    /// Concise throwing verify: `stub.verify(called: 2) { try $0.load(path: any()) }`
+    public func verify(called times: Int, _ call: (P) throws -> some Any) {
+        let recording = record(mode: .verifying) { _ = try! call(self.callAsFunction()) }
+        VerifyBuilder(recorder: recorder, recording: recording).wasCalled(times: times)
+    }
+
+    /// Concise throwing verify never: `stub.verify(never: { try $0.load(path: any()) })`
+    public func verify(never call: (P) throws -> some Any) {
+        verify(called: 0, call)
+    }
+
     /// Verify that methods were called in a specific order.
     /// ```swift
     /// stub.verifyOrder {

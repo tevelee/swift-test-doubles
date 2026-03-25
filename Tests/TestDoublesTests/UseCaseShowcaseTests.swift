@@ -91,8 +91,8 @@ final class UseCaseShowcaseTests: XCTestCase {
         XCTAssertEqual(try sut.read(path: "/c.txt"), "default")
         try! sut.write(path: "/out.txt", content: "data")
 
-        stub.verify(called: 3) { try! $0.read(path: any()) }
-        stub.verify(called: 1) { try! $0.write(path: any(), content: any()) }
+        stub.verify(called: 3) { try $0.read(path: any()) }
+        stub.verify(called: 1) { try $0.write(path: any(), content: any()) }
     }
 
     // MARK: - 5. Argument inspection
@@ -159,7 +159,7 @@ final class UseCaseShowcaseTests: XCTestCase {
         XCTAssertTrue(fs.exists(at: "/test"))
 
         repoStub.verify(called: 1) { $0.find(id: any()) }
-        fileStub.verify(called: 1) { try! $0.read(path: any()) }
+        fileStub.verify(called: 1) { try $0.read(path: any()) }
     }
 
     // MARK: - 8. Predicate matching

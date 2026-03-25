@@ -54,7 +54,8 @@ final class ThrowingShowcaseTests: XCTestCase {
         _ = try? sut.read(path: "/b")
         _ = sut.exists(at: "/a")
 
-        stub.verify(called: 2) { try! $0.read(path: any()) }
+        stub.verify(called: 2) { try $0.read(path: any()) }
         stub.verify(called: 1) { $0.exists(at: any()) }
+        stub.verify(never: { try $0.write(path: any(), content: any()) })
     }
 }
