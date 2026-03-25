@@ -25,17 +25,33 @@ public class RuntimeStub<P> {
     ///
     /// Requires that at least one type conforming to the protocol exists
     /// in the binary (which it does if you import the module that defines it).
-    public init() {
+    /// Mock generation strategy.
+    public enum Strategy {
+        /// Use pre-compiled ABI-class thunks. Fast, no external tools needed.
+        /// Limited to ≤16-byte return types, no real error propagation.
+        case thunks
+        /// Compile a conforming type at test startup via swiftc.
+        /// Supports any type, throws, async. Requires swiftc on PATH.
+        case compiled
+        /// Try compiled first, fall back to thunks if compilation fails.
+        case auto
+    }
+
+    /// Zero-config init with strategy selection.
+    /// ```swift
+    /// let stub = RuntimeStub<any MyService>()                    // auto
+    /// let stub = RuntimeStub<any MyService>(strategy: .compiled) // force compilation
+    /// let stub = RuntimeStub<any MyService>(strategy: .thunks)   // skip compilation
+    /// ```
+    public init(strategy: Strategy = .auto) {
         let conformance = Self.findConformance()
         self.recorder = StubRecorder()
 
-        // Auto-discover method signatures via dladdr + demangling
         let signatures = discoverSignatures(
             witnessTable: conformance.witnessTablePattern,
             proto: conformance.protocol
         )
 
-        // Check if any method needs throws/async (thunk library can't handle these)
         let mockableSigs = signatures.filter { sig in
             switch sig.kind {
             case .modifyCoroutine, .readCoroutine, .baseProtocol,
@@ -46,9 +62,16 @@ public class RuntimeStub<P> {
             }
         }
 
-        let hasThrowingOrAsync = mockableSigs.contains { $0.isThrowing || $0.isAsync }
+        let shouldCompile: Bool
+        switch strategy {
+        case .thunks: shouldCompile = false
+        case .compiled: shouldCompile = true
+        case .auto:
+            let hasThrowingOrAsync = mockableSigs.contains { $0.isThrowing || $0.isAsync }
+            shouldCompile = hasThrowingOrAsync && RuntimeCompiler.isEnabled
+        }
 
-        if hasThrowingOrAsync && RuntimeCompiler.isEnabled {
+        if shouldCompile {
             // Try runtime compilation approach
             let proto = conformance.protocol
             let moduleName = mockableSigs.compactMap { RuntimeCompiler.extractModuleName(from: $0.rawDemangled) }.first
