@@ -227,7 +227,7 @@ private func parseWitnessSignature(_ demangled: String, kind: ProtocolRequiremen
         let methodName = extractMethodName(String(cleaned[..<parenOpen]))
 
         // Match both ") -> " and ") throws -> "
-        let arrowPatterns = [") throws -> ", ") -> "]
+        let arrowPatterns = [") async throws -> ", ") throws -> ", ") async -> ", ") -> "]
         var arrowRange: Range<String.Index>?
         for pattern in arrowPatterns {
             if let range = cleaned.range(of: pattern) {

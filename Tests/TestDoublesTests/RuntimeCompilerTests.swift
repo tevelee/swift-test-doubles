@@ -132,7 +132,17 @@ import Testing
         #expect(sut.basePath == "/compiled")
     }
 
-    // Async test deferred — needs async `when` overload.
-    // The compiled mock generates async witness thunks correctly,
-    // but the `when` recording API doesn't support async closures yet.
+    @Test func compiledMockAsync() async throws {
+        let stub = RuntimeStub<any AsyncDataLoader>(strategy: .compiled)
+
+        await stub.when { try await $0.load(url: any()) }.returns("async-data")
+        await stub.when { await $0.prefetch(urls: any()) }
+        stub.when { $0.cacheSize }.returns(42)
+
+        let sut: any AsyncDataLoader = stub()
+
+        let result = try await sut.load(url: "https://example.com")
+        #expect(result == "async-data")
+        #expect(sut.cacheSize == 42)
+    }
 }

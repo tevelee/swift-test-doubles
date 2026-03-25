@@ -1,4 +1,5 @@
 import Echo
+import Foundation
 #if canImport(Darwin)
 import Darwin
 #elseif canImport(Glibc)
@@ -18,7 +19,7 @@ import Glibc
 /// let sut = stub.proxy
 /// sut.add(1, 2)  // → 42
 /// ```
-public class RuntimeStub<P> {
+public class RuntimeStub<P>: @unchecked Sendable {
     public let recorder: StubRecorder
     private let wtAllocation: UnsafeMutableRawPointer
     private let containerBytes: ExistentialContainer
@@ -253,6 +254,44 @@ public class RuntimeStub<P> {
         return StubBuilder(recorder: recorder, recording: recording)
     }
 
+    /// Stub an async method.
+    @_disfavoredOverload
+    @discardableResult
+    public func when<R>(_ call: (P) async -> R) async -> StubBuilder<R> {
+        let recording = await recordAsync { _ = await call(self.callAsFunction()) }
+        return StubBuilder(recorder: recorder, recording: recording)
+    }
+
+    /// Stub an async throwing method.
+    @_disfavoredOverload
+    @discardableResult
+    public func when<R>(_ call: (P) async throws -> R) async -> StubBuilder<R> {
+        let recording = await recordAsync { _ = try! await call(self.callAsFunction()) }
+        return StubBuilder(recorder: recorder, recording: recording)
+    }
+
+    /// Stub an async void method — auto-registers.
+    @discardableResult
+    public func when(_ call: (P) async -> Void) async -> StubBuilder<Void> {
+        let recording = await recordAsync { await call(self.callAsFunction()) }
+        let matchers = recording.matchers.isEmpty
+            ? recording.args.map { DescriptionMatcher(value: $0) }
+            : recording.matchers
+        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { _ in () })
+        return StubBuilder(recorder: recorder, recording: recording)
+    }
+
+    /// Stub an async throwing void method — auto-registers.
+    @discardableResult
+    public func when(_ call: (P) async throws -> Void) async -> StubBuilder<Void> {
+        let recording = await recordAsync { try! await call(self.callAsFunction()) }
+        let matchers = recording.matchers.isEmpty
+            ? recording.args.map { DescriptionMatcher(value: $0) }
+            : recording.matchers
+        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { _ in () })
+        return StubBuilder(recorder: recorder, recording: recording)
+    }
+
     /// Stub a setter: `stub.when(setting: { $0.name = "x" })`
     @_disfavoredOverload
     @discardableResult
@@ -347,6 +386,23 @@ public class RuntimeStub<P> {
     }
 
     // MARK: - Internal recording
+
+    func recordAsync(mode: StubRecorder.Mode = .recording, _ block: () async -> Void) async -> RecordedCall {
+        _matcherStack = []
+        recorder.activeMatchers = []
+        recorder.mode = mode
+        await block()
+        if !_matcherStack.isEmpty {
+            recorder.lastRecording?.matchers = _matcherStack
+            _matcherStack = []
+        }
+        recorder.mode = .normal
+        guard let recording = recorder.lastRecording else {
+            fatalError("No method was called in the async closure")
+        }
+        recorder.lastRecording = nil
+        return recording
+    }
 
     private func record(mode: StubRecorder.Mode = .recording, _ block: () -> Void) -> RecordedCall {
         _matcherStack = [] // clear any stale matchers
