@@ -11,13 +11,13 @@ import TestDoubles
 // MARK: - Realistic Protocol Definitions
 
 /// A typical service protocol with various method signatures.
-protocol UserRepository {
+protocol ShowcaseUserRepository {
     func find(id: Int) -> String
     func search(query: String) -> [String]
     func save(name: String, age: Int) -> Bool
     var count: Int { get }
 }
-struct RealUserRepository: UserRepository {
+struct RealShowcaseUserRepository: ShowcaseUserRepository {
     func find(id: Int) -> String { "" }
     func search(query: String) -> [String] { [] }
     func save(name: String, age: Int) -> Bool { false }
@@ -86,14 +86,14 @@ final class ShowcaseTests: XCTestCase {
 
     /// Zero-config with exact argument matching.
     func testZeroConfig_ExactMatching() {
-        let stub = RuntimeStub<any UserRepository>()
+        let stub = RuntimeStub<any ShowcaseUserRepository>()
 
         stub.when { $0.find(id: 1) }.returns("Alice")
         stub.when { $0.find(id: 2) }.returns("Bob")
         stub.when { $0.save(name: "Charlie", age: 30) }.returns(true)
         stub.when { $0.count }.returns(100)
 
-        let sut: any UserRepository = stub()
+        let sut: any ShowcaseUserRepository = stub()
 
         XCTAssertEqual(sut.find(id: 1), "Alice")
         XCTAssertEqual(sut.find(id: 2), "Bob")
@@ -103,7 +103,7 @@ final class ShowcaseTests: XCTestCase {
 
     /// Free-function matchers: any(), equal(), match().
     func testZeroConfig_Matchers() {
-        let stub = RuntimeStub<any UserRepository>()
+        let stub = RuntimeStub<any ShowcaseUserRepository>()
 
         // Registration order doesn't matter — best match wins by specificity
         stub.when { $0.find(id: any()) }.returns("Unknown")
@@ -111,7 +111,7 @@ final class ShowcaseTests: XCTestCase {
         stub.when { $0.save(name: any(), age: any()) }.returns(false)
         stub.when { $0.count }.returns(0)
 
-        let sut: any UserRepository = stub()
+        let sut: any ShowcaseUserRepository = stub()
 
         XCTAssertEqual(sut.find(id: 42), "The Answer")
         XCTAssertEqual(sut.find(id: 99), "Unknown")
@@ -120,13 +120,13 @@ final class ShowcaseTests: XCTestCase {
 
     /// Predicate matcher: match() with custom logic.
     func testZeroConfig_PredicateMatcher() {
-        let stub = RuntimeStub<any UserRepository>()
+        let stub = RuntimeStub<any ShowcaseUserRepository>()
 
         stub.when { $0.find(id: match { $0 > 100 }) }.returns("VIP")
         stub.when { $0.find(id: match { $0 <= 100 }) }.returns("Regular")
         stub.when { $0.count }.returns(0)
 
-        let sut: any UserRepository = stub()
+        let sut: any ShowcaseUserRepository = stub()
 
         XCTAssertEqual(sut.find(id: 101), "VIP")
         XCTAssertEqual(sut.find(id: 50), "Regular")
@@ -134,7 +134,7 @@ final class ShowcaseTests: XCTestCase {
 
     /// Dynamic answers — compute return values based on arguments.
     func testZeroConfig_DynamicAnswers() {
-        let stub = RuntimeStub<any UserRepository>()
+        let stub = RuntimeStub<any ShowcaseUserRepository>()
 
         stub.when { $0.find(id: any()) }.answers { args in
             let id = args[0] as! Int
@@ -146,7 +146,7 @@ final class ShowcaseTests: XCTestCase {
         }
         stub.when { $0.count }.returns(42)
 
-        let sut: any UserRepository = stub()
+        let sut: any ShowcaseUserRepository = stub()
 
         XCTAssertEqual(sut.find(id: 7), "User_7")
         XCTAssertEqual(sut.find(id: 99), "User_99")
@@ -158,11 +158,11 @@ final class ShowcaseTests: XCTestCase {
 
     /// Inspect actual arguments passed to method calls.
     func testVerification_ArgumentInspection() {
-        let stub = RuntimeStub<any UserRepository>()
+        let stub = RuntimeStub<any ShowcaseUserRepository>()
         stub.when { $0.find(id: any()) }.returns("X")
         stub.when { $0.count }.returns(0)
 
-        let sut: any UserRepository = stub()
+        let sut: any ShowcaseUserRepository = stub()
         _ = sut.find(id: 42)
         _ = sut.find(id: 99)
 
@@ -175,11 +175,11 @@ final class ShowcaseTests: XCTestCase {
 
     /// Verify call counts with various styles.
     func testVerification_CallCounts() {
-        let stub = RuntimeStub<any UserRepository>()
+        let stub = RuntimeStub<any ShowcaseUserRepository>()
         stub.when { $0.find(id: any()) }.returns("X")
         stub.when { $0.count }.returns(0)
 
-        let sut: any UserRepository = stub()
+        let sut: any ShowcaseUserRepository = stub()
         _ = sut.find(id: 1)
         _ = sut.find(id: 2)
         _ = sut.find(id: 3)
@@ -199,12 +199,12 @@ final class ShowcaseTests: XCTestCase {
 
     /// Verify calls happened in order.
     func testVerification_Ordered() {
-        let stub = RuntimeStub<any UserRepository>()
+        let stub = RuntimeStub<any ShowcaseUserRepository>()
         stub.when { $0.find(id: any()) }.returns("X")
         stub.when { $0.save(name: any(), age: any()) }.returns(true)
         stub.when { $0.count }.returns(0)
 
-        let sut: any UserRepository = stub()
+        let sut: any ShowcaseUserRepository = stub()
         _ = sut.find(id: 1)
         _ = sut.save(name: "test", age: 25)
         _ = sut.count
@@ -319,7 +319,7 @@ final class ShowcaseTests: XCTestCase {
 
     /// Slot-based init with type-based API.
     func testSlotBasedInit() {
-        let stub = RuntimeStub<any UserRepository>(
+        let stub = RuntimeStub<any ShowcaseUserRepository>(
             .method(Int.self, returns: String.self),
             .method(String.self, returns: Int.self),
             .method(String.self, Int.self, returns: Bool.self),
@@ -329,7 +329,7 @@ final class ShowcaseTests: XCTestCase {
         stub.when { $0.find(id: 1) }.returns("Manual")
         stub.when { $0.count }.returns(7)
 
-        let sut: any UserRepository = stub()
+        let sut: any ShowcaseUserRepository = stub()
 
         XCTAssertEqual(sut.find(id: 1), "Manual")
         XCTAssertEqual(sut.count, 7)
@@ -342,9 +342,9 @@ final class ShowcaseTests: XCTestCase {
 
     /// Use method references for type-safe slot signatures.
     func testTypedMethodReferences() {
-        let real: any UserRepository = RealUserRepository()
+        let real: any ShowcaseUserRepository = RealShowcaseUserRepository()
 
-        let stub = RuntimeStub<any UserRepository>(
+        let stub = RuntimeStub<any ShowcaseUserRepository>(
             .from(real.find),     // (Int) -> String
             .from(real.search),   // (String) -> [String]
             .from(real.save),     // (String, Int) -> Bool
@@ -356,7 +356,7 @@ final class ShowcaseTests: XCTestCase {
         stub.when { $0.save(name: any(), age: any()) }.returns(true)
         stub.when { $0.count }.returns(42)
 
-        let sut: any UserRepository = stub()
+        let sut: any ShowcaseUserRepository = stub()
 
         XCTAssertEqual(sut.find(id: 1), "TypeSafe")
         XCTAssertEqual(sut.search(query: "x"), ["found"])
@@ -368,11 +368,11 @@ final class ShowcaseTests: XCTestCase {
 
     /// Verify call history through the recorder's call log.
     func testCallLog() {
-        let stub = RuntimeStub<any UserRepository>()
+        let stub = RuntimeStub<any ShowcaseUserRepository>()
         stub.when { $0.find(id: any()) }.returns("X")
         stub.when { $0.count }.returns(0)
 
-        let sut: any UserRepository = stub()
+        let sut: any ShowcaseUserRepository = stub()
         _ = sut.find(id: 1)
         _ = sut.find(id: 2)
         _ = sut.count
@@ -385,7 +385,7 @@ final class ShowcaseTests: XCTestCase {
 
     /// Multiple independent stubs for different protocols.
     func testMultipleStubs() {
-        let repoStub = RuntimeStub<any UserRepository>()
+        let repoStub = RuntimeStub<any ShowcaseUserRepository>()
         let configStub = RuntimeStub<any AppConfig>()
 
         repoStub.when { $0.find(id: any()) }.returns("User")
@@ -396,7 +396,7 @@ final class ShowcaseTests: XCTestCase {
         configStub.when { $0.isDebug }.returns(false)
         configStub.when { $0.scale }.returns(1.0)
 
-        let repo: any UserRepository = repoStub()
+        let repo: any ShowcaseUserRepository = repoStub()
         let config: any AppConfig = configStub()
 
         XCTAssertEqual(repo.find(id: 1), "User")
