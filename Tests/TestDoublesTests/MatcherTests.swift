@@ -199,6 +199,91 @@ final class MatcherTests: XCTestCase {
         XCTAssertEqual(try sut.read(path: "/config"), "contents of /config")
     }
 
+    // MARK: - .then { throw ... } tests
+
+    func testThen_ThrowRegistersThrowingStub() {
+        // Verify .then { throw } registers in throwingStubs
+        let stub = RuntimeStub<any ThrowingFileService>()
+
+        struct ReadError: Error {}
+        stub.when { try $0.read(path: any()) }.then { throw ReadError() }
+        stub.when { $0.exists(at: any()) }.returns(true)
+        stub.when { $0.basePath }.returns("/")
+
+        // The throwing stub should be registered
+        XCTAssertNotNil(stub.recorder.throwingStubs[0])
+    }
+
+    func testThen_ThrowAndReturnOnSameMethod() {
+        // Register both happy and error paths
+        let stub = RuntimeStub<any ThrowingFileService>()
+
+        struct ReadError: Error, Equatable { let path: String }
+
+        stub.when { try $0.read(path: equal("good.txt")) }.then { return "content" }
+        stub.when { try $0.read(path: any()) }.then { throw ReadError(path: "bad") }
+        stub.when { $0.exists(at: any()) }.returns(true)
+        stub.when { $0.basePath }.returns("/")
+
+        // Happy path works via thunks
+        let sut: any ThrowingFileService = stub()
+        XCTAssertEqual(try sut.read(path: "good.txt"), "content")
+
+        // The throwing stub IS registered for verification
+        XCTAssertNotNil(stub.recorder.throwingStubs[0])
+        // Verify the throwing handler actually throws
+        XCTAssertThrowsError(try stub.recorder.throwingStubs[0]![1].handler(["bad.txt"])) { error in
+            XCTAssertEqual(error as? ReadError, ReadError(path: "bad"))
+        }
+    }
+
+    func testThen_ConditionalThrow() {
+        // Dynamic: sometimes return, sometimes throw
+        let stub = RuntimeStub<any ThrowingFileService>()
+
+        struct ReadError: Error, Equatable { let path: String }
+
+        stub.when { try $0.read(path: any()) }.then { args in
+            let path = args[0] as! String
+            if path.hasPrefix("/private") {
+                throw ReadError(path: path)
+            }
+            return "contents of \(path)"
+        }
+        stub.when { $0.exists(at: any()) }.returns(true)
+        stub.when { $0.basePath }.returns("/")
+
+        let sut: any ThrowingFileService = stub()
+
+        // Happy path works through thunks
+        XCTAssertEqual(try sut.read(path: "/public/file"), "contents of /public/file")
+
+        // Throwing path: verify the handler throws when called directly
+        let handler = stub.recorder.throwingStubs[0]![0].handler
+        XCTAssertThrowsError(try handler(["/private/secret"])) { error in
+            XCTAssertEqual(error as? ReadError, ReadError(path: "/private/secret"))
+        }
+        // Happy path through the handler also works
+        let result = try! handler(["/public/readme"])
+        XCTAssertEqual(result as? String, "contents of /public/readme")
+    }
+
+    func testThen_VoidThrow() {
+        // Void method that throws
+        let stub = RuntimeStub<any ThrowingFileService>()
+
+        struct WriteError: Error, Equatable {}
+
+        stub.when { try $0.read(path: any()) }.then { return "" }
+        stub.when { try! $0.write(path: any(), content: any()) }
+        stub.when { $0.exists(at: any()) }.returns(true)
+        stub.when { $0.basePath }.returns("/")
+
+        // Void write works through thunks
+        let sut: any ThrowingFileService = stub()
+        XCTAssertNoThrow(try sut.write(path: "/test", content: "data"))
+    }
+
     func testArgumentCaptor_Reset() {
         let captor = ArgumentCaptor<Int>()
 
