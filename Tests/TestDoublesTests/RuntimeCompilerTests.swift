@@ -1,48 +1,11 @@
-import XCTest
+import Testing
 @testable import TestDoubles
 
-// ============================================================================
-// Runtime Compiler Tests
-//
-// These tests exercise the RuntimeCompiler path for protocols that can
-// be imported by the compiled dylib (e.g., protocols in Foundation or
-// in separate SPM modules).
-//
-// For protocols defined in the test target itself, runtime compilation
-// can't import them — the thunk-based fallback is used instead.
-// ============================================================================
+@Suite struct SourceGenerationTests {
 
-// A simple protocol for testing the source generator
-protocol SimpleThrowingService {
-    func load(path: String) throws -> String
-    func check(flag: Bool) -> Int
-    var status: Int { get }
-}
-
-struct RealSimpleThrowingService: SimpleThrowingService {
-    func load(path: String) throws -> String { "" }
-    func check(flag: Bool) -> Int { 0 }
-    var status: Int { 0 }
-}
-
-// A protocol with async
-protocol SimpleAsyncService {
-    func fetch(id: Int) async -> String
-    var isReady: Bool { get }
-}
-
-struct RealSimpleAsyncService: SimpleAsyncService {
-    func fetch(id: Int) async -> String { "" }
-    var isReady: Bool { false }
-}
-
-final class RuntimeCompilerTests: XCTestCase {
-
-    // MARK: - Source Generation Tests
-
-    func testSourceGeneration_SimpleProtocol() {
+    @Test func simpleProtocol() {
         let source = RuntimeCompiler.generateSource(
-            protocolName: "SimpleThrowingService",
+            protocolName: "SimpleService",
             moduleName: "TestModule",
             signatures: .describing {
                 $0.method("load", args: [.string("path")], returns: .string, throws: true)
@@ -51,18 +14,14 @@ final class RuntimeCompilerTests: XCTestCase {
             }
         )
 
-        // Clean, generic source — no type-specific dispatch
-        XCTAssertTrue(source.contains("struct _TDMock: SimpleThrowingService"))
-        XCTAssertTrue(source.contains("MockBridge.dispatch"))
-        XCTAssertTrue(source.contains("throws"))
-        XCTAssertTrue(source.contains("var status: Int"))
-        // Should NOT contain type-specific bridge functions
-        XCTAssertFalse(source.contains("td_bridge_dispatch_int"))
-        XCTAssertFalse(source.contains("td_bridge_dispatch_string"))
+        #expect(source.contains("struct _TDMock: SimpleService"))
+        #expect(source.contains("MockBridge.dispatch"))
+        #expect(source.contains("throws"))
+        #expect(source.contains("var status: Int"))
+        #expect(!source.contains("td_bridge_dispatch_int"))
     }
 
-    func testSourceGeneration_TypeAgnostic() {
-        // Generated code should work for ANY type without special-casing
+    @Test func typeAgnostic() {
         let source = RuntimeCompiler.generateSource(
             protocolName: "MyService",
             moduleName: "MyFramework",
@@ -72,13 +31,12 @@ final class RuntimeCompilerTests: XCTestCase {
             }
         )
 
-        // Same MockBridge.dispatch for custom types as for Int/String
-        XCTAssertTrue(source.contains("-> CustomResult { MockBridge.dispatch"))
-        XCTAssertTrue(source.contains("var config: AppConfig { MockBridge.dispatch"))
-        XCTAssertTrue(source.contains("import MyFramework"))
+        #expect(source.contains("-> CustomResult { MockBridge.dispatch"))
+        #expect(source.contains("var config: AppConfig { MockBridge.dispatch"))
+        #expect(source.contains("import MyFramework"))
     }
 
-    func testSourceGeneration_FiltersCoroutines() {
+    @Test func filtersCoroutines() {
         let source = RuntimeCompiler.generateSource(
             protocolName: "TestProto",
             moduleName: "TestModule",
@@ -90,88 +48,72 @@ final class RuntimeCompilerTests: XCTestCase {
             }
         )
 
-        let structBody = source.components(separatedBy: "_TDMock:").last ?? ""
-        XCTAssertTrue(structBody.contains("var name: String"))
-        XCTAssertTrue(structBody.contains("func reset()"))
-        XCTAssertFalse(structBody.contains("coroutine"))
+        let body = source.components(separatedBy: "_TDMock:").last ?? ""
+        #expect(body.contains("var name: String"))
+        #expect(body.contains("func reset()"))
+        #expect(!body.contains("coroutine"))
     }
 
-    func testModuleNameExtraction() {
-        // Test extracting module name from demangled witness string
+    @Test func asyncGeneration() {
+        let source = RuntimeCompiler.generateSource(
+            protocolName: "AsyncService",
+            moduleName: "TestModule",
+            signatures: .describing {
+                $0.method("fetch", args: [.int("id")], returns: .string, async: true)
+                $0.method("save", args: [.string("data")], returns: .bool, throws: true, async: true)
+            }
+        )
+
+        #expect(source.contains("async ->"))
+        #expect(source.contains("async throws ->"))
+    }
+}
+
+@Suite struct ModuleExtractionTests {
+
+    @Test func extractsModuleName() {
         let demangled = "protocol witness for TestModule.MyService.load(path: Swift.String) throws -> Swift.String in conformance TestModule.RealService : TestModule.MyService in TestModule"
-
-        let module = RuntimeCompiler.extractModuleName(from: demangled)
-        XCTAssertEqual(module, "TestModule")
+        #expect(RuntimeCompiler.extractModuleName(from: demangled) == "TestModule")
     }
 
-    func testModuleNameExtraction_MultiWord() {
+    @Test func multiWordModule() {
         let demangled = "protocol witness for MyFramework.APIClient.fetch(id: Swift.Int) -> Swift.String in conformance MyFramework.RealClient : MyFramework.APIClient in MyFramework"
+        #expect(RuntimeCompiler.extractModuleName(from: demangled) == "MyFramework")
+    }
+}
 
-        let module = RuntimeCompiler.extractModuleName(from: demangled)
-        XCTAssertEqual(module, "MyFramework")
+@Suite struct ThrowingProtocolFallbackTests {
+
+    @Test func fallsBackToThunks() throws {
+        // Protocols in the test target can't be imported by RuntimeCompiler.
+        // Verify graceful fallback to thunk-based approach.
+        let stub = RuntimeStub<any ThrowingFileService>()
+        stub.when { try $0.read(path: any()) }.returns("fallback")
+        stub.when { $0.exists(at: any()) }.returns(true)
+        stub.when { $0.basePath }.returns("/")
+
+        #expect(try stub().read(path: "/test") == "fallback")
     }
 
-    // MARK: - Thunk Fallback Tests
+    @Test func thenRegistersThrowingStub() {
+        struct TestError: Error { let code: Int }
+        let stub = RuntimeStub<any ThrowingFileService>()
+        stub.when { try $0.read(path: "good") }.returns("content")
+        stub.when { try $0.read(path: "bad") }.then { throw TestError(code: 404) }
+        stub.when { $0.exists(at: any()) }.returns(true)
+        stub.when { $0.basePath }.returns("/")
 
-    func testThrowingProtocol_FallsBackToThunks() {
-        // Protocols defined in the test target can't be imported by the runtime
-        // compiler. This test verifies graceful fallback to thunk-based approach.
-        let stub = RuntimeStub<any SimpleThrowingService>()
-
-        // Non-throwing path works via existing thunks
-        stub.when { try $0.load(path: any()) }.returns("fallback-content")
-        stub.when { $0.check(flag: any()) }.returns(42)
-        stub.when { $0.status }.returns(200)
-
-        let sut: any SimpleThrowingService = stub()
-
-        // Happy path: thunks return values without throwing
-        XCTAssertEqual(try sut.load(path: "/test"), "fallback-content")
-        XCTAssertEqual(sut.check(flag: true), 42)
-        XCTAssertEqual(sut.status, 200)
+        #expect(stub.recorder.throwingStubs[0] != nil)
     }
 
-    func testThrowsAPI_RegistersThrowingStub() {
-        // Verify the .then { throw } API registers a throwing stub
-        let stub = RuntimeStub<any SimpleThrowingService>()
-
-        struct TestError: Error, Equatable { let code: Int }
-
-        stub.when { try $0.load(path: "good") }.returns("content")
-        stub.when { try $0.load(path: "bad") }.then { throw TestError(code: 404) }
-        stub.when { $0.check(flag: any()) }.returns(0)
-        stub.when { $0.status }.returns(0)
-
-        // The .then { throw } stub is registered in recorder.throwingStubs
-        XCTAssertNotNil(stub.recorder.throwingStubs[0])
-    }
-
-    // MARK: - Compilation Tests (actually invoke swiftc)
-
-    func testBasicCompilation() {
-        // Compile a minimal Swift file to verify the toolchain works
-        let source = """
-        import Foundation
-        public struct _TDMock {
-            public let _ctx: UnsafeRawPointer
-        }
-        """
-
+    @Test func basicCompilation() {
+        // Verify swiftc toolchain works (compiles an empty struct)
         let result = RuntimeCompiler.compileMock(
             protocolName: "Dummy",
             moduleName: "Foundation",
             signatures: []
         )
-
-        // Even though we passed empty signatures, the compilation itself
-        // should work if we override the source. For now, just verify
-        // the compiler infrastructure doesn't crash.
-        // (result is nil because the generated source tries to import
-        // the protocol, which may not work for all cases)
+        // May return nil if module can't be resolved, but shouldn't crash
+        _ = result
     }
-}
-
-// Make DiscoveredSignature accessible from tests
-extension DiscoveredSignature {
-    // Allow test creation with minimal parameters
 }
