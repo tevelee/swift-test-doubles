@@ -132,15 +132,19 @@ import Testing
         #expect(sut.basePath == "/test")
     }
 
-    // Async protocol mocking requires successful RuntimeCompiler compilation.
-    // The test is environment-dependent (needs swiftc + all module dependencies).
-    // Run with: swift test --filter "asyncProtocol" when toolchain is set up.
-    //
-    // @Test func asyncProtocol() async throws {
-    //     let stub = RuntimeStub<any AsyncDataLoader>(strategy: .compiled)
-    //     await stub.when { try await $0.load(url: any()) }.returns("data")
-    //     stub.when { $0.cacheSize }.returns(42)
-    //     let result = try await stub().load(url: "x")
-    //     #expect(result == "data")
-    // }
+    @Test(.disabled("Async mocking requires RuntimeCompiler compilation which is environment-dependent"))
+    func compiledMockAsync() async throws {
+
+        let stub = RuntimeStub<any AsyncDataLoader>(strategy: .compiled)
+
+        await stub.when { try await $0.load(url: any()) }.returns("async-data")
+        await stub.when { await $0.prefetch(urls: any()) }
+        stub.when { $0.cacheSize }.returns(42)
+
+        let sut: any AsyncDataLoader = stub()
+
+        let result = try await sut.load(url: "https://example.com")
+        #expect(result == "async-data")
+        #expect(sut.cacheSize == 42)
+    }
 }
