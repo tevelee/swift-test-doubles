@@ -32,12 +32,6 @@ public func equal<T: Equatable>(_ value: T) -> T {
     return value
 }
 
-/// Matches values passing a predicate.
-@available(*, deprecated, renamed: "any(where:)")
-public func match<T>(_ predicate: @escaping (T) -> Bool) -> T {
-    _matcherStack.append(PredicateMatcher(predicate: predicate))
-    return zeroValue(T.self)
-}
 
 // MARK: - Argument Captor
 

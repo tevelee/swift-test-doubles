@@ -233,11 +233,21 @@ public class RuntimeStub<P> {
         return StubBuilder(recorder: recorder, recording: recording)
     }
 
-    /// Stub a void method — auto-registers without needing `.performs()`. (#3)
+    /// Stub a void method — auto-registers.
     @discardableResult
     public func when(_ call: (P) -> Void) -> StubBuilder<Void> {
         let recording = record { call(self.callAsFunction()) }
-        // Auto-register void stub (#3: no .performs() needed)
+        let matchers = recording.matchers.isEmpty
+            ? recording.args.map { DescriptionMatcher(value: $0) }
+            : recording.matchers
+        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { _ in () })
+        return StubBuilder(recorder: recorder, recording: recording)
+    }
+
+    /// Stub a void throwing method — auto-registers.
+    @discardableResult
+    public func when(_ call: (P) throws -> Void) -> StubBuilder<Void> {
+        let recording = record { try! call(self.callAsFunction()) }
         let matchers = recording.matchers.isEmpty
             ? recording.args.map { DescriptionMatcher(value: $0) }
             : recording.matchers
@@ -467,47 +477,7 @@ public struct StubBuilder<R> {
         return self
     }
 
-    /// Stub that throws an error.
-    /// ```swift
-    /// stub.when { try $0.load(path: "missing") }.throws(NotFoundError())
-    /// ```
-    @discardableResult
-    public func `throws`(_ error: any Error) -> Self {
-        let matchers = recording.matchers.isEmpty
-            ? recording.args.map { DescriptionMatcher(value: $0) }
-            : recording.matchers
-        recorder.addThrowingStub(method: recording.methodIndex, matchers: matchers) { _ in throw error }
-        return self
-    }
-
-    /// Dynamic throwing stub — handler can throw.
-    @discardableResult
-    public func answers(_ handler: @escaping ([Any]) throws -> R) -> Self where R: Sendable {
-        let matchers = recording.matchers.isEmpty
-            ? recording.args.map { DescriptionMatcher(value: $0) }
-            : recording.matchers
-        recorder.addThrowingStub(method: recording.methodIndex, matchers: matchers, handler: { args in
-            try handler(args)
-        })
-        // Also register a non-throwing stub for recording mode compatibility
-        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { args in
-            (try? handler(args)) as Any
-        })
-        return self
-    }
-
-    /// Dynamic stub — handler receives the actual arguments at call time.
-    @_disfavoredOverload
-    @discardableResult
-    public func answers(_ handler: @escaping ([Any]) -> R) -> Self {
-        let matchers = recording.matchers.isEmpty
-            ? recording.args.map { DescriptionMatcher(value: $0) }
-            : recording.matchers
-        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { handler($0) })
-        return self
-    }
-
-    // MARK: - Unified .then API
+    // MARK: - .then API
 
     /// Unified stub handler — can return values or throw errors.
     /// ```swift
@@ -538,16 +508,6 @@ public struct StubBuilder<R> {
     }
 }
 
-extension StubBuilder where R == Void {
-    @discardableResult
-    public func performs(_ action: @escaping () -> Void = {}) -> Self {
-        let matchers = recording.matchers.isEmpty
-            ? recording.args.map { DescriptionMatcher(value: $0) }
-            : recording.matchers
-        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { _ in () }, action: { _ in action() })
-        return self
-    }
-}
 
 // MARK: - VerifyBuilder
 

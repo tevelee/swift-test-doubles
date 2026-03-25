@@ -122,8 +122,8 @@ final class ShowcaseTests: XCTestCase {
     func testZeroConfig_PredicateMatcher() {
         let stub = RuntimeStub<any ShowcaseUserRepository>()
 
-        stub.when { $0.find(id: match { $0 > 100 }) }.returns("VIP")
-        stub.when { $0.find(id: match { $0 <= 100 }) }.returns("Regular")
+        stub.when { $0.find(id: any(where: { $0 > 100 })) }.returns("VIP")
+        stub.when { $0.find(id: any(where: { $0 <= 100 })) }.returns("Regular")
         stub.when { $0.count }.returns(0)
 
         let sut: any ShowcaseUserRepository = stub()
@@ -136,11 +136,11 @@ final class ShowcaseTests: XCTestCase {
     func testZeroConfig_DynamicAnswers() {
         let stub = RuntimeStub<any ShowcaseUserRepository>()
 
-        stub.when { $0.find(id: any()) }.answers { args in
+        stub.when { $0.find(id: any()) }.then { args in
             let id = args[0] as! Int
             return "User_\(id)"
         }
-        stub.when { $0.save(name: any(), age: any()) }.answers { args in
+        stub.when { $0.save(name: any(), age: any()) }.then { args in
             let age = args[1] as! Int
             return age >= 18
         }

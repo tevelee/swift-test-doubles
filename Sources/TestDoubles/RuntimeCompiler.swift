@@ -20,7 +20,7 @@ public enum RuntimeCompiler {
 
     /// Compile a mock type for the given protocol and return the dylib path.
     /// Returns nil if compilation fails.
-    public static func compileMock(
+    static func compileMock(
         protocolName: String,
         moduleName: String,
         signatures: [DiscoveredSignature]
@@ -48,7 +48,7 @@ public enum RuntimeCompiler {
     /// Extract the module name from a demangled witness string.
     /// e.g. "protocol witness for MyModule.MyService.load(...) in conformance MyModule.RealService : MyModule.MyService"
     /// → "MyModule"
-    public static func extractModuleName(from demangled: String) -> String? {
+    static func extractModuleName(from demangled: String) -> String? {
         // Pattern: "in conformance ModuleName.TypeName : ModuleName.ProtocolName"
         guard let confRange = demangled.range(of: " in conformance ") else { return nil }
         let afterConf = String(demangled[confRange.upperBound...])
@@ -59,7 +59,7 @@ public enum RuntimeCompiler {
 
     // MARK: - Source Generation
 
-    public static func generateSource(
+    static func generateSource(
         protocolName: String,
         moduleName: String,
         signatures: [DiscoveredSignature]

@@ -1,5 +1,5 @@
 import XCTest
-import TestDoubles
+@testable import TestDoubles
 
 protocol MatcherTestService {
     func find(id: Int) -> String
@@ -178,7 +178,7 @@ final class MatcherTests: XCTestCase {
 
     func testThen_ThrowingHappyPath() {
         let stub = RuntimeStub<any ThrowingFileService>()
-        stub.when { try $0.read(path: any()) }.then { "content" }
+        stub.when { try $0.read(path: any()) }.then { return "content" }
         stub.when { $0.exists(at: any()) }.returns(true)
         stub.when { $0.basePath }.returns("/")
 
@@ -189,7 +189,7 @@ final class MatcherTests: XCTestCase {
     func testThen_DynamicWithArgs() {
         let stub = RuntimeStub<any ThrowingFileService>()
         stub.when { try $0.read(path: any()) }.then { args in
-            "contents of \(args[0])"
+            return "contents of \(args[0])"
         }
         stub.when { $0.exists(at: any()) }.returns(true)
         stub.when { $0.basePath }.returns("/")

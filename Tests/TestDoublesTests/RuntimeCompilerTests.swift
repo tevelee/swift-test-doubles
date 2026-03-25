@@ -1,5 +1,5 @@
 import XCTest
-import TestDoubles
+@testable import TestDoubles
 
 // ============================================================================
 // Runtime Compiler Tests
@@ -132,17 +132,17 @@ final class RuntimeCompilerTests: XCTestCase {
     }
 
     func testThrowsAPI_RegistersThrowingStub() {
-        // Verify the .throws() API registers a throwing stub
+        // Verify the .then { throw } API registers a throwing stub
         let stub = RuntimeStub<any SimpleThrowingService>()
 
         struct TestError: Error, Equatable { let code: Int }
 
         stub.when { try $0.load(path: "good") }.returns("content")
-        stub.when { try $0.load(path: "bad") }.throws(TestError(code: 404))
+        stub.when { try $0.load(path: "bad") }.then { throw TestError(code: 404) }
         stub.when { $0.check(flag: any()) }.returns(0)
         stub.when { $0.status }.returns(0)
 
-        // The .throws() stub is registered in recorder.throwingStubs
+        // The .then { throw } stub is registered in recorder.throwingStubs
         XCTAssertNotNil(stub.recorder.throwingStubs[0])
     }
 

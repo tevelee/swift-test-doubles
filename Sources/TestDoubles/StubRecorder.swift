@@ -93,11 +93,11 @@ public class StubRecorder: @unchecked Sendable {
 
     // MARK: - Throwing stubs
 
-    public var throwingStubs: [Int: [ThrowingStubEntry]] = [:]
+    var throwingStubs: [Int: [ThrowingStubEntry]] = [:]
 
-    public struct ThrowingStubEntry {
-        public let matchers: [ParameterMatcher]
-        public let handler: ([Any]) throws -> Any
+    struct ThrowingStubEntry {
+        let matchers: [ParameterMatcher]
+        let handler: ([Any]) throws -> Any
     }
 
     /// Register a stub that throws.

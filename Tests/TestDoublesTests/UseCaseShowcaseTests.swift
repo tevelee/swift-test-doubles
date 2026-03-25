@@ -54,11 +54,11 @@ final class UseCaseShowcaseTests: XCTestCase {
     func testDynamicAnswers() {
         let stub = RuntimeStub<any UserRepository>()
 
-        stub.when { $0.find(id: any()) }.answers { args in
+        stub.when { $0.find(id: any()) }.then { args in
             let id = args[0] as! Int
             return "User_\(id)"
         }
-        stub.when { $0.search(query: any()) }.answers { args in
+        stub.when { $0.search(query: any()) }.then { args in
             let q = args[0] as! String
             return q.isEmpty ? [] : [q.uppercased()]
         }
@@ -167,8 +167,8 @@ final class UseCaseShowcaseTests: XCTestCase {
     func testPredicateMatching() {
         let stub = RuntimeStub<any UserRepository>()
 
-        stub.when { $0.find(id: match { $0 > 100 }) }.returns("VIP")
-        stub.when { $0.find(id: match { $0 <= 100 }) }.returns("Regular")
+        stub.when { $0.find(id: any(where: { $0 > 100 })) }.returns("VIP")
+        stub.when { $0.find(id: any(where: { $0 <= 100 })) }.returns("Regular")
         stub.when { $0.count }.returns(0)
 
         let sut: any UserRepository = stub()
