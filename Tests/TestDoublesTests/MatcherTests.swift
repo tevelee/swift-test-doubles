@@ -142,6 +142,63 @@ final class MatcherTests: XCTestCase {
         XCTAssertEqual(limitCaptor.values, [10, 20])
     }
 
+    // MARK: - Unified .then API
+
+    func testThen_ReturnValue() {
+        let stub = RuntimeStub<any MatcherTestService>()
+        stub.when { $0.find(id: any()) }.then { return "hello" }
+        stub.when { $0.count }.returns(0)
+
+        let sut: any MatcherTestService = stub()
+        XCTAssertEqual(sut.find(id: 1), "hello")
+    }
+
+    func testThen_WithArguments() {
+        let stub = RuntimeStub<any MatcherTestService>()
+        stub.when { $0.find(id: any()) }.then { args in return "user_\(args[0])" }
+        stub.when { $0.count }.returns(0)
+
+        let sut: any MatcherTestService = stub()
+        XCTAssertEqual(sut.find(id: 42), "user_42")
+        XCTAssertEqual(sut.find(id: 7), "user_7")
+    }
+
+    func testThen_MultipleArgs() {
+        let stub = RuntimeStub<any MatcherTestService>()
+        stub.when { $0.search(query: any(), limit: any()) }.then { args in
+            let q = args[0] as! String
+            let limit = args[1] as! Int
+            return Array(repeating: q, count: limit)
+        }
+        stub.when { $0.count }.returns(0)
+
+        let sut: any MatcherTestService = stub()
+        XCTAssertEqual(sut.search(query: "x", limit: 3), ["x", "x", "x"])
+    }
+
+    func testThen_ThrowingHappyPath() {
+        let stub = RuntimeStub<any ThrowingFileService>()
+        stub.when { try $0.read(path: any()) }.then { "content" }
+        stub.when { $0.exists(at: any()) }.returns(true)
+        stub.when { $0.basePath }.returns("/")
+
+        let sut: any ThrowingFileService = stub()
+        XCTAssertEqual(try sut.read(path: "/test"), "content")
+    }
+
+    func testThen_DynamicWithArgs() {
+        let stub = RuntimeStub<any ThrowingFileService>()
+        stub.when { try $0.read(path: any()) }.then { args in
+            "contents of \(args[0])"
+        }
+        stub.when { $0.exists(at: any()) }.returns(true)
+        stub.when { $0.basePath }.returns("/")
+
+        let sut: any ThrowingFileService = stub()
+        XCTAssertEqual(try sut.read(path: "/readme"), "contents of /readme")
+        XCTAssertEqual(try sut.read(path: "/config"), "contents of /config")
+    }
+
     func testArgumentCaptor_Reset() {
         let captor = ArgumentCaptor<Int>()
 

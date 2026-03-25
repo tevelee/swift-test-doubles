@@ -135,12 +135,10 @@ public enum RuntimeCompiler {
 
     /// Additional module search paths for the compiler.
     /// Set this before creating stubs if your protocol is in a custom framework.
-    /// Enable/disable runtime compilation. Enabled on macOS/Linux where swiftc is available.
-    #if os(macOS) || os(Linux)
-    nonisolated(unsafe) public static var isEnabled = true
-    #else
+    /// Enable/disable runtime compilation.
+    /// Set to `true` to enable automatic compilation of mock types for
+    /// throwing/async protocols. Requires swiftc on PATH.
     nonisolated(unsafe) public static var isEnabled = false
-    #endif
 
     nonisolated(unsafe) public static var additionalImportPaths: [String] = []
     nonisolated(unsafe) public static var additionalLibraryPaths: [String] = []

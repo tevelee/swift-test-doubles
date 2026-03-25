@@ -483,6 +483,36 @@ public struct StubBuilder<R> {
         recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { handler($0) })
         return self
     }
+
+    // MARK: - Unified .then API
+
+    /// Unified stub handler — can return values or throw errors.
+    /// ```swift
+    /// stub.when { try $0.read(path: any()) }.then { "content" }
+    /// stub.when { try $0.read(path: any()) }.then { throw NotFoundError() }
+    /// stub.when { try $0.read(path: any()) }.then { args in "path: \(args[0])" }
+    /// ```
+    @discardableResult
+    public func then(_ handler: @escaping ([Any]) throws -> R) -> Self {
+        let matchers = recording.matchers.isEmpty
+            ? recording.args.map { DescriptionMatcher(value: $0) }
+            : recording.matchers
+        recorder.addThrowingStub(method: recording.methodIndex, matchers: matchers, handler: handler)
+        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { args in
+            try! handler(args)
+        })
+        return self
+    }
+
+    /// Convenience: no-args handler.
+    /// ```swift
+    /// stub.when { try $0.read(path: any()) }.then { "content" }
+    /// stub.when { try $0.read(path: any()) }.then { throw NotFoundError() }
+    /// ```
+    @discardableResult
+    public func then(_ handler: @escaping () throws -> R) -> Self {
+        then { _ in try handler() }
+    }
 }
 
 extension StubBuilder where R == Void {
