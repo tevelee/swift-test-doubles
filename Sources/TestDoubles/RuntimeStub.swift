@@ -46,7 +46,7 @@ public class RuntimeStub<P> {
             }
         }
 
-        let hasThrowingOrAsync = mockableSigs.contains { $0.isThrowing }
+        let hasThrowingOrAsync = mockableSigs.contains { $0.isThrowing || $0.isAsync }
 
         if hasThrowingOrAsync && RuntimeCompiler.isEnabled {
             // Try runtime compilation approach
@@ -337,21 +337,32 @@ public class RuntimeStub<P> {
 
     // MARK: - Internal helpers
 
-    /// Find the compiled mock's conformance via dlsym on the dylib handle.
-    /// The mock type metadata symbol follows Swift mangling conventions.
+    /// Find the compiled mock's conformance after dlopen.
+    /// Searches Echo's conformance registry for _TDMock conforming to our protocol.
     private static func findCompiledConformance(protocolName: String) -> ConformanceDescriptor? {
-        // After dlopen, the conformance is registered in Echo's tables.
-        // Use the existing findConformance API to search.
-        // To find our _TDMock specifically (not the real type), we check
-        // if the conforming type's name matches.
+        // Use findConformance which is safer than iterating Echo.types
+        // (Echo.types can crash with misaligned pointers on dynamically loaded images).
+        // After dlopen, the new conformance is registered via the image inspection callback.
         let meta = reflect(P.self)
         guard let existential = meta as? ExistentialMetadata,
               let protoDesc = existential.protocols.first else { return nil }
 
-        // For now, use the conformance from the real type.
-        // The compiled mock's witness thunks call our bridge functions,
-        // so any conformance will work if we patch the witness table.
-        // TODO: find _TDMock's specific conformance
+        // findConformance scans all registered conformances for the protocol.
+        // It may find the real type's conformance OR our _TDMock's conformance.
+        // We need _TDMock specifically — check if the context descriptor name matches.
+        guard let conf = Echo.findConformance(toProtocolNamed: protocolName) else { return nil }
+
+        // If this is the real type's conformance, it won't have MockBridge dispatch.
+        // But we can check: is there a _TDMock conformance registered?
+        // For now, use the LAST registered conformance (the dylib's should be last).
+        // TODO: more robust — scan all conformances and pick _TDMock by name
+        if let typeDesc = conf.contextDescriptor,
+           let structDesc = typeDesc as? StructDescriptor,
+           structDesc.name == "_TDMock" {
+            return conf
+        }
+
+        // Fallback: the first conformance found is the real type, not our mock.
         return nil
     }
 

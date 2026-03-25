@@ -108,6 +108,7 @@ public enum RuntimeCompiler {
 
     private static func generateMethod(_ sig: DiscoveredSignature) -> String {
         let name = sig.methodName.components(separatedBy: "(").first ?? sig.methodName
+        let asyncKw = sig.isAsync ? "async " : ""
         let throwsKw = sig.isThrowing ? "throws " : ""
         let bridgePrefix = sig.isThrowing ? "try MockBridge.throwingDispatch" : "MockBridge.dispatch"
         let bridgeVoidPrefix = sig.isThrowing ? "try MockBridge.throwingDispatchVoid" : "MockBridge.dispatchVoid"
@@ -122,10 +123,10 @@ public enum RuntimeCompiler {
         let argsExpr = sig.args.isEmpty ? "[]" : "[\(argList)]"
 
         if sig.ret == "Void" {
-            return "    public func \(name)(\(params)) \(throwsKw){ \(bridgeVoidPrefix)(_ctx, slot: \(sig.slot), args: \(argsExpr)) }"
+            return "    public func \(name)(\(params)) \(asyncKw)\(throwsKw){ \(bridgeVoidPrefix)(_ctx, slot: \(sig.slot), args: \(argsExpr)) }"
         }
 
-        return "    public func \(name)(\(params)) \(throwsKw)-> \(sig.ret) { \(bridgePrefix)(_ctx, slot: \(sig.slot), args: \(argsExpr)) }"
+        return "    public func \(name)(\(params)) \(asyncKw)\(throwsKw)-> \(sig.ret) { \(bridgePrefix)(_ctx, slot: \(sig.slot), args: \(argsExpr)) }"
     }
 
     // MARK: - Compilation
@@ -134,8 +135,12 @@ public enum RuntimeCompiler {
 
     /// Additional module search paths for the compiler.
     /// Set this before creating stubs if your protocol is in a custom framework.
-    /// Enable/disable runtime compilation. Disabled by default until stable.
+    /// Enable/disable runtime compilation. Enabled on macOS/Linux where swiftc is available.
+    #if os(macOS) || os(Linux)
+    nonisolated(unsafe) public static var isEnabled = true
+    #else
     nonisolated(unsafe) public static var isEnabled = false
+    #endif
 
     nonisolated(unsafe) public static var additionalImportPaths: [String] = []
     nonisolated(unsafe) public static var additionalLibraryPaths: [String] = []

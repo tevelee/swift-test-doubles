@@ -13,17 +13,19 @@ public struct DiscoveredSignature {
     public let args: [String]
     public let ret: String
     public let isThrowing: Bool
+    public let isAsync: Bool
     public let rawDemangled: String
     public let paramLabels: [String]
 
     public init(slot: Int, kind: ProtocolRequirement.Kind = .method, methodName: String, args: [String] = [], ret: String = "Int",
-         isThrowing: Bool = false, rawDemangled: String = "", paramLabels: [String] = []) {
+         isThrowing: Bool = false, isAsync: Bool = false, rawDemangled: String = "", paramLabels: [String] = []) {
         self.slot = slot
         self.kind = kind
         self.methodName = methodName
         self.args = args
         self.ret = ret
         self.isThrowing = isThrowing
+        self.isAsync = isAsync
         self.rawDemangled = rawDemangled
         self.paramLabels = paramLabels
     }
@@ -75,13 +77,14 @@ public struct SignatureBuilder {
         _ name: String,
         args: [Param] = [],
         returns: ReturnType = .void,
-        `throws`: Bool = false
+        `throws`: Bool = false,
+        `async`: Bool = false
     ) {
         let methodName = args.isEmpty ? "\(name)()" : "\(name)(\(args.map { "\($0.label):" }.joined()))"
         signatures.append(DiscoveredSignature(
             slot: nextSlot, kind: .method, methodName: methodName,
             args: args.map(\.type), ret: returns.name,
-            isThrowing: `throws`, paramLabels: args.map(\.label)
+            isThrowing: `throws`, isAsync: `async`, paramLabels: args.map(\.label)
         ))
         nextSlot += 1
     }
@@ -141,7 +144,8 @@ func discoverSignatures(
             methodName: parsed.name,
             args: parsed.args,
             ret: parsed.ret,
-            isThrowing: demangled.contains(") throws ->"),
+            isThrowing: demangled.contains(") throws ->") || demangled.contains(") async throws ->"),
+            isAsync: demangled.contains("async"),
             rawDemangled: demangled,
             paramLabels: parsed.labels
         ))
