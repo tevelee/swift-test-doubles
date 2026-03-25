@@ -18,13 +18,13 @@ nonisolated(unsafe) private var _compiledCache: [String: UnsafeRawPointer] = [:]
 
 public enum RuntimeCompiler {
 
-    /// Compile a mock type for the given protocol and return the dylib path.
-    /// Returns nil if compilation fails.
+    /// Compile a mock type and return the dlopen handle.
+    /// Returns nil if compilation or loading fails.
     static func compileMock(
         protocolName: String,
         moduleName: String,
         signatures: [DiscoveredSignature]
-    ) -> String? {
+    ) -> UnsafeMutableRawPointer? {
         let cacheKey = "\(moduleName).\(protocolName)"
 
         let source = generateSource(
@@ -37,12 +37,12 @@ public enum RuntimeCompiler {
             return nil
         }
 
-        guard dlopen(dylibPath, RTLD_NOW) != nil else {
+        guard let handle = dlopen(dylibPath, RTLD_NOW) else {
             print("[RuntimeCompiler] dlopen failed: \(String(cString: dlerror()))")
             return nil
         }
 
-        return dylibPath
+        return handle
     }
 
     /// Extract the module name from a demangled witness string.
@@ -88,6 +88,23 @@ public enum RuntimeCompiler {
             public init(_ctx: UnsafeRawPointer) { self._ctx = _ctx }
 
         \(members)
+        }
+
+        // Self-describing accessors — called via dlsym after dlopen.
+        // Avoids searching Echo's conformance tables (which crash on dynamic images).
+
+        @_cdecl("td_mock_witness_table")
+        public func _td_mock_witness_table() -> UnsafeRawPointer {
+            var mock: any \(protocolName) = _TDMock(_ctx: UnsafeRawPointer(bitPattern: 1)!)
+            return withUnsafePointer(to: &mock) { ptr in
+                (UnsafeRawPointer(ptr) + 4 * MemoryLayout<UnsafeRawPointer>.size)
+                    .load(as: UnsafeRawPointer.self)
+            }
+        }
+
+        @_cdecl("td_mock_type_metadata")
+        public func _td_mock_type_metadata() -> UnsafeRawPointer {
+            unsafeBitCast(_TDMock.self as Any.Type, to: UnsafeRawPointer.self)
         }
         """
     }
@@ -135,11 +152,6 @@ public enum RuntimeCompiler {
 
     /// Additional module search paths for the compiler.
     /// Set this before creating stubs if your protocol is in a custom framework.
-    /// Enable/disable runtime compilation.
-    /// Set to `true` to enable automatic compilation of mock types for
-    /// throwing/async protocols. Requires swiftc on PATH.
-    nonisolated(unsafe) public static var isEnabled = false
-
     nonisolated(unsafe) public static var additionalImportPaths: [String] = []
     nonisolated(unsafe) public static var additionalLibraryPaths: [String] = []
     nonisolated(unsafe) public static var additionalFrameworkPaths: [String] = []

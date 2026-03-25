@@ -107,13 +107,32 @@ import Testing
     }
 
     @Test func basicCompilation() {
-        // Verify swiftc toolchain works (compiles an empty struct)
-        let result = RuntimeCompiler.compileMock(
+        // Compiles an empty mock (no methods) — validates swiftc works
+        let handle = RuntimeCompiler.compileMock(
             protocolName: "Dummy",
             moduleName: "Foundation",
             signatures: []
         )
-        // May return nil if module can't be resolved, but shouldn't crash
-        _ = result
+        _ = handle // May return nil, but shouldn't crash
     }
+
+    @Test func compiledMockForImportableProtocol() throws {
+        // ThrowingFileService is in the TestDoubles module — importable by the compiler.
+        // This test exercises the full compiled mock path end-to-end.
+        let stub = RuntimeStub<any ThrowingFileService>(strategy: .compiled)
+
+        stub.when { try $0.read(path: any()) }.returns("compiled!")
+        stub.when { $0.exists(at: any()) }.returns(true)
+        stub.when { $0.basePath }.returns("/compiled")
+
+        let sut: any ThrowingFileService = stub()
+
+        #expect(try sut.read(path: "/test") == "compiled!")
+        #expect(sut.exists(at: "/test") == true)
+        #expect(sut.basePath == "/compiled")
+    }
+
+    // Async test deferred — needs async `when` overload.
+    // The compiled mock generates async witness thunks correctly,
+    // but the `when` recording API doesn't support async closures yet.
 }

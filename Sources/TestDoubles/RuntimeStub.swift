@@ -1,4 +1,9 @@
 import Echo
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
 
 /// A typed runtime mock. No macros, no source access to the protocol needed.
 ///
@@ -67,57 +72,50 @@ public class RuntimeStub<P> {
         case .thunks: shouldCompile = false
         case .compiled: shouldCompile = true
         case .auto:
-            let hasThrowingOrAsync = mockableSigs.contains { $0.isThrowing || $0.isAsync }
-            shouldCompile = hasThrowingOrAsync && RuntimeCompiler.isEnabled
+            shouldCompile = mockableSigs.contains { $0.isThrowing || $0.isAsync }
         }
 
         if shouldCompile {
-            // Try runtime compilation approach
             let proto = conformance.protocol
             let moduleName = mockableSigs.compactMap { RuntimeCompiler.extractModuleName(from: $0.rawDemangled) }.first
                 ?? "UnknownModule"
 
-            if let dylibPath = RuntimeCompiler.compileMock(
+            if let handle = RuntimeCompiler.compileMock(
                 protocolName: proto.name,
                 moduleName: moduleName,
                 signatures: signatures
             ) {
-                // After dlopen, Echo can find the new conformance.
-                // Search for _TDMock's conformance to the protocol.
-                if let mockConf = Self.findCompiledConformance(protocolName: proto.name) {
-                    let mockWt = mockConf.witnessTablePattern
-                    let totalWords = 1 + proto.numRequirements
-                    let wordSize = MemoryLayout<UnsafeRawPointer>.size
-                    let clonedWT = UnsafeMutableRawPointer.allocate(byteCount: totalWords * wordSize, alignment: wordSize)
-                    clonedWT.copyMemory(from: mockWt.ptr, byteCount: totalWords * wordSize)
+                // Use dlsym to get the self-describing accessors from the compiled dylib.
+                // This avoids Echo.types which crashes on dynamically loaded images.
+                typealias Accessor = @convention(c) () -> UnsafeRawPointer
+                if let getWT = dlsym(handle, "td_mock_witness_table"),
+                   let getMeta = dlsym(handle, "td_mock_type_metadata") {
 
-                    MockRegistry.register(recorder, for: UnsafeRawPointer(clonedWT))
+                let wtPtr = unsafeBitCast(getWT, to: Accessor.self)()
+                let metaPtr = unsafeBitCast(getMeta, to: Accessor.self)()
 
-                    // Set method names from discovered signatures
-                    for sig in mockableSigs {
-                        recorder.setName(sig.methodName, for: sig.slot)
-                    }
+                let totalWords = 1 + proto.numRequirements
+                let wordSize = MemoryLayout<UnsafeRawPointer>.size
+                let clonedWT = UnsafeMutableRawPointer.allocate(byteCount: totalWords * wordSize, alignment: wordSize)
+                clonedWT.copyMemory(from: wtPtr, byteCount: totalWords * wordSize)
 
-                    self.wtAllocation = clonedWT
+                MockRegistry.register(recorder, for: UnsafeRawPointer(clonedWT))
 
-                    // Build existential using _TDMock's type metadata
-                    let typeDesc = mockConf.contextDescriptor!
-                    let resp: MetadataResponse
-                    if let s = typeDesc as? StructDescriptor { resp = s.accessor(.complete) }
-                    else if let c = typeDesc as? ClassDescriptor { resp = c.accessor(.complete) }
-                    else { fatalError("Unsupported compiled mock descriptor") }
+                for sig in mockableSigs {
+                    recorder.setName(sig.methodName, for: sig.slot)
+                }
 
-                    var base = AnyExistentialContainer(type: resp.type)
-                    // Store the witness table pointer in the value buffer
-                    // so _TDMock._ctx can find its mock context
-                    withUnsafeMutablePointer(to: &base) { ptr in
-                        UnsafeMutableRawPointer(ptr).storeBytes(of: UnsafeRawPointer(clonedWT), as: UnsafeRawPointer.self)
-                    }
-                    self.containerBytes = ExistentialContainer(
-                        base: base,
-                        witnessTable: WitnessTable(ptr: UnsafeRawPointer(clonedWT))
-                    )
-                    return
+                self.wtAllocation = clonedWT
+
+                var base = AnyExistentialContainer(type: unsafeBitCast(metaPtr, to: Any.Type.self))
+                withUnsafeMutablePointer(to: &base) { ptr in
+                    UnsafeMutableRawPointer(ptr).storeBytes(of: UnsafeRawPointer(clonedWT), as: UnsafeRawPointer.self)
+                }
+                self.containerBytes = ExistentialContainer(
+                    base: base,
+                    witnessTable: WitnessTable(ptr: UnsafeRawPointer(clonedWT))
+                )
+                return
                 }
             }
         }
@@ -369,35 +367,6 @@ public class RuntimeStub<P> {
     }
 
     // MARK: - Internal helpers
-
-    /// Find the compiled mock's conformance after dlopen.
-    /// Searches Echo's conformance registry for _TDMock conforming to our protocol.
-    private static func findCompiledConformance(protocolName: String) -> ConformanceDescriptor? {
-        // Use findConformance which is safer than iterating Echo.types
-        // (Echo.types can crash with misaligned pointers on dynamically loaded images).
-        // After dlopen, the new conformance is registered via the image inspection callback.
-        let meta = reflect(P.self)
-        guard let existential = meta as? ExistentialMetadata,
-              let protoDesc = existential.protocols.first else { return nil }
-
-        // findConformance scans all registered conformances for the protocol.
-        // It may find the real type's conformance OR our _TDMock's conformance.
-        // We need _TDMock specifically — check if the context descriptor name matches.
-        guard let conf = Echo.findConformance(toProtocolNamed: protocolName) else { return nil }
-
-        // If this is the real type's conformance, it won't have MockBridge dispatch.
-        // But we can check: is there a _TDMock conformance registered?
-        // For now, use the LAST registered conformance (the dylib's should be last).
-        // TODO: more robust — scan all conformances and pick _TDMock by name
-        if let typeDesc = conf.contextDescriptor,
-           let structDesc = typeDesc as? StructDescriptor,
-           structDesc.name == "_TDMock" {
-            return conf
-        }
-
-        // Fallback: the first conformance found is the real type, not our mock.
-        return nil
-    }
 
     private static func findConformance() -> ConformanceDescriptor {
         let meta = reflect(P.self)
