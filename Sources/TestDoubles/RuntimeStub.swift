@@ -300,6 +300,72 @@ public class RuntimeStub<P>: @unchecked Sendable {
         return StubBuilder(recorder: recorder, recording: recording)
     }
 
+    // MARK: - when/then (trailing closure style)
+
+    /// Stub with a static value:
+    /// `stub.when { $0.find(id: any()) } then: { "Alice" }`
+    @discardableResult
+    public func when<R>(_ call: (P) -> R, then handler: @escaping () -> R) -> StubBuilder<R> {
+        let builder = when(call)
+        builder.returns(handler())
+        return builder
+    }
+
+    /// Stub with dynamic args:
+    /// `stub.when { $0.find(id: any()) } then: { args in "user_\(args[0])" }`
+    @_disfavoredOverload
+    @discardableResult
+    public func when<R>(_ call: (P) -> R, then handler: @escaping ([Any]) -> R) -> StubBuilder<R> {
+        let builder = when(call)
+        let matchers = builder.recording.matchers.isEmpty
+            ? builder.recording.args.map { DescriptionMatcher(value: $0) }
+            : builder.recording.matchers
+        recorder.addStub(method: builder.recording.methodIndex, matchers: matchers, returnValue: { handler($0) })
+        return builder
+    }
+
+    /// Throwing stub:
+    /// `stub.when { try $0.read(path: any()) } then: { "content" }`
+    /// `stub.when { try $0.read(path: any()) } then: { throw NotFoundError() }`
+    @_disfavoredOverload
+    @discardableResult
+    public func when<R>(_ call: (P) throws -> R, then handler: @escaping () throws -> R) -> StubBuilder<R> {
+        let builder: StubBuilder<R> = when(call)
+        let matchers = builder.recording.matchers.isEmpty
+            ? builder.recording.args.map { DescriptionMatcher(value: $0) }
+            : builder.recording.matchers
+        recorder.addThrowingStub(method: builder.recording.methodIndex, matchers: matchers) { _ in try handler() }
+        recorder.addStub(method: builder.recording.methodIndex, matchers: matchers, returnValue: { _ in try! handler() })
+        return builder
+    }
+
+    /// Throwing stub with dynamic args:
+    @_disfavoredOverload
+    @discardableResult
+    public func when<R>(_ call: (P) throws -> R, then handler: @escaping ([Any]) throws -> R) -> StubBuilder<R> {
+        let builder: StubBuilder<R> = when(call)
+        let matchers = builder.recording.matchers.isEmpty
+            ? builder.recording.args.map { DescriptionMatcher(value: $0) }
+            : builder.recording.matchers
+        recorder.addThrowingStub(method: builder.recording.methodIndex, matchers: matchers, handler: handler)
+        recorder.addStub(method: builder.recording.methodIndex, matchers: matchers, returnValue: { try! handler($0) })
+        return builder
+    }
+
+    /// Async stub:
+    /// `await stub.when { try await $0.load(url: any()) } then: { "data" }`
+    @_disfavoredOverload
+    @discardableResult
+    public func when<R>(_ call: (P) async throws -> R, then handler: @escaping () throws -> R) async -> StubBuilder<R> {
+        let builder: StubBuilder<R> = await when(call)
+        let matchers = builder.recording.matchers.isEmpty
+            ? builder.recording.args.map { DescriptionMatcher(value: $0) }
+            : builder.recording.matchers
+        recorder.addThrowingStub(method: builder.recording.methodIndex, matchers: matchers) { _ in try handler() }
+        recorder.addStub(method: builder.recording.methodIndex, matchers: matchers, returnValue: { _ in try! handler() })
+        return builder
+    }
+
     /// Stub a setter: `stub.when(setting: { $0.name = "x" })`
     @_disfavoredOverload
     @discardableResult
