@@ -119,9 +119,17 @@ public class RuntimeStub<P>: @unchecked Sendable {
                 return
                 }
             }
+
+            if strategy == .compiled {
+                preconditionFailure("""
+                [TestDoubles] RuntimeCompiler failed for '\(proto.name)'. \
+                Ensure the protocol's module is importable and swiftc version matches the build toolchain. \
+                Use strategy: .auto to fall back to thunks.
+                """)
+            }
         }
 
-        // Standard thunk-based approach (works for non-throwing methods)
+        // Standard thunk-based approach (works for non-throwing/non-async methods)
         let methods = mockableSigs.map { sig in
             MethodDescriptor(name: sig.methodName, signature: sig.methodSignature, index: sig.slot)
         }

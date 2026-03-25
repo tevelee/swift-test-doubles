@@ -275,21 +275,8 @@ public enum RuntimeCompiler {
     }
 
     private static func findSwiftc() -> String {
-        // Prefer the swiftc from PATH (matches the toolchain that built the module)
-        let whichProcess = Process()
-        whichProcess.executableURL = URL(fileURLWithPath: "/usr/bin/which")
-        whichProcess.arguments = ["swiftc"]
-        let whichPipe = Pipe()
-        whichProcess.standardOutput = whichPipe
-        try? whichProcess.run()
-        whichProcess.waitUntilExit()
-        if whichProcess.terminationStatus == 0 {
-            let path = String(data: whichPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            if let p = path, !p.isEmpty { return p }
-        }
-
-        // Fallback to xcrun
+        // Use xcrun to find swiftc — it respects DEVELOPER_DIR and
+        // the active Xcode, ensuring version matches the build toolchain.
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
         process.arguments = ["--find", "swiftc"]
@@ -297,8 +284,12 @@ public enum RuntimeCompiler {
         process.standardOutput = pipe
         try? process.run()
         process.waitUntilExit()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "/usr/bin/swiftc"
+        if process.terminationStatus == 0 {
+            let path = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if let p = path, !p.isEmpty { return p }
+        }
+        return "/usr/bin/swiftc"
     }
 }
 
