@@ -148,21 +148,66 @@ public enum RuntimeCompiler {
 
     // MARK: - Compilation
 
-    // MARK: - Compilation
-
     /// Additional module search paths for the compiler.
     /// Set this before creating stubs if your protocol is in a custom framework.
     nonisolated(unsafe) public static var additionalImportPaths: [String] = []
     nonisolated(unsafe) public static var additionalLibraryPaths: [String] = []
     nonisolated(unsafe) public static var additionalFrameworkPaths: [String] = []
 
+    /// Read the Swift version string from SPM's swift-version-*.txt file.
+    /// Returns a short version like "6.2" or "6.3" for matching.
+    private static func detectBuildSwiftVersion() -> String? {
+        func findVersionFile(startingFrom dir: URL) -> String? {
+            var dir = dir
+            for _ in 0..<10 {
+                if let files = try? FileManager.default.contentsOfDirectory(atPath: dir.path) {
+                    if let f = files.first(where: { $0.hasPrefix("swift-version-") && $0.hasSuffix(".txt") }) {
+                        if let content = try? String(contentsOfFile: dir.appendingPathComponent(f).path, encoding: .utf8) {
+                            let parts = content.split(separator: " ")
+                            if let idx = parts.firstIndex(of: "version"), idx + 1 < parts.count {
+                                return String(parts[idx + 1])
+                            }
+                        }
+                    }
+                }
+                let prev = dir
+                dir = dir.deletingLastPathComponent()
+                if dir == prev { break }
+            }
+            return nil
+        }
+
+        // Try from executable path (works for direct SPM invocation)
+        let execURL = URL(fileURLWithPath: ProcessInfo.processInfo.arguments[0])
+        if let v = findVersionFile(startingFrom: execURL.deletingLastPathComponent()) { return v }
+
+        // Try from CWD/.build (works for swiftpm-testing-helper and Xcode)
+        let cwd = FileManager.default.currentDirectoryPath
+        for buildDir in [
+            "\(cwd)/.build/arm64-apple-macosx/debug",
+            "\(cwd)/.build/arm64e-apple-macosx/debug",
+            "\(cwd)/.build/debug",
+        ] {
+            if let v = findVersionFile(startingFrom: URL(fileURLWithPath: buildDir)) { return v }
+        }
+        return nil
+    }
+
+    private static let compileLock = NSLock()
+
     private static func compile(source: String, key: String) -> String? {
+        // Stable hash (not randomized per process like .hashValue)
+        let hash = key.utf8.reduce(into: UInt64(5381)) { h, c in
+            h = h &* 33 &+ UInt64(c)
+        }
         let tmpDir = NSTemporaryDirectory()
-        let hash = abs(key.hashValue)
         let srcPath = "\(tmpDir)td_mock_\(hash).swift"
         let dylibPath = "\(tmpDir)td_mock_\(hash).dylib"
 
-        // Check cache
+        compileLock.lock()
+        defer { compileLock.unlock() }
+
+        // Check cache (stable hash means this survives across test runs)
         if FileManager.default.fileExists(atPath: dylibPath) {
             return dylibPath
         }
@@ -227,11 +272,20 @@ public enum RuntimeCompiler {
     }
 
     /// Auto-detect module import paths from the running binary's location.
-    /// For SPM builds, modules are in .build/<arch>/debug/Modules.
     private static func detectImportPaths() -> [String] {
         var paths: [String] = []
+        let env = ProcessInfo.processInfo.environment
 
-        // Try to find .build directory by walking up from the executable
+        // Xcode: BUILT_PRODUCTS_DIR contains compiled modules and libraries
+        if let builtProducts = env["BUILT_PRODUCTS_DIR"] {
+            paths.append(builtProducts)
+            let modulesDir = "\(builtProducts)/Modules"
+            if FileManager.default.fileExists(atPath: modulesDir) {
+                paths.append(modulesDir)
+            }
+        }
+
+        // SPM: walk up from executable to find Modules/
         let execURL = URL(fileURLWithPath: ProcessInfo.processInfo.arguments[0])
         var dir = execURL.deletingLastPathComponent()
 
@@ -293,9 +347,6 @@ public enum RuntimeCompiler {
     }
 
     private static func findSwiftc() -> String {
-        // Find the swiftc that matches the running process's Swift version.
-        // The running binary embeds the Swift version in its RPATH or can be
-        // determined from the executable path's toolchain.
         func run(_ exe: String, _ args: String...) -> String? {
             let p = Process()
             p.executableURL = URL(fileURLWithPath: exe)
@@ -310,23 +361,25 @@ public enum RuntimeCompiler {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
-        // Strategy: find swiftc adjacent to the running swift binary.
-        // ProcessInfo.processInfo.arguments[0] is the test runner executable.
-        // Walk up from its location to find a toolchain's usr/bin/swiftc.
-        let execPath = ProcessInfo.processInfo.arguments[0]
-        var dir = URL(fileURLWithPath: execPath).deletingLastPathComponent()
-        for _ in 0..<20 {
-            let candidate = dir.appendingPathComponent("usr/bin/swiftc")
-            if FileManager.default.fileExists(atPath: candidate.path) {
-                return candidate.path
+        // Read the Swift version that built the module from SPM's swift-version file.
+        // Then match against candidate swiftc binaries.
+        let buildVersion = Self.detectBuildSwiftVersion()
+
+        let candidates: [String] = [
+            run("/usr/bin/which", "swiftc"),
+            run("/usr/bin/xcrun", "--find", "swiftc"),
+        ].compactMap { $0 }.filter { !$0.isEmpty }
+
+        if let buildVersion {
+            for candidate in candidates {
+                if let v = run(candidate, "--version"), v.contains(buildVersion) {
+                    return candidate
+                }
             }
-            dir = dir.deletingLastPathComponent()
         }
 
-        // Fallback: which swiftc, then xcrun
-        if let path = run("/usr/bin/which", "swiftc"), !path.isEmpty { return path }
-        if let path = run("/usr/bin/xcrun", "--find", "swiftc"), !path.isEmpty { return path }
-        return "/usr/bin/swiftc"
+        // No version match — return first available
+        return candidates.first ?? "/usr/bin/swiftc"
     }
 }
 
