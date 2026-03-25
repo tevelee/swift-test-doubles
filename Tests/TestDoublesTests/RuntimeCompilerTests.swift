@@ -132,8 +132,7 @@ import Testing
         #expect(sut.basePath == "/test")
     }
 
-    @Test(.disabled("Async mocking requires RuntimeCompiler compilation which is environment-dependent"))
-    func compiledMockAsync() async throws {
+    @Test func compiledMockAsync() async throws {
 
         let stub = RuntimeStub<any AsyncDataLoader>(strategy: .compiled)
 

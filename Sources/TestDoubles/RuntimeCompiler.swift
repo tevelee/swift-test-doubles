@@ -259,6 +259,24 @@ public enum RuntimeCompiler {
             }
         }
 
+        // Include SPM-generated module maps for C targets (e.g. _AtomicsShims).
+        // SPM generates module.modulemap inside .build/<arch>/debug/<Target>.build/
+        for buildDir in [
+            "\(cwd)/.build/arm64-apple-macosx/debug",
+            "\(cwd)/.build/arm64e-apple-macosx/debug",
+            "\(cwd)/.build/debug",
+        ] {
+            if let entries = try? FileManager.default.contentsOfDirectory(atPath: buildDir) {
+                for entry in entries where entry.hasSuffix(".build") {
+                    let moduleMapDir = "\(buildDir)/\(entry)"
+                    let moduleMap = "\(moduleMapDir)/module.modulemap"
+                    if FileManager.default.fileExists(atPath: moduleMap) {
+                        paths.append(moduleMapDir)
+                    }
+                }
+            }
+        }
+
         return Array(Set(paths)) // deduplicate
     }
 
@@ -275,20 +293,39 @@ public enum RuntimeCompiler {
     }
 
     private static func findSwiftc() -> String {
-        // Use xcrun to find swiftc — it respects DEVELOPER_DIR and
-        // the active Xcode, ensuring version matches the build toolchain.
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
-        process.arguments = ["--find", "swiftc"]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        try? process.run()
-        process.waitUntilExit()
-        if process.terminationStatus == 0 {
-            let path = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+        // Find the swiftc that matches the running process's Swift version.
+        // The running binary embeds the Swift version in its RPATH or can be
+        // determined from the executable path's toolchain.
+        func run(_ exe: String, _ args: String...) -> String? {
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: exe)
+            p.arguments = args
+            let pipe = Pipe()
+            p.standardOutput = pipe
+            p.standardError = Pipe()
+            try? p.run()
+            p.waitUntilExit()
+            guard p.terminationStatus == 0 else { return nil }
+            return String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            if let p = path, !p.isEmpty { return p }
         }
+
+        // Strategy: find swiftc adjacent to the running swift binary.
+        // ProcessInfo.processInfo.arguments[0] is the test runner executable.
+        // Walk up from its location to find a toolchain's usr/bin/swiftc.
+        let execPath = ProcessInfo.processInfo.arguments[0]
+        var dir = URL(fileURLWithPath: execPath).deletingLastPathComponent()
+        for _ in 0..<20 {
+            let candidate = dir.appendingPathComponent("usr/bin/swiftc")
+            if FileManager.default.fileExists(atPath: candidate.path) {
+                return candidate.path
+            }
+            dir = dir.deletingLastPathComponent()
+        }
+
+        // Fallback: which swiftc, then xcrun
+        if let path = run("/usr/bin/which", "swiftc"), !path.isEmpty { return path }
+        if let path = run("/usr/bin/xcrun", "--find", "swiftc"), !path.isEmpty { return path }
         return "/usr/bin/swiftc"
     }
 }
