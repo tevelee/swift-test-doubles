@@ -75,7 +75,7 @@ public class StubRecorder: @unchecked Sendable {
             var bestSpecificity = -1
             for entry in entries {
                 if entry.matchers.isEmpty || matchArgs(args, against: entry.matchers) {
-                    let specificity = entry.matchers.reduce(0) { $0 + ($1 is AnyMatcher ? 0 : 1) }
+                    let specificity = entry.matchers.reduce(0) { $0 + $1.specificity }
                     if specificity > bestSpecificity {
                         bestSpecificity = specificity
                         bestEntry = entry
@@ -162,17 +162,26 @@ public struct RecordedCall {
 
 // MARK: - Parameter Matchers
 
+// MARK: - Parameter Matchers
+
 public protocol ParameterMatcher {
     func matches(value: Any) -> Bool
+    /// Higher = more specific. Used to pick the best matching stub.
+    var specificity: Int { get }
 }
 
 struct AnyMatcher: ParameterMatcher {
     func matches(value: Any) -> Bool { true }
+    var specificity: Int { 0 }
 }
 
-struct EqualMatcher<V: Equatable>: ParameterMatcher {
-    let expected: V
-    func matches(value: Any) -> Bool { (value as? V) == expected }
+struct CaptureMatcher<T>: ParameterMatcher {
+    let captor: ArgumentCaptor<T>
+    func matches(value: Any) -> Bool {
+        if let v = value as? T { captor.values.append(v) }
+        return true
+    }
+    var specificity: Int { 0 }
 }
 
 struct PredicateMatcher<V>: ParameterMatcher {
@@ -181,10 +190,18 @@ struct PredicateMatcher<V>: ParameterMatcher {
         guard let v = value as? V else { return false }
         return predicate(v)
     }
+    var specificity: Int { 1 }
 }
 
 struct DescriptionMatcher: ParameterMatcher {
     let desc: String
     init(value: Any) { self.desc = String(describing: value) }
     func matches(value: Any) -> Bool { String(describing: value) == desc }
+    var specificity: Int { 2 }
+}
+
+struct EqualMatcher<V: Equatable>: ParameterMatcher {
+    let expected: V
+    func matches(value: Any) -> Bool { (value as? V) == expected }
+    var specificity: Int { 3 }
 }
