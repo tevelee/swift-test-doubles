@@ -50,6 +50,7 @@ import Testing
         #expect(stub().search(query: "x") == ["a", "b", "c"])
     }
 
+    #if os(macOS)
     @Test func asyncCompiledMock() async throws {
         let stub = RuntimeStub<any AsyncDataLoader>(strategy: .compiled)
         await stub.when { try await $0.load(url: any()) } then: { "async!" }
@@ -60,6 +61,7 @@ import Testing
         #expect(try await sut.load(url: "https://x.com") == "async!")
         #expect(sut.cacheSize == 99)
     }
+    #endif
 
     @Test func mixTrailingAndChained() {
         let stub = RuntimeStub<any UserRepository>()

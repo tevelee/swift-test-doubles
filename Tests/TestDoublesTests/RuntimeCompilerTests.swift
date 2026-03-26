@@ -1,3 +1,4 @@
+#if os(macOS)
 import Testing
 @testable import TestDoubles
 
@@ -68,6 +69,7 @@ import Testing
         #expect(source.contains("async throws ->"))
     }
 }
+#endif
 
 @Suite struct ModuleExtractionTests {
 

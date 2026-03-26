@@ -1,3 +1,4 @@
+#if os(macOS)
 import Foundation
 import Echo
 
@@ -266,3 +267,4 @@ public enum RuntimeCompiler {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
+#endif

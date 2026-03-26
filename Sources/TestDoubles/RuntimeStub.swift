@@ -36,17 +36,20 @@ public class RuntimeStub<P>: @unchecked Sendable {
         /// Use pre-compiled ABI-class thunks. Fast, no external tools needed.
         /// Limited to ≤16-byte return types, no real error propagation.
         case thunks
+#if os(macOS)
         /// Compile a conforming type at test startup via swiftc.
         /// Supports any type, throws, async. Requires swiftc on PATH.
         case compiled
-        /// Try compiled first, fall back to thunks if compilation fails.
+#endif
+        /// On macOS, try compiled first and fall back to thunks if compilation fails.
+        /// On other platforms, always uses thunks.
         case auto
     }
 
     /// Zero-config init with strategy selection.
     /// ```swift
     /// let stub = RuntimeStub<any MyService>()                    // auto
-    /// let stub = RuntimeStub<any MyService>(strategy: .compiled) // force compilation
+    /// let stub = RuntimeStub<any MyService>(strategy: .compiled) // force compilation (macOS only)
     /// let stub = RuntimeStub<any MyService>(strategy: .thunks)   // skip compilation
     /// ```
     public init(strategy: Strategy = .auto) {
@@ -71,11 +74,18 @@ public class RuntimeStub<P>: @unchecked Sendable {
         let shouldCompile: Bool
         switch strategy {
         case .thunks: shouldCompile = false
+#if os(macOS)
         case .compiled: shouldCompile = true
+#endif
         case .auto:
+            #if os(macOS)
             shouldCompile = mockableSigs.contains { $0.isThrowing || $0.isAsync }
+            #else
+            shouldCompile = false
+            #endif
         }
 
+#if os(macOS)
         if shouldCompile {
             let proto = conformance.protocol
             let moduleName = mockableSigs.compactMap { RuntimeCompiler.extractModuleName(from: $0.rawDemangled) }.first
@@ -128,6 +138,7 @@ public class RuntimeStub<P>: @unchecked Sendable {
                 """)
             }
         }
+#endif
 
         // Standard thunk-based approach (works for non-throwing/non-async methods)
         let methods = mockableSigs.map { sig in
