@@ -12,6 +12,25 @@ public enum RuntimeCompiler {
     nonisolated(unsafe) public static var additionalLibraryPaths: [String] = []
     nonisolated(unsafe) public static var additionalFrameworkPaths: [String] = []
 
+    public struct Failure: Sendable, CustomStringConvertible {
+        public let reason: String
+        public let stderr: String
+        public let sourcePath: String?
+        public let swiftcPath: String?
+        public let arguments: [String]
+
+        public var description: String {
+            var lines = [reason]
+            if let swiftcPath { lines.append("swiftc: \(swiftcPath)") }
+            if !arguments.isEmpty { lines.append("arguments: \(arguments.joined(separator: " "))") }
+            if let sourcePath { lines.append("source: \(sourcePath)") }
+            if !stderr.isEmpty { lines.append("stderr:\n\(stderr)") }
+            return lines.joined(separator: "\n")
+        }
+    }
+
+    nonisolated(unsafe) public private(set) static var lastFailure: Failure?
+
     // MARK: - Public
 
     /// Compile a mock type and return the dlopen handle, or nil on failure.
@@ -23,9 +42,12 @@ public enum RuntimeCompiler {
         let source = generateSource(protocolName: protocolName, moduleName: moduleName, signatures: signatures)
         guard let dylibPath = compile(source: source, key: "\(moduleName).\(protocolName)") else { return nil }
         guard let handle = dlopen(dylibPath, RTLD_NOW) else {
-            print("[RuntimeCompiler] dlopen failed: \(String(cString: dlerror()))")
+            let message = "dlopen failed: \(String(cString: dlerror()))"
+            lastFailure = Failure(reason: message, stderr: "", sourcePath: dylibPath, swiftcPath: nil, arguments: [])
+            print("[RuntimeCompiler] \(message)")
             return nil
         }
+        lastFailure = nil
         return handle
     }
 
@@ -70,8 +92,8 @@ public enum RuntimeCompiler {
         \(members)
         }
 
-        @_cdecl("td_mock_witness_table")
-        public func _td_mock_witness_table() -> UnsafeRawPointer {
+        @_cdecl("swift_mock_witness_table")
+        public func _swift_mock_witness_table() -> UnsafeRawPointer {
             var mock: any \(protocolName) = _TDMock(_ctx: UnsafeRawPointer(bitPattern: 1)!)
             return withUnsafePointer(to: &mock) { ptr in
                 (UnsafeRawPointer(ptr) + 4 * MemoryLayout<UnsafeRawPointer>.size)
@@ -79,8 +101,8 @@ public enum RuntimeCompiler {
             }
         }
 
-        @_cdecl("td_mock_type_metadata")
-        public func _td_mock_type_metadata() -> UnsafeRawPointer {
+        @_cdecl("swift_mock_type_metadata")
+        public func _swift_mock_type_metadata() -> UnsafeRawPointer {
             unsafeBitCast(_TDMock.self as Any.Type, to: UnsafeRawPointer.self)
         }
         """
@@ -112,33 +134,64 @@ public enum RuntimeCompiler {
     private static let compileLock = NSLock()
 
     private static func compile(source: String, key: String) -> String? {
-        let hash = key.utf8.reduce(into: UInt64(5381)) { h, c in h = h &* 33 &+ UInt64(c) }
-        let tmpDir = NSTemporaryDirectory()
-        let srcPath = "\(tmpDir)td_mock_\(hash).swift"
-        let dylibPath = "\(tmpDir)td_mock_\(hash).dylib"
+        let importPaths = detectImportPaths()
+        let swiftcPath = findSwiftc(importPaths: importPaths)
+        // Prefer SDKROOT from the environment — this is set by Xcode during test
+        // execution and matches the SDK used to compile TestDoubles.swiftmodule.
+        // Falling back to xcrun risks picking a different SDK version, causing
+        // "cannot load module built with SDK X when using SDK Y" errors.
+        let sdk = ProcessInfo.processInfo.environment["SDKROOT"]
+            ?? sdkPath(forSwiftcPath: swiftcPath)
+            ?? shell("/usr/bin/xcrun", "--show-sdk-path")
+            ?? ""
+        // Include the SDK path in the cache key so that dylibs are recompiled
+        // when the SDK changes (e.g. macosx26.2 → macosx26.4).
+        let cacheKey = "\(key)|\(swiftcPath)|\(sdk)|\(source)"
+        let hash = cacheKey.utf8.reduce(into: UInt64(5381)) { h, c in h = h &* 33 &+ UInt64(c) }
+        let cacheDir = NSTemporaryDirectory() + "swift-test-doubles/"
+        try? FileManager.default.createDirectory(atPath: cacheDir, withIntermediateDirectories: true)
+        let srcPath = "\(cacheDir)swift_mock_\(hash).swift"
+        let dylibPath = "\(cacheDir)swift_mock_\(hash).dylib"
 
         compileLock.lock()
         defer { compileLock.unlock() }
 
         if FileManager.default.fileExists(atPath: dylibPath) { return dylibPath }
 
-        try? source.write(toFile: srcPath, atomically: true, encoding: .utf8)
+        do {
+            try source.write(toFile: srcPath, atomically: true, encoding: .utf8)
+        } catch {
+            lastFailure = Failure(
+                reason: "Failed to write mock source to \(srcPath): \(error)",
+                stderr: "",
+                sourcePath: srcPath,
+                swiftcPath: swiftcPath,
+                arguments: []
+            )
+            return nil
+        }
 
         var args = ["-emit-library", "-module-name", "TDMockGen",
                     "-Xlinker", "-undefined", "-Xlinker", "dynamic_lookup",
                     "-o", dylibPath]
 
-        if let sdk = shell("/usr/bin/xcrun", "--show-sdk-path") { args += ["-sdk", sdk] }
-
-        let importPaths = detectImportPaths()
+        if !sdk.isEmpty {
+            args += ["-sdk", sdk]
+        }
         for path in importPaths + additionalImportPaths { args += ["-I", path] }
         for path in importPaths + additionalLibraryPaths { args += ["-L", path] }
         for path in additionalFrameworkPaths { args += ["-F", path] }
         args.append(srcPath)
 
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: findSwiftc())
+        process.executableURL = URL(fileURLWithPath: swiftcPath)
         process.arguments = args
+        if let developerDir = developerDirectory(forSwiftcPath: swiftcPath) {
+            process.environment = ProcessInfo.processInfo.environment.merging(
+                ["DEVELOPER_DIR": developerDir],
+                uniquingKeysWith: { _, new in new }
+            )
+        }
         let errPipe = Pipe()
         process.standardError = errPipe
 
@@ -147,12 +200,27 @@ public enum RuntimeCompiler {
             process.waitUntilExit()
             if process.terminationStatus != 0 {
                 let stderr = String(data: errPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+                lastFailure = Failure(
+                    reason: "Compilation failed",
+                    stderr: stderr,
+                    sourcePath: srcPath,
+                    swiftcPath: swiftcPath,
+                    arguments: args
+                )
                 print("[RuntimeCompiler] Compilation failed:\n\(stderr)")
                 print("[RuntimeCompiler] Source: \(srcPath)")
                 return nil
             }
+            lastFailure = nil
             return dylibPath
         } catch {
+            lastFailure = Failure(
+                reason: "Process error: \(error)",
+                stderr: "",
+                sourcePath: srcPath,
+                swiftcPath: swiftcPath,
+                arguments: args
+            )
             print("[RuntimeCompiler] Process error: \(error)")
             return nil
         }
@@ -161,12 +229,23 @@ public enum RuntimeCompiler {
     // MARK: - Toolchain Discovery
 
     /// Find the swiftc whose version matches the one that built the module.
-    private static func findSwiftc() -> String {
+    private static func findSwiftc(importPaths: [String] = []) -> String {
         let buildVersion = detectBuildSwiftVersion()
-        let candidates = [
-            shell("/usr/bin/which", "swiftc"),
-            shell("/usr/bin/xcrun", "--find", "swiftc"),
-        ].compactMap { $0 }
+        let environmentCandidates = preferredSwiftcCandidatesFromEnvironment()
+        let xcrunSwiftc = shell("/usr/bin/xcrun", "--find", "swiftc")
+        let shellSwiftc = shell("/usr/bin/which", "swiftc")
+        let candidates = (environmentCandidates + [shellSwiftc, xcrunSwiftc].compactMap { $0 }).reduce(into: [String]()) { partial, candidate in
+            guard !partial.contains(candidate) else { return }
+            partial.append(candidate)
+        }
+
+        if importPaths.contains(where: { $0.contains("/Build/Products/") }) {
+            return environmentCandidates.first
+                ?? preferredXcodeSwiftcCandidate()
+                ?? xcrunSwiftc
+                ?? shellSwiftc
+                ?? "/usr/bin/swiftc"
+        }
 
         if let buildVersion {
             for candidate in candidates {
@@ -204,42 +283,57 @@ public enum RuntimeCompiler {
     /// Auto-detect -I/-L paths for the compiler.
     private static func detectImportPaths() -> [String] {
         var paths: [String] = []
+        func appendUnique(_ path: String) {
+            guard !paths.contains(path) else { return }
+            paths.append(path)
+        }
+        func addCandidateDirectory(_ path: String) {
+            guard FileManager.default.fileExists(atPath: path) else { return }
 
-        // Xcode IDE: BUILT_PRODUCTS_DIR
-        if let dir = ProcessInfo.processInfo.environment["BUILT_PRODUCTS_DIR"] {
-            paths.append(dir)
-            paths.append("\(dir)/Modules")
+            if let entries = try? FileManager.default.contentsOfDirectory(atPath: path),
+               entries.contains(where: { $0 == "Modules" || $0.hasSuffix(".swiftmodule") }) {
+                appendUnique(path)
+            }
+
+            let modulesPath = "\(path)/Modules"
+            if FileManager.default.fileExists(atPath: modulesPath) {
+                appendUnique(modulesPath)
+                appendUnique(path)
+            }
         }
 
-        // SPM: walk up from executable looking for Modules/
-        var dir = URL(fileURLWithPath: ProcessInfo.processInfo.arguments[0]).deletingLastPathComponent()
-        for _ in 0..<10 {
-            let modulesDir = dir.appendingPathComponent("Modules").path
-            if FileManager.default.fileExists(atPath: modulesDir) {
-                paths += [modulesDir, dir.path]
-                break
+        for envKey in ["BUILT_PRODUCTS_DIR", "TARGET_BUILD_DIR", "CONFIGURATION_BUILD_DIR", "BUILD_DIR"] {
+            if let dir = ProcessInfo.processInfo.environment[envKey] {
+                addCandidateDirectory(dir)
             }
-            dir = dir.deletingLastPathComponent()
+        }
+
+        let executableDir = URL(fileURLWithPath: ProcessInfo.processInfo.arguments[0]).deletingLastPathComponent()
+        for directory in ancestorDirectories(startingAt: executableDir, limit: 10) {
+            addCandidateDirectory(directory.path)
+        }
+
+        for bundle in Bundle.allBundles + Bundle.allFrameworks {
+            for directory in ancestorDirectories(startingAt: bundle.bundleURL.deletingLastPathComponent(), limit: 6) {
+                addCandidateDirectory(directory.path)
+            }
         }
 
         // SPM build dirs (Modules + libraries + C target module maps)
         for buildDir in buildDirectories() {
-            let modulesPath = "\(buildDir)/Modules"
-            if FileManager.default.fileExists(atPath: modulesPath) {
-                paths += [modulesPath, buildDir]
-            }
+            addCandidateDirectory(buildDir)
             // C targets like _AtomicsShims have module.modulemap in <Target>.build/
             if let entries = try? FileManager.default.contentsOfDirectory(atPath: buildDir) {
                 for entry in entries where entry.hasSuffix(".build") {
                     let dir = "\(buildDir)/\(entry)"
                     if FileManager.default.fileExists(atPath: "\(dir)/module.modulemap") {
-                        paths.append(dir)
+                        appendUnique(dir)
                     }
                 }
             }
         }
 
-        return Array(Set(paths))
+        return paths
     }
 
     /// Standard SPM build directories relative to CWD.
@@ -265,6 +359,71 @@ public enum RuntimeCompiler {
         guard p.terminationStatus == 0 else { return nil }
         return String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func ancestorDirectories(startingAt url: URL, limit: Int) -> [URL] {
+        var result: [URL] = []
+        var current = url
+        for _ in 0..<limit {
+            result.append(current)
+            let parent = current.deletingLastPathComponent()
+            if parent.path == current.path { break }
+            current = parent
+        }
+        return result
+    }
+
+    private static func preferredSwiftcCandidatesFromEnvironment() -> [String] {
+        let env = ProcessInfo.processInfo.environment
+        let rawCandidates = [
+            env["SWIFT_EXEC"],
+            env["TOOLCHAIN_DIR"].map { "\($0)/usr/bin/swiftc" },
+            env["DT_TOOLCHAIN_DIR"].map { "\($0)/usr/bin/swiftc" },
+            env["DEVELOPER_DIR"].map { "\($0)/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc" },
+        ].compactMap { $0 }
+
+        return rawCandidates.filter { FileManager.default.isExecutableFile(atPath: $0) }
+    }
+
+    private static func preferredXcodeSwiftcCandidate() -> String? {
+        let applicationsURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
+        guard let entries = try? FileManager.default.contentsOfDirectory(
+            at: applicationsURL,
+            includingPropertiesForKeys: nil
+        ) else {
+            return nil
+        }
+
+        let candidates = entries
+            .filter { $0.lastPathComponent.hasPrefix("Xcode") && $0.pathExtension == "app" }
+            .sorted { $0.lastPathComponent > $1.lastPathComponent }
+
+        for app in candidates {
+            let swiftc = app
+                .appendingPathComponent("Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc")
+                .path
+            if FileManager.default.isExecutableFile(atPath: swiftc) {
+                return swiftc
+            }
+        }
+        return nil
+    }
+
+    private static func developerDirectory(forSwiftcPath swiftcPath: String) -> String? {
+        let marker = "/Contents/Developer/"
+        guard let range = swiftcPath.range(of: marker) else { return nil }
+        var path = String(swiftcPath[..<range.upperBound])
+        if path.hasSuffix("/") {
+            path.removeLast()
+        }
+        return path
+    }
+
+    private static func sdkPath(forSwiftcPath swiftcPath: String) -> String? {
+        guard let developerDir = developerDirectory(forSwiftcPath: swiftcPath) else { return nil }
+        let xcrunPath = "\(developerDir)/usr/bin/xcrun"
+        guard FileManager.default.isExecutableFile(atPath: xcrunPath) else { return nil }
+        return shell(xcrunPath, "--show-sdk-path")
     }
 }
 #endif

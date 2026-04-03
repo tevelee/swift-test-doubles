@@ -1,0 +1,87 @@
+public struct RuntimeStubDiagnostics: Sendable, CustomStringConvertible {
+    public let typeDescription: String
+    public let protocolName: String?
+    public let requestedStrategy: String
+    public let runtimeCompilationSupported: Bool
+    public let inferredModuleName: String?
+    public let hasExistingConformance: Bool
+    public let notes: [String]
+
+    public init(
+        typeDescription: String,
+        protocolName: String?,
+        requestedStrategy: String,
+        runtimeCompilationSupported: Bool,
+        inferredModuleName: String?,
+        hasExistingConformance: Bool,
+        notes: [String]
+    ) {
+        self.typeDescription = typeDescription
+        self.protocolName = protocolName
+        self.requestedStrategy = requestedStrategy
+        self.runtimeCompilationSupported = runtimeCompilationSupported
+        self.inferredModuleName = inferredModuleName
+        self.hasExistingConformance = hasExistingConformance
+        self.notes = notes
+    }
+
+    public var description: String {
+        var lines = [
+            "type: \(typeDescription)",
+            "protocol: \(protocolName ?? "unknown")",
+            "requested strategy: \(requestedStrategy)",
+            "runtime compilation supported: \(runtimeCompilationSupported ? "yes" : "no")",
+            "inferred module: \(inferredModuleName ?? "unavailable")",
+            "existing conformance in binary: \(hasExistingConformance ? "yes" : "no")",
+        ]
+
+        if !notes.isEmpty {
+            lines.append("notes:")
+            lines.append(contentsOf: notes.map { "- \($0)" })
+        }
+
+        return lines.joined(separator: "\n")
+    }
+}
+
+public enum RuntimeStubError: Error, Sendable, CustomStringConvertible {
+    case typeIsNotProtocol(typeDescription: String)
+    case noConformanceFound(protocolName: String, typeDescription: String)
+    case moduleNameCouldNotBeInferred(typeDescription: String)
+    case slotCountMismatch(protocolName: String, expected: Int, actual: Int)
+    case runtimeCompilerFailed(protocolName: String, moduleName: String, details: String?)
+    case missingCompiledSymbol(protocolName: String, symbol: String)
+    case missingThunk(slot: Int, signature: MethodSignature)
+    case unsupportedTypeKind(typeName: String)
+
+    public var description: String {
+        switch self {
+        case .typeIsNotProtocol(let typeDescription):
+            return "Could not extract a protocol from '\(typeDescription)'. Use `RuntimeStub<any YourProtocol>`."
+        case .noConformanceFound(let protocolName, _):
+            return """
+            No conformance found for protocol '\(protocolName)' in the current binary. \
+            Add one real conformer, or on macOS use `RuntimeStub<...>.compiled(signatures:)` to skip that requirement.
+            """
+        case .moduleNameCouldNotBeInferred(let typeDescription):
+            return """
+            Could not infer the module name for '\(typeDescription)'. \
+            Pass `moduleName:` explicitly when creating a compiled stub.
+            """
+        case .slotCountMismatch(let protocolName, let expected, let actual):
+            return "Expected \(expected) mockable slots for '\(protocolName)', got \(actual)."
+        case .runtimeCompilerFailed(let protocolName, let moduleName, let details):
+            var base = "RuntimeCompiler failed for '\(protocolName)' in module '\(moduleName)'."
+            if let details, !details.isEmpty {
+                base += "\n\(details)"
+            }
+            return base
+        case .missingCompiledSymbol(let protocolName, let symbol):
+            return "Compiled mock for '\(protocolName)' is missing exported symbol '\(symbol)'."
+        case .missingThunk(let slot, let signature):
+            return "No thunk available for slot \(slot) with signature \(signature)."
+        case .unsupportedTypeKind(let typeName):
+            return "Unsupported type kind for '\(typeName)'."
+        }
+    }
+}

@@ -1,44 +1,44 @@
 import Echo
 import Foundation
 
-/// Maps witness table pointers to their mock contexts.
-/// Each mock gets a uniquely allocated witness table, making the
-/// witness table pointer a natural per-mock identifier.
+/// Maps per-mock context keys to their stub recorders.
+/// For thunk-backed mocks, the witness table pointer is the natural key.
+/// For runtime-compiled mocks, the inline `_ctx` field provides the key.
 ///
-/// The `wtPtr` argument (last parameter in every witness thunk) is used
-/// as the lookup key — this works for both struct and class existentials.
+/// Both backends ultimately hand a stable pointer to `MockBridge` or a thunk,
+/// so the registry can stay agnostic about how that key was produced.
 public enum MockRegistry {
     nonisolated(unsafe) private static var storage: [UnsafeRawPointer: StubRecorder] = [:]
     private static let lock = NSLock()
 
-    static func register(_ recorder: StubRecorder, for witnessTable: UnsafeRawPointer) {
+    static func register(_ recorder: StubRecorder, for key: UnsafeRawPointer) {
         lock.lock()
         defer { lock.unlock() }
-        storage[witnessTable] = recorder
+        storage[key] = recorder
     }
 
-    static func remove(for witnessTable: UnsafeRawPointer) {
+    static func remove(for key: UnsafeRawPointer) {
         lock.lock()
         defer { lock.unlock() }
-        storage.removeValue(forKey: witnessTable)
+        storage.removeValue(forKey: key)
     }
 
-    /// Called by thunks to resolve the recorder from the witness table pointer.
+    /// Called by thunks and bridge functions to resolve the recorder from the context key.
     @inline(__always)
-    public static func resolve(_ wtPtr: UnsafeRawPointer) -> StubRecorder {
+    public static func resolve(_ key: UnsafeRawPointer) -> StubRecorder {
         lock.lock()
         defer { lock.unlock() }
-        guard let recorder = storage[wtPtr] else {
-            fatalError("No mock registered for witness table at \(wtPtr)")
+        guard let recorder = storage[key] else {
+            fatalError("No mock registered for context key \(key)")
         }
         return recorder
     }
 
     /// Non-fatal resolve — returns nil if not found (used by bridge functions).
     @inline(__always)
-    public static func resolveOptional(_ wtPtr: UnsafeRawPointer) -> StubRecorder? {
+    public static func resolveOptional(_ key: UnsafeRawPointer) -> StubRecorder? {
         lock.lock()
         defer { lock.unlock() }
-        return storage[wtPtr]
+        return storage[key]
     }
 }

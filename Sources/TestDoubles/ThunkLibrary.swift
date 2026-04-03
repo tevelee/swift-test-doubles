@@ -10,7 +10,7 @@
 import Foundation
 
 /// Describes a method signature for thunk lookup.
-public struct MethodSignature: Hashable, Sendable {
+public struct MethodSignature: Hashable, Sendable, CustomStringConvertible {
     public let args: [String]
     public let ret: String
 
@@ -21,6 +21,10 @@ public struct MethodSignature: Hashable, Sendable {
 
     public static func getter(_ type: String) -> MethodSignature { .init(args: [], ret: type) }
     public static func method(_ args: [String], returning ret: String) -> MethodSignature { .init(args: args, ret: ret) }
+
+    public var description: String {
+        "(\(args.joined(separator: ", "))) -> \(ret)"
+    }
 
     /// Maps this signature to its ABI-class equivalent for thunk lookup.
     var abiSignature: MethodSignature {
@@ -99,7 +103,10 @@ private func d2(_ w: UnsafeRawPointer, _ m: Int, _ a: [Any]) -> String {
     let r = rec(w)
     let result = r.dispatch(method: m, args: a)
     if r.mode != .normal { return "" }
-    return result as! String
+    guard let typed = result as? String else {
+        preconditionFailure("[TestDoubles] Type mismatch at slot \(m): expected String, got \(type(of: result)). Verify your .returns() type matches the method signature.")
+    }
+    return typed
 }
 
 /// V dispatch: Void return.
@@ -978,5 +985,4 @@ public enum ThunkLibrary {
         return c
     }
 }
-
 

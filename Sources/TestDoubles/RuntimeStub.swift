@@ -21,8 +21,20 @@ import Glibc
 /// ```
 public class RuntimeStub<P>: @unchecked Sendable {
     public let recorder: StubRecorder
-    private let wtAllocation: UnsafeMutableRawPointer
+    private let registryKeyAllocation: UnsafeMutableRawPointer
     private let containerBytes: ExistentialContainer
+
+    private struct PreparedStub {
+        let recorder: StubRecorder
+        let registryKeyAllocation: UnsafeMutableRawPointer
+        let containerBytes: ExistentialContainer
+    }
+
+    private init(prepared: PreparedStub) {
+        self.recorder = prepared.recorder
+        self.registryKeyAllocation = prepared.registryKeyAllocation
+        self.containerBytes = prepared.containerBytes
+    }
 
     // MARK: - Zero-config init: auto-discover everything
 
@@ -34,7 +46,7 @@ public class RuntimeStub<P>: @unchecked Sendable {
     /// Mock generation strategy.
     public enum Strategy {
         /// Use pre-compiled ABI-class thunks. Fast, no external tools needed.
-        /// Limited to ≤16-byte return types, no real error propagation.
+        /// Limited to the current thunk ABI catalog, with no real error propagation.
         case thunks
 #if os(macOS)
         /// Compile a conforming type at test startup via swiftc.
@@ -52,103 +64,93 @@ public class RuntimeStub<P>: @unchecked Sendable {
     /// let stub = RuntimeStub<any MyService>(strategy: .compiled) // force compilation (macOS only)
     /// let stub = RuntimeStub<any MyService>(strategy: .thunks)   // skip compilation
     /// ```
-    public init(strategy: Strategy = .auto) {
-        let conformance = Self.findConformance()
-        self.recorder = StubRecorder()
+    public convenience init(strategy: Strategy = .auto) {
+        do {
+            try self.init(prepared: Self.prepare(strategy: strategy))
+        } catch {
+            fatalError(Self.failureMessage(for: error))
+        }
+    }
 
-        let signatures = discoverSignatures(
-            witnessTable: conformance.witnessTablePattern,
-            proto: conformance.protocol
-        )
+    /// Throwing variant of the zero-config initializer.
+    public static func make(strategy: Strategy = .auto) throws -> RuntimeStub<P> {
+        try RuntimeStub(prepared: prepare(strategy: strategy))
+    }
 
-        let mockableSigs = signatures.filter { sig in
-            switch sig.kind {
-            case .modifyCoroutine, .readCoroutine, .baseProtocol,
-                 .associatedTypeAccessFunction, .associatedConformanceAccessFunction:
-                return false
-            default:
-                return true
-            }
+    /// Inspect environment constraints before choosing a setup path.
+    public static func diagnose(strategy: Strategy = .auto) -> RuntimeStubDiagnostics {
+        let typeDescription = String(reflecting: P.self)
+        let inferredModuleName = inferredModuleName()
+        let runtimeCompilationSupported: Bool
+        #if os(macOS)
+        runtimeCompilationSupported = true
+        #else
+        runtimeCompilationSupported = false
+        #endif
+
+        guard let protoDesc = try? extractProtocolDescriptor() else {
+            return RuntimeStubDiagnostics(
+                typeDescription: typeDescription,
+                protocolName: nil,
+                requestedStrategy: strategy.description,
+                runtimeCompilationSupported: runtimeCompilationSupported,
+                inferredModuleName: inferredModuleName,
+                hasExistingConformance: false,
+                notes: [
+                    "Use `RuntimeStub<any YourProtocol>` so the generic type is a protocol existential."
+                ]
+            )
         }
 
-        let shouldCompile: Bool
-        switch strategy {
-        case .thunks: shouldCompile = false
-#if os(macOS)
-        case .compiled: shouldCompile = true
-#endif
-        case .auto:
+        let hasExistingConformance = Echo.findConformance(to: protoDesc) != nil
+        var notes: [String] = []
+
+        if hasExistingConformance {
+            notes.append("A real conformer already exists in the binary, so zero-config and thunk-backed stubs can use runtime discovery.")
+        } else {
+            notes.append("No existing conformer was found in the current binary.")
+            notes.append("Thunk-backed and zero-config setup need at least one real conformer.")
             #if os(macOS)
-            shouldCompile = mockableSigs.contains { $0.isThrowing || $0.isAsync }
+            notes.append("On macOS, use `RuntimeStub<...>.compiled(signatures:)` to skip the real-conformer requirement.")
             #else
-            shouldCompile = false
+            notes.append("Runtime compilation is unavailable on this platform.")
             #endif
         }
 
-#if os(macOS)
-        if shouldCompile {
-            let proto = conformance.protocol
-            let moduleName = mockableSigs.compactMap { RuntimeCompiler.extractModuleName(from: $0.rawDemangled) }.first
-                ?? "UnknownModule"
-
-            if let handle = RuntimeCompiler.compileMock(
-                protocolName: proto.name,
-                moduleName: moduleName,
-                signatures: signatures
-            ) {
-                // Use dlsym to get the self-describing accessors from the compiled dylib.
-                // This avoids Echo.types which crashes on dynamically loaded images.
-                typealias Accessor = @convention(c) () -> UnsafeRawPointer
-                if let getWT = dlsym(handle, "td_mock_witness_table"),
-                   let getMeta = dlsym(handle, "td_mock_type_metadata") {
-
-                let wtPtr = unsafeBitCast(getWT, to: Accessor.self)()
-                let metaPtr = unsafeBitCast(getMeta, to: Accessor.self)()
-
-                let totalWords = 1 + proto.numRequirements
-                let wordSize = MemoryLayout<UnsafeRawPointer>.size
-                let clonedWT = UnsafeMutableRawPointer.allocate(byteCount: totalWords * wordSize, alignment: wordSize)
-                clonedWT.copyMemory(from: wtPtr, byteCount: totalWords * wordSize)
-
-                MockRegistry.register(recorder, for: UnsafeRawPointer(clonedWT))
-
-                for sig in mockableSigs {
-                    recorder.setName(sig.methodName, for: sig.slot)
-                }
-
-                self.wtAllocation = clonedWT
-
-                var base = AnyExistentialContainer(type: unsafeBitCast(metaPtr, to: Any.Type.self))
-                withUnsafeMutablePointer(to: &base) { ptr in
-                    UnsafeMutableRawPointer(ptr).storeBytes(of: UnsafeRawPointer(clonedWT), as: UnsafeRawPointer.self)
-                }
-                self.containerBytes = ExistentialContainer(
-                    base: base,
-                    witnessTable: WitnessTable(ptr: UnsafeRawPointer(clonedWT))
-                )
-                return
-                }
-            }
-
-            if strategy == .compiled {
-                preconditionFailure("""
-                [TestDoubles] RuntimeCompiler failed for '\(proto.name)'. \
-                Ensure the protocol's module is importable and swiftc version matches the build toolchain. \
-                Use strategy: .auto to fall back to thunks.
-                """)
-            }
-        }
-#endif
-
-        // Standard thunk-based approach (works for non-throwing/non-async methods)
-        let methods = mockableSigs.map { sig in
-            MethodDescriptor(name: sig.methodName, signature: sig.methodSignature, index: sig.slot)
-        }
-
-        let (clonedWT, _) = Self.patchWitnessTable(from: conformance, methods: methods, recorder: recorder)
-        self.wtAllocation = clonedWT
-        self.containerBytes = Self.buildExistentialContainer(from: conformance, witnessTable: clonedWT)
+        return RuntimeStubDiagnostics(
+            typeDescription: typeDescription,
+            protocolName: protoDesc.name,
+            requestedStrategy: strategy.description,
+            runtimeCompilationSupported: runtimeCompilationSupported,
+            inferredModuleName: inferredModuleName,
+            hasExistingConformance: hasExistingConformance,
+            notes: notes
+        )
     }
+
+#if os(macOS)
+    /// Build a compiled stub without requiring any pre-existing conformer in the binary.
+    public static func compiled(
+        moduleName: String? = nil,
+        signatures: [DiscoveredSignature]
+    ) throws -> RuntimeStub<P> {
+        let protoDesc = try extractProtocolDescriptor()
+        let resolvedModuleName = try resolveModuleName(explicit: moduleName)
+        return try RuntimeStub(prepared: prepareCompiled(
+            protocolName: protoDesc.name,
+            moduleName: resolvedModuleName,
+            signatures: signatures
+        ))
+    }
+
+    /// Builder-style variant of `compiled(moduleName:signatures:)`.
+    public static func compiled(
+        moduleName: String? = nil,
+        _ build: (inout SignatureBuilder) -> Void
+    ) throws -> RuntimeStub<P> {
+        try compiled(moduleName: moduleName, signatures: .describing(build))
+    }
+#endif
 
     // MARK: - Init: return types only (Echo auto-discovers the rest)
 
@@ -162,54 +164,36 @@ public class RuntimeStub<P>: @unchecked Sendable {
     ///     .getter(Int.self),                                  // slot 2: precision
     /// )
     /// ```
-    public init(_ slots: Slot...) {
-        let conformance = Self.findConformance()
-        let proto = conformance.protocol
-
-        // Find the requirement indices that are actually mockable
-        // (skip coroutines, associated types, base protocol conformances)
-        let mockableIndices = proto.requirements.enumerated().compactMap { i, req -> Int? in
-            switch req.flags.kind {
-            case .modifyCoroutine, .readCoroutine, .baseProtocol,
-                 .associatedTypeAccessFunction, .associatedConformanceAccessFunction:
-                return nil
-            default:
-                return i
-            }
+    public convenience init(_ slots: Slot...) {
+        do {
+            try self.init(prepared: Self.prepare(slots: slots))
+        } catch {
+            fatalError(Self.failureMessage(for: error))
         }
+    }
 
-        precondition(slots.count == mockableIndices.count,
-            "Expected \(mockableIndices.count) slots for '\(proto.name)', got \(slots.count)")
-
-        self.recorder = StubRecorder()
-        let methods = zip(slots, mockableIndices).enumerated().map { userIdx, pair in
-            MethodDescriptor(name: "slot_\(userIdx)", signature: pair.0.signature, index: pair.1)
-        }
-
-        let (clonedWT, _) = Self.patchWitnessTable(from: conformance, methods: methods, recorder: recorder)
-
-        // For slot-based init, disable retain (keepAlive handles ARC instead).
-        // The string heuristic isReferenceReturn("W1") incorrectly retains value types.
-        for reqIdx in mockableIndices {
-            recorder.refReturnFlags[reqIdx] = false
-        }
-
-        self.wtAllocation = clonedWT
-        self.containerBytes = Self.buildExistentialContainer(from: conformance, witnessTable: clonedWT)
+    /// Throwing variant of the slot-based initializer.
+    public static func make(_ slots: Slot...) throws -> RuntimeStub<P> {
+        try RuntimeStub(prepared: prepare(slots: slots))
     }
 
     /// Create a stub with explicit method descriptors for full control.
-    public init(methods: [MethodDescriptor]) {
-        let conformance = Self.findConformance()
-        self.recorder = StubRecorder()
-        let (clonedWT, _) = Self.patchWitnessTable(from: conformance, methods: methods, recorder: recorder)
-        self.wtAllocation = clonedWT
-        self.containerBytes = Self.buildExistentialContainer(from: conformance, witnessTable: clonedWT)
+    public convenience init(methods: [MethodDescriptor]) {
+        do {
+            try self.init(prepared: Self.prepare(methods: methods))
+        } catch {
+            fatalError(Self.failureMessage(for: error))
+        }
+    }
+
+    /// Throwing variant of the method-descriptor initializer.
+    public static func make(methods: [MethodDescriptor]) throws -> RuntimeStub<P> {
+        try RuntimeStub(prepared: prepare(methods: methods))
     }
 
     deinit {
-        MockRegistry.remove(for: UnsafeRawPointer(wtAllocation))
-        wtAllocation.deallocate()
+        MockRegistry.remove(for: UnsafeRawPointer(registryKeyAllocation))
+        registryKeyAllocation.deallocate()
     }
 
     // MARK: - Use as protocol (#4: direct usage)
@@ -508,17 +492,200 @@ public class RuntimeStub<P>: @unchecked Sendable {
 
     // MARK: - Internal helpers
 
-    private static func findConformance() -> ConformanceDescriptor {
+    private static func prepare(strategy: Strategy) throws -> PreparedStub {
+        let conformance = try findConformance()
+        let signatures = discoverSignatures(
+            witnessTable: conformance.witnessTablePattern,
+            proto: conformance.protocol
+        )
+        let mockableSigs = mockableSignatures(from: signatures)
+
+        let shouldCompile: Bool
+        switch strategy {
+        case .thunks:
+            shouldCompile = false
+#if os(macOS)
+        case .compiled:
+            shouldCompile = true
+#endif
+        case .auto:
+            #if os(macOS)
+            shouldCompile = mockableSigs.contains { $0.isThrowing || $0.isAsync }
+            #else
+            shouldCompile = false
+            #endif
+        }
+
+#if os(macOS)
+        if shouldCompile {
+            do {
+                let moduleName = try mockableSigs.compactMap { RuntimeCompiler.extractModuleName(from: $0.rawDemangled) }.first
+                    ?? resolveModuleName(explicit: nil)
+                return try prepareCompiled(
+                    protocolName: conformance.protocol.name,
+                    moduleName: moduleName,
+                    signatures: signatures
+                )
+            } catch {
+                switch strategy {
+                case .auto:
+                    break
+                case .compiled:
+                    throw error
+                default:
+                    break
+                }
+            }
+        }
+#endif
+
+        let methods = mockableSigs.map { sig in
+            MethodDescriptor(name: sig.methodName, signature: sig.methodSignature, index: sig.slot)
+        }
+        return try prepareThunk(from: conformance, methods: methods)
+    }
+
+    private static func prepare(slots: [Slot]) throws -> PreparedStub {
+        let conformance = try findConformance()
+        let proto = conformance.protocol
+        let mockableIndices = proto.requirements.enumerated().compactMap { i, req -> Int? in
+            switch req.flags.kind {
+            case .modifyCoroutine, .readCoroutine, .baseProtocol,
+                 .associatedTypeAccessFunction, .associatedConformanceAccessFunction:
+                return nil
+            default:
+                return i
+            }
+        }
+
+        guard slots.count == mockableIndices.count else {
+            throw RuntimeStubError.slotCountMismatch(
+                protocolName: proto.name,
+                expected: mockableIndices.count,
+                actual: slots.count
+            )
+        }
+
+        let methods = zip(slots, mockableIndices).enumerated().map { userIdx, pair in
+            MethodDescriptor(name: "slot_\(userIdx)", signature: pair.0.signature, index: pair.1)
+        }
+
+        let prepared = try prepareThunk(from: conformance, methods: methods)
+        for reqIdx in mockableIndices {
+            prepared.recorder.refReturnFlags[reqIdx] = false
+        }
+        return prepared
+    }
+
+    private static func prepare(methods: [MethodDescriptor]) throws -> PreparedStub {
+        try prepareThunk(from: findConformance(), methods: methods)
+    }
+
+    private static func prepareThunk(
+        from conformance: ConformanceDescriptor,
+        methods: [MethodDescriptor]
+    ) throws -> PreparedStub {
+        let recorder = StubRecorder()
+        let clonedWT = try patchWitnessTable(from: conformance, methods: methods, recorder: recorder)
+        let containerBytes = try buildExistentialContainer(from: conformance, witnessTable: clonedWT)
+        return PreparedStub(recorder: recorder, registryKeyAllocation: clonedWT, containerBytes: containerBytes)
+    }
+
+#if os(macOS)
+    private static func prepareCompiled(
+        protocolName: String,
+        moduleName: String,
+        signatures: [DiscoveredSignature]
+    ) throws -> PreparedStub {
+        guard let handle = RuntimeCompiler.compileMock(
+            protocolName: protocolName,
+            moduleName: moduleName,
+            signatures: signatures
+        ) else {
+            throw RuntimeStubError.runtimeCompilerFailed(
+                protocolName: protocolName,
+                moduleName: moduleName,
+                details: RuntimeCompiler.lastFailure?.description
+            )
+        }
+
+        typealias Accessor = @convention(c) () -> UnsafeRawPointer
+        guard let getWT = dlsym(handle, "swift_mock_witness_table") else {
+            throw RuntimeStubError.missingCompiledSymbol(protocolName: protocolName, symbol: "swift_mock_witness_table")
+        }
+        guard let getMeta = dlsym(handle, "swift_mock_type_metadata") else {
+            throw RuntimeStubError.missingCompiledSymbol(protocolName: protocolName, symbol: "swift_mock_type_metadata")
+        }
+
+        let wtPtr = unsafeBitCast(getWT, to: Accessor.self)()
+        let metaPtr = unsafeBitCast(getMeta, to: Accessor.self)()
+
+        let recorder = StubRecorder()
+        for sig in mockableSignatures(from: signatures) {
+            recorder.setName(sig.methodName, for: sig.slot)
+        }
+
+        let alignment = MemoryLayout<UnsafeRawPointer>.alignment
+        let contextKey = UnsafeMutableRawPointer.allocate(
+            byteCount: MemoryLayout<UnsafeRawPointer>.size,
+            alignment: alignment
+        )
+        contextKey.storeBytes(of: UInt(bitPattern: contextKey), as: UInt.self)
+        MockRegistry.register(recorder, for: UnsafeRawPointer(contextKey))
+
+        var base = AnyExistentialContainer(type: unsafeBitCast(metaPtr, to: Any.Type.self))
+        withUnsafeMutablePointer(to: &base) { ptr in
+            UnsafeMutableRawPointer(ptr).storeBytes(of: UnsafeRawPointer(contextKey), as: UnsafeRawPointer.self)
+        }
+
+        let containerBytes = ExistentialContainer(
+            base: base,
+            witnessTable: WitnessTable(ptr: wtPtr)
+        )
+
+        return PreparedStub(
+            recorder: recorder,
+            registryKeyAllocation: contextKey,
+            containerBytes: containerBytes
+        )
+    }
+#endif
+
+    private static func extractProtocolDescriptor() throws -> ProtocolDescriptor {
         let meta = reflect(P.self)
         guard let existential = meta as? ExistentialMetadata,
               let protoDesc = existential.protocols.first else {
-            fatalError("Could not extract protocol from type \(P.self). Use `RuntimeStub<any YourProtocol>`.")
+            throw RuntimeStubError.typeIsNotProtocol(typeDescription: String(reflecting: P.self))
         }
+        return protoDesc
+    }
+
+    private static func inferredModuleName() -> String? {
+        var typeDescription = String(reflecting: P.self)
+        if typeDescription.hasPrefix("any ") {
+            typeDescription.removeFirst(4)
+        }
+        guard !typeDescription.contains("&") else { return nil }
+        let parts = typeDescription.split(separator: ".")
+        guard parts.count >= 2 else { return nil }
+        return String(parts[0])
+    }
+
+    private static func resolveModuleName(explicit: String?) throws -> String {
+        if let explicit, !explicit.isEmpty { return explicit }
+        guard let moduleName = inferredModuleName() else {
+            throw RuntimeStubError.moduleNameCouldNotBeInferred(typeDescription: String(reflecting: P.self))
+        }
+        return moduleName
+    }
+
+    private static func findConformance() throws -> ConformanceDescriptor {
+        let protoDesc = try extractProtocolDescriptor()
         guard let conformance = Echo.findConformance(to: protoDesc) else {
-            fatalError("""
-            No conformance found for protocol '\(protoDesc.name)' in the binary. \
-            Ensure at least one type conforming to \(protoDesc.name) is compiled into the test target.
-            """)
+            throw RuntimeStubError.noConformanceFound(
+                protocolName: protoDesc.name,
+                typeDescription: String(reflecting: P.self)
+            )
         }
         return conformance
     }
@@ -527,7 +694,7 @@ public class RuntimeStub<P>: @unchecked Sendable {
         from conformance: ConformanceDescriptor,
         methods: [MethodDescriptor],
         recorder: StubRecorder
-    ) -> (UnsafeMutableRawPointer, ProtocolDescriptor) {
+    ) throws -> UnsafeMutableRawPointer {
         let proto = conformance.protocol
         let wordSize = MemoryLayout<UnsafeRawPointer>.size
         let totalWords = 1 + proto.numRequirements
@@ -536,7 +703,7 @@ public class RuntimeStub<P>: @unchecked Sendable {
 
         for method in methods {
             guard let thunkPtr = ThunkLibrary.thunk(for: method.signature, slot: method.index) else {
-                fatalError("No thunk for slot \(method.index) (\(method.signature))")
+                throw RuntimeStubError.missingThunk(slot: method.index, signature: method.signature)
             }
             (clonedWT + (1 + method.index) * wordSize).storeBytes(of: thunkPtr, as: UnsafeRawPointer.self)
             recorder.setName(method.name, for: method.index)
@@ -544,14 +711,16 @@ public class RuntimeStub<P>: @unchecked Sendable {
         }
 
         MockRegistry.register(recorder, for: UnsafeRawPointer(clonedWT))
-        return (clonedWT, proto)
+        return clonedWT
     }
 
     private static func buildExistentialContainer(
         from conformance: ConformanceDescriptor,
         witnessTable: UnsafeMutableRawPointer
-    ) -> ExistentialContainer {
-        let typeDesc = conformance.contextDescriptor!
+    ) throws -> ExistentialContainer {
+        guard let typeDesc = conformance.contextDescriptor else {
+            throw RuntimeStubError.unsupportedTypeKind(typeName: conformance.protocol.name)
+        }
         let typeMetaPtr: UnsafeRawPointer
         if let sd = typeDesc as? StructDescriptor {
             typeMetaPtr = unsafeBitCast(sd.accessor(.complete).type, to: UnsafeRawPointer.self)
@@ -560,7 +729,7 @@ public class RuntimeStub<P>: @unchecked Sendable {
         } else if let ed = typeDesc as? EnumDescriptor {
             typeMetaPtr = unsafeBitCast(ed.accessor(.complete).type, to: UnsafeRawPointer.self)
         } else {
-            fatalError("Unsupported type kind for '\(typeDesc.name)'")
+            throw RuntimeStubError.unsupportedTypeKind(typeName: typeDesc.name)
         }
 
         let base = AnyExistentialContainer(type: unsafeBitCast(typeMetaPtr, to: Any.Type.self))
@@ -568,6 +737,25 @@ public class RuntimeStub<P>: @unchecked Sendable {
             base: base,
             witnessTable: WitnessTable(ptr: UnsafeRawPointer(witnessTable))
         )
+    }
+
+    private static func mockableSignatures(from signatures: [DiscoveredSignature]) -> [DiscoveredSignature] {
+        signatures.filter { sig in
+            switch sig.kind {
+            case .modifyCoroutine, .readCoroutine, .baseProtocol,
+                 .associatedTypeAccessFunction, .associatedConformanceAccessFunction:
+                return false
+            default:
+                return true
+            }
+        }
+    }
+
+    private static func failureMessage(for error: Error) -> String {
+        if let error = error as? RuntimeStubError {
+            return "[TestDoubles] \(error.description)"
+        }
+        return "[TestDoubles] \(String(describing: error))"
     }
 }
 
@@ -614,6 +802,21 @@ public struct StubBuilder<R> {
     @discardableResult
     public func then(_ handler: @escaping () throws -> R) -> Self {
         then { _ in try handler() }
+    }
+}
+
+private extension RuntimeStub.Strategy {
+    var description: String {
+        switch self {
+        case .thunks:
+            return "thunks"
+#if os(macOS)
+        case .compiled:
+            return "compiled"
+#endif
+        case .auto:
+            return "auto"
+        }
     }
 }
 

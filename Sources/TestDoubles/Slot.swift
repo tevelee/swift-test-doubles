@@ -168,7 +168,8 @@ private func abiFromSize(_ size: Int) -> String {
     case 0: return "V"
     case 1...8: return "W1"
     case 9...16: return "W2"
-    default: return "W1" // TODO: support larger structs
+    default:
+        preconditionFailure("[TestDoubles] Return type is \(size) bytes — the thunks backend only supports return types ≤ 16 bytes. Use .compiled strategy (macOS only) or provide explicit MethodDescriptors for this protocol.")
     }
 }
 

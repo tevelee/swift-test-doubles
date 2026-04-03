@@ -31,6 +31,13 @@ public struct RealDataLoader: AsyncDataLoader {
     public var cacheSize: Int { 0 }
 }
 
+/// Protocol with no built-in conformer, used to exercise explicit compiled mocks.
+public protocol PrototypeCalculator {
+    func add(_ a: Int, _ b: Int) -> Int
+    func describe(_ value: Int) -> String
+    var precision: Int { get }
+}
+
 // MARK: - Rich protocols for showcasing
 
 /// Repository returning custom value types and collections.
