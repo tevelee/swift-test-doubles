@@ -180,7 +180,7 @@ public enum RuntimeCompiler {
         }
         for path in importPaths + additionalImportPaths { args += ["-I", path] }
         for path in importPaths + additionalLibraryPaths { args += ["-L", path] }
-        for path in additionalFrameworkPaths { args += ["-F", path] }
+        for path in detectPlatformFrameworkPaths(swiftcPath: swiftcPath) + additionalFrameworkPaths { args += ["-F", path] }
         args.append(srcPath)
 
         let process = Process()
@@ -278,6 +278,44 @@ public enum RuntimeCompiler {
             }
         }
         return nil
+    }
+
+    /// Auto-detect -F paths for platform developer frameworks (e.g. Testing.framework).
+    ///
+    /// Testing.framework lives in the platform developer frameworks directory, not in
+    /// the SDK or system frameworks, so swiftc won't find it without an explicit -F flag.
+    /// We try the environment first (set by Xcode during test runs), then derive the path
+    /// from the swiftc developer directory (for `swift test` from the command line).
+    private static func detectPlatformFrameworkPaths(swiftcPath: String) -> [String] {
+        let env = ProcessInfo.processInfo.environment
+        var paths: [String] = []
+
+        for key in ["PLATFORM_DEVELOPER_FRAMEWORK_DIR", "DEVELOPER_FRAMEWORKS_DIR"] {
+            if let path = env[key], FileManager.default.fileExists(atPath: path) {
+                paths.append(path)
+            }
+        }
+
+        // Derive from the Xcode developer directory when swiftcPath is an Xcode binary:
+        // .../Xcode.app/Contents/Developer → .../Platforms/MacOSX.platform/Developer/Library/Frameworks
+        if let developerDir = developerDirectory(forSwiftcPath: swiftcPath) {
+            let derived = "\(developerDir)/Platforms/MacOSX.platform/Developer/Library/Frameworks"
+            if FileManager.default.fileExists(atPath: derived) {
+                paths.append(derived)
+            }
+        }
+
+        // Fallback: ask xcrun for the platform path (works when swiftcPath is not an Xcode binary,
+        // e.g. swiftly-managed toolchains, but xcrun still resolves to the active Xcode).
+        if paths.isEmpty,
+           let platformPath = shell("/usr/bin/xcrun", "--sdk", "macosx", "--show-sdk-platform-path") {
+            let derived = "\(platformPath)/Developer/Library/Frameworks"
+            if FileManager.default.fileExists(atPath: derived) {
+                paths.append(derived)
+            }
+        }
+
+        return paths
     }
 
     /// Auto-detect -I/-L paths for the compiler.
