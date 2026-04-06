@@ -1,3 +1,4 @@
+#if MANUAL_STUB
 /// String-keyed stub recorder backing ``Stub``.
 /// Mirrors ``StubRecorder`` but identifies methods by name instead of witness-table index,
 /// so no thunks, reflection, or runtime compilation are required.
@@ -126,3 +127,4 @@ struct NamedRecordedCall {
     let args: [Any]
     var matchers: [ParameterMatcher]
 }
+#endif

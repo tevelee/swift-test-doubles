@@ -1,3 +1,4 @@
+#if RUNTIME_STUB
 import Testing
 @testable import TestDoubles
 
@@ -13,7 +14,7 @@ import Testing
 
     @Test func throwingFactorySurfacesMissingConformance() throws {
         do {
-            _ = try RuntimeStub<any PrototypeCalculator>.make(strategy: .thunks)
+            _ = try RuntimeStub<any PrototypeCalculator>.make()
             Issue.record("Expected missing-conformance failure")
         } catch let error as RuntimeStubError {
             switch error {
@@ -25,9 +26,9 @@ import Testing
         }
     }
 
-#if os(macOS)
+#if COMPILED_STUB
     @Test func compiledSignaturesDoNotNeedRealConformer() throws {
-        let stub = try RuntimeStub<any PrototypeCalculator>.compiled {
+        let stub = try CompiledStub<any PrototypeCalculator> {
             $0.method("add", args: [.int(), .int()], returns: .int)
             $0.method("describe", args: [.int()], returns: .string)
             $0.getter("precision", type: .int)
@@ -43,5 +44,6 @@ import Testing
         #expect(sut.describe(3) == "3")
         #expect(sut.precision == 10)
     }
-#endif
+#endif // COMPILED_STUB
 }
+#endif // RUNTIME_STUB

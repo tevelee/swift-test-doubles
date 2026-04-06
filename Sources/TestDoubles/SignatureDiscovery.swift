@@ -1,3 +1,4 @@
+#if RUNTIME_STUB
 import Echo
 #if canImport(Darwin)
 import Darwin
@@ -302,3 +303,4 @@ private func simplifyType(_ fullType: String) -> String {
     // Normalize "()" to "Void"
     return cleaned == "()" ? "Void" : cleaned
 }
+#endif

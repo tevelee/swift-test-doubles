@@ -1,35 +1,107 @@
 # swift-test-doubles
 
-Runtime protocol mocking for Swift. No macros, no source generation step, and no source access required for the zero-config path.
+Protocol-based test doubles for Swift — no macros, no code generation. Three strategies; pick the one that fits your project.
 
-## Quick Start
+## Strategies
+
+| | ManualStub | RuntimeStub | CompiledStub |
+|---|---|---|---|
+| **Platform** | All | All | macOS only |
+| **Requires conformer in binary** | No | Yes | No |
+| **Requires Echo** | No | Yes | Yes (via RuntimeStub) |
+| **Test startup overhead** | None | None | ~1–2 s compile |
+
+## Installation
+
+### Default (ManualStub + RuntimeStub)
 
 ```swift
-let stub = RuntimeStub<any Calculator>()
-stub.when { $0.add(1, 2) }.returns(42)
+// Package.swift
+.package(url: "https://github.com/your-org/swift-test-doubles", from: "1.0.0")
 
-let sut: any Calculator = stub()
-#expect(sut.add(1, 2) == 42)
+// Target dependency
+.product(name: "TestDoubles", package: "swift-test-doubles")
 ```
 
-## Safer Setup
-
-The classic initializers still exist, but the throwing factories are easier to debug when setup fails:
+### ManualStub only (no Echo dependency)
 
 ```swift
-let stub = try RuntimeStub<any PaymentGateway>.make(strategy: .auto)
-print(RuntimeStub<any PaymentGateway>.diagnose())
+.package(
+    url: "https://github.com/your-org/swift-test-doubles",
+    from: "1.0.0",
+    traits: ["ManualStub"]
+)
 ```
 
-Typical failure causes:
+### With CompiledStub (macOS, opt-in)
 
-- no existing conformer in the binary for the zero-config or thunk-backed path
-- a runtime-compiled mock could not import the protocol's module
-- a thunk-backed method shape is outside the current thunk catalog
+```swift
+.package(
+    url: "https://github.com/your-org/swift-test-doubles",
+    from: "1.0.0",
+    traits: ["ManualStub", "RuntimeStub", "CompiledStub"]
+)
+```
 
-## macOS: Compile Without a Real Conformer
+---
 
-On macOS, you can build a runtime-compiled mock from explicit signatures even if no real type conforms to the protocol yet:
+## ManualStub
+
+Write a small conforming struct and delegate to `Stub<Self>`. Works on all platforms; no real conformer needed; no external dependencies.
+
+```swift
+// 1. Define your stub
+struct ServiceStub: ServiceProtocol, StubConformer {
+    let stub: Stub<Self>
+    func find(id: Int) -> String   { stub.find(id: id) }   // Approach A
+    func reset()                    { stub.call() }          // Approach B
+    func save(_ x: String) throws  { try stub.throwingCall(x) }
+}
+
+// 2. Configure and use
+let stub = Stub<ServiceStub>()
+stub.when { $0.find(id: equal(42)) }.returns("Alice")
+
+let sut: any ServiceProtocol = stub()
+assert(sut.find(id: 42) == "Alice")
+
+// 3. Verify
+stub.verify { $0.find(id: any()) }.wasCalled()
+```
+
+**Approach A** (`@dynamicMemberLookup`) — labeled non-void methods, property getters.  
+**Approach B** (`stub.call(...)`) — void zero-arg methods, throwing, async.
+
+---
+
+## RuntimeStub
+
+Zero configuration. Method signatures are discovered from the binary at runtime via witness table reflection. Requires the Echo package and at least one real conformer linked into your test binary.
+
+```swift
+let stub = RuntimeStub<any UserRepository>()
+
+stub.when { $0.find(id: any()) }.returns("Alice")
+stub.when { $0.count }.returns(1)
+
+let sut: any UserRepository = stub()
+assert(sut.find(id: 99) == "Alice")
+
+stub.verify { $0.find(id: any()) }.wasCalled()
+```
+
+If setup fails, call `RuntimeStub.diagnose()` for a human-readable explanation:
+
+```swift
+let d = RuntimeStub<any MyProto>.diagnose()
+print(d.notes)
+```
+
+---
+
+## CompiledStub
+
+Compile a conforming type at test startup using `swiftc`. No real conformer needed. macOS only; the first use per protocol takes ~1–2 s.
 
 ```swift
 let stub = try RuntimeStub<any PrototypeCalculator>.compiled {
@@ -39,75 +111,43 @@ let stub = try RuntimeStub<any PrototypeCalculator>.compiled {
 }
 
 stub.when { $0.add(1, 2) }.returns(3)
-stub.when { $0.describe(3) }.returns("3")
 stub.when { $0.precision }.returns(10)
+
+assert(stub().add(1, 2) == 3)
 ```
 
-Pass `moduleName:` when the protocol's module cannot be inferred from the existential type.
+---
 
-## How It Works
-
-[Echo](https://github.com/Azoy/Echo) reads Swift runtime metadata to enumerate a protocol's witness table requirements. `dladdr` resolves each witness table entry to its mangled symbol, and `swift_demangle` reveals the full method signature.
-
-Two backends sit on top of that:
-
-- `thunks`: patch a cloned witness table with prebuilt ABI thunks
-- `compiled`: generate a conforming type at test time and load it with `swiftc` on macOS
-
-`Strategy.auto` chooses the best backend available for the requested behavior.
-
-## Support Matrix
-
-| Capability | `thunks` | `compiled` |
-| --- | --- | --- |
-| Platforms | macOS, iOS | macOS only |
-| Requires an existing real conformer | Yes | No when using explicit signatures |
-| Zero-config signature discovery | Yes | Yes, if a real conformer exists |
-| `async` requirements | No | Yes |
-| `throws` requirements | Limited fallback behavior | Yes |
-| Arbitrary return types | No | Yes |
-| Works in source-less / binary-only integration | Often | Yes, if the module is importable |
-
-## API Notes
-
-### Creating stubs
+## Matchers & Captors
 
 ```swift
-let zeroConfig = RuntimeStub<any MyProtocol>()
-let checked = try RuntimeStub<any MyProtocol>.make(strategy: .auto)
+stub.when { $0.find(id: any()) }.returns("default")          // any value
+stub.when { $0.find(id: equal(42)) }.returns("exact")        // equality
+stub.when { $0.find(id: any(where: { $0 > 0 })) }.returns("positive") // predicate
+
+let captor = ArgumentCaptor<Int>()
+stub.verify { $0.find(id: captor.capture()) }.wasCalled()
+assert(captor.values == [42])
 ```
 
-### Stubbing methods and getters
+---
+
+## Verification
 
 ```swift
-stub.when { $0.add(1, 2) }.returns(42)
-stub.when { $0.name }.returns("test")
-```
+stub.verify { $0.find(id: any()) }.wasCalled()           // at least once
+stub.verify { $0.find(id: any()) }.wasCalled(times: 3)   // exactly N times
+stub.verify(called: 2) { $0.find(id: any()) }            // concise form
+stub.verify(never: { $0.reset() })                        // never called
 
-### Dynamic stubs
-
-```swift
-stub.when { $0.add(any(), any()) }.answers { args in
-    (args[0] as! Int) + (args[1] as! Int)
+stub.verify { $0.find(id: any()) }.withArgs { calls in
+    assert(calls[0][0] as! Int == 99)
 }
 ```
 
-### Verification
-
-```swift
-stub.verify { $0.add(1, 2) }.wasCalled()
-stub.verify(called: 2) { $0.add(1, 2) }
-stub.verify(never: { $0.reset() })
-```
-
-## Current Limits
-
-- Thunk-backed mocks cover a fixed ABI catalog. In practice that means common scalar and `String`-like shapes, not arbitrary return conventions.
-- Zero-config setup still needs at least one real conformer in the loaded binary so witness-table discovery has something to inspect.
-- Associated types and generic requirements are not supported.
-- `dladdr`-based signature discovery depends on debug-symbol availability in test builds.
+---
 
 ## Requirements
 
-- Swift 6.0+
+- Swift 6.1+
 - macOS 13+ / iOS 16+

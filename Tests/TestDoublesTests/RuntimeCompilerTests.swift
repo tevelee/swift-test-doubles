@@ -1,4 +1,4 @@
-#if os(macOS)
+#if COMPILED_STUB && os(macOS)
 import Testing
 @testable import TestDoubles
 
@@ -69,7 +69,6 @@ import Testing
         #expect(source.contains("async throws ->"))
     }
 }
-#endif
 
 @Suite struct ModuleExtractionTests {
 
@@ -134,9 +133,10 @@ import Testing
         #expect(sut.basePath == "/test")
     }
 
+#if COMPILED_STUB
     @Test func compiledMockAsync() async throws {
 
-        let stub = RuntimeStub<any AsyncDataLoader>(strategy: .compiled)
+        let stub = try CompiledStub<any AsyncDataLoader>()
 
         await stub.when { try await $0.load(url: any()) }.returns("async-data")
         await stub.when { await $0.prefetch(urls: any()) }
@@ -148,4 +148,6 @@ import Testing
         #expect(result == "async-data")
         #expect(sut.cacheSize == 42)
     }
+#endif // COMPILED_STUB
 }
+#endif // COMPILED_STUB && os(macOS)

@@ -1,16 +1,17 @@
+#if RUNTIME_STUB
 /// Records method calls and returns stubbed values.
 /// Supports three modes: normal (dispatch to stubs), recording (capture calls),
 /// and verifying (check call log).
-public class StubRecorder: @unchecked Sendable {
-    public init() {}
+class StubRecorder: @unchecked Sendable {
+    init() {}
 
-    public enum Mode {
+    enum Mode {
         case normal
         case recording
         case verifying
     }
 
-    public var mode: Mode = .normal
+    var mode: Mode = .normal
 
     // Stub storage: method index → [(matchers, returnValue, action)]
     var stubs: [Int: [StubEntry]] = [:]
@@ -21,12 +22,12 @@ public class StubRecorder: @unchecked Sendable {
 
     /// Returns true if the method at the given index returns a reference type
     /// (needs +1 retain when returned as raw bits through ABI-class thunks).
-    public func isRefReturn(_ methodIndex: Int) -> Bool {
+    func isRefReturn(_ methodIndex: Int) -> Bool {
         refReturnFlags[methodIndex] ?? false
     }
 
     // Call log
-    public var calls: [RecordedCall] = []
+    var calls: [RecordedCall] = []
 
     // Last recording (set during recording mode)
     var lastRecording: RecordedCall?
@@ -42,13 +43,13 @@ public class StubRecorder: @unchecked Sendable {
 
     // MARK: - Method name registration
 
-    public func setName(_ name: String, for index: Int) {
+    func setName(_ name: String, for index: Int) {
         names[index] = name
     }
 
     // MARK: - Dispatch (called by witness table thunks)
 
-    public func dispatch(method: Int, args: [Any]) -> Any {
+    func dispatch(method: Int, args: [Any]) -> Any {
         let name = names[method] ?? "method_\(method)"
 
         switch mode {
@@ -106,7 +107,7 @@ public class StubRecorder: @unchecked Sendable {
     }
 
     /// Dispatch a throwing call. Returns nil if no throwing stub is registered.
-    public func dispatchThrowing(method: Int, args: [Any]) -> Result<Any, any Error>? {
+    func dispatchThrowing(method: Int, args: [Any]) -> Result<Any, any Error>? {
         guard let entries = throwingStubs[method] else { return nil }
         for entry in entries {
             if entry.matchers.isEmpty || matchArgs(args, against: entry.matchers) {
@@ -130,13 +131,13 @@ public class StubRecorder: @unchecked Sendable {
 
     // MARK: - Verification queries
 
-    public func callCount(method: Int, matchers: [ParameterMatcher] = []) -> Int {
+    func callCount(method: Int, matchers: [ParameterMatcher] = []) -> Int {
         calls.filter { call in
             call.methodIndex == method && (matchers.isEmpty || matchArgs(call.args, against: matchers))
         }.count
     }
 
-    public func reset() {
+    func reset() {
         calls.removeAll()
     }
 
@@ -159,49 +160,4 @@ public struct RecordedCall {
     public let args: [Any]
     var matchers: [ParameterMatcher]
 }
-
-// MARK: - Parameter Matchers
-
-// MARK: - Parameter Matchers
-
-public protocol ParameterMatcher {
-    func matches(value: Any) -> Bool
-    /// Higher = more specific. Used to pick the best matching stub.
-    var specificity: Int { get }
-}
-
-struct AnyMatcher: ParameterMatcher {
-    func matches(value: Any) -> Bool { true }
-    var specificity: Int { 0 }
-}
-
-struct CaptureMatcher<T>: ParameterMatcher {
-    let captor: ArgumentCaptor<T>
-    func matches(value: Any) -> Bool {
-        if let v = value as? T { captor.values.append(v) }
-        return true
-    }
-    var specificity: Int { 0 }
-}
-
-struct PredicateMatcher<V>: ParameterMatcher {
-    let predicate: (V) -> Bool
-    func matches(value: Any) -> Bool {
-        guard let v = value as? V else { return false }
-        return predicate(v)
-    }
-    var specificity: Int { 1 }
-}
-
-struct DescriptionMatcher: ParameterMatcher {
-    let desc: String
-    init(value: Any) { self.desc = String(describing: value) }
-    func matches(value: Any) -> Bool { String(describing: value) == desc }
-    var specificity: Int { 2 }
-}
-
-struct EqualMatcher<V: Equatable>: ParameterMatcher {
-    let expected: V
-    func matches(value: Any) -> Bool { (value as? V) == expected }
-    var specificity: Int { 3 }
-}
+#endif

@@ -1,3 +1,4 @@
+#if MANUAL_STUB
 import Testing
 @testable import TestDoubles
 
@@ -46,7 +47,7 @@ private struct FakeServiceStub: FakeService, StubConformer {
 
     @Test func exactMatch() {
         let stub = Stub<FakeServiceStub>()
-        stub.when { $0.find(id: equal(42)) }.returns("Alice")
+        stub.when { $0.find(id: equal(42)) }.then { return "Alice" }
         let sut: any FakeService = stub()
         #expect(sut.find(id: 42) == "Alice")
     }
@@ -220,3 +221,4 @@ private struct FakeServiceStub: FakeService, StubConformer {
         #expect(sut.find(id: 7) == "seven")
     }
 }
+#endif // MANUAL_STUB

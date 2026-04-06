@@ -1,3 +1,4 @@
+#if RUNTIME_STUB
 /// Describes a protocol requirement for thunk matching (full descriptor with name).
 public struct MethodDescriptor: Sendable {
     public let name: String
@@ -182,3 +183,4 @@ private func abiFromType(_ type: Any.Type) -> String {
     // but all non-String, non-Void types that fit in 8 bytes are W1.
     return "W1"
 }
+#endif

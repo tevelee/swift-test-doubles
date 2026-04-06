@@ -1,3 +1,4 @@
+#if RUNTIME_STUB
 import Echo
 import Foundation
 #if canImport(Darwin)
@@ -20,65 +21,44 @@ import Glibc
 /// sut.add(1, 2)  // → 42
 /// ```
 public class RuntimeStub<P>: @unchecked Sendable {
-    public let recorder: StubRecorder
+    let recorder: StubRecorder
     private let registryKeyAllocation: UnsafeMutableRawPointer
     private let containerBytes: ExistentialContainer
 
-    private struct PreparedStub {
+    struct PreparedStub {
         let recorder: StubRecorder
         let registryKeyAllocation: UnsafeMutableRawPointer
         let containerBytes: ExistentialContainer
     }
 
-    private init(prepared: PreparedStub) {
+    init(prepared: PreparedStub) {
         self.recorder = prepared.recorder
         self.registryKeyAllocation = prepared.registryKeyAllocation
         self.containerBytes = prepared.containerBytes
     }
 
-    // MARK: - Zero-config init: auto-discover everything
+    // MARK: - Zero-config init (thunk-based)
 
-    /// Create a stub with zero configuration. All method signatures are
-    /// auto-discovered from the binary via dladdr + demangling.
+    /// Create a thunk-backed stub. All method signatures are auto-discovered from
+    /// the binary via dladdr + demangling.
     ///
-    /// Requires that at least one type conforming to the protocol exists
-    /// in the binary (which it does if you import the module that defines it).
-    /// Mock generation strategy.
-    public enum Strategy {
-        /// Use pre-compiled ABI-class thunks. Fast, no external tools needed.
-        /// Limited to the current thunk ABI catalog, with no real error propagation.
-        case thunks
-#if os(macOS)
-        /// Compile a conforming type at test startup via swiftc.
-        /// Supports any type, throws, async. Requires swiftc on PATH.
-        case compiled
-#endif
-        /// On macOS, try compiled first and fall back to thunks if compilation fails.
-        /// On other platforms, always uses thunks.
-        case auto
-    }
-
-    /// Zero-config init with strategy selection.
-    /// ```swift
-    /// let stub = RuntimeStub<any MyService>()                    // auto
-    /// let stub = RuntimeStub<any MyService>(strategy: .compiled) // force compilation (macOS only)
-    /// let stub = RuntimeStub<any MyService>(strategy: .thunks)   // skip compilation
-    /// ```
-    public convenience init(strategy: Strategy = .auto) {
+    /// Requires that at least one type conforming to the protocol exists in the
+    /// binary. Use ``CompiledStub`` on macOS when no conformer is available.
+    public convenience init() {
         do {
-            try self.init(prepared: Self.prepare(strategy: strategy))
+            try self.init(prepared: Self.prepare())
         } catch {
             fatalError(Self.failureMessage(for: error))
         }
     }
 
     /// Throwing variant of the zero-config initializer.
-    public static func make(strategy: Strategy = .auto) throws -> RuntimeStub<P> {
-        try RuntimeStub(prepared: prepare(strategy: strategy))
+    public static func make() throws -> RuntimeStub<P> {
+        try RuntimeStub(prepared: prepare())
     }
 
-    /// Inspect environment constraints before choosing a setup path.
-    public static func diagnose(strategy: Strategy = .auto) -> RuntimeStubDiagnostics {
+    /// Inspect environment constraints before creating a stub.
+    public static func diagnose() -> RuntimeStubDiagnostics {
         let typeDescription = String(reflecting: P.self)
         let inferredModuleName = inferredModuleName()
         let runtimeCompilationSupported: Bool
@@ -92,7 +72,7 @@ public class RuntimeStub<P>: @unchecked Sendable {
             return RuntimeStubDiagnostics(
                 typeDescription: typeDescription,
                 protocolName: nil,
-                requestedStrategy: strategy.description,
+                requestedStrategy: "thunks",
                 runtimeCompilationSupported: runtimeCompilationSupported,
                 inferredModuleName: inferredModuleName,
                 hasExistingConformance: false,
@@ -106,51 +86,22 @@ public class RuntimeStub<P>: @unchecked Sendable {
         var notes: [String] = []
 
         if hasExistingConformance {
-            notes.append("A real conformer already exists in the binary, so zero-config and thunk-backed stubs can use runtime discovery.")
+            notes.append("A real conformer already exists in the binary — RuntimeStub can use runtime discovery.")
         } else {
             notes.append("No existing conformer was found in the current binary.")
-            notes.append("Thunk-backed and zero-config setup need at least one real conformer.")
-            #if os(macOS)
-            notes.append("On macOS, use `RuntimeStub<...>.compiled(signatures:)` to skip the real-conformer requirement.")
-            #else
-            notes.append("Runtime compilation is unavailable on this platform.")
-            #endif
+            notes.append("RuntimeStub needs at least one real conformer. Use CompiledStub on macOS when none is available.")
         }
 
         return RuntimeStubDiagnostics(
             typeDescription: typeDescription,
             protocolName: protoDesc.name,
-            requestedStrategy: strategy.description,
+            requestedStrategy: "thunks",
             runtimeCompilationSupported: runtimeCompilationSupported,
             inferredModuleName: inferredModuleName,
             hasExistingConformance: hasExistingConformance,
             notes: notes
         )
     }
-
-#if os(macOS)
-    /// Build a compiled stub without requiring any pre-existing conformer in the binary.
-    public static func compiled(
-        moduleName: String? = nil,
-        signatures: [DiscoveredSignature]
-    ) throws -> RuntimeStub<P> {
-        let protoDesc = try extractProtocolDescriptor()
-        let resolvedModuleName = try resolveModuleName(explicit: moduleName)
-        return try RuntimeStub(prepared: prepareCompiled(
-            protocolName: protoDesc.name,
-            moduleName: resolvedModuleName,
-            signatures: signatures
-        ))
-    }
-
-    /// Builder-style variant of `compiled(moduleName:signatures:)`.
-    public static func compiled(
-        moduleName: String? = nil,
-        _ build: (inout SignatureBuilder) -> Void
-    ) throws -> RuntimeStub<P> {
-        try compiled(moduleName: moduleName, signatures: .describing(build))
-    }
-#endif
 
     // MARK: - Init: return types only (Echo auto-discovers the rest)
 
@@ -492,53 +443,13 @@ public class RuntimeStub<P>: @unchecked Sendable {
 
     // MARK: - Internal helpers
 
-    private static func prepare(strategy: Strategy) throws -> PreparedStub {
+    private static func prepare() throws -> PreparedStub {
         let conformance = try findConformance()
         let signatures = discoverSignatures(
             witnessTable: conformance.witnessTablePattern,
             proto: conformance.protocol
         )
         let mockableSigs = mockableSignatures(from: signatures)
-
-        let shouldCompile: Bool
-        switch strategy {
-        case .thunks:
-            shouldCompile = false
-#if os(macOS)
-        case .compiled:
-            shouldCompile = true
-#endif
-        case .auto:
-            #if os(macOS)
-            shouldCompile = mockableSigs.contains { $0.isThrowing || $0.isAsync }
-            #else
-            shouldCompile = false
-            #endif
-        }
-
-#if os(macOS)
-        if shouldCompile {
-            do {
-                let moduleName = try mockableSigs.compactMap { RuntimeCompiler.extractModuleName(from: $0.rawDemangled) }.first
-                    ?? resolveModuleName(explicit: nil)
-                return try prepareCompiled(
-                    protocolName: conformance.protocol.name,
-                    moduleName: moduleName,
-                    signatures: signatures
-                )
-            } catch {
-                switch strategy {
-                case .auto:
-                    break
-                case .compiled:
-                    throw error
-                default:
-                    break
-                }
-            }
-        }
-#endif
-
         let methods = mockableSigs.map { sig in
             MethodDescriptor(name: sig.methodName, signature: sig.methodSignature, index: sig.slot)
         }
@@ -591,66 +502,6 @@ public class RuntimeStub<P>: @unchecked Sendable {
         return PreparedStub(recorder: recorder, registryKeyAllocation: clonedWT, containerBytes: containerBytes)
     }
 
-#if os(macOS)
-    private static func prepareCompiled(
-        protocolName: String,
-        moduleName: String,
-        signatures: [DiscoveredSignature]
-    ) throws -> PreparedStub {
-        guard let handle = RuntimeCompiler.compileMock(
-            protocolName: protocolName,
-            moduleName: moduleName,
-            signatures: signatures
-        ) else {
-            throw RuntimeStubError.runtimeCompilerFailed(
-                protocolName: protocolName,
-                moduleName: moduleName,
-                details: RuntimeCompiler.lastFailure?.description
-            )
-        }
-
-        typealias Accessor = @convention(c) () -> UnsafeRawPointer
-        guard let getWT = dlsym(handle, "swift_mock_witness_table") else {
-            throw RuntimeStubError.missingCompiledSymbol(protocolName: protocolName, symbol: "swift_mock_witness_table")
-        }
-        guard let getMeta = dlsym(handle, "swift_mock_type_metadata") else {
-            throw RuntimeStubError.missingCompiledSymbol(protocolName: protocolName, symbol: "swift_mock_type_metadata")
-        }
-
-        let wtPtr = unsafeBitCast(getWT, to: Accessor.self)()
-        let metaPtr = unsafeBitCast(getMeta, to: Accessor.self)()
-
-        let recorder = StubRecorder()
-        for sig in mockableSignatures(from: signatures) {
-            recorder.setName(sig.methodName, for: sig.slot)
-        }
-
-        let alignment = MemoryLayout<UnsafeRawPointer>.alignment
-        let contextKey = UnsafeMutableRawPointer.allocate(
-            byteCount: MemoryLayout<UnsafeRawPointer>.size,
-            alignment: alignment
-        )
-        contextKey.storeBytes(of: UInt(bitPattern: contextKey), as: UInt.self)
-        MockRegistry.register(recorder, for: UnsafeRawPointer(contextKey))
-
-        var base = AnyExistentialContainer(type: unsafeBitCast(metaPtr, to: Any.Type.self))
-        withUnsafeMutablePointer(to: &base) { ptr in
-            UnsafeMutableRawPointer(ptr).storeBytes(of: UnsafeRawPointer(contextKey), as: UnsafeRawPointer.self)
-        }
-
-        let containerBytes = ExistentialContainer(
-            base: base,
-            witnessTable: WitnessTable(ptr: wtPtr)
-        )
-
-        return PreparedStub(
-            recorder: recorder,
-            registryKeyAllocation: contextKey,
-            containerBytes: containerBytes
-        )
-    }
-#endif
-
     private static func extractProtocolDescriptor() throws -> ProtocolDescriptor {
         let meta = reflect(P.self)
         guard let existential = meta as? ExistentialMetadata,
@@ -669,14 +520,6 @@ public class RuntimeStub<P>: @unchecked Sendable {
         let parts = typeDescription.split(separator: ".")
         guard parts.count >= 2 else { return nil }
         return String(parts[0])
-    }
-
-    private static func resolveModuleName(explicit: String?) throws -> String {
-        if let explicit, !explicit.isEmpty { return explicit }
-        guard let moduleName = inferredModuleName() else {
-            throw RuntimeStubError.moduleNameCouldNotBeInferred(typeDescription: String(reflecting: P.self))
-        }
-        return moduleName
     }
 
     private static func findConformance() throws -> ConformanceDescriptor {
@@ -761,10 +604,16 @@ public class RuntimeStub<P>: @unchecked Sendable {
 
 // MARK: - StubBuilder
 
+/// Configures the return value or action for a stubbed method.
+/// Returned by ``RuntimeStub/when(_:)-4hxsd``.
 public struct StubBuilder<R> {
     let recorder: StubRecorder
     let recording: RecordedCall
 
+    /// Return a static value.
+    /// ```swift
+    /// stub.when { $0.find(id: any()) }.returns("Alice")
+    /// ```
     @discardableResult
     public func returns(_ value: @autoclosure @escaping () -> R) -> Self {
         let matchers = recording.matchers.isEmpty
@@ -805,28 +654,15 @@ public struct StubBuilder<R> {
     }
 }
 
-private extension RuntimeStub.Strategy {
-    var description: String {
-        switch self {
-        case .thunks:
-            return "thunks"
-#if os(macOS)
-        case .compiled:
-            return "compiled"
-#endif
-        case .auto:
-            return "auto"
-        }
-    }
-}
-
-
 // MARK: - VerifyBuilder
 
+/// Asserts that a stubbed method was called the expected number of times.
+/// Returned by ``RuntimeStub/verify(_:)-6f6ij``.
 public struct VerifyBuilder {
     let recorder: StubRecorder
     let recording: RecordedCall
 
+    /// Assert the method was called (at least once, or exactly `times` times).
     public func wasCalled(times: Int? = nil) {
         let matchers = recording.matchers.isEmpty
             ? recording.args.map { DescriptionMatcher(value: $0) }
@@ -841,6 +677,7 @@ public struct VerifyBuilder {
         }
     }
 
+    /// Assert the method was never called.
     public func wasNotCalled() { wasCalled(times: 0) }
 
     /// Inspect arguments of matching calls.
@@ -865,3 +702,4 @@ public struct VerifyBuilder {
         return zip(args, matchers).allSatisfy { $0.1.matches(value: $0.0) }
     }
 }
+#endif // RUNTIME_STUB

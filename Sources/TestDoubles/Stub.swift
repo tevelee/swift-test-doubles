@@ -1,3 +1,4 @@
+#if MANUAL_STUB
 // MARK: - StubConformer
 
 /// Marks a user-written struct as a manual stub.
@@ -131,6 +132,7 @@ public class Stub<T: StubConformer>: @unchecked Sendable {
 
     // MARK: - when
 
+    /// Register a stub for a non-void method. Chain `.returns(_:)` or `.then(_:)` to configure the response.
     @_disfavoredOverload
     @discardableResult
     public func when<R>(_ call: (T) -> R) -> NamedStubBuilder<R> {
@@ -138,6 +140,7 @@ public class Stub<T: StubConformer>: @unchecked Sendable {
         return NamedStubBuilder(recorder: recorder, recording: recording)
     }
 
+    /// Register a stub for a throwing non-void method.
     @_disfavoredOverload
     @discardableResult
     public func when<R>(_ call: (T) throws -> R) -> NamedStubBuilder<R> {
@@ -163,6 +166,7 @@ public class Stub<T: StubConformer>: @unchecked Sendable {
         return NamedStubBuilder(recorder: recorder, recording: recording)
     }
 
+    /// Register a stub for an async non-void method.
     @_disfavoredOverload
     @discardableResult
     public func when<R>(_ call: (T) async -> R) async -> NamedStubBuilder<R> {
@@ -170,6 +174,7 @@ public class Stub<T: StubConformer>: @unchecked Sendable {
         return NamedStubBuilder(recorder: recorder, recording: recording)
     }
 
+    /// Register a stub for an async throwing non-void method.
     @_disfavoredOverload
     @discardableResult
     public func when<R>(_ call: (T) async throws -> R) async -> NamedStubBuilder<R> {
@@ -179,23 +184,27 @@ public class Stub<T: StubConformer>: @unchecked Sendable {
 
     // MARK: - verify
 
+    /// Verify that a method was called. Chain `.wasCalled()` or `.withArgs(_:)` to assert.
     @discardableResult
     public func verify(_ call: (T) -> some Any) -> NamedVerifyBuilder {
         let recording = record(mode: .verifying) { _ = call(T(stub: self)) }
         return NamedVerifyBuilder(recorder: recorder, recording: recording)
     }
 
+    /// Verify that a throwing method was called.
     @discardableResult
     public func verify(_ call: (T) throws -> some Any) -> NamedVerifyBuilder {
         let recording = record(mode: .verifying) { _ = try! call(T(stub: self)) }
         return NamedVerifyBuilder(recorder: recorder, recording: recording)
     }
 
+    /// Assert that a method was called exactly `times` times.
     public func verify(called times: Int, _ call: (T) -> some Any) {
         let recording = record(mode: .verifying) { _ = call(T(stub: self)) }
         NamedVerifyBuilder(recorder: recorder, recording: recording).wasCalled(times: times)
     }
 
+    /// Assert that a method was never called.
     public func verify(never call: (T) -> some Any) {
         verify(called: 0, call)
     }
@@ -324,6 +333,7 @@ public struct NamedVerifyBuilder {
         }
     }
 
+    /// Assert the method was never called.
     public func wasNotCalled() { wasCalled(times: 0) }
 
     /// Inspect the arguments of all matching calls.
@@ -347,3 +357,4 @@ public struct NamedVerifyBuilder {
         return zip(args, matchers).allSatisfy { $0.1.matches(value: $0.0) }
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if COMPILED_STUB && os(macOS)
 /// Generic dispatch bridge for runtime-compiled mock types.
 ///
 /// The compiled dylib imports TestDoubles and calls these directly.
@@ -63,3 +64,4 @@ public enum MockBridge {
         _ = recorder.dispatch(method: slot, args: args)
     }
 }
+#endif

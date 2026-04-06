@@ -1,3 +1,4 @@
+#if RUNTIME_STUB
 import Echo
 import Foundation
 
@@ -7,7 +8,7 @@ import Foundation
 ///
 /// Both backends ultimately hand a stable pointer to `MockBridge` or a thunk,
 /// so the registry can stay agnostic about how that key was produced.
-public enum MockRegistry {
+enum MockRegistry {
     nonisolated(unsafe) private static var storage: [UnsafeRawPointer: StubRecorder] = [:]
     private static let lock = NSLock()
 
@@ -25,7 +26,7 @@ public enum MockRegistry {
 
     /// Called by thunks and bridge functions to resolve the recorder from the context key.
     @inline(__always)
-    public static func resolve(_ key: UnsafeRawPointer) -> StubRecorder {
+    static func resolve(_ key: UnsafeRawPointer) -> StubRecorder {
         lock.lock()
         defer { lock.unlock() }
         guard let recorder = storage[key] else {
@@ -36,9 +37,10 @@ public enum MockRegistry {
 
     /// Non-fatal resolve — returns nil if not found (used by bridge functions).
     @inline(__always)
-    public static func resolveOptional(_ key: UnsafeRawPointer) -> StubRecorder? {
+    static func resolveOptional(_ key: UnsafeRawPointer) -> StubRecorder? {
         lock.lock()
         defer { lock.unlock() }
         return storage[key]
     }
 }
+#endif

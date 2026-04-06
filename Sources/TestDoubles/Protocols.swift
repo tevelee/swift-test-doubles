@@ -1,3 +1,4 @@
+#if RUNTIME_STUB
 import Foundation
 
 /// Sample protocols for testing runtime compilation.
@@ -110,3 +111,4 @@ public struct RealNotificationService: NotificationService {
     public func markRead(notificationId: String) {}
     public var unreadCount: Int { 0 }
 }
+#endif // RUNTIME_STUB

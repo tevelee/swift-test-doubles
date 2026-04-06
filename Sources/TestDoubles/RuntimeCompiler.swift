@@ -1,4 +1,4 @@
-#if os(macOS)
+#if COMPILED_STUB && os(macOS)
 import Foundation
 import Echo
 
@@ -584,4 +584,4 @@ public enum RuntimeCompiler {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
-#endif
+#endif // COMPILED_STUB && os(macOS)

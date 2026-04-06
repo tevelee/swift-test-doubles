@@ -1,3 +1,4 @@
+#if RUNTIME_STUB
 import Testing
 @testable import TestDoubles
 
@@ -162,3 +163,4 @@ struct RealMatcherTestService: MatcherTestService {
         #expect(throws: ReadError.self) { try handler(["/private/secret"]) }
     }
 }
+#endif // RUNTIME_STUB

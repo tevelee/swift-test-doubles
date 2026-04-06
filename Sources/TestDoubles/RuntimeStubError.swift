@@ -1,3 +1,4 @@
+#if RUNTIME_STUB
 public struct RuntimeStubDiagnostics: Sendable, CustomStringConvertible {
     public let typeDescription: String
     public let protocolName: String?
@@ -85,3 +86,4 @@ public enum RuntimeStubError: Error, Sendable, CustomStringConvertible {
         }
     }
 }
+#endif

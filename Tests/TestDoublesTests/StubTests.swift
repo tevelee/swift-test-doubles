@@ -1,3 +1,4 @@
+#if RUNTIME_STUB
 import Testing
 @testable import TestDoubles
 
@@ -383,3 +384,4 @@ struct RealFileLoader: FileLoader {
         #expect(configStub().appName == "Test")
     }
 }
+#endif // RUNTIME_STUB

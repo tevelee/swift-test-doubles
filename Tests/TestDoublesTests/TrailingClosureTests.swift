@@ -1,3 +1,4 @@
+#if RUNTIME_STUB
 import Testing
 @testable import TestDoubles
 
@@ -50,7 +51,7 @@ import Testing
         #expect(stub().search(query: "x") == ["a", "b", "c"])
     }
 
-    #if os(macOS)
+    #if COMPILED_STUB
     @Test func asyncCompiledMock() async throws {
         let stub = RuntimeStub<any AsyncDataLoader>(strategy: .compiled)
         await stub.when { try await $0.load(url: any()) } then: { "async!" }
@@ -76,3 +77,4 @@ import Testing
         #expect(sut.find(id: 99) == "Unknown")
     }
 }
+#endif // RUNTIME_STUB

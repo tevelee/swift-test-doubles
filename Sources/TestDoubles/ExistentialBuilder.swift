@@ -1,3 +1,4 @@
+#if RUNTIME_STUB
 import Echo
 
 /// A thunk to install in a witness table slot.
@@ -67,3 +68,4 @@ public enum ExistentialBuilder {
         pointer.storeBytes(of: container, as: ExistentialContainer.self)
     }
 }
+#endif
