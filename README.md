@@ -1,5 +1,10 @@
 # swift-test-doubles
 
+[![CI](https://github.com/tevelee/swift-test-doubles/actions/workflows/ci.yml/badge.svg)](https://github.com/tevelee/swift-test-doubles/actions/workflows/ci.yml)
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Ftevelee%2Fswift-test-doubles%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/tevelee/swift-test-doubles)
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Ftevelee%2Fswift-test-doubles%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/tevelee/swift-test-doubles)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Protocol-based test doubles for Swift — no macros, no code generation. Three strategies; pick the one that fits your project.
 
 ## Strategies
@@ -17,7 +22,7 @@ Protocol-based test doubles for Swift — no macros, no code generation. Three s
 
 ```swift
 // Package.swift
-.package(url: "https://github.com/your-org/swift-test-doubles", from: "1.0.0")
+.package(url: "https://github.com/tevelee/swift-test-doubles", from: "1.0.0")
 
 // Target dependency
 .product(name: "TestDoubles", package: "swift-test-doubles")
@@ -27,7 +32,7 @@ Protocol-based test doubles for Swift — no macros, no code generation. Three s
 
 ```swift
 .package(
-    url: "https://github.com/your-org/swift-test-doubles",
+    url: "https://github.com/tevelee/swift-test-doubles",
     from: "1.0.0",
     traits: ["ManualStub"]
 )
@@ -37,7 +42,7 @@ Protocol-based test doubles for Swift — no macros, no code generation. Three s
 
 ```swift
 .package(
-    url: "https://github.com/your-org/swift-test-doubles",
+    url: "https://github.com/tevelee/swift-test-doubles",
     from: "1.0.0",
     traits: ["ManualStub", "RuntimeStub", "CompiledStub"]
 )
@@ -104,7 +109,7 @@ print(d.notes)
 Compile a conforming type at test startup using `swiftc`. No real conformer needed. macOS only; the first use per protocol takes ~1–2 s.
 
 ```swift
-let stub = try RuntimeStub<any PrototypeCalculator>.compiled {
+let stub = try CompiledStub<any PrototypeCalculator> {
     $0.method("add", args: [.int(), .int()], returns: .int)
     $0.method("describe", args: [.int()], returns: .string)
     $0.getter("precision", type: .int)
@@ -151,3 +156,17 @@ stub.verify { $0.find(id: any()) }.withArgs { calls in
 
 - Swift 6.1+
 - macOS 13+ / iOS 16+
+
+---
+
+## Known Limitations
+
+**RuntimeStub: large struct returns crash (SIGSEGV)**
+
+`RuntimeStub` uses pre-generated ABI thunks that assume return values fit in ≤ 16 bytes (two machine words). Methods returning structs larger than 16 bytes will crash with a memory access violation when called through the stub. Use `ManualStub` or `CompiledStub` for protocols with such return types.
+
+Affected signatures: any method returning a struct whose total size > 16 bytes. Examples: a struct with `String` + `Double` + `Bool`, or any struct containing two `String` fields.
+
+**CompiledStub is macOS-only**
+
+`swiftc` is not available on Linux or iOS simulators. Use `ManualStub` or `RuntimeStub` on other platforms.

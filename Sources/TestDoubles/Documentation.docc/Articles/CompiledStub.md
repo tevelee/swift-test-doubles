@@ -32,7 +32,7 @@ CompiledStub is opt-in:
 
 ```swift
 // No conformer needed — the library compiles one for you
-let stub = try RuntimeStub<any PrototypeCalculator>.compiled {
+let stub = try CompiledStub<any PrototypeCalculator> {
     $0.method("add",      args: [.int(), .int()], returns: .int)
     $0.method("describe", args: [.int()],          returns: .string)
     $0.getter("precision", type: .int)
@@ -45,16 +45,14 @@ let sut: any PrototypeCalculator = stub()
 assert(sut.add(1, 2) == 3)
 ```
 
-## Automatic Fallback
-
-When you use the default `.auto` strategy, `RuntimeStub` compiles a stub if the conformer is missing; otherwise it uses the existing conformer with thunks. This lets you write a single test that works whether or not a real conformer is present:
+If a real conformer already exists in the binary, you can skip the signature builder and let the library discover the methods automatically:
 
 ```swift
-let stub = RuntimeStub<any MyService>()  // .auto is the default
+let stub = try CompiledStub<any MyService>()
 ```
 
 ## Key Types
 
-- ``RuntimeStub`` — use the `.compiled(_:)` factory or `strategy: .compiled` initializer.
+- ``CompiledStub`` — the stub container; compiles a conformance via `swiftc` and dlopen.
 - ``DiscoveredSignature`` — describes the methods you want the compiled stub to implement.
-- ``SignatureBuilder`` — DSL for building signature lists (used inside the `.compiled { }` closure).
+- ``SignatureBuilder`` — DSL for building signature lists (used inside the `CompiledStub { }` closure).

@@ -22,6 +22,10 @@ TestDoubles gives you protocol-based test doubles without macros or code generat
 
 ## Topics
 
+### Getting Started
+
+- <doc:GettingStarted>
+
 ### Strategies
 
 - <doc:ManualStub>
