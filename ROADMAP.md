@@ -95,7 +95,7 @@ and one `then` family, then inspected with `verify`.
 
 ## Iteration 4 — Teach the product through examples
 
-**Status:** In progress — Phase 4A examples and test consolidation complete
+**Status:** Complete
 
 - **Objective:** Make the package understandable and useful without reading its
   implementation.
@@ -113,11 +113,11 @@ and one `then` family, then inspected with `verify`.
   and stateful responses. Organize the README as Quick Start, Common Patterns,
   Supported Features, Explicit Requirements, Limitations, and Architecture,
   while keeping DocC task-oriented.
-  Phase 4A now compiles those core scenarios through one public-import
+  Phase 4A compiles those core scenarios through one public-import
   documentation suite and removes the older overlapping public/use-case suites,
-  duplicate focused tests, and dead fixture surface. Phase 4B should audit the
-  remaining DocC/API reference for duplication, tighten cross-links, and finish
-  repository-wide link validation.
+  duplicate focused tests, and dead fixture surface. Phase 4B separates the
+  tutorial, supported contract, and runtime architecture into distinct DocC
+  roles, curates them from the module landing page, and validates their links.
 - **Done criteria:** Each promised capability has one concise public example and
   one motivating test; redundant tests and stale implementation narratives are
   removed.

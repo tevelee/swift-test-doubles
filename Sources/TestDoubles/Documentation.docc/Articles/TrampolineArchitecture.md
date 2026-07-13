@@ -14,7 +14,7 @@ state expected by the caller.
 This design keeps the package small: TestDoubles does not emit Swift source,
 compile a conformer, or generate a matrix of typed thunks for each protocol.
 
-## Construction
+### Construction
 
 Construction has two signature sources:
 
@@ -34,7 +34,7 @@ discoverable signature component is compared as well. Getter throwing behavior
 remains caller-supplied. Requirement order matters because a Swift witness table
 is positional.
 
-## Invocation
+### Invocation
 
 For a synchronous call, the trampoline:
 
@@ -46,13 +46,10 @@ For a synchronous call, the trampoline:
 
 For an async call, the entry trampoline preserves the caller continuation,
 creates a Swift task continuation around recorder dispatch, and resumes through
-an architecture-specific continuation trampoline. The configured handler runs
-as part of the invoking task, preserving task-local values, cancellation, and
-priority. The handler closure's own actor isolation is respected, including
-when its actor uses a custom serial executor, and an isolated caller resumes on
-its executor after the requirement returns.
+an architecture-specific continuation trampoline after recorder dispatch
+completes.
 
-## Ownership and concurrency
+### Ownership and concurrency
 
 The owning `Stub` retains the payload metadata, witness-table allocation,
 veneers, and recorder. A fabricated existential must not outlive that owner.
@@ -61,16 +58,14 @@ Recorder state is lock-protected so calls may arrive concurrently after serial
 configuration. Matchers and handlers are selected from a snapshot; user code is
 not executed while the recorder lock is held.
 
-## Supported ABI boundary
+### Supported ABI boundary
 
 The implementation has focused arm64 and x86_64 coverage for integer and
 floating-point registers, stack arguments, mixed aggregates, indirect results,
 throwing calls, and async continuations. Construction rejects function-valued
 requirements because safe closure reabstraction needs compiler-emitted code.
 
-On x86_64, preparation rejects async signatures that consume all six
-general-purpose argument registers; the continuation boundary remains supported
-on arm64. Custom-executor tests cover handler isolation and caller resumption.
-The supported release boundary is macOS 13+ on arm64 and Rosetta x86_64; iOS
-16 remains an experimental manifest destination, and iOS and Linux require real
-runtime execution coverage before becoming supported.
+Construction rejects architecture-specific unsupported signatures before
+allocation. Custom-executor tests cover handler isolation and caller resumption.
+
+See <doc:StubContract> for the authoritative signature and platform boundary.

@@ -51,6 +51,8 @@ The project has not published its first tagged release yet.
 - The README and Getting Started guide now showcase the same task-oriented
   matching, capture, async, stateful-response, and explicit-construction
   scenarios.
+- DocC now separates task-oriented examples, the supported Stub contract, and
+  runtime architecture into curated, cross-linked pages.
 
 ### Removed
 

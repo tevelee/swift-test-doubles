@@ -258,7 +258,7 @@ to the trampoline.
 ## Architecture and further documentation
 
 - [Getting Started](Sources/TestDoubles/Documentation.docc/Articles/GettingStarted.md)
-- [Stub](Sources/TestDoubles/Documentation.docc/Articles/StubGuide.md)
+- [Stub Contract](Sources/TestDoubles/Documentation.docc/Articles/StubContract.md)
 - [Trampoline Architecture](Sources/TestDoubles/Documentation.docc/Articles/TrampolineArchitecture.md)
 - [Migration from the pre-0.1 API](MIGRATION.md)
 - [Roadmap to 0.1.0](ROADMAP.md)

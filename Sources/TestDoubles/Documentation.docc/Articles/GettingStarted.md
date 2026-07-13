@@ -3,7 +3,12 @@
 Arrange protocol behavior, pass the fabricated conformance to the subject under
 test, and verify only the interactions that express the test's intent.
 
-## Define a protocol boundary
+## Overview
+
+For the precise support and failure contract behind these examples, see
+<doc:StubContract>.
+
+### Define a protocol boundary
 
 Stub the narrow protocol that the subject already depends on:
 
@@ -22,7 +27,7 @@ struct LiveUserRepository: UserRepository {
 The linked production conformance gives TestDoubles the requirement metadata
 needed by zero-argument construction. It is inspected, not invoked.
 
-## Match and return values
+### Match and return values
 
 Register a broad fallback first, then add more specific behavior:
 
@@ -52,7 +57,7 @@ equality outranks a literal, a literal outranks a predicate, and a predicate
 outranks a wildcard or capture. The first registration wins a tie. Verification
 defaults to at least one matching call; state a count only when it adds meaning.
 
-## Capture side effects
+### Capture side effects
 
 Capture arguments when a call to a side-effect dependency is the result under
 test:
@@ -74,7 +79,7 @@ stub.verify(.exactly(2)) {
 #expect(messages.values == ["Welcome", "Try again"])
 ```
 
-## Stub async success and failure
+### Stub async success and failure
 
 Async and async-throwing requirements use the same vocabulary. A typed handler
 may genuinely suspend:
@@ -104,7 +109,7 @@ let error = await #expect(throws: LoadError.self) {
 #expect(error?.url == "/missing")
 ```
 
-## Return stateful responses
+### Return stateful responses
 
 A handler may model a response sequence when calls are serial:
 
@@ -123,7 +128,7 @@ let repository: any UserRepository = stub()
 The handler is responsible for synchronizing captured mutable state if calls
 may be concurrent.
 
-## Construct without a linked conformer
+### Construct without a linked conformer
 
 Pass typed requirements in declaration order when the test process does not
 contain a concrete conformance:
@@ -152,4 +157,4 @@ let stub = try Stub<any AsyncDataLoader>(
 ```
 
 Construction throws ``StubError`` for an unsupported protocol or requirement
-shape. See <doc:StubGuide> for the supported contract and limitations.
+shape.
