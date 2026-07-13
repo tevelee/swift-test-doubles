@@ -1,5 +1,10 @@
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
+
 #include "TestDoublesTrampoline.h"
 
+#include <dlfcn.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -189,6 +194,14 @@ void td_free_witness_trampoline(void *ptr) {
     return;
   }
   munmap(ptr, td_page_size());
+}
+
+const char *td_symbol_name(const void *address) {
+  Dl_info info;
+  if (!address || dladdr(address, &info) == 0) {
+    return 0;
+  }
+  return info.dli_sname;
 }
 
 TDSwiftErrorAllocation td_swift_alloc_error(const void *type,

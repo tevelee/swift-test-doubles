@@ -7,7 +7,7 @@ import Darwin
 import Glibc
 #endif
 
-/// Discovers method signatures from a witness table using dladdr + demangling.
+/// Discovers method signatures from a witness table using symbol lookup and demangling.
 ///
 /// This works because witness table entries are function pointers to protocol
 /// witness thunks whose mangled symbol names encode the full type signature.
@@ -22,8 +22,7 @@ func discoverMethods(
     for (i, req) in proto.requirements.enumerated() {
         let fnPtr = (witnessTable.ptr + (1 + i) * wordSize).load(as: UnsafeRawPointer.self)
 
-        var info = Dl_info()
-        guard dladdr(fnPtr, &info) != 0, let sname = info.dli_sname else {
+        guard let sname = td_symbol_name(fnPtr) else {
             throw StubError.signatureDiscoveryFailed(
                 protocolName: proto.name,
                 requirementIndex: i,

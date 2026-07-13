@@ -67,6 +67,7 @@ typedef struct TDMetadataResponse {
 void *td_make_witness_trampoline(uintptr_t slot, uintptr_t context);
 void *td_make_async_witness_trampoline(uintptr_t slot, uintptr_t context);
 void td_free_witness_trampoline(void *ptr);
+const char *td_symbol_name(const void *address);
 void td_swift_trampoline_entry(void);
 void td_swift_async_trampoline_entry(void);
 void td_swift_trampoline_handler(TDCallFrame *frame);
