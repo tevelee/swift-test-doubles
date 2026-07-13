@@ -1,13 +1,6 @@
-#if RUNTIME_STUB
-import Echo
 import Foundation
 
-/// Maps per-mock context keys to their stub recorders.
-/// For thunk-backed mocks, the witness table pointer is the natural key.
-/// For runtime-compiled mocks, the inline `_ctx` field provides the key.
-///
-/// Both backends ultimately hand a stable pointer to `MockBridge` or a thunk,
-/// so the registry can stay agnostic about how that key was produced.
+/// Maps each fabricated witness table's stable context key to its recorder.
 enum MockRegistry {
     nonisolated(unsafe) private static var storage: [UnsafeRawPointer: StubRecorder] = [:]
     private static let lock = NSLock()
@@ -32,4 +25,3 @@ enum MockRegistry {
         return storage[key]
     }
 }
-#endif

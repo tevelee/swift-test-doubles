@@ -1,4 +1,3 @@
-#if RUNTIME_STUB
 import Testing
 @testable import TestDoubles
 import TestDoublesFixtures
@@ -280,4 +279,3 @@ import TestDoublesFixtures
         #expect(repo.calls.count == 3)
     }
 }
-#endif // RUNTIME_STUB

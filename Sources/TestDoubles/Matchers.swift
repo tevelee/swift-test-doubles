@@ -2,7 +2,7 @@ import Foundation
 
 /// A typed reusable predicate matcher.
 ///
-/// Use ``matching(_:)`` to apply a matcher inside ``when(_:)`` or ``verify(_:)``:
+/// Use ``matching(_:)`` to apply a matcher inside a when or verify closure:
 ///
 /// ```swift
 /// let vipID = Matcher<Int>("VIP id") { $0 > 100 }
@@ -71,7 +71,7 @@ enum MatcherContext {
     }
 }
 
-/// Matches any argument of type `T`. Use inside ``when(_:)`` and ``verify(_:)`` closures.
+/// Matches any argument of type `T`. Use inside when and verify closures.
 public func any<T>(_ type: T.Type = T.self) -> T {
     MatcherContext.append(AnyMatcher())
     return zeroValue(T.self)
@@ -107,7 +107,7 @@ public func capture<T>(into captor: ArgumentCaptor<T>) -> T {
 
 /// Captures argument values for later inspection.
 ///
-/// Use ``capture()`` inside a ``verify(_:)`` closure to record each value the method was called with:
+/// Use ``capture()`` inside a verify closure to record each value the method was called with:
 ///
 /// ```swift
 /// let captor = ArgumentCaptor<Int>()

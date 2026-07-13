@@ -1,4 +1,3 @@
-#if RUNTIME_STUB
 import Testing
 @testable import TestDoubles
 
@@ -629,5 +628,3 @@ private func makeExtendedAsyncABIStub() throws -> RuntimeStub<any ExtendedAsyncR
         )
     )
 }
-
-#endif // RUNTIME_STUB

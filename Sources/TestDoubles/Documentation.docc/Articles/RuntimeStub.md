@@ -14,34 +14,25 @@ marshalling, ownership model, debugger breakpoints, and maintenance rules, see
 - You want the fastest test-authoring experience with minimal boilerplate.
 - Your test binary already links a real conformer for zero-config discovery, or the protocol's compiled Swift module is importable.
 - You can provide explicit requirement signatures when module extraction is not available.
-- You're on a supported arm64 or x86_64 Apple target. The assembly has ELF symbol support, but Linux remains unverified.
+- You're on macOS arm64 or x86_64, the runtime configurations exercised by the
+  current test suite. iOS and Linux release support has not been established.
 
 **Requirement:** The zero-config initializer needs a real conformer somewhere in the linked binary so it can discover signatures. ``RuntimeStub/makeFromModule(moduleName:)`` extracts signatures from `swift symbolgraph-extract`; the explicit ``Slot`` and ``MethodDescriptor`` initializers use caller-provided signatures.
 
-**Dependency:** RuntimeStub requires the `Echo` package (pulled in automatically when the `RuntimeStub` trait is active).
+**Dependency:** The package includes Echo and the C trampoline automatically.
 
 **Async:** RuntimeStub supports async and async-throwing requirements through a
 dedicated continuation trampoline. Use `returns` or `then:` for immediate
 responses and `thenAsync:` when the configured handler must suspend.
 
-For the full decision matrix, see <doc:StrategyGuide>.
-
 ## Installation
 
-RuntimeStub is enabled by default:
-
-```swift
-// Package.swift — default (ManualStub + RuntimeStub)
-.package(url: "https://github.com/tevelee/swift-test-doubles", from: "1.0.0")
-```
-
-To pull in RuntimeStub _only_:
+Until the first tagged release, depend on `main` when evaluating the package:
 
 ```swift
 .package(
     url: "https://github.com/tevelee/swift-test-doubles",
-    from: "1.0.0",
-    traits: ["RuntimeStub"]
+    branch: "main"
 )
 ```
 
@@ -171,8 +162,8 @@ await stub.when { try await $0.load(id: any()) }.then { (id: Int) in
 
 An async `then` closure preserves the caller task's task-local values,
 priority, cancellation state, and actor executor. `thenAsync` is an equivalent
-explicit spelling. Both names support typed handlers with zero through six
-arguments; a synchronous `then` closure remains on the lower-overhead immediate
+explicit spelling. Both names support typed handlers of arbitrary arity; a
+synchronous `then` closure remains on the lower-overhead immediate
 path.
 
 Use RuntimeStub when:
@@ -193,13 +184,12 @@ Avoid RuntimeStub when:
 ## Workarounds
 
 - No conformer: use `makeFromModule()` or explicit slots.
-- Module extraction unavailable: use explicit slots or ``CompiledStub``.
-- Unsupported runtime ABI shape: use ``CompiledStub`` or implement it directly
-  in a hand-written ``ManualStub`` method.
-- Concrete function or final method: use ``DynamicReplacementCompiler`` if the
-  implementation is built with implicit dynamic.
+- Module extraction unavailable: use explicit slots.
+- Unsupported runtime ABI shape: use a small hand-written test double.
+- Concrete function or final method: introduce a protocol boundary or use a
+  dedicated replacement tool.
 - Type metadata cannot be resolved: use explicit slots with concrete
-  `Any.Type` values, or use ``CompiledStub``.
+  `Any.Type` values.
 - Order verification with arguments: combine `verifyOrder` with separate
   `verify` assertions for the argument values.
 
@@ -216,8 +206,7 @@ The C/assembly and internal Swift method map is documented in
 ## Limitations
 
 - Runtime marshalling depends on real Swift type metadata. If metadata cannot
-  be resolved for a requirement, use explicit ``Slot`` descriptors or
-  ``CompiledStub``.
+  be resolved for a requirement, use explicit ``Slot`` descriptors.
 - Suspending handlers require an async `then` or `thenAsync` closure. Static
   `returns` and synchronous `then` closures remain immediate.
 - On x86_64, async requirements with six integer-class arguments currently

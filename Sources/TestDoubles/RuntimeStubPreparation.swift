@@ -1,4 +1,3 @@
-#if RUNTIME_STUB
 import Echo
 
 private final class RuntimeStubPayload {}
@@ -384,4 +383,3 @@ extension RuntimeStub {
         }
     }
 }
-#endif // RUNTIME_STUB

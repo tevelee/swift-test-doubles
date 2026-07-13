@@ -1,4 +1,3 @@
-#if RUNTIME_STUB
 import Testing
 @testable import TestDoubles
 import TestDoublesFixtures
@@ -226,4 +225,3 @@ private func registerSixArgumentHandler(on builder: StubBuilder<Int>) {
         await sumAfterYield([a, b, c, d, e, f])
     }
 }
-#endif // RUNTIME_STUB

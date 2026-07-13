@@ -1,24 +1,31 @@
 # Contributing
 
-## Building
+## Building and testing
+
+Run the package's debug and release suites before opening a pull request:
 
 ```bash
 swift build
-swift build --traits ManualStub
-swift build --traits ManualStub,RuntimeStub,CompiledStub,DynamicReplacement
+swift test
+swift test -c release
 ```
 
-## Running Tests
+On Apple Silicon, also exercise the x86_64 trampoline under Rosetta when a
+change touches runtime preparation, ABI classification, assembly, or dispatch:
 
 ```bash
-swift test                         # default traits (ManualStub + RuntimeStub)
-swift test --traits ManualStub     # ManualStub only
+arch -x86_64 swift test \
+  --triple x86_64-apple-macosx \
+  --disable-xctest \
+  --enable-swift-testing \
+  --filter 'RuntimeABITests|RuntimeStubBuilderTests'
 ```
 
-`RuntimeABITests` covers the raw trampoline's register, stack, throwing, direct
-aggregate, and indirect-return paths.
+`RuntimeABITests` covers register and stack arguments, throwing calls, direct
+aggregates, async continuations, and indirect results. Add focused coverage when
+changing a supported ABI shape.
 
-## Runtime Trampoline
+## Runtime trampoline
 
 `RuntimeStub` uses shared synchronous and asynchronous assembly capture entries
 per architecture plus tiny per-slot branch veneers. The Swift handler in
@@ -27,14 +34,23 @@ encoding. Read the
 [Trampoline Architecture](Sources/TestDoubles/Documentation.docc/Articles/TrampolineArchitecture.md)
 reference before changing this contract.
 
-## Branch Workflow
+Stub configuration and verification are serial operations. Once configured,
+normal invocation and call-log storage are lock-protected and may be concurrent;
+handler closures remain responsible for their own captured mutable state.
 
-- Create a feature branch from `main`
-- Open a pull request targeting `main`
-- All relevant trait combinations must pass before merging
+## Branch workflow
 
-## Known Limitations
+- Create a feature branch from `main`.
+- Keep commits focused and explain public API or ABI behavior changes.
+- Open a pull request targeting `main`.
+- Run all checks relevant to the changed runtime paths.
 
-- **suspending async handlers**: `RuntimeStub` supports async requirements, but configured handlers complete immediately and cannot themselves suspend.
-- **CompiledStub is macOS-only**: `swiftc` is not available on Linux or iOS simulators.
-- **RuntimeStub on Linux**: untested — Echo's Linux support is not confirmed. `ManualStub` is the safe choice on Linux.
+## Current release boundaries
+
+- macOS arm64 and Rosetta x86_64 are the exercised runtime environments.
+- iOS and Linux are not release-supported until real runtime CI exists.
+- Closure requirements need compiler-generated reabstraction and are rejected;
+  use a hand-written test double for such protocols.
+- x86_64 async invocation with six integer-class arguments is not yet supported.
+
+See [ROADMAP.md](ROADMAP.md) for the work required before `0.1.0`.

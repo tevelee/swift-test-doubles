@@ -1,6 +1,5 @@
-#if RUNTIME_STUB
 /// Configures the return value or action for a stubbed method.
-/// Returned by ``RuntimeStub/when(_:)-4hxsd``.
+/// Returned by RuntimeStub's when methods.
 public struct StubBuilder<R> {
     let recorder: StubRecorder
     let recording: RecordedCall
@@ -129,7 +128,7 @@ public struct StubBuilder<R> {
 }
 
 /// Asserts that a stubbed method was called the expected number of times.
-/// Returned by ``RuntimeStub/verify(_:)-6f6ij``.
+/// Returned by RuntimeStub's verify methods.
 public struct VerifyBuilder {
     let recorder: StubRecorder
     let recording: RecordedCall
@@ -192,4 +191,3 @@ public struct VerifyBuilder {
         return zip(args, matchers).allSatisfy { $0.1.matches(value: $0.0) }
     }
 }
-#endif // RUNTIME_STUB

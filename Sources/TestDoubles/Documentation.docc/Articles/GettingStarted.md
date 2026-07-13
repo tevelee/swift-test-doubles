@@ -4,9 +4,9 @@ Learn the core patterns for stubbing, matching, and verifying in your tests.
 
 ## Overview
 
-TestDoubles has three strategies — ``ManualStub``, ``RuntimeStub``, and ``CompiledStub``. They share the core `when`, `returns`, matcher, and verification vocabulary, while strategy-specific features such as setters, order verification, and suspending handlers differ. This guide uses `RuntimeStub` for most examples and calls out the exceptions.
-
-> Note: Pick your strategy first. If you're not sure which one fits, read the ``TestDoubles`` overview page. Once you've chosen, come back here to learn how to use it.
+TestDoubles uses ``RuntimeStub`` to fabricate a protocol conformance and route
+its calls through a runtime trampoline. This guide covers the shared `when`,
+`returns`, `then`, matcher, capture, and verification vocabulary.
 
 ## Stubbing a Method
 
@@ -93,8 +93,8 @@ stub.when { try $0.read(path: any()) }.then { (path: String) throws in
 }
 ```
 
-Typed `then` overloads cover one through six arguments. The raw `[Any]`
-handler is still available when you need a fully dynamic escape hatch:
+Typed `then` handlers accept arbitrary arity through parameter packs. The raw
+`[Any]` handler is still available when you need a fully dynamic escape hatch:
 
 ```swift
 stub.when { $0.find(id: any()) }.then { args in
@@ -224,14 +224,14 @@ await stub.verify { try await $0.fetch(url: any()) }.wasCalled()
 
 Suspending handlers run on the caller's existing task. Task-local values,
 cancellation, priority, and actor isolation therefore flow into the handler.
-Both `then` and `thenAsync` accept `[Any]` handlers or typed handlers with zero
-through six arguments.
+Both `then` and `thenAsync` accept `[Any]` handlers or typed handlers of
+arbitrary arity.
 
 ## Tips and Tricks
 
 ### Stub every requirement the SUT can call
 
-RuntimeStub and CompiledStub dispatch every protocol method, including getters.
+RuntimeStub dispatches every protocol method, including getters.
 If production code calls a requirement you did not configure, the test fails
 with "No stub configured". Stub everything the SUT will call to make the test
 intention explicit:
@@ -342,6 +342,5 @@ This checks that each call appears *after* the previous one in the call log, wit
 
 ## Next Steps
 
-- <doc:ManualStub> — writing the conforming struct
-- <doc:RuntimeStub> — zero-config witness table approach
-- <doc:CompiledStub> — compiler-generated conformance for macOS
+- <doc:RuntimeStub> — construction options, supported calls, and limitations
+- <doc:TrampolineArchitecture> — how fabricated witnesses are dispatched

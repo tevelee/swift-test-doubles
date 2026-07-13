@@ -1,4 +1,3 @@
-#if RUNTIME_STUB
 import Echo
 #if canImport(Darwin)
 import Darwin
@@ -38,83 +37,6 @@ public struct DiscoveredSignature {
 
     var methodSignature: MethodSignature {
         MethodSignature(args: args, ret: ret)
-    }
-}
-
-// MARK: - Signature Builder DSL
-
-public extension Array where Element == DiscoveredSignature {
-    static func describing(_ build: (inout SignatureBuilder) -> Void) -> [DiscoveredSignature] {
-        var builder = SignatureBuilder()
-        build(&builder)
-        return builder.signatures
-    }
-}
-
-public struct SignatureBuilder {
-    var signatures: [DiscoveredSignature] = []
-    private var nextSlot = 0
-
-    public struct Param {
-        let label: String
-        let type: String
-        public static func int(_ label: String = "_") -> Param { Param(label: label, type: "Int") }
-        public static func string(_ label: String = "_") -> Param { Param(label: label, type: "String") }
-        public static func bool(_ label: String = "_") -> Param { Param(label: label, type: "Bool") }
-        public static func double(_ label: String = "_") -> Param { Param(label: label, type: "Double") }
-        public static func type(_ label: String = "_", _ typeName: String) -> Param { Param(label: label, type: typeName) }
-    }
-
-    public enum ReturnType {
-        case int, string, bool, double, void, custom(String)
-        var name: String {
-            switch self {
-            case .int: "Int"
-            case .string: "String"
-            case .bool: "Bool"
-            case .double: "Double"
-            case .void: "Void"
-            case .custom(let n): n
-            }
-        }
-    }
-
-    public mutating func method(
-        _ name: String,
-        args: [Param] = [],
-        returns: ReturnType = .void,
-        `throws`: Bool = false,
-        `async`: Bool = false
-    ) {
-        let methodName = args.isEmpty ? "\(name)()" : "\(name)(\(args.map { "\($0.label):" }.joined()))"
-        signatures.append(DiscoveredSignature(
-            slot: nextSlot, kind: .method, methodName: methodName,
-            args: args.map(\.type), ret: returns.name,
-            isThrowing: `throws`, isAsync: `async`, paramLabels: args.map(\.label)
-        ))
-        nextSlot += 1
-    }
-
-    public mutating func getter(_ name: String, type: ReturnType) {
-        signatures.append(DiscoveredSignature(
-            slot: nextSlot, kind: .getter, methodName: name, ret: type.name
-        ))
-        nextSlot += 1
-    }
-
-    public mutating func setter(_ name: String, type: ReturnType) {
-        signatures.append(DiscoveredSignature(
-            slot: nextSlot, kind: .setter, methodName: name,
-            args: [type.name], ret: "Void", paramLabels: ["newValue"]
-        ))
-        nextSlot += 1
-    }
-
-    public mutating func coroutine() {
-        signatures.append(DiscoveredSignature(
-            slot: nextSlot, kind: .modifyCoroutine, methodName: "_coroutine"
-        ))
-        nextSlot += 1
     }
 }
 
@@ -330,4 +252,3 @@ private func normalizeQualifiedType(_ fullType: String) -> String {
     let cleaned = fullType.trimmingCharacters(in: .whitespaces)
     return cleaned == "()" ? "Swift.Void" : cleaned
 }
-#endif

@@ -1,4 +1,3 @@
-#if RUNTIME_STUB
 import CTestDoublesTrampoline
 import Echo
 import Foundation
@@ -352,7 +351,7 @@ private enum RuntimeTrampolineHandler {
             }
             var visited: Set<UInt> = []
             guard canInitializePlaceholder(type: returnType, visited: &visited) else {
-                fatalError("[TestDoubles] RuntimeStub cannot synthesize a recording placeholder for \(returnType). Use CompiledStub or ManualStub for \(method.name).")
+                fatalError("[TestDoubles] RuntimeStub cannot synthesize a recording placeholder for \(returnType). Use a hand-written test double for \(method.name).")
             }
             initializeAggregatePlaceholder(type: returnType, parts: parts, into: frame)
         case .indirect:
@@ -373,7 +372,7 @@ private enum RuntimeTrampolineHandler {
                 return
             }
             guard initializePlaceholder(type: returnType, at: destination) else {
-                fatalError("[TestDoubles] RuntimeStub cannot synthesize a recording placeholder for \(returnType). Use CompiledStub or ManualStub for \(method.name).")
+                fatalError("[TestDoubles] RuntimeStub cannot synthesize a recording placeholder for \(returnType). Use a hand-written test double for \(method.name).")
             }
         }
     }
@@ -928,5 +927,3 @@ private let swiftGetTypeByMangledNameInContext: SwiftGetTypeByMangledNameInConte
     }
     return unsafeBitCast(symbol, to: SwiftGetTypeByMangledNameInContext.self)
 }()
-
-#endif

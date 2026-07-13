@@ -1,4 +1,3 @@
-#if RUNTIME_STUB
 import Echo
 
 /// A typed runtime mock. No macros, no source access to the protocol needed.
@@ -121,4 +120,3 @@ public class RuntimeStub<P>: @unchecked Sendable {
     /// Recorded calls — forwarded from the recorder for convenience.
     public var calls: [RecordedCall] { recorder.calls }
 }
-#endif // RUNTIME_STUB

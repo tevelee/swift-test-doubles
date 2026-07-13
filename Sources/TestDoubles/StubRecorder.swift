@@ -1,4 +1,3 @@
-#if RUNTIME_STUB
 import Foundation
 
 /// Records method calls and returns stubbed values.
@@ -238,7 +237,7 @@ class StubRecorder: @unchecked Sendable {
             guard storedRuntimeMethods[method]?.isAsync == true else {
                 preconditionFailure(
                     "[TestDoubles] Suspending handlers require an async RuntimeStub requirement. " +
-                    "CompiledStub and synchronous requirements support only immediate handlers."
+                    "Synchronous requirements support only immediate handlers."
                 )
             }
             storedStubs[method, default: []].append(StubEntry(
@@ -447,4 +446,3 @@ public struct RecordedCall {
     public let args: [Any]
     var matchers: [ParameterMatcher]
 }
-#endif

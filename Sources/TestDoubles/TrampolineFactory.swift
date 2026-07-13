@@ -1,4 +1,3 @@
-#if RUNTIME_STUB
 import CTestDoublesTrampoline
 
 enum TrampolineFactory {
@@ -13,4 +12,3 @@ enum TrampolineFactory {
         td_free_witness_trampoline(UnsafeMutableRawPointer(mutating: pointer))
     }
 }
-#endif // RUNTIME_STUB

@@ -1,9 +1,8 @@
-#if RUNTIME_STUB
 import Testing
 @testable import TestDoubles
 import TestDoublesFixtures
 
-// Protocols for testing (defined locally — not importable by RuntimeCompiler)
+// Protocols for testing (defined locally in the test module)
 
 protocol Calculator {
     func add(_ a: Int, _ b: Int) -> Int
@@ -437,4 +436,3 @@ struct RealFileLoader: FileLoader {
         #expect(configStub().appName == "Test")
     }
 }
-#endif // RUNTIME_STUB

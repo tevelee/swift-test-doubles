@@ -1,5 +1,4 @@
 // Swift ABI classification used by the runtime trampoline.
-#if RUNTIME_STUB
 import Echo
 import Foundation
 
@@ -209,5 +208,3 @@ private func isIntegerLike(_ type: Any.Type) -> Bool {
     type == UInt32.self ||
     type == UInt64.self
 }
-
-#endif

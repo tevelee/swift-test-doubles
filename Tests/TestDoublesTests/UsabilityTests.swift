@@ -1,4 +1,3 @@
-#if RUNTIME_STUB
 import Testing
 @testable import TestDoubles
 import TestDoublesFixtures
@@ -254,24 +253,4 @@ private actor AsyncSuspensionGate {
         #expect(scaffold.contains("returns: Void.self, async: true"))
     }
 
-#if COMPILED_STUB
-    @Test func compiledSignaturesDoNotNeedRealConformer() throws {
-        let stub = try CompiledStub<any PrototypeCalculator> {
-            $0.method("add", args: [.int(), .int()], returns: .int)
-            $0.method("describe", args: [.int()], returns: .string)
-            $0.getter("precision", type: .int)
-        }
-
-        stub.when { $0.add(1, 2) }.returns(3)
-        stub.when { $0.describe(3) }.returns("3")
-        stub.when { $0.precision }.returns(10)
-
-        let sut: any PrototypeCalculator = stub()
-
-        #expect(sut.add(1, 2) == 3)
-        #expect(sut.describe(3) == "3")
-        #expect(sut.precision == 10)
-    }
-#endif // COMPILED_STUB
 }
-#endif // RUNTIME_STUB

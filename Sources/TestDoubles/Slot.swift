@@ -1,4 +1,3 @@
-#if RUNTIME_STUB
 /// Describes a protocol requirement for thunk matching (full descriptor with name).
 public struct MethodDescriptor: Sendable {
     public let name: String
@@ -250,4 +249,3 @@ private func runtimeTypeName(_ type: Any.Type) -> String {
     if type == Void.self { return "Swift.Void" }
     return String(reflecting: type)
 }
-#endif

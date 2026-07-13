@@ -1,4 +1,3 @@
-#if RUNTIME_STUB
 import Testing
 @testable import TestDoubles
 
@@ -53,4 +52,3 @@ struct SlotTests {
         #expect(asynchronousThrowingSlot.isAsync)
     }
 }
-#endif // RUNTIME_STUB

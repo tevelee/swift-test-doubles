@@ -1,4 +1,3 @@
-#if RUNTIME_STUB
 import Testing
 @testable import TestDoubles
 import TestDoublesFixtures
@@ -267,4 +266,3 @@ struct MatcherTestError: Error, Equatable {
         #expect(error?.path == "/private/secret")
     }
 }
-#endif // RUNTIME_STUB

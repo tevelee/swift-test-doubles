@@ -1,9 +1,8 @@
 // MARK: - ParameterMatcher
 
-/// Protocol for argument matchers used internally by ``when(_:)`` and
-/// ``verify(_:)`` calls.
+/// Protocol for argument matchers used internally by when and verify calls.
 ///
-/// The built-in matchers — ``any()``, ``equal(_:)``, ``any(where:)``, and ``ArgumentCaptor`` —
+/// The built-in matchers — any(), ``equal(_:)``, ``any(where:)``, and ``ArgumentCaptor`` —
 /// cover the common public extension points. Conform to this protocol when
 /// extending the library or adding a public helper that appends a matcher into
 /// the matcher context.

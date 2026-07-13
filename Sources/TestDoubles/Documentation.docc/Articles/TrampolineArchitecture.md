@@ -467,7 +467,7 @@ still receive a valid value even though that value is discarded.
 - indirect placeholders are initialized in caller-owned result storage
 
 If RuntimeStub cannot prove that it can initialize every field, it fails with a
-message directing the test to CompiledStub or ManualStub. Blindly zeroing an
+message directing the test to a hand-written test double. Blindly zeroing an
 arbitrary value would violate ownership for strings, arrays, references, and
 other nontrivial types.
 
@@ -568,7 +568,7 @@ The ABI suite currently exercises:
 - explicit metadata without a real conformer
 - async integer, floating-point, direct aggregate, and indirect returns
 - suspending async success, failure, and void handlers
-- typed suspending handlers with zero through six arguments
+- arbitrary-arity typed immediate and suspending handlers
 - unified specificity selection across `returns`, immediate `then`, async
   `then`, and `thenAsync` registrations
 - enum, optional, mixed tuple, concrete metatype, and opaque existential

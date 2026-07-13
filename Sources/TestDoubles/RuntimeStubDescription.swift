@@ -1,4 +1,3 @@
-#if RUNTIME_STUB
 import Echo
 
 /// A protocol requirement that RuntimeStub can route through a runtime stub.
@@ -224,4 +223,3 @@ extension RuntimeStub {
         }
     }
 }
-#endif // RUNTIME_STUB

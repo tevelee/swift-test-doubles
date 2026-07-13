@@ -1,4 +1,3 @@
-#if RUNTIME_STUB
 extension RuntimeStub {
     /// Verify a method/getter was called.
     public func verify(_ call: (P) -> some Any) -> VerifyBuilder {
@@ -143,4 +142,3 @@ extension RuntimeStub {
         return recordings
     }
 }
-#endif // RUNTIME_STUB

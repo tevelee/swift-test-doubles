@@ -8,13 +8,6 @@ let package = Package(
     products: [
         .library(name: "TestDoubles", targets: ["TestDoubles"]),
     ],
-    traits: [
-        .default(enabledTraits: ["ManualStub", "RuntimeStub"]),
-        .trait(name: "ManualStub"),
-        .trait(name: "RuntimeStub"),
-        .trait(name: "CompiledStub", enabledTraits: ["RuntimeStub"]),
-        .trait(name: "DynamicReplacement"),
-    ],
     dependencies: [
         .package(
             url: "https://github.com/tevelee/Echo.git",
@@ -25,16 +18,8 @@ let package = Package(
         .target(
             name: "TestDoubles",
             dependencies: [
-                .target(name: "CTestDoublesTrampoline",
-                        condition: .when(traits: ["RuntimeStub"])),
-                .product(name: "Echo", package: "Echo",
-                         condition: .when(traits: ["RuntimeStub"])),
-            ],
-            swiftSettings: [
-                .define("MANUAL_STUB",   .when(traits: ["ManualStub"])),
-                .define("RUNTIME_STUB",  .when(traits: ["RuntimeStub"])),
-                .define("COMPILED_STUB", .when(traits: ["CompiledStub"])),
-                .define("DYNAMIC_REPLACEMENT", .when(traits: ["DynamicReplacement"])),
+                "CTestDoublesTrampoline",
+                .product(name: "Echo", package: "Echo"),
             ]
         ),
         .target(
@@ -47,13 +32,7 @@ let package = Package(
         ),
         .testTarget(
             name: "TestDoublesTests",
-            dependencies: ["TestDoubles", "TestDoublesFixtures"],
-            swiftSettings: [
-                .define("MANUAL_STUB",   .when(traits: ["ManualStub"])),
-                .define("RUNTIME_STUB",  .when(traits: ["RuntimeStub"])),
-                .define("COMPILED_STUB", .when(traits: ["CompiledStub"])),
-                .define("DYNAMIC_REPLACEMENT", .when(traits: ["DynamicReplacement"])),
-            ]
+            dependencies: ["TestDoubles", "TestDoublesFixtures"]
         ),
     ]
 )

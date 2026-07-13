@@ -1,4 +1,3 @@
-#if RUNTIME_STUB
 import Echo
 import Foundation
 
@@ -495,4 +494,3 @@ private struct Symbol: Decodable {
         let spelling: String
     }
 }
-#endif

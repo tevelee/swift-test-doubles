@@ -1,4 +1,3 @@
-#if RUNTIME_STUB
 public struct RuntimeStubDiagnostics: Sendable, CustomStringConvertible {
     public let typeDescription: String
     public let protocolName: String?
@@ -42,11 +41,7 @@ public enum RuntimeStubError: Error, Sendable, CustomStringConvertible {
     case noConformanceFound(protocolName: String, typeDescription: String)
     case moduleNameCouldNotBeInferred(typeDescription: String)
     case slotCountMismatch(protocolName: String, expected: Int, actual: Int)
-    case runtimeCompilerFailed(protocolName: String, moduleName: String, details: String?)
-    case missingCompiledSymbol(protocolName: String, symbol: String)
     case trampolineAllocationFailed(slot: Int)
-    @available(*, deprecated, message: "RuntimeStub supports async requirements.")
-    case unsupportedAsyncRequirement(protocolName: String, methodName: String)
     case unsupportedFunctionValue(protocolName: String, methodName: String)
     case unsupportedTypeKind(typeName: String)
     case invalidRequirementIndex(protocolName: String, index: Int, requirementCount: Int)
@@ -62,7 +57,7 @@ public enum RuntimeStubError: Error, Sendable, CustomStringConvertible {
             return """
             No conformance found for protocol '\(protocolName)' in the current binary. \
             Zero-config RuntimeStub needs one for signature discovery. \
-            Use makeFromModule() to extract signatures from the compiled Swift module, pass explicit Slot/MethodDescriptor values, or use CompiledStub when you want generated full-fidelity conformers.
+            Use makeFromModule() to extract signatures from the compiled Swift module, or pass explicit Slot/MethodDescriptor values.
             """
         case .moduleNameCouldNotBeInferred(let typeDescription):
             return """
@@ -71,26 +66,13 @@ public enum RuntimeStubError: Error, Sendable, CustomStringConvertible {
             """
         case .slotCountMismatch(let protocolName, let expected, let actual):
             return "Expected \(expected) mockable slots for '\(protocolName)', got \(actual)."
-        case .runtimeCompilerFailed(let protocolName, let moduleName, let details):
-            var base = "RuntimeCompiler failed for '\(protocolName)' in module '\(moduleName)'."
-            if let details, !details.isEmpty {
-                base += "\n\(details)"
-            }
-            return base
-        case .missingCompiledSymbol(let protocolName, let symbol):
-            return "Compiled mock for '\(protocolName)' is missing exported symbol '\(symbol)'."
         case .trampolineAllocationFailed(let slot):
             return "Could not allocate an executable trampoline veneer for slot \(slot)."
-        case .unsupportedAsyncRequirement(let protocolName, let methodName):
-            return """
-            Obsolete async-requirement error for '\(methodName)' on '\(protocolName)'. \
-            RuntimeStub now supports async requirements.
-            """
         case .unsupportedFunctionValue(let protocolName, let methodName):
             return """
             RuntimeStub cannot safely marshal function values for '\(methodName)' on '\(protocolName)'. \
             Protocol witnesses use compiler-generated closure reabstraction thunks. \
-            Use CompiledStub or ManualStub for this requirement.
+            Use a hand-written test double for this requirement.
             """
         case .unsupportedTypeKind(let typeName):
             return "Unsupported type kind for '\(typeName)'."
@@ -108,4 +90,3 @@ public enum RuntimeStubError: Error, Sendable, CustomStringConvertible {
         }
     }
 }
-#endif

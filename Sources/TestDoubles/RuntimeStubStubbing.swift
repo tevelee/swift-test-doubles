@@ -1,4 +1,3 @@
-#if RUNTIME_STUB
 extension RuntimeStub {
     /// Stub a method or getter.
     @discardableResult
@@ -293,4 +292,3 @@ extension RuntimeStub {
         return recording
     }
 }
-#endif // RUNTIME_STUB

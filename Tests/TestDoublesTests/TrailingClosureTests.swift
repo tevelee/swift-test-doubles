@@ -1,4 +1,3 @@
-#if RUNTIME_STUB
 import Testing
 @testable import TestDoubles
 import TestDoublesFixtures
@@ -65,4 +64,3 @@ import TestDoublesFixtures
         #expect(sut.find(id: 99) == "Unknown")
     }
 }
-#endif // RUNTIME_STUB
