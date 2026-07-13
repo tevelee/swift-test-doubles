@@ -84,7 +84,7 @@ jobs:
           test
 
   linux:
-    name: Swift 6.2 / Ubuntu 24.04 / ${{ matrix.architecture }}
+    name: Swift 6.1 / Ubuntu 24.04 / ${{ matrix.architecture }}
     strategy:
       fail-fast: false
       matrix:
@@ -94,7 +94,7 @@ jobs:
           - runner: ubuntu-24.04-arm
             architecture: arm64
     runs-on: ${{ matrix.runner }}
-    container: swift:6.2.4-noble
+    container: swift:6.1.3-noble
     steps:
       - uses: actions/checkout@v7
         with:

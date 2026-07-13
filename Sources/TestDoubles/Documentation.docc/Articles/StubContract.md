@@ -85,9 +85,9 @@ runtime generates executable trampoline code and CI cannot exercise device
 execution policy. The runtime does not implement watchOS's `arm64_32` device
 ABI.
 
-Ubuntu support currently uses Swift 6.2. Swift 6.3's standard-library
-`Synchronization` module conflicts with Echo's Swift Atomics 0.0.x dependency
-before TestDoubles itself compiles.
+Ubuntu support currently uses Swift 6.1. Swift 6.2 and later expose a
+standard-library `Synchronization` representation that conflicts with Echo's
+Swift Atomics 0.0.x dependency before TestDoubles itself compiles.
 
 On x86_64, construction rejects async requirements whose arguments and indirect
 result consume all six general-purpose argument registers. That continuation
