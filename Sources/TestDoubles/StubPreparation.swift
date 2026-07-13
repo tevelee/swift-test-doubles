@@ -242,10 +242,10 @@ extension Stub {
     }
 
     private static func payloadContextDescriptor() throws -> UnsafeRawPointer {
-        guard let metadata = reflect(StubPayload.self) as? ClassMetadata else {
+        guard let descriptor = swift_getTypeContextDescriptor(StubPayload.self) else {
             throw StubError.unsupportedTypeKind(typeName: String(reflecting: StubPayload.self))
         }
-        return metadata.descriptor.ptr
+        return descriptor
     }
 
     private static func installTrampolines(
@@ -356,3 +356,6 @@ extension Stub {
         }
     }
 }
+
+@_silgen_name("swift_getTypeContextDescriptor")
+private func swift_getTypeContextDescriptor(_ type: Any.Type) -> UnsafeRawPointer?
