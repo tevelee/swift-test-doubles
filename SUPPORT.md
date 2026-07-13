@@ -13,7 +13,9 @@ This file is the authoritative release-support policy.
 
 - Swift 6.1 or later.
 - macOS 13 or later on arm64 and x86_64. CI executes x86_64 under Rosetta.
-- iOS 16 or later in the arm64 Simulator.
+- Mac Catalyst 16 or later on arm64.
+- iOS 16, tvOS 16, visionOS 1, and watchOS 9 or later in their arm64
+  Simulators.
 - Ubuntu 24.04 on arm64 and x86_64.
 - The public `TestDoubles` library product and the API listed in
   [PUBLIC_API.md](PUBLIC_API.md).
@@ -22,8 +24,10 @@ CI executes the runtime on every supported operating-system and architecture
 family above. Apple deployment targets are compiled at their declared minimum
 and executed on the simulator or runner versions available to GitHub Actions.
 Other operating systems, Linux distributions, and architectures are unsupported.
-Physical iOS devices are also unsupported because the runtime generates
-executable trampoline code and CI cannot exercise device execution policy.
+Physical iOS, tvOS, visionOS, and watchOS devices are also unsupported because
+the runtime generates executable trampoline code and CI cannot exercise device
+execution policy. The runtime does not implement watchOS's `arm64_32` device
+ABI.
 
 ## Getting help
 

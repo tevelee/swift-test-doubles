@@ -88,8 +88,9 @@ and one `then` family, then inspected with `verify`.
   async boundary. Custom `SerialExecutor` tests cover handler isolation and
   caller resumption, while concurrent sync/async stress tests run under Thread
   and Address Sanitizers. The finalized CI-backed runtime boundary covers
-  macOS 13+, the arm64 iOS 16+ Simulator, and Ubuntu 24.04, with real runtime
-  execution on arm64 and x86_64 where those architectures are available.
+  macOS 13+, Mac Catalyst 16+, arm64 Simulators for iOS 16+, tvOS 16+,
+  visionOS 1+, and watchOS 9+, and Ubuntu 24.04, with real runtime execution on
+  arm64 and x86_64 where those architectures are available.
 - **Done criteria:** The supported signature/platform matrix is tested, checked
   during construction, and documented from the same source of truth where
   practical.
@@ -141,11 +142,11 @@ and one `then` family, then inspected with `verify`.
   write the changelog from the actual first tag boundary, publish support and
   security expectations, and tag `0.1.0` only after the release checklist is
   reproducible. Phase 5A adds minimum/current Swift CI on arm64, real Rosetta
-  x86_64 execution, iOS Simulator and Linux runtime jobs, DocC and link gates,
-  a separate consumer package for every motivating example, and
-  support/security policies. Phase 5B should automate the public API snapshot,
-  finalize dependency pins, write the release checklist, and enable GitHub
-  private vulnerability reporting before the repository becomes public.
+  x86_64 execution, all supported Apple Simulator and Linux runtime jobs, DocC
+  and link gates, a separate consumer package for every motivating example,
+  and support/security policies. Phase 5B should automate the public API
+  snapshot, finalize dependency pins, write the release checklist, and enable
+  GitHub private vulnerability reporting before the repository becomes public.
 - **Done criteria:** A fresh consumer can add the tagged package, compile every
   documented example, run the supported test matrix, and understand the support
   policy without repository-specific knowledge.

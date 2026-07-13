@@ -4,7 +4,13 @@ import PackageDescription
 
 let package = Package(
     name: "swift-test-doubles",
-    platforms: [.macOS(.v13), .iOS(.v16)],
+    platforms: [
+        .iOS(.v16),
+        .macOS(.v13),
+        .tvOS(.v16),
+        .visionOS(.v1),
+        .watchOS(.v9),
+    ],
     products: [
         .library(name: "TestDoubles", targets: ["TestDoubles"]),
     ],

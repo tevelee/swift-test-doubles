@@ -75,13 +75,15 @@ be diagnosed during construction.
 
 ### Runtime and platform boundary
 
-CI-backed release support covers macOS 13+, the arm64 iOS 16+ Simulator, and
-Ubuntu 24.04. The runtime executes on arm64 and x86_64 where those architectures
-are available; macOS x86_64 coverage runs under Rosetta. Apple deployment
-targets are compiled at their declared minimum and executed on CI's available
-runner or simulator OS. Physical iOS devices are unsupported because the
+CI-backed release support covers macOS 13+, Mac Catalyst 16+, arm64 Simulators
+for iOS 16+, tvOS 16+, visionOS 1+, and watchOS 9+, and Ubuntu 24.04. The
+runtime executes on arm64 and x86_64 where those architectures are available;
+macOS x86_64 coverage runs under Rosetta. Apple deployment targets are compiled
+at their declared minimum and executed on CI's available runner or simulator OS.
+Physical iOS, tvOS, visionOS, and watchOS devices are unsupported because the
 runtime generates executable trampoline code and CI cannot exercise device
-execution policy.
+execution policy. The runtime does not implement watchOS's `arm64_32` device
+ABI.
 
 On x86_64, construction rejects async requirements whose arguments and indirect
 result consume all six general-purpose argument registers. That continuation

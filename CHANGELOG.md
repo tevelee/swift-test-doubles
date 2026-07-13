@@ -48,9 +48,9 @@ The project has not published its first tagged release yet.
 - Async dispatch preserves task-local state, cancellation, priority, handler
   actor isolation (including when the actor uses a custom serial executor), and
   actor-isolated caller executor resumption.
-- The CI-backed release boundary covers macOS 13+, the arm64 iOS 16+
-  Simulator, and Ubuntu 24.04, with runtime execution on arm64 and x86_64 where
-  those architectures are available.
+- The CI-backed release boundary covers macOS 13+, Mac Catalyst 16+, arm64
+  Simulators for iOS 16+, tvOS 16+, visionOS 1+, and watchOS 9+, and Ubuntu
+  24.04, with runtime execution on arm64 and x86_64 where available.
 - The README and Getting Started guide now showcase the same task-oriented
   matching, capture, async, stateful-response, and explicit-construction
   scenarios.

@@ -2,7 +2,7 @@ import Dispatch
 import Testing
 @testable import TestDoubles
 
-@available(iOS 17, *)
+@available(iOS 17, macCatalyst 17, tvOS 17, watchOS 10, *)
 private final class QueueSerialExecutor: @unchecked Sendable, SerialExecutor {
     private let queue = DispatchQueue(label: "TestDoubles.QueueSerialExecutor")
     private let queueKey = DispatchSpecificKey<Void>()
@@ -34,7 +34,7 @@ private enum CustomExecutorError: Error, Equatable {
     case wrongExecutor
 }
 
-@available(iOS 17, *)
+@available(iOS 17, macCatalyst 17, tvOS 17, watchOS 10, *)
 private actor CustomExecutorCaller {
     nonisolated let executor: QueueSerialExecutor
 
@@ -83,7 +83,7 @@ private protocol ConcurrentInvocationProbe: Sendable {
 
 @Suite struct ConcurrencyTests {
     @Test
-    @available(iOS 17, *)
+    @available(iOS 17, macCatalyst 17, tvOS 17, watchOS 10, *)
     func asyncDispatchPreservesCustomSerialExecutor() async throws {
         let executor = QueueSerialExecutor()
         let caller = CustomExecutorCaller(executor: executor)
