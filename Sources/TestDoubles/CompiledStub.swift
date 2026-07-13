@@ -122,7 +122,12 @@ public class CompiledStub<P>: @unchecked Sendable {
         let matchers = recording.matchers.isEmpty
             ? recording.args.map { DescriptionMatcher(value: $0) }
             : recording.matchers
-        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { _ in () })
+        recorder.addStub(
+            method: recording.methodIndex,
+            matchers: matchers,
+            returnValue: { _ in () },
+            isFallback: true
+        )
         return StubBuilder(recorder: recorder, recording: recording)
     }
 
@@ -133,45 +138,50 @@ public class CompiledStub<P>: @unchecked Sendable {
         let matchers = recording.matchers.isEmpty
             ? recording.args.map { DescriptionMatcher(value: $0) }
             : recording.matchers
-        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { _ in () })
+        recorder.addStub(
+            method: recording.methodIndex,
+            matchers: matchers,
+            returnValue: { _ in () },
+            isFallback: true
+        )
         return StubBuilder(recorder: recorder, recording: recording)
     }
 
-    /// Stub an async method.
+    /// Stub an async method. Void requirements are auto-registered.
     @_disfavoredOverload
     @discardableResult
     public func when<R>(_ call: (P) async -> R) async -> StubBuilder<R> {
         let recording = await recordAsync { _ = await call(self.callAsFunction()) }
+        if R.self == Void.self {
+            let matchers = recording.matchers.isEmpty
+                ? recording.args.map { DescriptionMatcher(value: $0) }
+                : recording.matchers
+            recorder.addStub(
+                method: recording.methodIndex,
+                matchers: matchers,
+                returnValue: { _ in () },
+                isFallback: true
+            )
+        }
         return StubBuilder(recorder: recorder, recording: recording)
     }
 
-    /// Stub an async throwing method.
+    /// Stub an async throwing method. Void requirements are auto-registered.
     @_disfavoredOverload
     @discardableResult
     public func when<R>(_ call: (P) async throws -> R) async -> StubBuilder<R> {
         let recording = await recordAsync { _ = try! await call(self.callAsFunction()) }
-        return StubBuilder(recorder: recorder, recording: recording)
-    }
-
-    /// Stub an async void method — auto-registers.
-    @discardableResult
-    public func when(_ call: (P) async -> Void) async -> StubBuilder<Void> {
-        let recording = await recordAsync { await call(self.callAsFunction()) }
-        let matchers = recording.matchers.isEmpty
-            ? recording.args.map { DescriptionMatcher(value: $0) }
-            : recording.matchers
-        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { _ in () })
-        return StubBuilder(recorder: recorder, recording: recording)
-    }
-
-    /// Stub an async throwing void method — auto-registers.
-    @discardableResult
-    public func when(_ call: (P) async throws -> Void) async -> StubBuilder<Void> {
-        let recording = await recordAsync { try! await call(self.callAsFunction()) }
-        let matchers = recording.matchers.isEmpty
-            ? recording.args.map { DescriptionMatcher(value: $0) }
-            : recording.matchers
-        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { _ in () })
+        if R.self == Void.self {
+            let matchers = recording.matchers.isEmpty
+                ? recording.args.map { DescriptionMatcher(value: $0) }
+                : recording.matchers
+            recorder.addStub(
+                method: recording.methodIndex,
+                matchers: matchers,
+                returnValue: { _ in () },
+                isFallback: true
+            )
+        }
         return StubBuilder(recorder: recorder, recording: recording)
     }
 

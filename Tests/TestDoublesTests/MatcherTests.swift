@@ -238,13 +238,15 @@ struct MatcherTestError: Error, Equatable {
         }
     }
 
-    @Test func throwRegistersStub() {
+    @Test func noArgumentThrowingHandlerPropagates() {
         struct E: Error {}
         let stub = RuntimeStub<any ThrowingFileService>()
         stub.when { try $0.read(path: any()) }.then { throw E() }
         stub.when { $0.exists(at: any()) }.returns(true)
         stub.when { $0.basePath }.returns("/")
-        #expect(stub.recorder.throwingStubs[0] != nil)
+        #expect(throws: E.self) {
+            try stub().read(path: "/test")
+        }
     }
 
     @Test func conditionalThrowHandler() throws {

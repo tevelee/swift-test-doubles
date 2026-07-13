@@ -211,13 +211,14 @@ heuristics.
 ### RuntimeStub Limits
 
 RuntimeStub supports async and async-throwing requirements. `returns` and
-`then:` use the immediate continuation path; `thenAsync:` installs a handler
-that may suspend, await other work, or throw:
+synchronous `then` closures use the immediate continuation path. An async
+`then` closure—or its explicit `thenAsync` spelling—may suspend, await other
+work, or throw:
 
 ```swift
-await stub.when({ try await $0.fetch(url: any()) }, thenAsync: { args in
-    try await transport.fetch(args[0] as! String)
-})
+await stub.when { try await $0.fetch(url: any()) }.then { (url: String) in
+    try await transport.fetch(url)
+}
 ```
 
 The suspending path remains in the caller's structured task, preserving task

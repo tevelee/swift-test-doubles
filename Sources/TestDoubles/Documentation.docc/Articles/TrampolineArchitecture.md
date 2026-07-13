@@ -242,13 +242,13 @@ or suspending.
 | Indirect result used by current path | `x0` | `rdi` |
 | Error continuation value | `x20` | `r13` |
 
-`returns`, `then:`, recording, and verification use the immediate path. After
-Swift encodes the response, assembly loads continuation GP/FP values, loads
-`returnError`, restores the async context, and branches directly to its resume
-function.
+`returns`, synchronous `then` closures, recording, and verification use the
+immediate path. After Swift encodes the response, assembly loads continuation
+GP/FP values, loads `returnError`, restores the async context, and branches
+directly to its resume function.
 
-`thenAsync:` uses a second path that remains inside the caller's structured
-task:
+Async `then` closures and the equivalent `thenAsync` spelling use a second path
+that remains inside the caller's structured task:
 
 1. The synchronous preparation endpoint resolves the recorder, decodes all
    arguments into owned `[Any]` values, selects the best matching async handler,
@@ -286,9 +286,9 @@ let stub = RuntimeStub<any AsyncStore>()
 
 await stub.when { try await $0.load(id: any()) }.returns(Item.fixture)
 await stub.when { try await $0.remove(id: any()) }
-await stub.when({ try await $0.load(id: equal(42)) }, thenAsync: {
-    try await fixtureStore.load(id: 42)
-})
+await stub.when { try await $0.load(id: equal(42)) }.then { (id: Int) in
+    try await fixtureStore.load(id: id)
+}
 
 let store: any AsyncStore = stub()
 let item = try await store.load(id: 42)
@@ -568,6 +568,9 @@ The ABI suite currently exercises:
 - explicit metadata without a real conformer
 - async integer, floating-point, direct aggregate, and indirect returns
 - suspending async success, failure, and void handlers
+- typed suspending handlers with zero through six arguments
+- unified specificity selection across `returns`, immediate `then`, async
+  `then`, and `thenAsync` registrations
 - enum, optional, mixed tuple, concrete metatype, and opaque existential
   arguments and returns through immediate and suspending async handlers
 - recording and verification placeholders for those focused extended ABI shapes
@@ -576,6 +579,10 @@ The ABI suite currently exercises:
   witness reabstraction
 - task-local, MainActor, and cancellation propagation through suspension
 - concurrent suspending async calls and call recording
+
+The six-integer-argument async invocation is currently exercised on arm64 only.
+On x86_64 it crosses an unhandled continuation-register boundary; the typed
+six-argument handler still receives compile-time coverage there.
 
 Important unsupported or not-yet-proven areas include:
 

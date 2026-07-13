@@ -11,10 +11,11 @@ public struct StubBuilder<R> {
     /// ```
     @discardableResult
     public func returns(_ value: @autoclosure @escaping () -> R) -> Self {
-        let matchers = recording.matchers.isEmpty
-            ? recording.args.map { DescriptionMatcher(value: $0) }
-            : recording.matchers
-        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { _ in value() })
+        recorder.addStub(
+            method: recording.methodIndex,
+            matchers: resolvedMatchers(),
+            returnValue: { _ in value() }
+        )
         return self
     }
 
@@ -26,14 +27,7 @@ public struct StubBuilder<R> {
     /// ```
     @discardableResult
     public func then(_ handler: @escaping ([Any]) throws -> R) -> Self {
-        let matchers = recording.matchers.isEmpty
-            ? recording.args.map { DescriptionMatcher(value: $0) }
-            : recording.matchers
-        recorder.addThrowingStub(method: recording.methodIndex, matchers: matchers, handler: handler)
-        recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { args in
-            try! handler(args)
-        })
-        return self
+        addImmediateHandler(handler)
     }
 
     /// Convenience: no-args handler.
@@ -43,7 +37,7 @@ public struct StubBuilder<R> {
     /// ```
     @discardableResult
     public func then(_ handler: @escaping () throws -> R) -> Self {
-        then { _ in try handler() }
+        addImmediateHandler { _ in try handler() }
     }
 
     /// Typed one-argument handler.
@@ -52,7 +46,7 @@ public struct StubBuilder<R> {
     /// ```
     @discardableResult
     public func then<A>(_ handler: @escaping (A) throws -> R) -> Self {
-        then { args in
+        addImmediateHandler { args in
             try handler(typedArgument(A.self, from: args, at: 0, method: recording.name))
         }
     }
@@ -60,7 +54,7 @@ public struct StubBuilder<R> {
     /// Typed two-argument handler.
     @discardableResult
     public func then<A, B>(_ handler: @escaping (A, B) throws -> R) -> Self {
-        then { args in
+        addImmediateHandler { args in
             try handler(
                 typedArgument(A.self, from: args, at: 0, method: recording.name),
                 typedArgument(B.self, from: args, at: 1, method: recording.name)
@@ -71,7 +65,7 @@ public struct StubBuilder<R> {
     /// Typed three-argument handler.
     @discardableResult
     public func then<A, B, C>(_ handler: @escaping (A, B, C) throws -> R) -> Self {
-        then { args in
+        addImmediateHandler { args in
             try handler(
                 typedArgument(A.self, from: args, at: 0, method: recording.name),
                 typedArgument(B.self, from: args, at: 1, method: recording.name),
@@ -83,7 +77,7 @@ public struct StubBuilder<R> {
     /// Typed four-argument handler.
     @discardableResult
     public func then<A, B, C, D>(_ handler: @escaping (A, B, C, D) throws -> R) -> Self {
-        then { args in
+        addImmediateHandler { args in
             try handler(
                 typedArgument(A.self, from: args, at: 0, method: recording.name),
                 typedArgument(B.self, from: args, at: 1, method: recording.name),
@@ -96,7 +90,7 @@ public struct StubBuilder<R> {
     /// Typed five-argument handler.
     @discardableResult
     public func then<A, B, C, D, E>(_ handler: @escaping (A, B, C, D, E) throws -> R) -> Self {
-        then { args in
+        addImmediateHandler { args in
             try handler(
                 typedArgument(A.self, from: args, at: 0, method: recording.name),
                 typedArgument(B.self, from: args, at: 1, method: recording.name),
@@ -110,7 +104,7 @@ public struct StubBuilder<R> {
     /// Typed six-argument handler.
     @discardableResult
     public func then<A, B, C, D, E, F>(_ handler: @escaping (A, B, C, D, E, F) throws -> R) -> Self {
-        then { args in
+        addImmediateHandler { args in
             try handler(
                 typedArgument(A.self, from: args, at: 0, method: recording.name),
                 typedArgument(B.self, from: args, at: 1, method: recording.name),
@@ -120,6 +114,171 @@ public struct StubBuilder<R> {
                 typedArgument(F.self, from: args, at: 5, method: recording.name)
             )
         }
+    }
+
+    /// Configures a handler that may suspend or throw.
+    ///
+    /// Swift selects this overload when the closure contains `await` or is
+    /// explicitly declared `async`; synchronous closures continue to use the
+    /// immediate `then` overload.
+    ///
+    /// - Note: Suspending handlers require an async ``RuntimeStub`` requirement.
+    @discardableResult
+    public func then(_ handler: @escaping ([Any]) async throws -> R) -> Self {
+        addSuspendingHandler(handler)
+    }
+
+    /// Configures a no-argument handler that may suspend or throw.
+    @discardableResult
+    public func then(_ handler: @escaping () async throws -> R) -> Self {
+        addSuspendingHandler { _ in
+            try await handler()
+        }
+    }
+
+    /// Configures a typed one-argument handler that may suspend or throw.
+    @discardableResult
+    public func then<A>(_ handler: @escaping (A) async throws -> R) -> Self {
+        addSuspendingHandler { args in
+            try await handler(typedArgument(A.self, from: args, at: 0, method: recording.name))
+        }
+    }
+
+    /// Configures a typed two-argument handler that may suspend or throw.
+    @discardableResult
+    public func then<A, B>(_ handler: @escaping (A, B) async throws -> R) -> Self {
+        addSuspendingHandler { args in
+            try await handler(
+                typedArgument(A.self, from: args, at: 0, method: recording.name),
+                typedArgument(B.self, from: args, at: 1, method: recording.name)
+            )
+        }
+    }
+
+    /// Configures a typed three-argument handler that may suspend or throw.
+    @discardableResult
+    public func then<A, B, C>(_ handler: @escaping (A, B, C) async throws -> R) -> Self {
+        addSuspendingHandler { args in
+            try await handler(
+                typedArgument(A.self, from: args, at: 0, method: recording.name),
+                typedArgument(B.self, from: args, at: 1, method: recording.name),
+                typedArgument(C.self, from: args, at: 2, method: recording.name)
+            )
+        }
+    }
+
+    /// Configures a typed four-argument handler that may suspend or throw.
+    @discardableResult
+    public func then<A, B, C, D>(_ handler: @escaping (A, B, C, D) async throws -> R) -> Self {
+        addSuspendingHandler { args in
+            try await handler(
+                typedArgument(A.self, from: args, at: 0, method: recording.name),
+                typedArgument(B.self, from: args, at: 1, method: recording.name),
+                typedArgument(C.self, from: args, at: 2, method: recording.name),
+                typedArgument(D.self, from: args, at: 3, method: recording.name)
+            )
+        }
+    }
+
+    /// Configures a typed five-argument handler that may suspend or throw.
+    @discardableResult
+    public func then<A, B, C, D, E>(_ handler: @escaping (A, B, C, D, E) async throws -> R) -> Self {
+        addSuspendingHandler { args in
+            try await handler(
+                typedArgument(A.self, from: args, at: 0, method: recording.name),
+                typedArgument(B.self, from: args, at: 1, method: recording.name),
+                typedArgument(C.self, from: args, at: 2, method: recording.name),
+                typedArgument(D.self, from: args, at: 3, method: recording.name),
+                typedArgument(E.self, from: args, at: 4, method: recording.name)
+            )
+        }
+    }
+
+    /// Configures a typed six-argument handler that may suspend or throw.
+    @discardableResult
+    public func then<A, B, C, D, E, F>(_ handler: @escaping (A, B, C, D, E, F) async throws -> R) -> Self {
+        addSuspendingHandler { args in
+            try await handler(
+                typedArgument(A.self, from: args, at: 0, method: recording.name),
+                typedArgument(B.self, from: args, at: 1, method: recording.name),
+                typedArgument(C.self, from: args, at: 2, method: recording.name),
+                typedArgument(D.self, from: args, at: 3, method: recording.name),
+                typedArgument(E.self, from: args, at: 4, method: recording.name),
+                typedArgument(F.self, from: args, at: 5, method: recording.name)
+            )
+        }
+    }
+
+    /// Configures a suspending handler using an explicit async spelling.
+    @discardableResult
+    public func thenAsync(_ handler: @escaping ([Any]) async throws -> R) -> Self {
+        addSuspendingHandler(handler)
+    }
+
+    /// Configures a no-argument suspending handler using an explicit async spelling.
+    @discardableResult
+    public func thenAsync(_ handler: @escaping () async throws -> R) -> Self {
+        then(handler)
+    }
+
+    /// Configures a typed one-argument suspending handler.
+    @discardableResult
+    public func thenAsync<A>(_ handler: @escaping (A) async throws -> R) -> Self {
+        then(handler)
+    }
+
+    /// Configures a typed two-argument suspending handler.
+    @discardableResult
+    public func thenAsync<A, B>(_ handler: @escaping (A, B) async throws -> R) -> Self {
+        then(handler)
+    }
+
+    /// Configures a typed three-argument suspending handler.
+    @discardableResult
+    public func thenAsync<A, B, C>(_ handler: @escaping (A, B, C) async throws -> R) -> Self {
+        then(handler)
+    }
+
+    /// Configures a typed four-argument suspending handler.
+    @discardableResult
+    public func thenAsync<A, B, C, D>(_ handler: @escaping (A, B, C, D) async throws -> R) -> Self {
+        then(handler)
+    }
+
+    /// Configures a typed five-argument suspending handler.
+    @discardableResult
+    public func thenAsync<A, B, C, D, E>(_ handler: @escaping (A, B, C, D, E) async throws -> R) -> Self {
+        then(handler)
+    }
+
+    /// Configures a typed six-argument suspending handler.
+    @discardableResult
+    public func thenAsync<A, B, C, D, E, F>(_ handler: @escaping (A, B, C, D, E, F) async throws -> R) -> Self {
+        then(handler)
+    }
+
+    private func addImmediateHandler(_ handler: @escaping ([Any]) throws -> R) -> Self {
+        recorder.addThrowingStub(
+            method: recording.methodIndex,
+            matchers: resolvedMatchers(),
+            handler: handler
+        )
+        return self
+    }
+
+    private func addSuspendingHandler(_ handler: @escaping ([Any]) async throws -> R) -> Self {
+        recorder.addAsyncStub(
+            method: recording.methodIndex,
+            matchers: resolvedMatchers(),
+            handler: handler
+        )
+        return self
+    }
+
+    private func resolvedMatchers() -> [ParameterMatcher] {
+        recording.matchers.isEmpty
+            ? recording.args.map { DescriptionMatcher(value: $0) }
+            : recording.matchers
     }
 }
 

@@ -164,15 +164,16 @@ handlers chain a Swift async frame into the caller's existing task before
 resuming that continuation.
 
 ```swift
-await stub.when({ try await $0.load(id: any()) }, thenAsync: { args in
-    let id = args[0] as! Int
-    return try await fixtureStore.load(id: id)
-})
+await stub.when { try await $0.load(id: any()) }.then { (id: Int) in
+    try await fixtureStore.load(id: id)
+}
 ```
 
-`thenAsync:` preserves the caller task's task-local values, priority,
-cancellation state, and actor executor. Use the distinct label to make genuine
-suspension explicit; `then:` remains the lower-overhead immediate path.
+An async `then` closure preserves the caller task's task-local values,
+priority, cancellation state, and actor executor. `thenAsync` is an equivalent
+explicit spelling. Both names support typed handlers with zero through six
+arguments; a synchronous `then` closure remains on the lower-overhead immediate
+path.
 
 Use RuntimeStub when:
 
@@ -217,8 +218,11 @@ The C/assembly and internal Swift method map is documented in
 - Runtime marshalling depends on real Swift type metadata. If metadata cannot
   be resolved for a requirement, use explicit ``Slot`` descriptors or
   ``CompiledStub``.
-- Suspending handlers require `thenAsync:`. The existing `returns` and `then:`
-  APIs intentionally remain immediate.
+- Suspending handlers require an async `then` or `thenAsync` closure. Static
+  `returns` and synchronous `then` closures remain immediate.
+- On x86_64, async requirements with six integer-class arguments currently
+  cross an unsupported continuation-register boundary. The corresponding typed
+  handler overload is available, but invocation is supported on arm64 only.
 - Fabricated conformances are used to build the returned existential directly.
   Do not rely on unrelated `as?` runtime conformance lookup for arbitrary
   payload values.

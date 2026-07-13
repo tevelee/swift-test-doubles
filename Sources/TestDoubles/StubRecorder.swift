@@ -21,9 +21,10 @@ class StubRecorder: @unchecked Sendable {
         set { withLock { storedMode = newValue } }
     }
 
-    // Stub storage: method index → [(matchers, returnValue, action)]
+    // Stub storage preserves registration order across every behavior kind so
+    // matcher specificity is resolved consistently for immediate, throwing,
+    // and suspending handlers.
     private var storedStubs: [Int: [StubEntry]] = [:]
-    private var storedAsyncStubs: [Int: [AsyncStubEntry]] = [:]
     private var storedNames: [Int: String] = [:]
 
     // Runtime marshalling descriptors, keyed by witness-table requirement index.
@@ -48,15 +49,16 @@ class StubRecorder: @unchecked Sendable {
     }
 
     struct StubEntry {
+        enum Behavior {
+            case immediate(([Any]) throws -> Any)
+            case suspending(([Any]) async throws -> Any)
+        }
+
         let matchers: [ParameterMatcher]
         let diagnosticSignature: String
-        let returnValue: ([Any]) -> Any
+        let behavior: Behavior
         let action: (([Any]) -> Void)?
-    }
-
-    struct AsyncStubEntry {
-        let matchers: [ParameterMatcher]
-        let handler: ([Any]) async throws -> Any
+        let isFallback: Bool
     }
 
     // MARK: - Method name registration
@@ -117,20 +119,7 @@ class StubRecorder: @unchecked Sendable {
                     entries: []
                 ))
             }
-            // Best-match: prefer entries with the most specific matchers.
-            // Specificity = number of non-any matchers. Higher is better.
-            var bestEntry: StubEntry?
-            var bestSpecificity = -1
-            for entry in entries {
-                if entry.matchers.isEmpty || matchArgs(args, against: entry.matchers) {
-                    let specificity = entry.matchers.reduce(0) { $0 + $1.specificity }
-                    if specificity > bestSpecificity {
-                        bestSpecificity = specificity
-                        bestEntry = entry
-                    }
-                }
-            }
-            guard let entry = bestEntry else {
+            guard let entry = bestMatchingEntry(for: args, in: entries) else {
                 fatalError(diagnosticMessage(
                     title: "No matching stub",
                     method: method,
@@ -147,37 +136,42 @@ class StubRecorder: @unchecked Sendable {
                     matchers: []
                 ))
             }
-            entry.action?(args)
-            return entry.returnValue(args)
+            switch entry.behavior {
+            case .immediate(let handler):
+                entry.action?(args)
+                return try! handler(args)
+            case .suspending:
+                fatalError(
+                    "[TestDoubles] A suspending handler was selected for synchronous dispatch of \(snapshot.name). " +
+                    "Use it only with an async RuntimeStub requirement."
+                )
+            }
         }
     }
 
     // MARK: - Throwing stubs
 
-    private var storedThrowingStubs: [Int: [ThrowingStubEntry]] = [:]
-    var throwingStubs: [Int: [ThrowingStubEntry]] { withLock { storedThrowingStubs } }
-
-    struct ThrowingStubEntry {
-        let matchers: [ParameterMatcher]
-        let handler: ([Any]) throws -> Any
-    }
-
     /// Register a stub that throws.
     func addThrowingStub(method: Int, matchers: [ParameterMatcher], handler: @escaping ([Any]) throws -> Any) {
         withLock {
-            storedThrowingStubs[method, default: []].append(
-                ThrowingStubEntry(matchers: matchers, handler: handler)
-            )
+            storedStubs[method, default: []].append(StubEntry(
+                matchers: matchers,
+                diagnosticSignature: diagnosticSignatureLocked(method: method, matchers: matchers),
+                behavior: .immediate(handler),
+                action: nil,
+                isFallback: false
+            ))
         }
     }
 
-    /// Dispatch a throwing call. Returns nil if no throwing stub is registered.
+    /// Dispatches a throwing call through the best matching immediate behavior.
+    /// Returns `nil` when no configured behavior matches.
     func dispatchThrowing(method: Int, args: [Any]) -> Result<Any, any Error>? {
         let snapshot = withLock {
             (
                 mode: storedMode,
                 name: storedNames[method] ?? "method_\(method)",
-                entries: storedThrowingStubs[method]
+                entries: storedStubs[method]
             )
         }
 
@@ -205,25 +199,32 @@ class StubRecorder: @unchecked Sendable {
             break
         }
 
-        guard let entries = snapshot.entries else { return nil }
-        for entry in entries {
-            if entry.matchers.isEmpty || matchArgs(args, against: entry.matchers) {
-                withLock {
-                    storedCalls.append(RecordedCall(
-                        methodIndex: method,
-                        name: snapshot.name,
-                        args: args,
-                        matchers: []
-                    ))
-                }
-                do {
-                    return .success(try entry.handler(args))
-                } catch {
-                    return .failure(error)
-                }
-            }
+        guard let entries = snapshot.entries,
+              let entry = bestMatchingEntry(for: args, in: entries) else {
+            return nil
         }
-        return nil
+        withLock {
+            storedCalls.append(RecordedCall(
+                methodIndex: method,
+                name: snapshot.name,
+                args: args,
+                matchers: []
+            ))
+        }
+        switch entry.behavior {
+        case .immediate(let handler):
+            entry.action?(args)
+            do {
+                return .success(try handler(args))
+            } catch {
+                return .failure(error)
+            }
+        case .suspending:
+            fatalError(
+                "[TestDoubles] A suspending handler was selected for synchronous throwing dispatch of \(snapshot.name). " +
+                "Use it only with an async RuntimeStub requirement."
+            )
+        }
     }
 
     // MARK: - Async stubs
@@ -234,9 +235,19 @@ class StubRecorder: @unchecked Sendable {
         handler: @escaping ([Any]) async throws -> Any
     ) {
         withLock {
-            storedAsyncStubs[method, default: []].append(
-                AsyncStubEntry(matchers: matchers, handler: handler)
-            )
+            guard storedRuntimeMethods[method]?.isAsync == true else {
+                preconditionFailure(
+                    "[TestDoubles] Suspending handlers require an async RuntimeStub requirement. " +
+                    "CompiledStub and synchronous requirements support only immediate handlers."
+                )
+            }
+            storedStubs[method, default: []].append(StubEntry(
+                matchers: matchers,
+                diagnosticSignature: diagnosticSignatureLocked(method: method, matchers: matchers),
+                behavior: .suspending(handler),
+                action: nil,
+                isFallback: false
+            ))
         }
     }
 
@@ -251,7 +262,7 @@ class StubRecorder: @unchecked Sendable {
             (
                 mode: storedMode,
                 name: storedNames[method] ?? "method_\(method)",
-                entries: storedAsyncStubs[method]
+                entries: storedStubs[method]
             )
         }
 
@@ -259,16 +270,10 @@ class StubRecorder: @unchecked Sendable {
             return nil
         }
 
-        var bestEntry: AsyncStubEntry?
-        var bestSpecificity = -1
-        for entry in entries where entry.matchers.isEmpty || matchArgs(args, against: entry.matchers) {
-            let specificity = entry.matchers.reduce(0) { $0 + $1.specificity }
-            if specificity > bestSpecificity {
-                bestSpecificity = specificity
-                bestEntry = entry
-            }
+        guard let bestEntry = bestMatchingEntry(for: args, in: entries),
+              case .suspending(let handler) = bestEntry.behavior else {
+            return nil
         }
-        guard let bestEntry else { return nil }
 
         withLock {
             storedCalls.append(RecordedCall(
@@ -278,18 +283,25 @@ class StubRecorder: @unchecked Sendable {
                 matchers: []
             ))
         }
-        return bestEntry.handler
+        return handler
     }
 
     // MARK: - Stub registration
 
-    func addStub(method: Int, matchers: [ParameterMatcher], returnValue: @escaping ([Any]) -> Any, action: (([Any]) -> Void)? = nil) {
+    func addStub(
+        method: Int,
+        matchers: [ParameterMatcher],
+        returnValue: @escaping ([Any]) -> Any,
+        action: (([Any]) -> Void)? = nil,
+        isFallback: Bool = false
+    ) {
         withLock {
             storedStubs[method, default: []].append(StubEntry(
                 matchers: matchers,
                 diagnosticSignature: diagnosticSignatureLocked(method: method, matchers: matchers),
-                returnValue: returnValue,
-                action: action
+                behavior: .immediate(returnValue),
+                action: action,
+                isFallback: isFallback
             ))
         }
     }
@@ -312,6 +324,25 @@ class StubRecorder: @unchecked Sendable {
     private func matchArgs(_ args: [Any], against matchers: [ParameterMatcher]) -> Bool {
         guard args.count == matchers.count else { return matchers.isEmpty }
         return zip(args, matchers).allSatisfy { $0.1.matches(value: $0.0) }
+    }
+
+    /// Returns the first registered entry among those with the highest matcher
+    /// specificity. Registration kind never affects precedence.
+    private func bestMatchingEntry(for args: [Any], in entries: [StubEntry]) -> StubEntry? {
+        var bestEntry: StubEntry?
+        var bestSpecificity = -1
+        var bestPriority = -1
+        for entry in entries where entry.matchers.isEmpty || matchArgs(args, against: entry.matchers) {
+            let specificity = entry.matchers.reduce(0) { $0 + $1.specificity }
+            let priority = entry.isFallback ? 0 : 1
+            if specificity > bestSpecificity ||
+                (specificity == bestSpecificity && priority > bestPriority) {
+                bestSpecificity = specificity
+                bestPriority = priority
+                bestEntry = entry
+            }
+        }
+        return bestEntry
     }
 
     private func diagnosticMessage(

@@ -267,10 +267,16 @@ use `CompiledStub` or `ManualStub` for those protocols.
 **RuntimeStub: async handlers**
 
 Async protocol requirements are supported, including throwing and indirect
-returns. `returns` and `then:` use the immediate continuation path. Use
-`thenAsync:` for a handler that must suspend or await asynchronous work; it
-runs on the caller's task and inherits task locals, cancellation, priority, and
-actor execution.
+returns. `returns` and synchronous `then` closures use the immediate
+continuation path. An async `then` closure may suspend while remaining on the
+caller's task, inheriting task locals, cancellation, priority, and actor
+execution. `thenAsync` remains available as an explicit equivalent. Both
+spellings support typed handlers with zero through six arguments, and matcher
+specificity is resolved consistently across every response kind.
+
+On x86_64, async requirements with six integer-class arguments currently cross
+an unhandled continuation-register boundary. Their typed handler overloads are
+available, but invoking that requirement is supported on arm64 only for now.
 
 **CompiledStub is macOS-only**
 
