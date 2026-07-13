@@ -15,17 +15,12 @@ swift test                         # default traits (ManualStub + RuntimeStub)
 swift test --traits ManualStub     # ManualStub only
 ```
 
-The `paymentGatewayChargeAndRefund` test is disabled — it exercises a `struct` with a return value > 16 bytes, which exceeds the ABI limit of the pre-generated thunks. This is a known limitation, not a bug to fix here.
+`RuntimeABITests` covers the raw trampoline's register, stack, throwing, direct
+aggregate, and indirect-return paths.
 
-## Regenerating ThunkLibrary
+## Runtime Trampoline
 
-The `ThunkLibrary.swift` file is auto-generated. After changing the thunk generation script:
-
-```bash
-swift run --package-path Scripts GenerateThunks
-```
-
-The output is written to `Sources/TestDoubles/ThunkLibrary.swift`. Commit the updated file.
+`RuntimeStub` uses a fixed assembly capture stub per architecture plus tiny per-slot branch veneers. The Swift handler in `TrampolineHandler.swift` owns argument decoding, recorder dispatch, and return encoding.
 
 ## Branch Workflow
 
@@ -35,15 +30,6 @@ The output is written to `Sources/TestDoubles/ThunkLibrary.swift`. Commit the up
 
 ## Known Limitations
 
-- **sret ABI**: `RuntimeStub` thunks support return values ≤ 16 bytes. Structs larger than 16 bytes need sret thunk variants (not yet generated). Use `ManualStub` or `CompiledStub` for such protocols.
+- **async requirements**: `RuntimeStub` rejects async witness entries. Use `ManualStub` or macOS-only `CompiledStub`.
 - **CompiledStub is macOS-only**: `swiftc` is not available on Linux or iOS simulators.
 - **RuntimeStub on Linux**: untested — Echo's Linux support is not confirmed. `ManualStub` is the safe choice on Linux.
-
-## Adding a New Thunk Variant
-
-Thunks are generated in `Scripts/generate_thunks.swift`. To add an sret (indirect-return) variant:
-
-1. Add a new `ThunkKind` case (e.g. `.sret`)
-2. Emit the corresponding ARM64 / x86-64 assembly stub
-3. Update `ThunkLibrary.lookupThunk(for:)` to select the new variant when the return type size exceeds 16 bytes
-4. Regenerate and run tests

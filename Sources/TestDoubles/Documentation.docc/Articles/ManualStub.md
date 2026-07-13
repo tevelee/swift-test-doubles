@@ -14,20 +14,22 @@ ManualStub is the zero-dependency strategy. You write a struct that conforms to 
 
 **Requirement:** The ManualStub trait must be enabled (it is on by default).
 
+For the full decision matrix, see <doc:StrategyGuide>.
+
 ## Installation
 
 ManualStub is enabled by default. No additional configuration needed:
 
 ```swift
 // Package.swift — default (ManualStub + RuntimeStub)
-.package(url: "https://github.com/your-org/swift-test-doubles", from: "1.0.0")
+.package(url: "https://github.com/tevelee/swift-test-doubles", from: "1.0.0")
 ```
 
 To pull in ManualStub _only_ (no Echo dependency):
 
 ```swift
 .package(
-    url: "https://github.com/your-org/swift-test-doubles",
+    url: "https://github.com/tevelee/swift-test-doubles",
     from: "1.0.0",
     traits: ["ManualStub"]
 )
@@ -57,6 +59,41 @@ stub.verify { $0.fetch(id: any()) }.wasCalled()
 
 **Approach A** (`@dynamicMemberLookup`) works for labeled non-void methods and property getters.  
 **Approach B** (`stub.call(...)`) is required for void zero-argument methods, throwing methods, and async methods.
+
+## Tradeoffs
+
+ManualStub is ordinary Swift. It avoids runtime metadata, witness table
+patching, runtime compilation, and toolchain discovery.
+
+That makes it the best fit for:
+
+- cross-platform test suites
+- highly concurrent systems where you want to add your own synchronization
+- protocols with async requirements
+- protocols with language features the runtime strategies intentionally skip
+
+The cost is boilerplate. Every protocol requirement needs a forwarding
+implementation, and those forwarding methods must stay in sync with the
+protocol.
+
+## Tips
+
+- Prefer ManualStub for core domain protocols that are stable and important
+  enough to document with a hand-written test double.
+- Keep forwarding bodies boring. If a forwarding method starts accumulating
+  logic, move that behavior into test configuration with `when`.
+- Use Approach B for throwing and async methods even when Approach A appears to
+  compile; it is more predictable across Swift versions.
+- Keep one stub instance per test. The recorder is mutable test-local state.
+
+## Workarounds
+
+- If a protocol is too large to forward manually, use ``RuntimeStub`` for
+  synchronous requirements or ``CompiledStub`` on macOS.
+- If the system under test stores the dependency and uses it later, keep the
+  `Stub` object alive for the whole test.
+- If argument labels make Approach A awkward, use `stub.call(..., function:)`
+  explicitly and pass the exact method name.
 
 ## Key Types
 

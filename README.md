@@ -5,16 +5,24 @@
 [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Ftevelee%2Fswift-test-doubles%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/tevelee/swift-test-doubles)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Protocol-based test doubles for Swift — no macros, no code generation. Three strategies; pick the one that fits your project.
+Protocol-based test doubles for Swift — no macros, no code generation. Three protocol-stub strategies, plus dynamic replacement support when you control the implementation build.
 
 ## Strategies
 
 | | ManualStub | RuntimeStub | CompiledStub |
 |---|---|---|---|
 | **Platform** | All | All | macOS only |
-| **Requires conformer in binary** | No | Yes | No |
+| **Requires conformer in binary** | No | Zero-config only | No |
 | **Requires Echo** | No | Yes | Yes (via RuntimeStub) |
 | **Test startup overhead** | None | None | ~1–2 s compile |
+
+## Documentation Map
+
+- **Start here:** [Getting Started](Sources/TestDoubles/Documentation.docc/Articles/GettingStarted.md)
+- **Tradeoffs and workarounds:** [Strategy Guide](Sources/TestDoubles/Documentation.docc/Articles/StrategyGuide.md)
+- **Runtime details:** [RuntimeStub](Sources/TestDoubles/Documentation.docc/Articles/RuntimeStub.md)
+- **Compiled fallback:** [CompiledStub](Sources/TestDoubles/Documentation.docc/Articles/CompiledStub.md)
+- **Concrete replacements:** [Dynamic Replacement](Sources/TestDoubles/Documentation.docc/Articles/DynamicReplacement.md)
 
 ## Installation
 
@@ -81,7 +89,7 @@ stub.verify { $0.find(id: any()) }.wasCalled()
 
 ## RuntimeStub
 
-Zero configuration. Method signatures are discovered from the binary at runtime via witness table reflection. Requires the Echo package and at least one real conformer linked into your test binary.
+Zero configuration when a real conformer is linked; module-signature or explicit `Slot`/`MethodDescriptor` setup when none is. RuntimeStub uses a fixed architecture trampoline and fabricated witness tables to intercept protocol calls without compiling code at test startup.
 
 ```swift
 let stub = RuntimeStub<any UserRepository>()
@@ -93,6 +101,39 @@ let sut: any UserRepository = stub()
 assert(sut.find(id: 99) == "Alice")
 
 stub.verify { $0.find(id: any()) }.wasCalled()
+```
+
+```swift
+// No real conformer needed when the protocol's Swift module is importable
+let stub = try RuntimeStub<any PrototypeCalculator>.makeFromModule()
+```
+
+```swift
+// Or provide requirement slots directly
+let stub = try RuntimeStub<any PrototypeCalculator>.make(
+    .method(Int.self, Int.self, returns: Int.self),
+    .method(Int.self, returns: String.self),
+    .getter(Int.self)
+)
+```
+
+Explicit slots carry real Swift type names into the trampoline handler, so they
+work for high-arity methods, throwing requirements, and indirect struct returns:
+
+```swift
+let stub = try RuntimeStub<any Gateway>.make(
+    .method(
+        args: [Int.self, Money.self, String.self, Bool.self],
+        returns: Receipt.self,
+        throws: true
+    )
+)
+```
+
+RuntimeStub can also print the explicit setup shape:
+
+```swift
+print(try RuntimeStub<any PrototypeCalculator>.setupScaffold())
 ```
 
 If setup fails, call `RuntimeStub.diagnose()` for a human-readable explanation:
@@ -119,6 +160,32 @@ stub.when { $0.add(1, 2) }.returns(3)
 stub.when { $0.precision }.returns(10)
 
 assert(stub().add(1, 2) == 3)
+```
+
+---
+
+## Dynamic Replacement
+
+When the implementation module is built with Swift's implicit-dynamic frontend flag, TestDoubles can compile and load an `@_dynamicReplacement` image. This reaches concrete declarations that witness-table stubbing cannot: free functions, concrete struct/class methods, final methods, and devirtualized calls.
+
+```swift
+// Implementation build setting:
+// swiftc -Xfrontend -enable-implicit-dynamic ...
+
+try DynamicReplacementCompiler.loadReplacement(
+    moduleName: "MyFeatureReplacements",
+    source: """
+    import MyFeature
+
+    @_dynamicReplacement(for: fetchUser(id:))
+    public func replacement_fetchUser(id: Int) -> User {
+        User(id: id, name: "stub")
+    }
+    """,
+    importPaths: [builtProductsDirectory],
+    libraryPaths: [builtProductsDirectory],
+    linkedLibraries: ["MyFeature"]
+)
 ```
 
 ---
@@ -161,12 +228,20 @@ stub.verify { $0.find(id: any()) }.withArgs { calls in
 
 ## Known Limitations
 
-**RuntimeStub: large struct returns crash (SIGSEGV)**
+**RuntimeStub: ABI coverage**
 
-`RuntimeStub` uses pre-generated ABI thunks that assume return values fit in ≤ 16 bytes (two machine words). Methods returning structs larger than 16 bytes will crash with a memory access violation when called through the stub. Use `ManualStub` or `CompiledStub` for protocols with such return types.
+`RuntimeStub` uses a fixed architecture trampoline rather than a generated
+thunk catalog. Arguments and returns are copied with value-witness operations
+where metadata is known, including mixed Float/Double arguments, stack-spilled
+integer and floating-point arguments, small mixed aggregate arguments, small
+direct aggregate returns, throwing errors, and indirect-return buffers.
 
-Affected signatures: any method returning a struct whose total size > 16 bytes. Examples: a struct with `String` + `Double` + `Bool`, or any struct containing two `String` fields.
+**RuntimeStub: async requirements**
+
+Async protocol requirements use Swift's async calling convention, so `RuntimeStub` rejects them during setup. Use `ManualStub` or macOS-only `CompiledStub` for async protocols.
 
 **CompiledStub is macOS-only**
 
-`swiftc` is not available on Linux or iOS simulators. Use `ManualStub` or `RuntimeStub` on other platforms.
+This package currently gates `CompiledStub` to macOS because it relies on host
+compiler invocation, `dlopen`, and build-product discovery in that environment.
+Use `ManualStub` or `RuntimeStub` on other platforms.
