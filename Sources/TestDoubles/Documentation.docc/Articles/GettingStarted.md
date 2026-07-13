@@ -200,8 +200,8 @@ stub.verify { try $0.read(path: any()) }.wasCalled()
 ## Async Methods
 
 RuntimeStub supports async and async-throwing protocol requirements. Its
-configured responses complete immediately; write the behavior directly in a
-hand-written `ManualStub` method when the test double itself must suspend.
+`returns` and `then:` responses complete immediately. Use `thenAsync:` when
+the configured behavior must await other work or suspend.
 
 ```swift
 let stub = RuntimeStub<any DataLoader>()
@@ -209,11 +209,18 @@ let stub = RuntimeStub<any DataLoader>()
 await stub.when { try await $0.fetch(url: any()) }.returns("response")
 await stub.when { await $0.prefetch(urls: any()) }  // void async — auto-registered
 
+await stub.when({ try await $0.fetch(url: equal("/slow")) }, thenAsync: {
+    try await fixtureServer.response(for: "/slow")
+})
+
 let sut: any DataLoader = stub()
 let result = try await sut.fetch(url: "https://example.com")
 
 await stub.verify { try await $0.fetch(url: any()) }.wasCalled()
 ```
+
+Suspending handlers run on the caller's existing task. Task-local values,
+cancellation, priority, and actor isolation therefore flow into the handler.
 
 ## Tips and Tricks
 

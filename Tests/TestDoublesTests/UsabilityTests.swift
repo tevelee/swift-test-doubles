@@ -7,6 +7,33 @@ private struct RuntimeAsyncError: Error, Equatable {
     let url: String
 }
 
+private actor AsyncSuspensionGate {
+    private var hasStarted = false
+    private var startWaiters: [CheckedContinuation<Void, Never>] = []
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+
+    func suspend() async {
+        await withCheckedContinuation { continuation in
+            hasStarted = true
+            startWaiters.forEach { $0.resume() }
+            startWaiters.removeAll()
+            releaseContinuation = continuation
+        }
+    }
+
+    func waitUntilStarted() async {
+        guard !hasStarted else { return }
+        await withCheckedContinuation { continuation in
+            startWaiters.append(continuation)
+        }
+    }
+
+    func release() {
+        releaseContinuation?.resume()
+        releaseContinuation = nil
+    }
+}
+
 @Suite struct UsabilityTests {
 
     @Test func diagnoseMissingConformance() {
@@ -75,6 +102,55 @@ private struct RuntimeAsyncError: Error, Equatable {
             Issue.record("Expected the async RuntimeStub to throw")
         } catch let error as RuntimeAsyncError {
             #expect(error == RuntimeAsyncError(url: "missing"))
+        }
+    }
+
+    @Test func suspendingAsyncThrowingHandlersPropagateValuesAndErrors() async throws {
+        let stub = try RuntimeStub<any AsyncDataLoader>.make()
+
+        await stub.when({ try await $0.load(url: equal("success")) }, thenAsync: {
+            await Task.yield()
+            return "loaded"
+        })
+        await stub.when({ try await $0.load(url: any()) }, thenAsync: { args in
+            await Task.yield()
+            throw RuntimeAsyncError(url: args[0] as! String)
+        })
+
+        let sut: any AsyncDataLoader = stub()
+        #expect(try await sut.load(url: "success") == "loaded")
+
+        do {
+            _ = try await sut.load(url: "missing")
+            Issue.record("Expected the suspending RuntimeStub handler to throw")
+        } catch let error as RuntimeAsyncError {
+            #expect(error == RuntimeAsyncError(url: "missing"))
+        }
+    }
+
+    @Test func cancellationReachesSuspendedHandlerOnCallerTask() async throws {
+        let stub = try RuntimeStub<any AsyncDataLoader>.make()
+        let gate = AsyncSuspensionGate()
+
+        await stub.when({ try await $0.load(url: any()) }, thenAsync: {
+            await gate.suspend()
+            try Task.checkCancellation()
+            return "unexpected"
+        })
+
+        let task = Task {
+            let sut: any AsyncDataLoader = stub()
+            return try await sut.load(url: "cancelled")
+        }
+        await gate.waitUntilStarted()
+        task.cancel()
+        await gate.release()
+
+        do {
+            _ = try await task.value
+            Issue.record("Expected cancellation to propagate into the suspended handler")
+        } catch is CancellationError {
+            // Expected.
         }
     }
 

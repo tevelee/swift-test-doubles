@@ -37,6 +37,10 @@ struct ABIThrownError: Error, Equatable {
     let code: Int
 }
 
+private enum RuntimeABITaskValues {
+    @TaskLocal static var marker: String?
+}
+
 protocol FloatingABIProbe {
     func mix(_ a: Float, _ b: Double, _ c: Float) -> Double
 }
@@ -124,7 +128,7 @@ protocol ExplicitSlotMetadataABIProbe {
     func load(id: Int, payload: MixedAggregateABIArgument) throws -> LargeABIResult
 }
 
-protocol AsyncRuntimeABIProbe {
+protocol AsyncRuntimeABIProbe: Sendable {
     func noArguments() async -> Int
     func integer(_ value: Int) async -> Int
     func floating(_ value: Double) async -> Double
@@ -317,19 +321,99 @@ struct RealAsyncRuntimeABIProbe: AsyncRuntimeABIProbe {
         await sut.finish()
     }
 
+    @Test func suspendingAsyncHandlersReturnAcrossABIs() async throws {
+        let stub = RuntimeStub<any AsyncRuntimeABIProbe>()
+        let direct = DirectAggregateABIResult(label: "suspended-direct", amount: 3.5, accepted: true)
+        let indirect = LargeABIResult(id: 11, amount: 8.25, label: "suspended-indirect", accepted: true)
+
+        await stub.when({ await $0.noArguments() }, thenAsync: {
+            await Task.yield()
+            return 17
+        })
+        await stub.when({ await $0.integer(any()) }, thenAsync: { args in
+            await Task.yield()
+            return (args[0] as! Int) + 1
+        })
+        await stub.when({ await $0.floating(any()) }, thenAsync: {
+            await Task.yield()
+            return 6.75
+        })
+        await stub.when({ await $0.direct(any()) }, thenAsync: {
+            await Task.yield()
+            return direct
+        })
+        await stub.when({ await $0.indirect(any()) }, thenAsync: {
+            await Task.yield()
+            return indirect
+        })
+        await stub.when({ await $0.finish() }, thenAsync: {
+            await Task.yield()
+        })
+
+        let sut: any AsyncRuntimeABIProbe = stub()
+
+        #expect(await sut.noArguments() == 17)
+        #expect(await sut.integer(41) == 42)
+        #expect(await sut.floating(2) == 6.75)
+        #expect(await sut.direct(3) == direct)
+        #expect(await sut.indirect(4) == indirect)
+        await sut.finish()
+    }
+
+    @Test func suspendingHandlerPreservesTaskLocalValues() async {
+        let stub = RuntimeStub<any AsyncRuntimeABIProbe>()
+
+        await stub.when({ await $0.integer(any()) }, thenAsync: { args in
+            #expect(RuntimeABITaskValues.marker == "caller")
+            await Task.yield()
+            #expect(RuntimeABITaskValues.marker == "caller")
+            return args[0] as! Int
+        })
+
+        let sut: any AsyncRuntimeABIProbe = stub()
+        let result = await RuntimeABITaskValues.$marker.withValue("caller") {
+            await sut.integer(29)
+        }
+
+        #expect(result == 29)
+    }
+
+    @MainActor
+    @Test func suspendingHandlerPreservesActorIsolation() async {
+        let stub = RuntimeStub<any AsyncRuntimeABIProbe>()
+
+        await stub.when({ await $0.noArguments() }, thenAsync: {
+            MainActor.preconditionIsolated()
+            await Task.yield()
+            MainActor.preconditionIsolated()
+            return 31
+        })
+        await stub.when { await $0.integer(any()) }.returns(33)
+
+        let sut: any AsyncRuntimeABIProbe = stub()
+        #expect(await sut.noArguments() == 31)
+        #expect(await sut.integer(0) == 33)
+        await stub.verify { await $0.noArguments() }.wasCalled()
+    }
+
     @Test func concurrentAsyncCallsAreRecordedSafely() async {
         let stub = RuntimeStub<any AsyncRuntimeABIProbe>()
-        await stub.when { await $0.integer(any()) }.returns(42)
+        await stub.when({ await $0.integer(any()) }, thenAsync: { args in
+            await Task.yield()
+            return args[0] as! Int
+        })
 
-        await withTaskGroup(of: Void.self) { group in
+        let total = await withTaskGroup(of: Int.self, returning: Int.self) { group in
             for value in 0..<100 {
                 group.addTask {
                     let sut: any AsyncRuntimeABIProbe = stub()
-                    _ = await sut.integer(value)
+                    return await sut.integer(value)
                 }
             }
+            return await group.reduce(0, +)
         }
 
+        #expect(total == (0..<100).reduce(0, +))
         #expect(stub.calls.filter { $0.name.contains("integer") }.count == 100)
     }
 }

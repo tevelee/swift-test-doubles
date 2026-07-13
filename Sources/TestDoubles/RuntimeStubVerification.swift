@@ -45,7 +45,10 @@ extension RuntimeStub {
 
     /// Verify an async method was called.
     @_disfavoredOverload
-    public func verify(_ call: (P) async -> some Any) async -> VerifyBuilder {
+    public func verify(
+        _ call: (P) async -> some Any,
+        isolation: isolated (any Actor)? = #isolation
+    ) async -> VerifyBuilder {
         let recording = await recordAsync(mode: .verifying) {
             _ = await call(self.callAsFunction())
         }
@@ -54,7 +57,10 @@ extension RuntimeStub {
 
     /// Verify an async throwing method was called.
     @_disfavoredOverload
-    public func verify(_ call: (P) async throws -> some Any) async -> VerifyBuilder {
+    public func verify(
+        _ call: (P) async throws -> some Any,
+        isolation: isolated (any Actor)? = #isolation
+    ) async -> VerifyBuilder {
         let recording = await recordAsync(mode: .verifying) {
             _ = try! await call(self.callAsFunction())
         }
@@ -62,7 +68,11 @@ extension RuntimeStub {
     }
 
     /// Concise async verify.
-    public func verify(called times: Int, _ call: (P) async -> some Any) async {
+    public func verify(
+        called times: Int,
+        _ call: (P) async -> some Any,
+        isolation: isolated (any Actor)? = #isolation
+    ) async {
         let recording = await recordAsync(mode: .verifying) {
             _ = await call(self.callAsFunction())
         }
@@ -70,7 +80,11 @@ extension RuntimeStub {
     }
 
     /// Concise async throwing verify.
-    public func verify(called times: Int, _ call: (P) async throws -> some Any) async {
+    public func verify(
+        called times: Int,
+        _ call: (P) async throws -> some Any,
+        isolation: isolated (any Actor)? = #isolation
+    ) async {
         let recording = await recordAsync(mode: .verifying) {
             _ = try! await call(self.callAsFunction())
         }
@@ -78,13 +92,19 @@ extension RuntimeStub {
     }
 
     /// Concise async verify-never.
-    public func verify(never call: (P) async -> some Any) async {
-        await verify(called: 0, call)
+    public func verify(
+        never call: (P) async -> some Any,
+        isolation: isolated (any Actor)? = #isolation
+    ) async {
+        await verify(called: 0, call, isolation: isolation)
     }
 
     /// Concise async throwing verify-never.
-    public func verify(never call: (P) async throws -> some Any) async {
-        await verify(called: 0, call)
+    public func verify(
+        never call: (P) async throws -> some Any,
+        isolation: isolated (any Actor)? = #isolation
+    ) async {
+        await verify(called: 0, call, isolation: isolation)
     }
 
     /// Verify that methods were called in a specific order.

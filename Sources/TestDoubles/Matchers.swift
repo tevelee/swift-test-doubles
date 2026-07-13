@@ -55,7 +55,10 @@ enum MatcherContext {
         return (result, recording.matchers)
     }
 
-    static func withRecording<T>(_ operation: () async throws -> T) async rethrows -> (result: T, matchers: [ParameterMatcher]) {
+    static func withRecording<T>(
+        isolation: isolated (any Actor)? = #isolation,
+        _ operation: () async throws -> T
+    ) async rethrows -> (result: T, matchers: [ParameterMatcher]) {
         let recording = MatcherRecording()
         let result = try await $activeRecording.withValue(recording) {
             try await operation()

@@ -23,6 +23,7 @@ class StubRecorder: @unchecked Sendable {
 
     // Stub storage: method index → [(matchers, returnValue, action)]
     private var storedStubs: [Int: [StubEntry]] = [:]
+    private var storedAsyncStubs: [Int: [AsyncStubEntry]] = [:]
     private var storedNames: [Int: String] = [:]
 
     // Runtime marshalling descriptors, keyed by witness-table requirement index.
@@ -51,6 +52,11 @@ class StubRecorder: @unchecked Sendable {
         let diagnosticSignature: String
         let returnValue: ([Any]) -> Any
         let action: (([Any]) -> Void)?
+    }
+
+    struct AsyncStubEntry {
+        let matchers: [ParameterMatcher]
+        let handler: ([Any]) async throws -> Any
     }
 
     // MARK: - Method name registration
@@ -218,6 +224,61 @@ class StubRecorder: @unchecked Sendable {
             }
         }
         return nil
+    }
+
+    // MARK: - Async stubs
+
+    func addAsyncStub(
+        method: Int,
+        matchers: [ParameterMatcher],
+        handler: @escaping ([Any]) async throws -> Any
+    ) {
+        withLock {
+            storedAsyncStubs[method, default: []].append(
+                AsyncStubEntry(matchers: matchers, handler: handler)
+            )
+        }
+    }
+
+    /// Selects and records a suspending handler without invoking it under the
+    /// recorder lock. Recording and verification continue through the immediate
+    /// dispatch path so their placeholder-return behavior remains synchronous.
+    func prepareAsyncDispatch(
+        method: Int,
+        args: [Any]
+    ) -> (([Any]) async throws -> Any)? {
+        let snapshot = withLock {
+            (
+                mode: storedMode,
+                name: storedNames[method] ?? "method_\(method)",
+                entries: storedAsyncStubs[method]
+            )
+        }
+
+        guard case .normal = snapshot.mode, let entries = snapshot.entries else {
+            return nil
+        }
+
+        var bestEntry: AsyncStubEntry?
+        var bestSpecificity = -1
+        for entry in entries where entry.matchers.isEmpty || matchArgs(args, against: entry.matchers) {
+            let specificity = entry.matchers.reduce(0) { $0 + $1.specificity }
+            if specificity > bestSpecificity {
+                bestSpecificity = specificity
+                bestEntry = entry
+            }
+        }
+        guard let bestEntry else { return nil }
+
+        withLock {
+            storedCalls.append(RecordedCall(
+                methodIndex: method,
+                name: snapshot.name,
+                args: args,
+                matchers: []
+            ))
+        }
+        return bestEntry.handler
     }
 
     // MARK: - Stub registration

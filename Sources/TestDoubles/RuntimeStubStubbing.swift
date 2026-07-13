@@ -40,7 +40,10 @@ extension RuntimeStub {
     /// Stub an async method.
     @_disfavoredOverload
     @discardableResult
-    public func when<R>(_ call: (P) async -> R) async -> StubBuilder<R> {
+    public func when<R>(
+        _ call: (P) async -> R,
+        isolation: isolated (any Actor)? = #isolation
+    ) async -> StubBuilder<R> {
         let recording = await recordAsync { _ = await call(self.callAsFunction()) }
         return StubBuilder(recorder: recorder, recording: recording)
     }
@@ -48,14 +51,20 @@ extension RuntimeStub {
     /// Stub an async throwing method.
     @_disfavoredOverload
     @discardableResult
-    public func when<R>(_ call: (P) async throws -> R) async -> StubBuilder<R> {
+    public func when<R>(
+        _ call: (P) async throws -> R,
+        isolation: isolated (any Actor)? = #isolation
+    ) async -> StubBuilder<R> {
         let recording = await recordAsync { _ = try! await call(self.callAsFunction()) }
         return StubBuilder(recorder: recorder, recording: recording)
     }
 
     /// Stub an async void method — auto-registers.
     @discardableResult
-    public func when(_ call: (P) async -> Void) async -> StubBuilder<Void> {
+    public func when(
+        _ call: (P) async -> Void,
+        isolation: isolated (any Actor)? = #isolation
+    ) async -> StubBuilder<Void> {
         let recording = await recordAsync { await call(self.callAsFunction()) }
         let matchers = recording.matchers.isEmpty
             ? recording.args.map { DescriptionMatcher(value: $0) }
@@ -66,7 +75,10 @@ extension RuntimeStub {
 
     /// Stub an async throwing void method — auto-registers.
     @discardableResult
-    public func when(_ call: (P) async throws -> Void) async -> StubBuilder<Void> {
+    public func when(
+        _ call: (P) async throws -> Void,
+        isolation: isolated (any Actor)? = #isolation
+    ) async -> StubBuilder<Void> {
         let recording = await recordAsync { try! await call(self.callAsFunction()) }
         let matchers = recording.matchers.isEmpty
             ? recording.args.map { DescriptionMatcher(value: $0) }
@@ -130,9 +142,10 @@ extension RuntimeStub {
     @discardableResult
     public func when<R>(
         _ call: (P) async -> R,
-        then handler: @escaping () -> R
+        then handler: @escaping () -> R,
+        isolation: isolated (any Actor)? = #isolation
     ) async -> StubBuilder<R> {
-        await when(call, then: { (_: [Any]) in handler() })
+        await when(call, then: { (_: [Any]) in handler() }, isolation: isolation)
     }
 
     /// Stub an async method with an immediate synchronous handler.
@@ -140,7 +153,8 @@ extension RuntimeStub {
     @discardableResult
     public func when<R>(
         _ call: (P) async -> R,
-        then handler: @escaping ([Any]) -> R
+        then handler: @escaping ([Any]) -> R,
+        isolation: isolated (any Actor)? = #isolation
     ) async -> StubBuilder<R> {
         let recording = await recordAsync { _ = await call(self.callAsFunction()) }
         let matchers = recording.matchers.isEmpty
@@ -155,9 +169,10 @@ extension RuntimeStub {
     @discardableResult
     public func when<R>(
         _ call: (P) async throws -> R,
-        then handler: @escaping () throws -> R
+        then handler: @escaping () throws -> R,
+        isolation: isolated (any Actor)? = #isolation
     ) async -> StubBuilder<R> {
-        await when(call, then: { _ in try handler() })
+        await when(call, then: { _ in try handler() }, isolation: isolation)
     }
 
     /// Stub an async throwing method with an immediate synchronous handler.
@@ -165,7 +180,8 @@ extension RuntimeStub {
     @discardableResult
     public func when<R>(
         _ call: (P) async throws -> R,
-        then handler: @escaping ([Any]) throws -> R
+        then handler: @escaping ([Any]) throws -> R,
+        isolation: isolated (any Actor)? = #isolation
     ) async -> StubBuilder<R> {
         let recording = await recordAsync { _ = try! await call(self.callAsFunction()) }
         let matchers = recording.matchers.isEmpty
@@ -173,6 +189,73 @@ extension RuntimeStub {
             : recording.matchers
         recorder.addThrowingStub(method: recording.methodIndex, matchers: matchers, handler: handler)
         recorder.addStub(method: recording.methodIndex, matchers: matchers, returnValue: { try! handler($0) })
+        return StubBuilder(recorder: recorder, recording: recording)
+    }
+
+    /// Stub an async method with a handler that may suspend.
+    ///
+    /// The handler runs as part of the caller's task, preserving task-local
+    /// values, priority, cancellation, and actor isolation.
+    @_disfavoredOverload
+    @discardableResult
+    public func when<R>(
+        _ call: (P) async -> R,
+        thenAsync handler: @escaping () async -> R,
+        isolation: isolated (any Actor)? = #isolation
+    ) async -> StubBuilder<R> {
+        await when(
+            call,
+            thenAsync: { (_: [Any]) async -> R in await handler() },
+            isolation: isolation
+        )
+    }
+
+    /// Stub an async method with a suspending handler that receives its arguments.
+    @_disfavoredOverload
+    @discardableResult
+    public func when<R>(
+        _ call: (P) async -> R,
+        thenAsync handler: @escaping ([Any]) async -> R,
+        isolation: isolated (any Actor)? = #isolation
+    ) async -> StubBuilder<R> {
+        let recording = await recordAsync { _ = await call(self.callAsFunction()) }
+        let matchers = recording.matchers.isEmpty
+            ? recording.args.map { DescriptionMatcher(value: $0) }
+            : recording.matchers
+        recorder.addAsyncStub(method: recording.methodIndex, matchers: matchers) {
+            await handler($0)
+        }
+        return StubBuilder(recorder: recorder, recording: recording)
+    }
+
+    /// Stub an async throwing method with a handler that may suspend or throw.
+    @_disfavoredOverload
+    @discardableResult
+    public func when<R>(
+        _ call: (P) async throws -> R,
+        thenAsync handler: @escaping () async throws -> R,
+        isolation: isolated (any Actor)? = #isolation
+    ) async -> StubBuilder<R> {
+        await when(
+            call,
+            thenAsync: { (_: [Any]) async throws -> R in try await handler() },
+            isolation: isolation
+        )
+    }
+
+    /// Stub an async throwing method with a suspending, argument-aware handler.
+    @_disfavoredOverload
+    @discardableResult
+    public func when<R>(
+        _ call: (P) async throws -> R,
+        thenAsync handler: @escaping ([Any]) async throws -> R,
+        isolation: isolated (any Actor)? = #isolation
+    ) async -> StubBuilder<R> {
+        let recording = await recordAsync { _ = try! await call(self.callAsFunction()) }
+        let matchers = recording.matchers.isEmpty
+            ? recording.args.map { DescriptionMatcher(value: $0) }
+            : recording.matchers
+        recorder.addAsyncStub(method: recording.methodIndex, matchers: matchers, handler: handler)
         return StubBuilder(recorder: recorder, recording: recording)
     }
 
@@ -191,11 +274,15 @@ extension RuntimeStub {
         return StubBuilder(recorder: recorder, recording: recording)
     }
 
-    func recordAsync(mode: StubRecorder.Mode = .recording, _ block: () async -> Void) async -> RecordedCall {
+    func recordAsync(
+        mode: StubRecorder.Mode = .recording,
+        isolation: isolated (any Actor)? = #isolation,
+        _ block: () async -> Void
+    ) async -> RecordedCall {
         if mode == .verifying {
             recorder.verificationRecordings = []
         }
-        let (_, matchers) = await MatcherContext.withRecording {
+        let (_, matchers) = await MatcherContext.withRecording(isolation: isolation) {
             recorder.mode = mode
             await block()
         }

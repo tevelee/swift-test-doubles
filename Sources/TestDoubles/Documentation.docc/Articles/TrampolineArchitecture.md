@@ -7,9 +7,8 @@ Swift dispatch path.
 
 RuntimeStub does not compile a Swift implementation for every protocol method.
 It installs a tiny executable veneer in each mockable witness-table slot. Every
-synchronous veneer branches to one architecture entry point, every asynchronous
-veneer branches to a second entry point, and both entry points call the same
-Swift handler:
+synchronous veneer branches to one architecture entry point and every
+asynchronous veneer branches to a second entry point:
 
 ```text
 protocol existential call
@@ -20,19 +19,29 @@ patched or fabricated witness-table slot
         v
 per-slot veneer: embed (slot, witness-table context)
         |
-        +---- synchronous ----> td_swift_trampoline_entry --------+
-        |                                                         |
-        +---- asynchronous ----> td_swift_async_trampoline_entry -+
-                                                                  |
-                                                                  v
-                                              td_swift_trampoline_handler
-                                                                  |
-                                      decode -> dispatch -> encode
-                                                                  |
-                         +----------------------------------------+
-                         |
-              sync: return normally
-              async: branch to the caller's continuation
+        +---- synchronous ----> td_swift_trampoline_entry
+        |                              |
+        |                              v
+        |                  td_swift_trampoline_handler
+        |                              |
+        |                  decode -> dispatch -> encode -> return
+        |
+        +---- asynchronous ----> td_swift_async_trampoline_entry
+                                       |
+                                       v
+                         td_swift_async_trampoline_handler
+                                       |
+                         decode -> select configured behavior
+                              /                     \
+                 immediate encode            retained async state
+                         |                          |
+                  resume caller        td_swift_async_dispatch
+                                                    |
+                                      await on the caller's task
+                                                    |
+                              td_swift_async_trampoline_complete
+                                                    |
+                                              resume caller
 ```
 
 The veneers identify a requirement and a particular stub. The assembly entry
@@ -41,14 +50,15 @@ resolution, value-witness operations, recorder dispatch, errors, and return
 encoding. This separation keeps protocol setup, machine code, ABI
 classification, and test behavior in different components.
 
-The stable breakpoint for every intercepted call is:
+The stable Swift breakpoints for intercepted calls are:
 
 ```text
 td_swift_trampoline_handler
+td_swift_async_trampoline_handler
 ```
 
-Both synchronous and asynchronous calls pass through that C-exported Swift
-function.
+The second endpoint either completes an async call immediately or prepares the
+same-task suspending bridge.
 
 ## Source Map
 
@@ -148,7 +158,7 @@ registers, loads `td_swift_trampoline_entry`, and branches to it.
 
 An async witness entry points to a compact `TDAsyncFunctionPointer` descriptor,
 not directly to the emitted instructions. The descriptor stores a relative
-offset to code at byte 16 and an expected async-context header size of 16. The
+offset to code at byte 16 and an expected async-context size of 32 bytes. The
 code then loads the same slot/context pair and branches to
 `td_swift_async_trampoline_entry`.
 
@@ -183,9 +193,10 @@ constants.
 Stack arguments are not copied into a fixed buffer. Assembly captures the
 caller's stack-argument pointer, and the Swift handler reads successive
 eight-byte words while the intercepted call is still active. This avoids an
-arity cap and a guessed maximum stack-copy size. It also means dispatch must
-remain synchronous inside the handler; the frame and caller stack cannot
-escape.
+arity cap and a guessed maximum stack-copy size. Argument decoding therefore
+finishes synchronously before a suspending handler starts; the owned `[Any]`
+values may cross suspension, but the original stack pointer is never read
+after the entry frame is released.
 
 ## Synchronous Entry
 
@@ -221,9 +232,9 @@ should be treated as covered.
 ## Asynchronous Entry
 
 Swift async calls do not return to the original link register in the ordinary
-way. `td_swift_async_trampoline_entry` therefore captures the call, runs the
-same Swift handler immediately, and tail-branches to the resume function stored
-in the caller's async context.
+way. `td_swift_async_trampoline_entry` captures the call and asks
+`td_swift_async_trampoline_handler` whether the selected behavior is immediate
+or suspending.
 
 | State | arm64 | x86_64 |
 |---|---:|---:|
@@ -232,20 +243,53 @@ in the caller's async context.
 | Indirect result used by current path | `x0` | `rdi` |
 | Error continuation value | `x20` | `r13` |
 
-After Swift encodes the response, assembly loads continuation GP/FP values,
-loads `returnError`, restores the async context, and branches to its resume
-function. The configured test handler has completed before this branch. The
-public async `when` and `verify` overloads are async because recording an async
-requirement must enter and resume this convention, not because the configured
-handler can suspend.
+`returns`, `then:`, recording, and verification use the immediate path. After
+Swift encodes the response, assembly loads continuation GP/FP values, loads
+`returnError`, restores the async context, and branches directly to its resume
+function.
 
-Supported async behavior is therefore an immediate success or failure:
+`thenAsync:` uses a second path that remains inside the caller's structured
+task:
+
+1. The synchronous preparation endpoint resolves the recorder, decodes all
+   arguments into owned `[Any]` values, selects the best matching async handler,
+   records the call, and retains an invocation state containing a copied frame.
+2. Assembly reads the compiler-emitted `td_swift_async_dispatchTu` descriptor,
+   allocates its required context with `swift_task_alloc`, and links that child
+   context to the original caller context.
+3. Assembly installs `td_swift_async_trampoline_complete` as the child
+   continuation, puts the retained state in the first argument register, makes
+   the child the current async context, and tail-branches to
+   `td_swift_async_dispatch`.
+4. The Swift async dispatch function awaits the configured handler. Success or
+   failure is encoded into the state-owned frame.
+5. The completion functlet deallocates the child task frame, consumes the
+   retained state, restores continuation return values, and branches to the
+   original caller continuation.
+
+The emitted witness descriptor reserves 32 bytes in the caller context:
+
+| Offset | Meaning |
+|---:|---|
+| 0 | Parent async context managed by the caller/compiler |
+| 8 | Caller resume function |
+| 16 | Child dispatch context allocated for a suspending handler |
+| 24 | Retained `AsyncDispatchState` pointer |
+
+Because the bridge calls a Swift async function on the existing task instead
+of creating an unstructured `Task`, task-local values, priority, cancellation,
+and actor executor semantics flow into the handler.
+
+Both immediate and suspending behavior use the same public setup vocabulary:
 
 ```swift
 let stub = RuntimeStub<any AsyncStore>()
 
 await stub.when { try await $0.load(id: any()) }.returns(Item.fixture)
 await stub.when { try await $0.remove(id: any()) }
+await stub.when({ try await $0.load(id: equal(42)) }, thenAsync: {
+    try await fixtureStore.load(id: 42)
+})
 
 let store: any AsyncStore = stub()
 let item = try await store.load(id: 42)
@@ -253,30 +297,45 @@ let item = try await store.load(id: 42)
 await stub.verify { try await $0.load(id: equal(42)) }.wasCalled()
 ```
 
-A configured RuntimeStub closure cannot itself `await`. Use ``ManualStub`` when
-the fake behavior must sleep, wait on a continuation, call another async API,
-or model cancellation over time.
+## Swift Handlers
 
-## Swift Handler
-
-The exported endpoint is deliberately tiny:
+The synchronous and async-preparation endpoints are deliberately tiny:
 
 ```swift
 @_cdecl("td_swift_trampoline_handler")
 func td_swift_trampoline_handler(
     _ rawFrame: UnsafeMutablePointer<TDCallFrame>?
 )
+
+@_cdecl("td_swift_async_trampoline_handler")
+func td_swift_async_trampoline_handler(
+    _ rawFrame: UnsafeMutablePointer<TDCallFrame>?
+) -> UnsafeMutableRawPointer?
 ```
 
-It unwraps the frame and forwards to `RuntimeTrampolineHandler.handle`. The
-handler then:
+They unwrap the frame and forward to `RuntimeTrampolineHandler`. The shared
+preparation work then:
 
 1. Reads `slot` and `context`.
 2. Resolves `context` through `MockRegistry`.
 3. Looks up the slot's `RuntimeMethodDescriptor` in `StubRecorder`.
 4. Decodes ABI state into `[Any]` values.
-5. Dispatches normal or throwing configured behavior.
+5. Dispatches immediate configured behavior or prepares a retained async state.
 6. Encodes an ABI-valid return, recording placeholder, or Swift error.
+
+The suspending path adds one compiler-native Swift async entry point and one
+C-callable completion bridge:
+
+```swift
+@_silgen_name("td_swift_async_dispatch")
+func td_swift_async_dispatch(_ rawState: UnsafeMutableRawPointer) async
+
+@_cdecl("td_swift_async_dispatch_finish")
+func td_swift_async_dispatch_finish(
+    _ rawState: UnsafeMutableRawPointer?,
+    _ rawFrame: UnsafeMutablePointer<TDCallFrame>?
+)
+```
 
 Keeping the exported function C-callable gives assembly one stable symbol even
 when private Swift symbol mangling changes.
@@ -435,12 +494,19 @@ long as any proxy should be used.
 Do not retain a proxy past the lifetime of its owning `RuntimeStub`. Its witness
 table and executable veneers are owned by that stub.
 
+Each suspending invocation separately retains an `AsyncDispatchState`. The
+completion functlet consumes that retain after the Swift async handler returns.
+If a handler remains suspended, its invocation state intentionally remains
+alive with the caller task.
+
 ## Debugging
 
-Set one symbolic breakpoint to inspect every RuntimeStub call:
+Set these symbolic breakpoints to inspect synchronous and asynchronous
+RuntimeStub calls:
 
 ```text
 (lldb) breakpoint set --name td_swift_trampoline_handler
+(lldb) breakpoint set --name td_swift_async_trampoline_handler
 ```
 
 At function entry, the frame pointer is the first C argument (`x0` on arm64,
@@ -457,16 +523,19 @@ state directly:
 (lldb) memory read --format x --size 8 --count 64 $rdi
 ```
 
-For typed values, step into `RuntimeTrampolineHandler.handle` and stop after
-`decodeArguments`. Inspect `slot`, `method.name`, `method.qualifiedArgs`,
-`method.qualifiedRet`, `args`, and `result`. Stop after `encodeReturn` to inspect
-`returnGP`, `returnFP`, `indirectResult`, and `returnError`.
+For typed values, step into `RuntimeTrampolineHandler.handle` or
+`prepareAsync` and stop after `decodeArguments`. Inspect `slot`, `method.name`,
+`method.qualifiedArgs`, `method.qualifiedRet`, and `args`. Stop after
+`encodeReturn` to inspect `returnGP`, `returnFP`, `indirectResult`, and
+`returnError`.
 
 Use lower-level breakpoints when the frame itself looks wrong:
 
 ```text
 (lldb) breakpoint set --name td_swift_trampoline_entry
 (lldb) breakpoint set --name td_swift_async_trampoline_entry
+(lldb) breakpoint set --name td_swift_async_dispatch
+(lldb) breakpoint set --name td_swift_async_trampoline_complete
 ```
 
 The per-slot veneers have no stable symbol because they are emitted into
@@ -483,7 +552,7 @@ Typical failure locations:
 | Custom value becomes invalid | resolved `Any.Type`, VWT size/alignment, aggregate classification |
 | Large return traps | `indirectResult` and return ABI classification |
 | Throwing call returns garbage | `isThrowing`, `returnError`, Swift error allocation |
-| Async call never resumes | async descriptor, saved async context, resume function at context offset 8 |
+| Async call never resumes | async descriptor, child context, completion functlet, resume function at context offset 8 |
 | `when` crashes before `.returns` | recording-placeholder support for the return type |
 
 ## Current Coverage and Limits
@@ -499,7 +568,9 @@ The ABI suite currently exercises:
 - large indirect struct returns
 - explicit metadata without a real conformer
 - async integer, floating-point, direct aggregate, and indirect returns
-- concurrent normal async calls and call recording
+- suspending async success, failure, and void handlers
+- task-local, MainActor, and cancellation propagation through suspension
+- concurrent suspending async calls and call recording
 
 Important unsupported or not-yet-proven areas include:
 
@@ -509,8 +580,7 @@ Important unsupported or not-yet-proven areas include:
 - `inout`, ownership-qualified, move-only, or noncopyable values
 - every tuple, enum, optional, existential, metatype, closure, and resilient
   aggregate lowering not represented in `RuntimeABI`
-- async handlers that actually suspend, actor/custom-executor edge cases, and
-  cancellation modeling
+- custom-executor async edge cases beyond the tested MainActor path
 - zero-config discovery from stripped or relative/generic witness-table forms
 - executable-memory environments that reject runtime `mmap` plus `mprotect`
 - native execution coverage on every supported architecture and OS combination
@@ -531,13 +601,16 @@ When changing the trampoline:
 4. Add a protocol-level test for each new argument, return, throw, or async
    shape.
 5. Run the ABI suite natively where possible and at least cross-build the other
-   architecture.
+   architecture. On Apple Silicon, use Swift Testing without XCTest to execute
+   the x86_64 build under Rosetta.
 6. Verify recording mode as well as normal dispatch; placeholders exercise a
    separate return path.
 7. Verify both success and failure for throwing changes.
 8. Verify async continuation return and error paths separately from sync
    return-register paths.
-9. Run `git diff --check` and build the DocC catalog so offset tables and source
+9. For suspending changes, verify task-local state, actor execution,
+   cancellation, concurrent calls, and invocation-state lifetime.
+10. Run `git diff --check` and build the DocC catalog so offset tables and source
    links do not drift unnoticed.
 
 The design goal is not to teach Swift how to call arbitrary bytes. It is to

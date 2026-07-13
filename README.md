@@ -263,9 +263,10 @@ direct aggregate returns, throwing errors, and indirect-return buffers.
 **RuntimeStub: async handlers**
 
 Async protocol requirements are supported, including throwing and indirect
-returns. Configured responses currently complete immediately; handler closures
-cannot suspend. Use a hand-written `ManualStub` method when the test double
-itself must await asynchronous work.
+returns. `returns` and `then:` use the immediate continuation path. Use
+`thenAsync:` for a handler that must suspend or await asynchronous work; it
+runs on the caller's task and inherits task locals, cancellation, priority, and
+actor execution.
 
 **CompiledStub is macOS-only**
 

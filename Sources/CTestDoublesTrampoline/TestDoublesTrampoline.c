@@ -125,7 +125,7 @@ void *td_make_async_witness_trampoline(uintptr_t slot, uintptr_t context) {
   TDAsyncFunctionPointer *descriptor = (TDAsyncFunctionPointer *)page;
   uint8_t *code = page + 16;
   descriptor->relativeFunction = (int32_t)(code - page);
-  descriptor->expectedContextSize = TD_ASYNC_CONTEXT_HEADER_SIZE;
+  descriptor->expectedContextSize = TD_ASYNC_CONTEXT_SIZE;
 
 #if defined(__aarch64__) || defined(__arm64__)
   uint32_t *cursor = (uint32_t *)code;

@@ -36,7 +36,69 @@ func td_swift_trampoline_handler(_ rawFrame: UnsafeMutablePointer<TDCallFrame>?)
     RuntimeTrampolineHandler.handle(rawFrame)
 }
 
+@_cdecl("td_swift_async_trampoline_handler")
+func td_swift_async_trampoline_handler(
+    _ rawFrame: UnsafeMutablePointer<TDCallFrame>?
+) -> UnsafeMutableRawPointer? {
+    guard let rawFrame else { return nil }
+    return RuntimeTrampolineHandler.prepareAsync(rawFrame)
+}
+
+@_silgen_name("td_swift_async_dispatch")
+func td_swift_async_dispatch(_ rawState: UnsafeMutableRawPointer) async {
+    await RuntimeTrampolineHandler.dispatchAsync(rawState)
+}
+
+@_cdecl("td_swift_async_dispatch_finish")
+func td_swift_async_dispatch_finish(
+    _ rawState: UnsafeMutableRawPointer?,
+    _ rawFrame: UnsafeMutablePointer<TDCallFrame>?
+) {
+    guard let rawState, let rawFrame else { return }
+    RuntimeTrampolineHandler.finishAsync(rawState, into: rawFrame)
+}
+
 private enum RuntimeTrampolineHandler {
+    /// Retained by the assembly bridge while the handler is suspended. A state
+    /// belongs to one invocation: the caller task mutates it, then the completion
+    /// functlet consumes the retain only after `dispatchAsync` has returned.
+    private final class AsyncDispatchState: @unchecked Sendable {
+        var frame: TDCallFrame
+        let method: RuntimeMethodDescriptor
+        let args: [Any]
+        let handler: ([Any]) async throws -> Any
+
+        init(
+            frame: TDCallFrame,
+            method: RuntimeMethodDescriptor,
+            args: [Any],
+            handler: @escaping ([Any]) async throws -> Any
+        ) {
+            self.frame = frame
+            self.method = method
+            self.args = args
+            self.handler = handler
+        }
+
+        func run() async {
+            do {
+                let result = try await handler(args)
+                withUnsafeMutablePointer(to: &frame) { frame in
+                    frame.storeWord(0, at: TDFrame.returnError)
+                    RuntimeTrampolineHandler.encodeReturn(result, for: method, into: frame)
+                }
+            } catch {
+                guard method.isThrowing else {
+                    fatalError("[TestDoubles] A nonthrowing async stub handler threw \(error).")
+                }
+                withUnsafeMutablePointer(to: &frame) { frame in
+                    frame.zeroReturn()
+                    frame.storeWord(swiftErrorPointer(error), at: TDFrame.returnError)
+                }
+            }
+        }
+    }
+
     static func handle(_ frame: UnsafeMutablePointer<TDCallFrame>) {
         let slot = Int(frame.loadWord(at: TDFrame.slot))
         guard let recorder = findRecorder(in: frame) else {
@@ -46,6 +108,16 @@ private enum RuntimeTrampolineHandler {
             fatalError("[TestDoubles] No method descriptor registered for witness slot \(slot).")
         }
         let args = decodeArguments(for: method, from: frame)
+        handle(frame, recorder: recorder, method: method, slot: slot, args: args)
+    }
+
+    private static func handle(
+        _ frame: UnsafeMutablePointer<TDCallFrame>,
+        recorder: StubRecorder,
+        method: RuntimeMethodDescriptor,
+        slot: Int,
+        args: [Any]
+    ) {
         let result: Any
 
         if method.isThrowing, let throwingResult = recorder.dispatchThrowing(method: slot, args: args) {
@@ -71,6 +143,44 @@ private enum RuntimeTrampolineHandler {
         } else {
             encodeRecordingPlaceholder(for: method, into: frame)
         }
+    }
+
+    static func prepareAsync(
+        _ frame: UnsafeMutablePointer<TDCallFrame>
+    ) -> UnsafeMutableRawPointer? {
+        let slot = Int(frame.loadWord(at: TDFrame.slot))
+        guard let recorder = findRecorder(in: frame) else {
+            fatalError("[TestDoubles] Trampoline could not resolve recorder for witness call at slot \(slot).")
+        }
+        guard let method = recorder.runtimeMethod(for: slot) else {
+            fatalError("[TestDoubles] No method descriptor registered for witness slot \(slot).")
+        }
+        let args = decodeArguments(for: method, from: frame)
+        guard let handler = recorder.prepareAsyncDispatch(method: slot, args: args) else {
+            handle(frame, recorder: recorder, method: method, slot: slot, args: args)
+            return nil
+        }
+
+        let state = AsyncDispatchState(
+            frame: frame.pointee,
+            method: method,
+            args: args,
+            handler: handler
+        )
+        return Unmanaged.passRetained(state).toOpaque()
+    }
+
+    static func dispatchAsync(_ rawState: UnsafeMutableRawPointer) async {
+        let state = Unmanaged<AsyncDispatchState>.fromOpaque(rawState).takeUnretainedValue()
+        await state.run()
+    }
+
+    static func finishAsync(
+        _ rawState: UnsafeMutableRawPointer,
+        into frame: UnsafeMutablePointer<TDCallFrame>
+    ) {
+        let state = Unmanaged<AsyncDispatchState>.fromOpaque(rawState).takeRetainedValue()
+        frame.pointee = state.frame
     }
 
     private static func findRecorder(in frame: UnsafeMutablePointer<TDCallFrame>) -> StubRecorder? {

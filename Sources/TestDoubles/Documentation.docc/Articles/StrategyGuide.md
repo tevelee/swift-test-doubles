@@ -9,7 +9,7 @@ TestDoubles has four useful tools:
 | Tool | Best for | Cost | Main limitation |
 |---|---|---|---|
 | ``ManualStub`` | Maximum portability and explicit test doubles | You write a conforming type | Boilerplate grows with protocol size |
-| ``RuntimeStub`` | Fast protocol stubs without generated Swift source | Uses Swift runtime metadata and ABI trampolines | Handlers cannot suspend |
+| ``RuntimeStub`` | Fast protocol stubs without generated Swift source | Uses Swift runtime metadata and ABI trampolines | Limited to covered runtime ABI shapes |
 | ``CompiledStub`` | Full-fidelity protocol stubs on macOS | Runs `swiftc` at test startup | macOS and toolchain required |
 | ``DynamicReplacementCompiler`` | Replacing concrete functions or methods | Requires an implicit-dynamic implementation build | Process-wide replacement, not scoped to one stub |
 
@@ -32,11 +32,12 @@ Start here:
 
 1. If you can write a small conforming type and portability matters, use
    ``ManualStub``.
-2. If you want no boilerplate and immediate configured responses, use
+2. If you want no boilerplate for covered protocol ABI shapes, use
    ``RuntimeStub``.
 3. If the protocol is generic-heavy or has coroutine accessors, use
    ``CompiledStub`` on macOS or ``ManualStub`` elsewhere. If stubbed behavior
-   itself must suspend, write that behavior directly in a ``ManualStub`` method.
+   needs an ABI shape RuntimeStub does not cover, write that behavior directly
+   in a ``ManualStub`` method.
 4. If the code under test does not call through a protocol existential, use
    ``DynamicReplacementCompiler`` only when you control the implementation
    build.
@@ -205,10 +206,19 @@ heuristics.
 
 ### RuntimeStub Limits
 
-RuntimeStub supports async and async-throwing requirements, but configured
-handlers complete immediately. A RuntimeStub handler cannot suspend or await
-other work. Use a hand-written ``ManualStub`` method when the test double must
-perform genuinely asynchronous work.
+RuntimeStub supports async and async-throwing requirements. `returns` and
+`then:` use the immediate continuation path; `thenAsync:` installs a handler
+that may suspend, await other work, or throw:
+
+```swift
+await stub.when({ try await $0.fetch(url: any()) }, thenAsync: { args in
+    try await transport.fetch(args[0] as! String)
+})
+```
+
+The suspending path remains in the caller's structured task, preserving task
+locals, priority, cancellation, and actor execution. RuntimeStub still supports
+only the argument and return ABI shapes listed above.
 
 RuntimeStub also skips coroutine accessors such as `_read` and `_modify`.
 Protocols that expose effects through those accessors should use

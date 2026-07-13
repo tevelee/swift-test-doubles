@@ -21,8 +21,8 @@ marshalling, ownership model, debugger breakpoints, and maintenance rules, see
 **Dependency:** RuntimeStub requires the `Echo` package (pulled in automatically when the `RuntimeStub` trait is active).
 
 **Async:** RuntimeStub supports async and async-throwing requirements through a
-dedicated continuation trampoline. Configured responses complete immediately;
-handler closures cannot themselves suspend.
+dedicated continuation trampoline. Use `returns` or `then:` for immediate
+responses and `thenAsync:` when the configured handler must suspend.
 
 For the full decision matrix, see <doc:StrategyGuide>.
 
@@ -152,26 +152,37 @@ let stub = try RuntimeStub<any SearchIndex>.make(
 
 ## Tradeoffs
 
-RuntimeStub is the fastest no-boilerplate path for protocols whose configured
-responses can complete immediately. It
-does not run `swiftc` at test startup, and explicit/module signatures no longer
-need a real conformer in the binary.
+RuntimeStub is the fastest no-boilerplate path for protocol stubs. It does not
+run `swiftc` at test startup, and explicit/module signatures do not need a real
+conformer in the binary.
 
 The cost is ABI coupling. RuntimeStub depends on Swift runtime metadata,
 protocol descriptor layout, and small assembly stubs for the supported
-architectures. Async witness entries use compact function descriptors and
-complete by invoking the continuation stored in Swift's async context.
+architectures. Async witness entries use compact function descriptors.
+Immediate responses invoke the caller's continuation directly; suspending
+handlers chain a Swift async frame into the caller's existing task before
+resuming that continuation.
+
+```swift
+await stub.when({ try await $0.load(id: any()) }, thenAsync: { args in
+    let id = args[0] as! Int
+    return try await fixtureStore.load(id: id)
+})
+```
+
+`thenAsync:` preserves the caller task's task-local values, priority,
+cancellation state, and actor executor. Use the distinct label to make genuine
+suspension explicit; `then:` remains the lower-overhead immediate path.
 
 Use RuntimeStub when:
 
 - tests need short setup and no hand-written conformer
-- configured sync or async responses can complete immediately
+- configured async responses may be immediate or genuinely suspending
 - argument and return types have runtime metadata available
 - the dependency is passed as an existential protocol value
 
 Avoid RuntimeStub when:
 
-- async handlers need to suspend or await other work
 - the protocol relies on `_read` or `_modify` coroutine accessors
 - calls are made to concrete functions or concrete methods instead of protocol
   witnesses
@@ -181,8 +192,8 @@ Avoid RuntimeStub when:
 
 - No conformer: use `makeFromModule()` or explicit slots.
 - Module extraction unavailable: use explicit slots or ``CompiledStub``.
-- Suspending async behavior: implement it directly in a hand-written
-  ``ManualStub`` method.
+- Unsupported async ABI shape: use ``CompiledStub`` or implement it directly
+  in a hand-written ``ManualStub`` method.
 - Concrete function or final method: use ``DynamicReplacementCompiler`` if the
   implementation is built with implicit dynamic.
 - Type metadata cannot be resolved: use explicit slots with concrete
@@ -205,7 +216,8 @@ The C/assembly and internal Swift method map is documented in
 - Runtime marshalling depends on real Swift type metadata. If metadata cannot
   be resolved for a requirement, use explicit ``Slot`` descriptors or
   ``CompiledStub``.
-- Async handlers complete immediately; they cannot suspend or await other work.
+- Suspending handlers require `thenAsync:`. The existing `returns` and `then:`
+  APIs intentionally remain immediate.
 - Fabricated conformances are used to build the returned existential directly.
   Do not rely on unrelated `as?` runtime conformance lookup for arbitrary
   payload values.
