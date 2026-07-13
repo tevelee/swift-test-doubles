@@ -11,7 +11,7 @@ versions are not guaranteed backports.
 
 This file is the authoritative release-support policy.
 
-- Swift 6.1 or later.
+- Swift 6.1 or later on Apple platforms; Swift 6.2 on Ubuntu.
 - macOS 13 or later on arm64 and x86_64. CI executes x86_64 under Rosetta.
 - Mac Catalyst 16 or later on arm64.
 - iOS 16, tvOS 16, visionOS 1, and watchOS 9 or later in their arm64
@@ -28,6 +28,11 @@ Physical iOS, tvOS, visionOS, and watchOS devices are also unsupported because
 the runtime generates executable trampoline code and CI cannot exercise device
 execution policy. The runtime does not implement watchOS's `arm64_32` device
 ABI.
+
+Swift 6.3 on Linux is currently unsupported because Echo's Swift Atomics 0.0.x
+dependency conflicts with the standard-library `Synchronization` module added
+to that toolchain. CI uses the official Swift 6.2.4 Ubuntu 24.04 image until
+that dependency can move to a compatible release.
 
 ## Getting help
 

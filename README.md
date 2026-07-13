@@ -51,9 +51,9 @@ targets: [
 ```
 
 TestDoubles requires Swift 6.1 and supports macOS 13+, Mac Catalyst 16+, arm64
-Simulators for iOS 16+, tvOS 16+, visionOS 1+, and watchOS 9+, and Ubuntu 24.04
-on arm64 and x86_64. See [SUPPORT.md](SUPPORT.md) for the authoritative release
-boundary.
+Simulators for iOS 16+, tvOS 16+, visionOS 1+, and watchOS 9+, and Swift 6.2 on
+Ubuntu 24.04 arm64 and x86_64. See [SUPPORT.md](SUPPORT.md) for the authoritative
+release boundary.
 
 ## Common patterns
 

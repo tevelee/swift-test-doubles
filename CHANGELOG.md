@@ -50,7 +50,9 @@ The project has not published its first tagged release yet.
   actor-isolated caller executor resumption.
 - The CI-backed release boundary covers macOS 13+, Mac Catalyst 16+, arm64
   Simulators for iOS 16+, tvOS 16+, visionOS 1+, and watchOS 9+, and Ubuntu
-  24.04, with runtime execution on arm64 and x86_64 where available.
+  24.04 with Swift 6.2, with runtime execution on arm64 and x86_64 where
+  available. Swift 6.3 on Linux remains blocked by Echo's Swift Atomics 0.0.x
+  dependency.
 - The README and Getting Started guide now showcase the same task-oriented
   matching, capture, async, stateful-response, and explicit-construction
   scenarios.
