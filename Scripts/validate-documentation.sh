@@ -11,6 +11,8 @@ cd "$root"
 rm -rf "$raw_symbols" "$symbols" "$build_path/docc"
 mkdir -p "$raw_symbols" "$symbols"
 
+swift package --scratch-path "$build_path/package" clean
+
 swift build \
     --target TestDoubles \
     --scratch-path "$build_path/package" \

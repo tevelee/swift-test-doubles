@@ -50,9 +50,9 @@ targets: [
 ]
 ```
 
-TestDoubles requires Swift 6.1 and supports macOS 15 and later on arm64 and
-Rosetta x86_64. The manifest's lower deployment targets remain experimental;
-see [SUPPORT.md](SUPPORT.md) for the authoritative release boundary.
+TestDoubles requires Swift 6.1 and supports macOS 13+, the arm64 iOS 16+
+Simulator, and Ubuntu 24.04 on arm64 and x86_64. See [SUPPORT.md](SUPPORT.md)
+for the authoritative release boundary.
 
 ## Common patterns
 

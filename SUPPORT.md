@@ -12,14 +12,18 @@ versions are not guaranteed backports.
 This file is the authoritative release-support policy.
 
 - Swift 6.1 or later.
-- macOS 15 or later on arm64 and on x86_64 under Rosetta.
+- macOS 13 or later on arm64 and x86_64. CI executes x86_64 under Rosetta.
+- iOS 16 or later in the arm64 Simulator.
+- Ubuntu 24.04 on arm64 and x86_64.
 - The public `TestDoubles` library product and the API listed in
   [PUBLIC_API.md](PUBLIC_API.md).
 
-The package declares macOS 13 and iOS 16 deployment targets so experimental
-builds can be evaluated, but CI does not execute the runtime below macOS 15 or
-on iOS. Those configurations and Linux are unsupported. Only the configurations
-above should be relied on for released software.
+CI executes the runtime on every supported operating-system and architecture
+family above. Apple deployment targets are compiled at their declared minimum
+and executed on the simulator or runner versions available to GitHub Actions.
+Other operating systems, Linux distributions, and architectures are unsupported.
+Physical iOS devices are also unsupported because the runtime generates
+executable trampoline code and CI cannot exercise device execution policy.
 
 ## Getting help
 

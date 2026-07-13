@@ -2,6 +2,7 @@ import Dispatch
 import Testing
 @testable import TestDoubles
 
+@available(iOS 17, *)
 private final class QueueSerialExecutor: @unchecked Sendable, SerialExecutor {
     private let queue = DispatchQueue(label: "TestDoubles.QueueSerialExecutor")
     private let queueKey = DispatchSpecificKey<Void>()
@@ -10,8 +11,7 @@ private final class QueueSerialExecutor: @unchecked Sendable, SerialExecutor {
         queue.setSpecific(key: queueKey, value: ())
     }
 
-    func enqueue(_ job: consuming ExecutorJob) {
-        let job = UnownedJob(job)
+    func enqueue(_ job: UnownedJob) {
         let executor = asUnownedSerialExecutor()
         queue.async {
             job.runSynchronously(on: executor)
@@ -34,6 +34,7 @@ private enum CustomExecutorError: Error, Equatable {
     case wrongExecutor
 }
 
+@available(iOS 17, *)
 private actor CustomExecutorCaller {
     nonisolated let executor: QueueSerialExecutor
 
@@ -81,7 +82,9 @@ private protocol ConcurrentInvocationProbe: Sendable {
 }
 
 @Suite struct ConcurrencyTests {
-    @Test func asyncDispatchPreservesCustomSerialExecutor() async throws {
+    @Test
+    @available(iOS 17, *)
+    func asyncDispatchPreservesCustomSerialExecutor() async throws {
         let executor = QueueSerialExecutor()
         let caller = CustomExecutorCaller(executor: executor)
         let stub = try Stub<any CustomExecutorProbe>(

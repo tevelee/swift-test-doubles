@@ -49,6 +49,53 @@ jobs:
       - name: Test debug
         run: swift test --scratch-path .build/current-toolchain
 
+  ios:
+    name: iOS 16+ Simulator / arm64
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Select Xcode 16.4
+        run: sudo xcode-select --switch /Applications/Xcode_16.4.app/Contents/Developer
+      - name: Show toolchain
+        run: swift --version
+      - name: Test on iOS Simulator
+        run: >-
+          xcodebuild
+          -scheme swift-test-doubles
+          -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'
+          -derivedDataPath .build/ci-ios
+          -quiet
+          test
+
+  linux:
+    name: Ubuntu 24.04 / ${{ matrix.architecture }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            architecture: x86_64
+          - runner: ubuntu-24.04-arm
+            architecture: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Show toolchain
+        run: swift --version
+      - name: Test debug
+        run: swift test --scratch-path .build/ci-linux
+      - name: Test release
+        run: swift test -c release --scratch-path .build/ci-linux
+      - name: Test as an external consumer
+        run: >-
+          swift test
+          --package-path IntegrationTests/Consumer
+          --scratch-path "$RUNNER_TEMP/consumer-build"
+
   rosetta:
     name: Swift 6.1 / Rosetta x86_64
     runs-on: macos-15

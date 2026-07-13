@@ -75,9 +75,13 @@ be diagnosed during construction.
 
 ### Runtime and platform boundary
 
-CI-backed release support starts at macOS 15 on arm64 and Rosetta x86_64. The
-manifest's macOS 13 and iOS 16 deployment targets remain experimental, and iOS
-and Linux are unsupported until runtime execution CI covers them.
+CI-backed release support covers macOS 13+, the arm64 iOS 16+ Simulator, and
+Ubuntu 24.04. The runtime executes on arm64 and x86_64 where those architectures
+are available; macOS x86_64 coverage runs under Rosetta. Apple deployment
+targets are compiled at their declared minimum and executed on CI's available
+runner or simulator OS. Physical iOS devices are unsupported because the
+runtime generates executable trampoline code and CI cannot exercise device
+execution policy.
 
 On x86_64, construction rejects async requirements whose arguments and indirect
 result consume all six general-purpose argument registers. That continuation
