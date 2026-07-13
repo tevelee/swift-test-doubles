@@ -18,7 +18,13 @@ arch -x86_64 swift test \
   --triple x86_64-apple-macosx \
   --disable-xctest \
   --enable-swift-testing \
-  --filter 'RuntimeABITests|ConcurrencyTests|StubBuilderTests|DocumentationExamplesTests'
+  --filter 'RuntimeABITests|ConcurrencyTests|StubBuilderTests'
+
+arch -x86_64 swift test \
+  --package-path IntegrationTests/Consumer \
+  --triple x86_64-apple-macosx \
+  --disable-xctest \
+  --enable-swift-testing
 ```
 
 `RuntimeABITests` covers register and stack arguments, throwing calls, direct
@@ -33,14 +39,22 @@ swift test --sanitize thread --scratch-path .build/tsan
 swift test --sanitize address --scratch-path .build/asan
 ```
 
-When changing public declarations, update [PUBLIC_API.md](PUBLIC_API.md) and
-compare it with a public symbol graph:
+The documentation examples live in a separate Swift package so they validate
+the exported product exactly as a consumer sees it:
 
 ```bash
-xcrun swift package dump-symbol-graph \
-  --minimum-access-level public \
-  --skip-synthesized-members
+swift test --package-path IntegrationTests/Consumer
 ```
+
+When changing public declarations, update [PUBLIC_API.md](PUBLIC_API.md), build
+a `TestDoubles.symbols.json`, and run DocC analysis with warnings as errors:
+
+```bash
+Scripts/validate-documentation.sh
+```
+
+The same command validates repository-local documentation links and runs in
+[ci.yml](.github/workflows/ci.yml).
 
 ## Runtime trampoline
 
@@ -62,15 +76,5 @@ handler closures remain responsible for their own captured mutable state.
 - Open a pull request targeting `main`.
 - Run all checks relevant to the changed runtime paths.
 
-## Current release boundaries
-
-- macOS 13+ is the initial release-supported platform, exercised on arm64 and
-  Rosetta x86_64.
-- iOS 16 remains declared for experimental builds, and iOS and Linux are not
-  release-supported until real runtime CI exists.
-- Closure requirements need compiler-generated reabstraction and are rejected;
-  use a hand-written test double for such protocols.
-- x86_64 construction rejects async signatures that consume all six
-  general-purpose argument registers.
-
-See [ROADMAP.md](ROADMAP.md) for the work required before `0.1.0`.
+See [SUPPORT.md](SUPPORT.md) for the release boundary and
+[ROADMAP.md](ROADMAP.md) for the work required before `0.1.0`.

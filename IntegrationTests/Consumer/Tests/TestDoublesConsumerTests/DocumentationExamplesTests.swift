@@ -1,6 +1,39 @@
 import Testing
 import TestDoubles
-import TestDoublesFixtures
+
+protocol UserRepository {
+    func find(id: Int) -> String
+}
+
+struct LiveUserRepository: UserRepository {
+    func find(id: Int) -> String { "" }
+}
+
+protocol NotificationService {
+    func send(to userID: Int, message: String) throws
+}
+
+struct LiveNotificationService: NotificationService {
+    func send(to userID: Int, message: String) throws {}
+}
+
+protocol AsyncDataLoader {
+    func load(url: String) async throws -> String
+    func prefetch(urls: [String]) async
+    var cacheSize: Int { get }
+}
+
+struct LiveDataLoader: AsyncDataLoader {
+    func load(url: String) async throws -> String { "" }
+    func prefetch(urls: [String]) async {}
+    var cacheSize: Int { 0 }
+}
+
+protocol PrototypeCalculator {
+    func add(_ lhs: Int, _ rhs: Int) -> Int
+    func describe(_ value: Int) -> String
+    var precision: Int { get }
+}
 
 private struct LoadError: Error, Equatable {
     let url: String
@@ -83,5 +116,26 @@ struct DocumentationExamplesTests {
         #expect(repository.find(id: 42) == "syncing")
         #expect(repository.find(id: 42) == "ready")
         stub.verify(.exactly(2)) { $0.find(id: equal(42)) }
+    }
+
+    @Test("Explicit requirements work without a linked conformer")
+    func constructsFromExplicitRequirements() throws {
+        let stub = try Stub<any PrototypeCalculator>(
+            .method(Int.self, Int.self, returning: Int.self),
+            .method(Int.self, returning: String.self),
+            .getter(Int.self)
+        )
+        stub.when { $0.add(any(), any()) }.then { (lhs: Int, rhs: Int) in
+            lhs + rhs
+        }
+        stub.when { $0.describe(any()) }.then { (value: Int) in
+            "value=\(value)"
+        }
+        stub.when { $0.precision }.returns(2)
+
+        let calculator: any PrototypeCalculator = stub()
+        #expect(calculator.add(20, 22) == 42)
+        #expect(calculator.describe(42) == "value=42")
+        #expect(calculator.precision == 2)
     }
 }

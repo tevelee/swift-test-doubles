@@ -75,9 +75,9 @@ be diagnosed during construction.
 
 ### Runtime and platform boundary
 
-The supported release boundary is macOS 13+ on arm64 and Rosetta x86_64. iOS 16
-is an experimental manifest destination; iOS and Linux remain unsupported until
-runtime execution CI covers them.
+CI-backed release support starts at macOS 15 on arm64 and Rosetta x86_64. The
+manifest's macOS 13 and iOS 16 deployment targets remain experimental, and iOS
+and Linux are unsupported until runtime execution CI covers them.
 
 On x86_64, construction rejects async requirements whose arguments and indirect
 result consume all six general-purpose argument registers. That continuation

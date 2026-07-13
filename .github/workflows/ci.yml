@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  minimum-toolchain:
+    name: Swift 6.1 / arm64
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Select Xcode 16.4
+        run: sudo xcode-select --switch /Applications/Xcode_16.4.app/Contents/Developer
+      - name: Show toolchain
+        run: swift --version
+      - name: Test debug
+        run: swift test --scratch-path .build/ci
+      - name: Test release
+        run: swift test -c release --scratch-path .build/ci
+      - name: Test as an external consumer
+        run: >-
+          swift test
+          --package-path IntegrationTests/Consumer
+          --scratch-path "$RUNNER_TEMP/consumer-build"
+      - name: Validate documentation
+        run: Scripts/validate-documentation.sh
+
+  current-toolchain:
+    name: Current Xcode / arm64
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Show toolchain
+        run: swift --version
+      - name: Test debug
+        run: swift test --scratch-path .build/current-toolchain
+
+  rosetta:
+    name: Swift 6.1 / Rosetta x86_64
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Select Xcode 16.4
+        run: sudo xcode-select --switch /Applications/Xcode_16.4.app/Contents/Developer
+      - name: Install Rosetta
+        run: sudo softwareupdate --install-rosetta --agree-to-license
+      - name: Show translated toolchain
+        run: arch -x86_64 swift --version
+      - name: Test runtime and concurrency
+        run: |
+          arch -x86_64 swift test \
+            --scratch-path .build/ci-rosetta \
+            --triple x86_64-apple-macosx \
+            --disable-xctest \
+            --enable-swift-testing \
+            --filter 'RuntimeABITests|ConcurrencyTests|StubBuilderTests'
+      - name: Test documentation examples as an external consumer
+        run: |
+          arch -x86_64 swift test \
+            --package-path IntegrationTests/Consumer \
+            --scratch-path "$RUNNER_TEMP/consumer-build-x86_64" \
+            --triple x86_64-apple-macosx \
+            --disable-xctest \
+            --enable-swift-testing

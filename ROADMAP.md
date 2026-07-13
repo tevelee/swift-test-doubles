@@ -87,8 +87,9 @@ and one `then` family, then inspected with `verify`.
   signatures against linked conformances, and rejects the x86_64 six-register
   async boundary. Custom `SerialExecutor` tests cover handler isolation and
   caller resumption, while concurrent sync/async stress tests run under Thread
-  and Address Sanitizers. macOS 13+ is the initial supported platform; iOS and
-  Linux remain deferred until real runtime execution coverage exists.
+  and Address Sanitizers. macOS 15+ is the initial CI-backed runtime boundary;
+  lower manifest deployment targets, iOS, and Linux remain experimental until
+  real runtime execution coverage exists.
 - **Done criteria:** The supported signature/platform matrix is tested, checked
   during construction, and documented from the same source of truth where
   practical.
@@ -124,7 +125,7 @@ and one `then` family, then inspected with `verify`.
 
 ## Iteration 5 — Release engineering
 
-**Status:** Planned
+**Status:** In progress — Phase 5A release gates and policies complete
 
 - **Objective:** Make a clean consumer checkout safe to adopt and maintain.
 - **Mode:** Release preparation.
@@ -139,7 +140,12 @@ and one `then` family, then inspected with `verify`.
 - **Integration notes:** Move dependencies to appropriate tagged releases,
   write the changelog from the actual first tag boundary, publish support and
   security expectations, and tag `0.1.0` only after the release checklist is
-  reproducible.
+  reproducible. Phase 5A adds minimum/current Swift CI on arm64, real Rosetta
+  x86_64 execution, DocC and link gates, a separate consumer package for every
+  motivating example, and support/security policies. Phase 5B should automate
+  the public API snapshot, finalize dependency pins, write the release
+  checklist, and enable GitHub private vulnerability reporting before the
+  repository becomes public.
 - **Done criteria:** A fresh consumer can add the tagged package, compile every
   documented example, run the supported test matrix, and understand the support
   policy without repository-specific knowledge.

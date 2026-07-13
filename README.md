@@ -50,15 +50,14 @@ targets: [
 ]
 ```
 
-TestDoubles requires Swift 6.1. The initial release supports macOS 13 and later,
-exercised natively on arm64 and under Rosetta on x86_64. The manifest retains an
-iOS 16 minimum for experimental builds, but iOS and Linux are not
-release-supported yet.
+TestDoubles requires Swift 6.1 and supports macOS 15 and later on arm64 and
+Rosetta x86_64. The manifest's lower deployment targets remain experimental;
+see [SUPPORT.md](SUPPORT.md) for the authoritative release boundary.
 
 ## Common patterns
 
 The examples in this section are mirrored by public-API consumer tests in
-[DocumentationExamplesTests.swift](Tests/TestDoublesTests/DocumentationExamplesTests.swift).
+[DocumentationExamplesTests.swift](IntegrationTests/Consumer/Tests/TestDoublesConsumerTests/DocumentationExamplesTests.swift).
 
 ### Dynamic responses and matching
 
@@ -266,4 +265,5 @@ to the trampoline.
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the validation matrix and runtime
-architecture notes.
+architecture notes. See [SUPPORT.md](SUPPORT.md) for supported configurations
+and [SECURITY.md](SECURITY.md) for private vulnerability reporting.

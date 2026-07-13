@@ -19,6 +19,9 @@ The project has not published its first tagged release yet.
   count verification.
 - Compiled public-API examples for matcher specificity, argument capture,
   suspending async success and failure, and stateful responses.
+- A clean consumer-package suite and CI gates for the minimum/current Swift
+  toolchains, release builds, DocC, and Rosetta x86_64.
+- Support and private vulnerability-reporting policies.
 
 ### Changed
 
@@ -45,9 +48,9 @@ The project has not published its first tagged release yet.
 - Async dispatch preserves task-local state, cancellation, priority, handler
   actor isolation (including when the actor uses a custom serial executor), and
   actor-isolated caller executor resumption.
-- The initial release support boundary is macOS 13+ on arm64 and Rosetta
-  x86_64; iOS 16 remains declared for experimental builds, and iOS and Linux
-  remain outside release support until runtime CI covers them.
+- The initial CI-backed release boundary is macOS 15+ on arm64 and Rosetta
+  x86_64; lower manifest deployment targets, iOS, and Linux remain experimental
+  until runtime CI covers them.
 - The README and Getting Started guide now showcase the same task-oriented
   matching, capture, async, stateful-response, and explicit-construction
   scenarios.
