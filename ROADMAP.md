@@ -90,8 +90,9 @@ and one `then` family, then inspected with `verify`.
   and Address Sanitizers. The finalized CI-backed runtime boundary covers
   macOS 13+, Mac Catalyst 16+, arm64 Simulators for iOS 16+, tvOS 16+,
   visionOS 1+, and watchOS 9+, with real runtime execution on arm64 and macOS
-  x86_64. Linux was investigated on both architectures and excluded because an
-  Echo/Swift Atomics dependency conflict fails before TestDoubles compiles.
+  x86_64. A candidate Echo compatibility patch passes the full Linux debug,
+  release, and external-consumer suites on arm64 and x86_64; Linux remains
+  excluded until that dependency fix is published.
 - **Done criteria:** The supported signature/platform matrix is tested, checked
   during construction, and documented from the same source of truth where
   practical.
@@ -148,8 +149,9 @@ and one `then` family, then inspected with `verify`.
   support/security policies. Linux arm64 and x86_64 investigation found the
   same upstream dependency compile failure, so it is documented rather than
   claimed; a separate manual workflow tests the candidate upstream fix on both
-  architectures. Phase 5B adds dependency caching, canonical public-API
-  snapshot enforcement, and a reproducible local/CI/tagging release checklist.
+  architectures through the full runtime and consumer suites. Phase 5B adds
+  dependency caching, canonical public-API snapshot enforcement, and a
+  reproducible local/CI/tagging release checklist.
   A compatible tagged Echo release and GitHub private vulnerability reporting
   remain release blockers.
 - **Done criteria:** A fresh consumer can add the tagged package, compile every

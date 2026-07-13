@@ -86,7 +86,9 @@ jobs:
           - name: tvOS 16+ Simulator / arm64
             destination: platform=tvOS Simulator,name=Apple TV,OS=18.5
           - name: visionOS 1+ Simulator / arm64
-            destination: platform=visionOS Simulator,name=Apple Vision Pro,OS=2.5
+            destination: platform=visionOS Simulator,name=TestDoubles CI,OS=2.5
+            device_type: com.apple.CoreSimulator.SimDeviceType.Apple-Vision-Pro
+            runtime: com.apple.CoreSimulator.SimRuntime.xrOS-2-5
           - name: watchOS 9+ Simulator / arm64
             destination: platform=watchOS Simulator,name=Apple Watch Series 10 (46mm),OS=11.5
     runs-on: macos-15
@@ -109,6 +111,13 @@ jobs:
         run: sudo xcode-select --switch /Applications/Xcode_16.4.app/Contents/Developer
       - name: Show toolchain
         run: swift --version
+      - name: Create simulator
+        if: matrix.device_type
+        run: >-
+          xcrun simctl create
+          'TestDoubles CI'
+          '${{ matrix.device_type }}'
+          '${{ matrix.runtime }}'
       - name: Test
         run: >-
           xcodebuild
