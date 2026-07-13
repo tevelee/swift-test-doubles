@@ -53,10 +53,10 @@ import Testing
 
     #if COMPILED_STUB
     @Test func asyncCompiledMock() async throws {
-        let stub = RuntimeStub<any AsyncDataLoader>(strategy: .compiled)
-        await stub.when { try await $0.load(url: any()) } then: { "async!" }
+        let stub = try CompiledStub<any AsyncDataLoader>()
+        await stub.when { try await $0.load(url: any()) }.returns("async!")
         await stub.when { await $0.prefetch(urls: any()) }
-        stub.when { $0.cacheSize } then: { 99 }
+        stub.when { $0.cacheSize }.returns(99)
 
         let sut: any AsyncDataLoader = stub()
         #expect(try await sut.load(url: "https://x.com") == "async!")

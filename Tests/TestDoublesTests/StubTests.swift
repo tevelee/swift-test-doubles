@@ -195,6 +195,24 @@ struct RealFileLoader: FileLoader {
         }
     }
 
+    @Test func orderedVerificationDoesNotReplayStubbedHandlers() {
+        let stub = RuntimeStub<any Calculator>()
+        var describeExecutions = 0
+        stub.when { $0.describe(any()) }.then { _ in
+            describeExecutions += 1
+            return "X"
+        }
+
+        let sut: any Calculator = stub()
+        _ = sut.describe(1)
+
+        #expect(describeExecutions == 1)
+        stub.verifyOrder {
+            _ = $0.describe(any())
+        }
+        #expect(describeExecutions == 1)
+    }
+
     @Test func callLog() {
         let stub = RuntimeStub<any Calculator>()
         stub.when { $0.describe(any()) }.returns("X")
@@ -306,6 +324,22 @@ struct RealFileLoader: FileLoader {
 
         stub.verify(called: 2) { try $0.read(path: any()) }
         stub.verify(never: { try $0.write(path: any(), content: any()) })
+    }
+
+    @Test func throwingVerificationDoesNotReplayStubbedHandlers() throws {
+        let stub = RuntimeStub<any FileLoader>()
+        var loadExecutions = 0
+        stub.when { try $0.load(path: any()) }.then { _ in
+            loadExecutions += 1
+            return "content"
+        }
+
+        let sut: any FileLoader = stub()
+        #expect(try sut.load(path: "/a") == "content")
+
+        #expect(loadExecutions == 1)
+        stub.verify { try $0.load(path: any()) }.wasCalled()
+        #expect(loadExecutions == 1)
     }
 
     @Test func throwingMultiplePaths() throws {

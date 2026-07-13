@@ -13,7 +13,42 @@ struct RealMatcherTestService: MatcherTestService {
     var count: Int { 0 }
 }
 
+struct MatcherTestError: Error, Equatable {
+    let code: Int
+}
+
 @Suite struct PredicateMatcherTests {
+    @Test func reusableTypedMatcher() {
+        let stub = RuntimeStub<any MatcherTestService>()
+        let vipID = Matcher<Int>("VIP id") { $0 > 100 }
+        stub.when { $0.find(id: matching(vipID)) }.returns("VIP")
+        stub.when { $0.find(id: any()) }.returns("Regular")
+        stub.when { $0.count }.returns(0)
+        let sut: any MatcherTestService = stub()
+        #expect(sut.find(id: 101) == "VIP")
+        #expect(sut.find(id: 50) == "Regular")
+    }
+
+    @Test func inlineNamedMatcher() {
+        let stub = RuntimeStub<any MatcherTestService>()
+        stub.when { $0.search(query: matching("admin query") { $0.hasPrefix("admin") }, limit: any()) }.returns(["admin"])
+        stub.when { $0.search(query: any(), limit: any()) }.returns([])
+        stub.when { $0.count }.returns(0)
+        let sut: any MatcherTestService = stub()
+        #expect(sut.search(query: "admin.users", limit: 10) == ["admin"])
+        #expect(sut.search(query: "public.users", limit: 10) == [])
+    }
+
+    @Test func matcherContextSurvivesAsyncSuspension() async {
+        let (_, matchers) = await MatcherContext.withRecording {
+            await Task.yield()
+            _ = any(Int.self)
+        }
+
+        #expect(matchers.count == 1)
+        #expect(matchers.first?.diagnosticDescription == "any()")
+    }
+
     @Test func filterByPredicate() {
         let stub = RuntimeStub<any MatcherTestService>()
         stub.when { $0.find(id: any(where: { $0 > 100 })) }.returns("VIP")
@@ -91,6 +126,18 @@ struct RealMatcherTestService: MatcherTestService {
         #expect(captor.values == [1, 2, 3])
     }
 
+    @Test func captureIntoFunction() {
+        let stub = RuntimeStub<any MatcherTestService>()
+        stub.when { $0.find(id: any()) }.returns("X")
+        stub.when { $0.count }.returns(0)
+        let sut: any MatcherTestService = stub()
+        _ = sut.find(id: 7)
+        _ = sut.find(id: 13)
+        let captor = ArgumentCaptor<Int>()
+        stub.verify { $0.find(id: capture(into: captor)) }.wasCalled(times: 2)
+        #expect(captor.values == [7, 13])
+    }
+
     @Test func twoArguments() {
         let stub = RuntimeStub<any MatcherTestService>()
         stub.when { $0.search(query: any(), limit: any()) }.returns([])
@@ -102,6 +149,23 @@ struct RealMatcherTestService: MatcherTestService {
         stub.verify { $0.search(query: q.capture(), limit: l.capture()) }.wasCalled(times: 2)
         #expect(q.values == ["alice", "bob"])
         #expect(l.values == [10, 20])
+    }
+
+    @Test func typedWithArgs() {
+        let stub = RuntimeStub<any MatcherTestService>()
+        stub.when { $0.search(query: any(), limit: any()) }.returns([])
+        stub.when { $0.count }.returns(0)
+        let sut: any MatcherTestService = stub()
+        _ = sut.search(query: "alice", limit: 10)
+        _ = sut.search(query: "bob", limit: 20)
+
+        var captured: [(String, Int)] = []
+        stub.verify { $0.search(query: any(), limit: any()) }.withArgs { (query: String, limit: Int) in
+            captured.append((query, limit))
+        }
+
+        #expect(captured.map(\.0) == ["alice", "bob"])
+        #expect(captured.map(\.1) == [10, 20])
     }
 }
 
@@ -120,6 +184,16 @@ struct RealMatcherTestService: MatcherTestService {
         #expect(stub().find(id: 42) == "user_42")
     }
 
+    @Test func typedSingleArgumentHandler() {
+        let stub = RuntimeStub<any MatcherTestService>()
+        stub.when { $0.find(id: any()) }.then { (id: Int) in
+            "user_\(id)"
+        }
+        stub.when { $0.count }.returns(0)
+
+        #expect(stub().find(id: 42) == "user_42")
+    }
+
     @Test func multipleArgs() {
         let stub = RuntimeStub<any MatcherTestService>()
         stub.when { $0.search(query: any(), limit: any()) }.then { args in
@@ -130,12 +204,37 @@ struct RealMatcherTestService: MatcherTestService {
         #expect(stub().search(query: "x", limit: 3) == ["x", "x", "x"])
     }
 
+    @Test func typedMultipleArgumentHandler() {
+        let stub = RuntimeStub<any MatcherTestService>()
+        stub.when { $0.search(query: any(), limit: any()) }.then { (query: String, limit: Int) in
+            Array(repeating: query, count: limit)
+        }
+        stub.when { $0.count }.returns(0)
+
+        #expect(stub().search(query: "x", limit: 3) == ["x", "x", "x"])
+    }
+
     @Test func throwingHappyPath() throws {
         let stub = RuntimeStub<any ThrowingFileService>()
         stub.when { try $0.read(path: any()) }.then { return "content" }
         stub.when { $0.exists(at: any()) }.returns(true)
         stub.when { $0.basePath }.returns("/")
         #expect(try stub().read(path: "/test") == "content")
+    }
+
+    @Test func typedThrowingHandler() throws {
+        let stub = RuntimeStub<any ThrowingFileService>()
+        stub.when { try $0.read(path: any()) }.then { (path: String) throws in
+            if path == "/missing" { throw MatcherTestError(code: 404) }
+            return "content:\(path)"
+        }
+        stub.when { $0.exists(at: any()) }.returns(true)
+        stub.when { $0.basePath }.returns("/")
+
+        #expect(try stub().read(path: "/test") == "content:/test")
+        #expect(throws: MatcherTestError.self) {
+            try stub().read(path: "/missing")
+        }
     }
 
     @Test func throwRegistersStub() {
@@ -159,8 +258,10 @@ struct RealMatcherTestService: MatcherTestService {
         stub.when { $0.basePath }.returns("/")
 
         #expect(try stub().read(path: "/public/file") == "contents of /public/file")
-        let handler = stub.recorder.throwingStubs[0]![0].handler
-        #expect(throws: ReadError.self) { try handler(["/private/secret"]) }
+        let error = #expect(throws: ReadError.self) {
+            try stub().read(path: "/private/secret")
+        }
+        #expect(error?.path == "/private/secret")
     }
 }
 #endif // RUNTIME_STUB

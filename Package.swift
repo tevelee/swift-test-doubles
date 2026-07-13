@@ -21,6 +21,7 @@ let package = Package(
         .target(
             name: "TestDoubles",
             dependencies: [
+                "CTestDoublesTrampoline",
                 .product(name: "Echo", package: "Echo",
                          condition: .when(traits: ["RuntimeStub"])),
             ],
@@ -29,6 +30,10 @@ let package = Package(
                 .define("RUNTIME_STUB",  .when(traits: ["RuntimeStub"])),
                 .define("COMPILED_STUB", .when(traits: ["CompiledStub"])),
             ]
+        ),
+        .target(
+            name: "CTestDoublesTrampoline",
+            publicHeadersPath: "include"
         ),
         .testTarget(
             name: "TestDoublesTests",

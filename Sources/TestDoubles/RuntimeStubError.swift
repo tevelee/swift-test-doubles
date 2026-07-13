@@ -53,7 +53,12 @@ public enum RuntimeStubError: Error, Sendable, CustomStringConvertible {
     case runtimeCompilerFailed(protocolName: String, moduleName: String, details: String?)
     case missingCompiledSymbol(protocolName: String, symbol: String)
     case missingThunk(slot: Int, signature: MethodSignature)
+    case unsupportedAsyncRequirement(protocolName: String, methodName: String)
     case unsupportedTypeKind(typeName: String)
+    case invalidRequirementIndex(protocolName: String, index: Int, requirementCount: Int)
+    case duplicateRequirementIndex(protocolName: String, index: Int)
+    case moduleSignatureDiscoveryFailed(protocolName: String, moduleName: String, details: String)
+    case moduleSignatureNotFound(protocolName: String, moduleName: String)
 
     public var description: String {
         switch self {
@@ -62,7 +67,8 @@ public enum RuntimeStubError: Error, Sendable, CustomStringConvertible {
         case .noConformanceFound(let protocolName, _):
             return """
             No conformance found for protocol '\(protocolName)' in the current binary. \
-            Add one real conformer, or on macOS use `RuntimeStub<...>.compiled(signatures:)` to skip that requirement.
+            Zero-config RuntimeStub needs one for signature discovery. \
+            Use makeFromModule() to extract signatures from the compiled Swift module, pass explicit Slot/MethodDescriptor values, or use CompiledStub when you want generated full-fidelity conformers.
             """
         case .moduleNameCouldNotBeInferred(let typeDescription):
             return """
@@ -81,8 +87,24 @@ public enum RuntimeStubError: Error, Sendable, CustomStringConvertible {
             return "Compiled mock for '\(protocolName)' is missing exported symbol '\(symbol)'."
         case .missingThunk(let slot, let signature):
             return "No thunk available for slot \(slot) with signature \(signature)."
+        case .unsupportedAsyncRequirement(let protocolName, let methodName):
+            return """
+            RuntimeStub's raw trampoline does not support async requirement '\(methodName)' on '\(protocolName)'. \
+            Use CompiledStub on macOS, or ManualStub for async protocols.
+            """
         case .unsupportedTypeKind(let typeName):
             return "Unsupported type kind for '\(typeName)'."
+        case .invalidRequirementIndex(let protocolName, let index, let requirementCount):
+            return "Requirement index \(index) is outside '\(protocolName)' requirement range 0..<\(requirementCount)."
+        case .duplicateRequirementIndex(let protocolName, let index):
+            return "Requirement index \(index) was described more than once for '\(protocolName)'."
+        case .moduleSignatureDiscoveryFailed(let protocolName, let moduleName, let details):
+            return """
+            Failed to extract symbol graph signatures for '\(protocolName)' from module '\(moduleName)'.
+            \(details)
+            """
+        case .moduleSignatureNotFound(let protocolName, let moduleName):
+            return "Could not find protocol '\(protocolName)' in the symbol graph for module '\(moduleName)'."
         }
     }
 }
