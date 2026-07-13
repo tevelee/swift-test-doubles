@@ -1,0 +1,59 @@
+name: Dependabot auto-merge
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  checks: read
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge:
+    name: Merge after all checks pass
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.pull_requests[0].number != null
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      # workflow_run executes trusted default-branch code. Never check out or
+      # execute content from the pull request in this write-enabled workflow.
+      - name: Confirm Dependabot authored the pull request
+        id: dependabot
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+        run: |
+          author="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq .user.login)"
+          if test "$author" = 'dependabot[bot]'; then
+            echo "eligible=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Wait for every pull-request check
+        if: steps.dependabot.outputs.eligible == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+        run: >-
+          gh pr checks "$PR_NUMBER"
+          --repo "$GITHUB_REPOSITORY"
+          --watch
+          --fail-fast
+          --interval 10
+      - name: Squash and merge the tested head
+        if: steps.dependabot.outputs.eligible == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+        run: >-
+          gh pr merge "$PR_NUMBER"
+          --repo "$GITHUB_REPOSITORY"
+          --squash
+          --delete-branch
+          --match-head-commit "$HEAD_SHA"

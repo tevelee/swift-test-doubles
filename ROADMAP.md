@@ -150,8 +150,9 @@ and one `then` family, then inspected with `verify`.
   same upstream dependency compile failure, so it is documented rather than
   claimed; the main CI matrix tests the candidate upstream fix on both
   architectures through the full runtime and consumer suites. Phase 5B adds
-  dependency caching, canonical public-API snapshot enforcement, and a
-  reproducible local/CI/tagging release checklist.
+  dependency caching, workflow linting, CodeQL configuration, Dependabot
+  security/version updates with check-gated auto-merge, canonical public-API
+  snapshot enforcement, and a reproducible local/CI/tagging release checklist.
   A compatible tagged Echo release and GitHub private vulnerability reporting
   remain release blockers.
 - **Done criteria:** A fresh consumer can add the tagged package, compile every

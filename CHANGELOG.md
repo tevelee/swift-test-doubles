@@ -22,6 +22,8 @@ The project has not published its first tagged release yet.
 - A clean consumer-package suite and CI gates for the minimum/current Swift
   toolchains, release builds, DocC, and Rosetta x86_64.
 - Support and private vulnerability-reporting policies.
+- Workflow linting, public-repository CodeQL analysis, Dependabot security and
+  version updates, and check-gated Dependabot auto-merge for all update sizes.
 
 ### Changed
 

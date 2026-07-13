@@ -21,3 +21,12 @@ time to investigate and prepare a fix before public disclosure.
 
 Private vulnerability reporting must be enabled as a release-blocking
 repository setting before TestDoubles becomes public.
+
+## Automated checks
+
+GitHub Dependabot vulnerability alerts and automated security updates are
+enabled. The repository also defines weekly and change-triggered CodeQL scans
+for its Swift and GitHub Actions code. GitHub CodeQL uploads for private
+repositories require GitHub Advanced Security, so those jobs activate when the
+repository becomes public; workflow linting and the existing test matrix run
+while it remains private.

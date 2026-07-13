@@ -47,9 +47,30 @@ test -n "$run_id"
 gh run watch "$run_id" --exit-status
 ```
 
+Once the repository is public, the exact release commit must also have a
+successful CodeQL run. Dispatch one when the push path filters did not already
+create it:
+
+```bash
+if test "$(gh repo view --json visibility --jq .visibility)" = PUBLIC; then
+    codeql_id="$(gh run list --workflow CodeQL --commit "$commit" --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
+    if test -z "$codeql_id"; then
+        gh workflow run codeql.yml --ref main
+        for _ in {1..30}; do
+            codeql_id="$(gh run list --workflow CodeQL --commit "$commit" --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
+            test -n "$codeql_id" && break
+            sleep 2
+        done
+    fi
+    test -n "$codeql_id"
+    gh run watch "$codeql_id" --exit-status
+fi
+```
+
 Before the repository becomes public, also confirm in GitHub settings that
 private vulnerability reporting is enabled and that branch protection requires
-the supported CI jobs.
+the CI and CodeQL jobs. Dependabot alerts and automated security updates should
+remain enabled.
 
 ## Tag and publish
 
