@@ -37,6 +37,28 @@ struct ABIThrownError: Error, Equatable {
     let code: Int
 }
 
+enum PayloadABIEnum: Equatable, Sendable {
+    case idle
+    case code(Int)
+}
+
+typealias MixedABITuple = (id: Int, amount: Double)
+typealias ABIClosure = @Sendable (Int) -> Int
+
+enum ABIMetatypeToken: Sendable {}
+
+protocol ABIExistentialValue: Sendable {
+    var id: Int { get }
+}
+
+struct FirstABIExistentialValue: ABIExistentialValue {
+    let id: Int
+}
+
+struct SecondABIExistentialValue: ABIExistentialValue {
+    let id: Int
+}
+
 private enum RuntimeABITaskValues {
     @TaskLocal static var marker: String?
 }
@@ -148,6 +170,18 @@ struct RealAsyncRuntimeABIProbe: AsyncRuntimeABIProbe {
         LargeABIResult(id: id, amount: 0, label: "", accepted: false)
     }
     func finish() async {}
+}
+
+protocol ExtendedAsyncRuntimeABIProbe: Sendable {
+    func enumValue(_ value: PayloadABIEnum) async -> PayloadABIEnum
+    func optional(_ value: String?) async -> String?
+    func tuple(_ value: MixedABITuple) async -> MixedABITuple
+    func metatype(_ value: ABIMetatypeToken.Type) async -> ABIMetatypeToken.Type
+    func existential(_ value: any ABIExistentialValue) async -> any ABIExistentialValue
+}
+
+protocol AsyncClosureABIProbe: Sendable {
+    func closure(_ value: @escaping ABIClosure) async -> ABIClosure
 }
 
 @Suite struct RuntimeABITests {
@@ -360,6 +394,131 @@ struct RealAsyncRuntimeABIProbe: AsyncRuntimeABIProbe {
         await sut.finish()
     }
 
+    @Test func immediateAsyncHandlersSupportExtendedABIShapes() async throws {
+        let stub = try makeExtendedAsyncABIStub()
+
+        await stub.when({ await $0.enumValue(equal(.code(7))) }, then: { args in
+            let value = args[0] as! PayloadABIEnum
+            #expect(value == .code(7))
+            return PayloadABIEnum.code(8)
+        })
+        await stub.when({ await $0.optional(equal(Optional("optional"))) }, then: { args in
+            let value = args[0] as! String?
+            #expect(value == "optional")
+            return value?.uppercased()
+        })
+        await stub.when({ await $0.tuple((id: 9, amount: 2.5)) }, then: { args in
+            let value = args[0] as! MixedABITuple
+            #expect(value.id == 9)
+            #expect(value.amount == 2.5)
+            return (id: value.id + 1, amount: value.amount + 0.5)
+        })
+        await stub.when({ await $0.metatype(ABIMetatypeToken.self) }, then: { args in
+            let type = args[0] as! ABIMetatypeToken.Type
+            #expect(type == ABIMetatypeToken.self)
+            return type
+        })
+        await stub.when({
+            await $0.existential(FirstABIExistentialValue(id: 12))
+        }, then: { args in
+            let value = args[0] as! any ABIExistentialValue
+            return SecondABIExistentialValue(id: value.id + 1)
+        })
+
+        let sut: any ExtendedAsyncRuntimeABIProbe = stub()
+        let tuple = await sut.tuple((id: 9, amount: 2.5))
+        let existential = await sut.existential(FirstABIExistentialValue(id: 12))
+
+        #expect(await sut.enumValue(.code(7)) == .code(8))
+        #expect(await sut.optional("optional") == "OPTIONAL")
+        #expect(tuple.id == 10)
+        #expect(tuple.amount == 3)
+        #expect(await sut.metatype(ABIMetatypeToken.self) == ABIMetatypeToken.self)
+        #expect(existential.id == 13)
+        #expect(existential is SecondABIExistentialValue)
+
+        await stub.verify { await $0.enumValue(equal(.code(7))) }.wasCalled()
+        await stub.verify { await $0.optional(equal(Optional("optional"))) }.wasCalled()
+        await stub.verify { await $0.tuple((id: 9, amount: 2.5)) }.wasCalled()
+        await stub.verify { await $0.metatype(ABIMetatypeToken.self) }.wasCalled()
+        await stub.verify {
+            await $0.existential(FirstABIExistentialValue(id: 12))
+        }.wasCalled()
+    }
+
+    @Test func suspendingAsyncHandlersSupportExtendedABIShapes() async throws {
+        let stub = try makeExtendedAsyncABIStub()
+
+        await stub.when({ await $0.enumValue(equal(.code(17))) }, thenAsync: { args in
+            await Task.yield()
+            let value = try #require(args[0] as? PayloadABIEnum)
+            #expect(value == .code(17))
+            return PayloadABIEnum.code(18)
+        })
+        await stub.when({
+            await $0.optional(equal(Optional("suspended")))
+        }, thenAsync: { args in
+            await Task.yield()
+            let value = try #require(args[0] as? String?)
+            #expect(value == "suspended")
+            return value?.uppercased()
+        })
+        await stub.when({
+            await $0.tuple((id: 19, amount: 4.5))
+        }, thenAsync: { args in
+            await Task.yield()
+            let value = try #require(args[0] as? MixedABITuple)
+            #expect(value.id == 19)
+            #expect(value.amount == 4.5)
+            return (id: value.id + 1, amount: value.amount + 0.5)
+        })
+        await stub.when({
+            await $0.metatype(ABIMetatypeToken.self)
+        }, thenAsync: { args in
+            await Task.yield()
+            let type = try #require(args[0] as? ABIMetatypeToken.Type)
+            #expect(type == ABIMetatypeToken.self)
+            return type
+        })
+        await stub.when({
+            await $0.existential(FirstABIExistentialValue(id: 22))
+        }, thenAsync: { args in
+            await Task.yield()
+            let value = try #require(args[0] as? any ABIExistentialValue)
+            return SecondABIExistentialValue(id: value.id + 1)
+        })
+
+        let sut: any ExtendedAsyncRuntimeABIProbe = stub()
+        let tuple = await sut.tuple((id: 19, amount: 4.5))
+        let existential = await sut.existential(FirstABIExistentialValue(id: 22))
+
+        #expect(await sut.enumValue(.code(17)) == .code(18))
+        #expect(await sut.optional("suspended") == "SUSPENDED")
+        #expect(tuple.id == 20)
+        #expect(tuple.amount == 5)
+        #expect(await sut.metatype(ABIMetatypeToken.self) == ABIMetatypeToken.self)
+        #expect(existential.id == 23)
+        #expect(existential is SecondABIExistentialValue)
+    }
+
+    @Test func closureRequirementsFailBeforeInvocation() {
+        do {
+            _ = try RuntimeStub<any AsyncClosureABIProbe>.make(
+                .method(ABIClosure.self, returns: ABIClosure.self, async: true)
+            )
+            Issue.record("Expected closure requirement to be rejected")
+        } catch let error as RuntimeStubError {
+            guard case .unsupportedFunctionValue(let protocolName, let methodName) = error else {
+                Issue.record("Unexpected RuntimeStubError: \(error)")
+                return
+            }
+            #expect(protocolName == "AsyncClosureABIProbe")
+            #expect(methodName == "slot_0")
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
     @Test func suspendingHandlerPreservesTaskLocalValues() async {
         let stub = RuntimeStub<any AsyncRuntimeABIProbe>()
 
@@ -430,4 +589,19 @@ private func methodSlot<P>(
     )
     return match.key
 }
+
+private func makeExtendedAsyncABIStub() throws -> RuntimeStub<any ExtendedAsyncRuntimeABIProbe> {
+    try RuntimeStub<any ExtendedAsyncRuntimeABIProbe>.make(
+        .method(PayloadABIEnum.self, returns: PayloadABIEnum.self, async: true),
+        .method(Optional<String>.self, returns: Optional<String>.self, async: true),
+        .method(MixedABITuple.self, returns: MixedABITuple.self, async: true),
+        .method(ABIMetatypeToken.Type.self, returns: ABIMetatypeToken.Type.self, async: true),
+        .method(
+            (any ABIExistentialValue).self,
+            returns: (any ABIExistentialValue).self,
+            async: true
+        )
+    )
+}
+
 #endif // RUNTIME_STUB

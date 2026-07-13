@@ -196,6 +196,10 @@ caller's continuation. Covered values include:
 - `String`
 - small integer-like values
 - small direct structs, including mixed integer/floating-point fields
+- focused payload enum and optional layouts
+- mixed integer/floating-point tuples
+- concrete metatypes
+- opaque protocol existentials passed and returned indirectly
 - large struct returns through the indirect return buffer
 - throwing methods through Swift's error register
 - direct aggregate returns through general-purpose and floating-point registers
@@ -219,6 +223,11 @@ await stub.when({ try await $0.fetch(url: any()) }, thenAsync: { args in
 The suspending path remains in the caller's structured task, preserving task
 locals, priority, cancellation, and actor execution. RuntimeStub still supports
 only the argument and return ABI shapes listed above.
+
+RuntimeStub rejects requirements with closure arguments or returns during
+construction. Nested function values use compiler-generated witness
+reabstraction thunks that a metadata-only trampoline cannot reproduce safely.
+Use ``CompiledStub`` or ``ManualStub`` for those protocols.
 
 RuntimeStub also skips coroutine accessors such as `_read` and `_modify`.
 Protocols that expose effects through those accessors should use

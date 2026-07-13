@@ -212,6 +212,7 @@ SYMBOL(td_swift_trampoline_entry):
     pushq %rbp
     movq %rsp, %rbp
     subq $TD_FRAME_SIZE, %rsp
+    movq %rax, TD_FRAME_INDIRECT_RESULT_OFFSET(%rsp)
     movq %rsp, %rax
 
     movq %r11, TD_FRAME_SLOT_OFFSET(%rax)
@@ -253,7 +254,6 @@ SYMBOL(td_swift_trampoline_entry):
 
     leaq 16(%rbp), %rcx
     movq %rcx, TD_FRAME_STACK_POINTER_OFFSET(%rax)
-    movq $0, TD_FRAME_INDIRECT_RESULT_OFFSET(%rax)
     movq %r13, TD_FRAME_SWIFT_SELF_OFFSET(%rax)
     movq %r12, TD_FRAME_SWIFT_ERROR_OFFSET(%rax)
     movq $0, TD_FRAME_RESERVED_OFFSET(%rax)

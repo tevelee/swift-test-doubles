@@ -8,6 +8,8 @@ public struct MethodDescriptor: Sendable {
     public let qualifiedRet: String
     public let isThrowing: Bool
     public let isAsync: Bool
+    let argumentTypes: [Any.Type]?
+    let returnType: Any.Type?
 
     public init(
         name: String,
@@ -18,6 +20,30 @@ public struct MethodDescriptor: Sendable {
         isThrowing: Bool = false,
         isAsync: Bool = false
     ) {
+        self.init(
+            name: name,
+            signature: signature,
+            index: index,
+            qualifiedArgs: qualifiedArgs,
+            qualifiedRet: qualifiedRet,
+            isThrowing: isThrowing,
+            isAsync: isAsync,
+            argumentTypes: nil,
+            returnType: nil
+        )
+    }
+
+    init(
+        name: String,
+        signature: MethodSignature,
+        index: Int,
+        qualifiedArgs: [String]? = nil,
+        qualifiedRet: String? = nil,
+        isThrowing: Bool = false,
+        isAsync: Bool = false,
+        argumentTypes: [Any.Type]?,
+        returnType: Any.Type?
+    ) {
         self.name = name
         self.signature = signature
         self.index = index
@@ -25,6 +51,8 @@ public struct MethodDescriptor: Sendable {
         self.qualifiedRet = qualifiedRet ?? signature.ret
         self.isThrowing = isThrowing
         self.isAsync = isAsync
+        self.argumentTypes = argumentTypes
+        self.returnType = returnType
     }
 
     public static func getter(_ name: String, type: String, at index: Int) -> MethodDescriptor {
@@ -70,176 +98,143 @@ public struct Slot {
     let qualifiedRet: String
     let isThrowing: Bool
     let isAsync: Bool
+    let argumentTypes: [Any.Type]?
+    let returnType: Any.Type?
 
     init(
         signature: MethodSignature,
         qualifiedArgs: [String]? = nil,
         qualifiedRet: String? = nil,
         isThrowing: Bool = false,
-        isAsync: Bool = false
+        isAsync: Bool = false,
+        argumentTypes: [Any.Type]? = nil,
+        returnType: Any.Type? = nil
     ) {
         self.signature = signature
         self.qualifiedArgs = qualifiedArgs ?? signature.args
         self.qualifiedRet = qualifiedRet ?? signature.ret
         self.isThrowing = isThrowing
         self.isAsync = isAsync
+        self.argumentTypes = argumentTypes
+        self.returnType = returnType
     }
 
     // MARK: - From method references (type-safe metadata names)
 
     /// Create a slot from a no-arg method reference.
     public static func from<R>(_ ref: () -> R) -> Slot {
-        Slot(signature: .init(args: [], ret: runtimeTypeName(R.self)))
+        method(returns: R.self)
     }
 
     /// Create a slot from a no-arg throwing method reference.
     public static func from<R>(_ ref: () throws -> R) -> Slot {
-        Slot(signature: .init(args: [], ret: runtimeTypeName(R.self)), isThrowing: true)
+        method(returns: R.self, throws: true)
     }
 
     /// Create a slot from a no-arg async method reference.
     public static func from<R>(_ ref: () async -> R) -> Slot {
-        Slot(signature: .init(args: [], ret: runtimeTypeName(R.self)), isAsync: true)
+        method(returns: R.self, async: true)
     }
 
     /// Create a slot from a no-arg async throwing method reference.
     public static func from<R>(_ ref: () async throws -> R) -> Slot {
-        Slot(
-            signature: .init(args: [], ret: runtimeTypeName(R.self)),
-            isThrowing: true,
-            isAsync: true
-        )
+        method(returns: R.self, throws: true, async: true)
     }
 
     /// Create a slot from a getter value (e.g. `sut.count` which is `Int`).
     public static func getter<R>(_ ref: R) -> Slot {
-        Slot(signature: .init(args: [], ret: runtimeTypeName(R.self)))
+        method(returns: R.self)
     }
 
     /// Create a slot from a 1-arg method reference.
     public static func from<A, R>(_ ref: (A) -> R) -> Slot {
-        Slot(signature: .init(
-            args: [runtimeTypeName(A.self)],
-            ret: runtimeTypeName(R.self)
-        ))
+        method(args: [A.self], returns: R.self)
     }
 
     /// Create a slot from a 1-arg throwing method reference.
     public static func from<A, R>(_ ref: (A) throws -> R) -> Slot {
-        Slot(signature: .init(
-            args: [runtimeTypeName(A.self)],
-            ret: runtimeTypeName(R.self)
-        ), isThrowing: true)
+        method(args: [A.self], returns: R.self, throws: true)
     }
 
     /// Create a slot from a 1-arg async method reference.
     public static func from<A, R>(_ ref: (A) async -> R) -> Slot {
-        Slot(signature: .init(
-            args: [runtimeTypeName(A.self)],
-            ret: runtimeTypeName(R.self)
-        ), isAsync: true)
+        method(args: [A.self], returns: R.self, async: true)
     }
 
     /// Create a slot from a 1-arg async throwing method reference.
     public static func from<A, R>(_ ref: (A) async throws -> R) -> Slot {
-        Slot(signature: .init(
-            args: [runtimeTypeName(A.self)],
-            ret: runtimeTypeName(R.self)
-        ), isThrowing: true, isAsync: true)
+        method(args: [A.self], returns: R.self, throws: true, async: true)
     }
 
     /// Create a slot from a 2-arg method reference.
     public static func from<A, B, R>(_ ref: (A, B) -> R) -> Slot {
-        Slot(signature: .init(
-            args: [runtimeTypeName(A.self), runtimeTypeName(B.self)],
-            ret: runtimeTypeName(R.self)
-        ))
+        method(args: [A.self, B.self], returns: R.self)
     }
 
     /// Create a slot from a 2-arg throwing method reference.
     public static func from<A, B, R>(_ ref: (A, B) throws -> R) -> Slot {
-        Slot(signature: .init(
-            args: [runtimeTypeName(A.self), runtimeTypeName(B.self)],
-            ret: runtimeTypeName(R.self)
-        ), isThrowing: true)
+        method(args: [A.self, B.self], returns: R.self, throws: true)
     }
 
     /// Create a slot from a 2-arg async method reference.
     public static func from<A, B, R>(_ ref: (A, B) async -> R) -> Slot {
-        Slot(signature: .init(
-            args: [runtimeTypeName(A.self), runtimeTypeName(B.self)],
-            ret: runtimeTypeName(R.self)
-        ), isAsync: true)
+        method(args: [A.self, B.self], returns: R.self, async: true)
     }
 
     /// Create a slot from a 2-arg async throwing method reference.
     public static func from<A, B, R>(_ ref: (A, B) async throws -> R) -> Slot {
-        Slot(signature: .init(
-            args: [runtimeTypeName(A.self), runtimeTypeName(B.self)],
-            ret: runtimeTypeName(R.self)
-        ), isThrowing: true, isAsync: true)
+        method(args: [A.self, B.self], returns: R.self, throws: true, async: true)
     }
 
     /// Create a slot from a 3-arg method reference.
     public static func from<A, B, C, R>(_ ref: (A, B, C) -> R) -> Slot {
-        Slot(signature: .init(
-            args: [runtimeTypeName(A.self), runtimeTypeName(B.self), runtimeTypeName(C.self)],
-            ret: runtimeTypeName(R.self)
-        ))
+        method(args: [A.self, B.self, C.self], returns: R.self)
     }
 
     /// Create a slot from a 3-arg throwing method reference.
     public static func from<A, B, C, R>(_ ref: (A, B, C) throws -> R) -> Slot {
-        Slot(signature: .init(
-            args: [runtimeTypeName(A.self), runtimeTypeName(B.self), runtimeTypeName(C.self)],
-            ret: runtimeTypeName(R.self)
-        ), isThrowing: true)
+        method(args: [A.self, B.self, C.self], returns: R.self, throws: true)
     }
 
     /// Create a slot from a 3-arg async method reference.
     public static func from<A, B, C, R>(_ ref: (A, B, C) async -> R) -> Slot {
-        Slot(signature: .init(
-            args: [runtimeTypeName(A.self), runtimeTypeName(B.self), runtimeTypeName(C.self)],
-            ret: runtimeTypeName(R.self)
-        ), isAsync: true)
+        method(args: [A.self, B.self, C.self], returns: R.self, async: true)
     }
 
     /// Create a slot from a 3-arg async throwing method reference.
     public static func from<A, B, C, R>(_ ref: (A, B, C) async throws -> R) -> Slot {
-        Slot(signature: .init(
-            args: [runtimeTypeName(A.self), runtimeTypeName(B.self), runtimeTypeName(C.self)],
-            ret: runtimeTypeName(R.self)
-        ), isThrowing: true, isAsync: true)
+        method(args: [A.self, B.self, C.self], returns: R.self, throws: true, async: true)
     }
 
     /// Create a slot from a void method reference (1 arg).
     public static func from<A>(_ ref: (A) -> Void) -> Slot {
-        Slot(signature: .init(args: [runtimeTypeName(A.self)], ret: "Swift.Void"))
+        method(args: [A.self], returns: Void.self)
     }
 
     /// Create a slot from a no-arg void method reference.
     public static func from(_ ref: () -> Void) -> Slot {
-        Slot(signature: .init(args: [], ret: "Swift.Void"))
+        method(returns: Void.self)
     }
 
     /// Create a slot from a no-arg async void method reference.
     public static func from(_ ref: () async -> Void) -> Slot {
-        Slot(signature: .init(args: [], ret: "Swift.Void"), isAsync: true)
+        method(returns: Void.self, async: true)
     }
 
     /// Create a slot from a 1-arg async void method reference.
     public static func from<A>(_ ref: (A) async -> Void) -> Slot {
-        Slot(
-            signature: .init(args: [runtimeTypeName(A.self)], ret: "Swift.Void"),
-            isAsync: true
-        )
+        method(args: [A.self], returns: Void.self, async: true)
     }
 
     // MARK: - Type-based (existing API, kept for compatibility)
 
     /// A property getter returning `T`.
     public static func getter(_ type: Any.Type) -> Slot {
-        Slot(signature: .getter(runtimeTypeName(type)))
+        Slot(
+            signature: .getter(runtimeTypeName(type)),
+            argumentTypes: [],
+            returnType: type
+        )
     }
 
     /// A method with 1 argument.
@@ -266,7 +261,9 @@ public struct Slot {
             qualifiedArgs: argNames,
             qualifiedRet: retName,
             isThrowing: isThrowing,
-            isAsync: isAsync
+            isAsync: isAsync,
+            argumentTypes: args,
+            returnType: returns
         )
     }
 
@@ -287,7 +284,7 @@ public struct Slot {
 
     /// A no-arg void method.
     public static var void: Slot {
-        Slot(signature: .getter("Swift.Void"))
+        Slot(signature: .getter("Swift.Void"), argumentTypes: [], returnType: Void.self)
     }
 }
 

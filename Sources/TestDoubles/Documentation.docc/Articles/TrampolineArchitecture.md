@@ -149,12 +149,14 @@ thunk per signature. A veneer embeds two constants:
 `td_make_witness_trampoline` allocates a VM page as read/write, emits a few
 instructions, flushes the instruction cache, and changes the page to
 read/execute. The emitted code loads slot and context into reserved scratch
-registers, loads `td_swift_trampoline_entry`, and branches to it.
+registers and branches to `td_swift_trampoline_entry`. The x86_64 veneer uses
+a RIP-relative indirect jump so it does not overwrite the incoming indirect
+result pointer in `rax`.
 
-| Architecture | Slot | Context | Entry scratch |
+| Architecture | Slot | Context | Branch scratch |
 |---|---:|---:|---:|
 | arm64 | `x16` | `x15` | `x17` |
-| x86_64 | `r11` | `r10` | `rax` |
+| x86_64 | `r11` | `r10` | none; RIP-relative indirect jump |
 
 An async witness entry points to a compact `TDAsyncFunctionPointer` descriptor,
 not directly to the emitted instructions. The descriptor stores a relative
@@ -214,20 +216,17 @@ The special-register mapping is:
 
 | State | arm64 | x86_64 |
 |---|---:|---:|
-| Indirect result | `x8` | Not captured by the current synchronous x86_64 entry |
+| Indirect result | `x8` | `rax` |
 | Swift self | `x20` | `r13` |
 | Swift error | `x21` | `r12` |
 | C handler argument | `x0` | `rdi` |
 
 The handler can write up to four GP and four FP return values. The assembly
 restores them into the registers used by the covered direct-return shapes. On
-arm64, indirect results are initialized in the caller-owned address captured
-from `x8`.
-
-The x86_64 implementation builds and has matching capture/restore code, but the
-ABI suite runs natively only on the host architecture. In particular,
-synchronous indirect-result execution needs native x86_64 validation before it
-should be treated as covered.
+arm64 and x86_64, indirect results are initialized in the caller-owned address
+captured from `x8` or `rax`, respectively. The x86_64 return path also restores
+that address to `rax`. The ABI suite validates the arm64 path natively and the
+x86_64 path under Rosetta on Apple Silicon.
 
 ## Asynchronous Entry
 
@@ -406,11 +405,11 @@ For each signature argument:
   field parts, then boxes it.
 - `indirect` reads an argument address and copies the pointee into an `Any`.
 
-`boxValue` asks the real metadata to allocate existential storage and invokes
-the type's value-witness `initializeWithCopy`. This is the ownership boundary:
-captured arguments become proper owned Swift values. References and
-reference-containing structs do not depend on a return-type string heuristic
-or a global keep-alive buffer.
+`boxValue` opens the resolved runtime metatype and performs a typed Swift load
+into `Any`. This lets the compiler apply the correct copy and reabstraction
+rules at the ownership boundary, so captured arguments become proper owned
+Swift values. References and reference-containing structs do not depend on a
+return-type string heuristic or a global keep-alive buffer.
 
 For an async indirect return, the current continuation convention consumes the
 first GP position for result storage, so ordinary argument decoding starts at
@@ -569,6 +568,12 @@ The ABI suite currently exercises:
 - explicit metadata without a real conformer
 - async integer, floating-point, direct aggregate, and indirect returns
 - suspending async success, failure, and void handlers
+- enum, optional, mixed tuple, concrete metatype, and opaque existential
+  arguments and returns through immediate and suspending async handlers
+- recording and verification placeholders for those focused extended ABI shapes
+- concrete type metadata preservation for type-based and method-reference slots
+- early, actionable rejection of closure requirements that need compiler-generated
+  witness reabstraction
 - task-local, MainActor, and cancellation propagation through suspension
 - concurrent suspending async calls and call recording
 
@@ -578,8 +583,12 @@ Important unsupported or not-yet-proven areas include:
 - associated-type and associated-conformance witness accessors
 - generic requirements whose concrete metadata depends on invocation context
 - `inout`, ownership-qualified, move-only, or noncopyable values
-- every tuple, enum, optional, existential, metatype, closure, and resilient
-  aggregate lowering not represented in `RuntimeABI`
+- closure arguments and returns, which RuntimeStub rejects because protocol
+  witnesses require compiler-generated function reabstraction thunks
+- tuple, enum, optional, existential, and metatype layouts beyond the focused
+  cases above, including class-constrained/composed existentials and existential
+  metatypes
+- resilient aggregate lowering not represented in `RuntimeABI`
 - custom-executor async edge cases beyond the tested MainActor path
 - zero-config discovery from stripped or relative/generic witness-table forms
 - executable-memory environments that reject runtime `mmap` plus `mprotect`

@@ -184,6 +184,7 @@ Use RuntimeStub when:
 Avoid RuntimeStub when:
 
 - the protocol relies on `_read` or `_modify` coroutine accessors
+- a requirement accepts or returns a closure value
 - calls are made to concrete functions or concrete methods instead of protocol
   witnesses
 - the same stub must be configured or verified from multiple tasks at once
@@ -192,7 +193,7 @@ Avoid RuntimeStub when:
 
 - No conformer: use `makeFromModule()` or explicit slots.
 - Module extraction unavailable: use explicit slots or ``CompiledStub``.
-- Unsupported async ABI shape: use ``CompiledStub`` or implement it directly
+- Unsupported runtime ABI shape: use ``CompiledStub`` or implement it directly
   in a hand-written ``ManualStub`` method.
 - Concrete function or final method: use ``DynamicReplacementCompiler`` if the
   implementation is built with implicit dynamic.

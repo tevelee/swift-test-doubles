@@ -77,7 +77,9 @@ extension RuntimeStub {
                 qualifiedArgs: pair.0.qualifiedArgs,
                 qualifiedRet: pair.0.qualifiedRet,
                 isThrowing: pair.0.isThrowing,
-                isAsync: pair.0.isAsync
+                isAsync: pair.0.isAsync,
+                argumentTypes: pair.0.argumentTypes,
+                returnType: pair.0.returnType
             )
         }
 
@@ -365,6 +367,18 @@ extension RuntimeStub {
                 throw RuntimeStubError.duplicateRequirementIndex(
                     protocolName: protocolName,
                     index: method.index
+                )
+            }
+            let concreteTypes = (method.argumentTypes ?? []) + [method.returnType].compactMap { $0 }
+            let hasFunctionMetadata = concreteTypes.contains { reflect($0).kind == .function }
+            let hasFunctionSpelling = method.argumentTypes == nil && (
+                method.qualifiedArgs.contains(where: { $0.contains("->") }) ||
+                method.qualifiedRet.contains("->")
+            )
+            if hasFunctionMetadata || hasFunctionSpelling {
+                throw RuntimeStubError.unsupportedFunctionValue(
+                    protocolName: protocolName,
+                    methodName: method.name
                 )
             }
         }

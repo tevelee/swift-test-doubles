@@ -47,6 +47,7 @@ public enum RuntimeStubError: Error, Sendable, CustomStringConvertible {
     case trampolineAllocationFailed(slot: Int)
     @available(*, deprecated, message: "RuntimeStub supports async requirements.")
     case unsupportedAsyncRequirement(protocolName: String, methodName: String)
+    case unsupportedFunctionValue(protocolName: String, methodName: String)
     case unsupportedTypeKind(typeName: String)
     case invalidRequirementIndex(protocolName: String, index: Int, requirementCount: Int)
     case duplicateRequirementIndex(protocolName: String, index: Int)
@@ -84,6 +85,12 @@ public enum RuntimeStubError: Error, Sendable, CustomStringConvertible {
             return """
             Obsolete async-requirement error for '\(methodName)' on '\(protocolName)'. \
             RuntimeStub now supports async requirements.
+            """
+        case .unsupportedFunctionValue(let protocolName, let methodName):
+            return """
+            RuntimeStub cannot safely marshal function values for '\(methodName)' on '\(protocolName)'. \
+            Protocol witnesses use compiler-generated closure reabstraction thunks. \
+            Use CompiledStub or ManualStub for this requirement.
             """
         case .unsupportedTypeKind(let typeName):
             return "Unsupported type kind for '\(typeName)'."

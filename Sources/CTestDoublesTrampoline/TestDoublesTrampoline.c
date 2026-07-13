@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -71,6 +72,26 @@ static void td_arm64_emit_movabs(uint32_t **cursor, unsigned reg, uintptr_t valu
   *(*cursor)++ = td_arm64_movk(reg, v >> 32, 2);
   *(*cursor)++ = td_arm64_movk(reg, v >> 48, 3);
 }
+#elif defined(__x86_64__)
+static void td_x86_emit_movabs(uint8_t **cursor, uint8_t opcode, uintptr_t value) {
+  *(*cursor)++ = 0x49;
+  *(*cursor)++ = opcode;
+  uint64_t immediate = (uint64_t)value;
+  memcpy(*cursor, &immediate, sizeof(immediate));
+  *cursor += sizeof(immediate);
+}
+
+static void td_x86_emit_absolute_jump(uint8_t **cursor, const void *target) {
+  *(*cursor)++ = 0xff;
+  *(*cursor)++ = 0x25; /* jmpq *0(%rip) */
+  *(*cursor)++ = 0x00;
+  *(*cursor)++ = 0x00;
+  *(*cursor)++ = 0x00;
+  *(*cursor)++ = 0x00;
+  uint64_t address = (uint64_t)(uintptr_t)target;
+  memcpy(*cursor, &address, sizeof(address));
+  *cursor += sizeof(address);
+}
 #endif
 
 typedef struct TDAsyncFunctionPointer {
@@ -99,13 +120,9 @@ void *td_make_witness_trampoline(uintptr_t slot, uintptr_t context) {
   *cursor++ = 0xd61f0220u; /* br x17 */
 #elif defined(__x86_64__)
   uint8_t *cursor = code;
-  *cursor++ = 0x49; *cursor++ = 0xbb; /* movabs imm64, %r11 */
-  *((uint64_t *)cursor) = (uint64_t)slot; cursor += 8;
-  *cursor++ = 0x49; *cursor++ = 0xba; /* movabs imm64, %r10 */
-  *((uint64_t *)cursor) = (uint64_t)context; cursor += 8;
-  *cursor++ = 0x48; *cursor++ = 0xb8; /* movabs imm64, %rax */
-  *((uint64_t *)cursor) = (uint64_t)(uintptr_t)&td_swift_trampoline_entry; cursor += 8;
-  *cursor++ = 0xff; *cursor++ = 0xe0; /* jmp *%rax */
+  td_x86_emit_movabs(&cursor, 0xbb, slot); /* movabs imm64, %r11 */
+  td_x86_emit_movabs(&cursor, 0xba, context); /* movabs imm64, %r10 */
+  td_x86_emit_absolute_jump(&cursor, (const void *)&td_swift_trampoline_entry);
 #else
   munmap(code, pageSize);
   return 0;
@@ -135,13 +152,9 @@ void *td_make_async_witness_trampoline(uintptr_t slot, uintptr_t context) {
   *cursor++ = 0xd61f0220u; /* br x17 */
 #elif defined(__x86_64__)
   uint8_t *cursor = code;
-  *cursor++ = 0x49; *cursor++ = 0xbb; /* movabs imm64, %r11 */
-  *((uint64_t *)cursor) = (uint64_t)slot; cursor += 8;
-  *cursor++ = 0x49; *cursor++ = 0xba; /* movabs imm64, %r10 */
-  *((uint64_t *)cursor) = (uint64_t)context; cursor += 8;
-  *cursor++ = 0x48; *cursor++ = 0xb8; /* movabs imm64, %rax */
-  *((uint64_t *)cursor) = (uint64_t)(uintptr_t)&td_swift_async_trampoline_entry; cursor += 8;
-  *cursor++ = 0xff; *cursor++ = 0xe0; /* jmp *%rax */
+  td_x86_emit_movabs(&cursor, 0xbb, slot); /* movabs imm64, %r11 */
+  td_x86_emit_movabs(&cursor, 0xba, context); /* movabs imm64, %r10 */
+  td_x86_emit_absolute_jump(&cursor, (const void *)&td_swift_async_trampoline_entry);
 #else
   munmap(page, pageSize);
   return 0;

@@ -57,7 +57,7 @@ func abiClass(for type: Any.Type?, fallbackName: String, isReturn: Bool = false)
     if isFloatingPoint(type) {
         return .floatingPoint
     }
-    if !isReturn, directArgumentParts(for: type) != nil {
+    if directArgumentParts(for: type) != nil {
         return .aggregate
     }
     if size > 16 {
@@ -95,7 +95,6 @@ private func isFloatingPoint(_ type: Any.Type) -> Bool {
 func directArgumentParts(for type: Any.Type) -> [DirectValuePart]? {
     let metadata = reflect(type)
     guard metadata.vwt.size <= 16,
-          reflectStruct(type) != nil,
           let parts = directReturnParts(for: type),
           parts.contains(where: { $0.register == .fp }) else {
         return nil
@@ -150,6 +149,20 @@ private func appendDirectValueParts(
 
     if metadata.kind == .class || metadata.kind == .foreignClass {
         parts.append(DirectValuePart(register: .gp, offset: baseOffset, byteCount: MemoryLayout<UInt>.size))
+        return true
+    }
+
+    if let tupleMetadata = metadata as? TupleMetadata {
+        for element in tupleMetadata.elements {
+            guard appendDirectValueParts(
+                for: element.type,
+                baseOffset: baseOffset + element.offset,
+                parts: &parts,
+                visited: &visited
+            ) else {
+                return false
+            }
+        }
         return true
     }
 

@@ -25,8 +25,9 @@ struct RuntimeMethodDescriptor {
         self.qualifiedRet = descriptor.qualifiedRet
         self.isThrowing = descriptor.isThrowing
         self.isAsync = descriptor.isAsync
-        self.argumentTypes = descriptor.qualifiedArgs.map(resolveRuntimeType)
-        self.returnType = resolveRuntimeType(descriptor.qualifiedRet)
+        self.argumentTypes = descriptor.argumentTypes?.map(Optional.some)
+            ?? descriptor.qualifiedArgs.map(resolveRuntimeType)
+        self.returnType = descriptor.returnType ?? resolveRuntimeType(descriptor.qualifiedRet)
     }
 }
 
@@ -141,7 +142,7 @@ private enum RuntimeTrampolineHandler {
         if recorder.mode == .normal {
             encodeReturn(result, for: method, into: frame)
         } else {
-            encodeRecordingPlaceholder(for: method, into: frame)
+            encodeRecordingPlaceholder(for: method, args: args, into: frame)
         }
     }
 
@@ -314,10 +315,19 @@ private enum RuntimeTrampolineHandler {
                 fatalError("[TestDoubles] Missing indirect return buffer for \(method.name).")
             }
             copyReturn(result, expectedType: method.returnType, to: destination)
+            #if arch(x86_64)
+            if method.isAsync == false {
+                frame.storeWord(destinationWord, at: TDFrame.returnGP)
+            }
+            #endif
         }
     }
 
-    private static func encodeRecordingPlaceholder(for method: RuntimeMethodDescriptor, into frame: UnsafeMutablePointer<TDCallFrame>) {
+    private static func encodeRecordingPlaceholder(
+        for method: RuntimeMethodDescriptor,
+        args: [Any],
+        into frame: UnsafeMutablePointer<TDCallFrame>
+    ) {
         let abi = abiClass(for: method.returnType, fallbackName: method.qualifiedRet, isReturn: true)
         frame.zeroReturn()
 
@@ -329,6 +339,9 @@ private enum RuntimeTrampolineHandler {
         case .integer(let words):
             if method.returnType == String.self || method.qualifiedRet == "String" || method.qualifiedRet == "Swift.String" {
                 encodeReturn("", for: method, into: frame)
+            } else if let returnType = method.returnType,
+                      encodeInitializedPlaceholder(type: returnType, for: method, into: frame) {
+                return
             } else if words > 1 {
                 frame.storeWord(0, at: TDFrame.returnGP + 8)
             }
@@ -348,10 +361,41 @@ private enum RuntimeTrampolineHandler {
                   let returnType = method.returnType else {
                 fatalError("[TestDoubles] Cannot record indirect-return requirement \(method.name) without return metadata.")
             }
+            #if arch(x86_64)
+            if method.isAsync == false {
+                frame.storeWord(destinationWord, at: TDFrame.returnGP)
+            }
+            #endif
+            if reflect(returnType) is ExistentialMetadata,
+               let index = method.argumentTypes.firstIndex(where: { $0 == returnType }),
+               args.indices.contains(index) {
+                copyReturn(args[index], expectedType: returnType, to: destination)
+                return
+            }
             guard initializePlaceholder(type: returnType, at: destination) else {
                 fatalError("[TestDoubles] RuntimeStub cannot synthesize a recording placeholder for \(returnType). Use CompiledStub or ManualStub for \(method.name).")
             }
         }
+    }
+
+    private static func encodeInitializedPlaceholder(
+        type: Any.Type,
+        for method: RuntimeMethodDescriptor,
+        into frame: UnsafeMutablePointer<TDCallFrame>
+    ) -> Bool {
+        let metadata = reflect(type)
+        let byteCount = max(metadata.vwt.size, 1)
+        let alignment = max(metadata.vwt.flags.alignment, MemoryLayout<UInt>.alignment)
+        let storage = UnsafeMutableRawPointer.allocate(byteCount: byteCount, alignment: alignment)
+        guard initializePlaceholder(type: type, at: storage) else {
+            storage.deallocate()
+            return false
+        }
+        let value = boxValue(type: type, source: storage)
+        metadata.vwt.destroy(storage)
+        storage.deallocate()
+        encodeReturn(value, for: method, into: frame)
+        return true
     }
 
     private static func initializeAggregatePlaceholder(
@@ -448,6 +492,11 @@ private enum RuntimeTrampolineHandler {
         guard canInitializePlaceholder(type: type, visited: &visited) else {
             return false
         }
+        destination.initializeMemory(
+            as: UInt8.self,
+            repeating: 0,
+            count: max(reflect(type).vwt.size, 1)
+        )
         visited.removeAll()
         initializeKnownPlaceholder(type: type, at: destination, visited: &visited)
         return true
@@ -457,23 +506,35 @@ private enum RuntimeTrampolineHandler {
         if isKnownPlaceholderType(type) {
             return true
         }
-        guard let metadata = reflectStruct(type) else {
+        let metadata = reflect(type)
+        if let enumMetadata = metadata as? EnumMetadata {
+            return enumMetadata.descriptor.numEmptyCases > 0
+        }
+        if let tupleMetadata = metadata as? TupleMetadata {
+            return tupleMetadata.elements.allSatisfy {
+                canInitializePlaceholder(type: $0.type, visited: &visited)
+            }
+        }
+        if metadata is MetatypeMetadata || metadata is ExistentialMetatypeMetadata {
+            return true
+        }
+        guard let structMetadata = metadata as? StructMetadata else {
             return false
         }
-        let key = UInt(bitPattern: metadata.ptr)
+        let key = UInt(bitPattern: structMetadata.ptr)
         guard visited.insert(key).inserted else {
             return false
         }
         defer { visited.remove(key) }
 
-        let fields = metadata.descriptor.fields.records
-        let offsets = metadata.fieldOffsets
+        let fields = structMetadata.descriptor.fields.records
+        let offsets = structMetadata.fieldOffsets
         guard fields.count == offsets.count else {
             return false
         }
         for field in fields {
             guard field.hasMangledTypeName,
-                  let fieldType = metadata.type(of: field.mangledTypeName),
+                  let fieldType = structMetadata.type(of: field.mangledTypeName),
                   canInitializePlaceholder(type: fieldType, visited: &visited) else {
                 return false
             }
@@ -522,17 +583,55 @@ private enum RuntimeTrampolineHandler {
         case is [Double].Type:
             initializeValue([Double](), at: destination)
         default:
-            guard let metadata = reflectStruct(type) else {
+            let metadata = reflect(type)
+            if let enumMetadata = metadata as? EnumMetadata {
+                enumMetadata.enumVwt.destructiveInjectEnumTag(
+                    for: destination,
+                    tag: UInt32(enumMetadata.descriptor.numPayloadCases)
+                )
+                return
+            }
+            if let tupleMetadata = metadata as? TupleMetadata {
+                for element in tupleMetadata.elements {
+                    initializeKnownPlaceholder(
+                        type: element.type,
+                        at: destination + element.offset,
+                        visited: &visited
+                    )
+                }
+                return
+            }
+            if let metatypeMetadata = metadata as? MetatypeMetadata {
+                destination.storeBytes(
+                    of: UInt(bitPattern: unsafeBitCast(
+                        metatypeMetadata.instanceType,
+                        to: UnsafeRawPointer.self
+                    )),
+                    as: UInt.self
+                )
+                return
+            }
+            if let metatypeMetadata = metadata as? ExistentialMetatypeMetadata {
+                destination.storeBytes(
+                    of: UInt(bitPattern: unsafeBitCast(
+                        metatypeMetadata.instanceType,
+                        to: UnsafeRawPointer.self
+                    )),
+                    as: UInt.self
+                )
+                return
+            }
+            guard let structMetadata = metadata as? StructMetadata else {
                 preconditionFailure("[TestDoubles] Missing placeholder preflight for \(type).")
             }
-            let key = UInt(bitPattern: metadata.ptr)
+            let key = UInt(bitPattern: structMetadata.ptr)
             precondition(visited.insert(key).inserted, "[TestDoubles] Recursive placeholder type \(type).")
             defer { visited.remove(key) }
 
-            let fields = metadata.descriptor.fields.records
-            let offsets = metadata.fieldOffsets
+            let fields = structMetadata.descriptor.fields.records
+            let offsets = structMetadata.fieldOffsets
             for (field, offset) in zip(fields, offsets) {
-                guard let fieldType = metadata.type(of: field.mangledTypeName) else {
+                guard let fieldType = structMetadata.type(of: field.mangledTypeName) else {
                     preconditionFailure("[TestDoubles] Missing field metadata for placeholder type \(type).")
                 }
                 initializeKnownPlaceholder(type: fieldType, at: destination + offset, visited: &visited)
@@ -587,6 +686,23 @@ private enum RuntimeTrampolineHandler {
         let actual = container.metadata
         let metadata = expectedType.map(reflect) ?? actual
         if let expectedType, actual.type != expectedType {
+            if metadata is ExistentialMetadata {
+                func copyOpenedExistential<T>(_ type: T.Type) {
+                    guard let value = result as? T else {
+                        preconditionFailure(
+                            "[TestDoubles] \(actual.type) does not satisfy existential return type \(expectedType)."
+                        )
+                    }
+                    withUnsafePointer(to: value) {
+                        metadata.vwt.initializeWithCopy(
+                            destination,
+                            UnsafeMutableRawPointer(mutating: $0)
+                        )
+                    }
+                }
+                _openExistential(expectedType, do: copyOpenedExistential)
+                return
+            }
             preconditionFailure("[TestDoubles] Type mismatch: expected \(expectedType), got \(actual.type).")
         }
         metadata.vwt.initializeWithCopy(destination, UnsafeMutableRawPointer(mutating: container.projectValue()))
@@ -719,11 +835,10 @@ private func boxValue<T>(type: T.Type, source: UnsafeMutableRawPointer) -> Any {
 }
 
 private func boxValue(type: Any.Type, source: UnsafeMutableRawPointer) -> Any {
-    let metadata = reflect(type)
-    var container = AnyExistentialContainer(type: type)
-    let destination = UnsafeMutableRawPointer(mutating: metadata.allocateBoxForExistential(in: &container))
-    metadata.vwt.initializeWithCopy(destination, source)
-    return unsafeBitCast(container, to: Any.self)
+    func boxOpenedValue<T>(_ type: T.Type) -> Any {
+        source.assumingMemoryBound(to: T.self).pointee
+    }
+    return _openExistential(type, do: boxOpenedValue)
 }
 
 private func swiftErrorPointer(_ error: any Error) -> UInt {

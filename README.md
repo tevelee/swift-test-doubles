@@ -258,7 +258,11 @@ stub.verify { $0.find(id: any()) }.withArgs { calls in
 signature matrix. Arguments and returns are copied with value-witness operations
 where metadata is known, including mixed Float/Double arguments, stack-spilled
 integer and floating-point arguments, small mixed aggregate arguments, small
-direct aggregate returns, throwing errors, and indirect-return buffers.
+direct aggregate returns, throwing errors, and indirect-return buffers. Focused
+protocol-level coverage also includes payload enums, optionals, mixed tuples,
+concrete metatypes, and opaque existentials. Closure requirements are rejected
+at construction because they require compiler-generated witness reabstraction;
+use `CompiledStub` or `ManualStub` for those protocols.
 
 **RuntimeStub: async handlers**
 
