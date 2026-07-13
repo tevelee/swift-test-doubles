@@ -64,7 +64,6 @@ extension RuntimeStub {
     }
 
     private func recordOrder(_ block: (P) -> Void) -> [RecordedCall] {
-        recorder.activeMatchers = []
         recorder.verificationRecordings = []
         _ = MatcherContext.withRecording {
             recorder.mode = .verifying

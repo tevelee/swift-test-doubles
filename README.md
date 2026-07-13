@@ -1,6 +1,5 @@
 # swift-test-doubles
 
-[![CI](https://github.com/tevelee/swift-test-doubles/actions/workflows/ci.yml/badge.svg)](https://github.com/tevelee/swift-test-doubles/actions/workflows/ci.yml)
 [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Ftevelee%2Fswift-test-doubles%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/tevelee/swift-test-doubles)
 [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Ftevelee%2Fswift-test-doubles%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/tevelee/swift-test-doubles)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -11,7 +10,7 @@ Protocol-based test doubles for Swift — no macros, no code generation. Three p
 
 | | ManualStub | RuntimeStub | CompiledStub |
 |---|---|---|---|
-| **Platform** | All | All | macOS only |
+| **Platform** | All | Apple arm64/x86_64; Linux unverified | macOS only |
 | **Requires conformer in binary** | No | Zero-config only | No |
 | **Requires Echo** | No | Yes | Yes (via RuntimeStub) |
 | **Test startup overhead** | None | None | ~1–2 s compile |
@@ -36,7 +35,7 @@ Protocol-based test doubles for Swift — no macros, no code generation. Three p
 .product(name: "TestDoubles", package: "swift-test-doubles")
 ```
 
-### ManualStub only (no Echo dependency)
+### ManualStub only (does not build or link Echo)
 
 ```swift
 .package(
@@ -56,11 +55,21 @@ Protocol-based test doubles for Swift — no macros, no code generation. Three p
 )
 ```
 
+### With Dynamic Replacement (macOS, opt-in)
+
+```swift
+.package(
+    url: "https://github.com/tevelee/swift-test-doubles",
+    from: "1.0.0",
+    traits: ["DynamicReplacement"]
+)
+```
+
 ---
 
 ## ManualStub
 
-Write a small conforming struct and delegate to `Stub<Self>`. Works on all platforms; no real conformer needed; no external dependencies.
+Write a small conforming struct and delegate to `Stub<Self>`. Works on all platforms; no real conformer needed; no external runtime dependency is built or linked.
 
 ```swift
 // 1. Define your stub
@@ -231,7 +240,7 @@ stub.verify { $0.find(id: any()) }.withArgs { calls in
 **RuntimeStub: ABI coverage**
 
 `RuntimeStub` uses a fixed architecture trampoline rather than a generated
-thunk catalog. Arguments and returns are copied with value-witness operations
+signature matrix. Arguments and returns are copied with value-witness operations
 where metadata is known, including mixed Float/Double arguments, stack-spilled
 integer and floating-point arguments, small mixed aggregate arguments, small
 direct aggregate returns, throwing errors, and indirect-return buffers.

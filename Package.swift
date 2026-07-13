@@ -13,15 +13,20 @@ let package = Package(
         .trait(name: "ManualStub"),
         .trait(name: "RuntimeStub"),
         .trait(name: "CompiledStub", enabledTraits: ["RuntimeStub"]),
+        .trait(name: "DynamicReplacement"),
     ],
     dependencies: [
-        .package(url: "https://github.com/tevelee/Echo.git", branch: "main"),
+        .package(
+            url: "https://github.com/tevelee/Echo.git",
+            revision: "f3a2906ee86916deda3ca3b6b559bf0d0d5e1efc"
+        ),
     ],
     targets: [
         .target(
             name: "TestDoubles",
             dependencies: [
-                "CTestDoublesTrampoline",
+                .target(name: "CTestDoublesTrampoline",
+                        condition: .when(traits: ["RuntimeStub"])),
                 .product(name: "Echo", package: "Echo",
                          condition: .when(traits: ["RuntimeStub"])),
             ],
@@ -29,19 +34,25 @@ let package = Package(
                 .define("MANUAL_STUB",   .when(traits: ["ManualStub"])),
                 .define("RUNTIME_STUB",  .when(traits: ["RuntimeStub"])),
                 .define("COMPILED_STUB", .when(traits: ["CompiledStub"])),
+                .define("DYNAMIC_REPLACEMENT", .when(traits: ["DynamicReplacement"])),
             ]
         ),
         .target(
             name: "CTestDoublesTrampoline",
             publicHeadersPath: "include"
         ),
+        .target(
+            name: "TestDoublesFixtures",
+            path: "Tests/TestDoublesFixtures"
+        ),
         .testTarget(
             name: "TestDoublesTests",
-            dependencies: ["TestDoubles"],
+            dependencies: ["TestDoubles", "TestDoublesFixtures"],
             swiftSettings: [
                 .define("MANUAL_STUB",   .when(traits: ["ManualStub"])),
                 .define("RUNTIME_STUB",  .when(traits: ["RuntimeStub"])),
                 .define("COMPILED_STUB", .when(traits: ["CompiledStub"])),
+                .define("DYNAMIC_REPLACEMENT", .when(traits: ["DynamicReplacement"])),
             ]
         ),
     ]

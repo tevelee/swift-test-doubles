@@ -27,9 +27,6 @@ class StubRecorder: @unchecked Sendable {
     var lastRecording: RecordedCall?
     var verificationRecordings: [RecordedCall] = []
 
-    // Active matchers (set by any()/equal()/match() before a call)
-    var activeMatchers: [ParameterMatcher] = []
-
     struct StubEntry {
         let matchers: [ParameterMatcher]
         let diagnosticSignature: String
@@ -59,16 +56,11 @@ class StubRecorder: @unchecked Sendable {
 
         switch mode {
         case .recording:
-            // Capture the matchers that were set before this call
-            let matchers = activeMatchers
-            activeMatchers = []
-            lastRecording = RecordedCall(methodIndex: method, name: name, args: args, matchers: matchers)
+            lastRecording = RecordedCall(methodIndex: method, name: name, args: args, matchers: [])
             return zeroValue // thunk handles the actual return type
 
         case .verifying:
-            let matchers = activeMatchers
-            activeMatchers = []
-            let recording = RecordedCall(methodIndex: method, name: name, args: args, matchers: matchers)
+            let recording = RecordedCall(methodIndex: method, name: name, args: args, matchers: [])
             lastRecording = recording
             verificationRecordings.append(recording)
             return zeroValue
@@ -131,15 +123,11 @@ class StubRecorder: @unchecked Sendable {
 
         switch mode {
         case .recording:
-            let matchers = activeMatchers
-            activeMatchers = []
-            lastRecording = RecordedCall(methodIndex: method, name: name, args: args, matchers: matchers)
+            lastRecording = RecordedCall(methodIndex: method, name: name, args: args, matchers: [])
             return .success(zeroValue)
 
         case .verifying:
-            let matchers = activeMatchers
-            activeMatchers = []
-            let recording = RecordedCall(methodIndex: method, name: name, args: args, matchers: matchers)
+            let recording = RecordedCall(methodIndex: method, name: name, args: args, matchers: [])
             lastRecording = recording
             verificationRecordings.append(recording)
             return .success(zeroValue)

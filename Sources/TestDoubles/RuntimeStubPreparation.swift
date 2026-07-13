@@ -3,10 +3,36 @@ import Echo
 
 private final class RuntimeStubPayload {}
 
+final class RuntimeStubResources: @unchecked Sendable {
+    let registryKey: UnsafeRawPointer
+    let allocation: UnsafeMutableRawPointer
+    var trampolines: [UnsafeRawPointer] = []
+    private var isRegistered = false
+
+    init(registryKey: UnsafeRawPointer, allocation: UnsafeMutableRawPointer) {
+        self.registryKey = registryKey
+        self.allocation = allocation
+    }
+
+    func register(_ recorder: StubRecorder) {
+        MockRegistry.register(recorder, for: registryKey)
+        isRegistered = true
+    }
+
+    deinit {
+        if isRegistered {
+            MockRegistry.remove(for: registryKey)
+        }
+        for trampoline in trampolines {
+            TrampolineFactory.destroy(trampoline)
+        }
+        allocation.deallocate()
+    }
+}
+
 private struct PatchedWitnessTable {
     let witnessTable: UnsafeMutableRawPointer
-    let allocation: UnsafeMutableRawPointer
-    let trampolines: [UnsafeRawPointer]
+    let resources: RuntimeStubResources
 }
 
 extension RuntimeStub {
@@ -170,10 +196,8 @@ extension RuntimeStub {
         let containerBytes = try buildExistentialContainer(from: conformance, witnessTable: patched.witnessTable)
         return PreparedStub(
             recorder: recorder,
-            registryKey: UnsafeRawPointer(patched.witnessTable),
-            allocationToDeallocate: patched.allocation,
+            resources: patched.resources,
             containerBytes: containerBytes,
-            trampolineAllocations: patched.trampolines,
             payload: nil
         )
     }
@@ -196,10 +220,8 @@ extension RuntimeStub {
         let containerBytes = buildFabricatedExistentialContainer(witnessTable: patched.witnessTable)
         return PreparedStub(
             recorder: recorder,
-            registryKey: UnsafeRawPointer(patched.witnessTable),
-            allocationToDeallocate: patched.allocation,
+            resources: patched.resources,
             containerBytes: containerBytes,
-            trampolineAllocations: patched.trampolines,
             payload: payload
         )
     }
@@ -216,26 +238,27 @@ extension RuntimeStub {
         let totalWords = 1 + proto.numRequirements
         let clonedWT = UnsafeMutableRawPointer.allocate(byteCount: totalWords * wordSize, alignment: wordSize)
         clonedWT.copyMemory(from: conformance.witnessTablePattern.ptr, byteCount: totalWords * wordSize)
-        var trampolines: [UnsafeRawPointer] = []
+        let resources = RuntimeStubResources(
+            registryKey: UnsafeRawPointer(clonedWT),
+            allocation: clonedWT
+        )
 
         for method in methods {
-            guard let thunkPtr = ThunkLibrary.thunk(
-                for: method.signature,
+            guard let thunkPtr = TrampolineFactory.make(
                 slot: method.index,
                 context: UnsafeRawPointer(clonedWT)
             ) else {
-                throw RuntimeStubError.missingThunk(slot: method.index, signature: method.signature)
+                throw RuntimeStubError.trampolineAllocationFailed(slot: method.index)
             }
             (clonedWT + (1 + method.index) * wordSize).storeBytes(of: thunkPtr, as: UnsafeRawPointer.self)
-            trampolines.append(thunkPtr)
+            resources.trampolines.append(thunkPtr)
             recorder.setRuntimeMethod(RuntimeMethodDescriptor(method), for: method.index)
         }
 
-        MockRegistry.register(recorder, for: UnsafeRawPointer(clonedWT))
+        resources.register(recorder)
         return PatchedWitnessTable(
             witnessTable: clonedWT,
-            allocation: clonedWT,
-            trampolines: trampolines
+            resources: resources
         )
     }
 
@@ -257,6 +280,10 @@ extension RuntimeStub {
 
         let descriptor = allocation
         let witnessTable = allocation + witnessTableOffset
+        let resources = RuntimeStubResources(
+            registryKey: UnsafeRawPointer(witnessTable),
+            allocation: allocation
+        )
         let payloadDescriptor = try payloadContextDescriptor()
 
         // Heap memory may be more than Int32.max bytes away from image
@@ -270,25 +297,22 @@ extension RuntimeStub {
         (allocation + typeCellOffset).storeBytes(of: payloadDescriptor, as: UnsafeRawPointer.self)
         witnessTable.storeBytes(of: UnsafeRawPointer(descriptor), as: UnsafeRawPointer.self)
 
-        var trampolines: [UnsafeRawPointer] = []
         for method in methods {
-            guard let thunkPtr = ThunkLibrary.thunk(
-                for: method.signature,
+            guard let thunkPtr = TrampolineFactory.make(
                 slot: method.index,
                 context: UnsafeRawPointer(witnessTable)
             ) else {
-                throw RuntimeStubError.missingThunk(slot: method.index, signature: method.signature)
+                throw RuntimeStubError.trampolineAllocationFailed(slot: method.index)
             }
             (witnessTable + (1 + method.index) * wordSize).storeBytes(of: thunkPtr, as: UnsafeRawPointer.self)
-            trampolines.append(thunkPtr)
+            resources.trampolines.append(thunkPtr)
             recorder.setRuntimeMethod(RuntimeMethodDescriptor(method), for: method.index)
         }
 
-        MockRegistry.register(recorder, for: UnsafeRawPointer(witnessTable))
+        resources.register(recorder)
         return PatchedWitnessTable(
             witnessTable: witnessTable,
-            allocation: allocation,
-            trampolines: trampolines
+            resources: resources
         )
     }
 

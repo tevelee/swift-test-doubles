@@ -78,19 +78,9 @@ private enum RuntimeTrampolineHandler {
     }
 
     private static func findRecorder(in frame: UnsafeMutablePointer<TDCallFrame>) -> StubRecorder? {
-        for i in 0..<TDFrame.gpCount {
-            let word = frame.gpWord(i)
-            if let key = UnsafeRawPointer(bitPattern: word),
-               let recorder = MockRegistry.resolveOptional(key) {
-                frame.storeWord(word, at: TDFrame.witnessTable)
-                return recorder
-            }
-        }
-        let witness = frame.loadWord(at: TDFrame.witnessTable)
-        if let key = UnsafeRawPointer(bitPattern: witness) {
-            return MockRegistry.resolveOptional(key)
-        }
-        return nil
+        let context = frame.loadWord(at: TDFrame.context)
+        guard let key = UnsafeRawPointer(bitPattern: context) else { return nil }
+        return MockRegistry.resolveOptional(key)
     }
 
     private static func decodeArguments(for method: RuntimeMethodDescriptor, from frame: UnsafeMutablePointer<TDCallFrame>) -> [Any] {
@@ -515,20 +505,23 @@ private struct ArgumentCursor {
 }
 
 private enum TDFrame {
-    static let slot = 0
-    static let gp = 16
-    static let fp = 144
-    static let stack = 400
-    static let indirectResult = 920
-    static let swiftError = 936
-    static let witnessTable = 944
-    static let returnGP = 952
-    static let returnFP = 984
-    static let returnError = 1016
-    static let gpCount = 16
+    static let slot = Int(TD_FRAME_SLOT_OFFSET)
+    static let context = Int(TD_FRAME_CONTEXT_OFFSET)
+    static let gp = Int(TD_FRAME_GP_OFFSET)
+    static let fp = Int(TD_FRAME_FP_OFFSET)
+    static let stackPointer = Int(TD_FRAME_STACK_POINTER_OFFSET)
+    static let indirectResult = Int(TD_FRAME_INDIRECT_RESULT_OFFSET)
+    static let swiftError = Int(TD_FRAME_SWIFT_ERROR_OFFSET)
+    static let returnGP = Int(TD_FRAME_RETURN_GP_OFFSET)
+    static let returnFP = Int(TD_FRAME_RETURN_FP_OFFSET)
+    static let returnError = Int(TD_FRAME_RETURN_ERROR_OFFSET)
     static let returnGPCount = 4
     static let returnFPCount = 4
+    #if arch(x86_64)
+    static let registerGPArgumentLimit = 6
+    #else
     static let registerGPArgumentLimit = 8
+    #endif
     static let registerFPArgumentLimit = 8
 }
 
@@ -552,7 +545,11 @@ private extension UnsafeMutablePointer where Pointee == TDCallFrame {
     }
 
     func stackWord(_ index: Int) -> UInt {
-        loadWord(at: TDFrame.stack + index * 8)
+        let address = loadWord(at: TDFrame.stackPointer)
+        guard let stack = UnsafeRawPointer(bitPattern: address) else {
+            preconditionFailure("[TestDoubles] Trampoline captured an invalid stack pointer.")
+        }
+        return stack.loadUnaligned(fromByteOffset: index * 8, as: UInt.self)
     }
 
     func takeGPWord(_ cursor: inout ArgumentCursor) -> UInt {

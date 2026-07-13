@@ -1,8 +1,4 @@
-#if RUNTIME_STUB
 import Foundation
-
-/// Sample protocols for testing runtime compilation.
-/// These live in the TestDoubles module so the RuntimeCompiler can import them.
 
 public protocol ThrowingFileService {
     func read(path: String) throws -> String
@@ -32,20 +28,20 @@ public struct RealDataLoader: AsyncDataLoader {
     public var cacheSize: Int { 0 }
 }
 
-/// Protocol with no built-in conformer, used to exercise explicit compiled mocks.
 public protocol PrototypeCalculator {
     func add(_ a: Int, _ b: Int) -> Int
     func describe(_ value: Int) -> String
     var precision: Int { get }
 }
 
-// MARK: - Rich protocols for showcasing
-
-/// Repository returning custom value types and collections.
 public struct User: Equatable, Sendable {
     public let id: Int
     public let name: String
-    public init(id: Int, name: String) { self.id = id; self.name = name }
+
+    public init(id: Int, name: String) {
+        self.id = id
+        self.name = name
+    }
 }
 
 public protocol UserRepository {
@@ -65,13 +61,15 @@ public struct RealUserRepository: UserRepository {
     public var count: Int { 0 }
 }
 
-/// A payment service with complex return types.
 public struct PaymentResult: Equatable, Sendable {
     public let transactionId: String
     public let amount: Double
     public let success: Bool
+
     public init(transactionId: String, amount: Double, success: Bool) {
-        self.transactionId = transactionId; self.amount = amount; self.success = success
+        self.transactionId = transactionId
+        self.amount = amount
+        self.success = success
     }
 }
 
@@ -84,17 +82,19 @@ public protocol PaymentGateway {
 
 public struct RealPaymentGateway: PaymentGateway {
     public init() {}
+
     public func charge(amount: Double, currency: String) throws -> PaymentResult {
         PaymentResult(transactionId: "", amount: amount, success: false)
     }
+
     public func refund(transactionId: String) throws -> PaymentResult {
         PaymentResult(transactionId: transactionId, amount: 0, success: false)
     }
+
     public var supportedCurrencies: [String] { [] }
     public var isAvailable: Bool { false }
 }
 
-/// Notification service mixing void, throwing, and collection methods.
 public protocol NotificationService {
     func send(to userId: Int, message: String) throws
     func sendBulk(to userIds: [Int], message: String) throws -> Int
@@ -111,4 +111,3 @@ public struct RealNotificationService: NotificationService {
     public func markRead(notificationId: String) {}
     public var unreadCount: Int { 0 }
 }
-#endif // RUNTIME_STUB

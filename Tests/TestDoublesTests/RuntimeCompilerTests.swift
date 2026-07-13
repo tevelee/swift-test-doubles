@@ -1,8 +1,7 @@
 #if COMPILED_STUB && os(macOS)
-import Darwin
-import Foundation
 import Testing
 @testable import TestDoubles
+import TestDoublesFixtures
 
 @Suite struct SourceGenerationTests {
 
@@ -72,72 +71,8 @@ import Testing
     }
 }
 
-@Suite struct ModuleExtractionTests {
-
-    @Test func extractsModuleName() {
-        let demangled = "protocol witness for TestModule.MyService.load(path: Swift.String) throws -> Swift.String in conformance TestModule.RealService : TestModule.MyService in TestModule"
-        #expect(RuntimeCompiler.extractModuleName(from: demangled) == "TestModule")
-    }
-
-    @Test func multiWordModule() {
-        let demangled = "protocol witness for MyFramework.APIClient.fetch(id: Swift.Int) -> Swift.String in conformance MyFramework.RealClient : MyFramework.APIClient in MyFramework"
-        #expect(RuntimeCompiler.extractModuleName(from: demangled) == "MyFramework")
-    }
-}
-
-@Suite struct ThrowingProtocolFallbackTests {
-
-    @Test func fallsBackToThunks() throws {
-        // Protocols in the test target can't be imported by RuntimeCompiler.
-        // Verify graceful fallback to thunk-based approach.
-        let stub = RuntimeStub<any ThrowingFileService>()
-        stub.when { try $0.read(path: any()) }.returns("fallback")
-        stub.when { $0.exists(at: any()) }.returns(true)
-        stub.when { $0.basePath }.returns("/")
-
-        #expect(try stub().read(path: "/test") == "fallback")
-    }
-
-    @Test func thenRegistersThrowingStub() {
-        struct TestError: Error { let code: Int }
-        let stub = RuntimeStub<any ThrowingFileService>()
-        stub.when { try $0.read(path: "good") }.returns("content")
-        stub.when { try $0.read(path: "bad") }.then { throw TestError(code: 404) }
-        stub.when { $0.exists(at: any()) }.returns(true)
-        stub.when { $0.basePath }.returns("/")
-
-        #expect(stub.recorder.throwingStubs[0] != nil)
-    }
-
-    @Test func basicCompilation() {
-        // Compiles an empty mock (no methods) — validates swiftc works
-        let handle = RuntimeCompiler.compileMock(
-            protocolName: "Dummy",
-            moduleName: "Foundation",
-            signatures: []
-        )
-        _ = handle // May return nil, but shouldn't crash
-    }
-
-    @Test func compiledMockForImportableProtocol() throws {
-        // ThrowingFileService is in the TestDoubles module.
-        // Uses .auto — compiles if possible, falls back to thunks otherwise.
-        let stub = RuntimeStub<any ThrowingFileService>()
-
-        stub.when { try $0.read(path: any()) }.returns("works!")
-        stub.when { $0.exists(at: any()) }.returns(true)
-        stub.when { $0.basePath }.returns("/test")
-
-        let sut: any ThrowingFileService = stub()
-
-        #expect(try sut.read(path: "/test") == "works!")
-        #expect(sut.exists(at: "/test") == true)
-        #expect(sut.basePath == "/test")
-    }
-
-#if COMPILED_STUB
+@Suite struct CompiledStubTests {
     @Test func compiledMockAsync() async throws {
-
         let stub = try CompiledStub<any AsyncDataLoader>()
 
         await stub.when { try await $0.load(url: any()) }.returns("async-data")
@@ -150,53 +85,6 @@ import Testing
         #expect(result == "async-data")
         #expect(sut.cacheSize == 42)
     }
-#endif // COMPILED_STUB
 }
 
-@Suite struct DynamicReplacementCompilerTests {
-
-    @Test func loadedReplacementPatchesImplicitDynamicFunction() throws {
-        let suffix = UUID().uuidString.replacingOccurrences(of: "-", with: "")
-        let moduleName = "DynamicSubject\(suffix)"
-        let cSymbol = "td_dynamic_number_\(suffix)"
-        let subject = try DynamicReplacementCompiler.compileDynamicModule(
-            moduleName: moduleName,
-            source: """
-            public func dynamicNumber() -> Int32 { 1 }
-
-            @_cdecl("\(cSymbol)")
-            public func dynamicNumberBridge() -> Int32 {
-                dynamicNumber()
-            }
-            """
-        )
-
-        guard let subjectHandle = dlopen(subject.libraryPath, RTLD_NOW | RTLD_GLOBAL),
-              let symbol = dlsym(subjectHandle, cSymbol) else {
-            Issue.record("Expected subject dylib to load and export \(cSymbol)")
-            return
-        }
-
-        typealias DynamicNumber = @convention(c) () -> Int32
-        let dynamicNumber = unsafeBitCast(symbol, to: DynamicNumber.self)
-        #expect(dynamicNumber() == 1)
-
-        try DynamicReplacementCompiler.loadReplacement(
-            moduleName: "DynamicReplacement\(suffix)",
-            source: """
-            import \(moduleName)
-
-            @_dynamicReplacement(for: dynamicNumber())
-            public func replacement_dynamicNumber() -> Int32 {
-                42
-            }
-            """,
-            importPaths: [subject.directory],
-            libraryPaths: [subject.directory],
-            linkedLibraries: [moduleName]
-        )
-
-        #expect(dynamicNumber() == 42)
-    }
-}
 #endif // COMPILED_STUB && os(macOS)

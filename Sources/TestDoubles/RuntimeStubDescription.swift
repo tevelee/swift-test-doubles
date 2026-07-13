@@ -81,19 +81,11 @@ extension RuntimeStub {
     public static func diagnose() -> RuntimeStubDiagnostics {
         let typeDescription = String(reflecting: P.self)
         let inferredModuleName = inferredModuleName()
-        let runtimeCompilationSupported: Bool
-        #if os(macOS)
-        runtimeCompilationSupported = true
-        #else
-        runtimeCompilationSupported = false
-        #endif
 
         guard let protoDesc = try? extractProtocolDescriptor() else {
             return RuntimeStubDiagnostics(
                 typeDescription: typeDescription,
                 protocolName: nil,
-                requestedStrategy: "thunks",
-                runtimeCompilationSupported: runtimeCompilationSupported,
                 inferredModuleName: inferredModuleName,
                 hasExistingConformance: false,
                 notes: [
@@ -116,8 +108,6 @@ extension RuntimeStub {
         return RuntimeStubDiagnostics(
             typeDescription: typeDescription,
             protocolName: protoDesc.name,
-            requestedStrategy: "thunks",
-            runtimeCompilationSupported: runtimeCompilationSupported,
             inferredModuleName: inferredModuleName,
             hasExistingConformance: hasExistingConformance,
             notes: notes

@@ -2,3 +2,5 @@
 .DS_Store
 .swiftpm/
 .claude/
+.agents/
+skills-lock.json

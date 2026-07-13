@@ -51,12 +51,6 @@ public enum RuntimeCompiler {
         return handle
     }
 
-    /// Extract the module name from a demangled witness string.
-    static func extractModuleName(from demangled: String) -> String? {
-        guard let range = demangled.range(of: " in conformance ") else { return nil }
-        return String(demangled[range.upperBound...]).components(separatedBy: ".").first
-    }
-
     // MARK: - Source Generation
 
     static func generateSource(

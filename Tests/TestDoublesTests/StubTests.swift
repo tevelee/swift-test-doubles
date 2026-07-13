@@ -1,6 +1,7 @@
 #if RUNTIME_STUB
 import Testing
 @testable import TestDoubles
+import TestDoublesFixtures
 
 // Protocols for testing (defined locally — not importable by RuntimeCompiler)
 
@@ -190,8 +191,8 @@ struct RealFileLoader: FileLoader {
         _ = sut.add(2, 3)
 
         stub.verifyOrder {
-            $0.describe(any())
-            $0.add(any(), any())
+            _ = $0.describe(any())
+            _ = $0.add(any(), any())
         }
     }
 

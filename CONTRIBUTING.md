@@ -5,7 +5,7 @@
 ```bash
 swift build
 swift build --traits ManualStub
-swift build --traits ManualStub,RuntimeStub,CompiledStub
+swift build --traits ManualStub,RuntimeStub,CompiledStub,DynamicReplacement
 ```
 
 ## Running Tests
@@ -26,7 +26,7 @@ aggregate, and indirect-return paths.
 
 - Create a feature branch from `main`
 - Open a pull request targeting `main`
-- CI must pass before merging
+- All relevant trait combinations must pass before merging
 
 ## Known Limitations
 

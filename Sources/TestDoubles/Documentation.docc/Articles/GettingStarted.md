@@ -4,7 +4,7 @@ Learn the core patterns for stubbing, matching, and verifying in your tests.
 
 ## Overview
 
-TestDoubles has three strategies — ``ManualStub``, ``RuntimeStub``, and ``CompiledStub`` — but they all share the same stubbing and verification API. This guide covers that shared API using `RuntimeStub` for brevity; everything applies equally to `ManualStub` and `CompiledStub`.
+TestDoubles has three strategies — ``ManualStub``, ``RuntimeStub``, and ``CompiledStub``. They share the core `when`, `returns`, matcher, and verification vocabulary, while strategy-specific features such as setters, order verification, and async support differ. This guide uses `RuntimeStub` for synchronous examples and calls out the exceptions.
 
 > Note: Pick your strategy first. If you're not sure which one fits, read the ``TestDoubles`` overview page. Once you've chosen, come back here to learn how to use it.
 
@@ -177,7 +177,7 @@ stub.verify { $0.find(id: capture(into: idCaptor)) }.wasCalled(times: 2)
 
 ## Throwing Methods
 
-Use `try` in the `when` closure — the thunk returns zero during recording so the call never actually throws:
+Use `try` in the `when` closure. Recording mode returns a typed placeholder without running a configured handler, so the call does not throw:
 
 ```swift
 let stub = RuntimeStub<any FileService>()

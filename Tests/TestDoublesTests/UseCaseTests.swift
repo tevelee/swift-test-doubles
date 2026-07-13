@@ -1,6 +1,7 @@
 #if RUNTIME_STUB
 import Testing
 @testable import TestDoubles
+import TestDoublesFixtures
 
 // MARK: - Realistic service layer testing
 
@@ -90,8 +91,8 @@ import Testing
         _ = sut.search(query: "test")
 
         repo.verifyOrder {
-            $0.find(id: any())
-            $0.search(query: any())
+            _ = $0.find(id: any())
+            _ = $0.search(query: any())
         }
     }
 }

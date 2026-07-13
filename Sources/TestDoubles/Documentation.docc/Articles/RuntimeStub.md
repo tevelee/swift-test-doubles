@@ -10,7 +10,7 @@ RuntimeStub uses a fixed architecture trampoline to intercept protocol witness c
 - You want the fastest test-authoring experience with minimal boilerplate.
 - Your test binary already links a real conformer for zero-config discovery, or the protocol's compiled Swift module is importable.
 - You can provide explicit requirement signatures when module extraction is not available.
-- You're on any Apple platform or Linux.
+- You're on a supported arm64 or x86_64 Apple target. The assembly has ELF symbol support, but Linux remains unverified.
 
 **Requirement:** The zero-config initializer needs a real conformer somewhere in the linked binary so it can discover signatures. ``RuntimeStub/makeFromModule(moduleName:)`` extracts signatures from `swift symbolgraph-extract`; the explicit ``Slot`` and ``MethodDescriptor`` initializers use caller-provided signatures.
 

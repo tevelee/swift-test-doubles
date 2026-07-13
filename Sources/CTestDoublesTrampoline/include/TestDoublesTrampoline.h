@@ -1,16 +1,30 @@
 #ifndef TEST_DOUBLES_TRAMPOLINE_H
 #define TEST_DOUBLES_TRAMPOLINE_H
 
+#define TD_GP_REGISTER_COUNT 16
+#define TD_FP_REGISTER_COUNT 16
+
+#define TD_FRAME_SIZE 512
+#define TD_FRAME_SLOT_OFFSET 0
+#define TD_FRAME_CONTEXT_OFFSET 8
+#define TD_FRAME_GP_OFFSET 16
+#define TD_FRAME_FP_OFFSET 144
+#define TD_FRAME_STACK_POINTER_OFFSET 400
+#define TD_FRAME_INDIRECT_RESULT_OFFSET 408
+#define TD_FRAME_SWIFT_SELF_OFFSET 416
+#define TD_FRAME_SWIFT_ERROR_OFFSET 424
+#define TD_FRAME_RESERVED_OFFSET 432
+#define TD_FRAME_RETURN_GP_OFFSET 440
+#define TD_FRAME_RETURN_FP_OFFSET 472
+#define TD_FRAME_RETURN_ERROR_OFFSET 504
+
+#ifndef __ASSEMBLER__
 #include <stdint.h>
 #include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#define TD_GP_REGISTER_COUNT 16
-#define TD_FP_REGISTER_COUNT 16
-#define TD_STACK_ARGUMENT_BYTES 512
 
 typedef struct TDVectorRegister {
   uint64_t low;
@@ -19,15 +33,14 @@ typedef struct TDVectorRegister {
 
 typedef struct TDCallFrame {
   uintptr_t slot;
-  uintptr_t reserved0;
+  uintptr_t context;
   uintptr_t gp[TD_GP_REGISTER_COUNT];
   TDVectorRegister fp[TD_FP_REGISTER_COUNT];
-  uint8_t stack[TD_STACK_ARGUMENT_BYTES];
   uintptr_t stackPointer;
   uintptr_t indirectResult;
   uintptr_t swiftSelf;
   uintptr_t swiftError;
-  uintptr_t witnessTable;
+  uintptr_t reserved;
   uintptr_t returnGP[4];
   uint64_t returnFP[4];
   uintptr_t returnError;
@@ -51,4 +64,5 @@ TDSwiftErrorAllocation td_swift_alloc_error(const void *type,
 }
 #endif
 
+#endif /* !__ASSEMBLER__ */
 #endif

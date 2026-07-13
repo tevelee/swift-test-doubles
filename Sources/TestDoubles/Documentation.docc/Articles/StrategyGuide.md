@@ -311,7 +311,7 @@ try DynamicReplacementCompiler.loadReplacement(
 - Con: requires control over the implementation build.
 - Con: replacements are process-wide after the image loads.
 - Con: replacement declarations must exactly match the original declarations.
-- Con: currently macOS and `CompiledStub` trait only.
+- Con: currently macOS and the opt-in `DynamicReplacement` trait only.
 
 Tips:
 

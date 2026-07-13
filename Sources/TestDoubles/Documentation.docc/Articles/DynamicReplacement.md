@@ -22,8 +22,16 @@ and ``CompiledStub`` are easier to scope to one test.
 
 ## Build Requirement
 
-The implementation module must be built with Swift's implicit-dynamic frontend
-flag:
+Enable the package's `DynamicReplacement` trait. The implementation module must
+also be built with Swift's implicit-dynamic frontend flag:
+
+```swift
+.package(
+    url: "https://github.com/tevelee/swift-test-doubles",
+    from: "1.0.0",
+    traits: ["DynamicReplacement"]
+)
+```
 
 ```sh
 swiftc -Xfrontend -enable-implicit-dynamic ...
@@ -97,8 +105,8 @@ try DynamicReplacementCompiler.loadReplacement(
 - Con: replacements are process-wide after `dlopen`.
 - Con: loaded replacement images are not a per-stub resource.
 - Con: tests that replace the same declaration in different ways can conflict.
-- Con: macOS-only in this package because it is part of the `CompiledStub`
-  tooling.
+- Con: macOS-only in this package because it invokes the host Swift toolchain
+  and loads a dynamic library.
 
 ## Tips
 

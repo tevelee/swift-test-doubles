@@ -1,6 +1,7 @@
 #if RUNTIME_STUB
 import Testing
 @testable import TestDoubles
+import TestDoublesFixtures
 
 @Suite struct TrailingClosureTests {
 
@@ -50,19 +51,6 @@ import Testing
 
         #expect(stub().search(query: "x") == ["a", "b", "c"])
     }
-
-    #if COMPILED_STUB
-    @Test func asyncCompiledMock() async throws {
-        let stub = try CompiledStub<any AsyncDataLoader>()
-        await stub.when { try await $0.load(url: any()) }.returns("async!")
-        await stub.when { await $0.prefetch(urls: any()) }
-        stub.when { $0.cacheSize }.returns(99)
-
-        let sut: any AsyncDataLoader = stub()
-        #expect(try await sut.load(url: "https://x.com") == "async!")
-        #expect(sut.cacheSize == 99)
-    }
-    #endif
 
     @Test func mixTrailingAndChained() {
         let stub = RuntimeStub<any UserRepository>()

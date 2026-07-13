@@ -1,4 +1,4 @@
-#if COMPILED_STUB && os(macOS)
+#if DYNAMIC_REPLACEMENT && os(macOS)
 import Darwin
 import Foundation
 
@@ -9,6 +9,9 @@ import Foundation
 /// provide `@_dynamicReplacement` declarations for concrete functions and
 /// methods, not just protocol witnesses.
 public enum DynamicReplacementCompiler {
+    private static let loadedImageLock = NSLock()
+    nonisolated(unsafe) private static var loadedImages: [String: UnsafeMutableRawPointer] = [:]
+
     public struct CompiledModule: Sendable {
         public let moduleName: String
         public let directory: String
@@ -43,6 +46,16 @@ public enum DynamicReplacementCompiler {
         let sourcePath = "\(directory)/\(moduleName).swift"
         let libraryPath = "\(directory)/lib\(moduleName).dylib"
         let modulePath = "\(directory)/\(moduleName).swiftmodule"
+
+        if FileManager.default.fileExists(atPath: libraryPath),
+           FileManager.default.fileExists(atPath: modulePath) {
+            return CompiledModule(
+                moduleName: moduleName,
+                directory: directory,
+                libraryPath: libraryPath,
+                modulePath: modulePath
+            )
+        }
 
         try write(source, to: sourcePath)
         var arguments = [
@@ -88,27 +101,37 @@ public enum DynamicReplacementCompiler {
         let sourcePath = "\(directory)/\(moduleName).swift"
         let libraryPath = "\(directory)/lib\(moduleName).dylib"
 
-        try write(source, to: sourcePath)
-        var arguments = [
-            "-emit-library",
-            "-module-name", moduleName,
-            "-Xlinker", "-undefined",
-            "-Xlinker", "dynamic_lookup",
-            "-o", libraryPath,
-        ]
-        arguments += sdkArguments()
-        for path in importPaths {
-            arguments += ["-I", path]
+        loadedImageLock.lock()
+        let loadedImage = loadedImages[libraryPath]
+        loadedImageLock.unlock()
+        if let loadedImage {
+            return loadedImage
         }
-        for path in libraryPaths {
-            arguments += ["-L", path, "-Xlinker", "-rpath", "-Xlinker", path]
-        }
-        for library in linkedLibraries {
-            arguments.append("-l\(library)")
-        }
-        arguments.append(sourcePath)
 
-        try runSwiftc(arguments, sourcePath: sourcePath)
+        var arguments: [String] = []
+        if FileManager.default.fileExists(atPath: libraryPath) == false {
+            try write(source, to: sourcePath)
+            arguments = [
+                "-emit-library",
+                "-module-name", moduleName,
+                "-Xlinker", "-undefined",
+                "-Xlinker", "dynamic_lookup",
+                "-o", libraryPath,
+            ]
+            arguments += sdkArguments()
+            for path in importPaths {
+                arguments += ["-I", path]
+            }
+            for path in libraryPaths {
+                arguments += ["-L", path, "-Xlinker", "-rpath", "-Xlinker", path]
+            }
+            for library in linkedLibraries {
+                arguments.append("-l\(library)")
+            }
+            arguments.append(sourcePath)
+            try runSwiftc(arguments, sourcePath: sourcePath)
+        }
+
         guard let handle = dlopen(libraryPath, RTLD_NOW | RTLD_GLOBAL) else {
             throw Failure(
                 reason: "dlopen failed: \(String(cString: dlerror()))",
@@ -117,6 +140,9 @@ public enum DynamicReplacementCompiler {
                 arguments: arguments
             )
         }
+        loadedImageLock.lock()
+        loadedImages[libraryPath] = handle
+        loadedImageLock.unlock()
         return handle
     }
 
@@ -229,4 +255,4 @@ private struct ProcessResult {
     let stdout: String
     let stderr: String
 }
-#endif
+#endif // DYNAMIC_REPLACEMENT && os(macOS)

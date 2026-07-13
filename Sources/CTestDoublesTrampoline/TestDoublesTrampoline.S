@@ -1,3 +1,5 @@
+#include "TestDoublesTrampoline.h"
+
 #if defined(__APPLE__)
 #define SYMBOL(name) _##name
 #else
@@ -15,12 +17,13 @@
 SYMBOL(td_swift_trampoline_entry):
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #1024
+    sub sp, sp, #TD_FRAME_SIZE
     mov x9, sp
 
-    str x16, [x9, #0]
+    str x16, [x9, #TD_FRAME_SLOT_OFFSET]
+    str x15, [x9, #TD_FRAME_CONTEXT_OFFSET]
 
-    stp x0, x1, [x9, #16]
+    stp x0, x1, [x9, #TD_FRAME_GP_OFFSET]
     stp x2, x3, [x9, #32]
     stp x4, x5, [x9, #48]
     stp x6, x7, [x9, #64]
@@ -29,7 +32,7 @@ SYMBOL(td_swift_trampoline_entry):
     stp x12, x13, [x9, #112]
     stp x14, x15, [x9, #128]
 
-    stp q0, q1, [x9, #144]
+    stp q0, q1, [x9, #TD_FRAME_FP_OFFSET]
     stp q2, q3, [x9, #176]
     stp q4, q5, [x9, #208]
     stp q6, q7, [x9, #240]
@@ -39,39 +42,29 @@ SYMBOL(td_swift_trampoline_entry):
     stp q14, q15, [x9, #368]
 
     add x10, x29, #16
-    add x11, x9, #400
-    mov x12, #64
-Ltd_arm64_copy_stack:
-    ldr x13, [x10], #8
-    str x13, [x11], #8
-    subs x12, x12, #1
-    b.ne Ltd_arm64_copy_stack
-
-    add x10, x29, #16
-    str x10, [x9, #912]
-    ldr x10, [x9, #80]
-    str x10, [x9, #920]
-    str x20, [x9, #928]
-    str x21, [x9, #936]
-    str xzr, [x9, #944]
-    str x21, [x9, #1016]
+    str x10, [x9, #TD_FRAME_STACK_POINTER_OFFSET]
+    str x8, [x9, #TD_FRAME_INDIRECT_RESULT_OFFSET]
+    str x20, [x9, #TD_FRAME_SWIFT_SELF_OFFSET]
+    str x21, [x9, #TD_FRAME_SWIFT_ERROR_OFFSET]
+    str xzr, [x9, #TD_FRAME_RESERVED_OFFSET]
+    str x21, [x9, #TD_FRAME_RETURN_ERROR_OFFSET]
 
     mov x0, x9
     bl SYMBOL(td_swift_trampoline_handler)
 
     mov x9, sp
-    ldr x0, [x9, #952]
-    ldr x1, [x9, #960]
-    ldr x2, [x9, #968]
-    ldr x3, [x9, #976]
-    ldr d0, [x9, #984]
-    ldr d1, [x9, #992]
-    ldr d2, [x9, #1000]
-    ldr d3, [x9, #1008]
-    ldr x21, [x9, #1016]
-    ldr x20, [x9, #928]
+    ldr x0, [x9, #TD_FRAME_RETURN_GP_OFFSET]
+    ldr x1, [x9, #448]
+    ldr x2, [x9, #456]
+    ldr x3, [x9, #464]
+    ldr d0, [x9, #TD_FRAME_RETURN_FP_OFFSET]
+    ldr d1, [x9, #480]
+    ldr d2, [x9, #488]
+    ldr d3, [x9, #496]
+    ldr x21, [x9, #TD_FRAME_RETURN_ERROR_OFFSET]
+    ldr x20, [x9, #TD_FRAME_SWIFT_SELF_OFFSET]
 
-    add sp, sp, #1024
+    add sp, sp, #TD_FRAME_SIZE
     ldp x29, x30, [sp], #16
     ret
 
@@ -85,12 +78,13 @@ Ltd_arm64_copy_stack:
 SYMBOL(td_swift_trampoline_entry):
     pushq %rbp
     movq %rsp, %rbp
-    subq $1024, %rsp
+    subq $TD_FRAME_SIZE, %rsp
     movq %rsp, %rax
 
-    movq %r11, 0(%rax)
+    movq %r11, TD_FRAME_SLOT_OFFSET(%rax)
+    movq %r10, TD_FRAME_CONTEXT_OFFSET(%rax)
 
-    movq %rdi, 16(%rax)
+    movq %rdi, TD_FRAME_GP_OFFSET(%rax)
     movq %rsi, 24(%rax)
     movq %rdx, 32(%rax)
     movq %rcx, 40(%rax)
@@ -107,7 +101,7 @@ SYMBOL(td_swift_trampoline_entry):
     movq %rbp, 128(%rax)
     movq %rsp, 136(%rax)
 
-    movdqu %xmm0, 144(%rax)
+    movdqu %xmm0, TD_FRAME_FP_OFFSET(%rax)
     movdqu %xmm1, 160(%rax)
     movdqu %xmm2, 176(%rax)
     movdqu %xmm3, 192(%rax)
@@ -124,33 +118,28 @@ SYMBOL(td_swift_trampoline_entry):
     movdqu %xmm14, 368(%rax)
     movdqu %xmm15, 384(%rax)
 
-    leaq 16(%rbp), %rsi
-    leaq 400(%rax), %rdi
-    movl $64, %ecx
-    rep movsq
-
     leaq 16(%rbp), %rcx
-    movq %rcx, 912(%rax)
-    movq $0, 920(%rax)
-    movq %r13, 928(%rax)
-    movq %r12, 936(%rax)
-    movq $0, 944(%rax)
-    movq %r12, 1016(%rax)
+    movq %rcx, TD_FRAME_STACK_POINTER_OFFSET(%rax)
+    movq $0, TD_FRAME_INDIRECT_RESULT_OFFSET(%rax)
+    movq %r13, TD_FRAME_SWIFT_SELF_OFFSET(%rax)
+    movq %r12, TD_FRAME_SWIFT_ERROR_OFFSET(%rax)
+    movq $0, TD_FRAME_RESERVED_OFFSET(%rax)
+    movq %r12, TD_FRAME_RETURN_ERROR_OFFSET(%rax)
 
     movq %rax, %rdi
     callq SYMBOL(td_swift_trampoline_handler)
 
     movq %rsp, %r10
-    movq 952(%r10), %rax
-    movq 960(%r10), %rdx
-    movq 968(%r10), %rcx
-    movq 976(%r10), %r8
-    movsd 984(%r10), %xmm0
-    movsd 992(%r10), %xmm1
-    movsd 1000(%r10), %xmm2
-    movsd 1008(%r10), %xmm3
-    movq 1016(%r10), %r12
-    movq 928(%r10), %r13
+    movq TD_FRAME_RETURN_GP_OFFSET(%r10), %rax
+    movq 448(%r10), %rdx
+    movq 456(%r10), %rcx
+    movq 464(%r10), %r8
+    movsd TD_FRAME_RETURN_FP_OFFSET(%r10), %xmm0
+    movsd 480(%r10), %xmm1
+    movsd 488(%r10), %xmm2
+    movsd 496(%r10), %xmm3
+    movq TD_FRAME_RETURN_ERROR_OFFSET(%r10), %r12
+    movq TD_FRAME_SWIFT_SELF_OFFSET(%r10), %r13
 
     leave
     retq

@@ -203,7 +203,6 @@ public class CompiledStub<P>: @unchecked Sendable {
     // MARK: - Internal recording
 
     func recordAsync(mode: StubRecorder.Mode = .recording, _ block: () async -> Void) async -> RecordedCall {
-        recorder.activeMatchers = []
         let (_, matchers) = await MatcherContext.withRecording {
             recorder.mode = mode
             await block()
@@ -220,7 +219,9 @@ public class CompiledStub<P>: @unchecked Sendable {
     }
 
     private func record(mode: StubRecorder.Mode = .recording, _ block: () -> Void) -> RecordedCall {
-        recorder.activeMatchers = []
+        if mode == .verifying {
+            recorder.verificationRecordings = []
+        }
         let (_, matchers) = MatcherContext.withRecording {
             recorder.mode = mode
             block()
@@ -233,6 +234,9 @@ public class CompiledStub<P>: @unchecked Sendable {
             fatalError("No method was called in the closure")
         }
         recorder.lastRecording = nil
+        if mode == .verifying {
+            recorder.verificationRecordings = []
+        }
         return recording
     }
 

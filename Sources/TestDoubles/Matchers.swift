@@ -47,13 +47,6 @@ private final class MatcherRecording: @unchecked Sendable {
 enum MatcherContext {
     @TaskLocal private static var activeRecording: MatcherRecording?
 
-    private static let lock = NSLock()
-    nonisolated(unsafe) private static var stacks: [UInt: [ParameterMatcher]] = [:]
-
-    private static var key: UInt {
-        UInt(bitPattern: Unmanaged.passUnretained(Thread.current).toOpaque())
-    }
-
     static func withRecording<T>(_ operation: () throws -> T) rethrows -> (result: T, matchers: [ParameterMatcher]) {
         let recording = MatcherRecording()
         let result = try $activeRecording.withValue(recording) {
@@ -70,28 +63,8 @@ enum MatcherContext {
         return (result, recording.matchers)
     }
 
-    static func begin() {
-        lock.lock()
-        stacks[key] = []
-        lock.unlock()
-    }
-
     static func append(_ matcher: ParameterMatcher) {
-        if let activeRecording {
-            activeRecording.append(matcher)
-            return
-        }
-
-        lock.lock()
-        stacks[key, default: []].append(matcher)
-        lock.unlock()
-    }
-
-    static func end() -> [ParameterMatcher] {
-        lock.lock()
-        let result = stacks.removeValue(forKey: key) ?? []
-        lock.unlock()
-        return result
+        activeRecording?.append(matcher)
     }
 }
 

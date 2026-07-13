@@ -1,6 +1,7 @@
 #if RUNTIME_STUB
 import Testing
 @testable import TestDoubles
+import TestDoublesFixtures
 
 protocol MatcherTestService {
     func find(id: Int) -> String

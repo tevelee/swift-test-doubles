@@ -2,8 +2,6 @@
 public struct RuntimeStubDiagnostics: Sendable, CustomStringConvertible {
     public let typeDescription: String
     public let protocolName: String?
-    public let requestedStrategy: String
-    public let runtimeCompilationSupported: Bool
     public let inferredModuleName: String?
     public let hasExistingConformance: Bool
     public let notes: [String]
@@ -11,16 +9,12 @@ public struct RuntimeStubDiagnostics: Sendable, CustomStringConvertible {
     public init(
         typeDescription: String,
         protocolName: String?,
-        requestedStrategy: String,
-        runtimeCompilationSupported: Bool,
         inferredModuleName: String?,
         hasExistingConformance: Bool,
         notes: [String]
     ) {
         self.typeDescription = typeDescription
         self.protocolName = protocolName
-        self.requestedStrategy = requestedStrategy
-        self.runtimeCompilationSupported = runtimeCompilationSupported
         self.inferredModuleName = inferredModuleName
         self.hasExistingConformance = hasExistingConformance
         self.notes = notes
@@ -30,8 +24,6 @@ public struct RuntimeStubDiagnostics: Sendable, CustomStringConvertible {
         var lines = [
             "type: \(typeDescription)",
             "protocol: \(protocolName ?? "unknown")",
-            "requested strategy: \(requestedStrategy)",
-            "runtime compilation supported: \(runtimeCompilationSupported ? "yes" : "no")",
             "inferred module: \(inferredModuleName ?? "unavailable")",
             "existing conformance in binary: \(hasExistingConformance ? "yes" : "no")",
         ]
@@ -52,7 +44,7 @@ public enum RuntimeStubError: Error, Sendable, CustomStringConvertible {
     case slotCountMismatch(protocolName: String, expected: Int, actual: Int)
     case runtimeCompilerFailed(protocolName: String, moduleName: String, details: String?)
     case missingCompiledSymbol(protocolName: String, symbol: String)
-    case missingThunk(slot: Int, signature: MethodSignature)
+    case trampolineAllocationFailed(slot: Int)
     case unsupportedAsyncRequirement(protocolName: String, methodName: String)
     case unsupportedTypeKind(typeName: String)
     case invalidRequirementIndex(protocolName: String, index: Int, requirementCount: Int)
@@ -73,7 +65,7 @@ public enum RuntimeStubError: Error, Sendable, CustomStringConvertible {
         case .moduleNameCouldNotBeInferred(let typeDescription):
             return """
             Could not infer the module name for '\(typeDescription)'. \
-            Pass `moduleName:` explicitly when creating a compiled stub.
+            Pass `moduleName:` explicitly.
             """
         case .slotCountMismatch(let protocolName, let expected, let actual):
             return "Expected \(expected) mockable slots for '\(protocolName)', got \(actual)."
@@ -85,8 +77,8 @@ public enum RuntimeStubError: Error, Sendable, CustomStringConvertible {
             return base
         case .missingCompiledSymbol(let protocolName, let symbol):
             return "Compiled mock for '\(protocolName)' is missing exported symbol '\(symbol)'."
-        case .missingThunk(let slot, let signature):
-            return "No thunk available for slot \(slot) with signature \(signature)."
+        case .trampolineAllocationFailed(let slot):
+            return "Could not allocate an executable trampoline veneer for slot \(slot)."
         case .unsupportedAsyncRequirement(let protocolName, let methodName):
             return """
             RuntimeStub's raw trampoline does not support async requirement '\(methodName)' on '\(protocolName)'. \

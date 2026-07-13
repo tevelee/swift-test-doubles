@@ -18,19 +18,19 @@ extern TDSwiftErrorAllocation swift_allocError(const void *type,
                                                const void *flags,
                                                bool isTake);
 
-_Static_assert(sizeof(TDCallFrame) == 1024, "TDCallFrame must stay 1024 bytes");
-_Static_assert(offsetof(TDCallFrame, slot) == 0, "slot offset changed");
-_Static_assert(offsetof(TDCallFrame, gp) == 16, "gp offset changed");
-_Static_assert(offsetof(TDCallFrame, fp) == 144, "fp offset changed");
-_Static_assert(offsetof(TDCallFrame, stack) == 400, "stack offset changed");
-_Static_assert(offsetof(TDCallFrame, stackPointer) == 912, "stackPointer offset changed");
-_Static_assert(offsetof(TDCallFrame, indirectResult) == 920, "indirectResult offset changed");
-_Static_assert(offsetof(TDCallFrame, swiftSelf) == 928, "swiftSelf offset changed");
-_Static_assert(offsetof(TDCallFrame, swiftError) == 936, "swiftError offset changed");
-_Static_assert(offsetof(TDCallFrame, witnessTable) == 944, "witnessTable offset changed");
-_Static_assert(offsetof(TDCallFrame, returnGP) == 952, "returnGP offset changed");
-_Static_assert(offsetof(TDCallFrame, returnFP) == 984, "returnFP offset changed");
-_Static_assert(offsetof(TDCallFrame, returnError) == 1016, "returnError offset changed");
+_Static_assert(sizeof(TDCallFrame) == TD_FRAME_SIZE, "TDCallFrame size changed");
+_Static_assert(offsetof(TDCallFrame, slot) == TD_FRAME_SLOT_OFFSET, "slot offset changed");
+_Static_assert(offsetof(TDCallFrame, context) == TD_FRAME_CONTEXT_OFFSET, "context offset changed");
+_Static_assert(offsetof(TDCallFrame, gp) == TD_FRAME_GP_OFFSET, "gp offset changed");
+_Static_assert(offsetof(TDCallFrame, fp) == TD_FRAME_FP_OFFSET, "fp offset changed");
+_Static_assert(offsetof(TDCallFrame, stackPointer) == TD_FRAME_STACK_POINTER_OFFSET, "stackPointer offset changed");
+_Static_assert(offsetof(TDCallFrame, indirectResult) == TD_FRAME_INDIRECT_RESULT_OFFSET, "indirectResult offset changed");
+_Static_assert(offsetof(TDCallFrame, swiftSelf) == TD_FRAME_SWIFT_SELF_OFFSET, "swiftSelf offset changed");
+_Static_assert(offsetof(TDCallFrame, swiftError) == TD_FRAME_SWIFT_ERROR_OFFSET, "swiftError offset changed");
+_Static_assert(offsetof(TDCallFrame, reserved) == TD_FRAME_RESERVED_OFFSET, "reserved offset changed");
+_Static_assert(offsetof(TDCallFrame, returnGP) == TD_FRAME_RETURN_GP_OFFSET, "returnGP offset changed");
+_Static_assert(offsetof(TDCallFrame, returnFP) == TD_FRAME_RETURN_FP_OFFSET, "returnFP offset changed");
+_Static_assert(offsetof(TDCallFrame, returnError) == TD_FRAME_RETURN_ERROR_OFFSET, "returnError offset changed");
 
 static size_t td_page_size(void) {
   long pageSize = sysconf(_SC_PAGESIZE);

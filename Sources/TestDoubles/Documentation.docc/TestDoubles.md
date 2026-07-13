@@ -8,7 +8,7 @@ TestDoubles gives you protocol-based test doubles without macros or code generat
 
 | | ManualStub | RuntimeStub | CompiledStub |
 |---|---|---|---|
-| **Platform** | All | All | macOS only |
+| **Platform** | All | Apple arm64/x86_64; Linux unverified | macOS only |
 | **Requires conformer in binary** | No | Zero-config only | No |
 | **Requires Echo** | No | Yes | Yes (via RuntimeStub) |
 | **Test startup overhead** | None | None | ~1–2 s compile |

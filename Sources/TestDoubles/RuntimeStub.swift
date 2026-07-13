@@ -16,27 +16,21 @@ import Echo
 /// ```
 public class RuntimeStub<P>: @unchecked Sendable {
     let recorder: StubRecorder
-    private let registryKey: UnsafeRawPointer
-    private let allocationToDeallocate: UnsafeMutableRawPointer
+    private let resources: RuntimeStubResources
     private let containerBytes: ExistentialContainer
-    private let trampolineAllocations: [UnsafeRawPointer]
     private let payload: AnyObject?
 
     struct PreparedStub {
         let recorder: StubRecorder
-        let registryKey: UnsafeRawPointer
-        let allocationToDeallocate: UnsafeMutableRawPointer
+        let resources: RuntimeStubResources
         let containerBytes: ExistentialContainer
-        let trampolineAllocations: [UnsafeRawPointer]
         let payload: AnyObject?
     }
 
     init(prepared: PreparedStub) {
         self.recorder = prepared.recorder
-        self.registryKey = prepared.registryKey
-        self.allocationToDeallocate = prepared.allocationToDeallocate
+        self.resources = prepared.resources
         self.containerBytes = prepared.containerBytes
-        self.trampolineAllocations = prepared.trampolineAllocations
         self.payload = prepared.payload
     }
 
@@ -103,14 +97,6 @@ public class RuntimeStub<P>: @unchecked Sendable {
     /// Throwing variant of the method-descriptor initializer.
     public static func make(methods: [MethodDescriptor]) throws -> RuntimeStub<P> {
         try RuntimeStub(prepared: prepare(methods: methods))
-    }
-
-    deinit {
-        MockRegistry.remove(for: registryKey)
-        for trampoline in trampolineAllocations {
-            ThunkLibrary.destroyThunk(trampoline)
-        }
-        allocationToDeallocate.deallocate()
     }
 
     /// Use the stub directly as the protocol existential.

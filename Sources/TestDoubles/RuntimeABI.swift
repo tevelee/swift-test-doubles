@@ -1,6 +1,5 @@
-// Fixed trampoline backend for witness table patching.
+// Swift ABI classification used by the runtime trampoline.
 #if RUNTIME_STUB
-import CTestDoublesTrampoline
 import Echo
 import Foundation
 
@@ -19,10 +18,6 @@ public struct MethodSignature: Hashable, Sendable, CustomStringConvertible {
 
     public var description: String {
         "(\(args.joined(separator: ", "))) -> \(ret)"
-    }
-
-    var abiSignature: MethodSignature {
-        MethodSignature(args: args.map(argABI), ret: retABI(ret))
     }
 }
 
@@ -45,31 +40,10 @@ struct DirectValuePart: Sendable {
     let byteCount: Int
 }
 
-func argABI(_ typeName: String) -> String {
-    switch typeName {
-    case "W1", "W2", "FX", "INDIRECT": return typeName
-    case "String", "Swift.String": return "W2"
-    case "Double", "Swift.Double", "Float", "Swift.Float": return "FX"
-    default: return "W1"
-    }
-}
-
-func retABI(_ typeName: String) -> String {
-    switch typeName {
-    case "W1", "W2", "FX", "V", "INDIRECT": return typeName
-    case "Void", "Swift.Void", "()": return "V"
-    case "String", "Swift.String": return "W2"
-    case "Double", "Swift.Double", "Float", "Swift.Float": return "FX"
-    default: return "W1"
-    }
-}
-
 func abiClass(for type: Any.Type?, fallbackName: String, isReturn: Bool = false) -> ABIClass {
-    let fallback = isReturn ? retABI(fallbackName) : argABI(fallbackName)
-    if fallback == "V" { return .void }
-    if fallback == "INDIRECT" { return .indirect }
-    if fallback == "FX" { return .floatingPoint }
-    if fallback == "W2" { return .integer(words: 2) }
+    if let fallback = fallbackABIClass(for: fallbackName, isReturn: isReturn) {
+        return fallback
+    }
 
     guard let type else {
         return .integer(words: 1)
@@ -93,6 +67,25 @@ func abiClass(for type: Any.Type?, fallbackName: String, isReturn: Bool = false)
         return .indirect
     }
     return .integer(words: size > 8 ? 2 : 1)
+}
+
+private func fallbackABIClass(for typeName: String, isReturn: Bool) -> ABIClass? {
+    if isReturn, ["V", "Void", "Swift.Void", "()"].contains(typeName) {
+        return .void
+    }
+
+    switch typeName {
+    case "INDIRECT":
+        return .indirect
+    case "FX", "Double", "Swift.Double", "Float", "Swift.Float":
+        return .floatingPoint
+    case "W2", "String", "Swift.String":
+        return .integer(words: 2)
+    case "W1":
+        return .integer(words: 1)
+    default:
+        return nil
+    }
 }
 
 private func isFloatingPoint(_ type: Any.Type) -> Bool {
@@ -204,18 +197,4 @@ private func isIntegerLike(_ type: Any.Type) -> Bool {
     type == UInt64.self
 }
 
-public enum ThunkLibrary {
-    /// Creates a per-slot branch veneer over the single architecture trampoline.
-    public static func thunk(for signature: MethodSignature, slot: Int, context: UnsafeRawPointer) -> UnsafeRawPointer? {
-        guard let ptr = td_make_witness_trampoline(UInt(slot), UInt(bitPattern: context)) else {
-            return nil
-        }
-        _ = signature
-        return UnsafeRawPointer(ptr)
-    }
-
-    static func destroyThunk(_ pointer: UnsafeRawPointer) {
-        td_free_witness_trampoline(UnsafeMutableRawPointer(mutating: pointer))
-    }
-}
 #endif

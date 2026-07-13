@@ -24,18 +24,7 @@ enum MockRegistry {
         storage.removeValue(forKey: key)
     }
 
-    /// Called by thunks and bridge functions to resolve the recorder from the context key.
-    @inline(__always)
-    static func resolve(_ key: UnsafeRawPointer) -> StubRecorder {
-        lock.lock()
-        defer { lock.unlock() }
-        guard let recorder = storage[key] else {
-            fatalError("No mock registered for context key \(key)")
-        }
-        return recorder
-    }
-
-    /// Non-fatal resolve — returns nil if not found (used by bridge functions).
+    /// Resolve a recorder without trapping when the owning stub is gone.
     @inline(__always)
     static func resolveOptional(_ key: UnsafeRawPointer) -> StubRecorder? {
         lock.lock()

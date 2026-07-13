@@ -3,11 +3,22 @@ import Echo
 import Foundation
 
 enum ModuleSignatureDiscovery {
+    private static let cacheLock = NSLock()
+    nonisolated(unsafe) private static var cache: [String: [DiscoveredSignature]] = [:]
+
     static func discover(
         protocolName: String,
         moduleName: String,
         proto: ProtocolDescriptor
     ) throws -> [DiscoveredSignature] {
+        let cacheKey = "\(moduleName).\(protocolName)"
+        cacheLock.lock()
+        let cached = cache[cacheKey]
+        cacheLock.unlock()
+        if let cached {
+            return cached
+        }
+
         let graph = try loadSymbolGraph(moduleName: moduleName, protocolName: protocolName)
         guard let protocolSymbol = graph.symbols.first(where: {
             $0.kind.identifier == "swift.protocol" &&
@@ -37,7 +48,7 @@ enum ModuleSignatureDiscovery {
             )
         }
 
-        return zip(requirementSymbols, mockableIndices).map { symbol, slot in
+        let signatures = zip(requirementSymbols, mockableIndices).map { symbol, slot in
             let requirementKind = proto.requirements[slot].flags.kind
             return discoveredSignature(
                 from: symbol,
@@ -46,6 +57,10 @@ enum ModuleSignatureDiscovery {
                 moduleName: moduleName
             )
         }
+        cacheLock.lock()
+        cache[cacheKey] = signatures
+        cacheLock.unlock()
+        return signatures
     }
 
     private static func discoveredSignature(
