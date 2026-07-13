@@ -203,13 +203,13 @@ public class CompiledStub<P>: @unchecked Sendable {
     // MARK: - Internal recording
 
     func recordAsync(mode: StubRecorder.Mode = .recording, _ block: () async -> Void) async -> RecordedCall {
-        MatcherContext.begin()
         recorder.activeMatchers = []
-        recorder.mode = mode
-        await block()
-        let asyncMatchers = MatcherContext.end()
-        if !asyncMatchers.isEmpty {
-            recorder.lastRecording?.matchers = asyncMatchers
+        let (_, matchers) = await MatcherContext.withRecording {
+            recorder.mode = mode
+            await block()
+        }
+        if !matchers.isEmpty {
+            recorder.lastRecording?.matchers = matchers
         }
         recorder.mode = .normal
         guard let recording = recorder.lastRecording else {
@@ -220,11 +220,11 @@ public class CompiledStub<P>: @unchecked Sendable {
     }
 
     private func record(mode: StubRecorder.Mode = .recording, _ block: () -> Void) -> RecordedCall {
-        MatcherContext.begin()
         recorder.activeMatchers = []
-        recorder.mode = mode
-        block()
-        let matchers = MatcherContext.end()
+        let (_, matchers) = MatcherContext.withRecording {
+            recorder.mode = mode
+            block()
+        }
         if !matchers.isEmpty {
             recorder.lastRecording?.matchers = matchers
         }

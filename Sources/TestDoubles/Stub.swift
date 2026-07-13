@@ -212,10 +212,10 @@ public class Stub<T: StubConformer>: @unchecked Sendable {
     // MARK: - Private helpers
 
     private func record(mode: NamedStubRecorder.Mode = .recording, _ block: () -> Void) -> NamedRecordedCall {
-        MatcherContext.begin()
-        recorder.mode = mode
-        block()
-        let matchers = MatcherContext.end()
+        let (_, matchers) = MatcherContext.withRecording {
+            recorder.mode = mode
+            block()
+        }
         if !matchers.isEmpty {
             recorder.lastRecording?.matchers = matchers
         }
@@ -228,10 +228,10 @@ public class Stub<T: StubConformer>: @unchecked Sendable {
     }
 
     private func recordAsync(mode: NamedStubRecorder.Mode = .recording, _ block: () async -> Void) async -> NamedRecordedCall {
-        MatcherContext.begin()
-        recorder.mode = mode
-        await block()
-        let matchers = MatcherContext.end()
+        let (_, matchers) = await MatcherContext.withRecording {
+            recorder.mode = mode
+            await block()
+        }
         if !matchers.isEmpty {
             recorder.lastRecording?.matchers = matchers
         }
@@ -337,13 +337,84 @@ public struct NamedVerifyBuilder {
     public func wasNotCalled() { wasCalled(times: 0) }
 
     /// Inspect the arguments of all matching calls.
-    public func withArgs(_ handler: ([[Any]]) -> Void) {
+    public func withArgs(_ handler: ([[Any]]) throws -> Void) rethrows {
+        try handler(matchingArguments())
+    }
+
+    /// Inspects each matching call with one typed argument.
+    public func withArgs<A>(_ handler: (A) throws -> Void) rethrows {
+        for args in matchingArguments() {
+            try handler(typedArgument(A.self, from: args, at: 0, method: recording.methodName, context: "Typed withArgs handler"))
+        }
+    }
+
+    /// Inspects each matching call with two typed arguments.
+    public func withArgs<A, B>(_ handler: (A, B) throws -> Void) rethrows {
+        for args in matchingArguments() {
+            try handler(
+                typedArgument(A.self, from: args, at: 0, method: recording.methodName, context: "Typed withArgs handler"),
+                typedArgument(B.self, from: args, at: 1, method: recording.methodName, context: "Typed withArgs handler")
+            )
+        }
+    }
+
+    /// Inspects each matching call with three typed arguments.
+    public func withArgs<A, B, C>(_ handler: (A, B, C) throws -> Void) rethrows {
+        for args in matchingArguments() {
+            try handler(
+                typedArgument(A.self, from: args, at: 0, method: recording.methodName, context: "Typed withArgs handler"),
+                typedArgument(B.self, from: args, at: 1, method: recording.methodName, context: "Typed withArgs handler"),
+                typedArgument(C.self, from: args, at: 2, method: recording.methodName, context: "Typed withArgs handler")
+            )
+        }
+    }
+
+    /// Inspects each matching call with four typed arguments.
+    public func withArgs<A, B, C, D>(_ handler: (A, B, C, D) throws -> Void) rethrows {
+        for args in matchingArguments() {
+            try handler(
+                typedArgument(A.self, from: args, at: 0, method: recording.methodName, context: "Typed withArgs handler"),
+                typedArgument(B.self, from: args, at: 1, method: recording.methodName, context: "Typed withArgs handler"),
+                typedArgument(C.self, from: args, at: 2, method: recording.methodName, context: "Typed withArgs handler"),
+                typedArgument(D.self, from: args, at: 3, method: recording.methodName, context: "Typed withArgs handler")
+            )
+        }
+    }
+
+    /// Inspects each matching call with five typed arguments.
+    public func withArgs<A, B, C, D, E>(_ handler: (A, B, C, D, E) throws -> Void) rethrows {
+        for args in matchingArguments() {
+            try handler(
+                typedArgument(A.self, from: args, at: 0, method: recording.methodName, context: "Typed withArgs handler"),
+                typedArgument(B.self, from: args, at: 1, method: recording.methodName, context: "Typed withArgs handler"),
+                typedArgument(C.self, from: args, at: 2, method: recording.methodName, context: "Typed withArgs handler"),
+                typedArgument(D.self, from: args, at: 3, method: recording.methodName, context: "Typed withArgs handler"),
+                typedArgument(E.self, from: args, at: 4, method: recording.methodName, context: "Typed withArgs handler")
+            )
+        }
+    }
+
+    /// Inspects each matching call with six typed arguments.
+    public func withArgs<A, B, C, D, E, F>(_ handler: (A, B, C, D, E, F) throws -> Void) rethrows {
+        for args in matchingArguments() {
+            try handler(
+                typedArgument(A.self, from: args, at: 0, method: recording.methodName, context: "Typed withArgs handler"),
+                typedArgument(B.self, from: args, at: 1, method: recording.methodName, context: "Typed withArgs handler"),
+                typedArgument(C.self, from: args, at: 2, method: recording.methodName, context: "Typed withArgs handler"),
+                typedArgument(D.self, from: args, at: 3, method: recording.methodName, context: "Typed withArgs handler"),
+                typedArgument(E.self, from: args, at: 4, method: recording.methodName, context: "Typed withArgs handler"),
+                typedArgument(F.self, from: args, at: 5, method: recording.methodName, context: "Typed withArgs handler")
+            )
+        }
+    }
+
+    private func matchingArguments() -> [[Any]] {
         let matchers = resolvedMatchers()
         let matching = recorder.calls.filter { call in
             call.methodName == recording.methodName &&
             (matchers.isEmpty || matchArgs(call.args, against: matchers))
         }
-        handler(matching.map(\.args))
+        return matching.map(\.args)
     }
 
     private func resolvedMatchers() -> [ParameterMatcher] {

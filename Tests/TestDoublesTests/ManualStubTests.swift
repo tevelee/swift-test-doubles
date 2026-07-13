@@ -69,6 +69,16 @@ private struct FakeServiceStub: FakeService, StubConformer {
         #expect(sut.find(id: 50) == "Regular")
     }
 
+    @Test func reusableTypedMatcher() {
+        let stub = Stub<FakeServiceStub>()
+        let vipID = Matcher<Int>("VIP id") { $0 > 100 }
+        stub.when { $0.find(id: matching(vipID)) }.returns("VIP")
+        stub.when { $0.find(id: any()) }.returns("Regular")
+        let sut: any FakeService = stub()
+        #expect(sut.find(id: 101) == "VIP")
+        #expect(sut.find(id: 50) == "Regular")
+    }
+
     @Test func specificityResolution() {
         let stub = Stub<FakeServiceStub>()
         // Register wildcard first, then specific — specific should win
@@ -151,6 +161,22 @@ private struct FakeServiceStub: FakeService, StubConformer {
         }
     }
 
+    @Test func verifyWithTypedArgs() {
+        let stub = Stub<FakeServiceStub>()
+        stub.when { $0.search(query: any(), limit: any()) }.returns([])
+        let sut: any FakeService = stub()
+        _ = sut.search(query: "alice", limit: 10)
+        _ = sut.search(query: "bob", limit: 20)
+
+        var captured: [(String, Int)] = []
+        stub.verify { $0.search(query: any(), limit: any()) }.withArgs { (query: String, limit: Int) in
+            captured.append((query, limit))
+        }
+
+        #expect(captured.map(\.0) == ["alice", "bob"])
+        #expect(captured.map(\.1) == [10, 20])
+    }
+
     // MARK: Throwing methods (Approach B)
 
     @Test func throwingMethodThrows() {
@@ -185,6 +211,16 @@ private struct FakeServiceStub: FakeService, StubConformer {
         let stub = Stub<FakeServiceStub>()
         let captor = ArgumentCaptor<Int>()
         stub.when { $0.find(id: captor.capture()) }.returns("x")
+        let sut: any FakeService = stub()
+        _ = sut.find(id: 99)
+        _ = sut.find(id: 42)
+        #expect(captor.values == [99, 42])
+    }
+
+    @Test func captureIntoFunction() {
+        let stub = Stub<FakeServiceStub>()
+        let captor = ArgumentCaptor<Int>()
+        stub.when { $0.find(id: capture(into: captor)) }.returns("x")
         let sut: any FakeService = stub()
         _ = sut.find(id: 99)
         _ = sut.find(id: 42)

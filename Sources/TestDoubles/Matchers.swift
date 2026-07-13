@@ -1,12 +1,73 @@
 import Foundation
 
-/// Thread-keyed matcher stack for free-function matchers (any(), equal(), etc.).
+/// A typed reusable predicate matcher.
+///
+/// Use ``matching(_:)`` to apply a matcher inside ``when(_:)`` or ``verify(_:)``:
+///
+/// ```swift
+/// let vipID = Matcher<Int>("VIP id") { $0 > 100 }
+/// stub.when { $0.find(id: matching(vipID)) }.returns("VIP")
+/// ```
+public struct Matcher<Value>: CustomStringConvertible {
+    private let predicate: (Value) -> Bool
+
+    /// Human-readable matcher name used in failure diagnostics.
+    public let description: String
+
+    /// Creates a matcher with a diagnostic `description` and a predicate.
+    public init(_ description: String, _ predicate: @escaping (Value) -> Bool) {
+        self.description = description
+        self.predicate = predicate
+    }
+
+    /// Returns `true` when this matcher accepts `value`.
+    public func matches(_ value: Value) -> Bool {
+        predicate(value)
+    }
+}
+
+private final class MatcherRecording: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [ParameterMatcher] = []
+
+    func append(_ matcher: ParameterMatcher) {
+        lock.lock()
+        storage.append(matcher)
+        lock.unlock()
+    }
+
+    var matchers: [ParameterMatcher] {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage
+    }
+}
+
+/// Task-local matcher stack for free-function matchers (any(), equal(), etc.).
 enum MatcherContext {
+    @TaskLocal private static var activeRecording: MatcherRecording?
+
     private static let lock = NSLock()
     nonisolated(unsafe) private static var stacks: [UInt: [ParameterMatcher]] = [:]
 
     private static var key: UInt {
         UInt(bitPattern: Unmanaged.passUnretained(Thread.current).toOpaque())
+    }
+
+    static func withRecording<T>(_ operation: () throws -> T) rethrows -> (result: T, matchers: [ParameterMatcher]) {
+        let recording = MatcherRecording()
+        let result = try $activeRecording.withValue(recording) {
+            try operation()
+        }
+        return (result, recording.matchers)
+    }
+
+    static func withRecording<T>(_ operation: () async throws -> T) async rethrows -> (result: T, matchers: [ParameterMatcher]) {
+        let recording = MatcherRecording()
+        let result = try await $activeRecording.withValue(recording) {
+            try await operation()
+        }
+        return (result, recording.matchers)
     }
 
     static func begin() {
@@ -16,6 +77,11 @@ enum MatcherContext {
     }
 
     static func append(_ matcher: ParameterMatcher) {
+        if let activeRecording {
+            activeRecording.append(matcher)
+            return
+        }
+
         lock.lock()
         stacks[key, default: []].append(matcher)
         lock.unlock()
@@ -41,10 +107,26 @@ public func any<T>(where predicate: @escaping (T) -> Bool) -> T {
     return zeroValue(T.self)
 }
 
+/// Matches any argument of type `T` accepted by `matcher`.
+public func matching<T>(_ matcher: Matcher<T>) -> T {
+    MatcherContext.append(TypedMatcher(matcher: matcher))
+    return zeroValue(T.self)
+}
+
+/// Matches any argument of type `T` accepted by `predicate`.
+public func matching<T>(_ description: String, _ predicate: @escaping (T) -> Bool) -> T {
+    matching(Matcher(description, predicate))
+}
+
 /// Matches an argument that is equal to `value`.
 public func equal<T: Equatable>(_ value: T) -> T {
     MatcherContext.append(EqualMatcher(expected: value))
     return value
+}
+
+/// Captures argument values into `captor` for later inspection.
+public func capture<T>(into captor: ArgumentCaptor<T>) -> T {
+    captor.capture()
 }
 
 /// Captures argument values for later inspection.
