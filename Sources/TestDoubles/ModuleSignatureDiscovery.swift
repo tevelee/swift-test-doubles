@@ -297,6 +297,16 @@ enum ModuleSignatureDiscovery {
             append(directory.appendingPathComponent("Modules").path)
         }
 
+        // Xcode hosts tests with its own runner, so argv[0] does not point into
+        // DerivedData. Loaded test/framework bundles still lead to Products.
+        for bundle in Bundle.allBundles + Bundle.allFrameworks {
+            let bundleParent = bundle.bundleURL.deletingLastPathComponent()
+            for directory in ancestorDirectories(startingAt: bundleParent, limit: 6) {
+                append(directory.path)
+                append(directory.appendingPathComponent("Modules").path)
+            }
+        }
+
         let cwd = FileManager.default.currentDirectoryPath
         for path in [
             "\(cwd)/.build/arm64-apple-macosx/debug",
@@ -334,6 +344,10 @@ enum ModuleSignatureDiscovery {
     }
 
     private static func toolPath(_ name: String) -> String {
+        if isXcodeHostedProcess, let path = xcrunToolPath(name) {
+            return path
+        }
+
         for candidate in environmentToolCandidates(name) where FileManager.default.isExecutableFile(atPath: candidate) {
             return candidate
         }
@@ -344,15 +358,26 @@ enum ModuleSignatureDiscovery {
             return path
         }
 
-        if FileManager.default.fileExists(atPath: "/usr/bin/xcrun") {
-            let result = run("/usr/bin/xcrun", ["--find", name])
-            let path = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-            if result.status == 0, path.isEmpty == false {
-                return path
-            }
+        if let path = xcrunToolPath(name) {
+            return path
         }
 
         return name
+    }
+
+    private static var isXcodeHostedProcess: Bool {
+        (Bundle.allBundles + Bundle.allFrameworks).contains {
+            $0.bundleURL.path.contains("/Library/Developer/Xcode/DerivedData/")
+        }
+    }
+
+    private static func xcrunToolPath(_ name: String) -> String? {
+        guard FileManager.default.fileExists(atPath: "/usr/bin/xcrun") else {
+            return nil
+        }
+        let result = run("/usr/bin/xcrun", ["--find", name])
+        let path = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        return result.status == 0 && path.isEmpty == false ? path : nil
     }
 
     private static func environmentToolCandidates(_ name: String) -> [String] {

@@ -43,7 +43,6 @@ extension RuntimeStub {
             proto: conformance.protocol
         )
         let mockableSigs = mockableSignatures(from: signatures)
-        try rejectAsyncRequirements(mockableSigs, protocolName: conformance.protocol.name)
         let methods = mockableSigs.map { sig in
             MethodDescriptor(
                 name: sig.methodName,
@@ -77,7 +76,8 @@ extension RuntimeStub {
                 index: pair.1,
                 qualifiedArgs: pair.0.qualifiedArgs,
                 qualifiedRet: pair.0.qualifiedRet,
-                isThrowing: pair.0.isThrowing
+                isThrowing: pair.0.isThrowing,
+                isAsync: pair.0.isAsync
             )
         }
 
@@ -104,7 +104,6 @@ extension RuntimeStub {
             moduleName: moduleName,
             proto: proto
         )
-        try rejectAsyncRequirements(signatures, protocolName: proto.name)
         let methods = signatures.map { sig in
             MethodDescriptor(
                 name: sig.methodName,
@@ -151,18 +150,6 @@ extension RuntimeStub {
         }
     }
 
-    static func rejectAsyncRequirements(
-        _ signatures: [DiscoveredSignature],
-        protocolName: String
-    ) throws {
-        if let asyncSignature = signatures.first(where: \.isAsync) {
-            throw RuntimeStubError.unsupportedAsyncRequirement(
-                protocolName: protocolName,
-                methodName: asyncSignature.methodName
-            )
-        }
-    }
-
     static func failureMessage(for error: Error) -> String {
         if let error = error as? RuntimeStubError {
             return "[TestDoubles] \(error.description)"
@@ -185,12 +172,6 @@ extension RuntimeStub {
         from conformance: ConformanceDescriptor,
         methods: [MethodDescriptor]
     ) throws -> PreparedStub {
-        if let asyncMethod = methods.first(where: \.isAsync) {
-            throw RuntimeStubError.unsupportedAsyncRequirement(
-                protocolName: conformance.protocol.name,
-                methodName: asyncMethod.name
-            )
-        }
         let recorder = StubRecorder()
         let patched = try patchWitnessTable(from: conformance, methods: methods, recorder: recorder)
         let containerBytes = try buildExistentialContainer(from: conformance, witnessTable: patched.witnessTable)
@@ -206,12 +187,6 @@ extension RuntimeStub {
         proto: ProtocolDescriptor,
         methods: [MethodDescriptor]
     ) throws -> PreparedStub {
-        if let asyncMethod = methods.first(where: \.isAsync) {
-            throw RuntimeStubError.unsupportedAsyncRequirement(
-                protocolName: proto.name,
-                methodName: asyncMethod.name
-            )
-        }
         try validate(methods: methods, protocolName: proto.name, requirementCount: proto.numRequirements)
 
         let recorder = StubRecorder()
@@ -246,7 +221,8 @@ extension RuntimeStub {
         for method in methods {
             guard let thunkPtr = TrampolineFactory.make(
                 slot: method.index,
-                context: UnsafeRawPointer(clonedWT)
+                context: UnsafeRawPointer(clonedWT),
+                isAsync: method.isAsync
             ) else {
                 throw RuntimeStubError.trampolineAllocationFailed(slot: method.index)
             }
@@ -300,7 +276,8 @@ extension RuntimeStub {
         for method in methods {
             guard let thunkPtr = TrampolineFactory.make(
                 slot: method.index,
-                context: UnsafeRawPointer(witnessTable)
+                context: UnsafeRawPointer(witnessTable),
+                isAsync: method.isAsync
             ) else {
                 throw RuntimeStubError.trampolineAllocationFailed(slot: method.index)
             }

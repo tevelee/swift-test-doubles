@@ -43,6 +43,50 @@ extension RuntimeStub {
         verify(called: 0, call)
     }
 
+    /// Verify an async method was called.
+    @_disfavoredOverload
+    public func verify(_ call: (P) async -> some Any) async -> VerifyBuilder {
+        let recording = await recordAsync(mode: .verifying) {
+            _ = await call(self.callAsFunction())
+        }
+        return VerifyBuilder(recorder: recorder, recording: recording)
+    }
+
+    /// Verify an async throwing method was called.
+    @_disfavoredOverload
+    public func verify(_ call: (P) async throws -> some Any) async -> VerifyBuilder {
+        let recording = await recordAsync(mode: .verifying) {
+            _ = try! await call(self.callAsFunction())
+        }
+        return VerifyBuilder(recorder: recorder, recording: recording)
+    }
+
+    /// Concise async verify.
+    public func verify(called times: Int, _ call: (P) async -> some Any) async {
+        let recording = await recordAsync(mode: .verifying) {
+            _ = await call(self.callAsFunction())
+        }
+        VerifyBuilder(recorder: recorder, recording: recording).wasCalled(times: times)
+    }
+
+    /// Concise async throwing verify.
+    public func verify(called times: Int, _ call: (P) async throws -> some Any) async {
+        let recording = await recordAsync(mode: .verifying) {
+            _ = try! await call(self.callAsFunction())
+        }
+        VerifyBuilder(recorder: recorder, recording: recording).wasCalled(times: times)
+    }
+
+    /// Concise async verify-never.
+    public func verify(never call: (P) async -> some Any) async {
+        await verify(called: 0, call)
+    }
+
+    /// Concise async throwing verify-never.
+    public func verify(never call: (P) async throws -> some Any) async {
+        await verify(called: 0, call)
+    }
+
     /// Verify that methods were called in a specific order.
     /// ```swift
     /// stub.verifyOrder {

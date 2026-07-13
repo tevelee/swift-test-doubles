@@ -18,6 +18,8 @@
 #define TD_FRAME_RETURN_FP_OFFSET 472
 #define TD_FRAME_RETURN_ERROR_OFFSET 504
 
+#define TD_ASYNC_CONTEXT_HEADER_SIZE 16
+
 #ifndef __ASSEMBLER__
 #include <stdint.h>
 #include <stdbool.h>
@@ -52,8 +54,10 @@ typedef struct TDSwiftErrorAllocation {
 } TDSwiftErrorAllocation;
 
 void *td_make_witness_trampoline(uintptr_t slot, uintptr_t context);
+void *td_make_async_witness_trampoline(uintptr_t slot, uintptr_t context);
 void td_free_witness_trampoline(void *ptr);
 void td_swift_trampoline_entry(void);
+void td_swift_async_trampoline_entry(void);
 void td_swift_trampoline_handler(TDCallFrame *frame);
 TDSwiftErrorAllocation td_swift_alloc_error(const void *type,
                                             const void *witnessTable,

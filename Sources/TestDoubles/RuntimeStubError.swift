@@ -45,6 +45,7 @@ public enum RuntimeStubError: Error, Sendable, CustomStringConvertible {
     case runtimeCompilerFailed(protocolName: String, moduleName: String, details: String?)
     case missingCompiledSymbol(protocolName: String, symbol: String)
     case trampolineAllocationFailed(slot: Int)
+    @available(*, deprecated, message: "RuntimeStub supports async requirements.")
     case unsupportedAsyncRequirement(protocolName: String, methodName: String)
     case unsupportedTypeKind(typeName: String)
     case invalidRequirementIndex(protocolName: String, index: Int, requirementCount: Int)
@@ -81,8 +82,8 @@ public enum RuntimeStubError: Error, Sendable, CustomStringConvertible {
             return "Could not allocate an executable trampoline veneer for slot \(slot)."
         case .unsupportedAsyncRequirement(let protocolName, let methodName):
             return """
-            RuntimeStub's raw trampoline does not support async requirement '\(methodName)' on '\(protocolName)'. \
-            Use CompiledStub on macOS, or ManualStub for async protocols.
+            Obsolete async-requirement error for '\(methodName)' on '\(protocolName)'. \
+            RuntimeStub now supports async requirements.
             """
         case .unsupportedTypeKind(let typeName):
             return "Unsupported type kind for '\(typeName)'."

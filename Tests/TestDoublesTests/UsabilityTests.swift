@@ -3,6 +3,10 @@ import Testing
 @testable import TestDoubles
 import TestDoublesFixtures
 
+private struct RuntimeAsyncError: Error, Equatable {
+    let url: String
+}
+
 @Suite struct UsabilityTests {
 
     @Test func diagnoseMissingConformance() {
@@ -27,19 +31,64 @@ import TestDoublesFixtures
         }
     }
 
-    @Test func runtimeStubRejectsAsyncRequirements() throws {
-        do {
-            _ = try RuntimeStub<any AsyncDataLoader>.make()
-            Issue.record("Expected async requirement failure")
-        } catch let error as RuntimeStubError {
-            switch error {
-            case .unsupportedAsyncRequirement(let protocolName, let methodName):
-                #expect(protocolName == "AsyncDataLoader")
-                #expect(methodName.contains("load") || methodName.contains("prefetch"))
-            default:
-                Issue.record("Unexpected RuntimeStubError: \(error)")
-            }
+    @Test func runtimeStubSupportsAsyncRequirements() async throws {
+        let stub = try RuntimeStub<any AsyncDataLoader>.make()
+
+        await stub.when { try await $0.load(url: any()) }.returns("runtime-data")
+        await stub.when { await $0.prefetch(urls: any()) }
+        stub.when { $0.cacheSize }.returns(3)
+
+        let sut: any AsyncDataLoader = stub()
+
+        #expect(try await sut.load(url: "https://example.com") == "runtime-data")
+        await sut.prefetch(urls: ["one", "two"])
+        #expect(sut.cacheSize == 3)
+        #expect(stub.calls.map(\.name).contains { $0.contains("load") })
+        #expect(stub.calls.map(\.name).contains { $0.contains("prefetch") })
+
+        await stub.verify { try await $0.load(url: any()) }.wasCalled()
+        await stub.verify(called: 1) { await $0.prefetch(urls: any()) }
+    }
+
+    @Test func explicitRuntimeStubSupportsAsyncThrowingRequirements() async throws {
+        let stub = try RuntimeStub<any AsyncDataLoader>.make(
+            .method(String.self, returns: String.self, throws: true, async: true),
+            .method([String].self, async: true),
+            .getter(Int.self)
+        )
+
+        await stub.when { try await $0.load(url: equal("success")) } then: {
+            "loaded"
         }
+        await stub.when { try await $0.load(url: any()) } then: { args in
+            throw RuntimeAsyncError(url: args[0] as! String)
+        }
+        await stub.when { await $0.prefetch(urls: any()) }
+        stub.when { $0.cacheSize }.returns(0)
+
+        let sut: any AsyncDataLoader = stub()
+
+        #expect(try await sut.load(url: "success") == "loaded")
+
+        do {
+            _ = try await sut.load(url: "missing")
+            Issue.record("Expected the async RuntimeStub to throw")
+        } catch let error as RuntimeAsyncError {
+            #expect(error == RuntimeAsyncError(url: "missing"))
+        }
+    }
+
+    @Test func moduleSignaturesSupportAsyncRequirements() async throws {
+        let stub = try RuntimeStub<any AsyncDataLoader>.makeFromModule()
+
+        await stub.when { try await $0.load(url: any()) }.returns("module-data")
+        await stub.when { await $0.prefetch(urls: any()) }
+        stub.when { $0.cacheSize }.returns(5)
+
+        let sut: any AsyncDataLoader = stub()
+
+        #expect(try await sut.load(url: "module") == "module-data")
+        #expect(sut.cacheSize == 5)
     }
 
     @Test func explicitRuntimeStubMethodsDoNotNeedRealConformer() throws {
@@ -120,6 +169,13 @@ import TestDoublesFixtures
         #expect(scaffold.contains(".method(args: [Int.self, Int.self], returns: Int.self), // add(_:_:)"))
         #expect(scaffold.contains(".method(args: [Int.self], returns: String.self), // describe(_:)"))
         #expect(scaffold.contains(".getter(Int.self)"))
+    }
+
+    @Test func runtimeStubSetupScaffoldIncludesAsyncEffects() throws {
+        let scaffold = try RuntimeStub<any AsyncDataLoader>.setupScaffold()
+
+        #expect(scaffold.contains("throws: true, async: true"))
+        #expect(scaffold.contains("returns: Void.self, async: true"))
     }
 
 #if COMPILED_STUB

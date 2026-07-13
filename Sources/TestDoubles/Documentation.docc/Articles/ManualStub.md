@@ -88,8 +88,9 @@ protocol.
 
 ## Workarounds
 
-- If a protocol is too large to forward manually, use ``RuntimeStub`` for
-  synchronous requirements or ``CompiledStub`` on macOS.
+- If a protocol is too large to forward manually, use ``RuntimeStub`` when
+  configured responses can complete immediately or ``CompiledStub`` on macOS
+  for requirements outside RuntimeStub's ABI coverage.
 - If the system under test stores the dependency and uses it later, keep the
   `Stub` object alive for the whole test.
 - If argument labels make Approach A awkward, use `stub.call(..., function:)`

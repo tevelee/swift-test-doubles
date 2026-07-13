@@ -45,10 +45,6 @@ private enum RuntimeTrampolineHandler {
         guard let method = recorder.runtimeMethod(for: slot) else {
             fatalError("[TestDoubles] No method descriptor registered for witness slot \(slot).")
         }
-        guard !method.isAsync else {
-            fatalError("[TestDoubles] RuntimeStub trampoline does not support async witness entries yet. Use CompiledStub for async requirements.")
-        }
-
         let args = decodeArguments(for: method, from: frame)
         let result: Any
 
@@ -63,7 +59,7 @@ private enum RuntimeTrampolineHandler {
             }
         } else {
             result = recorder.dispatch(method: slot, args: args)
-            if method.isThrowing {
+            if method.isThrowing || method.isAsync {
                 frame.storeWord(0, at: TDFrame.returnError)
             } else {
                 frame.storeWord(frame.loadWord(at: TDFrame.swiftError), at: TDFrame.returnError)
@@ -84,7 +80,14 @@ private enum RuntimeTrampolineHandler {
     }
 
     private static func decodeArguments(for method: RuntimeMethodDescriptor, from frame: UnsafeMutablePointer<TDCallFrame>) -> [Any] {
-        var cursor = ArgumentCursor()
+        let returnABI = abiClass(for: method.returnType, fallbackName: method.qualifiedRet, isReturn: true)
+        let hasAsyncIndirectResult: Bool
+        if method.isAsync, case .indirect = returnABI {
+            hasAsyncIndirectResult = true
+        } else {
+            hasAsyncIndirectResult = false
+        }
+        var cursor = ArgumentCursor(gp: hasAsyncIndirectResult ? 1 : 0)
         var values: [Any] = []
         values.reserveCapacity(method.signature.args.count)
 

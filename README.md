@@ -20,6 +20,7 @@ Protocol-based test doubles for Swift — no macros, no code generation. Three p
 - **Start here:** [Getting Started](Sources/TestDoubles/Documentation.docc/Articles/GettingStarted.md)
 - **Tradeoffs and workarounds:** [Strategy Guide](Sources/TestDoubles/Documentation.docc/Articles/StrategyGuide.md)
 - **Runtime details:** [RuntimeStub](Sources/TestDoubles/Documentation.docc/Articles/RuntimeStub.md)
+- **Trampoline internals:** [Trampoline Architecture](Sources/TestDoubles/Documentation.docc/Articles/TrampolineArchitecture.md)
 - **Compiled fallback:** [CompiledStub](Sources/TestDoubles/Documentation.docc/Articles/CompiledStub.md)
 - **Concrete replacements:** [Dynamic Replacement](Sources/TestDoubles/Documentation.docc/Articles/DynamicReplacement.md)
 
@@ -110,6 +111,20 @@ let sut: any UserRepository = stub()
 assert(sut.find(id: 99) == "Alice")
 
 stub.verify { $0.find(id: any()) }.wasCalled()
+```
+
+Async and async-throwing requirements use a dedicated continuation trampoline:
+
+```swift
+let stub = RuntimeStub<any AsyncDataLoader>()
+
+await stub.when { try await $0.load(url: any()) }.returns("data")
+await stub.when { await $0.prefetch(urls: any()) }
+
+let sut: any AsyncDataLoader = stub()
+assert(try await sut.load(url: "https://example.com") == "data")
+
+await stub.verify { try await $0.load(url: any()) }.wasCalled()
 ```
 
 ```swift
@@ -245,9 +260,12 @@ where metadata is known, including mixed Float/Double arguments, stack-spilled
 integer and floating-point arguments, small mixed aggregate arguments, small
 direct aggregate returns, throwing errors, and indirect-return buffers.
 
-**RuntimeStub: async requirements**
+**RuntimeStub: async handlers**
 
-Async protocol requirements use Swift's async calling convention, so `RuntimeStub` rejects them during setup. Use `ManualStub` or macOS-only `CompiledStub` for async protocols.
+Async protocol requirements are supported, including throwing and indirect
+returns. Configured responses currently complete immediately; handler closures
+cannot suspend. Use a hand-written `ManualStub` method when the test double
+itself must await asynchronous work.
 
 **CompiledStub is macOS-only**
 

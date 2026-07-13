@@ -20,7 +20,12 @@ aggregate, and indirect-return paths.
 
 ## Runtime Trampoline
 
-`RuntimeStub` uses a fixed assembly capture stub per architecture plus tiny per-slot branch veneers. The Swift handler in `TrampolineHandler.swift` owns argument decoding, recorder dispatch, and return encoding.
+`RuntimeStub` uses shared synchronous and asynchronous assembly capture entries
+per architecture plus tiny per-slot branch veneers. The Swift handler in
+`TrampolineHandler.swift` owns argument decoding, recorder dispatch, and return
+encoding. Read the
+[Trampoline Architecture](Sources/TestDoubles/Documentation.docc/Articles/TrampolineArchitecture.md)
+reference before changing this contract.
 
 ## Branch Workflow
 
@@ -30,6 +35,6 @@ aggregate, and indirect-return paths.
 
 ## Known Limitations
 
-- **async requirements**: `RuntimeStub` rejects async witness entries. Use `ManualStub` or macOS-only `CompiledStub`.
+- **suspending async handlers**: `RuntimeStub` supports async requirements, but configured handlers complete immediately and cannot themselves suspend.
 - **CompiledStub is macOS-only**: `swiftc` is not available on Linux or iOS simulators.
 - **RuntimeStub on Linux**: untested — Echo's Linux support is not confirmed. `ManualStub` is the safe choice on Linux.

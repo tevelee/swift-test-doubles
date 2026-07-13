@@ -397,6 +397,24 @@ struct RealFileLoader: FileLoader {
         #expect(try sut.load(path: "/x") == "typed-content")
         #expect(sut.exists(path: "/x") == false)
     }
+
+    @Test func asyncMethodReferences() async throws {
+        let real: any AsyncDataLoader = RealDataLoader()
+        let stub = RuntimeStub<any AsyncDataLoader>(
+            .from(real.load),
+            .from(real.prefetch),
+            .getter(real.cacheSize)
+        )
+
+        await stub.when { try await $0.load(url: any()) }.returns("typed-async")
+        await stub.when { await $0.prefetch(urls: any()) }
+        stub.when { $0.cacheSize }.returns(8)
+
+        let sut: any AsyncDataLoader = stub()
+
+        #expect(try await sut.load(url: "/x") == "typed-async")
+        #expect(sut.cacheSize == 8)
+    }
 }
 
 // MARK: - Multiple Stubs

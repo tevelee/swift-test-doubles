@@ -6,6 +6,10 @@ Trampoline-backed stubs for protocol existentials — no boilerplate struct requ
 
 RuntimeStub uses a fixed architecture trampoline to intercept protocol witness calls. In zero-config mode it discovers method signatures from an existing witness table; with ``RuntimeStub/makeFromModule(moduleName:)`` or explicit ``Slot``/``MethodDescriptor`` values it fabricates the conformance table directly, so no real conformer is needed.
 
+For the complete call path, frame layout, register contracts, metadata
+marshalling, ownership model, debugger breakpoints, and maintenance rules, see
+<doc:TrampolineArchitecture>.
+
 **When to use RuntimeStub:**
 - You want the fastest test-authoring experience with minimal boilerplate.
 - Your test binary already links a real conformer for zero-config discovery, or the protocol's compiled Swift module is importable.
@@ -16,9 +20,9 @@ RuntimeStub uses a fixed architecture trampoline to intercept protocol witness c
 
 **Dependency:** RuntimeStub requires the `Echo` package (pulled in automatically when the `RuntimeStub` trait is active).
 
-**Async:** RuntimeStub rejects async requirements during setup. Swift async witness
-entries use a different calling convention; use ``CompiledStub`` on macOS or
-``ManualStub`` for async protocols.
+**Async:** RuntimeStub supports async and async-throwing requirements through a
+dedicated continuation trampoline. Configured responses complete immediately;
+handler closures cannot themselves suspend.
 
 For the full decision matrix, see <doc:StrategyGuide>.
 
@@ -87,6 +91,16 @@ let stub = try RuntimeStub<any Gateway>.make(
 )
 ```
 
+Mark explicit async slots with `async: true`:
+
+```swift
+let stub = try RuntimeStub<any AsyncDataLoader>.make(
+    .method(String.self, returns: String.self, throws: true, async: true),
+    .method([String].self, async: true),
+    .getter(Int.self)
+)
+```
+
 If you do not know the slot order, ask RuntimeStub to describe the protocol and
 generate an explicit setup scaffold:
 
@@ -138,35 +152,37 @@ let stub = try RuntimeStub<any SearchIndex>.make(
 
 ## Tradeoffs
 
-RuntimeStub is the fastest no-boilerplate path for synchronous protocols. It
+RuntimeStub is the fastest no-boilerplate path for protocols whose configured
+responses can complete immediately. It
 does not run `swiftc` at test startup, and explicit/module signatures no longer
 need a real conformer in the binary.
 
 The cost is ABI coupling. RuntimeStub depends on Swift runtime metadata,
 protocol descriptor layout, and small assembly stubs for the supported
-architectures. It intentionally does not try to model async witness entries.
+architectures. Async witness entries use compact function descriptors and
+complete by invoking the continuation stored in Swift's async context.
 
 Use RuntimeStub when:
 
 - tests need short setup and no hand-written conformer
-- the protocol is synchronous
+- configured sync or async responses can complete immediately
 - argument and return types have runtime metadata available
 - the dependency is passed as an existential protocol value
 
 Avoid RuntimeStub when:
 
-- the protocol has async requirements
+- async handlers need to suspend or await other work
 - the protocol relies on `_read` or `_modify` coroutine accessors
 - calls are made to concrete functions or concrete methods instead of protocol
   witnesses
-- the same stub is driven concurrently from many tasks without test-level
-  synchronization
+- the same stub must be configured or verified from multiple tasks at once
 
 ## Workarounds
 
 - No conformer: use `makeFromModule()` or explicit slots.
 - Module extraction unavailable: use explicit slots or ``CompiledStub``.
-- Async protocol: use ``CompiledStub`` on macOS or ``ManualStub``.
+- Suspending async behavior: implement it directly in a hand-written
+  ``ManualStub`` method.
 - Concrete function or final method: use ``DynamicReplacementCompiler`` if the
   implementation is built with implicit dynamic.
 - Type metadata cannot be resolved: use explicit slots with concrete
@@ -181,13 +197,15 @@ Avoid RuntimeStub when:
 - ``DiscoveredSignature`` — returned by the signature discovery engine.
 - ``RuntimeStubError`` — thrown when stub creation fails.
 
+The C/assembly and internal Swift method map is documented in
+<doc:TrampolineArchitecture>.
+
 ## Limitations
 
 - Runtime marshalling depends on real Swift type metadata. If metadata cannot
   be resolved for a requirement, use explicit ``Slot`` descriptors or
   ``CompiledStub``.
-- Async requirements are intentionally handled by ``CompiledStub`` or
-  ``ManualStub``, not the raw trampoline.
+- Async handlers complete immediately; they cannot suspend or await other work.
 - Fabricated conformances are used to build the returned existential directly.
   Do not rely on unrelated `as?` runtime conformance lookup for arbitrary
   payload values.

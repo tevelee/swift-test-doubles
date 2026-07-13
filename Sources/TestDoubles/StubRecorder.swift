@@ -1,9 +1,13 @@
 #if RUNTIME_STUB
+import Foundation
+
 /// Records method calls and returns stubbed values.
 /// Supports three modes: normal (dispatch to stubs), recording (capture calls),
 /// and verifying (check call log).
 class StubRecorder: @unchecked Sendable {
     init() {}
+
+    private let lock = NSRecursiveLock()
 
     enum Mode {
         case normal
@@ -11,21 +15,36 @@ class StubRecorder: @unchecked Sendable {
         case verifying
     }
 
-    var mode: Mode = .normal
+    private var storedMode: Mode = .normal
+    var mode: Mode {
+        get { withLock { storedMode } }
+        set { withLock { storedMode = newValue } }
+    }
 
     // Stub storage: method index → [(matchers, returnValue, action)]
-    var stubs: [Int: [StubEntry]] = [:]
-    var names: [Int: String] = [:]
+    private var storedStubs: [Int: [StubEntry]] = [:]
+    private var storedNames: [Int: String] = [:]
 
     // Runtime marshalling descriptors, keyed by witness-table requirement index.
-    var runtimeMethods: [Int: RuntimeMethodDescriptor] = [:]
+    private var storedRuntimeMethods: [Int: RuntimeMethodDescriptor] = [:]
+    var runtimeMethods: [Int: RuntimeMethodDescriptor] { withLock { storedRuntimeMethods } }
 
     // Call log
-    var calls: [RecordedCall] = []
+    private var storedCalls: [RecordedCall] = []
+    var calls: [RecordedCall] { withLock { storedCalls } }
 
     // Last recording (set during recording mode)
-    var lastRecording: RecordedCall?
-    var verificationRecordings: [RecordedCall] = []
+    private var storedLastRecording: RecordedCall?
+    var lastRecording: RecordedCall? {
+        get { withLock { storedLastRecording } }
+        set { withLock { storedLastRecording = newValue } }
+    }
+
+    private var storedVerificationRecordings: [RecordedCall] = []
+    var verificationRecordings: [RecordedCall] {
+        get { withLock { storedVerificationRecordings } }
+        set { withLock { storedVerificationRecordings = newValue } }
+    }
 
     struct StubEntry {
         let matchers: [ParameterMatcher]
@@ -37,40 +56,57 @@ class StubRecorder: @unchecked Sendable {
     // MARK: - Method name registration
 
     func setName(_ name: String, for index: Int) {
-        names[index] = name
+        withLock { storedNames[index] = name }
     }
 
     func setRuntimeMethod(_ method: RuntimeMethodDescriptor, for index: Int) {
-        runtimeMethods[index] = method
-        setName(method.name, for: index)
+        withLock {
+            storedRuntimeMethods[index] = method
+            storedNames[index] = method.name
+        }
     }
 
     func runtimeMethod(for index: Int) -> RuntimeMethodDescriptor? {
-        runtimeMethods[index]
+        withLock { storedRuntimeMethods[index] }
     }
 
     // MARK: - Dispatch (called by witness table thunks)
 
     func dispatch(method: Int, args: [Any]) -> Any {
-        let name = names[method] ?? "method_\(method)"
+        let snapshot = withLock {
+            (
+                mode: storedMode,
+                name: storedNames[method] ?? "method_\(method)",
+                entries: storedStubs[method]
+            )
+        }
 
-        switch mode {
+        switch snapshot.mode {
         case .recording:
-            lastRecording = RecordedCall(methodIndex: method, name: name, args: args, matchers: [])
+            withLock {
+                storedLastRecording = RecordedCall(
+                    methodIndex: method,
+                    name: snapshot.name,
+                    args: args,
+                    matchers: []
+                )
+            }
             return zeroValue // thunk handles the actual return type
 
         case .verifying:
-            let recording = RecordedCall(methodIndex: method, name: name, args: args, matchers: [])
-            lastRecording = recording
-            verificationRecordings.append(recording)
+            let recording = RecordedCall(methodIndex: method, name: snapshot.name, args: args, matchers: [])
+            withLock {
+                storedLastRecording = recording
+                storedVerificationRecordings.append(recording)
+            }
             return zeroValue
 
         case .normal:
-            guard let entries = stubs[method] else {
+            guard let entries = snapshot.entries else {
                 fatalError(diagnosticMessage(
                     title: "No stub configured",
                     method: method,
-                    name: name,
+                    name: snapshot.name,
                     args: args,
                     entries: []
                 ))
@@ -92,12 +128,19 @@ class StubRecorder: @unchecked Sendable {
                 fatalError(diagnosticMessage(
                     title: "No matching stub",
                     method: method,
-                    name: name,
+                    name: snapshot.name,
                     args: args,
                     entries: entries
                 ))
             }
-            calls.append(RecordedCall(methodIndex: method, name: name, args: args, matchers: []))
+            withLock {
+                storedCalls.append(RecordedCall(
+                    methodIndex: method,
+                    name: snapshot.name,
+                    args: args,
+                    matchers: []
+                ))
+            }
             entry.action?(args)
             return entry.returnValue(args)
         }
@@ -105,7 +148,8 @@ class StubRecorder: @unchecked Sendable {
 
     // MARK: - Throwing stubs
 
-    var throwingStubs: [Int: [ThrowingStubEntry]] = [:]
+    private var storedThrowingStubs: [Int: [ThrowingStubEntry]] = [:]
+    var throwingStubs: [Int: [ThrowingStubEntry]] { withLock { storedThrowingStubs } }
 
     struct ThrowingStubEntry {
         let matchers: [ParameterMatcher]
@@ -114,32 +158,58 @@ class StubRecorder: @unchecked Sendable {
 
     /// Register a stub that throws.
     func addThrowingStub(method: Int, matchers: [ParameterMatcher], handler: @escaping ([Any]) throws -> Any) {
-        throwingStubs[method, default: []].append(ThrowingStubEntry(matchers: matchers, handler: handler))
+        withLock {
+            storedThrowingStubs[method, default: []].append(
+                ThrowingStubEntry(matchers: matchers, handler: handler)
+            )
+        }
     }
 
     /// Dispatch a throwing call. Returns nil if no throwing stub is registered.
     func dispatchThrowing(method: Int, args: [Any]) -> Result<Any, any Error>? {
-        let name = names[method] ?? "method_\(method)"
+        let snapshot = withLock {
+            (
+                mode: storedMode,
+                name: storedNames[method] ?? "method_\(method)",
+                entries: storedThrowingStubs[method]
+            )
+        }
 
-        switch mode {
+        switch snapshot.mode {
         case .recording:
-            lastRecording = RecordedCall(methodIndex: method, name: name, args: args, matchers: [])
+            withLock {
+                storedLastRecording = RecordedCall(
+                    methodIndex: method,
+                    name: snapshot.name,
+                    args: args,
+                    matchers: []
+                )
+            }
             return .success(zeroValue)
 
         case .verifying:
-            let recording = RecordedCall(methodIndex: method, name: name, args: args, matchers: [])
-            lastRecording = recording
-            verificationRecordings.append(recording)
+            let recording = RecordedCall(methodIndex: method, name: snapshot.name, args: args, matchers: [])
+            withLock {
+                storedLastRecording = recording
+                storedVerificationRecordings.append(recording)
+            }
             return .success(zeroValue)
 
         case .normal:
             break
         }
 
-        guard let entries = throwingStubs[method] else { return nil }
+        guard let entries = snapshot.entries else { return nil }
         for entry in entries {
             if entry.matchers.isEmpty || matchArgs(args, against: entry.matchers) {
-                calls.append(RecordedCall(methodIndex: method, name: name, args: args, matchers: []))
+                withLock {
+                    storedCalls.append(RecordedCall(
+                        methodIndex: method,
+                        name: snapshot.name,
+                        args: args,
+                        matchers: []
+                    ))
+                }
                 do {
                     return .success(try entry.handler(args))
                 } catch {
@@ -153,24 +223,27 @@ class StubRecorder: @unchecked Sendable {
     // MARK: - Stub registration
 
     func addStub(method: Int, matchers: [ParameterMatcher], returnValue: @escaping ([Any]) -> Any, action: (([Any]) -> Void)? = nil) {
-        stubs[method, default: []].append(StubEntry(
-            matchers: matchers,
-            diagnosticSignature: diagnosticSignature(method: method, matchers: matchers),
-            returnValue: returnValue,
-            action: action
-        ))
+        withLock {
+            storedStubs[method, default: []].append(StubEntry(
+                matchers: matchers,
+                diagnosticSignature: diagnosticSignatureLocked(method: method, matchers: matchers),
+                returnValue: returnValue,
+                action: action
+            ))
+        }
     }
 
     // MARK: - Verification queries
 
     func callCount(method: Int, matchers: [ParameterMatcher] = []) -> Int {
-        calls.filter { call in
+        let calls = withLock { storedCalls }
+        return calls.filter { call in
             call.methodIndex == method && (matchers.isEmpty || matchArgs(call.args, against: matchers))
         }.count
     }
 
     func reset() {
-        calls.removeAll()
+        withLock { storedCalls.removeAll() }
     }
 
     // MARK: - Matching
@@ -216,8 +289,8 @@ class StubRecorder: @unchecked Sendable {
         return lines.joined(separator: "\n")
     }
 
-    private func diagnosticSignature(method: Int, matchers: [ParameterMatcher]) -> String {
-        let name = names[method] ?? "method_\(method)"
+    private func diagnosticSignatureLocked(method: Int, matchers: [ParameterMatcher]) -> String {
+        let name = storedNames[method] ?? "method_\(method)"
         let matcherList = matchers.map(\.diagnosticDescription).joined(separator: ", ")
         return "\(name)(\(matcherList))"
     }
@@ -265,6 +338,13 @@ class StubRecorder: @unchecked Sendable {
 
     // Sentinel value for recording/verifying mode returns
     private var zeroValue: Any { 0 as Int }
+
+    @discardableResult
+    private func withLock<Result>(_ operation: () throws -> Result) rethrows -> Result {
+        lock.lock()
+        defer { lock.unlock() }
+        return try operation()
+    }
 }
 
 // MARK: - RecordedCall

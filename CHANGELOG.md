@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - Metadata-driven arm64 and x86_64 runtime trampoline with arbitrary arity, throwing calls, mixed floating-point arguments, and indirect returns
+- RuntimeStub support for async and async-throwing protocol requirements with immediate configured responses
 - Module-based signature discovery and fabricated RuntimeStub conformances
 - Reusable typed matchers, typed handlers, and typed argument inspection
 - Opt-in dynamic replacement compiler support
@@ -19,7 +20,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Removed
 - Generated thunk matrix and obsolete existential-builder API
-- Unusable async configuration overloads from RuntimeStub; use ManualStub or CompiledStub for async requirements
 
 ## [1.0.0] - 2026-04-06
 

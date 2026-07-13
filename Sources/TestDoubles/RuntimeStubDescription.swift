@@ -195,7 +195,8 @@ extension RuntimeStub {
                     .map(typeExpression)
                     .joined(separator: ", ")
                 let throwsArgument = requirement.isThrowing ? ", throws: true" : ""
-                expression = ".method(args: [\(args)], returns: \(typeExpression(requirement.returnType))\(throwsArgument))"
+                let asyncArgument = requirement.isAsync ? ", async: true" : ""
+                expression = ".method(args: [\(args)], returns: \(typeExpression(requirement.returnType))\(throwsArgument)\(asyncArgument))"
             }
             lines.append("    \(expression)\(comma) // \(requirement.name)")
         }

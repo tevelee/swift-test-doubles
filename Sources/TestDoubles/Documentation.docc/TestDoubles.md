@@ -35,6 +35,10 @@ TestDoubles gives you protocol-based test doubles without macros or code generat
 - <doc:CompiledStub>
 - <doc:DynamicReplacement>
 
+### Runtime Internals
+
+- <doc:TrampolineArchitecture>
+
 ### Matching Arguments
 
 - ``any()``

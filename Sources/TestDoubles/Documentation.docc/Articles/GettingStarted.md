@@ -4,7 +4,7 @@ Learn the core patterns for stubbing, matching, and verifying in your tests.
 
 ## Overview
 
-TestDoubles has three strategies — ``ManualStub``, ``RuntimeStub``, and ``CompiledStub``. They share the core `when`, `returns`, matcher, and verification vocabulary, while strategy-specific features such as setters, order verification, and async support differ. This guide uses `RuntimeStub` for synchronous examples and calls out the exceptions.
+TestDoubles has three strategies — ``ManualStub``, ``RuntimeStub``, and ``CompiledStub``. They share the core `when`, `returns`, matcher, and verification vocabulary, while strategy-specific features such as setters, order verification, and suspending handlers differ. This guide uses `RuntimeStub` for most examples and calls out the exceptions.
 
 > Note: Pick your strategy first. If you're not sure which one fits, read the ``TestDoubles`` overview page. Once you've chosen, come back here to learn how to use it.
 
@@ -199,18 +199,20 @@ stub.verify { try $0.read(path: any()) }.wasCalled()
 
 ## Async Methods
 
-Use `ManualStub` or `CompiledStub` for async requirements. The raw `RuntimeStub`
-trampoline intentionally rejects async witness entries because Swift async uses a
-different calling convention.
+RuntimeStub supports async and async-throwing protocol requirements. Its
+configured responses complete immediately; write the behavior directly in a
+hand-written `ManualStub` method when the test double itself must suspend.
 
 ```swift
-let stub = try CompiledStub<any DataLoader>()
+let stub = RuntimeStub<any DataLoader>()
 
 await stub.when { try await $0.fetch(url: any()) }.returns("response")
 await stub.when { await $0.prefetch(urls: any()) }  // void async — auto-registered
 
 let sut: any DataLoader = stub()
 let result = try await sut.fetch(url: "https://example.com")
+
+await stub.verify { try await $0.fetch(url: any()) }.wasCalled()
 ```
 
 ## Tips and Tricks

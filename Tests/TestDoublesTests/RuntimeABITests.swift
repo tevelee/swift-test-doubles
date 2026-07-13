@@ -124,6 +124,28 @@ protocol ExplicitSlotMetadataABIProbe {
     func load(id: Int, payload: MixedAggregateABIArgument) throws -> LargeABIResult
 }
 
+protocol AsyncRuntimeABIProbe {
+    func noArguments() async -> Int
+    func integer(_ value: Int) async -> Int
+    func floating(_ value: Double) async -> Double
+    func direct(_ id: Int) async -> DirectAggregateABIResult
+    func indirect(_ id: Int) async -> LargeABIResult
+    func finish() async
+}
+
+struct RealAsyncRuntimeABIProbe: AsyncRuntimeABIProbe {
+    func noArguments() async -> Int { 0 }
+    func integer(_ value: Int) async -> Int { value }
+    func floating(_ value: Double) async -> Double { value }
+    func direct(_ id: Int) async -> DirectAggregateABIResult {
+        DirectAggregateABIResult(label: "\(id)", amount: 0, accepted: false)
+    }
+    func indirect(_ id: Int) async -> LargeABIResult {
+        LargeABIResult(id: id, amount: 0, label: "", accepted: false)
+    }
+    func finish() async {}
+}
+
 @Suite struct RuntimeABITests {
     @Test func mixedFloatAndDoubleArguments() {
         let stub = RuntimeStub<any FloatingABIProbe>()
@@ -267,6 +289,48 @@ protocol ExplicitSlotMetadataABIProbe {
         let sut: any ExplicitSlotMetadataABIProbe = stub()
 
         #expect(try sut.load(id: 9, payload: payload) == expected)
+    }
+
+    @Test func asyncReturnsUseContinuationABI() async throws {
+        let stub = RuntimeStub<any AsyncRuntimeABIProbe>()
+        let direct = DirectAggregateABIResult(label: "async-direct", amount: 12.5, accepted: true)
+        let indirect = LargeABIResult(id: 7, amount: 19.5, label: "async-indirect", accepted: true)
+
+        await stub.when { await $0.noArguments() }.returns(9)
+        await stub.when { await $0.integer(equal(1)) } then: { args in
+            (args[0] as! Int) + 41
+        }
+        await stub.when { await $0.integer(equal(2)) } then: { 44 }
+        await stub.when { await $0.floating(any()) }.returns(6.25)
+        await stub.when { await $0.direct(any()) }.returns(direct)
+        await stub.when { await $0.indirect(any()) }.returns(indirect)
+        await stub.when { await $0.finish() }
+
+        let sut: any AsyncRuntimeABIProbe = stub()
+
+        #expect(await sut.noArguments() == 9)
+        #expect(await sut.integer(1) == 42)
+        #expect(await sut.integer(2) == 44)
+        #expect(await sut.floating(2) == 6.25)
+        #expect(await sut.direct(3) == direct)
+        #expect(await sut.indirect(4) == indirect)
+        await sut.finish()
+    }
+
+    @Test func concurrentAsyncCallsAreRecordedSafely() async {
+        let stub = RuntimeStub<any AsyncRuntimeABIProbe>()
+        await stub.when { await $0.integer(any()) }.returns(42)
+
+        await withTaskGroup(of: Void.self) { group in
+            for value in 0..<100 {
+                group.addTask {
+                    let sut: any AsyncRuntimeABIProbe = stub()
+                    _ = await sut.integer(value)
+                }
+            }
+        }
+
+        #expect(stub.calls.filter { $0.name.contains("integer") }.count == 100)
     }
 }
 

@@ -9,7 +9,7 @@ TestDoubles has four useful tools:
 | Tool | Best for | Cost | Main limitation |
 |---|---|---|---|
 | ``ManualStub`` | Maximum portability and explicit test doubles | You write a conforming type | Boilerplate grows with protocol size |
-| ``RuntimeStub`` | Fast protocol stubs without generated Swift source | Uses Swift runtime metadata and ABI trampolines | Synchronous protocol requirements only |
+| ``RuntimeStub`` | Fast protocol stubs without generated Swift source | Uses Swift runtime metadata and ABI trampolines | Handlers cannot suspend |
 | ``CompiledStub`` | Full-fidelity protocol stubs on macOS | Runs `swiftc` at test startup | macOS and toolchain required |
 | ``DynamicReplacementCompiler`` | Replacing concrete functions or methods | Requires an implicit-dynamic implementation build | Process-wide replacement, not scoped to one stub |
 
@@ -32,10 +32,11 @@ Start here:
 
 1. If you can write a small conforming type and portability matters, use
    ``ManualStub``.
-2. If the protocol is synchronous and you want no boilerplate, use
+2. If you want no boilerplate and immediate configured responses, use
    ``RuntimeStub``.
-3. If the protocol is async, generic-heavy, or has coroutine accessors, use
-   ``CompiledStub`` on macOS or ``ManualStub`` elsewhere.
+3. If the protocol is generic-heavy or has coroutine accessors, use
+   ``CompiledStub`` on macOS or ``ManualStub`` elsewhere. If stubbed behavior
+   itself must suspend, write that behavior directly in a ``ManualStub`` method.
 4. If the code under test does not call through a protocol existential, use
    ``DynamicReplacementCompiler`` only when you control the implementation
    build.
@@ -97,10 +98,12 @@ let service: any FileService = stub()
 
 ## RuntimeStub
 
-RuntimeStub builds a protocol existential whose witness table points at one
-architecture trampoline. The trampoline spills register and stack state into a
-frame, then Swift code decodes arguments and encodes returns using real type
-metadata and value witness tables.
+RuntimeStub builds a protocol existential whose witness-table requirements point
+at small per-slot veneers. Those veneers converge on shared synchronous or
+asynchronous architecture entries, which capture call state into a frame. One
+Swift handler then decodes arguments and encodes returns using real type metadata
+and value witness tables. See <doc:TrampolineArchitecture> for the complete
+implementation contract.
 
 There are three ways to give RuntimeStub signatures.
 
@@ -182,8 +185,9 @@ let stub = try RuntimeStub<any PrototypeCalculator>.make(
 
 ### ABI Coverage
 
-RuntimeStub currently covers the synchronous ABI cases exercised by the test
-suite:
+RuntimeStub covers the synchronous and async ABI cases exercised by the test
+suite. Async witnesses use compact function descriptors and resume through the
+caller's continuation. Covered values include:
 
 - integer and pointer arguments in registers and on the stack
 - `Float` and `Double` arguments, including mixed and stack-spilled cases
@@ -201,9 +205,10 @@ heuristics.
 
 ### RuntimeStub Limits
 
-RuntimeStub intentionally rejects async requirements. Swift async witnesses use
-a different calling convention with async contexts; use ``CompiledStub`` on
-macOS or ``ManualStub`` elsewhere.
+RuntimeStub supports async and async-throwing requirements, but configured
+handlers complete immediately. A RuntimeStub handler cannot suspend or await
+other work. Use a hand-written ``ManualStub`` method when the test double must
+perform genuinely asynchronous work.
 
 RuntimeStub also skips coroutine accessors such as `_read` and `_modify`.
 Protocols that expose effects through those accessors should use
@@ -213,8 +218,10 @@ The fabricated conformance is used to build the existential directly. Do not
 depend on unrelated runtime conformance lookup such as creating an arbitrary
 payload and expecting `as? P` to discover this fabricated conformance.
 
-The recorder is mutable test state. Avoid concurrently driving the same stub
-from multiple tasks unless your test adds synchronization around the calls.
+The recorder synchronizes normal dispatch and call-log access, so its
+bookkeeping remains safe during concurrent invocations. Configure and verify a
+given stub serially, and synchronize any mutable state captured by handler
+closures; recording mode is intentionally test-local mutable state.
 
 ## CompiledStub
 
@@ -447,6 +454,8 @@ let controller = Controller(service: RuntimeStub<any Service>()())
 
 The temporary stub can be released before the service is used.
 
-For concurrent systems under test, use a fresh stub per test and avoid sharing
-one stub across unrelated tasks. The recorder is designed as test-local mutable
-state, not as a general concurrent logging service.
+Normal calls may drive a configured stub concurrently within one test; recorder
+dispatch and call-log bookkeeping are synchronized. Still use a fresh stub per
+test, configure and verify it serially, and synchronize mutable state captured
+by handler closures. The recorder is test-local state, not a process-wide
+logging service.

@@ -67,7 +67,7 @@ compile for a generated source costs process startup and compiler time.
 Use CompiledStub when:
 
 - no real conformer exists
-- the protocol has async requirements
+- the protocol uses requirements outside RuntimeStub's raw ABI coverage
 - RuntimeStub cannot resolve the metadata or ABI shape
 - you are already running tests on macOS
 
