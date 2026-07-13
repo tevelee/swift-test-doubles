@@ -37,20 +37,10 @@ private struct PatchedWitnessTable {
 extension Stub {
     static func prepare() throws -> PreparedStub {
         let conformance = try findConformance()
-        let signatures = try discoverSignatures(
+        let methods = try discoverMethods(
             witnessTable: conformance.witnessTablePattern,
             proto: conformance.protocol
         )
-        let methods = signatures.map { sig in
-            MethodDescriptor(
-                name: sig.methodName,
-                index: sig.slot,
-                qualifiedArgs: sig.qualifiedArgs,
-                qualifiedRet: sig.qualifiedRet,
-                isThrowing: sig.isThrowing,
-                isAsync: sig.isAsync
-            )
-        }
         return try prepareThunk(from: conformance, methods: methods)
     }
 
@@ -66,19 +56,20 @@ extension Stub {
             )
         }
 
-        var methods: [MethodDescriptor] = []
-        methods.reserveCapacity(requirements.count)
-        for (requirement, protocolRequirement) in zip(requirements, protocolRequirements) {
-            guard requirement.kind == protocolRequirement.kind else {
-                throw StubError.requirementKindMismatch(
+        let methods = zip(requirements, protocolRequirements).map { requirement, protocolRequirement in
+            requirement.descriptor(index: protocolRequirement.index)
+        }
+        for (method, protocolRequirement) in zip(methods, protocolRequirements) {
+            guard method.kind == protocolRequirement.kind else {
+                throw StubError.requirementMismatch(
                     protocolName: proto.name,
                     requirementIndex: protocolRequirement.index,
                     expected: protocolRequirement.kind.rawValue,
-                    actual: requirement.kind.rawValue
+                    actual: method.kind.rawValue
                 )
             }
-            methods.append(requirement.descriptor(index: protocolRequirement.index))
         }
+        try validateAgainstLinkedConformance(methods, proto: proto)
 
         return try prepareFabricated(proto: proto, methods: methods)
     }
@@ -110,7 +101,7 @@ extension Stub {
         from conformance: ConformanceDescriptor,
         methods: [MethodDescriptor]
     ) throws -> PreparedStub {
-        let recorder = StubRecorder()
+        let recorder = StubRecorder(methods: methods)
         let patched = try patchWitnessTable(from: conformance, methods: methods, recorder: recorder)
         let containerBytes = try buildExistentialContainer(from: conformance, witnessTable: patched.witnessTable)
         return PreparedStub(
@@ -127,7 +118,7 @@ extension Stub {
     ) throws -> PreparedStub {
         try validate(methods: methods, protocolName: proto.name)
 
-        let recorder = StubRecorder()
+        let recorder = StubRecorder(methods: methods)
         let patched = try fabricateWitnessTable(for: proto, methods: methods, recorder: recorder)
         let payload = StubPayload()
         let containerBytes = buildFabricatedExistentialContainer(witnessTable: patched.witnessTable)
@@ -279,7 +270,6 @@ extension Stub {
                 as: UnsafeRawPointer.self
             )
             resources.trampolines.append(trampoline)
-            recorder.setRuntimeMethod(RuntimeMethodDescriptor(method), for: method.index)
         }
         resources.register(recorder)
     }
@@ -325,18 +315,44 @@ extension Stub {
         protocolName: String
     ) throws {
         for method in methods {
-            let concreteTypes = (method.argumentTypes ?? []) + [method.returnType].compactMap { $0 }
+            let concreteTypes = method.argumentTypes + [method.returnType]
             let hasFunctionMetadata = concreteTypes.contains { reflect($0).kind == .function }
-            let hasFunctionSpelling = method.argumentTypes == nil && (
-                method.qualifiedArgs.contains(where: { $0.contains("->") }) ||
-                method.qualifiedRet.contains("->")
-            )
-            if hasFunctionMetadata || hasFunctionSpelling {
-                throw StubError.unsupportedFunctionValue(
+            if hasFunctionMetadata {
+                throw StubError.unsupportedProtocolShape(
                     protocolName: protocolName,
-                    requirementIndex: method.index
+                    reason: "Requirement \(method.index) contains a function argument or result. Use a small hand-written test double for this protocol."
                 )
             }
+            if let reason = unsupportedRuntimeReason(for: method, architecture: .current) {
+                throw StubError.unsupportedProtocolShape(
+                    protocolName: protocolName,
+                    reason: "Requirement \(method.index) is not supported. \(reason)"
+                )
+            }
+        }
+    }
+
+    private static func validateAgainstLinkedConformance(
+        _ supplied: [MethodDescriptor],
+        proto: ProtocolDescriptor
+    ) throws {
+        guard let conformance = Echo.findConformance(to: proto),
+              let discovered = try? discoverMethods(
+                witnessTable: conformance.witnessTablePattern,
+                proto: proto,
+                permitsUnverifiableGetterEffects: true
+              ),
+              discovered.count == supplied.count else {
+            return
+        }
+
+        for (expected, actual) in zip(discovered, supplied) where actual.hasSameSignature(as: expected) == false {
+            throw StubError.requirementMismatch(
+                protocolName: proto.name,
+                requirementIndex: expected.index,
+                expected: expected.signatureDescription,
+                actual: actual.signatureDescription
+            )
         }
     }
 }

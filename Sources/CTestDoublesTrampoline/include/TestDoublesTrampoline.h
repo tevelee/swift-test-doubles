@@ -59,6 +59,11 @@ typedef struct TDSwiftErrorAllocation {
   void *value;
 } TDSwiftErrorAllocation;
 
+typedef struct TDMetadataResponse {
+  const void *metadata;
+  uintptr_t state;
+} TDMetadataResponse;
+
 void *td_make_witness_trampoline(uintptr_t slot, uintptr_t context);
 void *td_make_async_witness_trampoline(uintptr_t slot, uintptr_t context);
 void td_free_witness_trampoline(void *ptr);
@@ -71,6 +76,15 @@ TDSwiftErrorAllocation td_swift_alloc_error(const void *type,
                                             const void *witnessTable,
                                             const void *flags,
                                             bool isTake);
+TDMetadataResponse td_swift_get_tuple_type_metadata2(uintptr_t request,
+                                                     const void *first,
+                                                     const void *second,
+                                                     const char *labels);
+TDMetadataResponse td_swift_get_tuple_type_metadata3(uintptr_t request,
+                                                     const void *first,
+                                                     const void *second,
+                                                     const void *third,
+                                                     const char *labels);
 
 #ifdef __cplusplus
 }

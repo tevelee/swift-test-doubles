@@ -29,11 +29,13 @@ protocol declaration. Method effects must be stated with `isThrowing` and
 `isAsync`.
 
 Construction validates the protocol shape, requirement count and kind,
-function-value limitations, metadata availability, and trampoline allocation
-before returning. Runtime metadata does not expose enough type information to
-compare an explicit requirement's supplied types or effects with the protocol;
-an incorrect declaration violates the ABI contract. Failures the library can
-detect are reported as ``StubError`` values.
+function-value limitations, metadata availability, architecture limits, and
+trampoline allocation before returning. Automatic discovery resolves concrete
+runtime metadata for every argument and result. If a linked conformance's
+signature components can be discovered reliably, they are also compared with
+explicit requirements. Getter throwing behavior remains caller-supplied because
+witness symbols do not encode it. Detectable failures are reported as
+``StubError`` values.
 
 ## Configuration
 
@@ -75,9 +77,10 @@ of the assertion.
 
 Stub supports instance methods and ordinary getters on a single,
 non-class-constrained protocol without inherited or associated requirements.
-Those requirements may be synchronous, throwing, async, or async-throwing. ABI
-coverage includes integer and floating-point values, direct and indirect
-aggregates, void, existentials, optionals, enums, tuples, metatypes, and strings.
+Methods may be synchronous, throwing, async, or async-throwing; effectful
+getters require explicit requirements. ABI coverage includes integer and
+floating-point values, direct and indirect aggregates, void, existentials,
+optionals, enums, tuples, metatypes, and strings.
 
 These Swift source-level types share runtime calling-convention machinery; they
 do not each need a separate stubbing API.
@@ -90,13 +93,20 @@ do not each need a separate stubbing API.
 - Read-write properties and class-constrained, inherited, associated-type,
   initializer, static, `_read`, and `_modify` requirements are rejected during
   construction.
-- Explicit requirement types and effects are caller-supplied and cannot be
-  checked against the protocol metadata. A mismatch violates the ABI contract.
+- Automatic discovery cannot determine whether a getter throws. Describe
+  throwing getters explicitly; async getters are rejected by automatic
+  construction so their effects cannot be silently misclassified.
+- Explicit requirement types and effects are checked when a linked conformance
+  exposes resolvable witness symbols and concrete type metadata. Every reliably
+  discoverable component is compared; getter throwing behavior remains
+  caller-supplied. Without linked discovery, protocol metadata exposes only
+  count and kind, and a mismatched caller-supplied signature violates the ABI
+  contract.
 - `any()` cannot synthesize a safe placeholder for an existential-typed
   argument; use a concrete conforming value when recording that invocation.
-- On x86_64, async requirements with six integer-class arguments cross an
-  unhandled continuation-register boundary. That shape is currently supported
-  only on arm64.
+- On x86_64, construction rejects async requirements whose arguments and
+  indirect result consume all six general-purpose argument registers. That
+  continuation boundary is supported on arm64.
 - Only protocol witness calls can be intercepted. Concrete/final methods and
   devirtualized calls are outside the library's scope.
 - Configure a stub serially before invoking it concurrently.

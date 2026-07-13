@@ -83,7 +83,7 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
         expected: Int,
         actual: Int
     )
-    case requirementKindMismatch(
+    case requirementMismatch(
         protocolName: String,
         requirementIndex: Int,
         expected: String,
@@ -95,7 +95,6 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
         details: String
     )
     case trampolineAllocationFailed(requirementIndex: Int)
-    case unsupportedFunctionValue(protocolName: String, requirementIndex: Int)
     case unsupportedTypeKind(typeName: String)
 
     public var description: String { get }

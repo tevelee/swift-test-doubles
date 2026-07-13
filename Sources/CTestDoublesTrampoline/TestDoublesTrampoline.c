@@ -19,6 +19,26 @@ extern TDSwiftErrorAllocation swift_allocError(const void *type,
                                                const void *flags,
                                                bool isTake);
 
+#if __has_attribute(swiftcall)
+#define TD_SWIFT_CC __attribute__((swiftcall))
+#else
+#define TD_SWIFT_CC
+#endif
+
+extern TDMetadataResponse swift_getTupleTypeMetadata2(uintptr_t request,
+                                                      const void *first,
+                                                      const void *second,
+                                                      const char *labels,
+                                                      const void *proposedWitnesses)
+    TD_SWIFT_CC;
+extern TDMetadataResponse swift_getTupleTypeMetadata3(uintptr_t request,
+                                                      const void *first,
+                                                      const void *second,
+                                                      const void *third,
+                                                      const char *labels,
+                                                      const void *proposedWitnesses)
+    TD_SWIFT_CC;
+
 _Static_assert(sizeof(TDCallFrame) == TD_FRAME_SIZE, "TDCallFrame size changed");
 _Static_assert(offsetof(TDCallFrame, slot) == TD_FRAME_SLOT_OFFSET, "slot offset changed");
 _Static_assert(offsetof(TDCallFrame, context) == TD_FRAME_CONTEXT_OFFSET, "context offset changed");
@@ -176,4 +196,19 @@ TDSwiftErrorAllocation td_swift_alloc_error(const void *type,
                                             const void *flags,
                                             bool isTake) {
   return swift_allocError(type, witnessTable, flags, isTake);
+}
+
+TDMetadataResponse td_swift_get_tuple_type_metadata2(uintptr_t request,
+                                                     const void *first,
+                                                     const void *second,
+                                                     const char *labels) {
+  return swift_getTupleTypeMetadata2(request, first, second, labels, 0);
+}
+
+TDMetadataResponse td_swift_get_tuple_type_metadata3(uintptr_t request,
+                                                     const void *first,
+                                                     const void *second,
+                                                     const void *third,
+                                                     const char *labels) {
+  return swift_getTupleTypeMetadata3(request, first, second, third, labels, 0);
 }

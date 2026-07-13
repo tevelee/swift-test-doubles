@@ -60,6 +60,7 @@ handler closures remain responsible for their own captured mutable state.
 - iOS and Linux are not release-supported until real runtime CI exists.
 - Closure requirements need compiler-generated reabstraction and are rejected;
   use a hand-written test double for such protocols.
-- x86_64 async invocation with six integer-class arguments is not yet supported.
+- x86_64 construction rejects async signatures that consume all six
+  general-purpose argument registers.
 
 See [ROADMAP.md](ROADMAP.md) for the work required before `0.1.0`.

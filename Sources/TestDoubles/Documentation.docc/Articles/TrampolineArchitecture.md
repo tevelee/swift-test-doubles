@@ -23,13 +23,16 @@ Construction has two signature sources:
 2. With typed ``Stub/Requirement`` values, TestDoubles fabricates a payload
    type and witness table directly.
 
-Both paths normalize into internal method descriptors containing the
-requirement index, kind, effects, argument metadata, and return metadata. The
-same veneer and recorder path handles both.
+Both paths normalize into one fully typed internal method descriptor containing
+the requirement index, kind, effects, argument metadata, and return metadata.
+Automatic discovery must resolve all of that metadata before allocation. The
+same descriptor, veneer, and recorder path handles both construction modes.
 
 Explicit requirements are validated against the protocol descriptor before
-memory is allocated. Requirement order matters because a Swift witness table is
-positional.
+memory is allocated. When a linked conformance is available, every reliably
+discoverable signature component is compared as well. Getter throwing behavior
+remains caller-supplied. Requirement order matters because a Swift witness table
+is positional.
 
 ## Invocation
 
@@ -63,5 +66,7 @@ floating-point registers, stack arguments, mixed aggregates, indirect results,
 throwing calls, and async continuations. Construction rejects function-valued
 requirements because safe closure reabstraction needs compiler-emitted code.
 
-The remaining x86_64 six-integer async boundary and custom-executor validation
-are tracked in the roadmap's runtime-hardening iteration.
+On x86_64, preparation rejects async signatures that consume all six
+general-purpose argument registers; the continuation boundary remains supported
+on arm64. Custom-executor validation is tracked in the roadmap's next
+runtime-hardening phase.

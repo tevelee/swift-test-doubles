@@ -6,8 +6,21 @@ enum ABIClass: Sendable {
     case void
     case integer(words: Int)
     case floatingPoint
-    case aggregate
+    case aggregate(parts: [DirectValuePart])
     case indirect
+}
+
+enum RuntimeArchitecture: Equatable, Sendable {
+    case arm64
+    case x86_64
+
+    static var current: Self {
+        #if arch(x86_64)
+        .x86_64
+        #else
+        .arm64
+        #endif
+    }
 }
 
 enum DirectValueRegister: Equatable, Sendable {
@@ -21,15 +34,7 @@ struct DirectValuePart: Sendable {
     let byteCount: Int
 }
 
-func abiClass(for type: Any.Type?, fallbackName: String, isReturn: Bool = false) -> ABIClass {
-    if let fallback = fallbackABIClass(for: fallbackName, isReturn: isReturn) {
-        return fallback
-    }
-
-    guard let type else {
-        return .integer(words: 1)
-    }
-
+func abiClass(for type: Any.Type, isReturn: Bool = false) -> ABIClass {
     let metadata = reflect(type)
     let size = metadata.vwt.size
     if size == 0 {
@@ -38,35 +43,45 @@ func abiClass(for type: Any.Type?, fallbackName: String, isReturn: Bool = false)
     if isFloatingPoint(type) {
         return .floatingPoint
     }
-    if directArgumentParts(for: type) != nil {
-        return .aggregate
+    if let parts = directArgumentParts(for: type) {
+        return .aggregate(parts: parts)
     }
     if size > 16 {
-        if isReturn, directReturnParts(for: type) != nil {
-            return .aggregate
+        if isReturn, let parts = directReturnParts(for: type) {
+            return .aggregate(parts: parts)
         }
         return .indirect
     }
     return .integer(words: size > 8 ? 2 : 1)
 }
 
-private func fallbackABIClass(for typeName: String, isReturn: Bool) -> ABIClass? {
-    if isReturn, ["V", "Void", "Swift.Void", "()"].contains(typeName) {
-        return .void
+func unsupportedRuntimeReason(
+    for method: MethodDescriptor,
+    architecture: RuntimeArchitecture
+) -> String? {
+    guard architecture == .x86_64, method.isAsync else { return nil }
+
+    var generalPurposeWords = 0
+    if case .indirect = method.returnLayout {
+        generalPurposeWords = 1
+    }
+    for layout in method.argumentLayouts {
+        switch layout {
+        case .void, .floatingPoint:
+            break
+        case .integer(let words):
+            generalPurposeWords += words
+        case .aggregate(let parts):
+            generalPurposeWords += parts
+                .filter { $0.register == .gp }
+                .count
+        case .indirect:
+            generalPurposeWords += 1
+        }
     }
 
-    switch typeName {
-    case "INDIRECT":
-        return .indirect
-    case "FX", "Double", "Swift.Double", "Float", "Swift.Float":
-        return .floatingPoint
-    case "W2", "String", "Swift.String":
-        return .integer(words: 2)
-    case "W1":
-        return .integer(words: 1)
-    default:
-        return nil
-    }
+    guard generalPurposeWords >= 6 else { return nil }
+    return "Its arguments and indirect result consume all six x86_64 general-purpose argument registers, crossing an unsupported async continuation boundary. Use fewer integer-class values or a hand-written test double."
 }
 
 private func isFloatingPoint(_ type: Any.Type) -> Bool {

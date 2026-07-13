@@ -15,8 +15,9 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
     /// Explicit requirements do not cover every supported protocol entry.
     case requirementCountMismatch(protocolName: String, expected: Int, actual: Int)
 
-    /// An explicit requirement has the wrong kind at a zero-based index.
-    case requirementKindMismatch(
+    /// An explicit requirement differs in kind or in a discoverable part of
+    /// its linked signature at a zero-based protocol index.
+    case requirementMismatch(
         protocolName: String,
         requirementIndex: Int,
         expected: String,
@@ -32,9 +33,6 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
 
     /// Executable trampoline allocation failed at a zero-based requirement index.
     case trampolineAllocationFailed(requirementIndex: Int)
-
-    /// A zero-based requirement contains a function argument or result.
-    case unsupportedFunctionValue(protocolName: String, requirementIndex: Int)
 
     /// Runtime metadata has a type kind the trampoline cannot represent.
     case unsupportedTypeKind(typeName: String)
@@ -57,17 +55,14 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
         case .requirementCountMismatch(let protocolName, let expected, let actual):
             return "Expected \(expected) requirements for '\(protocolName)', but received \(actual). Supply every mockable requirement in declaration order."
 
-        case .requirementKindMismatch(let protocolName, let requirementIndex, let expected, let actual):
-            return "Requirement \(requirementIndex) for '\(protocolName)' is a \(expected), but the supplied `Stub.Requirement` describes a \(actual)."
+        case .requirementMismatch(let protocolName, let requirementIndex, let expected, let actual):
+            return "Requirement \(requirementIndex) for '\(protocolName)' is `\(expected)`, but the supplied `Stub.Requirement` describes `\(actual)`."
 
         case .signatureDiscoveryFailed(let protocolName, let requirementIndex, let details):
             return "Could not discover the signature of '\(protocolName)' requirement \(requirementIndex). \(details)"
 
         case .trampolineAllocationFailed(let requirementIndex):
             return "Could not allocate an executable trampoline for requirement \(requirementIndex)."
-
-        case .unsupportedFunctionValue(let protocolName, let requirementIndex):
-            return "Stub cannot safely marshal a function value in '\(protocolName)' requirement \(requirementIndex). Use a small hand-written test double for this protocol."
 
         case .unsupportedTypeKind(let typeName):
             return "Stub does not support the runtime type kind used by '\(typeName)'."

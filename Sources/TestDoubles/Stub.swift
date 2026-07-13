@@ -37,7 +37,9 @@ public final class Stub<P>: @unchecked Sendable {
     ///
     /// With no arguments, the stub discovers signatures from an existing
     /// conformer's witness table. Explicit requirements remove that dependency
-    /// and must appear in protocol requirement order.
+    /// and must appear in protocol requirement order. When a discoverable
+    /// conformance is linked, every reliably discoverable signature component
+    /// is also used to validate explicitly supplied requirements.
     public convenience init(_ requirements: Requirement...) throws {
         let prepared = if requirements.isEmpty {
             try Self.prepare()

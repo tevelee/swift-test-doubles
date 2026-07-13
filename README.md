@@ -146,13 +146,18 @@ let stub = try Stub<any DataLoader>(
 ```
 
 Construction throws `StubError` when the protocol or a requirement shape cannot
-be supported. No construction path launches external tools.
+be supported. Automatic discovery resolves concrete runtime metadata for every
+argument and result before allocating a witness table. When a linked
+conformance is available, it also validates every signature component that can
+be discovered reliably. Getter throwing behavior remains caller-supplied. No
+construction path launches external tools.
 
 ## Supported feature set
 
 - Instance methods and ordinary getters on a single,
   non-class-constrained protocol without inherited or associated requirements.
-- Synchronous, throwing, async, and async-throwing requirements.
+- Synchronous, throwing, async, and async-throwing methods, plus ordinary
+  getters and explicitly described effectful getters.
 - Fixed values and typed handlers of arbitrary arity.
 - Genuinely suspending async handlers.
 - Equality, predicate, wildcard, and capture matchers.
@@ -175,15 +180,20 @@ to the trampoline.
 - Read-write properties and class-constrained, inherited, associated-type,
   initializer, static, `_read`, and `_modify` requirements are rejected during
   construction.
+- Automatic discovery cannot determine whether a getter throws. Describe
+  throwing getters explicitly; async getters are rejected by automatic
+  construction so their effects cannot be silently misclassified.
 - Explicit requirement types, order, and effects must exactly match the
-  declaration. Swift runtime metadata exposes the requirement kind but cannot
-  verify this caller-supplied signature; a mismatch violates the ABI contract.
+  declaration. A linked conformance is used to check every reliably
+  discoverable component. Without resolvable witness symbols and concrete type
+  metadata, Swift protocol metadata exposes only requirement count and kind;
+  getter throwing behavior is never discoverable and remains caller-supplied.
 - `any()` cannot currently synthesize a safe placeholder for an
   existential-typed argument. Match such arguments with a concrete conforming
   value.
-- On x86_64, an async requirement with six integer-class arguments crosses an
-  unhandled continuation-register boundary. That shape is supported on arm64
-  only until Iteration 3 either fixes or rejects it during construction.
+- On x86_64, construction rejects async requirements whose arguments and
+  indirect result consume all six general-purpose argument registers. That
+  continuation boundary remains supported on arm64.
 - Concrete/final methods and devirtualized calls are not protocol witness calls
   and are outside the library's scope.
 - Keep `Stub` alive while its fabricated protocol value is in use.

@@ -1,32 +1,6 @@
 import CTestDoublesTrampoline
 import Echo
 import Foundation
-#if canImport(Darwin)
-import Darwin
-#elseif canImport(Glibc)
-import Glibc
-#endif
-
-struct RuntimeMethodDescriptor {
-    let name: String
-    let qualifiedArgs: [String]
-    let qualifiedRet: String
-    let isThrowing: Bool
-    let isAsync: Bool
-    let argumentTypes: [Any.Type?]
-    let returnType: Any.Type?
-
-    init(_ descriptor: MethodDescriptor) {
-        self.name = descriptor.name
-        self.qualifiedArgs = descriptor.qualifiedArgs
-        self.qualifiedRet = descriptor.qualifiedRet
-        self.isThrowing = descriptor.isThrowing
-        self.isAsync = descriptor.isAsync
-        self.argumentTypes = descriptor.argumentTypes?.map(Optional.some)
-            ?? descriptor.qualifiedArgs.map(resolveRuntimeType)
-        self.returnType = descriptor.returnType ?? resolveRuntimeType(descriptor.qualifiedRet)
-    }
-}
 
 @_cdecl("td_swift_trampoline_handler")
 func td_swift_trampoline_handler(_ rawFrame: UnsafeMutablePointer<TDCallFrame>?) {
@@ -62,13 +36,13 @@ private enum RuntimeTrampolineHandler {
     /// functlet consumes the retain only after `dispatchAsync` has returned.
     private final class AsyncDispatchState: @unchecked Sendable {
         var frame: TDCallFrame
-        let method: RuntimeMethodDescriptor
+        let method: MethodDescriptor
         let args: [Any]
         let handler: ([Any]) async throws -> Any
 
         init(
             frame: TDCallFrame,
-            method: RuntimeMethodDescriptor,
+            method: MethodDescriptor,
             args: [Any],
             handler: @escaping ([Any]) async throws -> Any
         ) {
@@ -106,19 +80,18 @@ private enum RuntimeTrampolineHandler {
             fatalError("[TestDoubles] No method descriptor registered for witness slot \(slot).")
         }
         let args = decodeArguments(for: method, from: frame)
-        handle(frame, recorder: recorder, method: method, slot: slot, args: args)
+        handle(frame, recorder: recorder, method: method, args: args)
     }
 
     private static func handle(
         _ frame: UnsafeMutablePointer<TDCallFrame>,
         recorder: StubRecorder,
-        method: RuntimeMethodDescriptor,
-        slot: Int,
+        method: MethodDescriptor,
         args: [Any]
     ) {
         let result: Any
         do {
-            result = try recorder.dispatch(method: slot, args: args)
+            result = try recorder.dispatch(method: method, args: args)
             if method.isThrowing || method.isAsync {
                 frame.storeWord(0, at: TDFrame.returnError)
             } else {
@@ -150,7 +123,7 @@ private enum RuntimeTrampolineHandler {
             fatalError("[TestDoubles] No method descriptor registered for witness slot \(slot).")
         }
         let args = decodeArguments(for: method, from: frame)
-        switch recorder.prepareAsyncDispatch(method: slot, args: args) {
+        switch recorder.prepareAsyncDispatch(method: method, args: args) {
         case .placeholder:
             frame.storeWord(0, at: TDFrame.returnError)
             encodeRecordingPlaceholder(for: method, args: args, into: frame)
@@ -199,8 +172,8 @@ private enum RuntimeTrampolineHandler {
         return MockRegistry.resolveOptional(key)
     }
 
-    private static func decodeArguments(for method: RuntimeMethodDescriptor, from frame: UnsafeMutablePointer<TDCallFrame>) -> [Any] {
-        let returnABI = abiClass(for: method.returnType, fallbackName: method.qualifiedRet, isReturn: true)
+    private static func decodeArguments(for method: MethodDescriptor, from frame: UnsafeMutablePointer<TDCallFrame>) -> [Any] {
+        let returnABI = method.returnLayout
         let hasAsyncIndirectResult: Bool
         if method.isAsync, case .indirect = returnABI {
             hasAsyncIndirectResult = true
@@ -209,25 +182,21 @@ private enum RuntimeTrampolineHandler {
         }
         var cursor = ArgumentCursor(gp: hasAsyncIndirectResult ? 1 : 0)
         var values: [Any] = []
-        values.reserveCapacity(method.qualifiedArgs.count)
+        values.reserveCapacity(method.argumentTypes.count)
 
-        for index in method.qualifiedArgs.indices {
-            let fallbackName = method.qualifiedArgs[index]
-            let type = method.argumentTypes.indices.contains(index) ? method.argumentTypes[index] : nil
-            let abi = abiClass(for: type, fallbackName: fallbackName)
-
+        for (type, abi) in zip(method.argumentTypes, method.argumentLayouts) {
             switch abi {
             case .void:
                 values.append(())
 
             case .floatingPoint:
                 let bits = frame.takeFPWord(&cursor)
-                if type == Float.self || fallbackName == "Float" || fallbackName == "Swift.Float" {
+                if type == Float.self {
                     var raw = UInt32(truncatingIfNeeded: bits)
                     values.append(boxValue(type: Float.self, source: &raw))
                 } else {
                     var raw = bits
-                    values.append(boxValue(type: type ?? Double.self, source: &raw))
+                    values.append(boxValue(type: type, source: &raw))
                 }
 
             case .integer(let words):
@@ -237,25 +206,17 @@ private enum RuntimeTrampolineHandler {
                         bytes.storeBytes(of: UInt64(frame.takeGPWord(&cursor)), toByteOffset: word * 8, as: UInt64.self)
                     }
                 }
-                if let type {
-                    values.append(withUnsafeMutablePointer(to: &storage) {
-                        boxValue(type: type, source: UnsafeMutableRawPointer($0))
-                    })
-                } else {
-                    values.append(fallbackValue(from: storage, words: words, typeName: fallbackName))
-                }
+                values.append(withUnsafeMutablePointer(to: &storage) {
+                    boxValue(type: type, source: UnsafeMutableRawPointer($0))
+                })
 
-            case .aggregate:
-                guard let type, let parts = directArgumentParts(for: type) else {
-                    fatalError("[TestDoubles] Missing direct aggregate argument metadata for \(method.name).")
-                }
+            case .aggregate(let parts):
                 values.append(decodeAggregateArgument(type: type, parts: parts, cursor: &cursor, from: frame))
 
             case .indirect:
                 let address = frame.takeGPWord(&cursor)
-                guard let type, let source = UnsafeMutableRawPointer(bitPattern: address) else {
-                    values.append(UnsafeRawPointer(bitPattern: address) as Any)
-                    continue
+                guard let source = UnsafeMutableRawPointer(bitPattern: address) else {
+                    fatalError("[TestDoubles] Missing indirect argument storage for \(method.name).")
                 }
                 values.append(boxValue(type: type, source: source))
             }
@@ -290,8 +251,8 @@ private enum RuntimeTrampolineHandler {
         return boxed
     }
 
-    private static func encodeReturn(_ result: Any, for method: RuntimeMethodDescriptor, into frame: UnsafeMutablePointer<TDCallFrame>) {
-        let abi = abiClass(for: method.returnType, fallbackName: method.qualifiedRet, isReturn: true)
+    private static func encodeReturn(_ result: Any, for method: MethodDescriptor, into frame: UnsafeMutablePointer<TDCallFrame>) {
+        let abi = method.returnLayout
         frame.zeroReturn()
 
         switch abi {
@@ -309,11 +270,7 @@ private enum RuntimeTrampolineHandler {
                 frame.storeWord(bytes.1, at: TDFrame.returnGP + 8)
             }
 
-        case .aggregate:
-            guard let returnType = method.returnType,
-                  let parts = directReturnParts(for: returnType) else {
-                fatalError("[TestDoubles] Missing direct aggregate return metadata for \(method.name).")
-            }
+        case .aggregate(let parts):
             withCopiedReturn(result, expectedType: method.returnType) { source in
                 encodeAggregateReturn(parts: parts, from: source, into: frame)
             }
@@ -333,11 +290,11 @@ private enum RuntimeTrampolineHandler {
     }
 
     private static func encodeRecordingPlaceholder(
-        for method: RuntimeMethodDescriptor,
+        for method: MethodDescriptor,
         args: [Any],
         into frame: UnsafeMutablePointer<TDCallFrame>
     ) {
-        let abi = abiClass(for: method.returnType, fallbackName: method.qualifiedRet, isReturn: true)
+        let abi = method.returnLayout
         frame.zeroReturn()
 
         switch abi {
@@ -346,19 +303,15 @@ private enum RuntimeTrampolineHandler {
         case .floatingPoint:
             return
         case .integer(let words):
-            if method.returnType == String.self || method.qualifiedRet == "String" || method.qualifiedRet == "Swift.String" {
+            if method.returnType == String.self {
                 encodeReturn("", for: method, into: frame)
-            } else if let returnType = method.returnType,
-                      encodeInitializedPlaceholder(type: returnType, for: method, into: frame) {
+            } else if encodeInitializedPlaceholder(type: method.returnType, for: method, into: frame) {
                 return
             } else if words > 1 {
                 frame.storeWord(0, at: TDFrame.returnGP + 8)
             }
-        case .aggregate:
-            guard let returnType = method.returnType,
-                  let parts = directReturnParts(for: returnType) else {
-                fatalError("[TestDoubles] Cannot record direct aggregate return for \(method.name) without return metadata.")
-            }
+        case .aggregate(let parts):
+            let returnType = method.returnType
             var visited: Set<UInt> = []
             guard canInitializePlaceholder(type: returnType, visited: &visited) else {
                 fatalError("[TestDoubles] Stub cannot synthesize a recording placeholder for \(returnType). Use a hand-written test double for \(method.name).")
@@ -366,10 +319,10 @@ private enum RuntimeTrampolineHandler {
             initializeAggregatePlaceholder(type: returnType, parts: parts, into: frame)
         case .indirect:
             let destinationWord = frame.loadWord(at: TDFrame.indirectResult)
-            guard let destination = UnsafeMutableRawPointer(bitPattern: destinationWord),
-                  let returnType = method.returnType else {
+            guard let destination = UnsafeMutableRawPointer(bitPattern: destinationWord) else {
                 fatalError("[TestDoubles] Cannot record indirect-return requirement \(method.name) without return metadata.")
             }
+            let returnType = method.returnType
             #if arch(x86_64)
             if method.isAsync == false {
                 frame.storeWord(destinationWord, at: TDFrame.returnGP)
@@ -389,7 +342,7 @@ private enum RuntimeTrampolineHandler {
 
     private static func encodeInitializedPlaceholder(
         type: Any.Type,
-        for method: RuntimeMethodDescriptor,
+        for method: MethodDescriptor,
         into frame: UnsafeMutablePointer<TDCallFrame>
     ) -> Bool {
         let metadata = reflect(type)
@@ -818,27 +771,6 @@ private extension UnsafeMutablePointer where Pointee == TDCallFrame {
     }
 }
 
-private func fallbackValue(from storage: (UInt64, UInt64), words: Int, typeName: String) -> Any {
-    var storage = storage
-    switch typeName {
-    case "Bool", "Swift.Bool":
-        return storage.0 != 0
-    case "Double", "Swift.Double":
-        return Double(bitPattern: storage.0)
-    case "Float", "Swift.Float":
-        return Float(bitPattern: UInt32(truncatingIfNeeded: storage.0))
-    case "String", "Swift.String":
-        return withUnsafeMutablePointer(to: &storage) {
-            boxValue(type: String.self, source: UnsafeMutableRawPointer($0))
-        }
-    default:
-        if words == 1 {
-            return Int(bitPattern: UInt(storage.0))
-        }
-        return storage
-    }
-}
-
 private func boxValue<T>(type: T.Type, source: UnsafeMutableRawPointer) -> Any {
     boxValue(type: type as Any.Type, source: source)
 }
@@ -864,76 +796,3 @@ private func swiftErrorPointer(_ error: any Error) -> UInt {
     )
     return UInt(bitPattern: allocated.error)
 }
-
-private func resolveRuntimeType(_ name: String) -> Any.Type? {
-    switch name {
-    case "V", "Void", "Swift.Void", "()": return Void.self
-    case "W1", "INDIRECT": return nil
-    case "Int", "Swift.Int": return Int.self
-    case "Bool", "Swift.Bool": return Bool.self
-    case "W2", "String", "Swift.String": return String.self
-    case "FX", "Double", "Swift.Double": return Double.self
-    case "Float", "Swift.Float": return Float.self
-    case "[String]", "[Swift.String]": return [String].self
-    case "[Int]", "[Swift.Int]": return [Int].self
-    case "[Double]", "[Swift.Double]": return [Double].self
-    default:
-        if let type = _typeByName(name) {
-            return type
-        }
-        if !name.contains("."), let type = _typeByName("Swift.\(name)") {
-            return type
-        }
-        if let type = swiftTypeByNominalName(name) {
-            return type
-        }
-        return swiftTypeByMangledName(name)
-    }
-}
-
-private func swiftTypeByNominalName(_ name: String) -> Any.Type? {
-    let parts = name.split(separator: ".").map(String.init)
-    guard parts.count == 2 else { return nil }
-    let module = parts[0]
-    let typeName = parts[1]
-    let prefix = "\(module.utf8.count)\(module)\(typeName.utf8.count)\(typeName)"
-    for suffix in ["V", "O", "C"] {
-        if let type = swiftTypeByMangledName(prefix + suffix) {
-            return type
-        }
-    }
-    return nil
-}
-
-private func swiftTypeByMangledName(_ name: String) -> Any.Type? {
-    guard let swiftGetTypeByMangledNameInContext else {
-        return nil
-    }
-    return name.utf8CString.withUnsafeBufferPointer { buffer -> Any.Type? in
-        guard let base = buffer.baseAddress else { return nil }
-        guard let metadata = swiftGetTypeByMangledNameInContext(
-            UnsafeRawPointer(base).assumingMemoryBound(to: UInt8.self),
-            UInt(name.utf8.count),
-            nil,
-            nil
-        ) else {
-            return nil
-        }
-        return unsafeBitCast(metadata, to: Any.Type.self)
-    }
-}
-
-private typealias SwiftGetTypeByMangledNameInContext = @convention(c) (
-    UnsafePointer<UInt8>,
-    UInt,
-    UnsafeRawPointer?,
-    UnsafeRawPointer?
-) -> UnsafeRawPointer?
-
-private let swiftGetTypeByMangledNameInContext: SwiftGetTypeByMangledNameInContext? = {
-    guard let handle = dlopen(nil, RTLD_NOW),
-          let symbol = dlsym(handle, "swift_getTypeByMangledNameInContext") else {
-        return nil
-    }
-    return unsafeBitCast(symbol, to: SwiftGetTypeByMangledNameInContext.self)
-}()

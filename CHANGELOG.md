@@ -32,6 +32,13 @@ The project has not published its first tagged release yet.
 - `returns` captures one fixed value; per-call evaluation belongs to `then`.
 - Unsupported existential layouts and structural protocol requirements now fail
   during construction instead of leaving invalid witness entries.
+- Automatic discovery resolves concrete type metadata before allocation, and
+  explicit requirements are checked against every reliably discoverable
+  component of a linked conformance.
+- `requirementKindMismatch` is now the more general `requirementMismatch`, which
+  reports discoverable kind, type, and effect mismatches.
+- The unsupported x86_64 six-register async continuation boundary now fails
+  during construction.
 - Captors commit values only after every matcher in an invocation succeeds.
 
 ### Removed
@@ -47,3 +54,5 @@ The project has not published its first tagged release yet.
   and the incomplete order-verification API.
 - Setter stubbing and protocols with coroutine-backed read-write properties;
   these cannot be fabricated safely by the current trampoline.
+- The dedicated function-value error case; unsupported function requirements now
+  use the general protocol-shape construction error.

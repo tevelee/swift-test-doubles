@@ -80,7 +80,7 @@ private protocol CompositionB {}
             )
             Issue.record("Expected a requirement-kind error")
         } catch let error as StubError {
-            guard case .requirementKindMismatch(
+            guard case .requirementMismatch(
                 let protocolName, let index, let expected, let actual
             ) = error else {
                 Issue.record("Unexpected StubError: \(error)")
