@@ -1,8 +1,8 @@
 import Foundation
 
 /// Records method calls and returns stubbed values.
-/// Supports three modes: normal (dispatch to stubs), recording (capture calls),
-/// and verifying (check call log).
+/// Uses normal dispatch and a temporary capture mode shared by stubbing and
+/// verification.
 class StubRecorder: @unchecked Sendable {
     init() {}
 
@@ -10,8 +10,7 @@ class StubRecorder: @unchecked Sendable {
 
     enum Mode {
         case normal
-        case recording
-        case verifying
+        case capturing
     }
 
     private var storedMode: Mode = .normal
@@ -24,27 +23,18 @@ class StubRecorder: @unchecked Sendable {
     // matcher specificity is resolved consistently for immediate, throwing,
     // and suspending handlers.
     private var storedStubs: [Int: [StubEntry]] = [:]
-    private var storedNames: [Int: String] = [:]
 
     // Runtime marshalling descriptors, keyed by witness-table requirement index.
     private var storedRuntimeMethods: [Int: RuntimeMethodDescriptor] = [:]
-    var runtimeMethods: [Int: RuntimeMethodDescriptor] { withLock { storedRuntimeMethods } }
 
     // Call log
     private var storedCalls: [RecordedCall] = []
-    var calls: [RecordedCall] { withLock { storedCalls } }
 
-    // Last recording (set during recording mode)
+    // Last invocation observed in capture mode.
     private var storedLastRecording: RecordedCall?
     var lastRecording: RecordedCall? {
         get { withLock { storedLastRecording } }
         set { withLock { storedLastRecording = newValue } }
-    }
-
-    private var storedVerificationRecordings: [RecordedCall] = []
-    var verificationRecordings: [RecordedCall] {
-        get { withLock { storedVerificationRecordings } }
-        set { withLock { storedVerificationRecordings = newValue } }
     }
 
     struct StubEntry {
@@ -56,20 +46,18 @@ class StubRecorder: @unchecked Sendable {
         let matchers: [ParameterMatcher]
         let diagnosticSignature: String
         let behavior: Behavior
-        let action: (([Any]) -> Void)?
         let isFallback: Bool
     }
 
-    // MARK: - Method name registration
-
-    func setName(_ name: String, for index: Int) {
-        withLock { storedNames[index] = name }
+    enum AsyncDispatch {
+        case placeholder
+        case immediate(Result<Any, any Error>)
+        case suspending(([Any]) async throws -> Any)
     }
 
     func setRuntimeMethod(_ method: RuntimeMethodDescriptor, for index: Int) {
         withLock {
             storedRuntimeMethods[index] = method
-            storedNames[index] = method.name
         }
     }
 
@@ -79,33 +67,18 @@ class StubRecorder: @unchecked Sendable {
 
     // MARK: - Dispatch (called by witness table thunks)
 
-    func dispatch(method: Int, args: [Any]) -> Any {
+    func dispatch(method: Int, args: [Any]) throws -> Any {
         let snapshot = withLock {
             (
                 mode: storedMode,
-                name: storedNames[method] ?? "method_\(method)",
+                name: storedRuntimeMethods[method]?.name ?? "method_\(method)",
                 entries: storedStubs[method]
             )
         }
 
         switch snapshot.mode {
-        case .recording:
-            withLock {
-                storedLastRecording = RecordedCall(
-                    methodIndex: method,
-                    name: snapshot.name,
-                    args: args,
-                    matchers: []
-                )
-            }
-            return zeroValue // thunk handles the actual return type
-
-        case .verifying:
-            let recording = RecordedCall(methodIndex: method, name: snapshot.name, args: args, matchers: [])
-            withLock {
-                storedLastRecording = recording
-                storedVerificationRecordings.append(recording)
-            }
+        case .capturing:
+            recordPlaceholder(method: method, name: snapshot.name, args: args)
             return zeroValue
 
         case .normal:
@@ -137,92 +110,13 @@ class StubRecorder: @unchecked Sendable {
             }
             switch entry.behavior {
             case .immediate(let handler):
-                entry.action?(args)
-                return try! handler(args)
+                return try handler(args)
             case .suspending:
                 fatalError(
                     "[TestDoubles] A suspending handler was selected for synchronous dispatch of \(snapshot.name). " +
-                    "Use it only with an async RuntimeStub requirement."
+                    "Use it only with an async Stub requirement."
                 )
             }
-        }
-    }
-
-    // MARK: - Throwing stubs
-
-    /// Register a stub that throws.
-    func addThrowingStub(method: Int, matchers: [ParameterMatcher], handler: @escaping ([Any]) throws -> Any) {
-        withLock {
-            storedStubs[method, default: []].append(StubEntry(
-                matchers: matchers,
-                diagnosticSignature: diagnosticSignatureLocked(method: method, matchers: matchers),
-                behavior: .immediate(handler),
-                action: nil,
-                isFallback: false
-            ))
-        }
-    }
-
-    /// Dispatches a throwing call through the best matching immediate behavior.
-    /// Returns `nil` when no configured behavior matches.
-    func dispatchThrowing(method: Int, args: [Any]) -> Result<Any, any Error>? {
-        let snapshot = withLock {
-            (
-                mode: storedMode,
-                name: storedNames[method] ?? "method_\(method)",
-                entries: storedStubs[method]
-            )
-        }
-
-        switch snapshot.mode {
-        case .recording:
-            withLock {
-                storedLastRecording = RecordedCall(
-                    methodIndex: method,
-                    name: snapshot.name,
-                    args: args,
-                    matchers: []
-                )
-            }
-            return .success(zeroValue)
-
-        case .verifying:
-            let recording = RecordedCall(methodIndex: method, name: snapshot.name, args: args, matchers: [])
-            withLock {
-                storedLastRecording = recording
-                storedVerificationRecordings.append(recording)
-            }
-            return .success(zeroValue)
-
-        case .normal:
-            break
-        }
-
-        guard let entries = snapshot.entries,
-              let entry = bestMatchingEntry(for: args, in: entries) else {
-            return nil
-        }
-        withLock {
-            storedCalls.append(RecordedCall(
-                methodIndex: method,
-                name: snapshot.name,
-                args: args,
-                matchers: []
-            ))
-        }
-        switch entry.behavior {
-        case .immediate(let handler):
-            entry.action?(args)
-            do {
-                return .success(try handler(args))
-            } catch {
-                return .failure(error)
-            }
-        case .suspending:
-            fatalError(
-                "[TestDoubles] A suspending handler was selected for synchronous throwing dispatch of \(snapshot.name). " +
-                "Use it only with an async RuntimeStub requirement."
-            )
         }
     }
 
@@ -236,7 +130,7 @@ class StubRecorder: @unchecked Sendable {
         withLock {
             guard storedRuntimeMethods[method]?.isAsync == true else {
                 preconditionFailure(
-                    "[TestDoubles] Suspending handlers require an async RuntimeStub requirement. " +
+                    "[TestDoubles] Suspending handlers require an async Stub requirement. " +
                     "Synchronous requirements support only immediate handlers."
                 )
             }
@@ -244,7 +138,6 @@ class StubRecorder: @unchecked Sendable {
                 matchers: matchers,
                 diagnosticSignature: diagnosticSignatureLocked(method: method, matchers: matchers),
                 behavior: .suspending(handler),
-                action: nil,
                 isFallback: false
             ))
         }
@@ -256,22 +149,40 @@ class StubRecorder: @unchecked Sendable {
     func prepareAsyncDispatch(
         method: Int,
         args: [Any]
-    ) -> (([Any]) async throws -> Any)? {
+    ) -> AsyncDispatch {
         let snapshot = withLock {
             (
                 mode: storedMode,
-                name: storedNames[method] ?? "method_\(method)",
+                name: storedRuntimeMethods[method]?.name ?? "method_\(method)",
                 entries: storedStubs[method]
             )
         }
 
-        guard case .normal = snapshot.mode, let entries = snapshot.entries else {
-            return nil
+        switch snapshot.mode {
+        case .capturing:
+            recordPlaceholder(method: method, name: snapshot.name, args: args)
+            return .placeholder
+        case .normal:
+            break
         }
 
-        guard let bestEntry = bestMatchingEntry(for: args, in: entries),
-              case .suspending(let handler) = bestEntry.behavior else {
-            return nil
+        guard let entries = snapshot.entries else {
+            fatalError(diagnosticMessage(
+                title: "No stub configured",
+                method: method,
+                name: snapshot.name,
+                args: args,
+                entries: []
+            ))
+        }
+        guard let bestEntry = bestMatchingEntry(for: args, in: entries) else {
+            fatalError(diagnosticMessage(
+                title: "No matching stub",
+                method: method,
+                name: snapshot.name,
+                args: args,
+                entries: entries
+            ))
         }
 
         withLock {
@@ -282,7 +193,16 @@ class StubRecorder: @unchecked Sendable {
                 matchers: []
             ))
         }
-        return handler
+        switch bestEntry.behavior {
+        case .immediate(let handler):
+            do {
+                return .immediate(.success(try handler(args)))
+            } catch {
+                return .immediate(.failure(error))
+            }
+        case .suspending(let handler):
+            return .suspending(handler)
+        }
     }
 
     // MARK: - Stub registration
@@ -290,8 +210,7 @@ class StubRecorder: @unchecked Sendable {
     func addStub(
         method: Int,
         matchers: [ParameterMatcher],
-        returnValue: @escaping ([Any]) -> Any,
-        action: (([Any]) -> Void)? = nil,
+        returnValue: @escaping ([Any]) throws -> Any,
         isFallback: Bool = false
     ) {
         withLock {
@@ -299,7 +218,6 @@ class StubRecorder: @unchecked Sendable {
                 matchers: matchers,
                 diagnosticSignature: diagnosticSignatureLocked(method: method, matchers: matchers),
                 behavior: .immediate(returnValue),
-                action: action,
                 isFallback: isFallback
             ))
         }
@@ -309,29 +227,40 @@ class StubRecorder: @unchecked Sendable {
 
     func callCount(method: Int, matchers: [ParameterMatcher] = []) -> Int {
         let calls = withLock { storedCalls }
-        return calls.filter { call in
-            call.methodIndex == method && (matchers.isEmpty || matchArgs(call.args, against: matchers))
-        }.count
-    }
-
-    func reset() {
-        withLock { storedCalls.removeAll() }
+        var count = 0
+        for call in calls where call.methodIndex == method {
+            guard matchers.isEmpty || argumentsMatch(call.args, against: matchers) else {
+                continue
+            }
+            commitCaptures(in: call.args, against: matchers)
+            count += 1
+        }
+        return count
     }
 
     // MARK: - Matching
 
-    private func matchArgs(_ args: [Any], against matchers: [ParameterMatcher]) -> Bool {
+    private func argumentsMatch(_ args: [Any], against matchers: [ParameterMatcher]) -> Bool {
         guard args.count == matchers.count else { return matchers.isEmpty }
         return zip(args, matchers).allSatisfy { $0.1.matches(value: $0.0) }
     }
 
+    private func commitCaptures(in args: [Any], against matchers: [ParameterMatcher]) {
+        zip(args, matchers).forEach { value, matcher in
+            matcher.commit(value: value)
+        }
+    }
+
     /// Returns the first registered entry among those with the highest matcher
     /// specificity. Registration kind never affects precedence.
-    private func bestMatchingEntry(for args: [Any], in entries: [StubEntry]) -> StubEntry? {
+    private func bestMatchingEntry(
+        for args: [Any],
+        in entries: [StubEntry]
+    ) -> StubEntry? {
         var bestEntry: StubEntry?
         var bestSpecificity = -1
         var bestPriority = -1
-        for entry in entries where entry.matchers.isEmpty || matchArgs(args, against: entry.matchers) {
+        for entry in entries where entry.matchers.isEmpty || argumentsMatch(args, against: entry.matchers) {
             let specificity = entry.matchers.reduce(0) { $0 + $1.specificity }
             let priority = entry.isFallback ? 0 : 1
             if specificity > bestSpecificity ||
@@ -341,7 +270,21 @@ class StubRecorder: @unchecked Sendable {
                 bestEntry = entry
             }
         }
+        if let bestEntry {
+            commitCaptures(in: args, against: bestEntry.matchers)
+        }
         return bestEntry
+    }
+
+    private func recordPlaceholder(method: Int, name: String, args: [Any]) {
+        withLock {
+            storedLastRecording = RecordedCall(
+                methodIndex: method,
+                name: name,
+                args: args,
+                matchers: []
+            )
+        }
     }
 
     private func diagnosticMessage(
@@ -374,14 +317,16 @@ class StubRecorder: @unchecked Sendable {
             }
         }
 
-        lines.append("")
-        lines.append("Suggested:")
-        lines.append("  \(suggestedStubSnippet(name: name, args: args))")
+        if name.hasPrefix("requirement_") == false {
+            lines.append("")
+            lines.append("Suggested:")
+            lines.append("  \(suggestedStubSnippet(name: name, args: args))")
+        }
         return lines.joined(separator: "\n")
     }
 
     private func diagnosticSignatureLocked(method: Int, matchers: [ParameterMatcher]) -> String {
-        let name = storedNames[method] ?? "method_\(method)"
+        let name = storedRuntimeMethods[method]?.name ?? "method_\(method)"
         let matcherList = matchers.map(\.diagnosticDescription).joined(separator: ", ")
         return "\(name)(\(matcherList))"
     }
@@ -427,7 +372,7 @@ class StubRecorder: @unchecked Sendable {
         }
     }
 
-    // Sentinel value for recording/verifying mode returns
+    // Sentinel value for capture mode returns.
     private var zeroValue: Any { 0 as Int }
 
     @discardableResult
@@ -440,9 +385,15 @@ class StubRecorder: @unchecked Sendable {
 
 // MARK: - RecordedCall
 
-public struct RecordedCall {
-    public let methodIndex: Int
-    public let name: String
-    public let args: [Any]
+struct RecordedCall {
+    let methodIndex: Int
+    let name: String
+    let args: [Any]
     var matchers: [ParameterMatcher]
+
+    var resolvedMatchers: [ParameterMatcher] {
+        matchers.isEmpty
+            ? args.map { DescriptionMatcher(value: $0) }
+            : matchers
+    }
 }

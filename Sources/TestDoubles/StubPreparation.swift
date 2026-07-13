@@ -1,8 +1,8 @@
 import Echo
 
-private final class RuntimeStubPayload {}
+private final class StubPayload {}
 
-final class RuntimeStubResources: @unchecked Sendable {
+final class StubResources: @unchecked Sendable {
     let registryKey: UnsafeRawPointer
     let allocation: UnsafeMutableRawPointer
     var trampolines: [UnsafeRawPointer] = []
@@ -31,21 +31,19 @@ final class RuntimeStubResources: @unchecked Sendable {
 
 private struct PatchedWitnessTable {
     let witnessTable: UnsafeMutableRawPointer
-    let resources: RuntimeStubResources
+    let resources: StubResources
 }
 
-extension RuntimeStub {
+extension Stub {
     static func prepare() throws -> PreparedStub {
         let conformance = try findConformance()
-        let signatures = discoverSignatures(
+        let signatures = try discoverSignatures(
             witnessTable: conformance.witnessTablePattern,
             proto: conformance.protocol
         )
-        let mockableSigs = mockableSignatures(from: signatures)
-        let methods = mockableSigs.map { sig in
+        let methods = signatures.map { sig in
             MethodDescriptor(
                 name: sig.methodName,
-                signature: sig.methodSignature,
                 index: sig.slot,
                 qualifiedArgs: sig.qualifiedArgs,
                 qualifiedRet: sig.qualifiedRet,
@@ -56,115 +54,54 @@ extension RuntimeStub {
         return try prepareThunk(from: conformance, methods: methods)
     }
 
-    static func prepare(slots: [Slot]) throws -> PreparedStub {
+    static func prepare(requirements: [Requirement]) throws -> PreparedStub {
         let proto = try extractProtocolDescriptor()
-        let mockableIndices = mockableRequirementIndices(for: proto)
+        let protocolRequirements = mockableRequirements(for: proto)
 
-        guard slots.count == mockableIndices.count else {
-            throw RuntimeStubError.slotCountMismatch(
+        guard requirements.count == protocolRequirements.count else {
+            throw StubError.requirementCountMismatch(
                 protocolName: proto.name,
-                expected: mockableIndices.count,
-                actual: slots.count
+                expected: protocolRequirements.count,
+                actual: requirements.count
             )
         }
 
-        let methods = zip(slots, mockableIndices).enumerated().map { userIdx, pair in
-            MethodDescriptor(
-                name: "slot_\(userIdx)",
-                signature: pair.0.signature,
-                index: pair.1,
-                qualifiedArgs: pair.0.qualifiedArgs,
-                qualifiedRet: pair.0.qualifiedRet,
-                isThrowing: pair.0.isThrowing,
-                isAsync: pair.0.isAsync,
-                argumentTypes: pair.0.argumentTypes,
-                returnType: pair.0.returnType
-            )
+        var methods: [MethodDescriptor] = []
+        methods.reserveCapacity(requirements.count)
+        for (requirement, protocolRequirement) in zip(requirements, protocolRequirements) {
+            guard requirement.kind == protocolRequirement.kind else {
+                throw StubError.requirementKindMismatch(
+                    protocolName: proto.name,
+                    requirementIndex: protocolRequirement.index,
+                    expected: protocolRequirement.kind.rawValue,
+                    actual: requirement.kind.rawValue
+                )
+            }
+            methods.append(requirement.descriptor(index: protocolRequirement.index))
         }
 
-        return try prepareFabricated(proto: proto, methods: methods)
-    }
-
-    static func prepare(methods: [MethodDescriptor]) throws -> PreparedStub {
-        try prepareFabricated(proto: extractProtocolDescriptor(), methods: methods)
-    }
-
-    static func prepareFromModule(moduleName explicitModuleName: String?) throws -> PreparedStub {
-        let proto = try extractProtocolDescriptor()
-        let moduleName: String
-        if let explicitModuleName {
-            moduleName = explicitModuleName
-        } else if let inferred = inferredModuleName() {
-            moduleName = inferred
-        } else {
-            throw RuntimeStubError.moduleNameCouldNotBeInferred(typeDescription: String(reflecting: P.self))
-        }
-
-        let signatures = try ModuleSignatureDiscovery.discover(
-            protocolName: proto.name,
-            moduleName: moduleName,
-            proto: proto
-        )
-        let methods = signatures.map { sig in
-            MethodDescriptor(
-                name: sig.methodName,
-                signature: sig.methodSignature,
-                index: sig.slot,
-                qualifiedArgs: sig.qualifiedArgs,
-                qualifiedRet: sig.qualifiedRet,
-                isThrowing: sig.isThrowing,
-                isAsync: sig.isAsync
-            )
-        }
         return try prepareFabricated(proto: proto, methods: methods)
     }
 
     static func extractProtocolDescriptor() throws -> ProtocolDescriptor {
         let meta = reflect(P.self)
+        let typeDescription = String(reflecting: P.self)
         guard let existential = meta as? ExistentialMetadata,
-              let protoDesc = existential.protocols.first else {
-            throw RuntimeStubError.typeIsNotProtocol(typeDescription: String(reflecting: P.self))
+              existential.protocols.isEmpty == false else {
+            throw StubError.typeIsNotProtocol(typeDescription: typeDescription)
         }
-        return protoDesc
-    }
-
-    static func inferredModuleName() -> String? {
-        var typeDescription = String(reflecting: P.self)
-        if typeDescription.hasPrefix("any ") {
-            typeDescription.removeFirst(4)
+        guard existential.protocols.count == 1 else {
+            throw StubError.unsupportedProtocolComposition(typeDescription: typeDescription)
         }
-        guard !typeDescription.contains("&") else { return nil }
-        let parts = typeDescription.split(separator: ".")
-        guard parts.count >= 2 else { return nil }
-        return String(parts[0])
-    }
-
-    static func mockableSignatures(from signatures: [DiscoveredSignature]) -> [DiscoveredSignature] {
-        signatures.filter { sig in
-            switch sig.kind {
-            case .modifyCoroutine, .readCoroutine, .baseProtocol,
-                 .associatedTypeAccessFunction, .associatedConformanceAccessFunction:
-                return false
-            default:
-                return true
-            }
-        }
-    }
-
-    static func failureMessage(for error: Error) -> String {
-        if let error = error as? RuntimeStubError {
-            return "[TestDoubles] \(error.description)"
-        }
-        return "[TestDoubles] \(String(describing: error))"
+        let proto = existential.protocols[0]
+        try validateProtocolShape(existential: existential, descriptor: proto)
+        return proto
     }
 
     private static func findConformance() throws -> ConformanceDescriptor {
         let protoDesc = try extractProtocolDescriptor()
         guard let conformance = Echo.findConformance(to: protoDesc) else {
-            throw RuntimeStubError.noConformanceFound(
-                protocolName: protoDesc.name,
-                typeDescription: String(reflecting: P.self)
-            )
+            throw StubError.noConformanceFound(protocolName: protoDesc.name)
         }
         return conformance
     }
@@ -188,11 +125,11 @@ extension RuntimeStub {
         proto: ProtocolDescriptor,
         methods: [MethodDescriptor]
     ) throws -> PreparedStub {
-        try validate(methods: methods, protocolName: proto.name, requirementCount: proto.numRequirements)
+        try validate(methods: methods, protocolName: proto.name)
 
         let recorder = StubRecorder()
         let patched = try fabricateWitnessTable(for: proto, methods: methods, recorder: recorder)
-        let payload = RuntimeStubPayload()
+        let payload = StubPayload()
         let containerBytes = buildFabricatedExistentialContainer(witnessTable: patched.witnessTable)
         return PreparedStub(
             recorder: recorder,
@@ -208,31 +145,23 @@ extension RuntimeStub {
         recorder: StubRecorder
     ) throws -> PatchedWitnessTable {
         let proto = conformance.protocol
-        try validate(methods: methods, protocolName: proto.name, requirementCount: proto.numRequirements)
+        try validate(methods: methods, protocolName: proto.name)
 
         let wordSize = MemoryLayout<UnsafeRawPointer>.size
         let totalWords = 1 + proto.numRequirements
         let clonedWT = UnsafeMutableRawPointer.allocate(byteCount: totalWords * wordSize, alignment: wordSize)
         clonedWT.copyMemory(from: conformance.witnessTablePattern.ptr, byteCount: totalWords * wordSize)
-        let resources = RuntimeStubResources(
+        let resources = StubResources(
             registryKey: UnsafeRawPointer(clonedWT),
             allocation: clonedWT
         )
 
-        for method in methods {
-            guard let thunkPtr = TrampolineFactory.make(
-                slot: method.index,
-                context: UnsafeRawPointer(clonedWT),
-                isAsync: method.isAsync
-            ) else {
-                throw RuntimeStubError.trampolineAllocationFailed(slot: method.index)
-            }
-            (clonedWT + (1 + method.index) * wordSize).storeBytes(of: thunkPtr, as: UnsafeRawPointer.self)
-            resources.trampolines.append(thunkPtr)
-            recorder.setRuntimeMethod(RuntimeMethodDescriptor(method), for: method.index)
-        }
-
-        resources.register(recorder)
+        try installTrampolines(
+            in: clonedWT,
+            methods: methods,
+            recorder: recorder,
+            resources: resources
+        )
         return PatchedWitnessTable(
             witnessTable: clonedWT,
             resources: resources
@@ -257,7 +186,7 @@ extension RuntimeStub {
 
         let descriptor = allocation
         let witnessTable = allocation + witnessTableOffset
-        let resources = RuntimeStubResources(
+        let resources = StubResources(
             registryKey: UnsafeRawPointer(witnessTable),
             allocation: allocation
         )
@@ -274,20 +203,12 @@ extension RuntimeStub {
         (allocation + typeCellOffset).storeBytes(of: payloadDescriptor, as: UnsafeRawPointer.self)
         witnessTable.storeBytes(of: UnsafeRawPointer(descriptor), as: UnsafeRawPointer.self)
 
-        for method in methods {
-            guard let thunkPtr = TrampolineFactory.make(
-                slot: method.index,
-                context: UnsafeRawPointer(witnessTable),
-                isAsync: method.isAsync
-            ) else {
-                throw RuntimeStubError.trampolineAllocationFailed(slot: method.index)
-            }
-            (witnessTable + (1 + method.index) * wordSize).storeBytes(of: thunkPtr, as: UnsafeRawPointer.self)
-            resources.trampolines.append(thunkPtr)
-            recorder.setRuntimeMethod(RuntimeMethodDescriptor(method), for: method.index)
-        }
-
-        resources.register(recorder)
+        try installTrampolines(
+            in: witnessTable,
+            methods: methods,
+            recorder: recorder,
+            resources: resources
+        )
         return PatchedWitnessTable(
             witnessTable: witnessTable,
             resources: resources
@@ -299,7 +220,7 @@ extension RuntimeStub {
         witnessTable: UnsafeMutableRawPointer
     ) throws -> ExistentialContainer {
         guard let typeDesc = conformance.contextDescriptor else {
-            throw RuntimeStubError.unsupportedTypeKind(typeName: conformance.protocol.name)
+            throw StubError.unsupportedTypeKind(typeName: conformance.protocol.name)
         }
         let typeMetaPtr: UnsafeRawPointer
         if let sd = typeDesc as? StructDescriptor {
@@ -309,7 +230,7 @@ extension RuntimeStub {
         } else if let ed = typeDesc as? EnumDescriptor {
             typeMetaPtr = unsafeBitCast(ed.accessor(.complete).type, to: UnsafeRawPointer.self)
         } else {
-            throw RuntimeStubError.unsupportedTypeKind(typeName: typeDesc.name)
+            throw StubError.unsupportedTypeKind(typeName: typeDesc.name)
         }
 
         let base = AnyExistentialContainer(type: unsafeBitCast(typeMetaPtr, to: Any.Type.self))
@@ -322,7 +243,7 @@ extension RuntimeStub {
     private static func buildFabricatedExistentialContainer(
         witnessTable: UnsafeMutableRawPointer
     ) -> ExistentialContainer {
-        let base = AnyExistentialContainer(type: RuntimeStubPayload.self)
+        let base = AnyExistentialContainer(type: StubPayload.self)
         return ExistentialContainer(
             base: base,
             witnessTable: WitnessTable(ptr: UnsafeRawPointer(witnessTable))
@@ -330,44 +251,80 @@ extension RuntimeStub {
     }
 
     private static func payloadContextDescriptor() throws -> UnsafeRawPointer {
-        guard let metadata = reflect(RuntimeStubPayload.self) as? ClassMetadata else {
-            throw RuntimeStubError.unsupportedTypeKind(typeName: String(reflecting: RuntimeStubPayload.self))
+        guard let metadata = reflect(StubPayload.self) as? ClassMetadata else {
+            throw StubError.unsupportedTypeKind(typeName: String(reflecting: StubPayload.self))
         }
         return metadata.descriptor.ptr
     }
 
-    private static func mockableRequirementIndices(for proto: ProtocolDescriptor) -> [Int] {
-        proto.requirements.enumerated().compactMap { i, req -> Int? in
-            switch req.flags.kind {
-            case .modifyCoroutine, .readCoroutine, .baseProtocol,
-                 .associatedTypeAccessFunction, .associatedConformanceAccessFunction:
+    private static func installTrampolines(
+        in witnessTable: UnsafeMutableRawPointer,
+        methods: [MethodDescriptor],
+        recorder: StubRecorder,
+        resources: StubResources
+    ) throws {
+        let wordSize = MemoryLayout<UnsafeRawPointer>.size
+        for method in methods {
+            guard let trampoline = TrampolineFactory.make(
+                slot: method.index,
+                context: UnsafeRawPointer(witnessTable),
+                isAsync: method.isAsync
+            ) else {
+                throw StubError.trampolineAllocationFailed(
+                    requirementIndex: method.index
+                )
+            }
+            (witnessTable + (1 + method.index) * wordSize).storeBytes(
+                of: trampoline,
+                as: UnsafeRawPointer.self
+            )
+            resources.trampolines.append(trampoline)
+            recorder.setRuntimeMethod(RuntimeMethodDescriptor(method), for: method.index)
+        }
+        resources.register(recorder)
+    }
+
+    private static func mockableRequirements(
+        for proto: ProtocolDescriptor
+    ) -> [(index: Int, kind: StubRequirementKind)] {
+        proto.requirements.enumerated().compactMap { index, requirement in
+            guard let kind = StubRequirementKind(requirement.flags.kind) else {
                 return nil
-            default:
-                return i
+            }
+            return (index, kind)
+        }
+    }
+
+    private static func validateProtocolShape(
+        existential: ExistentialMetadata,
+        descriptor proto: ProtocolDescriptor
+    ) throws {
+        guard existential.flags.isClassConstraint == false,
+              existential.flags.hasSuperclassConstraint == false,
+              existential.flags.specialProtocol == .none,
+              existential.flags.numWitnessTables == 1 else {
+            throw StubError.unsupportedProtocolShape(
+                protocolName: proto.name,
+                reason: "Only ordinary opaque existentials with one witness table are supported."
+            )
+        }
+
+        for (index, requirement) in proto.requirements.enumerated() {
+            guard requirement.flags.isInstance,
+                  StubRequirementKind(requirement.flags.kind) != nil else {
+                throw StubError.unsupportedProtocolShape(
+                    protocolName: proto.name,
+                    reason: "Requirement \(index) is a \(requirement.flags.kind). Only instance methods and ordinary getters are supported."
+                )
             }
         }
     }
 
     private static func validate(
         methods: [MethodDescriptor],
-        protocolName: String,
-        requirementCount: Int
+        protocolName: String
     ) throws {
-        var seen = Set<Int>()
         for method in methods {
-            guard method.index >= 0, method.index < requirementCount else {
-                throw RuntimeStubError.invalidRequirementIndex(
-                    protocolName: protocolName,
-                    index: method.index,
-                    requirementCount: requirementCount
-                )
-            }
-            guard seen.insert(method.index).inserted else {
-                throw RuntimeStubError.duplicateRequirementIndex(
-                    protocolName: protocolName,
-                    index: method.index
-                )
-            }
             let concreteTypes = (method.argumentTypes ?? []) + [method.returnType].compactMap { $0 }
             let hasFunctionMetadata = concreteTypes.contains { reflect($0).kind == .function }
             let hasFunctionSpelling = method.argumentTypes == nil && (
@@ -375,9 +332,9 @@ extension RuntimeStub {
                 method.qualifiedRet.contains("->")
             )
             if hasFunctionMetadata || hasFunctionSpelling {
-                throw RuntimeStubError.unsupportedFunctionValue(
+                throw StubError.unsupportedFunctionValue(
                     protocolName: protocolName,
-                    methodName: method.name
+                    requirementIndex: method.index
                 )
             }
         }

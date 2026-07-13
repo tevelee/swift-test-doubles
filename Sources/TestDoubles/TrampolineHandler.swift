@@ -9,7 +9,6 @@ import Glibc
 
 struct RuntimeMethodDescriptor {
     let name: String
-    let signature: MethodSignature
     let qualifiedArgs: [String]
     let qualifiedRet: String
     let isThrowing: Bool
@@ -19,7 +18,6 @@ struct RuntimeMethodDescriptor {
 
     init(_ descriptor: MethodDescriptor) {
         self.name = descriptor.name
-        self.signature = descriptor.signature
         self.qualifiedArgs = descriptor.qualifiedArgs
         self.qualifiedRet = descriptor.qualifiedRet
         self.isThrowing = descriptor.isThrowing
@@ -119,23 +117,19 @@ private enum RuntimeTrampolineHandler {
         args: [Any]
     ) {
         let result: Any
-
-        if method.isThrowing, let throwingResult = recorder.dispatchThrowing(method: slot, args: args) {
-            switch throwingResult {
-            case .success(let value):
-                result = value
-                frame.storeWord(0, at: TDFrame.returnError)
-            case .failure(let error):
-                frame.storeWord(swiftErrorPointer(error), at: TDFrame.returnError)
-                return
-            }
-        } else {
-            result = recorder.dispatch(method: slot, args: args)
+        do {
+            result = try recorder.dispatch(method: slot, args: args)
             if method.isThrowing || method.isAsync {
                 frame.storeWord(0, at: TDFrame.returnError)
             } else {
                 frame.storeWord(frame.loadWord(at: TDFrame.swiftError), at: TDFrame.returnError)
             }
+        } catch {
+            guard method.isThrowing else {
+                fatalError("[TestDoubles] A nonthrowing stub handler threw \(error).")
+            }
+            frame.storeWord(swiftErrorPointer(error), at: TDFrame.returnError)
+            return
         }
 
         if recorder.mode == .normal {
@@ -156,18 +150,34 @@ private enum RuntimeTrampolineHandler {
             fatalError("[TestDoubles] No method descriptor registered for witness slot \(slot).")
         }
         let args = decodeArguments(for: method, from: frame)
-        guard let handler = recorder.prepareAsyncDispatch(method: slot, args: args) else {
-            handle(frame, recorder: recorder, method: method, slot: slot, args: args)
+        switch recorder.prepareAsyncDispatch(method: slot, args: args) {
+        case .placeholder:
+            frame.storeWord(0, at: TDFrame.returnError)
+            encodeRecordingPlaceholder(for: method, args: args, into: frame)
             return nil
-        }
 
-        let state = AsyncDispatchState(
-            frame: frame.pointee,
-            method: method,
-            args: args,
-            handler: handler
-        )
-        return Unmanaged.passRetained(state).toOpaque()
+        case .immediate(.success(let result)):
+            frame.storeWord(0, at: TDFrame.returnError)
+            encodeReturn(result, for: method, into: frame)
+            return nil
+
+        case .immediate(.failure(let error)):
+            guard method.isThrowing else {
+                fatalError("[TestDoubles] A nonthrowing async stub handler threw \(error).")
+            }
+            frame.zeroReturn()
+            frame.storeWord(swiftErrorPointer(error), at: TDFrame.returnError)
+            return nil
+
+        case .suspending(let handler):
+            let state = AsyncDispatchState(
+                frame: frame.pointee,
+                method: method,
+                args: args,
+                handler: handler
+            )
+            return Unmanaged.passRetained(state).toOpaque()
+        }
     }
 
     static func dispatchAsync(_ rawState: UnsafeMutableRawPointer) async {
@@ -199,10 +209,10 @@ private enum RuntimeTrampolineHandler {
         }
         var cursor = ArgumentCursor(gp: hasAsyncIndirectResult ? 1 : 0)
         var values: [Any] = []
-        values.reserveCapacity(method.signature.args.count)
+        values.reserveCapacity(method.qualifiedArgs.count)
 
-        for index in method.signature.args.indices {
-            let fallbackName = method.qualifiedArgs.indices.contains(index) ? method.qualifiedArgs[index] : method.signature.args[index]
+        for index in method.qualifiedArgs.indices {
+            let fallbackName = method.qualifiedArgs[index]
             let type = method.argumentTypes.indices.contains(index) ? method.argumentTypes[index] : nil
             let abi = abiClass(for: type, fallbackName: fallbackName)
 
@@ -351,7 +361,7 @@ private enum RuntimeTrampolineHandler {
             }
             var visited: Set<UInt> = []
             guard canInitializePlaceholder(type: returnType, visited: &visited) else {
-                fatalError("[TestDoubles] RuntimeStub cannot synthesize a recording placeholder for \(returnType). Use a hand-written test double for \(method.name).")
+                fatalError("[TestDoubles] Stub cannot synthesize a recording placeholder for \(returnType). Use a hand-written test double for \(method.name).")
             }
             initializeAggregatePlaceholder(type: returnType, parts: parts, into: frame)
         case .indirect:
@@ -372,7 +382,7 @@ private enum RuntimeTrampolineHandler {
                 return
             }
             guard initializePlaceholder(type: returnType, at: destination) else {
-                fatalError("[TestDoubles] RuntimeStub cannot synthesize a recording placeholder for \(returnType). Use a hand-written test double for \(method.name).")
+                fatalError("[TestDoubles] Stub cannot synthesize a recording placeholder for \(returnType). Use a hand-written test double for \(method.name).")
             }
         }
     }

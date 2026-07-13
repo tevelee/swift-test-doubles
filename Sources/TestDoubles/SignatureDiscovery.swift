@@ -6,38 +6,13 @@ import Glibc
 #endif
 
 /// Discovered signature for a protocol requirement.
-public struct DiscoveredSignature {
-    public let slot: Int
-    public let kind: ProtocolRequirement.Kind
-    public let methodName: String
-    public let args: [String]
-    public let ret: String
-    public let isThrowing: Bool
-    public let isAsync: Bool
-    public let rawDemangled: String
-    public let paramLabels: [String]
-    public let qualifiedArgs: [String]
-    public let qualifiedRet: String
-
-    public init(slot: Int, kind: ProtocolRequirement.Kind = .method, methodName: String, args: [String] = [], ret: String = "Int",
-         isThrowing: Bool = false, isAsync: Bool = false, rawDemangled: String = "", paramLabels: [String] = [],
-         qualifiedArgs: [String]? = nil, qualifiedRet: String? = nil) {
-        self.slot = slot
-        self.kind = kind
-        self.methodName = methodName
-        self.args = args
-        self.ret = ret
-        self.isThrowing = isThrowing
-        self.isAsync = isAsync
-        self.rawDemangled = rawDemangled
-        self.paramLabels = paramLabels
-        self.qualifiedArgs = qualifiedArgs ?? args
-        self.qualifiedRet = qualifiedRet ?? ret
-    }
-
-    var methodSignature: MethodSignature {
-        MethodSignature(args: args, ret: ret)
-    }
+struct DiscoveredSignature {
+    let slot: Int
+    let methodName: String
+    let isThrowing: Bool
+    let isAsync: Bool
+    let qualifiedArgs: [String]
+    let qualifiedRet: String
 }
 
 /// Discovers method signatures from a witness table using dladdr + demangling.
@@ -47,7 +22,7 @@ public struct DiscoveredSignature {
 func discoverSignatures(
     witnessTable: WitnessTable,
     proto: ProtocolDescriptor
-) -> [DiscoveredSignature] {
+) throws -> [DiscoveredSignature] {
     let wordSize = MemoryLayout<UnsafeRawPointer>.size
     var results = [DiscoveredSignature]()
 
@@ -56,26 +31,29 @@ func discoverSignatures(
 
         var info = Dl_info()
         guard dladdr(fnPtr, &info) != 0, let sname = info.dli_sname else {
-            results.append(DiscoveredSignature(
-                slot: i, kind: req.flags.kind, methodName: "slot_\(i)", args: [], ret: "Int"
-            ))
-            continue
+            throw StubError.signatureDiscoveryFailed(
+                protocolName: proto.name,
+                requirementIndex: i,
+                details: "The witness entry has no resolvable symbol. Supply explicit Requirement values."
+            )
         }
 
         let mangledName = String(cString: sname)
         let demangled = demangleSwiftSymbol(mangledName)
         let parsed = parseWitnessSignature(demangled, kind: req.flags.kind)
+        guard parsed.name != "unknown" else {
+            throw StubError.signatureDiscoveryFailed(
+                protocolName: proto.name,
+                requirementIndex: i,
+                details: "Could not parse '\(demangled)'. Supply explicit Requirement values."
+            )
+        }
 
         results.append(DiscoveredSignature(
             slot: i,
-            kind: req.flags.kind,
             methodName: parsed.name,
-            args: parsed.args,
-            ret: parsed.ret,
             isThrowing: demangled.contains(") throws ->") || demangled.contains(") async throws ->"),
             isAsync: demangled.contains("async"),
-            rawDemangled: demangled,
-            paramLabels: parsed.labels,
             qualifiedArgs: parsed.qualifiedArgs,
             qualifiedRet: parsed.qualifiedRet
         ))
@@ -116,9 +94,6 @@ private func swift_demangle(
 
 private struct ParsedWitnessSignature {
     let name: String
-    let args: [String]
-    let ret: String
-    let labels: [String]
     let qualifiedArgs: [String]
     let qualifiedRet: String
 }
@@ -141,18 +116,8 @@ private func parseWitnessSignature(_ demangled: String, kind: ProtocolRequiremen
     if kind == .getter, let getterRange = cleaned.range(of: ".getter : ") {
         let propName = String(cleaned[..<getterRange.lowerBound])
             .components(separatedBy: ".").last ?? "unknown"
-        let retType = simplifyType(String(cleaned[getterRange.upperBound...]))
         let qualifiedRet = normalizeQualifiedType(String(cleaned[getterRange.upperBound...]))
-        return ParsedWitnessSignature(name: propName, args: [], ret: retType, labels: [], qualifiedArgs: [], qualifiedRet: qualifiedRet)
-    }
-
-    // Setter: "count.setter : Int"
-    if kind == .setter, let setterRange = cleaned.range(of: ".setter : ") {
-        let propName = String(cleaned[..<setterRange.lowerBound])
-            .components(separatedBy: ".").last ?? "unknown"
-        let retType = simplifyType(String(cleaned[setterRange.upperBound...]))
-        let qualifiedRet = normalizeQualifiedType(String(cleaned[setterRange.upperBound...]))
-        return ParsedWitnessSignature(name: propName, args: [retType], ret: "Void", labels: ["newValue"], qualifiedArgs: [qualifiedRet], qualifiedRet: "Swift.Void")
+        return ParsedWitnessSignature(name: propName, qualifiedArgs: [], qualifiedRet: qualifiedRet)
     }
 
     // Method: "fetch(id: Swift.Int) -> Swift.String"
@@ -172,41 +137,20 @@ private func parseWitnessSignature(_ demangled: String, kind: ProtocolRequiremen
 
         if let arrow = arrowRange {
             let paramsStr = String(cleaned[cleaned.index(after: parenOpen)..<arrow.lowerBound])
-            let retType = simplifyType(String(cleaned[arrow.upperBound...]))
-            let args = parseParams(paramsStr)
             let qualifiedArgs = parseQualifiedParams(paramsStr)
-            let labels = parseLabels(paramsStr)
             let fullName = buildMethodName(methodName, params: paramsStr)
             let qualifiedRet = normalizeQualifiedType(String(cleaned[arrow.upperBound...]))
-            return ParsedWitnessSignature(name: fullName, args: args, ret: retType, labels: labels, qualifiedArgs: qualifiedArgs, qualifiedRet: qualifiedRet)
+            return ParsedWitnessSignature(name: fullName, qualifiedArgs: qualifiedArgs, qualifiedRet: qualifiedRet)
         } else if let closeParen = cleaned.firstIndex(of: ")") {
             // No return type → Void
             let paramsStr = String(cleaned[cleaned.index(after: parenOpen)..<closeParen])
-            let args = parseParams(paramsStr)
             let qualifiedArgs = parseQualifiedParams(paramsStr)
-            let labels = parseLabels(paramsStr)
             let fullName = buildMethodName(methodName, params: paramsStr)
-            return ParsedWitnessSignature(name: fullName, args: args, ret: "Void", labels: labels, qualifiedArgs: qualifiedArgs, qualifiedRet: "Swift.Void")
+            return ParsedWitnessSignature(name: fullName, qualifiedArgs: qualifiedArgs, qualifiedRet: "Swift.Void")
         }
     }
 
-    return ParsedWitnessSignature(name: "unknown", args: [], ret: "Int", labels: [], qualifiedArgs: [], qualifiedRet: "Swift.Int")
-}
-
-private func parseLabels(_ paramsStr: String) -> [String] {
-    guard !paramsStr.isEmpty else { return [] }
-    return paramsStr.components(separatedBy: ", ").map { param in
-        let parts = param.components(separatedBy: ": ")
-        return parts.count >= 2 ? parts[0].trimmingCharacters(in: .whitespaces) : "_"
-    }
-}
-
-private func parseParams(_ paramsStr: String) -> [String] {
-    guard !paramsStr.isEmpty else { return [] }
-    return paramsStr.components(separatedBy: ", ").map { param in
-        let parts = param.components(separatedBy: ": ")
-        return simplifyType(parts.last ?? param)
-    }
+    return ParsedWitnessSignature(name: "unknown", qualifiedArgs: [], qualifiedRet: "Swift.Int")
 }
 
 private func parseQualifiedParams(_ paramsStr: String) -> [String] {
@@ -238,14 +182,6 @@ private func removeModulePrefixes(_ str: String) -> String {
     // Remove "ModuleName." prefixes from types but preserve the structure
     // This is a simplified heuristic
     str.replacingOccurrences(of: "Swift.", with: "")
-}
-
-private func simplifyType(_ fullType: String) -> String {
-    let cleaned = fullType
-        .replacingOccurrences(of: "Swift.", with: "")
-        .trimmingCharacters(in: .whitespaces)
-    // Normalize "()" to "Void"
-    return cleaned == "()" ? "Void" : cleaned
 }
 
 private func normalizeQualifiedType(_ fullType: String) -> String {

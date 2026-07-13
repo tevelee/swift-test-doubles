@@ -1,35 +1,14 @@
-// MARK: - ParameterMatcher
-
-/// Protocol for argument matchers used internally by when and verify calls.
-///
-/// The built-in matchers — any(), ``equal(_:)``, ``any(where:)``, and ``ArgumentCaptor`` —
-/// cover the common public extension points. Conform to this protocol when
-/// extending the library or adding a public helper that appends a matcher into
-/// the matcher context.
-///
-/// ```swift
-/// struct NonEmptyMatcher: ParameterMatcher {
-///     func matches(value: Any) -> Bool {
-///         (value as? String).map { !$0.isEmpty } ?? false
-///     }
-///     var specificity: Int { 1 }
-/// }
-/// ```
-public protocol ParameterMatcher {
-    /// Returns `true` if this matcher accepts `value`.
+protocol ParameterMatcher {
     func matches(value: Any) -> Bool
-    /// Relative priority when multiple stubs match the same call.
-    /// Higher specificity wins. `any()` = 0, predicate = 1, description = 2, equal = 3.
+    func commit(value: Any)
     var specificity: Int { get }
-    /// Human-readable matcher spelling used in failure diagnostics.
     var diagnosticDescription: String { get }
 }
 
-public extension ParameterMatcher {
+extension ParameterMatcher {
+    func commit(value: Any) {}
     var diagnosticDescription: String { String(describing: Self.self) }
 }
-
-// MARK: - Built-in implementations
 
 struct AnyMatcher: ParameterMatcher {
     func matches(value: Any) -> Bool { true }
@@ -39,45 +18,52 @@ struct AnyMatcher: ParameterMatcher {
 
 struct CaptureMatcher<T>: ParameterMatcher {
     let captor: ArgumentCaptor<T>
+
     func matches(value: Any) -> Bool {
-        if let v = value as? T { captor.values.append(v) }
-        return true
+        value is T
     }
+
+    func commit(value: Any) {
+        guard let value = value as? T else { return }
+        captor.append(value)
+    }
+
     var specificity: Int { 0 }
     var diagnosticDescription: String { "capture(\(T.self))" }
 }
 
-struct PredicateMatcher<V>: ParameterMatcher {
-    let predicate: (V) -> Bool
-    func matches(value: Any) -> Bool {
-        guard let v = value as? V else { return false }
-        return predicate(v)
-    }
-    var specificity: Int { 1 }
-    var diagnosticDescription: String { "any(\(V.self), where:)" }
-}
+struct PredicateMatcher<Value>: ParameterMatcher {
+    let description: String
+    let predicate: (Value) -> Bool
 
-struct TypedMatcher<V>: ParameterMatcher {
-    let matcher: Matcher<V>
     func matches(value: Any) -> Bool {
-        guard let v = value as? V else { return false }
-        return matcher.matches(v)
+        guard let value = value as? Value else { return false }
+        return predicate(value)
     }
+
     var specificity: Int { 1 }
-    var diagnosticDescription: String { "matching(\(matcher.description))" }
+    var diagnosticDescription: String { "matching(\(description))" }
 }
 
 struct DescriptionMatcher: ParameterMatcher {
-    let desc: String
-    init(value: Any) { self.desc = String(describing: value) }
-    func matches(value: Any) -> Bool { String(describing: value) == desc }
+    let description: String
+
+    init(value: Any) {
+        description = String(describing: value)
+    }
+
+    func matches(value: Any) -> Bool {
+        String(describing: value) == description
+    }
+
     var specificity: Int { 2 }
-    var diagnosticDescription: String { "equal(\(desc))" }
+    var diagnosticDescription: String { "literal(\(description))" }
 }
 
-struct EqualMatcher<V: Equatable>: ParameterMatcher {
-    let expected: V
-    func matches(value: Any) -> Bool { (value as? V) == expected }
+struct EqualMatcher<Value: Equatable>: ParameterMatcher {
+    let expected: Value
+
+    func matches(value: Any) -> Bool { (value as? Value) == expected }
     var specificity: Int { 3 }
     var diagnosticDescription: String { "equal(\(String(describing: expected)))" }
 }

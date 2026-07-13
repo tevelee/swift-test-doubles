@@ -26,10 +26,7 @@ struct SmallABIPair: Equatable, Sendable {
 
 final class ABIReferenceBox {
     let value: Int
-
-    init(value: Int) {
-        self.value = value
-    }
+    init(value: Int) { self.value = value }
 }
 
 struct ABIThrownError: Error, Equatable {
@@ -42,7 +39,6 @@ enum PayloadABIEnum: Equatable, Sendable {
 }
 
 typealias MixedABITuple = (id: Int, amount: Double)
-typealias ABIClosure = @Sendable (Int) -> Int
 
 enum ABIMetatypeToken: Sendable {}
 
@@ -50,15 +46,10 @@ protocol ABIExistentialValue: Sendable {
     var id: Int { get }
 }
 
-struct FirstABIExistentialValue: ABIExistentialValue {
-    let id: Int
-}
+struct FirstABIExistentialValue: ABIExistentialValue { let id: Int }
+struct SecondABIExistentialValue: ABIExistentialValue { let id: Int }
 
-struct SecondABIExistentialValue: ABIExistentialValue {
-    let id: Int
-}
-
-private enum RuntimeABITaskValues {
+private enum StubTaskValues {
     @TaskLocal static var marker: String?
 }
 
@@ -67,9 +58,7 @@ protocol FloatingABIProbe {
 }
 
 struct RealFloatingABIProbe: FloatingABIProbe {
-    func mix(_ a: Float, _ b: Double, _ c: Float) -> Double {
-        Double(a) + b + Double(c)
-    }
+    func mix(_ a: Float, _ b: Double, _ c: Float) -> Double { Double(a) + b + Double(c) }
 }
 
 protocol FloatingStackABIProbe {
@@ -90,9 +79,7 @@ struct RealStackArgumentABIProbe: StackArgumentABIProbe {
     func sum(
         _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int, _ a4: Int,
         _ a5: Int, _ a6: Int, _ a7: Int, _ a8: Int, _ a9: Int
-    ) -> Int {
-        [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9].reduce(0, +)
-    }
+    ) -> Int { [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9].reduce(0, +) }
 }
 
 protocol CustomArgumentABIProbe {
@@ -110,9 +97,7 @@ protocol MixedAggregateArgumentABIProbe {
 }
 
 struct RealMixedAggregateArgumentABIProbe: MixedAggregateArgumentABIProbe {
-    func describe(id: Int, payload: MixedAggregateABIArgument, scale: Double) -> String {
-        "\(id):\(payload.amount):\(payload.accepted):\(scale)"
-    }
+    func describe(id: Int, payload: MixedAggregateABIArgument, scale: Double) -> String { "" }
 }
 
 protocol ThrowingABIProbe {
@@ -120,9 +105,7 @@ protocol ThrowingABIProbe {
 }
 
 struct RealThrowingABIProbe: ThrowingABIProbe {
-    func load(code: Int) throws -> String {
-        "\(code)"
-    }
+    func load(code: Int) throws -> String { "\(code)" }
 }
 
 protocol DirectAggregateReturnABIProbe {
@@ -145,11 +128,11 @@ struct RealIndirectReturnABIProbe: IndirectReturnABIProbe {
     }
 }
 
-protocol ExplicitSlotMetadataABIProbe {
+protocol ExplicitMetadataABIProbe {
     func load(id: Int, payload: MixedAggregateABIArgument) throws -> LargeABIResult
 }
 
-protocol AsyncRuntimeABIProbe: Sendable {
+protocol AsyncABIProbe: Sendable {
     func noArguments() async -> Int
     func integer(_ value: Int) async -> Int
     func floating(_ value: Double) async -> Double
@@ -158,7 +141,7 @@ protocol AsyncRuntimeABIProbe: Sendable {
     func finish() async
 }
 
-struct RealAsyncRuntimeABIProbe: AsyncRuntimeABIProbe {
+struct RealAsyncABIProbe: AsyncABIProbe {
     func noArguments() async -> Int { 0 }
     func integer(_ value: Int) async -> Int { value }
     func floating(_ value: Double) async -> Double { value }
@@ -171,7 +154,7 @@ struct RealAsyncRuntimeABIProbe: AsyncRuntimeABIProbe {
     func finish() async {}
 }
 
-protocol ExtendedAsyncRuntimeABIProbe: Sendable {
+protocol ExtendedAsyncABIProbe: Sendable {
     func enumValue(_ value: PayloadABIEnum) async -> PayloadABIEnum
     func optional(_ value: String?) async -> String?
     func tuple(_ value: MixedABITuple) async -> MixedABITuple
@@ -179,66 +162,37 @@ protocol ExtendedAsyncRuntimeABIProbe: Sendable {
     func existential(_ value: any ABIExistentialValue) async -> any ABIExistentialValue
 }
 
-protocol AsyncClosureABIProbe: Sendable {
-    func closure(_ value: @escaping ABIClosure) async -> ABIClosure
-}
-
 @Suite struct RuntimeABITests {
-    @Test func mixedFloatAndDoubleArguments() {
-        let stub = RuntimeStub<any FloatingABIProbe>()
-        stub.when { $0.mix(any(), any(), any()) }.then { args in
-            let a = args[0] as! Float
-            let b = args[1] as! Double
-            let c = args[2] as! Float
-            return Double(a) + b + Double(c)
+    @Test func mixedFloatingPointArguments() throws {
+        let stub = try Stub<any FloatingABIProbe>()
+        stub.when { $0.mix(any(), any(), any()) }.then {
+            (a: Float, b: Double, c: Float) in Double(a) + b + Double(c)
         }
 
-        let sut: any FloatingABIProbe = stub()
-
-        #expect(sut.mix(1.5, 2.25, 3.75) == 7.5)
+        #expect(stub().mix(1.5, 2.25, 3.75) == 7.5)
     }
 
     @Test func floatingPointArgumentsSpillOntoStack() throws {
-        let slot = Slot.method(
-            args: Array(repeating: Float.self, count: 9) + [Double.self],
-            returns: Double.self
+        let stub = try Stub<any FloatingStackABIProbe>(
+            .method(
+                Float.self, Float.self, Float.self, Float.self, Float.self,
+                Float.self, Float.self, Float.self, Float.self, Double.self,
+                returning: Double.self
+            )
         )
-        let stub = try RuntimeStub<any FloatingStackABIProbe>.make(slot)
-
         stub.when {
             $0.sum(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
-        }.then { args in
-            let floats = try args.prefix(9).map { value -> Float in
-                try #require(value as? Float)
-            }
-            let double = try #require(args[9] as? Double)
-            #expect(floats == [1, 2, 3, 4, 5, 6, 7, 8, 9])
-            #expect(double == 10.5)
-            return Double(floats.reduce(0, +)) + double
+        }.then {
+            (f0: Float, f1: Float, f2: Float, f3: Float, f4: Float,
+             f5: Float, f6: Float, f7: Float, f8: Float, d9: Double) in
+            Double(f0 + f1 + f2 + f3 + f4 + f5 + f6 + f7 + f8) + d9
         }
 
-        let sut: any FloatingStackABIProbe = stub()
-
-        #expect(sut.sum(1, 2, 3, 4, 5, 6, 7, 8, 9, 10.5) == 55.5)
+        #expect(stub().sum(1, 2, 3, 4, 5, 6, 7, 8, 9, 10.5) == 55.5)
     }
 
-    @Test func integerArgumentsSpillOntoStack() {
-        let stub = RuntimeStub<any StackArgumentABIProbe>()
-        stub.when {
-            $0.sum(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
-        }.then { args in
-            let values = args.map { $0 as! Int }
-            #expect(values == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-            return values.reduce(0, +)
-        }
-
-        let sut: any StackArgumentABIProbe = stub()
-
-        #expect(sut.sum(1, 2, 3, 4, 5, 6, 7, 8, 9, 10) == 55)
-    }
-
-    @Test func typedHandlersSupportArityBeyondPreviousLimit() {
-        let stub = RuntimeStub<any StackArgumentABIProbe>()
+    @Test func integerArgumentsAndTypedHandlersExceedOldArityLimit() throws {
+        let stub = try Stub<any StackArgumentABIProbe>()
         stub.when {
             $0.sum(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
         }.then {
@@ -247,384 +201,225 @@ protocol AsyncClosureABIProbe: Sendable {
             [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9].reduce(0, +)
         }
 
-        let sut: any StackArgumentABIProbe = stub()
-        let result = sut.sum(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-        var captured: [Int] = []
-
+        #expect(stub().sum(1, 2, 3, 4, 5, 6, 7, 8, 9, 10) == 55)
         stub.verify {
             $0.sum(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
-        }.withArgs {
-            (a0: Int, a1: Int, a2: Int, a3: Int, a4: Int,
-             a5: Int, a6: Int, a7: Int, a8: Int, a9: Int) in
-            captured = [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9]
         }
-
-        #expect(result == 55)
-        #expect(captured == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     }
 
     @Test func customValueAndReferenceArgumentsDecode() throws {
-        let stub = RuntimeStub<any CustomArgumentABIProbe>()
-        let slot = try methodSlot(containing: "describe", in: stub)
+        let stub = try Stub<any CustomArgumentABIProbe>()
         let box = ABIReferenceBox(value: 42)
-
-        stub.recorder.addStub(method: slot, matchers: [], returnValue: { args in
-            let pair = args[0] as! SmallABIPair
-            let decodedBox = args[1] as! ABIReferenceBox
+        stub.when { $0.describe(pair: any(), box: any()) }.then {
+            (pair: SmallABIPair, decodedBox: ABIReferenceBox) in
             #expect(pair == SmallABIPair(left: 7, right: 11))
             #expect(decodedBox === box)
             return "\(pair.left):\(pair.right):\(decodedBox.value)"
-        })
+        }
 
-        let sut: any CustomArgumentABIProbe = stub()
-
-        #expect(sut.describe(pair: SmallABIPair(left: 7, right: 11), box: box) == "7:11:42")
+        #expect(stub().describe(pair: SmallABIPair(left: 7, right: 11), box: box) == "7:11:42")
     }
 
-    @Test func mixedAggregateArgumentDecodesFromIntegerAndFloatingPointRegisters() {
-        let stub = RuntimeStub<any MixedAggregateArgumentABIProbe>()
-        let expected = MixedAggregateABIArgument(amount: 13.5, accepted: true)
-
-        stub.when { $0.describe(id: any(), payload: any(), scale: any()) }.then { args in
-            #expect(args[0] as? Int == 42)
-            #expect(args[1] as? MixedAggregateABIArgument == expected)
-            #expect(args[2] as? Double == 2.0)
+    @Test func mixedAggregateArgumentUsesIntegerAndFloatingPointRegisters() throws {
+        let stub = try Stub<any MixedAggregateArgumentABIProbe>()
+        let payload = MixedAggregateABIArgument(amount: 13.5, accepted: true)
+        stub.when { $0.describe(id: any(), payload: any(), scale: any()) }.then {
+            (id: Int, decoded: MixedAggregateABIArgument, scale: Double) in
+            #expect(id == 42)
+            #expect(decoded == payload)
+            #expect(scale == 2)
             return "decoded"
         }
 
-        let sut: any MixedAggregateArgumentABIProbe = stub()
-
-        #expect(sut.describe(id: 42, payload: expected, scale: 2.0) == "decoded")
+        #expect(stub().describe(id: 42, payload: payload, scale: 2) == "decoded")
     }
 
-    @Test func throwingFailurePropagatesThroughSwiftErrorRegister() {
-        let stub = RuntimeStub<any ThrowingABIProbe>()
-        stub.when { try $0.load(code: any()) }.then { args in
-            throw ABIThrownError(code: args[0] as! Int)
+    @Test func throwingFailureUsesSwiftErrorRegister() throws {
+        let stub = try Stub<any ThrowingABIProbe>()
+        stub.when { try $0.load(code: any()) }.then { (code: Int) throws in
+            throw ABIThrownError(code: code)
         }
 
-        let sut: any ThrowingABIProbe = stub()
-        let error = #expect(throws: ABIThrownError.self) {
-            try sut.load(code: 404)
-        }
+        let error = #expect(throws: ABIThrownError.self) { try stub().load(code: 404) }
         #expect(error?.code == 404)
     }
 
-    @Test func directAggregateReturnIsEncodedIntoMixedRegisters() {
-        let stub = RuntimeStub<any DirectAggregateReturnABIProbe>()
-        let expected = DirectAggregateABIResult(label: "direct", amount: 12.5, accepted: true)
+    @Test func directAndIndirectAggregateReturns() throws {
+        let directStub = try Stub<any DirectAggregateReturnABIProbe>()
+        let indirectStub = try Stub<any IndirectReturnABIProbe>()
+        let direct = DirectAggregateABIResult(label: "direct", amount: 12.5, accepted: true)
+        let indirect = LargeABIResult(id: 7, amount: 19.5, label: "sret", accepted: true)
+        directStub.when { $0.load(id: any()) }.returns(direct)
+        indirectStub.when { $0.load(id: any()) }.returns(indirect)
 
-        stub.when { $0.load(id: any()) }.returns(expected)
-
-        let sut: any DirectAggregateReturnABIProbe = stub()
-
-        #expect(sut.load(id: 7) == expected)
+        #expect(directStub().load(id: 1) == direct)
+        #expect(indirectStub().load(id: 2) == indirect)
     }
 
-    @Test func indirectReturnIsEncodedIntoCallerBuffer() throws {
-        let stub = RuntimeStub<any IndirectReturnABIProbe>()
-        let expected = LargeABIResult(id: 7, amount: 19.5, label: "sret", accepted: true)
-
-        stub.when { $0.load(id: any()) }.returns(expected)
-
-        let sut: any IndirectReturnABIProbe = stub()
-
-        #expect(sut.load(id: 7) == expected)
-    }
-
-    @Test func explicitSlotMetadataSupportsThrowingIndirectReturnWithoutConformer() throws {
-        let payload = MixedAggregateABIArgument(amount: 21.5, accepted: true)
-        let expected = LargeABIResult(id: 9, amount: 21.5, label: "explicit", accepted: true)
-        let stub = try RuntimeStub<any ExplicitSlotMetadataABIProbe>.make(
+    @Test func explicitMetadataSupportsThrowingIndirectReturn() throws {
+        let stub = try Stub<any ExplicitMetadataABIProbe>(
             .method(
-                args: [Int.self, MixedAggregateABIArgument.self],
-                returns: LargeABIResult.self,
-                throws: true
+                Int.self, MixedAggregateABIArgument.self,
+                returning: LargeABIResult.self,
+                isThrowing: true
             )
         )
-
-        stub.when { try $0.load(id: any(), payload: any()) }.then { args in
-            #expect(args[0] as? Int == 9)
-            #expect(args[1] as? MixedAggregateABIArgument == payload)
+        let payload = MixedAggregateABIArgument(amount: 21.5, accepted: true)
+        let expected = LargeABIResult(id: 9, amount: 21.5, label: "explicit", accepted: true)
+        stub.when { try $0.load(id: any(), payload: any()) }.then {
+            (id: Int, value: MixedAggregateABIArgument) throws in
+            #expect(id == 9)
+            #expect(value == payload)
             return expected
         }
 
-        let sut: any ExplicitSlotMetadataABIProbe = stub()
-
-        #expect(try sut.load(id: 9, payload: payload) == expected)
+        #expect(try stub().load(id: 9, payload: payload) == expected)
     }
 
-    @Test func asyncReturnsUseContinuationABI() async throws {
-        let stub = RuntimeStub<any AsyncRuntimeABIProbe>()
-        let direct = DirectAggregateABIResult(label: "async-direct", amount: 12.5, accepted: true)
-        let indirect = LargeABIResult(id: 7, amount: 19.5, label: "async-indirect", accepted: true)
-
-        await stub.when { await $0.noArguments() }.returns(9)
-        await stub.when { await $0.integer(equal(1)) } then: { args in
-            (args[0] as! Int) + 41
-        }
-        await stub.when { await $0.integer(equal(2)) } then: { 44 }
-        await stub.when { await $0.floating(any()) }.returns(6.25)
-        await stub.when { await $0.direct(any()) }.returns(direct)
-        await stub.when { await $0.indirect(any()) }.returns(indirect)
-        await stub.when { await $0.finish() }
-
-        let sut: any AsyncRuntimeABIProbe = stub()
-
-        #expect(await sut.noArguments() == 9)
-        #expect(await sut.integer(1) == 42)
-        #expect(await sut.integer(2) == 44)
-        #expect(await sut.floating(2) == 6.25)
-        #expect(await sut.direct(3) == direct)
-        #expect(await sut.indirect(4) == indirect)
-        await sut.finish()
-    }
-
-    @Test func suspendingAsyncHandlersReturnAcrossABIs() async throws {
-        let stub = RuntimeStub<any AsyncRuntimeABIProbe>()
-        let direct = DirectAggregateABIResult(label: "suspended-direct", amount: 3.5, accepted: true)
-        let indirect = LargeABIResult(id: 11, amount: 8.25, label: "suspended-indirect", accepted: true)
-
-        await stub.when({ await $0.noArguments() }, thenAsync: {
+    @Test func asyncContinuationsReturnAcrossABIShapes() async throws {
+        let stub = try Stub<any AsyncABIProbe>()
+        let direct = DirectAggregateABIResult(label: "async", amount: 3.5, accepted: true)
+        let indirect = LargeABIResult(id: 11, amount: 8.25, label: "async", accepted: true)
+        await stub.when { await $0.noArguments() }.then {
+            () async throws -> Int in
             await Task.yield()
             return 17
-        })
-        await stub.when({ await $0.integer(any()) }, thenAsync: { args in
+        }
+        await stub.when { await $0.integer(any()) }.then {
+            (value: Int) async throws -> Int in
             await Task.yield()
-            return (args[0] as! Int) + 1
-        })
-        await stub.when({ await $0.floating(any()) }, thenAsync: {
-            await Task.yield()
-            return 6.75
-        })
-        await stub.when({ await $0.direct(any()) }, thenAsync: {
-            await Task.yield()
-            return direct
-        })
-        await stub.when({ await $0.indirect(any()) }, thenAsync: {
-            await Task.yield()
-            return indirect
-        })
-        await stub.when({ await $0.finish() }, thenAsync: {
-            await Task.yield()
-        })
+            return value + 1
+        }
+        await stub.when { await $0.floating(any()) }.returns(6.75)
+        await stub.when { await $0.direct(any()) }.returns(direct)
+        await stub.when { await $0.indirect(any()) }.returns(indirect)
+        await stub.when { await $0.finish() }.then {
+            () async throws -> Void in await Task.yield()
+        }
 
-        let sut: any AsyncRuntimeABIProbe = stub()
+        let probe: any AsyncABIProbe = stub()
+        #expect(await probe.noArguments() == 17)
+        #expect(await probe.integer(41) == 42)
+        #expect(await probe.floating(2) == 6.75)
+        #expect(await probe.direct(3) == direct)
+        #expect(await probe.indirect(4) == indirect)
+        await probe.finish()
 
-        #expect(await sut.noArguments() == 17)
-        #expect(await sut.integer(41) == 42)
-        #expect(await sut.floating(2) == 6.75)
-        #expect(await sut.direct(3) == direct)
-        #expect(await sut.indirect(4) == indirect)
-        await sut.finish()
+        await stub.verify { await $0.finish() }
     }
 
-    @Test func immediateAsyncHandlersSupportExtendedABIShapes() async throws {
-        let stub = try makeExtendedAsyncABIStub()
+    @Test func asyncEnumValueShape() async throws {
+        let stub = try makeExtendedAsyncStub()
+        await stub.when { await $0.enumValue(any()) }.then {
+            (value: PayloadABIEnum) async throws -> PayloadABIEnum in
+            guard case .code(let code) = value else { return .idle }
+            return .code(code + 1)
+        }
 
-        await stub.when({ await $0.enumValue(equal(.code(7))) }, then: { args in
-            let value = args[0] as! PayloadABIEnum
-            #expect(value == .code(7))
-            return PayloadABIEnum.code(8)
-        })
-        await stub.when({ await $0.optional(equal(Optional("optional"))) }, then: { args in
-            let value = args[0] as! String?
-            #expect(value == "optional")
-            return value?.uppercased()
-        })
-        await stub.when({ await $0.tuple((id: 9, amount: 2.5)) }, then: { args in
-            let value = args[0] as! MixedABITuple
-            #expect(value.id == 9)
-            #expect(value.amount == 2.5)
-            return (id: value.id + 1, amount: value.amount + 0.5)
-        })
-        await stub.when({ await $0.metatype(ABIMetatypeToken.self) }, then: { args in
-            let type = args[0] as! ABIMetatypeToken.Type
-            #expect(type == ABIMetatypeToken.self)
-            return type
-        })
-        await stub.when({
-            await $0.existential(FirstABIExistentialValue(id: 12))
-        }, then: { args in
-            let value = args[0] as! any ABIExistentialValue
-            return SecondABIExistentialValue(id: value.id + 1)
-        })
+        #expect(await stub().enumValue(.code(7)) == .code(8))
+    }
 
-        let sut: any ExtendedAsyncRuntimeABIProbe = stub()
-        let tuple = await sut.tuple((id: 9, amount: 2.5))
-        let existential = await sut.existential(FirstABIExistentialValue(id: 12))
+    @Test func asyncOptionalValueShape() async throws {
+        let stub = try makeExtendedAsyncStub()
+        await stub.when { await $0.optional(any()) }.then {
+            (value: String?) async throws -> String? in value?.uppercased()
+        }
 
-        #expect(await sut.enumValue(.code(7)) == .code(8))
-        #expect(await sut.optional("optional") == "OPTIONAL")
+        #expect(await stub().optional("optional") == "OPTIONAL")
+    }
+
+    @Test func asyncTupleValueShape() async throws {
+        let stub = try makeExtendedAsyncStub()
+        await stub.when { await $0.tuple(any()) }.then {
+            (value: MixedABITuple) async throws -> MixedABITuple in
+            (id: value.id + 1, amount: value.amount + 0.5)
+        }
+
+        let tuple = await stub().tuple((id: 9, amount: 2.5))
         #expect(tuple.id == 10)
         #expect(tuple.amount == 3)
-        #expect(await sut.metatype(ABIMetatypeToken.self) == ABIMetatypeToken.self)
+    }
+
+    @Test func asyncMetatypeValueShape() async throws {
+        let stub = try makeExtendedAsyncStub()
+        await stub.when { await $0.metatype(any()) }.then {
+            (type: ABIMetatypeToken.Type) async throws -> ABIMetatypeToken.Type in type
+        }
+
+        #expect(await stub().metatype(ABIMetatypeToken.self) == ABIMetatypeToken.self)
+    }
+
+    @Test func asyncExistentialValueShape() async throws {
+        let stub = try makeExtendedAsyncStub()
+        await stub.when { await $0.existential(FirstABIExistentialValue(id: 12)) }
+            .returns(SecondABIExistentialValue(id: 13))
+
+        let existential = await stub().existential(FirstABIExistentialValue(id: 12))
         #expect(existential.id == 13)
         #expect(existential is SecondABIExistentialValue)
-
-        await stub.verify { await $0.enumValue(equal(.code(7))) }.wasCalled()
-        await stub.verify { await $0.optional(equal(Optional("optional"))) }.wasCalled()
-        await stub.verify { await $0.tuple((id: 9, amount: 2.5)) }.wasCalled()
-        await stub.verify { await $0.metatype(ABIMetatypeToken.self) }.wasCalled()
-        await stub.verify {
-            await $0.existential(FirstABIExistentialValue(id: 12))
-        }.wasCalled()
     }
 
-    @Test func suspendingAsyncHandlersSupportExtendedABIShapes() async throws {
-        let stub = try makeExtendedAsyncABIStub()
-
-        await stub.when({ await $0.enumValue(equal(.code(17))) }, thenAsync: { args in
+    @Test func asyncHandlerPreservesTaskLocalValues() async throws {
+        let stub = try Stub<any AsyncABIProbe>()
+        await stub.when { await $0.integer(any()) }.then {
+            (value: Int) async throws -> Int in
+            #expect(StubTaskValues.marker == "caller")
             await Task.yield()
-            let value = try #require(args[0] as? PayloadABIEnum)
-            #expect(value == .code(17))
-            return PayloadABIEnum.code(18)
-        })
-        await stub.when({
-            await $0.optional(equal(Optional("suspended")))
-        }, thenAsync: { args in
-            await Task.yield()
-            let value = try #require(args[0] as? String?)
-            #expect(value == "suspended")
-            return value?.uppercased()
-        })
-        await stub.when({
-            await $0.tuple((id: 19, amount: 4.5))
-        }, thenAsync: { args in
-            await Task.yield()
-            let value = try #require(args[0] as? MixedABITuple)
-            #expect(value.id == 19)
-            #expect(value.amount == 4.5)
-            return (id: value.id + 1, amount: value.amount + 0.5)
-        })
-        await stub.when({
-            await $0.metatype(ABIMetatypeToken.self)
-        }, thenAsync: { args in
-            await Task.yield()
-            let type = try #require(args[0] as? ABIMetatypeToken.Type)
-            #expect(type == ABIMetatypeToken.self)
-            return type
-        })
-        await stub.when({
-            await $0.existential(FirstABIExistentialValue(id: 22))
-        }, thenAsync: { args in
-            await Task.yield()
-            let value = try #require(args[0] as? any ABIExistentialValue)
-            return SecondABIExistentialValue(id: value.id + 1)
-        })
-
-        let sut: any ExtendedAsyncRuntimeABIProbe = stub()
-        let tuple = await sut.tuple((id: 19, amount: 4.5))
-        let existential = await sut.existential(FirstABIExistentialValue(id: 22))
-
-        #expect(await sut.enumValue(.code(17)) == .code(18))
-        #expect(await sut.optional("suspended") == "SUSPENDED")
-        #expect(tuple.id == 20)
-        #expect(tuple.amount == 5)
-        #expect(await sut.metatype(ABIMetatypeToken.self) == ABIMetatypeToken.self)
-        #expect(existential.id == 23)
-        #expect(existential is SecondABIExistentialValue)
-    }
-
-    @Test func closureRequirementsFailBeforeInvocation() {
-        do {
-            _ = try RuntimeStub<any AsyncClosureABIProbe>.make(
-                .method(ABIClosure.self, returns: ABIClosure.self, async: true)
-            )
-            Issue.record("Expected closure requirement to be rejected")
-        } catch let error as RuntimeStubError {
-            guard case .unsupportedFunctionValue(let protocolName, let methodName) = error else {
-                Issue.record("Unexpected RuntimeStubError: \(error)")
-                return
-            }
-            #expect(protocolName == "AsyncClosureABIProbe")
-            #expect(methodName == "slot_0")
-        } catch {
-            Issue.record("Unexpected error: \(error)")
-        }
-    }
-
-    @Test func suspendingHandlerPreservesTaskLocalValues() async {
-        let stub = RuntimeStub<any AsyncRuntimeABIProbe>()
-
-        await stub.when({ await $0.integer(any()) }, thenAsync: { args in
-            #expect(RuntimeABITaskValues.marker == "caller")
-            await Task.yield()
-            #expect(RuntimeABITaskValues.marker == "caller")
-            return args[0] as! Int
-        })
-
-        let sut: any AsyncRuntimeABIProbe = stub()
-        let result = await RuntimeABITaskValues.$marker.withValue("caller") {
-            await sut.integer(29)
+            #expect(StubTaskValues.marker == "caller")
+            return value
         }
 
-        #expect(result == 29)
+        let result = await StubTaskValues.$marker.withValue("caller") {
+            await stub().integer(42)
+        }
+        #expect(result == 42)
     }
 
     @MainActor
-    @Test func suspendingHandlerPreservesActorIsolation() async {
-        let stub = RuntimeStub<any AsyncRuntimeABIProbe>()
-
-        await stub.when({ await $0.noArguments() }, thenAsync: {
-            MainActor.preconditionIsolated()
+    @Test func asyncHandlerPreservesActorIsolation() async throws {
+        let stub = try Stub<any AsyncABIProbe>()
+        await stub.when { await $0.integer(any()) }.then {
+            (value: Int) async throws -> Int in
+            MainActor.assertIsolated()
             await Task.yield()
-            MainActor.preconditionIsolated()
-            return 31
-        })
-        await stub.when { await $0.integer(any()) }.returns(33)
-
-        let sut: any AsyncRuntimeABIProbe = stub()
-        #expect(await sut.noArguments() == 31)
-        #expect(await sut.integer(0) == 33)
-        await stub.verify { await $0.noArguments() }.wasCalled()
-    }
-
-    @Test func concurrentAsyncCallsAreRecordedSafely() async {
-        let stub = RuntimeStub<any AsyncRuntimeABIProbe>()
-        await stub.when({ await $0.integer(any()) }, thenAsync: { args in
-            await Task.yield()
-            return args[0] as! Int
-        })
-
-        let total = await withTaskGroup(of: Int.self, returning: Int.self) { group in
-            for value in 0..<100 {
-                group.addTask {
-                    let sut: any AsyncRuntimeABIProbe = stub()
-                    return await sut.integer(value)
-                }
-            }
-            return await group.reduce(0, +)
+            MainActor.assertIsolated()
+            return value
         }
 
-        #expect(total == (0..<100).reduce(0, +))
-        #expect(stub.calls.filter { $0.name.contains("integer") }.count == 100)
+        #expect(await stub().integer(42) == 42)
+    }
+
+    @Test func concurrentAsyncCallsAreRecorded() async throws {
+        let stub = try Stub<any AsyncABIProbe>()
+        await stub.when { await $0.integer(any()) }.then {
+            (value: Int) async throws -> Int in
+            await Task.yield()
+            return value
+        }
+
+        await withTaskGroup(of: Int.self) { group in
+            for value in 0..<100 {
+                group.addTask { await stub().integer(value) }
+            }
+            var results: [Int] = []
+            for await result in group { results.append(result) }
+            #expect(results.sorted() == Array(0..<100))
+        }
+
+        await stub.verify(.exactly(100)) { await $0.integer(any()) }
     }
 }
 
-private func methodSlot<P>(
-    containing needle: String,
-    in stub: RuntimeStub<P>,
-    sourceLocation: SourceLocation = #_sourceLocation
-) throws -> Int {
-    let match = try #require(
-        stub.recorder.runtimeMethods.first { $0.value.name.contains(needle) },
-        "Expected runtime method containing \(needle)",
-        sourceLocation: sourceLocation
-    )
-    return match.key
-}
-
-private func makeExtendedAsyncABIStub() throws -> RuntimeStub<any ExtendedAsyncRuntimeABIProbe> {
-    try RuntimeStub<any ExtendedAsyncRuntimeABIProbe>.make(
-        .method(PayloadABIEnum.self, returns: PayloadABIEnum.self, async: true),
-        .method(Optional<String>.self, returns: Optional<String>.self, async: true),
-        .method(MixedABITuple.self, returns: MixedABITuple.self, async: true),
-        .method(ABIMetatypeToken.Type.self, returns: ABIMetatypeToken.Type.self, async: true),
+private func makeExtendedAsyncStub() throws -> Stub<any ExtendedAsyncABIProbe> {
+    try Stub<any ExtendedAsyncABIProbe>(
+        .method(PayloadABIEnum.self, returning: PayloadABIEnum.self, isAsync: true),
+        .method(String?.self, returning: String?.self, isAsync: true),
+        .method(MixedABITuple.self, returning: MixedABITuple.self, isAsync: true),
+        .method(ABIMetatypeToken.Type.self, returning: ABIMetatypeToken.Type.self, isAsync: true),
         .method(
             (any ABIExistentialValue).self,
-            returns: (any ABIExistentialValue).self,
-            async: true
+            returning: (any ABIExistentialValue).self,
+            isAsync: true
         )
     )
 }

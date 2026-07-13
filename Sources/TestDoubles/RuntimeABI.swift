@@ -2,24 +2,6 @@
 import Echo
 import Foundation
 
-/// Describes a method signature for runtime marshalling.
-public struct MethodSignature: Hashable, Sendable, CustomStringConvertible {
-    public let args: [String]
-    public let ret: String
-
-    public init(args: [String], ret: String) {
-        self.args = args
-        self.ret = ret
-    }
-
-    public static func getter(_ type: String) -> MethodSignature { .init(args: [], ret: type) }
-    public static func method(_ args: [String], returning ret: String) -> MethodSignature { .init(args: args, ret: ret) }
-
-    public var description: String {
-        "(\(args.joined(separator: ", "))) -> \(ret)"
-    }
-}
-
 enum ABIClass: Sendable {
     case void
     case integer(words: Int)

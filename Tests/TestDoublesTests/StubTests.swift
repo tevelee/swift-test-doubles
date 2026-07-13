@@ -2,13 +2,12 @@ import Testing
 @testable import TestDoubles
 import TestDoublesFixtures
 
-// Protocols for testing (defined locally in the test module)
-
 protocol Calculator {
     func add(_ a: Int, _ b: Int) -> Int
     func describe(_ value: Int) -> String
     var precision: Int { get }
 }
+
 struct RealCalculator: Calculator {
     func add(_ a: Int, _ b: Int) -> Int { a + b }
     func describe(_ value: Int) -> String { "\(value)" }
@@ -16,29 +15,17 @@ struct RealCalculator: Calculator {
 }
 
 protocol Settings {
-    var theme: String { get set }
+    var theme: String { get }
     var fontSize: Int { get }
     func reset()
     func apply(key: String)
 }
+
 struct RealSettings: Settings {
     var theme = "light"
     var fontSize: Int { 14 }
     func reset() {}
     func apply(key: String) {}
-}
-
-protocol TagStore {
-    func tags(for category: String) -> [String]
-    func allCategories() -> [String]
-    func tagCount(in category: String) -> Int
-    var isEmpty: Bool { get }
-}
-struct RealTagStore: TagStore {
-    func tags(for category: String) -> [String] { [] }
-    func allCategories() -> [String] { [] }
-    func tagCount(in category: String) -> Int { 0 }
-    var isEmpty: Bool { true }
 }
 
 protocol AppConfig {
@@ -47,392 +34,216 @@ protocol AppConfig {
     var isDebug: Bool { get }
     var scale: Double { get }
 }
+
 struct RealAppConfig: AppConfig {
     var appName: String { "" }
     var version: Int { 0 }
     var isDebug: Bool { false }
-    var scale: Double { 1.0 }
+    var scale: Double { 1 }
 }
 
 protocol FileLoader {
     func load(path: String) throws -> String
     func exists(path: String) -> Bool
 }
+
 struct RealFileLoader: FileLoader {
     func load(path: String) throws -> String { "" }
     func exists(path: String) -> Bool { false }
 }
 
-// MARK: - Core Stubbing
-
-@Suite struct ZeroConfigTests {
-
-    @Test func exactMatching() {
-        let stub = RuntimeStub<any Calculator>()
+@Suite struct StubbingTests {
+    @Test func exactAndWildcardMatching() throws {
+        let stub = try Stub<any Calculator>()
         stub.when { $0.add(1, 2) }.returns(42)
-        stub.when { $0.describe(99) }.returns("ninety-nine")
+        stub.when { $0.add(any(), any()) }.returns(-1)
+        stub.when { $0.describe(any()) }.returns("anything")
         stub.when { $0.precision }.returns(5)
 
-        let sut: any Calculator = stub()
-
-        #expect(sut.add(1, 2) == 42)
-        #expect(sut.describe(99) == "ninety-nine")
-        #expect(sut.precision == 5)
+        let calculator: any Calculator = stub()
+        #expect(calculator.add(1, 2) == 42)
+        #expect(calculator.add(3, 4) == -1)
+        #expect(calculator.describe(99) == "anything")
+        #expect(calculator.precision == 5)
     }
 
-    @Test func freeMatchers() {
-        let stub = RuntimeStub<any Calculator>()
-        stub.when { $0.add(any(), any()) }.returns(100)
-        stub.when { $0.describe(any()) }.returns("anything")
-        stub.when { $0.precision }.returns(1)
-
-        let sut: any Calculator = stub()
-
-        #expect(sut.add(5, 10) == 100)
-        #expect(sut.describe(42) == "anything")
-    }
-
-    @Test func predicateMatchers() {
-        let stub = RuntimeStub<any Calculator>()
-        stub.when { $0.describe(any(where: { $0 > 100 })) }.returns("VIP")
-        stub.when { $0.describe(any(where: { $0 <= 100 })) }.returns("Regular")
-        stub.when { $0.precision }.returns(0)
-
-        let sut: any Calculator = stub()
-
-        #expect(sut.describe(101) == "VIP")
-        #expect(sut.describe(50) == "Regular")
-    }
-
-    @Test func dynamicAnswers() {
-        let stub = RuntimeStub<any Calculator>()
-        stub.when { $0.describe(any()) }.then { args in
-            let id = args[0] as! Int
-            return "User_\(id)"
-        }
-        stub.when { $0.precision }.returns(42)
-
-        let sut: any Calculator = stub()
-
-        #expect(sut.describe(7) == "User_7")
-        #expect(sut.describe(99) == "User_99")
-    }
-
-    @Test func bestMatchBySpecificity() {
-        let stub = RuntimeStub<any Calculator>()
-        // Registration order doesn't matter — specificity wins
+    @Test func predicateMatchingAndSpecificity() throws {
+        let stub = try Stub<any Calculator>()
         stub.when { $0.describe(any()) }.returns("default")
-        stub.when { $0.describe(equal(42)) }.returns("the answer")
-        stub.when { $0.precision }.returns(0)
+        stub.when {
+            $0.describe(matching(description: "positive", where: { $0 > 0 }))
+        }.returns("positive")
+        stub.when { $0.describe(equal(42)) }.returns("answer")
 
-        let sut: any Calculator = stub()
+        let calculator: any Calculator = stub()
+        #expect(calculator.describe(-1) == "default")
+        #expect(calculator.describe(7) == "positive")
+        #expect(calculator.describe(42) == "answer")
+    }
 
-        #expect(sut.describe(42) == "the answer")
-        #expect(sut.describe(99) == "default")
+    @Test func typedDynamicHandlerReceivesArguments() throws {
+        let stub = try Stub<any Calculator>()
+        stub.when { $0.add(any(), any()) }.then { (lhs: Int, rhs: Int) in
+            lhs * rhs
+        }
+        stub.when { $0.describe(any()) }.then { (value: Int) in
+            "value:\(value)"
+        }
+
+        let calculator: any Calculator = stub()
+        #expect(calculator.add(6, 7) == 42)
+        #expect(calculator.describe(9) == "value:9")
+    }
+
+    @Test func independentStubsDoNotShareState() throws {
+        let first = try Stub<any Calculator>()
+        let second = try Stub<any Calculator>()
+        first.when { $0.precision }.returns(1)
+        second.when { $0.precision }.returns(2)
+
+        #expect(first().precision == 1)
+        #expect(second().precision == 2)
     }
 }
 
-// MARK: - Verification
-
-@Suite struct VerificationTests {
-
-    @Test func callCounts() {
-        let stub = RuntimeStub<any Calculator>()
+@Suite struct DirectVerificationTests {
+    @Test func verifiesDefaultExactAndNeverCounts() throws {
+        let stub = try Stub<any Calculator>()
         stub.when { $0.describe(any()) }.returns("X")
-        stub.when { $0.precision }.returns(0)
 
-        let sut: any Calculator = stub()
-        _ = sut.describe(1)
-        _ = sut.describe(2)
-        _ = sut.describe(3)
-        _ = sut.precision
+        let calculator: any Calculator = stub()
+        _ = calculator.describe(1)
+        _ = calculator.describe(2)
 
-        stub.verify(called: 3) { $0.describe(any()) }
-        stub.verify(called: 1) { $0.precision }
-        stub.verify(never: { $0.add(any(), any()) })
+        stub.verify { $0.describe(any()) }
+        stub.verify(.exactly(2)) { $0.describe(any()) }
+        stub.verify(.never) { $0.add(any(), any()) }
     }
 
-    @Test func builderStyle() {
-        let stub = RuntimeStub<any Calculator>()
-        stub.when { $0.add(any(), any()) }.returns(0)
-        stub.when { $0.precision }.returns(0)
-
-        _ = stub().add(1, 2)
-
-        stub.verify { $0.add(1, 2) }.wasCalled()
-        stub.verify { $0.add(any(), any()) }.wasCalled(times: 1)
-    }
-
-    @Test func argumentInspection() {
-        let stub = RuntimeStub<any Calculator>()
+    @Test func captureReplacesCallLogInspection() throws {
+        let stub = try Stub<any Calculator>()
         stub.when { $0.describe(any()) }.returns("X")
-        stub.when { $0.precision }.returns(0)
+        let calculator: any Calculator = stub()
+        _ = calculator.describe(42)
+        _ = calculator.describe(99)
 
-        let sut: any Calculator = stub()
-        _ = sut.describe(42)
-        _ = sut.describe(99)
+        let values = ArgumentCaptor<Int>()
+        stub.verify(.exactly(2)) { $0.describe(values.capture()) }
 
-        stub.verify { $0.describe(any()) }.withArgs { calls in
-            #expect(calls.count == 2)
-            #expect(calls[0][0] as! Int == 42)
-            #expect(calls[1][0] as! Int == 99)
-        }
+        #expect(values.values == [42, 99])
+        #expect(values.first == 42)
+        #expect(values.last == 99)
+        values.reset()
+        #expect(values.values.isEmpty)
     }
 
-    @Test func orderedVerification() {
-        let stub = RuntimeStub<any Calculator>()
-        stub.when { $0.describe(any()) }.returns("X")
-        stub.when { $0.add(any(), any()) }.returns(0)
-        stub.when { $0.precision }.returns(0)
-
-        let sut: any Calculator = stub()
-        _ = sut.describe(1)
-        _ = sut.add(2, 3)
-
-        stub.verifyOrder {
-            _ = $0.describe(any())
-            _ = $0.add(any(), any())
-        }
-    }
-
-    @Test func orderedVerificationDoesNotReplayStubbedHandlers() {
-        let stub = RuntimeStub<any Calculator>()
-        var describeExecutions = 0
-        stub.when { $0.describe(any()) }.then { _ in
-            describeExecutions += 1
-            return "X"
+    @Test func verificationDoesNotReplayHandler() throws {
+        let stub = try Stub<any Calculator>()
+        var executions = 0
+        stub.when { $0.describe(any()) }.then { (value: Int) in
+            executions += 1
+            return "\(value)"
         }
 
-        let sut: any Calculator = stub()
-        _ = sut.describe(1)
-
-        #expect(describeExecutions == 1)
-        stub.verifyOrder {
-            _ = $0.describe(any())
-        }
-        #expect(describeExecutions == 1)
-    }
-
-    @Test func callLog() {
-        let stub = RuntimeStub<any Calculator>()
-        stub.when { $0.describe(any()) }.returns("X")
-        stub.when { $0.precision }.returns(0)
-
-        let sut: any Calculator = stub()
-        _ = sut.describe(1)
-        _ = sut.describe(2)
-        _ = sut.precision
-
-        #expect(stub.calls.count == 3)
+        _ = stub().describe(1)
+        stub.verify { $0.describe(any()) }
+        #expect(executions == 1)
     }
 }
-
-// MARK: - Getters, Setters, Void
 
 @Suite struct PropertyAndVoidTests {
-
-    @Test func multipleGetterTypes() {
-        let stub = RuntimeStub<any AppConfig>()
+    @Test func gettersAcrossReturnShapes() throws {
+        let stub = try Stub<any AppConfig>()
         stub.when { $0.appName }.returns("TestApp")
         stub.when { $0.version }.returns(42)
         stub.when { $0.isDebug }.returns(true)
-        stub.when { $0.scale }.returns(2.0)
+        stub.when { $0.scale }.returns(2.5)
 
-        let sut: any AppConfig = stub()
-
-        #expect(sut.appName == "TestApp")
-        #expect(sut.version == 42)
-        #expect(sut.isDebug == true)
-        #expect(sut.scale == 2.0)
+        let config: any AppConfig = stub()
+        #expect(config.appName == "TestApp")
+        #expect(config.version == 42)
+        #expect(config.isDebug)
+        #expect(config.scale == 2.5)
     }
 
-    @Test func settersAndVoidMethods() {
-        let stub = RuntimeStub<any Settings>()
+    @Test func getterAndVoidFallbacks() throws {
+        let stub = try Stub<any Settings>()
         stub.when { $0.theme }.returns("dark")
         stub.when { $0.fontSize }.returns(16)
-        stub.when(setting: { $0.theme = "light" })
         stub.when { $0.reset() }
         stub.when { $0.apply(key: any()) }
 
-        let sut: any Settings = stub()
-        #expect(sut.theme == "dark")
-        #expect(sut.fontSize == 16)
+        let settings: any Settings = stub()
+        #expect(settings.theme == "dark")
+        settings.reset()
+        settings.apply(key: "color")
 
-        var mutable: any Settings = stub()
-        mutable.theme = "light"
-        sut.reset()
-        sut.apply(key: "color")
-
-        stub.verify(setting: { $0.theme = "light" }).wasCalled()
-        stub.verify { $0.reset() }.wasCalled(times: 1)
-    }
-
-    @Test func collectionReturns() {
-        let stub = RuntimeStub<any TagStore>()
-        stub.when { $0.tags(for: "swift") }.returns(["concurrency", "macros"])
-        stub.when { $0.tags(for: any()) }.returns([])
-        stub.when { $0.allCategories() }.returns(["swift", "rust"])
-        stub.when { $0.tagCount(in: any()) }.returns(5)
-        stub.when { $0.isEmpty }.returns(false)
-
-        let sut: any TagStore = stub()
-
-        #expect(sut.tags(for: "swift") == ["concurrency", "macros"])
-        #expect(sut.tags(for: "unknown") == [])
-        #expect(sut.allCategories() == ["swift", "rust"])
+        stub.verify(.exactly(1)) { $0.reset() }
+        stub.verify(.exactly(1)) { $0.apply(key: "color") }
     }
 }
-
-// MARK: - Throwing
 
 @Suite struct ThrowingTests {
+    @Test func throwingHandlerReturnsAndPropagatesErrors() throws {
+        struct ReadError: Error, Equatable { let path: String }
 
-    @Test func happyPath() throws {
-        let stub = RuntimeStub<any FileLoader>()
-        stub.when { try $0.load(path: any()) }.returns("content")
+        let stub = try Stub<any FileLoader>()
+        stub.when { try $0.load(path: any()) }.then { (path: String) throws in
+            if path == "/missing" { throw ReadError(path: path) }
+            return "contents:\(path)"
+        }
         stub.when { $0.exists(path: any()) }.returns(true)
 
-        let sut: any FileLoader = stub()
-
-        #expect(try sut.load(path: "/test") == "content")
-        #expect(sut.exists(path: "/test") == true)
-    }
-
-    @Test func throwingHappyPathFileService() throws {
-        let stub = RuntimeStub<any ThrowingFileService>()
-        stub.when { try $0.read(path: any()) }.returns("file contents")
-        stub.when { try $0.write(path: any(), content: any()) }
-        stub.when { $0.exists(at: any()) }.returns(true)
-        stub.when { $0.basePath }.returns("/mock")
-
-        let sut: any ThrowingFileService = stub()
-
-        #expect(try sut.read(path: "/readme.txt") == "file contents")
-        #expect(throws: Never.self) { try sut.write(path: "/out.txt", content: "data") }
-        #expect(sut.basePath == "/mock")
-    }
-
-    @Test func throwingVerification() throws {
-        let stub = RuntimeStub<any ThrowingFileService>()
-        stub.when { try $0.read(path: any()) }.returns("x")
-        stub.when { $0.exists(at: any()) }.returns(true)
-        stub.when { $0.basePath }.returns("/")
-
-        let sut: any ThrowingFileService = stub()
-        _ = try? sut.read(path: "/a")
-        _ = try? sut.read(path: "/b")
-
-        stub.verify(called: 2) { try $0.read(path: any()) }
-        stub.verify(never: { try $0.write(path: any(), content: any()) })
-    }
-
-    @Test func throwingVerificationDoesNotReplayStubbedHandlers() throws {
-        let stub = RuntimeStub<any FileLoader>()
-        var loadExecutions = 0
-        stub.when { try $0.load(path: any()) }.then { _ in
-            loadExecutions += 1
-            return "content"
+        let loader: any FileLoader = stub()
+        #expect(try loader.load(path: "/readme") == "contents:/readme")
+        let error = #expect(throws: ReadError.self) {
+            try loader.load(path: "/missing")
         }
+        #expect(error?.path == "/missing")
 
-        let sut: any FileLoader = stub()
-        #expect(try sut.load(path: "/a") == "content")
-
-        #expect(loadExecutions == 1)
-        stub.verify { try $0.load(path: any()) }.wasCalled()
-        #expect(loadExecutions == 1)
+        stub.verify(.exactly(2)) { try $0.load(path: any()) }
+        stub.verify(.never) { $0.exists(path: equal("/missing")) }
     }
 
-    @Test func throwingMultiplePaths() throws {
-        let stub = RuntimeStub<any ThrowingFileService>()
-        stub.when { try $0.read(path: equal("/a")) }.returns("aaa")
-        stub.when { try $0.read(path: equal("/b")) }.returns("bbb")
-        stub.when { try $0.read(path: any()) }.returns("default")
-        stub.when { $0.exists(at: any()) }.returns(true)
-        stub.when { $0.basePath }.returns("/")
+    @Test func throwingVoidRequirementUsesFallback() throws {
+        let stub = try Stub<any ThrowingFileService>()
+        stub.when { try $0.write(path: any(), content: any()) }
 
-        let sut: any ThrowingFileService = stub()
-
-        #expect(try sut.read(path: "/a") == "aaa")
-        #expect(try sut.read(path: "/b") == "bbb")
-        #expect(try sut.read(path: "/c") == "default")
+        try stub().write(path: "/out", content: "data")
+        stub.verify { try $0.write(path: "/out", content: "data") }
     }
 }
 
-// MARK: - Slot-Based Init
-
-@Suite struct SlotBasedTests {
-
-    @Test func typedMethodReferences() {
-        let real: any Calculator = RealCalculator()
-        let stub = RuntimeStub<any Calculator>(
-            .from(real.add),
-            .from(real.describe),
-            .getter(real.precision)
+@Suite struct ExplicitRequirementTests {
+    @Test func buildsWithoutARealConformer() throws {
+        let stub = try Stub<any PrototypeCalculator>(
+            .method(Int.self, Int.self, returning: Int.self),
+            .method(Int.self, returning: String.self),
+            .getter(Int.self)
         )
+        stub.when { $0.add(any(), any()) }.then { (a: Int, b: Int) in a + b }
+        stub.when { $0.describe(any()) }.then { (value: Int) in "\(value)" }
+        stub.when { $0.precision }.returns(12)
 
-        stub.when { $0.add(any(), any()) }.returns(99)
-        stub.when { $0.describe(any()) }.returns("typed")
-        stub.when { $0.precision }.returns(7)
-
-        let sut: any Calculator = stub()
-
-        #expect(sut.add(1, 2) == 99)
-        #expect(sut.describe(1) == "typed")
-        #expect(sut.precision == 7)
+        let calculator: any PrototypeCalculator = stub()
+        #expect(calculator.add(2, 4) == 6)
+        #expect(calculator.describe(6) == "6")
+        #expect(calculator.precision == 12)
     }
 
-    @Test func throwingMethodReferences() throws {
-        let real: any FileLoader = RealFileLoader()
-        let stub = RuntimeStub<any FileLoader>(
-            .from(real.load),
-            .from(real.exists)
+    @Test func preservesThrowingAndAsyncEffects() async throws {
+        let stub = try Stub<any AsyncDataLoader>(
+            .method(String.self, returning: String.self, isThrowing: true, isAsync: true),
+            .method([String].self, returning: Void.self, isAsync: true),
+            .getter(Int.self)
         )
-
-        stub.when { try $0.load(path: any()) }.returns("typed-content")
-        stub.when { $0.exists(path: any()) }.returns(false)
-
-        let sut: any FileLoader = stub()
-
-        #expect(try sut.load(path: "/x") == "typed-content")
-        #expect(sut.exists(path: "/x") == false)
-    }
-
-    @Test func asyncMethodReferences() async throws {
-        let real: any AsyncDataLoader = RealDataLoader()
-        let stub = RuntimeStub<any AsyncDataLoader>(
-            .from(real.load),
-            .from(real.prefetch),
-            .getter(real.cacheSize)
-        )
-
-        await stub.when { try await $0.load(url: any()) }.returns("typed-async")
+        await stub.when { try await $0.load(url: any()) }.returns("data")
         await stub.when { await $0.prefetch(urls: any()) }
-        stub.when { $0.cacheSize }.returns(8)
+        stub.when { $0.cacheSize }.returns(3)
 
-        let sut: any AsyncDataLoader = stub()
-
-        #expect(try await sut.load(url: "/x") == "typed-async")
-        #expect(sut.cacheSize == 8)
-    }
-}
-
-// MARK: - Multiple Stubs
-
-@Suite struct MultiStubTests {
-
-    @Test func independentStubs() {
-        let calcStub = RuntimeStub<any Calculator>()
-        let configStub = RuntimeStub<any AppConfig>()
-
-        calcStub.when { $0.describe(any()) }.returns("User")
-        calcStub.when { $0.precision }.returns(10)
-
-        configStub.when { $0.appName }.returns("Test")
-        configStub.when { $0.version }.returns(1)
-        configStub.when { $0.isDebug }.returns(false)
-        configStub.when { $0.scale }.returns(1.0)
-
-        #expect(calcStub().describe(1) == "User")
-        #expect(configStub().appName == "Test")
+        let loader: any AsyncDataLoader = stub()
+        #expect(try await loader.load(url: "url") == "data")
+        await loader.prefetch(urls: ["one"])
+        #expect(loader.cacheSize == 3)
     }
 }

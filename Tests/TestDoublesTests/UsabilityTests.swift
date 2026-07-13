@@ -2,18 +2,18 @@ import Testing
 @testable import TestDoubles
 import TestDoublesFixtures
 
-private struct RuntimeAsyncError: Error, Equatable {
+private struct AsyncHandlerError: Error, Equatable {
     let url: String
 }
 
-private actor AsyncSuspensionGate {
-    private var hasStarted = false
+private actor SuspensionGate {
+    private var started = false
     private var startWaiters: [CheckedContinuation<Void, Never>] = []
     private var releaseContinuation: CheckedContinuation<Void, Never>?
 
     func suspend() async {
         await withCheckedContinuation { continuation in
-            hasStarted = true
+            started = true
             startWaiters.forEach { $0.resume() }
             startWaiters.removeAll()
             releaseContinuation = continuation
@@ -21,7 +21,7 @@ private actor AsyncSuspensionGate {
     }
 
     func waitUntilStarted() async {
-        guard !hasStarted else { return }
+        guard !started else { return }
         await withCheckedContinuation { continuation in
             startWaiters.append(continuation)
         }
@@ -33,224 +33,154 @@ private actor AsyncSuspensionGate {
     }
 }
 
-@Suite struct UsabilityTests {
+private protocol CompositionA {}
+private protocol CompositionB {}
 
-    @Test func diagnoseMissingConformance() {
-        let diagnostics = RuntimeStub<any PrototypeCalculator>.diagnose()
-
-        #expect(diagnostics.protocolName == "PrototypeCalculator")
-        #expect(diagnostics.hasExistingConformance == false)
-        #expect(!diagnostics.notes.isEmpty)
-    }
-
-    @Test func throwingFactorySurfacesMissingConformance() throws {
+@Suite struct ConstructionErrorTests {
+    @Test func automaticConstructionRequiresLinkedConformance() {
         do {
-            _ = try RuntimeStub<any PrototypeCalculator>.make()
-            Issue.record("Expected missing-conformance failure")
-        } catch let error as RuntimeStubError {
-            switch error {
-            case .noConformanceFound(let protocolName, _):
-                #expect(protocolName == "PrototypeCalculator")
-            default:
-                Issue.record("Unexpected RuntimeStubError: \(error)")
+            _ = try Stub<any PrototypeCalculator>()
+            Issue.record("Expected a missing-conformance error")
+        } catch let error as StubError {
+            guard case .noConformanceFound(let protocolName) = error else {
+                Issue.record("Unexpected StubError: \(error)")
+                return
             }
+            #expect(protocolName == "PrototypeCalculator")
+        } catch {
+            Issue.record("Unexpected error: \(error)")
         }
     }
 
-    @Test func runtimeStubSupportsAsyncRequirements() async throws {
-        let stub = try RuntimeStub<any AsyncDataLoader>.make()
+    @Test func rejectsWrongRequirementCount() {
+        do {
+            _ = try Stub<any PrototypeCalculator>(
+                .method(Int.self, Int.self, returning: Int.self)
+            )
+            Issue.record("Expected a requirement-count error")
+        } catch let error as StubError {
+            guard case .requirementCountMismatch(let protocolName, let expected, let actual) = error else {
+                Issue.record("Unexpected StubError: \(error)")
+                return
+            }
+            #expect(protocolName == "PrototypeCalculator")
+            #expect(expected == 3)
+            #expect(actual == 1)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
 
+    @Test func rejectsWrongRequirementKind() {
+        do {
+            _ = try Stub<any PrototypeCalculator>(
+                .getter(Int.self),
+                .method(Int.self, returning: String.self),
+                .getter(Int.self)
+            )
+            Issue.record("Expected a requirement-kind error")
+        } catch let error as StubError {
+            guard case .requirementKindMismatch(
+                let protocolName, let index, let expected, let actual
+            ) = error else {
+                Issue.record("Unexpected StubError: \(error)")
+                return
+            }
+            #expect(protocolName == "PrototypeCalculator")
+            #expect(index == 0)
+            #expect(expected == "method")
+            #expect(actual == "getter")
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test func rejectsNonProtocolTypes() {
+        do {
+            _ = try Stub<Int>()
+            Issue.record("Expected a non-protocol error")
+        } catch let error as StubError {
+            guard case .typeIsNotProtocol = error else {
+                Issue.record("Unexpected StubError: \(error)")
+                return
+            }
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test func rejectsProtocolCompositions() {
+        do {
+            _ = try Stub<any CompositionA & CompositionB>()
+            Issue.record("Expected a protocol-composition error")
+        } catch let error as StubError {
+            guard case .unsupportedProtocolComposition = error else {
+                Issue.record("Unexpected StubError: \(error)")
+                return
+            }
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+}
+
+@Suite struct AsyncUsabilityTests {
+    @Test func automaticAsyncConstructionAndDirectVerification() async throws {
+        let stub = try Stub<any AsyncDataLoader>()
         await stub.when { try await $0.load(url: any()) }.returns("runtime-data")
         await stub.when { await $0.prefetch(urls: any()) }
         stub.when { $0.cacheSize }.returns(3)
 
-        let sut: any AsyncDataLoader = stub()
+        let loader: any AsyncDataLoader = stub()
+        #expect(try await loader.load(url: "https://example.com") == "runtime-data")
+        await loader.prefetch(urls: ["one", "two"])
+        #expect(loader.cacheSize == 3)
 
-        #expect(try await sut.load(url: "https://example.com") == "runtime-data")
-        await sut.prefetch(urls: ["one", "two"])
-        #expect(sut.cacheSize == 3)
-        #expect(stub.calls.map(\.name).contains { $0.contains("load") })
-        #expect(stub.calls.map(\.name).contains { $0.contains("prefetch") })
-
-        await stub.verify { try await $0.load(url: any()) }.wasCalled()
-        await stub.verify(called: 1) { await $0.prefetch(urls: any()) }
+        await stub.verify { try await $0.load(url: any()) }
+        await stub.verify(.exactly(1)) { await $0.prefetch(urls: any()) }
     }
 
-    @Test func explicitRuntimeStubSupportsAsyncThrowingRequirements() async throws {
-        let stub = try RuntimeStub<any AsyncDataLoader>.make(
-            .method(String.self, returns: String.self, throws: true, async: true),
-            .method([String].self, async: true),
-            .getter(Int.self)
-        )
-
-        await stub.when { try await $0.load(url: equal("success")) } then: {
-            "loaded"
-        }
-        await stub.when { try await $0.load(url: any()) } then: { args in
-            throw RuntimeAsyncError(url: args[0] as! String)
-        }
-        await stub.when { await $0.prefetch(urls: any()) }
-        stub.when { $0.cacheSize }.returns(0)
-
-        let sut: any AsyncDataLoader = stub()
-
-        #expect(try await sut.load(url: "success") == "loaded")
-
-        do {
-            _ = try await sut.load(url: "missing")
-            Issue.record("Expected the async RuntimeStub to throw")
-        } catch let error as RuntimeAsyncError {
-            #expect(error == RuntimeAsyncError(url: "missing"))
-        }
-    }
-
-    @Test func suspendingAsyncThrowingHandlersPropagateValuesAndErrors() async throws {
-        let stub = try RuntimeStub<any AsyncDataLoader>.make()
-
-        await stub.when({ try await $0.load(url: equal("success")) }, thenAsync: {
+    @Test func suspendingAsyncThrowingHandlerPropagatesValuesAndErrors() async throws {
+        let stub = try Stub<any AsyncDataLoader>()
+        await stub.when { try await $0.load(url: equal("success")) }.then {
+            () async throws -> String in
             await Task.yield()
             return "loaded"
-        })
-        await stub.when({ try await $0.load(url: any()) }, thenAsync: { args in
-            await Task.yield()
-            throw RuntimeAsyncError(url: args[0] as! String)
-        })
-
-        let sut: any AsyncDataLoader = stub()
-        #expect(try await sut.load(url: "success") == "loaded")
-
-        do {
-            _ = try await sut.load(url: "missing")
-            Issue.record("Expected the suspending RuntimeStub handler to throw")
-        } catch let error as RuntimeAsyncError {
-            #expect(error == RuntimeAsyncError(url: "missing"))
         }
+        await stub.when { try await $0.load(url: any()) }.then {
+            (url: String) async throws -> String in
+            await Task.yield()
+            throw AsyncHandlerError(url: url)
+        }
+
+        let loader: any AsyncDataLoader = stub()
+        #expect(try await loader.load(url: "success") == "loaded")
+        let error = await #expect(throws: AsyncHandlerError.self) {
+            try await loader.load(url: "missing")
+        }
+        #expect(error?.url == "missing")
     }
 
-    @Test func cancellationReachesSuspendedHandlerOnCallerTask() async throws {
-        let stub = try RuntimeStub<any AsyncDataLoader>.make()
-        let gate = AsyncSuspensionGate()
-
-        await stub.when({ try await $0.load(url: any()) }, thenAsync: {
+    @Test func cancellationReachesSuspendedHandler() async throws {
+        let stub = try Stub<any AsyncDataLoader>()
+        let gate = SuspensionGate()
+        await stub.when { try await $0.load(url: any()) }.then {
+            (_: String) async throws -> String in
             await gate.suspend()
             try Task.checkCancellation()
             return "unexpected"
-        })
+        }
 
         let task = Task {
-            let sut: any AsyncDataLoader = stub()
-            return try await sut.load(url: "cancelled")
+            let loader: any AsyncDataLoader = stub()
+            return try await loader.load(url: "cancelled")
         }
         await gate.waitUntilStarted()
         task.cancel()
         await gate.release()
 
-        do {
-            _ = try await task.value
-            Issue.record("Expected cancellation to propagate into the suspended handler")
-        } catch is CancellationError {
-            // Expected.
+        await #expect(throws: CancellationError.self) {
+            try await task.value
         }
     }
-
-    @Test func moduleSignaturesSupportAsyncRequirements() async throws {
-        let stub = try RuntimeStub<any AsyncDataLoader>.makeFromModule()
-
-        await stub.when { try await $0.load(url: any()) }.returns("module-data")
-        await stub.when { await $0.prefetch(urls: any()) }
-        stub.when { $0.cacheSize }.returns(5)
-
-        let sut: any AsyncDataLoader = stub()
-
-        #expect(try await sut.load(url: "module") == "module-data")
-        #expect(sut.cacheSize == 5)
-    }
-
-    @Test func explicitRuntimeStubMethodsDoNotNeedRealConformer() throws {
-        let stub = try RuntimeStub<any PrototypeCalculator>.make(methods: [
-            .method("add(_:_:)", args: ["Int", "Int"], returns: "Int", at: 0),
-            .method("describe(_:)", args: ["Int"], returns: "String", at: 1),
-            .getter("precision", type: "Int", at: 2),
-        ])
-
-        stub.when { $0.add(1, 2) }.returns(3)
-        stub.when { $0.describe(3) }.returns("three")
-        stub.when { $0.precision }.returns(10)
-
-        let sut: any PrototypeCalculator = stub()
-
-        #expect(sut.add(1, 2) == 3)
-        #expect(sut.describe(3) == "three")
-        #expect(sut.precision == 10)
-    }
-
-    @Test func explicitRuntimeStubSlotsDoNotNeedRealConformer() throws {
-        let stub = try RuntimeStub<any PrototypeCalculator>.make(
-            .method(Int.self, Int.self, returns: Int.self),
-            .method(Int.self, returns: String.self),
-            .getter(Int.self)
-        )
-
-        stub.when { $0.add(2, 4) }.returns(6)
-        stub.when { $0.describe(6) }.returns("six")
-        stub.when { $0.precision }.returns(12)
-
-        let sut: any PrototypeCalculator = stub()
-
-        #expect(sut.add(2, 4) == 6)
-        #expect(sut.describe(6) == "six")
-        #expect(sut.precision == 12)
-    }
-
-    @Test func moduleSignaturesDoNotNeedRealConformer() throws {
-        let stub = try RuntimeStub<any PrototypeCalculator>.makeFromModule()
-
-        stub.when { $0.add(3, 4) }.returns(7)
-        stub.when { $0.describe(7) }.returns("seven")
-        stub.when { $0.precision }.returns(14)
-
-        let sut: any PrototypeCalculator = stub()
-
-        #expect(sut.add(3, 4) == 7)
-        #expect(sut.describe(7) == "seven")
-        #expect(sut.precision == 14)
-    }
-
-    @Test func moduleSignaturesResolveCustomReturnMetadata() throws {
-        let stub = try RuntimeStub<any PaymentGateway>.makeFromModule()
-        let expected = PaymentResult(transactionId: "tx_42", amount: 42, success: true)
-
-        stub.when { try $0.charge(amount: any(), currency: any()) }.returns(expected)
-
-        let sut: any PaymentGateway = stub()
-
-        #expect(try sut.charge(amount: 42, currency: "USD") == expected)
-    }
-
-    @Test func runtimeStubDescriptionReportsRequirements() throws {
-        let report = try RuntimeStub<any PrototypeCalculator>.describe()
-
-        #expect(report.protocolName == "PrototypeCalculator")
-        #expect(report.requirements.map(\.name).contains("add(_:_:)"))
-        #expect(report.requirements.map(\.name).contains("describe(_:)"))
-        #expect(report.requirements.map(\.name).contains("precision"))
-        #expect(report.description.contains("RuntimeStub requirements for PrototypeCalculator"))
-    }
-
-    @Test func runtimeStubSetupScaffoldIsCopyPasteableShape() throws {
-        let scaffold = try RuntimeStub<any PrototypeCalculator>.setupScaffold()
-
-        #expect(scaffold.contains("let stub = try RuntimeStub<any PrototypeCalculator>.make("))
-        #expect(scaffold.contains(".method(args: [Int.self, Int.self], returns: Int.self), // add(_:_:)"))
-        #expect(scaffold.contains(".method(args: [Int.self], returns: String.self), // describe(_:)"))
-        #expect(scaffold.contains(".getter(Int.self)"))
-    }
-
-    @Test func runtimeStubSetupScaffoldIncludesAsyncEffects() throws {
-        let scaffold = try RuntimeStub<any AsyncDataLoader>.setupScaffold()
-
-        #expect(scaffold.contains("throws: true, async: true"))
-        #expect(scaffold.contains("returns: Void.self, async: true"))
-    }
-
 }

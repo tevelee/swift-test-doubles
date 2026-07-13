@@ -1,31 +1,5 @@
 import Foundation
 
-/// A typed reusable predicate matcher.
-///
-/// Use ``matching(_:)`` to apply a matcher inside a when or verify closure:
-///
-/// ```swift
-/// let vipID = Matcher<Int>("VIP id") { $0 > 100 }
-/// stub.when { $0.find(id: matching(vipID)) }.returns("VIP")
-/// ```
-public struct Matcher<Value>: CustomStringConvertible {
-    private let predicate: (Value) -> Bool
-
-    /// Human-readable matcher name used in failure diagnostics.
-    public let description: String
-
-    /// Creates a matcher with a diagnostic `description` and a predicate.
-    public init(_ description: String, _ predicate: @escaping (Value) -> Bool) {
-        self.description = description
-        self.predicate = predicate
-    }
-
-    /// Returns `true` when this matcher accepts `value`.
-    public func matches(_ value: Value) -> Bool {
-        predicate(value)
-    }
-}
-
 private final class MatcherRecording: @unchecked Sendable {
     private let lock = NSLock()
     private var storage: [ParameterMatcher] = []
@@ -43,11 +17,12 @@ private final class MatcherRecording: @unchecked Sendable {
     }
 }
 
-/// Task-local matcher stack for free-function matchers (any(), equal(), etc.).
 enum MatcherContext {
     @TaskLocal private static var activeRecording: MatcherRecording?
 
-    static func withRecording<T>(_ operation: () throws -> T) rethrows -> (result: T, matchers: [ParameterMatcher]) {
+    static func withRecording<Result>(
+        _ operation: () throws -> Result
+    ) rethrows -> (result: Result, matchers: [ParameterMatcher]) {
         let recording = MatcherRecording()
         let result = try $activeRecording.withValue(recording) {
             try operation()
@@ -55,10 +30,10 @@ enum MatcherContext {
         return (result, recording.matchers)
     }
 
-    static func withRecording<T>(
+    static func withRecording<Result>(
         isolation: isolated (any Actor)? = #isolation,
-        _ operation: () async throws -> T
-    ) async rethrows -> (result: T, matchers: [ParameterMatcher]) {
+        _ operation: () async throws -> Result
+    ) async rethrows -> (result: Result, matchers: [ParameterMatcher]) {
         let recording = MatcherRecording()
         let result = try await $activeRecording.withValue(recording) {
             try await operation()
@@ -71,27 +46,10 @@ enum MatcherContext {
     }
 }
 
-/// Matches any argument of type `T`. Use inside when and verify closures.
-public func any<T>(_ type: T.Type = T.self) -> T {
+/// Matches any argument of type `T`.
+public func any<T>() -> T {
     MatcherContext.append(AnyMatcher())
     return zeroValue(T.self)
-}
-
-/// Matches any argument of type `T` that satisfies `predicate`.
-public func any<T>(where predicate: @escaping (T) -> Bool) -> T {
-    MatcherContext.append(PredicateMatcher(predicate: predicate))
-    return zeroValue(T.self)
-}
-
-/// Matches any argument of type `T` accepted by `matcher`.
-public func matching<T>(_ matcher: Matcher<T>) -> T {
-    MatcherContext.append(TypedMatcher(matcher: matcher))
-    return zeroValue(T.self)
-}
-
-/// Matches any argument of type `T` accepted by `predicate`.
-public func matching<T>(_ description: String, _ predicate: @escaping (T) -> Bool) -> T {
-    matching(Matcher(description, predicate))
 }
 
 /// Matches an argument that is equal to `value`.
@@ -100,35 +58,50 @@ public func equal<T: Equatable>(_ value: T) -> T {
     return value
 }
 
-/// Captures argument values into `captor` for later inspection.
-public func capture<T>(into captor: ArgumentCaptor<T>) -> T {
-    captor.capture()
+/// Matches an argument accepted by `predicate`.
+public func matching<T>(
+    description: String = "predicate",
+    where predicate: @escaping (T) -> Bool
+) -> T {
+    MatcherContext.append(PredicateMatcher(description: description, predicate: predicate))
+    return zeroValue(T.self)
 }
 
-/// Captures argument values for later inspection.
-///
-/// Use ``capture()`` inside a verify closure to record each value the method was called with:
-///
-/// ```swift
-/// let captor = ArgumentCaptor<Int>()
-/// stub.verify { $0.find(id: captor.capture()) }.wasCalled(times: 2)
-/// assert(captor.values == [1, 42])
-/// ```
-public class ArgumentCaptor<T> {
+/// Captures matching argument values for later inspection.
+public final class ArgumentCaptor<T> {
+    private let lock = NSLock()
+    private var storage: [T] = []
+
     /// All captured values, in call order.
-    public var values: [T] = []
-    /// The most recently captured value.
-    public var last: T? { values.last }
+    public var values: [T] { withLock { storage } }
+
     /// The first captured value.
-    public var first: T? { values.first }
+    public var first: T? { withLock { storage.first } }
+
+    /// The most recently captured value.
+    public var last: T? { withLock { storage.last } }
+
+    /// Creates an empty captor.
     public init() {}
 
-    /// Returns a matcher placeholder that records each matching argument into ``values``.
+    /// Returns a matcher placeholder that captures each matching argument.
     public func capture() -> T {
         MatcherContext.append(CaptureMatcher(captor: self))
         return zeroValue(T.self)
     }
 
     /// Removes all previously captured values.
-    public func reset() { values.removeAll() }
+    public func reset() {
+        withLock { storage.removeAll() }
+    }
+
+    func append(_ value: T) {
+        withLock { storage.append(value) }
+    }
+
+    private func withLock<Result>(_ operation: () -> Result) -> Result {
+        lock.lock()
+        defer { lock.unlock() }
+        return operation()
+    }
 }

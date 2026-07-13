@@ -17,10 +17,8 @@ manual-stub systems.
   example.
 - Platform claims reflect CI coverage rather than assumptions.
 
-The intended public center of gravity is eventually `Stub<P>`, configured with
-`when`, `returns`, and one `then` family, then inspected with `verify`. The
-existing `RuntimeStub` name remains during the mechanical collapse so naming and
-behavior changes do not land in the same iteration.
+The public center of gravity is `Stub<P>`, configured with `when`, `returns`,
+and one `then` family, then inspected with `verify`.
 
 ## Iteration 1 — Collapse to one implementation
 
@@ -47,7 +45,7 @@ behavior changes do not land in the same iteration.
 
 ## Iteration 2 — Freeze the minimum public API
 
-**Status:** Planned
+**Status:** Complete
 
 - **Objective:** Give the surviving implementation its smallest coherent API.
 - **Mode:** Public API review and focused refactor.

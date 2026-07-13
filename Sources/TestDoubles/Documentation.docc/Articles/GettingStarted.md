@@ -1,346 +1,138 @@
 # Getting Started
 
-Learn the core patterns for stubbing, matching, and verifying in your tests.
+Arrange protocol behavior, pass the fabricated conformance to the subject under
+test, and verify only the interactions that express the test's intent.
 
-## Overview
-
-TestDoubles uses ``RuntimeStub`` to fabricate a protocol conformance and route
-its calls through a runtime trampoline. This guide covers the shared `when`,
-`returns`, `then`, matcher, capture, and verification vocabulary.
-
-## Stubbing a Method
-
-Register a response with `when(_:)` followed by either `returns(_:)` for a static value or `then(_:)` for dynamic behaviour:
+## Define a protocol boundary
 
 ```swift
-let stub = RuntimeStub<any UserRepository>()
+protocol UserRepository {
+    func find(id: Int) -> String
+    func save(name: String, age: Int) throws -> Bool
+    var count: Int { get }
+}
 
-// Static value
-stub.when { $0.find(id: any()) }.returns("Alice")
+struct LiveUserRepository: UserRepository {
+    // Production implementation.
+}
+```
 
-// Property getter — same syntax
+The linked `LiveUserRepository` conformance gives TestDoubles the requirement
+metadata needed by zero-argument construction.
+
+## Arrange and use a stub
+
+```swift
+let stub = try Stub<any UserRepository>()
+
+stub.when { $0.find(id: any()) }.returns("guest")
+stub.when { $0.find(id: equal(42)) }.returns("Alice")
 stub.when { $0.count }.returns(1)
 
-let sut: any UserRepository = stub()
-sut.find(id: 42)  // → "Alice"
+let repository: any UserRepository = stub()
+#expect(repository.find(id: 42) == "Alice")
 ```
 
-`stub()` is a `callAsFunction()` shorthand that produces the protocol existential. Keep the stub alive for the duration of the test — if it's deallocated the mock will fatal-error.
-
-## Matching Arguments
-
-Three matchers cover most cases:
+Use a typed `then` closure when the result depends on arguments:
 
 ```swift
-// Any value of the right type
-stub.when { $0.find(id: any()) }.returns("default")
-
-// Exact equality
-stub.when { $0.find(id: equal(42)) }.returns("the answer")
-
-// Inline literal — treated as equal() automatically
-stub.when { $0.find(id: 99) }.returns("ninety-nine")
-
-// Predicate
-stub.when { $0.find(id: any(where: { $0 > 100 })) }.returns("VIP")
-
-// Reusable named predicate
-let vipID = Matcher<Int>("VIP id") { $0 > 100 }
-stub.when { $0.find(id: matching(vipID)) }.returns("VIP")
-
-// Inline named predicate with better failure diagnostics
-stub.when { $0.find(id: matching("VIP id") { $0 > 100 }) }.returns("VIP")
-```
-
-When a call is dispatched, **the most specific matching stub wins**:
-
-| Matcher | Specificity |
-|---------|-------------|
-| `equal(_:)` or literal | highest |
-| `any(where:)` predicate | middle |
-| `any()` | lowest (catch-all) |
-
-Register the catch-all first and the specific cases afterwards — order within the same specificity level doesn't matter:
-
-```swift
-stub.when { $0.find(id: any()) }.returns("guest")          // catch-all
-stub.when { $0.find(id: any(where: { $0 > 0 })) }.returns("member")
-stub.when { $0.find(id: equal(1)) }.returns("admin")       // wins for id == 1
-```
-
-## Dynamic Responses with `then`
-
-Use `then` when the return value depends on the arguments, or when the stub should throw:
-
-```swift
-// Compute the response from typed incoming arguments
 stub.when { $0.find(id: any()) }.then { (id: Int) in
-    return id < 100 ? "User_\(id)" : "VIP_\(id)"
-}
-
-// Multiple arguments are typed too
-stub.when { $0.search(query: any(), limit: any()) }.then { (query: String, limit: Int) in
-    Array(repeating: query, count: limit)
-}
-
-// Zero-argument closure for simple cases
-stub.when { $0.find(id: any()) }.then { "hardcoded" }
-
-// Throw conditionally
-stub.when { try $0.read(path: any()) }.then { (path: String) throws in
-    if path.hasPrefix("/private") { throw PermissionError() }
-    return "contents of \(path)"
+    "user-\(id)"
 }
 ```
 
-Typed `then` handlers accept arbitrary arity through parameter packs. The raw
-`[Any]` handler is still available when you need a fully dynamic escape hatch:
+Throwing behavior uses the same builder:
 
 ```swift
-stub.when { $0.find(id: any()) }.then { args in
-    "User_\(args[0])"
+stub.when { try $0.save(name: any(), age: any()) }.then {
+    (name: String, age: Int) throws in
+    guard age >= 0 else { throw ValidationError() }
+    return !name.isEmpty
 }
 ```
 
-`then` registers a **throwing stub** — it handles both the error and the success
-paths in a single closure.
+## Match arguments
 
-## Trailing Closure Style
+- `any()` accepts every value.
+- `equal(_:)` uses `Equatable` equality.
+- `matching(description:where:)` accepts values satisfying a predicate.
+- Literal arguments use best-effort textual comparison; prefer `equal(_:)`
+  when equality semantics matter.
 
-For simple stubs, you can collapse `when` and `then` into a single expression:
-
-```swift
-// Equivalent to .when { $0.find(id: any()) }.returns("Alice")
-stub.when { $0.find(id: any()) } then: { "Alice" }
-
-// With arguments
-stub.when { $0.find(id: any()) } then: { args in "User_\(args[0])" }
-```
-
-## Verifying Calls
+The most specific registration wins: explicit equality, literal, predicate,
+then wildcard or capture. The first registration wins when specificity ties.
 
 ```swift
-stub.verify { $0.find(id: any()) }.wasCalled()          // at least once
-stub.verify { $0.find(id: any()) }.wasCalled(times: 3)  // exactly 3 times
-stub.verify { $0.find(id: any()) }.wasNotCalled()        // never
-
-// Concise forms
-stub.verify(called: 2) { $0.find(id: any()) }
-stub.verify(never: { $0.reset() })
-```
-
-Matchers work in `verify` exactly as in `when` — you can verify specific argument values:
-
-```swift
-stub.verify { $0.find(id: equal(42)) }.wasCalled()
-stub.verify { $0.save(name: "Alice", age: any()) }.wasCalled()
-```
-
-### Inspecting Argument Values
-
-`withArgs` gives you the raw argument lists for all matching calls:
-
-```swift
-stub.verify { $0.find(id: any()) }.withArgs { calls in
-    // calls: [[Any]] — one [Any] per matching invocation
-    assert(calls[0][0] as! Int == 42)
+stub.when { $0.find(id: any()) }.returns("fallback")
+stub.when {
+    $0.find(id: matching(description: "positive", where: { $0 > 0 }))
 }
-
-// Typed variant — called once for each matching invocation
-stub.verify { $0.save(name: any(), age: any()) }.withArgs { (name: String, age: Int) in
-    assert(name.isEmpty == false)
-    assert(age > 0)
-}
+    .returns("member")
+stub.when { $0.find(id: equal(1)) }.returns("admin")
 ```
 
-### Capturing Arguments
+## Verify and capture
 
-``ArgumentCaptor`` records values as calls happen, so you can assert on them after the fact:
+Verification defaults to at least one matching call:
 
 ```swift
-let idCaptor = ArgumentCaptor<Int>()
-let sut = stub()
-_ = sut.find(id: 7)
-_ = sut.find(id: 13)
-
-stub.verify { $0.find(id: idCaptor.capture()) }.wasCalled(times: 2)
-assert(idCaptor.values == [7, 13])
+stub.verify { $0.find(id: any()) }
+stub.verify(.exactly(2)) { $0.find(id: any()) }
+stub.verify(.never) { $0.find(id: equal(-1)) }
 ```
 
-Captors accumulate across all matching calls; `values` gives them in invocation order.
-You can also spell capture as a free function when it reads better in argument
-position:
+Capture arguments when the test needs to inspect a side effect:
 
 ```swift
-stub.verify { $0.find(id: capture(into: idCaptor)) }.wasCalled(times: 2)
+let ids = ArgumentCaptor<Int>()
+stub.verify(.exactly(2)) { $0.find(id: ids.capture()) }
+#expect(ids.values == [1, 42])
 ```
 
-## Throwing Methods
+## Stub async requirements
 
-Use `try` in the `when` closure. Recording mode returns a typed placeholder without running a configured handler, so the call does not throw:
-
-```swift
-let stub = RuntimeStub<any FileService>()
-stub.when { try $0.read(path: any()) }.returns("content")
-
-// Force a throw for specific inputs
-stub.when { try $0.read(path: equal("/missing")) }.then { throw FileNotFoundError() }
-
-let sut: any FileService = stub()
-try sut.read(path: "/exists")    // → "content"
-try sut.read(path: "/missing")  // throws FileNotFoundError
-```
-
-Verify throwing methods the same way — wrap in `try` inside the `verify` closure:
+Async and async-throwing requirements keep the same vocabulary. An async
+`then` handler may genuinely suspend on the caller's task.
 
 ```swift
-stub.verify { try $0.read(path: any()) }.wasCalled()
-```
+let stub = try Stub<any DataLoader>()
 
-## Async Methods
-
-RuntimeStub supports async and async-throwing protocol requirements. Its
-`returns` and synchronous `then` responses complete immediately. The same
-`then` name accepts an async closure when configured behavior must await other
-work or suspend. `thenAsync` remains available when an explicit async spelling
-is clearer.
-
-```swift
-let stub = RuntimeStub<any DataLoader>()
-
-await stub.when { try await $0.fetch(url: any()) }.returns("response")
-await stub.when { await $0.prefetch(urls: any()) }  // void async — auto-registered
-
-await stub.when { try await $0.fetch(url: equal("/slow")) }.then {
-    (url: String) in
+await stub.when { try await $0.load(url: any()) }.then {
+    (url: String) async throws in
     try await fixtureServer.response(for: url)
 }
 
-let sut: any DataLoader = stub()
-let result = try await sut.fetch(url: "https://example.com")
+let loader: any DataLoader = stub()
+_ = try await loader.load(url: "/users")
 
-await stub.verify { try await $0.fetch(url: any()) }.wasCalled()
+await stub.verify { try await $0.load(url: equal("/users")) }
 ```
 
-Suspending handlers run on the caller's existing task. Task-local values,
-cancellation, priority, and actor isolation therefore flow into the handler.
-Both `then` and `thenAsync` accept `[Any]` handlers or typed handlers of
-arbitrary arity.
+## Construct without a linked conformer
 
-## Tips and Tricks
-
-### Stub every requirement the SUT can call
-
-RuntimeStub dispatches every protocol method, including getters.
-If production code calls a requirement you did not configure, the test fails
-with "No stub configured". Stub everything the SUT will call to make the test
-intention explicit:
+Pass typed requirements in declaration order when the test process does not
+contain a concrete conformance:
 
 ```swift
-stub.when { $0.count }.returns(0)       // even if the SUT doesn't use it
-stub.when { $0.isAvailable }.returns(true)
+let stub = try Stub<any PrototypeCalculator>(
+    .method(Int.self, Int.self, returning: Int.self),
+    .method(Int.self, returning: String.self),
+    .getter(Int.self)
+)
 ```
 
-### Use `any()` as the default, narrow later
-
-Start with `any()` for all arguments, then add specific matchers only when they're load-bearing for the test:
+Mark throwing and async requirements explicitly:
 
 ```swift
-// First pass — just make it work
-stub.when { $0.search(query: any(), limit: any()) }.returns([])
-
-// Second pass — the query matters for this test
-stub.when { $0.search(query: equal("alice"), limit: any()) }.returns(["Alice"])
+let stub = try Stub<any DataLoader>(
+    .method(
+        URL.self,
+        returning: Data.self,
+        isThrowing: true,
+        isAsync: true
+    )
+)
 ```
 
-### Avoid `stub()` inside `when` closures
-
-Each call to `stub()` allocates a temporary existential container. Call it once and keep the result:
-
-```swift
-// Good
-let sut: any UserRepository = stub()
-_ = sut.find(id: 1)
-_ = sut.find(id: 2)
-
-// Wasteful
-_ = stub().find(id: 1)
-_ = stub().find(id: 2)
-```
-
-### Keep the stub alive
-
-The stub must outlive the system under test. In XCTest, declare it as an instance variable. In Swift Testing, keep it in local scope through the whole test function.
-
-```swift
-// Works — stub is kept alive for the duration of the function
-@Test func myTest() {
-    let stub = RuntimeStub<any MyService>()
-    stub.when { $0.greet() }.returns("hi")
-    let sut = MyController(service: stub())
-    sut.doWork()
-    stub.verify { $0.greet() }.wasCalled()
-}
-
-// Danger — stub may be released before the test completes
-@Test func dangerousTest() {
-    let sut = MyController(service: RuntimeStub<any MyService>()())
-    //                                ^^ temporary — immediately released
-}
-```
-
-### Diagnose RuntimeStub failures
-
-If `RuntimeStub()` fatal-errors, call `diagnose()` before creating the stub to get a human-readable explanation:
-
-```swift
-let d = RuntimeStub<any MyProtocol>.diagnose()
-print(d.notes)
-// e.g. "No existing conformer was found. Use makeFromModule(), explicit
-//       Slot/MethodDescriptor values, or link a conformer for zero-config discovery."
-```
-
-### Domain-specific predicates
-
-Use `any(where:)` to build reusable domain-specific predicates:
-
-```swift
-func hasPrefix(_ prefix: String) -> String {
-    any(where: { value in
-        value.hasPrefix(prefix)
-    })
-}
-
-stub.when { $0.find(name: hasPrefix("A")) }.returns("starts with A")
-```
-
-Use ``ParameterMatcher`` only when extending the library itself or adding a
-public matcher helper that appends to the matcher context.
-
-```swift
-struct NonEmptyMatcher: ParameterMatcher {
-    func matches(value: Any) -> Bool {
-        (value as? String)?.isEmpty == false
-    }
-    var specificity: Int { 1 }
-}
-```
-
-### Verify call order
-
-Use `verifyOrder` to assert that methods were called in a specific sequence:
-
-```swift
-stub.verifyOrder {
-    $0.load()
-    $0.process(data: any())
-    $0.save()
-}
-```
-
-This checks that each call appears *after* the previous one in the call log, without requiring them to be adjacent.
-
-## Next Steps
-
-- <doc:RuntimeStub> — construction options, supported calls, and limitations
-- <doc:TrampolineArchitecture> — how fabricated witnesses are dispatched
+Construction throws ``StubError`` for an unsupported protocol or requirement
+shape. See <doc:StubGuide> for the supported contract and limitations.

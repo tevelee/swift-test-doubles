@@ -18,16 +18,25 @@ arch -x86_64 swift test \
   --triple x86_64-apple-macosx \
   --disable-xctest \
   --enable-swift-testing \
-  --filter 'RuntimeABITests|RuntimeStubBuilderTests'
+  --filter 'RuntimeABITests|StubBuilderTests|PublicAPITests'
 ```
 
 `RuntimeABITests` covers register and stack arguments, throwing calls, direct
 aggregates, async continuations, and indirect results. Add focused coverage when
 changing a supported ABI shape.
 
+When changing public declarations, update [PUBLIC_API.md](PUBLIC_API.md) and
+compare it with a public symbol graph:
+
+```bash
+xcrun swift package dump-symbol-graph \
+  --minimum-access-level public \
+  --skip-synthesized-members
+```
+
 ## Runtime trampoline
 
-`RuntimeStub` uses shared synchronous and asynchronous assembly capture entries
+`Stub` uses shared synchronous and asynchronous assembly capture entries
 per architecture plus tiny per-slot branch veneers. The Swift handler in
 `TrampolineHandler.swift` owns argument decoding, recorder dispatch, and return
 encoding. Read the
