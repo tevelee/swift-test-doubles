@@ -18,12 +18,20 @@ arch -x86_64 swift test \
   --triple x86_64-apple-macosx \
   --disable-xctest \
   --enable-swift-testing \
-  --filter 'RuntimeABITests|StubBuilderTests|PublicAPITests'
+  --filter 'RuntimeABITests|ConcurrencyTests|StubBuilderTests|PublicAPITests'
 ```
 
 `RuntimeABITests` covers register and stack arguments, throwing calls, direct
 aggregates, async continuations, and indirect results. Add focused coverage when
 changing a supported ABI shape.
+
+Runtime and concurrency changes should also pass the supported sanitizers. Use
+separate scratch paths so instrumented build products do not mix:
+
+```bash
+swift test --sanitize thread --scratch-path .build/tsan
+swift test --sanitize address --scratch-path .build/asan
+```
 
 When changing public declarations, update [PUBLIC_API.md](PUBLIC_API.md) and
 compare it with a public symbol graph:
@@ -56,8 +64,10 @@ handler closures remain responsible for their own captured mutable state.
 
 ## Current release boundaries
 
-- macOS arm64 and Rosetta x86_64 are the exercised runtime environments.
-- iOS and Linux are not release-supported until real runtime CI exists.
+- macOS 13+ is the initial release-supported platform, exercised on arm64 and
+  Rosetta x86_64.
+- iOS 16 remains declared for experimental builds, and iOS and Linux are not
+  release-supported until real runtime CI exists.
 - Closure requirements need compiler-generated reabstraction and are rejected;
   use a hand-written test double for such protocols.
 - x86_64 construction rejects async signatures that consume all six

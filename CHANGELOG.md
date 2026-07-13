@@ -40,6 +40,12 @@ The project has not published its first tagged release yet.
 - The unsupported x86_64 six-register async continuation boundary now fails
   during construction.
 - Captors commit values only after every matcher in an invocation succeeds.
+- Async dispatch preserves task-local state, cancellation, priority, handler
+  actor isolation (including when the actor uses a custom serial executor), and
+  actor-isolated caller executor resumption.
+- The initial release support boundary is macOS 13+ on arm64 and Rosetta
+  x86_64; iOS 16 remains declared for experimental builds, and iOS and Linux
+  remain outside release support until runtime CI covers them.
 
 ### Removed
 

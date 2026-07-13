@@ -47,8 +47,10 @@ For a synchronous call, the trampoline:
 For an async call, the entry trampoline preserves the caller continuation,
 creates a Swift task continuation around recorder dispatch, and resumes through
 an architecture-specific continuation trampoline. The configured handler runs
-on the caller's task, preserving task-local values, cancellation, priority, and
-executor context.
+as part of the invoking task, preserving task-local values, cancellation, and
+priority. The handler closure's own actor isolation is respected, including
+when its actor uses a custom serial executor, and an isolated caller resumes on
+its executor after the requirement returns.
 
 ## Ownership and concurrency
 
@@ -68,5 +70,7 @@ requirements because safe closure reabstraction needs compiler-emitted code.
 
 On x86_64, preparation rejects async signatures that consume all six
 general-purpose argument registers; the continuation boundary remains supported
-on arm64. Custom-executor validation is tracked in the roadmap's next
-runtime-hardening phase.
+on arm64. Custom-executor tests cover handler isolation and caller resumption.
+The supported release boundary is macOS 13+ on arm64 and Rosetta x86_64; iOS
+16 remains an experimental manifest destination, and iOS and Linux require real
+runtime execution coverage before becoming supported.

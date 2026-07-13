@@ -92,7 +92,8 @@ stub.verify(.exactly(2)) { $0.find(id: ids.capture()) }
 ## Stub async requirements
 
 Async and async-throwing requirements keep the same vocabulary. An async
-`then` handler may genuinely suspend on the caller's task.
+`then` handler may genuinely suspend as part of the invoking task while
+respecting its own actor isolation.
 
 ```swift
 let stub = try Stub<any DataLoader>()

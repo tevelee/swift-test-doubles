@@ -359,13 +359,16 @@ protocol ExtendedAsyncABIProbe: Sendable {
         #expect(existential is SecondABIExistentialValue)
     }
 
-    @Test func asyncHandlerPreservesTaskLocalValues() async throws {
+    @Test func asyncHandlerPreservesTaskContext() async throws {
         let stub = try Stub<any AsyncABIProbe>()
+        let expectedPriority = Task.currentPriority
         await stub.when { await $0.integer(any()) }.then {
             (value: Int) async throws -> Int in
             #expect(StubTaskValues.marker == "caller")
+            #expect(Task.currentPriority == expectedPriority)
             await Task.yield()
             #expect(StubTaskValues.marker == "caller")
+            #expect(Task.currentPriority == expectedPriority)
             return value
         }
 
@@ -387,26 +390,6 @@ protocol ExtendedAsyncABIProbe: Sendable {
         }
 
         #expect(await stub().integer(42) == 42)
-    }
-
-    @Test func concurrentAsyncCallsAreRecorded() async throws {
-        let stub = try Stub<any AsyncABIProbe>()
-        await stub.when { await $0.integer(any()) }.then {
-            (value: Int) async throws -> Int in
-            await Task.yield()
-            return value
-        }
-
-        await withTaskGroup(of: Int.self) { group in
-            for value in 0..<100 {
-                group.addTask { await stub().integer(value) }
-            }
-            var results: [Int] = []
-            for await result in group { results.append(result) }
-            #expect(results.sorted() == Array(0..<100))
-        }
-
-        await stub.verify(.exactly(100)) { await $0.integer(any()) }
     }
 }
 

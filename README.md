@@ -48,8 +48,10 @@ targets: [
 ]
 ```
 
-TestDoubles requires Swift 6.1. The runtime is exercised on macOS arm64 and
-under Rosetta on x86_64. iOS and Linux are not release-supported yet.
+TestDoubles requires Swift 6.1. The initial release supports macOS 13 and later,
+exercised natively on arm64 and under Rosetta on x86_64. The manifest retains an
+iOS 16 minimum for experimental builds, but iOS and Linux are not
+release-supported yet.
 
 ## Common patterns
 
@@ -67,9 +69,11 @@ stub.when { try $0.read(path: any()) }.then { (path: String) throws in
 }
 ```
 
-Async requirements use the same vocabulary. Suspending handlers run on the
-caller's task, preserving task-local values, cancellation, priority, and actor
-execution:
+Async requirements use the same vocabulary. Suspending handlers run as part of
+the invoking task, preserving task-local values, cancellation, and priority.
+A handler's actor isolation is honored, including when its actor uses a custom
+serial executor, and an actor-isolated caller resumes on its executor after the
+requirement returns:
 
 ```swift
 let stub = try Stub<any DataLoader>()

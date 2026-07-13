@@ -69,7 +69,7 @@ and one `then` family, then inspected with `verify`.
 
 ## Iteration 3 — Harden the supported contract
 
-**Status:** In progress — Phase 3A construction hardening complete
+**Status:** Complete
 
 - **Objective:** Turn the runtime behavior into an explicit, enforceable product
   contract.
@@ -82,12 +82,13 @@ and one `then` family, then inspected with `verify`.
 - **Out of scope:** Platforms without repeatable runtime CI.
 - **Required checks:** arm64 debug/release tests, Rosetta tests, concurrency
   stress tests, custom-executor tests, and sanitizer checks where supported.
-- **Integration notes:** Construction now resolves automatic signatures into
+- **Integration notes:** Construction resolves automatic signatures into
   concrete metadata, checks every reliably discoverable component of explicit
   signatures against linked conformances, and rejects the x86_64 six-register
-  async boundary. Next, add
-  custom `SerialExecutor` coverage and support, then declare macOS as the initial
-  supported platform. Add iOS or Linux only after real runtime execution coverage.
+  async boundary. Custom `SerialExecutor` tests cover handler isolation and
+  caller resumption, while concurrent sync/async stress tests run under Thread
+  and Address Sanitizers. macOS 13+ is the initial supported platform; iOS and
+  Linux remain deferred until real runtime execution coverage exists.
 - **Done criteria:** The supported signature/platform matrix is tested, checked
   during construction, and documented from the same source of truth where
   practical.

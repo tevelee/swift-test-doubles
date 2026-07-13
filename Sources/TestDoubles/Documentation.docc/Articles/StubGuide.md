@@ -53,7 +53,9 @@ stub.when { $0.reset() }
 
 Handlers accept arbitrary arity through Swift parameter packs. Async handlers
 may suspend; they execute as part of the caller's task rather than a detached
-task.
+task. A handler closure's actor isolation is respected, including when its actor
+uses a custom serial executor, and an isolated caller resumes on its executor
+after the requirement returns.
 
 If multiple registrations match, explicit equality has higher specificity than
 a literal, a literal outranks a predicate, and a predicate outranks `any()` or
@@ -107,6 +109,9 @@ do not each need a separate stubbing API.
 - On x86_64, construction rejects async requirements whose arguments and
   indirect result consume all six general-purpose argument registers. That
   continuation boundary is supported on arm64.
+- The initial release supports macOS 13+ on arm64 and Rosetta x86_64. iOS and
+  Linux remain experimental until runtime execution CI covers them; the
+  manifest's iOS 16 minimum is not a release-support claim.
 - Only protocol witness calls can be intercepted. Concrete/final methods and
   devirtualized calls are outside the library's scope.
 - Configure a stub serially before invoking it concurrently.
