@@ -1,111 +1,26 @@
 # Public API snapshot
 
-This is the intentional source-level API for the first TestDoubles release.
-It is a compact, human-reviewed projection of the public Swift symbol graph;
-runtime implementation types are deliberately absent.
+[`PUBLIC_API.snapshot`](PUBLIC_API.snapshot) is the authoritative source-level
+API for the first TestDoubles release. It is a canonical, readable projection
+of the public Swift symbol graph: declarations, conformances, constraints, and
+explicit availability are sorted so CI produces a focused diff.
 
-```swift
-public final class Stub<P>: @unchecked Sendable {
-    public convenience init(_ requirements: Requirement...) throws
-    public func callAsFunction() -> P
+Runtime implementation types are deliberately absent. The supported behavior
+behind these declarations is documented in [README.md](README.md) and the
+[Stub Contract](Sources/TestDoubles/Documentation.docc/Articles/StubContract.md).
 
-    public struct Requirement: Sendable {
-        public static func method<each Argument, Result>(
-            _ arguments: repeat (each Argument).Type,
-            returning result: Result.Type,
-            isThrowing: Bool = false,
-            isAsync: Bool = false
-        ) -> Self
-
-        public static func getter<Value>(
-            _ value: Value.Type,
-            isThrowing: Bool = false,
-            isAsync: Bool = false
-        ) -> Self
-    }
-
-    public enum CallCount: Sendable {
-        case atLeastOnce
-        case exactly(Int)
-        case never
-    }
-
-    public func when<Result>(_ call: (P) throws -> Result) -> StubBuilder<Result>
-    public func when<Result>(
-        _ call: (P) async throws -> Result,
-        isolation: isolated (any Actor)? = #isolation
-    ) async -> StubBuilder<Result>
-
-    public func verify<Result>(
-        _ expectedCount: CallCount = .atLeastOnce,
-        _ call: (P) throws -> Result
-    )
-    public func verify<Result>(
-        _ expectedCount: CallCount = .atLeastOnce,
-        _ call: (P) async throws -> Result,
-        isolation: isolated (any Actor)? = #isolation
-    ) async
-}
-
-public struct StubBuilder<Result> {
-    public func returns(_ value: Result)
-    public func then<each Argument>(
-        _ handler: @escaping (repeat each Argument) throws -> Result
-    )
-    public func then<each Argument>(
-        _ handler: @escaping (repeat each Argument) async throws -> Result
-    )
-}
-
-public func any<T>() -> T
-public func equal<T: Equatable>(_ value: T) -> T
-public func matching<T>(
-    description: String = "predicate",
-    where predicate: @escaping (T) -> Bool
-) -> T
-
-public final class ArgumentCaptor<T> {
-    public init()
-    public var values: [T] { get }
-    public var first: T? { get }
-    public var last: T? { get }
-    public func capture() -> T
-    public func reset()
-}
-
-public enum StubError: Error, Sendable, CustomStringConvertible {
-    case typeIsNotProtocol(typeDescription: String)
-    case unsupportedProtocolComposition(typeDescription: String)
-    case unsupportedProtocolShape(protocolName: String, reason: String)
-    case noConformanceFound(protocolName: String)
-    case requirementCountMismatch(
-        protocolName: String,
-        expected: Int,
-        actual: Int
-    )
-    case requirementMismatch(
-        protocolName: String,
-        requirementIndex: Int,
-        expected: String,
-        actual: String
-    )
-    case signatureDiscoveryFailed(
-        protocolName: String,
-        requirementIndex: Int,
-        details: String
-    )
-    case trampolineAllocationFailed(requirementIndex: Int)
-    case unsupportedTypeKind(typeName: String)
-
-    public var description: String { get }
-}
-```
-
-The snapshot is updated only when a public API change is intentional. Before a
-release, compare it with:
+Check the snapshot with:
 
 ```sh
-xcrun swift package dump-symbol-graph \
-  --minimum-access-level public \
-  --skip-synthesized-members
+Scripts/check-public-api.sh
 ```
+
+When a public API change is intentional, review its generated diff and update
+the snapshot with:
+
+```sh
+Scripts/check-public-api.sh --update
+```
+
+The minimum Swift toolchain CI lane is the final check that the projection is
+stable at the supported compiler boundary.

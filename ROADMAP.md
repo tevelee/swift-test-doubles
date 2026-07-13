@@ -2,8 +2,8 @@
 
 This roadmap turns TestDoubles into a small, production-oriented package built
 around one implementation: a runtime protocol stub backed by a trampoline. The
-release target is an honest macOS-first `0.1.0`, with a narrow documented API,
-explicitly tested ABI coverage, and no compiler-at-test-time or duplicate
+release target is an honest Apple-platform `0.1.0`, with a narrow documented
+API, explicitly tested ABI coverage, and no compiler-at-test-time or duplicate
 manual-stub systems.
 
 ## North star
@@ -89,8 +89,9 @@ and one `then` family, then inspected with `verify`.
   caller resumption, while concurrent sync/async stress tests run under Thread
   and Address Sanitizers. The finalized CI-backed runtime boundary covers
   macOS 13+, Mac Catalyst 16+, arm64 Simulators for iOS 16+, tvOS 16+,
-  visionOS 1+, and watchOS 9+, and Ubuntu 24.04, with real runtime execution on
-  arm64 and x86_64 where those architectures are available.
+  visionOS 1+, and watchOS 9+, with real runtime execution on arm64 and macOS
+  x86_64. Linux was investigated on both architectures and excluded because an
+  Echo/Swift Atomics dependency conflict fails before TestDoubles compiles.
 - **Done criteria:** The supported signature/platform matrix is tested, checked
   during construction, and documented from the same source of truth where
   practical.
@@ -126,7 +127,7 @@ and one `then` family, then inspected with `verify`.
 
 ## Iteration 5 — Release engineering
 
-**Status:** In progress — Phase 5A release gates and policies complete
+**Status:** In progress — Phase 5A complete; Phase 5B automation complete
 
 - **Objective:** Make a clean consumer checkout safe to adopt and maintain.
 - **Mode:** Release preparation.
@@ -142,11 +143,15 @@ and one `then` family, then inspected with `verify`.
   write the changelog from the actual first tag boundary, publish support and
   security expectations, and tag `0.1.0` only after the release checklist is
   reproducible. Phase 5A adds minimum/current Swift CI on arm64, real Rosetta
-  x86_64 execution, all supported Apple Simulator and Linux runtime jobs, DocC
-  and link gates, a separate consumer package for every motivating example,
-  and support/security policies. Phase 5B should automate the public API
-  snapshot, finalize dependency pins, write the release checklist, and enable
-  GitHub private vulnerability reporting before the repository becomes public.
+  x86_64 execution, all supported Apple Simulator runtime jobs, DocC and link
+  gates, a separate consumer package for every motivating example, and
+  support/security policies. Linux arm64 and x86_64 investigation found the
+  same upstream dependency compile failure, so it is documented rather than
+  claimed; a separate manual workflow tests the candidate upstream fix on both
+  architectures. Phase 5B adds dependency caching, canonical public-API
+  snapshot enforcement, and a reproducible local/CI/tagging release checklist.
+  A compatible tagged Echo release and GitHub private vulnerability reporting
+  remain release blockers.
 - **Done criteria:** A fresh consumer can add the tagged package, compile every
   documented example, run the supported test matrix, and understand the support
   policy without repository-specific knowledge.

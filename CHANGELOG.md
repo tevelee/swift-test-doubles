@@ -48,11 +48,14 @@ The project has not published its first tagged release yet.
 - Async dispatch preserves task-local state, cancellation, priority, handler
   actor isolation (including when the actor uses a custom serial executor), and
   actor-isolated caller executor resumption.
-- The CI-backed release boundary covers macOS 13+, Mac Catalyst 16+, arm64
-  Simulators for iOS 16+, tvOS 16+, visionOS 1+, and watchOS 9+, and Ubuntu
-  24.04 with Swift 6.1, with runtime execution on arm64 and x86_64 where
-  available. Swift 6.2 and later on Linux remain blocked by Echo's Swift
-  Atomics 0.0.x dependency.
+- The CI-backed release boundary covers macOS 13+, Mac Catalyst 16+, and arm64
+  Simulators for iOS 16+, tvOS 16+, visionOS 1+, and watchOS 9+, with runtime
+  execution on arm64 and macOS x86_64. Linux is outside the `0.1.0` support
+  boundary.
+- Public API changes are enforced by a canonical, checked-in symbol-graph
+  snapshot.
+- The reproducible release checklist validates dependency resolution, public
+  API, documentation, debug/release builds, and an external consumer.
 - The README and Getting Started guide now showcase the same task-oriented
   matching, capture, async, stateful-response, and explicit-construction
   scenarios.

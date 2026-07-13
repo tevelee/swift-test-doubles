@@ -4,21 +4,16 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 build_path="${SWIFT_TEST_DOUBLES_DOCUMENTATION_BUILD_PATH:-$root/.build/documentation-validation}"
-raw_symbols="$build_path/symbols-raw"
+symbol_build_path="${SWIFT_TEST_DOUBLES_SYMBOL_GRAPH_BUILD_PATH:-$root/.build/symbol-graph-validation}"
+raw_symbols="$symbol_build_path/symbols"
 symbols="$build_path/symbols"
 
 cd "$root"
-rm -rf "$raw_symbols" "$symbols" "$build_path/docc"
-mkdir -p "$raw_symbols" "$symbols"
+rm -rf "$symbols" "$build_path/docc"
+mkdir -p "$symbols"
 
-swift package --scratch-path "$build_path/package" clean
-
-swift build \
-    --target TestDoubles \
-    --scratch-path "$build_path/package" \
-    -Xswiftc -emit-symbol-graph \
-    -Xswiftc -emit-symbol-graph-dir \
-    -Xswiftc "$raw_symbols"
+SWIFT_TEST_DOUBLES_SYMBOL_GRAPH_BUILD_PATH="$symbol_build_path" \
+    Scripts/generate-symbol-graph.sh
 
 cp \
     "$raw_symbols/TestDoubles.symbols.json" \

@@ -46,15 +46,18 @@ the exported product exactly as a consumer sees it:
 swift test --package-path IntegrationTests/Consumer
 ```
 
-When changing public declarations, update [PUBLIC_API.md](PUBLIC_API.md), build
-a `TestDoubles.symbols.json`, and run DocC analysis with warnings as errors:
+When changing public declarations, review and regenerate the canonical
+symbol-graph projection described in [PUBLIC_API.md](PUBLIC_API.md), and run
+DocC analysis with warnings as errors:
 
 ```bash
+Scripts/check-public-api.sh --update
 Scripts/validate-documentation.sh
 ```
 
-The same command validates repository-local documentation links and runs in
-[ci.yml](.github/workflows/ci.yml).
+CI runs the API check without `--update`, so an unreviewed public change fails
+with a readable diff. Documentation validation also checks repository-local
+links.
 
 ## Runtime trampoline
 
@@ -77,4 +80,5 @@ handler closures remain responsible for their own captured mutable state.
 - Run all checks relevant to the changed runtime paths.
 
 See [SUPPORT.md](SUPPORT.md) for the release boundary and
-[ROADMAP.md](ROADMAP.md) for the work required before `0.1.0`.
+[ROADMAP.md](ROADMAP.md) for the work required before `0.1.0`. Maintainers use
+[RELEASING.md](RELEASING.md) for the reproducible release sequence.

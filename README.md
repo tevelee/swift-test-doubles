@@ -50,10 +50,9 @@ targets: [
 ]
 ```
 
-TestDoubles requires Swift 6.1 and supports macOS 13+, Mac Catalyst 16+, arm64
-Simulators for iOS 16+, tvOS 16+, visionOS 1+, and watchOS 9+, and Swift 6.1 on
-Ubuntu 24.04 arm64 and x86_64. See [SUPPORT.md](SUPPORT.md) for the authoritative
-release boundary.
+TestDoubles requires Swift 6.1 and supports macOS 13+, Mac Catalyst 16+, and
+arm64 Simulators for iOS 16+, tvOS 16+, visionOS 1+, and watchOS 9+. See
+[SUPPORT.md](SUPPORT.md) for the authoritative release boundary.
 
 ## Common patterns
 
@@ -262,6 +261,7 @@ to the trampoline.
 - [Trampoline Architecture](Sources/TestDoubles/Documentation.docc/Articles/TrampolineArchitecture.md)
 - [Migration from the pre-0.1 API](MIGRATION.md)
 - [Roadmap to 0.1.0](ROADMAP.md)
+- [Release checklist](RELEASING.md)
 
 ## Contributing
 
