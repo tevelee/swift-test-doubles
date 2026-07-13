@@ -30,11 +30,11 @@ ABI.
 
 Linux is currently unsupported because Echo's Swift Atomics 0.0.x dependency
 conflicts with the standard-library `Synchronization` module before
-TestDoubles itself compiles. A manual compatibility workflow patches that
-dependency checkout and passes TestDoubles' debug, release, and external-
-consumer suites on Linux arm64 and x86_64 with the minimum Swift 6.1
-toolchain. That patch is not part of the resolved package graph, so no Linux
-release claim is made until Echo publishes a compatible release.
+TestDoubles itself compiles. The main CI matrix includes a compatibility job
+that patches that dependency checkout and passes TestDoubles' debug, release,
+and external-consumer suites on Linux arm64 and x86_64 with the minimum Swift
+6.1 toolchain. That patch is not part of the resolved package graph, so no
+Linux release claim is made until Echo publishes a compatible release.
 
 ## Getting help
 

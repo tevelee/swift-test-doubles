@@ -148,7 +148,7 @@ and one `then` family, then inspected with `verify`.
   gates, a separate consumer package for every motivating example, and
   support/security policies. Linux arm64 and x86_64 investigation found the
   same upstream dependency compile failure, so it is documented rather than
-  claimed; a separate manual workflow tests the candidate upstream fix on both
+  claimed; the main CI matrix tests the candidate upstream fix on both
   architectures through the full runtime and consumer suites. Phase 5B adds
   dependency caching, canonical public-API snapshot enforcement, and a
   reproducible local/CI/tagging release checklist.
