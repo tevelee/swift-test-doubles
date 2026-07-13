@@ -238,6 +238,32 @@ protocol AsyncClosureABIProbe: Sendable {
         #expect(sut.sum(1, 2, 3, 4, 5, 6, 7, 8, 9, 10) == 55)
     }
 
+    @Test func typedHandlersSupportArityBeyondPreviousLimit() {
+        let stub = RuntimeStub<any StackArgumentABIProbe>()
+        stub.when {
+            $0.sum(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+        }.then {
+            (a0: Int, a1: Int, a2: Int, a3: Int, a4: Int,
+             a5: Int, a6: Int, a7: Int, a8: Int, a9: Int) in
+            [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9].reduce(0, +)
+        }
+
+        let sut: any StackArgumentABIProbe = stub()
+        let result = sut.sum(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+        var captured: [Int] = []
+
+        stub.verify {
+            $0.sum(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+        }.withArgs {
+            (a0: Int, a1: Int, a2: Int, a3: Int, a4: Int,
+             a5: Int, a6: Int, a7: Int, a8: Int, a9: Int) in
+            captured = [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9]
+        }
+
+        #expect(result == 55)
+        #expect(captured == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    }
+
     @Test func customValueAndReferenceArgumentsDecode() throws {
         let stub = RuntimeStub<any CustomArgumentABIProbe>()
         let slot = try methodSlot(containing: "describe", in: stub)

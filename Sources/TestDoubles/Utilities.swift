@@ -25,3 +25,37 @@ func typedArgument<T>(
     }
     return value
 }
+
+/// Invokes a synchronous typed handler with arguments decoded from type-erased storage.
+func invokeTypedHandler<each Argument, Result>(
+    _ handler: (repeat each Argument) throws -> Result,
+    with args: [Any],
+    method: String,
+    context: String = "Typed argument handler"
+) rethrows -> Result {
+    var index = 0
+
+    func nextArgument<T>(_ type: T.Type) -> T {
+        defer { index += 1 }
+        return typedArgument(type, from: args, at: index, method: method, context: context)
+    }
+
+    return try handler(repeat nextArgument((each Argument).self))
+}
+
+/// Invokes an asynchronous typed handler with arguments decoded from type-erased storage.
+func invokeTypedHandler<each Argument, Result>(
+    _ handler: (repeat each Argument) async throws -> Result,
+    with args: [Any],
+    method: String,
+    context: String = "Typed argument handler"
+) async rethrows -> Result {
+    var index = 0
+
+    func nextArgument<T>(_ type: T.Type) -> T {
+        defer { index += 1 }
+        return typedArgument(type, from: args, at: index, method: method, context: context)
+    }
+
+    return try await handler(repeat nextArgument((each Argument).self))
+}

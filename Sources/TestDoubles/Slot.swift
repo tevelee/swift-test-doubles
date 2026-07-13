@@ -121,109 +121,50 @@ public struct Slot {
 
     // MARK: - From method references (type-safe metadata names)
 
-    /// Create a slot from a no-arg method reference.
-    public static func from<R>(_ ref: () -> R) -> Slot {
-        method(returns: R.self)
+    /// Creates a slot from a synchronous method reference.
+    public static func from<each Argument, R>(
+        _ reference: (repeat each Argument) -> R
+    ) -> Slot {
+        method(args: argumentTypes(repeat (each Argument).self), returns: R.self)
     }
 
-    /// Create a slot from a no-arg throwing method reference.
-    public static func from<R>(_ ref: () throws -> R) -> Slot {
-        method(returns: R.self, throws: true)
+    /// Creates a slot from a throwing method reference.
+    public static func from<each Argument, R>(
+        _ reference: (repeat each Argument) throws -> R
+    ) -> Slot {
+        method(
+            args: argumentTypes(repeat (each Argument).self),
+            returns: R.self,
+            throws: true
+        )
     }
 
-    /// Create a slot from a no-arg async method reference.
-    public static func from<R>(_ ref: () async -> R) -> Slot {
-        method(returns: R.self, async: true)
+    /// Creates a slot from an asynchronous method reference.
+    public static func from<each Argument, R>(
+        _ reference: (repeat each Argument) async -> R
+    ) -> Slot {
+        method(
+            args: argumentTypes(repeat (each Argument).self),
+            returns: R.self,
+            async: true
+        )
     }
 
-    /// Create a slot from a no-arg async throwing method reference.
-    public static func from<R>(_ ref: () async throws -> R) -> Slot {
-        method(returns: R.self, throws: true, async: true)
+    /// Creates a slot from an asynchronous throwing method reference.
+    public static func from<each Argument, R>(
+        _ reference: (repeat each Argument) async throws -> R
+    ) -> Slot {
+        method(
+            args: argumentTypes(repeat (each Argument).self),
+            returns: R.self,
+            throws: true,
+            async: true
+        )
     }
 
     /// Create a slot from a getter value (e.g. `sut.count` which is `Int`).
     public static func getter<R>(_ ref: R) -> Slot {
         method(returns: R.self)
-    }
-
-    /// Create a slot from a 1-arg method reference.
-    public static func from<A, R>(_ ref: (A) -> R) -> Slot {
-        method(args: [A.self], returns: R.self)
-    }
-
-    /// Create a slot from a 1-arg throwing method reference.
-    public static func from<A, R>(_ ref: (A) throws -> R) -> Slot {
-        method(args: [A.self], returns: R.self, throws: true)
-    }
-
-    /// Create a slot from a 1-arg async method reference.
-    public static func from<A, R>(_ ref: (A) async -> R) -> Slot {
-        method(args: [A.self], returns: R.self, async: true)
-    }
-
-    /// Create a slot from a 1-arg async throwing method reference.
-    public static func from<A, R>(_ ref: (A) async throws -> R) -> Slot {
-        method(args: [A.self], returns: R.self, throws: true, async: true)
-    }
-
-    /// Create a slot from a 2-arg method reference.
-    public static func from<A, B, R>(_ ref: (A, B) -> R) -> Slot {
-        method(args: [A.self, B.self], returns: R.self)
-    }
-
-    /// Create a slot from a 2-arg throwing method reference.
-    public static func from<A, B, R>(_ ref: (A, B) throws -> R) -> Slot {
-        method(args: [A.self, B.self], returns: R.self, throws: true)
-    }
-
-    /// Create a slot from a 2-arg async method reference.
-    public static func from<A, B, R>(_ ref: (A, B) async -> R) -> Slot {
-        method(args: [A.self, B.self], returns: R.self, async: true)
-    }
-
-    /// Create a slot from a 2-arg async throwing method reference.
-    public static func from<A, B, R>(_ ref: (A, B) async throws -> R) -> Slot {
-        method(args: [A.self, B.self], returns: R.self, throws: true, async: true)
-    }
-
-    /// Create a slot from a 3-arg method reference.
-    public static func from<A, B, C, R>(_ ref: (A, B, C) -> R) -> Slot {
-        method(args: [A.self, B.self, C.self], returns: R.self)
-    }
-
-    /// Create a slot from a 3-arg throwing method reference.
-    public static func from<A, B, C, R>(_ ref: (A, B, C) throws -> R) -> Slot {
-        method(args: [A.self, B.self, C.self], returns: R.self, throws: true)
-    }
-
-    /// Create a slot from a 3-arg async method reference.
-    public static func from<A, B, C, R>(_ ref: (A, B, C) async -> R) -> Slot {
-        method(args: [A.self, B.self, C.self], returns: R.self, async: true)
-    }
-
-    /// Create a slot from a 3-arg async throwing method reference.
-    public static func from<A, B, C, R>(_ ref: (A, B, C) async throws -> R) -> Slot {
-        method(args: [A.self, B.self, C.self], returns: R.self, throws: true, async: true)
-    }
-
-    /// Create a slot from a void method reference (1 arg).
-    public static func from<A>(_ ref: (A) -> Void) -> Slot {
-        method(args: [A.self], returns: Void.self)
-    }
-
-    /// Create a slot from a no-arg void method reference.
-    public static func from(_ ref: () -> Void) -> Slot {
-        method(returns: Void.self)
-    }
-
-    /// Create a slot from a no-arg async void method reference.
-    public static func from(_ ref: () async -> Void) -> Slot {
-        method(returns: Void.self, async: true)
-    }
-
-    /// Create a slot from a 1-arg async void method reference.
-    public static func from<A>(_ ref: (A) async -> Void) -> Slot {
-        method(args: [A.self], returns: Void.self, async: true)
     }
 
     // MARK: - Type-based (existing API, kept for compatibility)
@@ -285,6 +226,17 @@ public struct Slot {
     /// A no-arg void method.
     public static var void: Slot {
         Slot(signature: .getter("Swift.Void"), argumentTypes: [], returnType: Void.self)
+    }
+
+    /// Returns the metatypes contained in an argument type pack.
+    private static func argumentTypes<each Argument>(
+        _ types: repeat (each Argument).Type
+    ) -> [Any.Type] {
+        var result: [Any.Type] = []
+        for type in repeat each types {
+            result.append(type)
+        }
+        return result
     }
 }
 

@@ -40,79 +40,16 @@ public struct StubBuilder<R> {
         addImmediateHandler { _ in try handler() }
     }
 
-    /// Typed one-argument handler.
+    /// Configures a typed handler that receives the stubbed method's arguments.
     /// ```swift
     /// stub.when { $0.find(id: any()) }.then { (id: Int) in "user_\(id)" }
     /// ```
     @discardableResult
-    public func then<A>(_ handler: @escaping (A) throws -> R) -> Self {
+    public func then<each Argument>(
+        _ handler: @escaping (repeat each Argument) throws -> R
+    ) -> Self {
         addImmediateHandler { args in
-            try handler(typedArgument(A.self, from: args, at: 0, method: recording.name))
-        }
-    }
-
-    /// Typed two-argument handler.
-    @discardableResult
-    public func then<A, B>(_ handler: @escaping (A, B) throws -> R) -> Self {
-        addImmediateHandler { args in
-            try handler(
-                typedArgument(A.self, from: args, at: 0, method: recording.name),
-                typedArgument(B.self, from: args, at: 1, method: recording.name)
-            )
-        }
-    }
-
-    /// Typed three-argument handler.
-    @discardableResult
-    public func then<A, B, C>(_ handler: @escaping (A, B, C) throws -> R) -> Self {
-        addImmediateHandler { args in
-            try handler(
-                typedArgument(A.self, from: args, at: 0, method: recording.name),
-                typedArgument(B.self, from: args, at: 1, method: recording.name),
-                typedArgument(C.self, from: args, at: 2, method: recording.name)
-            )
-        }
-    }
-
-    /// Typed four-argument handler.
-    @discardableResult
-    public func then<A, B, C, D>(_ handler: @escaping (A, B, C, D) throws -> R) -> Self {
-        addImmediateHandler { args in
-            try handler(
-                typedArgument(A.self, from: args, at: 0, method: recording.name),
-                typedArgument(B.self, from: args, at: 1, method: recording.name),
-                typedArgument(C.self, from: args, at: 2, method: recording.name),
-                typedArgument(D.self, from: args, at: 3, method: recording.name)
-            )
-        }
-    }
-
-    /// Typed five-argument handler.
-    @discardableResult
-    public func then<A, B, C, D, E>(_ handler: @escaping (A, B, C, D, E) throws -> R) -> Self {
-        addImmediateHandler { args in
-            try handler(
-                typedArgument(A.self, from: args, at: 0, method: recording.name),
-                typedArgument(B.self, from: args, at: 1, method: recording.name),
-                typedArgument(C.self, from: args, at: 2, method: recording.name),
-                typedArgument(D.self, from: args, at: 3, method: recording.name),
-                typedArgument(E.self, from: args, at: 4, method: recording.name)
-            )
-        }
-    }
-
-    /// Typed six-argument handler.
-    @discardableResult
-    public func then<A, B, C, D, E, F>(_ handler: @escaping (A, B, C, D, E, F) throws -> R) -> Self {
-        addImmediateHandler { args in
-            try handler(
-                typedArgument(A.self, from: args, at: 0, method: recording.name),
-                typedArgument(B.self, from: args, at: 1, method: recording.name),
-                typedArgument(C.self, from: args, at: 2, method: recording.name),
-                typedArgument(D.self, from: args, at: 3, method: recording.name),
-                typedArgument(E.self, from: args, at: 4, method: recording.name),
-                typedArgument(F.self, from: args, at: 5, method: recording.name)
-            )
+            try invokeTypedHandler(handler, with: args, method: recording.name)
         }
     }
 
@@ -136,76 +73,13 @@ public struct StubBuilder<R> {
         }
     }
 
-    /// Configures a typed one-argument handler that may suspend or throw.
+    /// Configures a typed handler that may suspend or throw.
     @discardableResult
-    public func then<A>(_ handler: @escaping (A) async throws -> R) -> Self {
+    public func then<each Argument>(
+        _ handler: @escaping (repeat each Argument) async throws -> R
+    ) -> Self {
         addSuspendingHandler { args in
-            try await handler(typedArgument(A.self, from: args, at: 0, method: recording.name))
-        }
-    }
-
-    /// Configures a typed two-argument handler that may suspend or throw.
-    @discardableResult
-    public func then<A, B>(_ handler: @escaping (A, B) async throws -> R) -> Self {
-        addSuspendingHandler { args in
-            try await handler(
-                typedArgument(A.self, from: args, at: 0, method: recording.name),
-                typedArgument(B.self, from: args, at: 1, method: recording.name)
-            )
-        }
-    }
-
-    /// Configures a typed three-argument handler that may suspend or throw.
-    @discardableResult
-    public func then<A, B, C>(_ handler: @escaping (A, B, C) async throws -> R) -> Self {
-        addSuspendingHandler { args in
-            try await handler(
-                typedArgument(A.self, from: args, at: 0, method: recording.name),
-                typedArgument(B.self, from: args, at: 1, method: recording.name),
-                typedArgument(C.self, from: args, at: 2, method: recording.name)
-            )
-        }
-    }
-
-    /// Configures a typed four-argument handler that may suspend or throw.
-    @discardableResult
-    public func then<A, B, C, D>(_ handler: @escaping (A, B, C, D) async throws -> R) -> Self {
-        addSuspendingHandler { args in
-            try await handler(
-                typedArgument(A.self, from: args, at: 0, method: recording.name),
-                typedArgument(B.self, from: args, at: 1, method: recording.name),
-                typedArgument(C.self, from: args, at: 2, method: recording.name),
-                typedArgument(D.self, from: args, at: 3, method: recording.name)
-            )
-        }
-    }
-
-    /// Configures a typed five-argument handler that may suspend or throw.
-    @discardableResult
-    public func then<A, B, C, D, E>(_ handler: @escaping (A, B, C, D, E) async throws -> R) -> Self {
-        addSuspendingHandler { args in
-            try await handler(
-                typedArgument(A.self, from: args, at: 0, method: recording.name),
-                typedArgument(B.self, from: args, at: 1, method: recording.name),
-                typedArgument(C.self, from: args, at: 2, method: recording.name),
-                typedArgument(D.self, from: args, at: 3, method: recording.name),
-                typedArgument(E.self, from: args, at: 4, method: recording.name)
-            )
-        }
-    }
-
-    /// Configures a typed six-argument handler that may suspend or throw.
-    @discardableResult
-    public func then<A, B, C, D, E, F>(_ handler: @escaping (A, B, C, D, E, F) async throws -> R) -> Self {
-        addSuspendingHandler { args in
-            try await handler(
-                typedArgument(A.self, from: args, at: 0, method: recording.name),
-                typedArgument(B.self, from: args, at: 1, method: recording.name),
-                typedArgument(C.self, from: args, at: 2, method: recording.name),
-                typedArgument(D.self, from: args, at: 3, method: recording.name),
-                typedArgument(E.self, from: args, at: 4, method: recording.name),
-                typedArgument(F.self, from: args, at: 5, method: recording.name)
-            )
+            try await invokeTypedHandler(handler, with: args, method: recording.name)
         }
     }
 
@@ -221,39 +95,11 @@ public struct StubBuilder<R> {
         then(handler)
     }
 
-    /// Configures a typed one-argument suspending handler.
+    /// Configures a typed suspending handler using an explicit async spelling.
     @discardableResult
-    public func thenAsync<A>(_ handler: @escaping (A) async throws -> R) -> Self {
-        then(handler)
-    }
-
-    /// Configures a typed two-argument suspending handler.
-    @discardableResult
-    public func thenAsync<A, B>(_ handler: @escaping (A, B) async throws -> R) -> Self {
-        then(handler)
-    }
-
-    /// Configures a typed three-argument suspending handler.
-    @discardableResult
-    public func thenAsync<A, B, C>(_ handler: @escaping (A, B, C) async throws -> R) -> Self {
-        then(handler)
-    }
-
-    /// Configures a typed four-argument suspending handler.
-    @discardableResult
-    public func thenAsync<A, B, C, D>(_ handler: @escaping (A, B, C, D) async throws -> R) -> Self {
-        then(handler)
-    }
-
-    /// Configures a typed five-argument suspending handler.
-    @discardableResult
-    public func thenAsync<A, B, C, D, E>(_ handler: @escaping (A, B, C, D, E) async throws -> R) -> Self {
-        then(handler)
-    }
-
-    /// Configures a typed six-argument suspending handler.
-    @discardableResult
-    public func thenAsync<A, B, C, D, E, F>(_ handler: @escaping (A, B, C, D, E, F) async throws -> R) -> Self {
+    public func thenAsync<each Argument>(
+        _ handler: @escaping (repeat each Argument) async throws -> R
+    ) -> Self {
         then(handler)
     }
 
@@ -316,69 +162,16 @@ public struct VerifyBuilder {
         try handler(matchingArguments())
     }
 
-    /// Inspects each matching call with one typed argument.
-    public func withArgs<A>(_ handler: (A) throws -> Void) rethrows {
+    /// Inspects each matching call with typed arguments.
+    public func withArgs<each Argument>(
+        _ handler: (repeat each Argument) throws -> Void
+    ) rethrows {
         for args in matchingArguments() {
-            try handler(typedArgument(A.self, from: args, at: 0, method: recording.name, context: "Typed withArgs handler"))
-        }
-    }
-
-    /// Inspects each matching call with two typed arguments.
-    public func withArgs<A, B>(_ handler: (A, B) throws -> Void) rethrows {
-        for args in matchingArguments() {
-            try handler(
-                typedArgument(A.self, from: args, at: 0, method: recording.name, context: "Typed withArgs handler"),
-                typedArgument(B.self, from: args, at: 1, method: recording.name, context: "Typed withArgs handler")
-            )
-        }
-    }
-
-    /// Inspects each matching call with three typed arguments.
-    public func withArgs<A, B, C>(_ handler: (A, B, C) throws -> Void) rethrows {
-        for args in matchingArguments() {
-            try handler(
-                typedArgument(A.self, from: args, at: 0, method: recording.name, context: "Typed withArgs handler"),
-                typedArgument(B.self, from: args, at: 1, method: recording.name, context: "Typed withArgs handler"),
-                typedArgument(C.self, from: args, at: 2, method: recording.name, context: "Typed withArgs handler")
-            )
-        }
-    }
-
-    /// Inspects each matching call with four typed arguments.
-    public func withArgs<A, B, C, D>(_ handler: (A, B, C, D) throws -> Void) rethrows {
-        for args in matchingArguments() {
-            try handler(
-                typedArgument(A.self, from: args, at: 0, method: recording.name, context: "Typed withArgs handler"),
-                typedArgument(B.self, from: args, at: 1, method: recording.name, context: "Typed withArgs handler"),
-                typedArgument(C.self, from: args, at: 2, method: recording.name, context: "Typed withArgs handler"),
-                typedArgument(D.self, from: args, at: 3, method: recording.name, context: "Typed withArgs handler")
-            )
-        }
-    }
-
-    /// Inspects each matching call with five typed arguments.
-    public func withArgs<A, B, C, D, E>(_ handler: (A, B, C, D, E) throws -> Void) rethrows {
-        for args in matchingArguments() {
-            try handler(
-                typedArgument(A.self, from: args, at: 0, method: recording.name, context: "Typed withArgs handler"),
-                typedArgument(B.self, from: args, at: 1, method: recording.name, context: "Typed withArgs handler"),
-                typedArgument(C.self, from: args, at: 2, method: recording.name, context: "Typed withArgs handler"),
-                typedArgument(D.self, from: args, at: 3, method: recording.name, context: "Typed withArgs handler"),
-                typedArgument(E.self, from: args, at: 4, method: recording.name, context: "Typed withArgs handler")
-            )
-        }
-    }
-
-    /// Inspects each matching call with six typed arguments.
-    public func withArgs<A, B, C, D, E, F>(_ handler: (A, B, C, D, E, F) throws -> Void) rethrows {
-        for args in matchingArguments() {
-            try handler(
-                typedArgument(A.self, from: args, at: 0, method: recording.name, context: "Typed withArgs handler"),
-                typedArgument(B.self, from: args, at: 1, method: recording.name, context: "Typed withArgs handler"),
-                typedArgument(C.self, from: args, at: 2, method: recording.name, context: "Typed withArgs handler"),
-                typedArgument(D.self, from: args, at: 3, method: recording.name, context: "Typed withArgs handler"),
-                typedArgument(E.self, from: args, at: 4, method: recording.name, context: "Typed withArgs handler"),
-                typedArgument(F.self, from: args, at: 5, method: recording.name, context: "Typed withArgs handler")
+            try invokeTypedHandler(
+                handler,
+                with: args,
+                method: recording.name,
+                context: "Typed withArgs handler"
             )
         }
     }

@@ -122,6 +122,39 @@ struct RuntimeStubBuilderTests {
 #endif
     }
 
+    @Test func typedThenAsyncSupportsArityBeyondPreviousLimit() async throws {
+        let arguments: [Any] = [1, 2, 3, 4, 5, 6, 7]
+        let recorder = StubRecorder()
+        recorder.setRuntimeMethod(
+            RuntimeMethodDescriptor(
+                MethodDescriptor(
+                    name: "call",
+                    signature: .init(
+                        args: Array(repeating: "Swift.Int", count: arguments.count),
+                        ret: "Swift.Int"
+                    ),
+                    index: 0,
+                    isAsync: true
+                )
+            ),
+            for: 0
+        )
+        let builder = StubBuilder<Int>(
+            recorder: recorder,
+            recording: RecordedCall(methodIndex: 0, name: "call", args: arguments, matchers: [])
+        )
+        builder.thenAsync {
+            (a: Int, b: Int, c: Int, d: Int, e: Int, f: Int, g: Int) in
+            await sumAfterYield([a, b, c, d, e, f, g])
+        }
+
+        let handler = try #require(recorder.prepareAsyncDispatch(method: 0, args: arguments))
+        let result = try await handler(arguments)
+        let typedResult = try #require(result as? Int)
+
+        #expect(typedResult == 28)
+    }
+
     @Test func asyncClosuresUseUnifiedThenSpelling() async throws {
         let stub = try RuntimeStub<any AsyncOneArgumentProbe>.make(
             .method(Int.self, returns: Int.self, async: true)
