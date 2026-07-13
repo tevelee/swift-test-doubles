@@ -17,6 +17,8 @@ The project has not published its first tagged release yet.
 - Explicit typed requirement construction when no real conformer is linked.
 - Typed handlers, equality/predicate/wildcard matchers, argument capture, and
   count verification.
+- Compiled public-API examples for matcher specificity, argument capture,
+  suspending async success and failure, and stateful responses.
 
 ### Changed
 
@@ -46,6 +48,9 @@ The project has not published its first tagged release yet.
 - The initial release support boundary is macOS 13+ on arm64 and Rosetta
   x86_64; iOS 16 remains declared for experimental builds, and iOS and Linux
   remain outside release support until runtime CI covers them.
+- The README and Getting Started guide now showcase the same task-oriented
+  matching, capture, async, stateful-response, and explicit-construction
+  scenarios.
 
 ### Removed
 

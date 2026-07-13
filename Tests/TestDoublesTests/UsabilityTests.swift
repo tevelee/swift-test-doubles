@@ -2,10 +2,6 @@ import Testing
 @testable import TestDoubles
 import TestDoublesFixtures
 
-private struct AsyncHandlerError: Error, Equatable {
-    let url: String
-}
-
 private actor SuspensionGate {
     private var started = false
     private var startWaiters: [CheckedContinuation<Void, Never>] = []
@@ -138,27 +134,6 @@ private protocol CompositionB {}
 
         await stub.verify { try await $0.load(url: any()) }
         await stub.verify(.exactly(1)) { await $0.prefetch(urls: any()) }
-    }
-
-    @Test func suspendingAsyncThrowingHandlerPropagatesValuesAndErrors() async throws {
-        let stub = try Stub<any AsyncDataLoader>()
-        await stub.when { try await $0.load(url: equal("success")) }.then {
-            () async throws -> String in
-            await Task.yield()
-            return "loaded"
-        }
-        await stub.when { try await $0.load(url: any()) }.then {
-            (url: String) async throws -> String in
-            await Task.yield()
-            throw AsyncHandlerError(url: url)
-        }
-
-        let loader: any AsyncDataLoader = stub()
-        #expect(try await loader.load(url: "success") == "loaded")
-        let error = await #expect(throws: AsyncHandlerError.self) {
-            try await loader.load(url: "missing")
-        }
-        #expect(error?.url == "missing")
     }
 
     @Test func cancellationReachesSuspendedHandler() async throws {

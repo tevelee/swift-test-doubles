@@ -95,7 +95,7 @@ and one `then` family, then inspected with `verify`.
 
 ## Iteration 4 — Teach the product through examples
 
-**Status:** Planned
+**Status:** In progress — Phase 4A examples and test consolidation complete
 
 - **Objective:** Make the package understandable and useful without reading its
   implementation.
@@ -110,8 +110,14 @@ and one `then` family, then inspected with `verify`.
   link validation.
 - **Integration notes:** Center examples on repository matching, async success
   and failure, genuinely suspending handlers, argument capture for side effects,
-  and stateful responses. Organize docs as Quick Start, Common Patterns,
-  Supported Features, Explicit Requirements, Limitations, and Architecture.
+  and stateful responses. Organize the README as Quick Start, Common Patterns,
+  Supported Features, Explicit Requirements, Limitations, and Architecture,
+  while keeping DocC task-oriented.
+  Phase 4A now compiles those core scenarios through one public-import
+  documentation suite and removes the older overlapping public/use-case suites,
+  duplicate focused tests, and dead fixture surface. Phase 4B should audit the
+  remaining DocC/API reference for duplication, tighten cross-links, and finish
+  repository-wide link validation.
 - **Done criteria:** Each promised capability has one concise public example and
   one motivating test; redundant tests and stale implementation narratives are
   removed.

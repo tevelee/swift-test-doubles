@@ -18,7 +18,7 @@ arch -x86_64 swift test \
   --triple x86_64-apple-macosx \
   --disable-xctest \
   --enable-swift-testing \
-  --filter 'RuntimeABITests|ConcurrencyTests|StubBuilderTests|PublicAPITests'
+  --filter 'RuntimeABITests|ConcurrencyTests|StubBuilderTests|DocumentationExamplesTests'
 ```
 
 `RuntimeABITests` covers register and stack arguments, throwing calls, direct

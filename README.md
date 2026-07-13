@@ -7,6 +7,8 @@
 Small, protocol-based test doubles for Swift—without macros, generated
 conformers, or per-stub compiler invocations.
 
+## Quick start
+
 ```swift
 let stub = try Stub<any UserRepository>()
 
@@ -55,66 +57,113 @@ release-supported yet.
 
 ## Common patterns
 
+The examples in this section are mirrored by public-API consumer tests in
+[DocumentationExamplesTests.swift](Tests/TestDoublesTests/DocumentationExamplesTests.swift).
+
+### Dynamic responses and matching
+
 Use `returns` for a fixed response and `then` when behavior depends on the
-arguments:
+arguments. More specific registrations win over general fallbacks:
 
 ```swift
-stub.when { $0.find(id: any()) }.then { (id: Int) in
-    id.isMultiple(of: 2) ? "even" : "odd"
+stub.when { $0.find(id: any()) }.returns("guest")
+stub.when {
+    $0.find(id: matching(description: "positive", where: { $0 > 0 }))
+}.then { (id: Int) in
+    "member-\(id)"
 }
+stub.when { $0.find(id: equal(42)) }.returns("Alice")
 
-stub.when { try $0.read(path: any()) }.then { (path: String) throws in
-    guard !path.hasPrefix("/private") else { throw PermissionError() }
-    return "contents"
-}
-```
-
-Async requirements use the same vocabulary. Suspending handlers run as part of
-the invoking task, preserving task-local values, cancellation, and priority.
-A handler's actor isolation is honored, including when its actor uses a custom
-serial executor, and an actor-isolated caller resumes on its executor after the
-requirement returns:
-
-```swift
-let stub = try Stub<any DataLoader>()
-
-await stub.when { try await $0.fetch(path: any()) }.then {
-    (path: String) async throws in
-    try await fixtureServer.response(for: path)
-}
-
-let loader: any DataLoader = stub()
-let value = try await loader.fetch(path: "/users/42")
-
-await stub.verify { try await $0.fetch(path: equal("/users/42")) }
-```
-
-Verify the interactions that matter and state a count only when it adds value:
-
-```swift
-stub.verify { $0.find(id: any()) }
-stub.verify(.exactly(3)) { $0.find(id: any()) }
-stub.verify(.never) { $0.reset() }
+let repository: any UserRepository = stub()
+#expect(repository.find(id: -1) == "guest")
+#expect(repository.find(id: 7) == "member-7")
+#expect(repository.find(id: 42) == "Alice")
 ```
 
 Use `any()` for a wildcard, `equal(_:)` for equality, and `matching` for a
-predicate. More specific registrations win: explicit equality, literal,
-predicate, then wildcard or capture. The first registration wins a specificity
-tie.
+predicate. Explicit equality outranks a literal, a literal outranks a predicate,
+and a predicate outranks a wildcard or capture. The first registration wins a
+specificity tie. Literal arguments use a best-effort textual comparison; prefer
+`equal(_:)` when equality semantics matter.
+
+### Async success and failure
+
+Async requirements use the same vocabulary, and handlers may genuinely
+suspend:
 
 ```swift
-stub.when { $0.find(id: any()) }.returns("fallback")
-stub.when { $0.find(id: matching(description: "positive", where: { $0 > 0 })) }
-    .returns("member")
-stub.when { $0.find(id: equal(1)) }.returns("admin")
+struct LoadError: Error, Equatable {
+    let url: String
+}
 
-let captor = ArgumentCaptor<Int>()
-stub.verify { $0.find(id: captor.capture()) }
-#expect(captor.values == [1])
+let stub = try Stub<any AsyncDataLoader>()
+await stub.when { try await $0.load(url: equal("/users/42")) }.then {
+    (url: String) async throws -> String in
+    await Task.yield()
+    return "profile:\(url)"
+}
+await stub.when { try await $0.load(url: any()) }.then {
+    (url: String) async throws -> String in
+    await Task.yield()
+    throw LoadError(url: url)
+}
+
+let loader: any AsyncDataLoader = stub()
+#expect(try await loader.load(url: "/users/42") == "profile:/users/42")
+
+let error = await #expect(throws: LoadError.self) {
+    try await loader.load(url: "/missing")
+}
+#expect(error?.url == "/missing")
 ```
 
-Literal arguments use a best-effort textual comparison. Use `equal(_:)` when
-equality semantics matter.
+Suspending handlers run as part of the invoking task, preserving task-local
+values, cancellation, and priority. A handler's actor isolation is honored,
+including when its actor uses a custom serial executor, and an actor-isolated
+caller resumes on its executor after the requirement returns.
+
+### Capture side effects
+
+Capture arguments when the interaction itself is the result being tested:
+
+```swift
+let stub = try Stub<any NotificationService>()
+stub.when { try $0.send(to: any(), message: any()) }
+
+let notifications: any NotificationService = stub()
+try notifications.send(to: 1, message: "Welcome")
+try notifications.send(to: 2, message: "Try again")
+
+let recipients = ArgumentCaptor<Int>()
+let messages = ArgumentCaptor<String>()
+stub.verify(.exactly(2)) {
+    try $0.send(to: recipients.capture(), message: messages.capture())
+}
+#expect(recipients.values == [1, 2])
+#expect(messages.values == ["Welcome", "Try again"])
+```
+
+Verification defaults to at least once. Use `.exactly(_:)` or `.never` only
+when the count adds meaning to the test.
+
+### Stateful responses
+
+A handler may model a response sequence for serial calls:
+
+```swift
+let stub = try Stub<any UserRepository>()
+var responses = ["syncing", "ready"]
+stub.when { $0.find(id: equal(42)) }.then { (_: Int) in
+    responses.removeFirst()
+}
+
+let repository: any UserRepository = stub()
+#expect(repository.find(id: 42) == "syncing")
+#expect(repository.find(id: 42) == "ready")
+```
+
+If calls may be concurrent, the handler is responsible for synchronizing its
+captured mutable state.
 
 ## Construction
 
@@ -124,6 +173,8 @@ conformer linked into the test process:
 ```swift
 let stub = try Stub<any UserRepository>()
 ```
+
+## Explicit requirements
 
 If no conformer is linked, describe the requirements with Swift types. Order
 must match the protocol declaration, including property accessors:
@@ -139,13 +190,15 @@ let stub = try Stub<any PrototypeCalculator>(
 Effects are part of an explicit requirement:
 
 ```swift
-let stub = try Stub<any DataLoader>(
+let stub = try Stub<any AsyncDataLoader>(
     .method(
         String.self,
-        returning: Data.self,
+        returning: String.self,
         isThrowing: true,
         isAsync: true
-    )
+    ),
+    .method([String].self, returning: Void.self, isAsync: true),
+    .getter(Int.self)
 )
 ```
 
@@ -156,7 +209,7 @@ conformance is available, it also validates every signature component that can
 be discovered reliably. Getter throwing behavior remains caller-supplied. No
 construction path launches external tools.
 
-## Supported feature set
+## Supported features
 
 - Instance methods and ordinary getters on a single,
   non-class-constrained protocol without inherited or associated requirements.
@@ -174,7 +227,7 @@ Enums, tuples, strings, and optionals do not need dedicated public APIs. Their
 support depends on their ABI representation and the runtime metadata available
 to the trampoline.
 
-## Known limitations
+## Limitations
 
 - Function and closure arguments or returns are rejected during construction
   because protocol witnesses require compiler-generated reabstraction. Use a
@@ -202,7 +255,7 @@ to the trampoline.
   and are outside the library's scope.
 - Keep `Stub` alive while its fabricated protocol value is in use.
 
-## Documentation
+## Architecture and further documentation
 
 - [Getting Started](Sources/TestDoubles/Documentation.docc/Articles/GettingStarted.md)
 - [Stub](Sources/TestDoubles/Documentation.docc/Articles/StubGuide.md)

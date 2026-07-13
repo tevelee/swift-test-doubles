@@ -13,27 +13,6 @@ struct RealMatcherService: MatcherService {
 }
 
 @Suite struct MatcherTests {
-    @Test func wildcardMatchesAnyValue() throws {
-        let stub = try Stub<any MatcherService>()
-        stub.when { $0.find(id: any()) }.returns("found")
-
-        #expect(stub().find(id: 1) == "found")
-        #expect(stub().find(id: 999) == "found")
-    }
-
-    @Test func equalityBeatsPredicateAndWildcard() throws {
-        let stub = try Stub<any MatcherService>()
-        stub.when { $0.find(id: any()) }.returns("fallback")
-        stub.when {
-            $0.find(id: matching(description: "positive", where: { $0 > 0 }))
-        }.returns("positive")
-        stub.when { $0.find(id: equal(42)) }.returns("answer")
-
-        #expect(stub().find(id: -1) == "fallback")
-        #expect(stub().find(id: 7) == "positive")
-        #expect(stub().find(id: 42) == "answer")
-    }
-
     @Test func matchingSupportsDefaultAndNamedDescriptions() throws {
         let stub = try Stub<any MatcherService>()
         stub.when { $0.search(query: matching(where: { $0.hasPrefix("test") }), limit: any()) }
@@ -65,23 +44,8 @@ struct RealMatcherService: MatcherService {
         #expect(ids.values == [7, 13])
         #expect(ids.first == 7)
         #expect(ids.last == 13)
-    }
-
-    @Test func multipleCaptorsPreserveArgumentPositions() throws {
-        let stub = try Stub<any MatcherService>()
-        stub.when { $0.search(query: any(), limit: any()) }.returns([])
-        let service: any MatcherService = stub()
-        _ = service.search(query: "alice", limit: 10)
-        _ = service.search(query: "bob", limit: 20)
-
-        let queries = ArgumentCaptor<String>()
-        let limits = ArgumentCaptor<Int>()
-        stub.verify(.exactly(2)) {
-            $0.search(query: queries.capture(), limit: limits.capture())
-        }
-
-        #expect(queries.values == ["alice", "bob"])
-        #expect(limits.values == [10, 20])
+        ids.reset()
+        #expect(ids.values.isEmpty)
     }
 
     @Test func captorCommitsOnlyAfterEveryArgumentMatches() throws {

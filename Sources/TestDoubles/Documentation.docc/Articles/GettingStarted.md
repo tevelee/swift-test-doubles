@@ -5,109 +5,123 @@ test, and verify only the interactions that express the test's intent.
 
 ## Define a protocol boundary
 
+Stub the narrow protocol that the subject already depends on:
+
 ```swift
 protocol UserRepository {
     func find(id: Int) -> String
-    func save(name: String, age: Int) throws -> Bool
-    var count: Int { get }
 }
 
 struct LiveUserRepository: UserRepository {
-    // Production implementation.
+    func find(id: Int) -> String {
+        fatalError("Production implementation")
+    }
 }
 ```
 
-The linked `LiveUserRepository` conformance gives TestDoubles the requirement
-metadata needed by zero-argument construction.
+The linked production conformance gives TestDoubles the requirement metadata
+needed by zero-argument construction. It is inspected, not invoked.
 
-## Arrange and use a stub
+## Match and return values
+
+Register a broad fallback first, then add more specific behavior:
 
 ```swift
 let stub = try Stub<any UserRepository>()
-
 stub.when { $0.find(id: any()) }.returns("guest")
-stub.when { $0.find(id: equal(42)) }.returns("Alice")
-stub.when { $0.count }.returns(1)
-
-let repository: any UserRepository = stub()
-#expect(repository.find(id: 42) == "Alice")
-```
-
-Use a typed `then` closure when the result depends on arguments:
-
-```swift
-stub.when { $0.find(id: any()) }.then { (id: Int) in
-    "user-\(id)"
-}
-```
-
-Throwing behavior uses the same builder:
-
-```swift
-stub.when { try $0.save(name: any(), age: any()) }.then {
-    (name: String, age: Int) throws in
-    guard age >= 0 else { throw ValidationError() }
-    return !name.isEmpty
-}
-```
-
-## Match arguments
-
-- `any()` accepts every value.
-- `equal(_:)` uses `Equatable` equality.
-- `matching(description:where:)` accepts values satisfying a predicate.
-- Literal arguments use best-effort textual comparison; prefer `equal(_:)`
-  when equality semantics matter.
-
-The most specific registration wins: explicit equality, literal, predicate,
-then wildcard or capture. The first registration wins when specificity ties.
-
-```swift
-stub.when { $0.find(id: any()) }.returns("fallback")
 stub.when {
     $0.find(id: matching(description: "positive", where: { $0 > 0 }))
+}.then { (id: Int) in
+    "member-\(id)"
 }
-    .returns("member")
-stub.when { $0.find(id: equal(1)) }.returns("admin")
+stub.when { $0.find(id: equal(42)) }.returns("Alice")
+
+let repository: any UserRepository = stub()
+#expect(repository.find(id: -1) == "guest")
+#expect(repository.find(id: 7) == "member-7")
+#expect(repository.find(id: 42) == "Alice")
+
+stub.verify { $0.find(id: equal(42)) }
+stub.verify(.exactly(3)) { $0.find(id: any()) }
+stub.verify(.never) { $0.find(id: equal(999)) }
 ```
 
-## Verify and capture
+`any()` accepts every value, `equal(_:)` uses `Equatable` equality, and
+`matching(description:where:)` accepts values satisfying a predicate. Explicit
+equality outranks a literal, a literal outranks a predicate, and a predicate
+outranks a wildcard or capture. The first registration wins a tie. Verification
+defaults to at least one matching call; state a count only when it adds meaning.
 
-Verification defaults to at least one matching call:
+## Capture side effects
+
+Capture arguments when a call to a side-effect dependency is the result under
+test:
 
 ```swift
-stub.verify { $0.find(id: any()) }
-stub.verify(.exactly(2)) { $0.find(id: any()) }
-stub.verify(.never) { $0.find(id: equal(-1)) }
+let stub = try Stub<any NotificationService>()
+stub.when { try $0.send(to: any(), message: any()) }
+
+let notifications: any NotificationService = stub()
+try notifications.send(to: 1, message: "Welcome")
+try notifications.send(to: 2, message: "Try again")
+
+let recipients = ArgumentCaptor<Int>()
+let messages = ArgumentCaptor<String>()
+stub.verify(.exactly(2)) {
+    try $0.send(to: recipients.capture(), message: messages.capture())
+}
+#expect(recipients.values == [1, 2])
+#expect(messages.values == ["Welcome", "Try again"])
 ```
 
-Capture arguments when the test needs to inspect a side effect:
+## Stub async success and failure
+
+Async and async-throwing requirements use the same vocabulary. A typed handler
+may genuinely suspend:
 
 ```swift
-let ids = ArgumentCaptor<Int>()
-stub.verify(.exactly(2)) { $0.find(id: ids.capture()) }
-#expect(ids.values == [1, 42])
-```
+struct LoadError: Error, Equatable {
+    let url: String
+}
 
-## Stub async requirements
-
-Async and async-throwing requirements keep the same vocabulary. An async
-`then` handler may genuinely suspend as part of the invoking task while
-respecting its own actor isolation.
-
-```swift
-let stub = try Stub<any DataLoader>()
-
+let stub = try Stub<any AsyncDataLoader>()
+await stub.when { try await $0.load(url: equal("/users/42")) }.then {
+    (url: String) async throws -> String in
+    await Task.yield()
+    return "profile:\(url)"
+}
 await stub.when { try await $0.load(url: any()) }.then {
-    (url: String) async throws in
-    try await fixtureServer.response(for: url)
+    (url: String) async throws -> String in
+    await Task.yield()
+    throw LoadError(url: url)
 }
 
-let loader: any DataLoader = stub()
-_ = try await loader.load(url: "/users")
-
-await stub.verify { try await $0.load(url: equal("/users")) }
+let loader: any AsyncDataLoader = stub()
+#expect(try await loader.load(url: "/users/42") == "profile:/users/42")
+let error = await #expect(throws: LoadError.self) {
+    try await loader.load(url: "/missing")
+}
+#expect(error?.url == "/missing")
 ```
+
+## Return stateful responses
+
+A handler may model a response sequence when calls are serial:
+
+```swift
+let stub = try Stub<any UserRepository>()
+var responses = ["syncing", "ready"]
+stub.when { $0.find(id: equal(42)) }.then { (_: Int) in
+    responses.removeFirst()
+}
+
+let repository: any UserRepository = stub()
+#expect(repository.find(id: 42) == "syncing")
+#expect(repository.find(id: 42) == "ready")
+```
+
+The handler is responsible for synchronizing captured mutable state if calls
+may be concurrent.
 
 ## Construct without a linked conformer
 
@@ -125,13 +139,15 @@ let stub = try Stub<any PrototypeCalculator>(
 Mark throwing and async requirements explicitly:
 
 ```swift
-let stub = try Stub<any DataLoader>(
+let stub = try Stub<any AsyncDataLoader>(
     .method(
-        URL.self,
-        returning: Data.self,
+        String.self,
+        returning: String.self,
         isThrowing: true,
         isAsync: true
-    )
+    ),
+    .method([String].self, returning: Void.self, isAsync: true),
+    .getter(Int.self)
 )
 ```
 

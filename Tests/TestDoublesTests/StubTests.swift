@@ -1,5 +1,5 @@
 import Testing
-@testable import TestDoubles
+import TestDoubles
 import TestDoublesFixtures
 
 protocol Calculator {
@@ -67,20 +67,6 @@ struct RealFileLoader: FileLoader {
         #expect(calculator.precision == 5)
     }
 
-    @Test func predicateMatchingAndSpecificity() throws {
-        let stub = try Stub<any Calculator>()
-        stub.when { $0.describe(any()) }.returns("default")
-        stub.when {
-            $0.describe(matching(description: "positive", where: { $0 > 0 }))
-        }.returns("positive")
-        stub.when { $0.describe(equal(42)) }.returns("answer")
-
-        let calculator: any Calculator = stub()
-        #expect(calculator.describe(-1) == "default")
-        #expect(calculator.describe(7) == "positive")
-        #expect(calculator.describe(42) == "answer")
-    }
-
     @Test func typedDynamicHandlerReceivesArguments() throws {
         let stub = try Stub<any Calculator>()
         stub.when { $0.add(any(), any()) }.then { (lhs: Int, rhs: Int) in
@@ -118,23 +104,6 @@ struct RealFileLoader: FileLoader {
         stub.verify { $0.describe(any()) }
         stub.verify(.exactly(2)) { $0.describe(any()) }
         stub.verify(.never) { $0.add(any(), any()) }
-    }
-
-    @Test func captureReplacesCallLogInspection() throws {
-        let stub = try Stub<any Calculator>()
-        stub.when { $0.describe(any()) }.returns("X")
-        let calculator: any Calculator = stub()
-        _ = calculator.describe(42)
-        _ = calculator.describe(99)
-
-        let values = ArgumentCaptor<Int>()
-        stub.verify(.exactly(2)) { $0.describe(values.capture()) }
-
-        #expect(values.values == [42, 99])
-        #expect(values.first == 42)
-        #expect(values.last == 99)
-        values.reset()
-        #expect(values.values.isEmpty)
     }
 
     @Test func verificationDoesNotReplayHandler() throws {
