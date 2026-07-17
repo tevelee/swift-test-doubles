@@ -1,0 +1,67 @@
+name: Bug report
+description: Report a reproducible defect in TestDoubles.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem. Search existing issues first. For suspected vulnerabilities, stop here and use [private vulnerability reporting](https://github.com/tevelee/swift-test-doubles/security/advisories/new).
+  - type: input
+    id: version
+    attributes:
+      label: TestDoubles version
+      description: Provide a release version, branch, or full commit SHA.
+      placeholder: 0.1.0 or 0123456789abcdef...
+    validations:
+      required: true
+  - type: input
+    id: toolchain
+    attributes:
+      label: Swift and Xcode versions
+      description: Paste `swift --version` and, on Apple platforms, `xcodebuild -version`.
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform and architecture
+      placeholder: macOS 15.5, arm64
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Provide a small protocol, stub setup, invocation, and command that reproduce the problem.
+      render: swift
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include complete compiler diagnostics, test output, crash output, or stack trace.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Include relevant ABI shape, concurrency, sanitizer, or Rosetta details.
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmation
+      options:
+        - label: I searched existing issues for this problem.
+          required: true
+        - label: This report does not disclose a suspected security vulnerability.
+          required: true
