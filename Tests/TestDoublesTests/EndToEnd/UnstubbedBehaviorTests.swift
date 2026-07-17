@@ -1,0 +1,212 @@
+import Foundation
+import Testing
+import TestDoubles
+
+// Internal, not private: the conformer doubles as an automatic-discovery
+// fixture, whose conformance record must stay reachable in release builds.
+protocol UnstubbedBehaviorProbe {
+    func greet(name: String) -> String
+    func total(of values: [Int]) throws -> Int
+}
+
+struct RealUnstubbedBehaviorProbe: UnstubbedBehaviorProbe {
+    func greet(name: String) -> String { name }
+    func total(of values: [Int]) throws -> Int { values.count }
+}
+
+private protocol UnstubbedManualProbe {
+    func load() -> String
+}
+
+private protocol MissingImplementationProbe {
+    func load() -> String
+}
+
+private struct UnstubbedManualProbeStub: UnstubbedManualProbe, StubConformer {
+    let stub: ManualStub<Self>
+    func load() -> String { stub.load() }
+}
+
+private struct ManualLoadError: Error {}
+private struct UnexpectedTypedError: Error {}
+
+/// An unconfigured requirement is a test bug, so invoking one halts the test
+/// process with an actionable diagnostic instead of inventing behavior.
+#if compiler(>=6.2) && (os(macOS) || os(Linux) || targetEnvironment(macCatalyst))
+    enum UnstubbedExitScenario: CaseIterable, Sendable {
+        case unstubbedRequirement
+        case missingConformanceMetadata
+        case unmatchedArguments
+        case throwingRequirement
+        case emptyRecordingClosure
+        case multipleRecordedRequirements
+        case nonthrowingThenThrow
+        case mismatchedTypedError
+        case throwingManualHandler
+    }
+
+    @Suite struct UnstubbedBehaviorTests {
+        @Test(.serialized, arguments: UnstubbedExitScenario.allCases)
+        func processExitDiagnostics(_ scenario: UnstubbedExitScenario) async throws {
+            switch scenario {
+                case .unstubbedRequirement:
+                    try await invokingAnUnstubbedRequirementHaltsWithASuggestedStub()
+                case .missingConformanceMetadata:
+                    try await factoryFailureExplainsHowToSupplyMissingConformanceMetadata()
+                case .unmatchedArguments:
+                    try await invokingWithUnmatchedArgumentsHaltsListingRegisteredStubs()
+                case .throwingRequirement:
+                    try await throwingRequirementsHaltRatherThanInventAnError()
+                case .emptyRecordingClosure:
+                    try await recordingClosuresMustInvokeARequirement()
+                case .multipleRecordedRequirements:
+                    try await singleInvocationRecordingClosuresRejectMultipleRequirements()
+                case .nonthrowingThenThrow:
+                    await thenThrowRejectsNonthrowingRequirementsAtConfiguration()
+                case .mismatchedTypedError:
+                    await thenThrowRejectsMismatchedTypedErrorsAtConfiguration()
+                case .throwingManualHandler:
+                    try await manualNonthrowingRouteHaltsWhenAHandlerThrows()
+            }
+        }
+
+        private func invokingAnUnstubbedRequirementHaltsWithASuggestedStub() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let stub = try Stub<any UnstubbedBehaviorProbe>()
+                _ = stub().greet(name: "eve")
+            }
+
+            let diagnostic = try #require(
+                String(bytes: result.standardErrorContent, encoding: .utf8)
+            )
+            #expect(diagnostic.contains("No stub configured for greet(name:)"))
+            #expect(diagnostic.contains("arg0: \"eve\""))
+            #expect(
+                diagnostic.contains("stub.when { $0.greet(name: equal(\"eve\")) }.thenReturn(...)")
+            )
+        }
+
+        private func factoryFailureExplainsHowToSupplyMissingConformanceMetadata() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let _: any MissingImplementationProbe = makeStub { _ in }
+            }
+
+            let diagnostic = try #require(
+                String(bytes: result.standardErrorContent, encoding: .utf8)
+            )
+            #expect(
+                diagnostic.contains(
+                    "neither a linked conformer nor resilient requirement symbols"
+                )
+            )
+            #expect(diagnostic.contains("1. Linked conformer:"))
+            #expect(diagnostic.contains("2. Library evolution:"))
+            #expect(diagnostic.contains("no conformer is needed"))
+            #expect(diagnostic.contains("3. Neither source available:"))
+            #expect(diagnostic.contains("explicit `Stub.Requirement` values"))
+        }
+
+        private func invokingWithUnmatchedArgumentsHaltsListingRegisteredStubs() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let stub = try Stub<any UnstubbedBehaviorProbe>()
+                stub.when { $0.greet(name: equal("alice")) }.thenReturn("hi")
+                _ = stub().greet(name: "bob")
+            }
+
+            let diagnostic = try #require(
+                String(bytes: result.standardErrorContent, encoding: .utf8)
+            )
+            #expect(diagnostic.contains("No matching stub for greet(name:)"))
+            #expect(diagnostic.contains("greet(name:)(equal(alice))"))
+        }
+
+        private func throwingRequirementsHaltRatherThanInventAnError() async throws {
+            // A throwing requirement does not turn "unstubbed" into a thrown
+            // error: only configured behavior may produce values or errors.
+            await #expect(processExitsWith: .failure) {
+                let stub = try Stub<any UnstubbedBehaviorProbe>()
+                _ = try stub().total(of: [1, 2])
+            }
+        }
+
+        private func recordingClosuresMustInvokeARequirement() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let stub = try Stub<any UnstubbedBehaviorProbe>()
+                stub.when { (_: any UnstubbedBehaviorProbe) -> String in "no invocation" }
+                    .thenReturn("unreachable")
+            }
+
+            let diagnostic = try #require(
+                String(bytes: result.standardErrorContent, encoding: .utf8)
+            )
+            #expect(diagnostic.contains("recording closure did not invoke a protocol requirement"))
+            #expect(diagnostic.contains("Call exactly one requirement inside `when` or `verify`"))
+        }
+
+        private func singleInvocationRecordingClosuresRejectMultipleRequirements() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let stub = try Stub<any UnstubbedBehaviorProbe>()
+                stub.when { probe in
+                    _ = probe.greet(name: "first")
+                    return probe.greet(name: "second")
+                }.thenReturn("unreachable")
+            }
+
+            let diagnostic = try #require(
+                String(bytes: result.standardErrorContent, encoding: .utf8)
+            )
+            #expect(diagnostic.contains("recording closure invoked 2 protocol requirements"))
+            #expect(diagnostic.contains("Split them into separate operations"))
+            #expect(diagnostic.contains("use `verifyInOrder`"))
+        }
+
+        private func thenThrowRejectsNonthrowingRequirementsAtConfiguration() async {
+            await #expect(processExitsWith: .failure) {
+                let stub = try Stub<any UnstubbedBehaviorProbe>()
+                stub.when { $0.greet(name: any()) }.thenThrow(ManualLoadError())
+            }
+        }
+
+        private func thenThrowRejectsMismatchedTypedErrorsAtConfiguration() async {
+            await #expect(processExitsWith: .failure) {
+                _ = RealTypedThrowsRequirementProbe()
+                let stub = try Stub<any TypedThrowsRequirementProbe>()
+                stub.when { try $0.load() }.thenThrow(UnexpectedTypedError())
+            }
+        }
+
+        private func manualNonthrowingRouteHaltsWhenAHandlerThrows() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let stub = ManualStub<UnstubbedManualProbeStub>()
+                stub.when { $0.load() }.then { () throws -> String in
+                    throw ManualLoadError()
+                }
+                _ = stub().load()
+            }
+
+            let diagnostic = try #require(
+                String(bytes: result.standardErrorContent, encoding: .utf8)
+            )
+            #expect(diagnostic.contains("A nonthrowing stub handler for 'load()' threw"))
+            #expect(diagnostic.contains("Forward this requirement through `stub.throwing`"))
+        }
+    }
+#endif

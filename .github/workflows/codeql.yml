@@ -1,0 +1,178 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  analyze-actions:
+    name: Analyze Actions
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        with:
+          languages: actions
+          build-mode: none
+      - name: Analyze
+        uses: github/codeql-action/analyze@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        with:
+          category: /language:actions
+
+  analyze-swift:
+    name: Analyze Swift
+    if: github.event.repository.private == false
+    runs-on: macos-26
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Check out the pinned Echo dependency
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: tevelee/Echo
+          ref: 0.0.4
+          path: .ci-dependencies/Echo
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check out the pinned Swift Atomics dependency
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: apple/swift-atomics
+          ref: 1.3.1
+          path: .ci-dependencies/swift-atomics
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check out the pinned Issue Reporting dependency
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: pointfreeco/swift-issue-reporting
+          ref: 2.0.0
+          path: .ci-dependencies/swift-issue-reporting
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Resolve dependencies from the pinned checkouts
+        run: |
+          git config --global \
+            url."file://$GITHUB_WORKSPACE/.ci-dependencies/Echo".insteadOf \
+            https://github.com/tevelee/Echo.git
+          git config --global \
+            url."file://$GITHUB_WORKSPACE/.ci-dependencies/swift-atomics".insteadOf \
+            https://github.com/apple/swift-atomics.git
+          git config --global \
+            url."file://$GITHUB_WORKSPACE/.ci-dependencies/swift-issue-reporting".insteadOf \
+            https://github.com/pointfreeco/swift-issue-reporting
+      - name: Restore SwiftPM cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/org.swift.swiftpm
+            ~/Library/Caches/org.swift.swiftpm
+          key: >-
+            swiftpm-codeql-v1-${{ runner.os }}-${{ runner.arch }}-${{
+            hashFiles('Package.resolved') }}
+          restore-keys: |
+            swiftpm-codeql-v1-${{ runner.os }}-${{ runner.arch }}-
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        with:
+          languages: swift
+          build-mode: manual
+      - name: Build
+        run: swift build
+      - name: Analyze
+        uses: github/codeql-action/analyze@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        with:
+          category: /language:swift
+
+  analyze-c-cpp:
+    name: Analyze C/C++
+    if: github.event.repository.private == false
+    runs-on: macos-15
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        with:
+          languages: c-cpp
+          build-mode: manual
+      - name: Build C trampoline target
+        run: |
+          output="$RUNNER_TEMP/test-doubles-c-objects"
+          mkdir -p "$output"
+          for source in \
+            Sources/CTestDoublesTrampoline/*.c \
+            Sources/CTestDoublesTrampoline/*.S
+          do
+            object="$(basename "$source")"
+            clang \
+              -I Sources/CTestDoublesTrampoline/include \
+              -c "$source" \
+              -o "$output/${object//./_}.o"
+          done
+      - name: Analyze
+        uses: github/codeql-action/analyze@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        with:
+          category: /language:c-cpp
+
+  codeql-required:
+    name: CodeQL required
+    if: always()
+    needs:
+      - analyze-actions
+      - analyze-swift
+      - analyze-c-cpp
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every public-repository analysis
+        env:
+          ACTIONS_RESULT: ${{ needs.analyze-actions.result }}
+          C_CPP_RESULT: ${{ needs.analyze-c-cpp.result }}
+          REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+          SWIFT_RESULT: ${{ needs.analyze-swift.result }}
+        run: |
+          if test "$REPOSITORY_PRIVATE" = true; then
+            echo "CodeQL is unavailable while this repository is private."
+            exit 0
+          fi
+
+          for result in "$ACTIONS_RESULT" "$SWIFT_RESULT" "$C_CPP_RESULT"; do
+            if test "$result" != success; then
+              echo "A required CodeQL analysis concluded with: $result" >&2
+              exit 1
+            fi
+          done

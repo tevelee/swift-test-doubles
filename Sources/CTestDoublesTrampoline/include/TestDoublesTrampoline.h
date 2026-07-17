@@ -1,0 +1,185 @@
+#ifndef TEST_DOUBLES_TRAMPOLINE_H
+#define TEST_DOUBLES_TRAMPOLINE_H
+
+#if defined(__arm64__) && !defined(__LP64__)
+#error "CTestDoublesTrampoline requires a 64-bit architecture; watchOS arm64_32 is unsupported."
+#endif
+
+#define TD_GP_REGISTER_COUNT 16
+#define TD_FP_REGISTER_COUNT 16
+
+#define TD_FRAME_SIZE 512
+#define TD_FRAME_SLOT_OFFSET 0
+#define TD_FRAME_CONTEXT_OFFSET 8
+#define TD_FRAME_GP_OFFSET 16
+#define TD_FRAME_FP_OFFSET 144
+#define TD_FRAME_STACK_POINTER_OFFSET 400
+#define TD_FRAME_INDIRECT_RESULT_OFFSET 408
+#define TD_FRAME_SWIFT_SELF_OFFSET 416
+#define TD_FRAME_SWIFT_ERROR_OFFSET 424
+#define TD_FRAME_RESERVED_OFFSET 432
+#define TD_FRAME_RETURN_GP_OFFSET 440
+#define TD_FRAME_RETURN_FP_OFFSET 472
+#define TD_FRAME_RETURN_ERROR_OFFSET 504
+
+#define TD_ASYNC_CONTEXT_CALLEE_OFFSET 16
+#define TD_ASYNC_CONTEXT_STATE_OFFSET 24
+#define TD_ASYNC_CONTEXT_SIZE 32
+
+#define TD_ASYNC_COMPLETION_FRAME_SIZE 528
+#define TD_ASYNC_COMPLETION_PARENT_OFFSET 512
+#define TD_ASYNC_COMPLETION_STATE_OFFSET 520
+
+#define TD_MODIFY_CONTEXT_STATE_OFFSET 0
+// Swift 6.3.3's arm64e discriminator for a yield-once resume function
+// authenticated against the caller-provided coroutine context.
+#define TD_MODIFY_RESUME_DISCRIMINATOR 3909
+
+#ifndef __ASSEMBLER__
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct TDVectorRegister {
+  uint64_t low;
+  uint64_t high;
+} TDVectorRegister;
+
+typedef struct TDCallFrame {
+  uintptr_t slot;
+  uintptr_t context;
+  uintptr_t gp[TD_GP_REGISTER_COUNT];
+  TDVectorRegister fp[TD_FP_REGISTER_COUNT];
+  uintptr_t stackPointer;
+  uintptr_t indirectResult;
+  uintptr_t swiftSelf;
+  uintptr_t swiftError;
+  uintptr_t reserved;
+  uintptr_t returnGP[4];
+  uint64_t returnFP[4];
+  uintptr_t returnError;
+} TDCallFrame;
+
+typedef struct TDSwiftErrorAllocation {
+  const void *error;
+  void *value;
+} TDSwiftErrorAllocation;
+
+typedef struct TDSwiftErrorValue {
+  const void *value;
+  const void *type;
+  const void *witnessTable;
+} TDSwiftErrorValue;
+
+typedef struct TDMetadataResponse {
+  const void *metadata;
+  uintptr_t state;
+} TDMetadataResponse;
+
+typedef bool (*TDLocalSymbolVisitor)(const char *name,
+                                     const void *address,
+                                     void *context);
+
+/// The result of beginning a Swift `_modify` coroutine.
+///
+/// `state` must remain valid until `td_swift_modify_trampoline_resume_handler`
+/// receives it. `yieldedStorage` is returned directly to the Swift caller as
+/// the inout storage yielded by the coroutine.
+typedef struct TDModifyCoroutineResult {
+  void *state;
+  void *yieldedStorage;
+} TDModifyCoroutineResult;
+
+typedef struct TDWitnessVeneerArena TDWitnessVeneerArena;
+
+TDWitnessVeneerArena *td_witness_veneer_arena_create(void);
+void *td_witness_veneer_arena_make_witness(TDWitnessVeneerArena *arena,
+                                           uintptr_t slot,
+                                           uintptr_t context);
+void *td_witness_veneer_arena_make_async(TDWitnessVeneerArena *arena,
+                                         uintptr_t slot,
+                                         uintptr_t context);
+void *td_witness_veneer_arena_make_modify(TDWitnessVeneerArena *arena,
+                                          uintptr_t slot,
+                                          uintptr_t context);
+void *td_witness_veneer_arena_make_typed(
+    TDWitnessVeneerArena *arena,
+    const void *target,
+    uintptr_t invocation,
+    uintptr_t invocationArgumentIndex);
+bool td_witness_veneer_arena_publish(TDWitnessVeneerArena *arena);
+size_t td_witness_veneer_arena_page_count(const TDWitnessVeneerArena *arena);
+void td_witness_veneer_arena_destroy(TDWitnessVeneerArena *arena);
+const char *td_symbol_name(const void *address);
+const char *td_exact_symbol_name(const void *address);
+const void *td_symbol_address(const char *name);
+void td_visit_local_symbols(TDLocalSymbolVisitor visitor, void *context);
+const void *td_sign_function_pointer(const void *pointer, uint16_t discriminator);
+const void *td_sign_async_function_pointer(const void *pointer,
+                                           uint16_t discriminator);
+uint16_t td_generic_function_discriminator(uint16_t parameterCount,
+                                           bool hasResult);
+uint16_t td_function_discriminator(const uint8_t *spelling, size_t length);
+void td_swift_retain(const void *object);
+void td_swift_release(const void *object);
+void td_swift_invoke_function(const void *function,
+                              const void *context,
+                              uint16_t discriminator,
+                              TDCallFrame *frame);
+const void *td_swift_dynamic_async_function_descriptor(void);
+void td_swift_get_error_value(const void *error,
+                              void **scratch,
+                              TDSwiftErrorValue *result);
+void td_swift_error_release(const void *error);
+void td_swift_trampoline_entry(void);
+void td_swift_dynamic_function_entry(void);
+void td_swift_dynamic_async_function_entry(void);
+void td_swift_async_trampoline_entry(void);
+void td_swift_modify_trampoline_entry(void);
+void td_swift_modify_trampoline_resume(void);
+void td_swift_trampoline_handler(TDCallFrame *frame);
+void td_swift_dynamic_function_handler(TDCallFrame *frame);
+void *td_swift_async_trampoline_handler(TDCallFrame *frame);
+void td_swift_async_dispatch_finish(void *state, TDCallFrame *frame);
+
+/// Begins a `_modify` dispatch captured in `frame`.
+///
+/// `frame.slot` and `frame.context` identify the generated veneer. `frame.gp[0]`
+/// is Swift's caller-provided 32-byte coroutine context; user arguments begin at
+/// `frame.gp[1]`, and `frame.swiftSelf` contains the Swift self register.
+///
+/// The implementation owns `result.state` until the resume handler is called
+/// exactly once. It must provide writable storage that remains valid for that
+/// entire interval. The assembly bridge stores `result.state` in the first word
+/// of Swift's 32-byte caller-provided coroutine context.
+TDModifyCoroutineResult td_swift_modify_trampoline_handler(TDCallFrame *frame);
+
+/// Completes or aborts a `_modify` dispatch and consumes `state`.
+///
+/// `isAborting` is the Swift coroutine abort flag. Implementations must perform
+/// any required writeback and release the state on both paths.
+void td_swift_modify_trampoline_resume_handler(void *state, bool isAborting);
+TDSwiftErrorAllocation td_swift_alloc_error(const void *type,
+                                            const void *witnessTable,
+                                            const void *flags,
+                                            bool isTake);
+TDMetadataResponse td_swift_get_tuple_type_metadata2(uintptr_t request,
+                                                     const void *first,
+                                                     const void *second,
+                                                     const char *labels);
+TDMetadataResponse td_swift_get_tuple_type_metadata3(uintptr_t request,
+                                                     const void *first,
+                                                     const void *second,
+                                                     const void *third,
+                                                     const char *labels);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* !__ASSEMBLER__ */
+#endif

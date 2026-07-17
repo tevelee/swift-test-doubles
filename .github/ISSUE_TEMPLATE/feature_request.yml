@@ -1,0 +1,58 @@
+name: Feature request
+description: Propose a focused API, runtime, matcher, or documentation improvement.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Explain the testing problem before proposing an API. Review the current [support boundary](https://github.com/tevelee/swift-test-doubles#supported-features) first.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What test-double use case cannot be expressed safely or clearly today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the observable contract and include a small usage example when helpful.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe workarounds or API shapes you considered and their tradeoffs.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Public API
+        - Runtime or ABI
+        - Matchers and capture
+        - Verification diagnostics
+        - Concurrency
+        - Documentation or examples
+        - Build, CI, or release tooling
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility impact
+      description: Note source, behavior, ABI, platform, or minimum-toolchain implications.
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmation
+      options:
+        - label: I searched existing issues for this proposal.
+          required: true

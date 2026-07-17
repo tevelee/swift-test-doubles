@@ -1,0 +1,330 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  workflow-lint:
+    name: Workflow lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Run actionlint
+        run: >-
+          docker run --rm
+          --volume "$PWD:/repo"
+          --workdir /repo
+          rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+
+  swift-quality:
+    name: Swift format and lint
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Check generated fixed-arity sources
+        run: xcrun swift Scripts/generate-fixed-arity.swift --check
+      - uses: ./.github/actions/brew-bundle
+      - name: Run swift-format
+        run: swift-format lint --strict --recursive Sources Tests
+      - name: Run SwiftLint
+        run: swiftlint lint --strict
+
+  minimum-toolchain:
+    name: Swift 6.3 / arm64
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Restore SwiftPM cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/org.swift.swiftpm
+            ~/Library/Caches/org.swift.swiftpm
+          key: >-
+            swiftpm-v1-${{ runner.os }}-${{ runner.arch }}-${{
+            hashFiles('Package.resolved') }}
+          restore-keys: |
+            swiftpm-v1-${{ runner.os }}-${{ runner.arch }}-
+      - name: Select Xcode 26.4.1
+        run: sudo xcode-select --switch /Applications/Xcode_26.4.1.app/Contents/Developer
+      - name: Show toolchain
+        run: swift --version
+      - name: Check resolved dependencies are current
+        run: |
+          swift package resolve
+          git diff --exit-code -- Package.resolved
+      - name: Test debug
+        run: swift test --no-parallel --scratch-path .build/ci
+      - name: Test release
+        run: swift test -c release --no-parallel --scratch-path .build/ci
+      - name: Validate documentation
+        run: Scripts/validate-documentation.sh
+
+  current-toolchain:
+    name: Current Xcode / arm64
+    runs-on: macos-26
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Restore SwiftPM cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/org.swift.swiftpm
+            ~/Library/Caches/org.swift.swiftpm
+          key: >-
+            swiftpm-v1-${{ runner.os }}-${{ runner.arch }}-${{
+            hashFiles('Package.resolved') }}
+          restore-keys: |
+            swiftpm-v1-${{ runner.os }}-${{ runner.arch }}-
+      - name: Select Xcode 26.6
+        run: sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
+      - name: Show toolchain
+        run: swift --version
+      - name: Test debug
+        run: swift test --no-parallel --scratch-path .build/current-toolchain-debug
+      - name: Test release
+        run: swift test -c release --no-parallel --scratch-path .build/current-toolchain-release
+      - name: Check public API
+        run: Scripts/check-public-api.sh
+
+  linux:
+    name: Swift 6.3 / Ubuntu 24.04 / ${{ matrix.architecture }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            architecture: x86_64
+          - runner: ubuntu-24.04-arm
+            architecture: arm64
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: swift:6.3.3-noble@sha256:66520bcba471018a34fd54ba09be97ba4abebd950a96ff5cb8c2bf50a2d33259
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Restore SwiftPM cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/org.swift.swiftpm
+          key: >-
+            swiftpm-v1-${{ runner.os }}-${{ runner.arch }}-${{
+            hashFiles('Package.resolved') }}
+          restore-keys: |
+            swiftpm-v1-${{ runner.os }}-${{ runner.arch }}-
+      - name: Show toolchain
+        run: swift --version
+      - name: Resolve dependency checkouts
+        run: swift package --scratch-path .build/linux resolve
+      - name: Test debug
+        run: swift test --no-parallel --scratch-path .build/linux
+      - name: Test release
+        run: swift test -c release --no-parallel --scratch-path .build/linux
+  apple-platforms:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: iOS 16+ Simulator / arm64
+            platform: iOS
+            cache_key: ios
+          - name: Mac Catalyst 16+ / arm64
+            destination: platform=macOS,arch=arm64,variant=Mac Catalyst
+            cache_key: mac-catalyst
+          - name: tvOS 16+ Simulator / arm64
+            platform: tvOS
+            cache_key: tvos
+          - name: visionOS 1+ Simulator / arm64
+            platform: visionOS
+            cache_key: visionos
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Restore SwiftPM cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/org.swift.swiftpm
+            ~/Library/Caches/org.swift.swiftpm
+          key: >-
+            swiftpm-v1-${{ runner.os }}-${{ runner.arch }}-${{
+            hashFiles('Package.resolved') }}
+          restore-keys: |
+            swiftpm-v1-${{ runner.os }}-${{ runner.arch }}-
+      - name: Select Xcode 26.4.1
+        run: sudo xcode-select --switch /Applications/Xcode_26.4.1.app/Contents/Developer
+      - name: Show toolchain
+        run: swift --version
+      - name: Restore DerivedData cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: .build/ci-apple-platform
+          key: >-
+            derived-data-v1-${{ runner.os }}-${{ runner.arch }}-${{
+            matrix.cache_key }}-xcode-26.4.1-${{
+            hashFiles('Package.swift', 'Package.resolved') }}
+          restore-keys: |
+            derived-data-v1-${{ runner.os }}-${{ runner.arch }}-${{ matrix.cache_key }}-xcode-26.4.1-
+      - name: Select destination
+        id: destination
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          DESTINATION: ${{ matrix.destination }}
+        run: |
+          if [[ -n "$PLATFORM" ]]; then
+            udid="$(
+              xcrun simctl list devices available "$PLATFORM" |
+                grep -oiE '[0-9A-Fa-f-]{36}' |
+                tail -1
+            )"
+            test -n "$udid"
+            xcrun simctl boot "$udid" 2>/dev/null &
+            echo "value=id=$udid,arch=arm64" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=$DESTINATION" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Test
+        run: >-
+          xcodebuild
+          -scheme swift-test-doubles
+          -destination '${{ steps.destination.outputs.value }}'
+          -derivedDataPath .build/ci-apple-platform
+          -parallel-testing-enabled NO
+          -quiet
+          test
+
+  rosetta:
+    name: Swift 6.3 / Rosetta x86_64
+    runs-on: macos-26
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Restore SwiftPM cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/org.swift.swiftpm
+            ~/Library/Caches/org.swift.swiftpm
+          key: >-
+            swiftpm-v1-${{ runner.os }}-${{ runner.arch }}-${{
+            hashFiles('Package.resolved') }}
+          restore-keys: |
+            swiftpm-v1-${{ runner.os }}-${{ runner.arch }}-
+      - name: Select Xcode 26.4.1
+        run: sudo xcode-select --switch /Applications/Xcode_26.4.1.app/Contents/Developer
+      - name: Install Rosetta
+        run: sudo softwareupdate --install-rosetta --agree-to-license
+      - name: Show translated toolchain
+        run: arch -x86_64 swift --version
+      - name: Test debug
+        run: |
+          arch -x86_64 swift test \
+            --no-parallel \
+            --scratch-path .build/ci-rosetta-debug \
+            --triple x86_64-apple-macosx \
+            --disable-xctest \
+            --enable-swift-testing
+      - name: Test release
+        run: |
+          arch -x86_64 swift test \
+            -c release \
+            --no-parallel \
+            --scratch-path .build/ci-rosetta-release \
+            --triple x86_64-apple-macosx \
+            --disable-xctest \
+            --enable-swift-testing
+  sanitizers:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Address Sanitizer
+            sanitizer: address
+          - name: Thread Sanitizer
+            sanitizer: thread
+    runs-on: macos-26
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Restore SwiftPM cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/org.swift.swiftpm
+            ~/Library/Caches/org.swift.swiftpm
+          key: >-
+            swiftpm-sanitizer-v1-${{ matrix.sanitizer }}-${{ runner.os }}-${{
+            runner.arch }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            swiftpm-sanitizer-v1-${{ matrix.sanitizer }}-${{ runner.os }}-${{ runner.arch }}-
+      - name: Select Xcode 26.4.1
+        run: sudo xcode-select --switch /Applications/Xcode_26.4.1.app/Contents/Developer
+      - name: Show toolchain
+        run: swift --version
+      - name: Test
+        run: >-
+          swift test
+          --sanitize ${{ matrix.sanitizer }}
+          --no-parallel
+          --skip DummyInvocationExitTests
+          --skip UnstubbedBehaviorTests
+          --scratch-path .build/ci-${{ matrix.sanitizer }}-sanitizer
+
+  coverage:
+    name: Swift source coverage
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Restore SwiftPM cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/org.swift.swiftpm
+            ~/Library/Caches/org.swift.swiftpm
+          key: >-
+            swiftpm-coverage-v1-${{ runner.os }}-${{ runner.arch }}-${{
+            hashFiles('Package.resolved') }}
+          restore-keys: |
+            swiftpm-coverage-v1-${{ runner.os }}-${{ runner.arch }}-
+      - name: Select Xcode 26.4.1
+        run: sudo xcode-select --switch /Applications/Xcode_26.4.1.app/Contents/Developer
+      - name: Enforce 85% Swift source coverage
+        run: Scripts/check-coverage.sh 85 .build/ci-coverage
