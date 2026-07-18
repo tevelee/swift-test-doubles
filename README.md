@@ -6,7 +6,7 @@
 [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Ftevelee%2Fswift-test-doubles%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/tevelee/swift-test-doubles)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Runtime-generated test doubles for Swift protocols—no macros, code generation,
+Runtime-generated test doubles for Swift protocols. No macros, code generation,
 or boilerplate.
 
 ## Quick start
@@ -99,6 +99,8 @@ targets: [
 Once `0.1.0` is tagged, replace `branch: "main"` with `from: "0.1.0"` to use
 semantic-versioned releases.
 
+## Runtime support
+
 TestDoubles requires Swift 6.3. The supported runtime matrix is macOS 13+ on
 arm64 and x86_64, Linux on arm64 and x86_64, Mac Catalyst 16+ on arm64, and
 arm64 simulators for iOS 16+, tvOS 16+, visionOS 1+, and watchOS 9+. Physical
@@ -146,43 +148,10 @@ and a predicate outranks a wildcard or capture. The first registration wins a
 specificity tie. Literal arguments use a best-effort textual comparison; prefer
 `equal(_:)` when equality semantics matter.
 
-The zero-argument matcher forms synthesize valid placeholders for supported
-value types. References, existentials, and other types that cannot be
-synthesized safely require a valid recording placeholder:
-
-```swift
-let placeholder = User(id: -1)
-stub.when { $0.save(user: any(using: placeholder)) }
-stub.when {
-    $0.save(user: matching(using: placeholder, description: "active") {
-        $0.isActive
-    })
-}
-
-let users = ArgumentCaptor<User>()
-stub.verify { $0.save(user: users.capture(using: placeholder)) }
-```
-
-The placeholder is passed only while recording the `when` or `verify` call; it
-does not participate in matching and is not captured.
-
-Return values can need the same treatment. Pass a valid recording result when
-the runtime cannot synthesize one safely, such as for a reference or
-existential result:
-
-```swift
-let placeholder = User(id: -1)
-stub.when(returning: placeholder) { $0.currentUser() }.thenReturn(alice)
-
-let user = repository.currentUser()
-stub.verify(returning: placeholder) { $0.currentUser() }
-```
-
-The placeholder is used only while the recording closure executes. The
-configured result still comes from `thenReturn`, `thenThrow`, or `then`. The
-same labeled form is available for async `when` and `verify`, and a boxed
-recording context keeps an optional `nil` distinct from not supplying a
-placeholder.
+These forms work directly for most values. Class instances, existentials, and
+some other values need one extra recording-only value; see
+[Class and existential values](#class-and-existential-values) after the common
+examples.
 
 ### Async success and failure
 
@@ -368,6 +337,79 @@ each registration owns its own sequence, so a more specific registration does
 not advance a general fallback. Behavior that depends on richer state belongs
 in a `then` handler; synchronous handlers and matcher predicates are
 `@Sendable`, so synchronize any mutable captures.
+
+### Class and existential values
+
+<details>
+<summary><strong>Why some calls need a recording-only value</strong></summary>
+
+A `when` or `verify` closure runs once immediately so TestDoubles can learn
+which protocol requirement it contains. That recording pass still has to make
+a valid Swift call: every argument needs a value, and a non-`Void` requirement
+has to produce a temporary result.
+
+That temporary value is all “placeholder” means here. It lets the recording
+closure execute; it is not an expected argument and it is not the configured
+return value.
+
+TestDoubles can create those temporary values for types such as `Int` and
+`String`. It cannot safely invent an instance of an arbitrary class or
+existential, so you supply any valid instance for the recording pass:
+
+```swift
+final class User {
+    let id: Int
+
+    init(id: Int) {
+        self.id = id
+    }
+}
+
+protocol UserStore {
+    func save(_ user: User)
+    func currentUser() -> User
+}
+
+let stub = try Stub<any UserStore>()
+let recordingUser = User(id: -1) // Used only while `when` and `verify` record.
+let alice = User(id: 42)         // The value used by the actual test.
+
+stub.when {
+    $0.save(any(using: recordingUser))
+}
+stub.when(returning: recordingUser) {
+    $0.currentUser()
+}.thenReturn(alice)
+
+let store: any UserStore = stub()
+store.save(alice)
+#expect(store.currentUser() === alice)
+
+let savedUsers = ArgumentCaptor<User>()
+stub.verify {
+    $0.save(savedUsers.capture(using: recordingUser))
+}
+stub.verify(returning: recordingUser) {
+    $0.currentUser()
+}
+
+#expect(savedUsers.values.first === alice)
+```
+
+The important distinction is:
+
+- `any(using: recordingUser)` still matches any `User`; it does not match only
+  `recordingUser`.
+- `returning: recordingUser` supplies the temporary result of the recording
+  pass; `.thenReturn(alice)` controls what production code receives.
+- `capture(using: recordingUser)` captures the real argument passed later—in
+  this example, `alice`.
+
+The recording-only value never becomes configured behavior unless you also
+pass it to `thenReturn` or return it from a `then` handler. The same rule applies
+to the async overloads and to optional `nil` placeholders.
+
+</details>
 
 ## Construction
 
@@ -574,22 +616,62 @@ for the exact supported and rejected shapes.
 
 ## Getter effect hints
 
-Swift protocol metadata records whether a getter is `async`, but not whether
-it throws. When an automatic signature source is available, supply only the
-missing throwing classification:
+Most protocols do not need this initializer. Keep using `try Stub<any P>()`
+when the protocol has no property getters, or when all of its getters are
+synchronous and nonthrowing.
+
+Use `getterEffects:` when a getter is `async` or `throws`. Swift's runtime
+metadata tells TestDoubles the getter's result type and whether it is `async`,
+but not whether it can throw. Each hint supplies only that missing answer:
+
+- `.nonthrowing` means the getter does not throw, whether it is synchronous or
+  async.
+- `.throwing` means the getter uses ordinary untyped `throws`, whether it is
+  synchronous or async.
+
+That is why even a nonthrowing `get async` property needs `.nonthrowing`:
+TestDoubles can see `async`, but refuses to guess the missing throwing behavior.
+
+For example, the protocol has two getters, so construction receives two hints
+in the same order:
 
 ```swift
+protocol CachedProfile {
+    var cachedName: String { get }
+    var freshName: String { get async throws }
+}
+
 let stub = try Stub<any CachedProfile>(
-    getterEffects: .nonthrowing, // var cachedName: String { get }
-    .throwing                    // var freshName: String { get async throws }
+    getterEffects: .nonthrowing, // cachedName
+    .throwing                    // freshName
 )
+
+stub.when { $0.cachedName }.thenReturn("Cached")
+await stub.when { try await $0.freshName }.thenReturn("Fresh")
 ```
 
-Supply one hint for every getter in base-first, depth-first declaration order;
-methods, initializers, and setters do not consume a hint. For inheritance or a
-composition, declaration-scoped groups remove ordering ambiguity:
+The hints do not configure either property. They only let TestDoubles construct
+the correct calling convention; `when` still configures the values as usual.
+
+<details>
+<summary><strong>Exact ordering, inheritance, and composition rules</strong></summary>
+
+Once you use `getterEffects:`, supply one hint for every getter. Methods,
+initializers, and setters do not consume a hint. For one protocol with
+inheritance, order the hints base-first and then in declaration order.
+
+For a protocol composition, group the hints by the protocol that declares each
+getter. This avoids one ambiguous flat list:
 
 ```swift
+protocol CachedProfile {
+    var cachedName: String { get }
+}
+
+protocol NetworkProfile {
+    var freshName: String { get async throws }
+}
+
 let stub = try Stub<any CachedProfile & NetworkProfile>(
     getterEffectsByProtocol: .effects(
         declaredBy: CachedProfile.self,
@@ -602,8 +684,18 @@ let stub = try Stub<any CachedProfile & NetworkProfile>(
 )
 ```
 
-Hints classify ordinary untyped `throws`; they do not describe typed throws.
-Use explicit requirements when no automatic signature source is available.
+Group order does not matter. Within each group, follow that protocol's getter
+declaration order. Inherited getters belong to the protocol that originally
+declares them.
+
+Hints classify only ordinary untyped `throws`; they cannot name a typed error.
+Typed-throwing getters are outside `Stub`'s runtime boundary; use `ManualStub`
+or a hand-written fake for those. When no automatic signature source is
+available, describe supported ordinary getters with explicit requirements. See
+the [Construction Guide](Sources/TestDoubles/Documentation.docc/Articles/ConstructionGuide.md)
+for those forms.
+
+</details>
 
 ## Explicit requirements
 
@@ -820,10 +912,10 @@ original `Stub` instance is released.
 
 ## Manual stubbing
 
-When a protocol can't be stubbed by `Stub<P>` — a requirement shape outside
-the runtime ABI boundary, or a platform the runtime trampoline doesn't run
-on — write a small conforming struct by hand and get the same `when`/`then`/
-`thenReturn`/`thenThrow`/`verify`/`verifyInOrder` ergonomics:
+When a protocol can't be stubbed by `Stub<P>` because its requirement shape is
+outside the runtime ABI boundary or the runtime trampoline doesn't run on its
+platform, write a small conforming struct by hand and get the same
+`when`/`then`/`thenReturn`/`thenThrow`/`verify`/`verifyInOrder` ergonomics:
 
 ```swift
 struct MyServiceStub: MyService, StubConformer {

@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- WatchOS simulator support
+
+## [0.0.1] - 2026-07-18
+
+### Added
+
 - Runtime-generated `Stub` and fail-closed `Dummy` values for supported Swift
   protocol shapes, with no macros or generated conformers.
 - Synchronous, throwing, async, typed-throwing, initializer, property,
@@ -25,3 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Runtime and ABI boundaries fail closed when a protocol requirement cannot be
   represented safely.
+
+[Unreleased]: https://github.com/tevelee/swift-test-doubles/commits/main
+[0.0.1]: https://github.com/tevelee/swift-test-doubles/tree/0.0.1
