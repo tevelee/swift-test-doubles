@@ -282,13 +282,13 @@ public enum ExternalClosureError: Error, Equatable {
     case failed
 }
 
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 public typealias ExternalTypedThrowingClosure =
     @Sendable (Int) throws(ExternalClosureError) -> String
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 public typealias ExternalAsyncTypedThrowingClosure =
     @Sendable (Int) async throws(ExternalClosureError) -> String
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 public typealias ExternalIsolatedClosure =
     @isolated(any) @Sendable (Int) async -> String
 public typealias ExternalMainActorClosure =
@@ -299,7 +299,7 @@ public typealias ExternalNonsendingClosure =
 public typealias ExternalSendingClosure =
     @Sendable (sending String) -> sending String
 
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 public protocol ExternalExtendedClosureService {
     func typedThrowing(
         _ closure: @escaping ExternalTypedThrowingClosure
@@ -321,7 +321,7 @@ public protocol ExternalExtendedClosureService {
     ) -> ExternalSendingClosure
 }
 
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 public struct RealExternalExtendedClosureService:
     ExternalExtendedClosureService
 {

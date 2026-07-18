@@ -153,7 +153,7 @@ struct ClosureBoundaryExpansionTests {
         #expect(await captured(worker, 1) == 43)
     }
 
-    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func largeTypedErrorsUseIndirectInnerTransport() throws {
         _ = RealExternalIndirectTypedThrowingClosureService()
         let failure = ExternalLargeClosureError(
@@ -180,7 +180,7 @@ struct ClosureBoundaryExpansionTests {
         }
     }
 
-    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func asyncIndirectResultsAndTypedErrorsRoundTripBothClosureDirections() async throws {
         _ = RealExternalIndirectTypedThrowingClosureService()
         let failure = ExternalLargeClosureError(
@@ -580,7 +580,7 @@ struct ClosureBoundaryExpansionTests {
         }
     }
 
-    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func dynamicBridgePreservesTypedErrorsAcrossMixedRegisters() throws {
         _ = RealExternalDynamicTypedClosureService()
         let quaternaryPlaceholder: ExternalTypedQuaternaryClosure = {
@@ -668,7 +668,7 @@ struct ClosureBoundaryExpansionTests {
         }
     }
 
-    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func typedErrorsRemainDistinctFromIndirectSuccessStorage() throws {
         _ = RealExternalDynamicTypedClosureService()
         let placeholder: ExternalTypedIndirectSuccessClosure = { value in
@@ -724,7 +724,7 @@ struct ClosureBoundaryExpansionTests {
         }
     }
 
-    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func typedThrowsComposesWithNullaryAndHigherOrderClosures() throws {
         _ = RealExternalDynamicTypedClosureService()
         let nullaryFailure: ExternalDynamicClosureError = .rejected(0)

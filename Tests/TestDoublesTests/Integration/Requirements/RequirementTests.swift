@@ -210,7 +210,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
         }
     }
 
-    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func typedAdapterPreservesTypedThrowsWithClosureValues() throws {
         let identity: RequirementClosure = { $0 }
         let adapter:

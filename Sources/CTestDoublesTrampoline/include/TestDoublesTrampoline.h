@@ -1,10 +1,6 @@
 #ifndef TEST_DOUBLES_TRAMPOLINE_H
 #define TEST_DOUBLES_TRAMPOLINE_H
 
-#if defined(__arm64__) && !defined(__LP64__)
-#error "CTestDoublesTrampoline requires a 64-bit architecture; watchOS arm64_32 is unsupported."
-#endif
-
 #define TD_GP_REGISTER_COUNT 16
 #define TD_FP_REGISTER_COUNT 16
 
@@ -49,19 +45,22 @@ typedef struct TDVectorRegister {
   uint64_t high;
 } TDVectorRegister;
 
+// The assembly bridge captures 64-bit arm64/x86_64 registers even when the
+// target uses 32-bit pointers, as watchOS arm64_32 does. Fixed-width slots keep
+// the C and assembly layouts identical on every supported compilation target.
 typedef struct TDCallFrame {
-  uintptr_t slot;
-  uintptr_t context;
-  uintptr_t gp[TD_GP_REGISTER_COUNT];
+  uint64_t slot;
+  uint64_t context;
+  uint64_t gp[TD_GP_REGISTER_COUNT];
   TDVectorRegister fp[TD_FP_REGISTER_COUNT];
-  uintptr_t stackPointer;
-  uintptr_t indirectResult;
-  uintptr_t swiftSelf;
-  uintptr_t swiftError;
-  uintptr_t reserved;
-  uintptr_t returnGP[4];
+  uint64_t stackPointer;
+  uint64_t indirectResult;
+  uint64_t swiftSelf;
+  uint64_t swiftError;
+  uint64_t reserved;
+  uint64_t returnGP[4];
   uint64_t returnFP[4];
-  uintptr_t returnError;
+  uint64_t returnError;
 } TDCallFrame;
 
 typedef struct TDSwiftErrorAllocation {

@@ -164,6 +164,9 @@ jobs:
           - name: visionOS 1+ Simulator / arm64
             platform: visionOS
             cache_key: visionos
+          - name: watchOS 9+ Simulator / arm64
+            platform: watchOS
+            cache_key: watchos
     runs-on: macos-26
     timeout-minutes: 20
     steps:

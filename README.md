@@ -101,9 +101,10 @@ semantic-versioned releases.
 
 TestDoubles requires Swift 6.3. The supported runtime matrix is macOS 13+ on
 arm64 and x86_64, Linux on arm64 and x86_64, Mac Catalyst 16+ on arm64, and
-arm64 simulators for iOS 16+, tvOS 16+, and visionOS 1+. Physical iOS, tvOS,
-and visionOS devices are unsupported because the runtime generates executable
-trampoline code and CI cannot exercise device execution policy.
+arm64 simulators for iOS 16+, tvOS 16+, visionOS 1+, and watchOS 9+. Physical
+iOS, tvOS, visionOS, and watchOS devices are unsupported because the runtime
+generates executable trampoline code and CI cannot exercise device execution
+policy. `ManualStub` remains available when building for those devices.
 
 For a protocol that conforms to `Sendable`, materialize its value with
 `stub(sendability: .unchecked)` or `makeStub(sendability: .unchecked)`. The

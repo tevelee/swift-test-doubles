@@ -344,11 +344,17 @@ static void *td_witness_veneer_arena_make(
 }
 
 TDWitnessVeneerArena *td_witness_veneer_arena_create(void) {
+#if defined(__arm64__) && !defined(__LP64__)
+  // arm64_32 can compile the package and use ManualStub, but executable
+  // trampoline behavior has not been validated on physical watchOS devices.
+  return 0;
+#else
   TDWitnessVeneerArena *arena = calloc(1, sizeof(TDWitnessVeneerArena));
   if (arena) {
     arena->pageSize = td_page_size();
   }
   return arena;
+#endif
 }
 
 void *td_witness_veneer_arena_make_witness(TDWitnessVeneerArena *arena,

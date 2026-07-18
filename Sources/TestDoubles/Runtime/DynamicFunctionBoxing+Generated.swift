@@ -234,7 +234,7 @@ private func boxDynamicFunction0<Result>(
     isAsync: Bool
 ) -> Any {
     if let errorType = invocation.typedErrorType {
-        guard #available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *) else {
+        guard #available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *) else {
             preconditionFailure(
                 "[TestDoubles] Typed closure runtime support is unavailable on this OS version."
             )
@@ -331,7 +331,7 @@ private func boxDynamicFunction1<P0, Result>(
     _: P0.Type
 ) -> Any {
     if let errorType = invocation.typedErrorType {
-        guard #available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *) else {
+        guard #available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *) else {
             preconditionFailure(
                 "[TestDoubles] Typed closure runtime support is unavailable on this OS version."
             )
@@ -430,7 +430,7 @@ private func boxDynamicFunction2<P0, P1, Result>(
     _: P1.Type
 ) -> Any {
     if let errorType = invocation.typedErrorType {
-        guard #available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *) else {
+        guard #available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *) else {
             preconditionFailure(
                 "[TestDoubles] Typed closure runtime support is unavailable on this OS version."
             )
@@ -531,7 +531,7 @@ private func boxDynamicFunction3<P0, P1, P2, Result>(
     _: P2.Type
 ) -> Any {
     if let errorType = invocation.typedErrorType {
-        guard #available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *) else {
+        guard #available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *) else {
             preconditionFailure(
                 "[TestDoubles] Typed closure runtime support is unavailable on this OS version."
             )
@@ -634,7 +634,7 @@ private func boxDynamicFunction4<P0, P1, P2, P3, Result>(
     _: P3.Type
 ) -> Any {
     if let errorType = invocation.typedErrorType {
-        guard #available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *) else {
+        guard #available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *) else {
             preconditionFailure(
                 "[TestDoubles] Typed closure runtime support is unavailable on this OS version."
             )
@@ -739,7 +739,7 @@ private func boxDynamicFunction5<P0, P1, P2, P3, P4, Result>(
     _: P4.Type
 ) -> Any {
     if let errorType = invocation.typedErrorType {
-        guard #available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *) else {
+        guard #available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *) else {
             preconditionFailure(
                 "[TestDoubles] Typed closure runtime support is unavailable on this OS version."
             )
@@ -846,7 +846,7 @@ private func boxDynamicFunction6<P0, P1, P2, P3, P4, P5, Result>(
     _: P5.Type
 ) -> Any {
     if let errorType = invocation.typedErrorType {
-        guard #available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *) else {
+        guard #available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *) else {
             preconditionFailure(
                 "[TestDoubles] Typed closure runtime support is unavailable on this OS version."
             )
@@ -940,7 +940,7 @@ private func boxDynamicFunction6<P0, P1, P2, P3, P4, P5, Result>(
     return closure
 }
 
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 private func boxDynamicTypedFunction0<Failure: Error, Result>(
     _ invocation: DynamicFunctionInvocation,
     failureType: Failure.Type,
@@ -988,7 +988,7 @@ private func boxDynamicTypedFunction0<Failure: Error, Result>(
     return closure
 }
 
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 private func boxDynamicTypedFunction1<P0, Failure: Error, Result>(
     _ invocation: DynamicFunctionInvocation,
     failureType: Failure.Type,
@@ -1037,7 +1037,7 @@ private func boxDynamicTypedFunction1<P0, Failure: Error, Result>(
     return closure
 }
 
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 private func boxDynamicTypedFunction2<P0, P1, Failure: Error, Result>(
     _ invocation: DynamicFunctionInvocation,
     failureType: Failure.Type,
@@ -1087,7 +1087,7 @@ private func boxDynamicTypedFunction2<P0, P1, Failure: Error, Result>(
     return closure
 }
 
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 private func boxDynamicTypedFunction3<P0, P1, P2, Failure: Error, Result>(
     _ invocation: DynamicFunctionInvocation,
     failureType: Failure.Type,
@@ -1138,7 +1138,7 @@ private func boxDynamicTypedFunction3<P0, P1, P2, Failure: Error, Result>(
     return closure
 }
 
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 private func boxDynamicTypedFunction4<P0, P1, P2, P3, Failure: Error, Result>(
     _ invocation: DynamicFunctionInvocation,
     failureType: Failure.Type,
@@ -1190,7 +1190,7 @@ private func boxDynamicTypedFunction4<P0, P1, P2, P3, Failure: Error, Result>(
     return closure
 }
 
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 private func boxDynamicTypedFunction5<P0, P1, P2, P3, P4, Failure: Error, Result>(
     _ invocation: DynamicFunctionInvocation,
     failureType: Failure.Type,
@@ -1243,7 +1243,7 @@ private func boxDynamicTypedFunction5<P0, P1, P2, P3, P4, Failure: Error, Result
     return closure
 }
 
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 private func boxDynamicTypedFunction6<P0, P1, P2, P3, P4, P5, Failure: Error, Result>(
     _ invocation: DynamicFunctionInvocation,
     failureType: Failure.Type,
