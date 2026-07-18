@@ -328,3 +328,20 @@ jobs:
         run: sudo xcode-select --switch /Applications/Xcode_26.4.1.app/Contents/Developer
       - name: Enforce 85% Swift source coverage
         run: Scripts/check-coverage.sh 85 .build/ci-coverage
+      - name: Convert coverage to lcov
+        run: |
+          BINARY=$(find -L .build/ci-coverage/debug -name "swift-test-doublesPackageTests" -type f -not -path "*.dSYM/*" | head -1)
+          PROFDATA=$(find -L .build/ci-coverage/debug/codecov -name "default.profdata" | head -1)
+          xcrun llvm-cov export \
+            -format=lcov \
+            "$BINARY" \
+            -instr-profile "$PROFDATA" \
+            -ignore-filename-regex=".build|Tests" \
+            > coverage.lcov
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          files: coverage.lcov
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
