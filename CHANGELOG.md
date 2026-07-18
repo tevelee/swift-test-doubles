@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ManualStub` for protocols and platforms outside the runtime trampoline's
   supported boundary.
 - CI workflows for the documented macOS, Linux, simulator, and Mac Catalyst
-  matrix, including release-mode and x86_64 runtime checks.
+  matrix, including watchOS Simulator, release-mode, and x86_64 runtime checks.
 
 ### Security
 

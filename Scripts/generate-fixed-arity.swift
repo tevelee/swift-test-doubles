@@ -253,7 +253,7 @@ private func dynamicBoxFunction(arity: Int) -> String {
             isAsync: Bool\(parameterSuffix)
         ) -> Any {
             if let errorType = invocation.typedErrorType {
-                guard #available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *) else {
+                guard #available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *) else {
                     preconditionFailure(
                         "[TestDoubles] Typed closure runtime support is unavailable on this OS version."
                     )
@@ -330,7 +330,7 @@ private func dynamicTypedBoxFunction(arity: Int) -> String {
     }.joined(separator: "\n")
 
     return """
-        @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+        @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
         private func boxDynamicTypedFunction\(arity)<\(generic)>(
             _ invocation: DynamicFunctionInvocation,
             failureType: Failure.Type,

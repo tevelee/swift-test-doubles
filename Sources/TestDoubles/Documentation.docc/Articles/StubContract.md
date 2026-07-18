@@ -328,15 +328,16 @@ even if it cannot be diagnosed during construction.
 
 CI-backed release support covers macOS 13+ on arm64 and x86_64, Linux on arm64
 and x86_64 with Swift 6.3+, Mac Catalyst 16+ on arm64, and arm64 simulators for
-iOS 16+, tvOS 16+, and visionOS 1+. Deployment targets are compiled at their
-declared minimum and executed on CI's available runner or simulator OS. macOS
-x86_64 coverage runs under Rosetta.
+iOS 16+, tvOS 16+, visionOS 1+, and watchOS 9+. Deployment targets are compiled
+at their declared minimum and executed on CI's available runner or simulator
+OS. macOS x86_64 coverage runs under Rosetta.
 
-Physical iOS, tvOS, and visionOS devices are unsupported because the runtime
-generates executable trampoline code and CI cannot exercise device execution
-policy. Linux CI uses the tagged Echo dependency without patching dependency
-checkouts. The README installation section lists the complete supported
-platform policy.
+Physical iOS, tvOS, visionOS, and watchOS devices are unsupported because the
+runtime generates executable trampoline code and CI cannot exercise device
+execution policy. `ManualStub` remains available when building for those
+devices. Linux CI uses the tagged Echo dependency without patching dependency
+checkouts. The README installation section lists the complete supported platform
+policy.
 
 Construction rejects async requirements whose witness receiver, arguments,
 and hidden result or error storage consume all available general-purpose

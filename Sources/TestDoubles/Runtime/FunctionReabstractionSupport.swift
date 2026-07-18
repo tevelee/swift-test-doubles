@@ -85,8 +85,16 @@ func typedThrowingFunctionRuntimeUnsupportedReason(
     _ metadata: FunctionMetadata
 ) -> String? {
     guard metadata.typedThrownErrorType != nil else { return nil }
-    guard #available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *) else {
-        return "Typed-throws closure values require macOS 15, iOS 18, Mac Catalyst 18, tvOS 18, or visionOS 2."
+    guard
+        #available(macOS 15,
+        iOS 18,
+        macCatalyst 18,
+        tvOS 18,
+        visionOS 2,
+        watchOS 11,
+        *)
+    else {
+        return "Typed-throws closure values require macOS 15, iOS 18, Mac Catalyst 18, tvOS 18, visionOS 2, or watchOS 11."
     }
     return nil
 }
@@ -234,7 +242,7 @@ extension FunctionMetadata {
     }
 
     var globalActorType: Any.Type? {
-        guard flags.bits & 0x1000_0000 != 0 else { return nil }
+        guard rawFlagsBits & 0x1000_0000 != 0 else { return nil }
         return unsafeBitCast(
             ptr.load(
                 fromByteOffset: postDifferentiabilityOffset,
@@ -245,9 +253,9 @@ extension FunctionMetadata {
     }
 
     private var extendedFlagsOffset: Int? {
-        guard flags.bits & 0x8000_0000 != 0 else { return nil }
+        guard rawFlagsBits & 0x8000_0000 != 0 else { return nil }
         var offset = postDifferentiabilityOffset
-        if flags.bits & 0x1000_0000 != 0 {
+        if rawFlagsBits & 0x1000_0000 != 0 {
             offset += MemoryLayout<UInt>.size
         }
         return offset
@@ -261,10 +269,14 @@ extension FunctionMetadata {
             offset += flags.numParams * MemoryLayout<UInt32>.size
         }
         offset = alignedToPointer(offset)
-        if flags.bits & 0x0800_0000 != 0 {
+        if rawFlagsBits & 0x0800_0000 != 0 {
             offset += MemoryLayout<UInt>.size
         }
         return offset
+    }
+
+    private var rawFlagsBits: UInt32 {
+        UInt32(truncatingIfNeeded: flags.bits)
     }
 
     private func alignedToPointer(_ offset: Int) -> Int {

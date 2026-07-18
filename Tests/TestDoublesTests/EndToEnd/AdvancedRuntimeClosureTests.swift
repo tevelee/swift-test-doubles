@@ -46,14 +46,14 @@ private func configureManagedClosure(
     }
 }
 
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 private func inheritIsolation(
     @_inheritActorContext _ operation: @escaping ExternalIsolatedClosure
 ) -> ExternalIsolatedClosure {
     operation
 }
 
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 private actor ClosureIsolationActor {
     private var invocationCount = 0
 
@@ -216,7 +216,7 @@ private actor ClosureIsolationActor {
         }
     }
 
-    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func asyncTypedThrowingClosureValuesPreserveTypedErrors() async throws {
         _ = RealExternalExtendedClosureService()
         let identity: ExternalAsyncTypedThrowingClosure = { "\($0)" }
@@ -439,7 +439,7 @@ private actor ClosureIsolationActor {
         }
     }
 
-    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func typedThrowingClosureValuesPreserveTypedErrors() throws {
         _ = RealExternalExtendedClosureService()
         let identity: ExternalTypedThrowingClosure = { "\($0)" }
@@ -460,7 +460,7 @@ private actor ClosureIsolationActor {
         }
     }
 
-    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @MainActor
     @Test func globalActorClosureValuesPreserveIsolation() throws {
         _ = RealExternalExtendedClosureService()
@@ -475,7 +475,7 @@ private actor ClosureIsolationActor {
         #expect(transformed(21) == "42!")
     }
 
-    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func isolatedAnyClosureValuesPreserveDynamicActorIsolation() async throws {
         _ = RealExternalExtendedClosureService()
         let identity: ExternalIsolatedClosure = { "\($0)" }
@@ -492,7 +492,7 @@ private actor ClosureIsolationActor {
         #expect(await transformed(14) == "42?")
     }
 
-    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func transferAndNonsendingClosureFlagsRoundTrip() async throws {
         _ = RealExternalExtendedClosureService()
         let sendingIdentity: ExternalSendingClosure = { $0 }

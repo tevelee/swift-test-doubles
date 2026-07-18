@@ -156,15 +156,15 @@ public struct ExternalLargeClosureError: Error, Equatable, Sendable {
     }
 }
 
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 public typealias ExternalIndirectTypedThrowingClosure =
     @Sendable (Int) throws(ExternalLargeClosureError) -> String
 
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 public typealias ExternalAsyncIndirectTypedThrowingClosure =
     @Sendable (Int) async throws(ExternalLargeClosureError) -> ExternalNullaryLargeResult
 
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 public protocol ExternalIndirectTypedThrowingClosureService {
     func typedThrowing(
         _ closure: @escaping ExternalIndirectTypedThrowingClosure
@@ -174,7 +174,7 @@ public protocol ExternalIndirectTypedThrowingClosureService {
     ) -> ExternalAsyncIndirectTypedThrowingClosure
 }
 
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 public struct RealExternalIndirectTypedThrowingClosureService:
     ExternalIndirectTypedThrowingClosureService
 {
@@ -418,22 +418,22 @@ public typealias ExternalOptionalHigherOrderClosure =
         Int
     ) -> ExternalContainerClosure?
 
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 public typealias ExternalTypedNullaryClosure =
     () throws(ExternalDynamicClosureError) -> Int
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 public typealias ExternalTypedQuaternaryClosure =
     @Sendable (Int, Double, Bool, String)
     throws(ExternalDynamicClosureError) -> String
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 public typealias ExternalMixedTypedBinaryClosure =
     @Sendable (Int, Double)
     throws(ExternalMixedClosureError) -> ExternalNullaryAggregate
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 public typealias ExternalTypedIndirectSuccessClosure =
     @Sendable (Int)
     throws(ExternalDynamicClosureError) -> ExternalNullaryLargeResult
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 public typealias ExternalTypedHigherOrderClosure =
     @Sendable (@escaping ExternalContainerClosure, Int)
     throws(ExternalDynamicClosureError) -> ExternalContainerClosure
@@ -503,7 +503,7 @@ public struct RealExternalDynamicArityClosureService:
     ) -> ExternalOptionalHigherOrderClosure { closure }
 }
 
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 public protocol ExternalDynamicTypedClosureService {
     func nullary(
         _ closure: @escaping ExternalTypedNullaryClosure
@@ -522,7 +522,7 @@ public protocol ExternalDynamicTypedClosureService {
     ) -> ExternalTypedHigherOrderClosure
 }
 
-@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, *)
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 public struct RealExternalDynamicTypedClosureService:
     ExternalDynamicTypedClosureService
 {
