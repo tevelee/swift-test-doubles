@@ -123,9 +123,9 @@ struct RealMutableSpyService: MutableSpyService {
 }
 
 @Suite struct SpyTests {
-    @Test func forwardsUnmatchedCallsAndRecordsThem() throws {
+    @Test func factoryForwardsUnmatchedCallsAndRecordsThem() {
         let target = RealSpyService()
-        let spy = try Spy<any SpyService>(forwardingTo: target)
+        let spy = makeSpy(SpyService.self, forwardingTo: target)
         let service: any SpyService = spy()
 
         #expect(service.fetch(id: 7) == "real:7")
@@ -230,3 +230,25 @@ struct RealMutableSpyService: MutableSpyService {
         }
     }
 }
+
+#if compiler(>=6.2) && (os(macOS) || os(Linux) || targetEnvironment(macCatalyst))
+    @Suite struct SpyFactoryExitTests {
+        @Test func unsupportedProtocolShapeFailsClosed() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                _ = makeSpy(
+                    StaticSpyService.self,
+                    forwardingTo: RealStaticSpyService()
+                )
+            }
+            let diagnostic = try #require(
+                String(bytes: result.standardErrorContent, encoding: .utf8)
+            )
+            #expect(diagnostic.contains("Could not construct a spy"))
+            #expect(diagnostic.contains("StaticSpyService"))
+            #expect(diagnostic.contains("supports instance requirements only"))
+        }
+    }
+#endif

@@ -5,10 +5,10 @@ for the interactions a test needs to control.
 
 ## Overview
 
-Create a ``Spy`` from a protocol existential and its real implementation:
+Create a ``Spy`` from a protocol and its real implementation:
 
 ```swift
-let spy = try Spy<any UserService>(forwardingTo: liveService)
+let spy = makeSpy(UserService.self, forwardingTo: liveService)
 let service: any UserService = spy()
 
 #expect(service.displayName(for: "admin") == "Admin")
@@ -17,7 +17,10 @@ spy.verify { $0.displayName(for: "admin") }
 
 The spy owns the target existential and uses its witness tables for signature
 discovery. It does not need explicit ``Stub/Requirement`` values or a separate
-linked conformer.
+linked conformer. ``makeSpy(_:forwardingTo:)`` terminates with an actionable
+diagnostic when construction is unsupported. Use the throwing
+``Spy/init(forwardingTo:)`` initializer when the caller needs to recover and
+choose a hand-written spy.
 
 ### Override selected calls
 

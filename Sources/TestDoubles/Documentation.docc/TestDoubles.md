@@ -55,6 +55,7 @@ isolation. See
 
 - ``Stub``
 - ``Spy``
+- ``makeSpy(_:forwardingTo:)``
 - ``makeStub(_:)-7h3si``
 - ``makeStub(sendability:_:)``
 - ``StubSendability``

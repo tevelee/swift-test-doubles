@@ -6,7 +6,7 @@
 /// to the inherited verification API.
 ///
 /// ```swift
-/// let spy = try Spy<any UserService>(forwardingTo: liveService)
+/// let spy = makeSpy(UserService.self, forwardingTo: liveService)
 /// spy.when { $0.displayName(for: "guest") }.thenReturn("Test Guest")
 ///
 /// let service: any UserService = spy()
@@ -47,4 +47,35 @@ public final class Spy<P>: Stub<P> {
         )
         super.init(prepared: prepared)
     }
+}
+
+/// Returns a forwarding spy for `protocolType` that records calls to `target`.
+///
+/// The protocol metatype selects the existential that the spy implements and
+/// prevents the target's concrete implementation type from being inferred as
+/// the generic argument. Construction terminates the process with a diagnostic
+/// if the protocol cannot be forwarded safely. Use the throwing
+/// ``Spy/init(forwardingTo:)`` initializer when construction failure must be
+/// handled by the caller.
+///
+/// - Parameters:
+///   - protocolType: The protocol metatype implemented by the returned spy.
+///   - target: The real protocol implementation that receives unmatched calls.
+/// - Returns: A forwarding spy that supports stubbing and verification.
+public func makeSpy<P>(
+    _ protocolType: P.Type,
+    forwardingTo target: P
+) -> Spy<P> {
+    do {
+        return try Spy<P>(forwardingTo: target)
+    } catch {
+        fatalError(spyConstructionFailure(for: protocolType, error: error))
+    }
+}
+
+private func spyConstructionFailure<P>(
+    for protocolType: P.Type,
+    error: any Error
+) -> String {
+    "[TestDoubles] Could not construct a spy for '\(String(reflecting: protocolType))': \(error)"
 }

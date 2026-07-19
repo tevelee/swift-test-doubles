@@ -115,7 +115,7 @@ Use ``Spy`` when a real implementation should handle most calls and the test
 needs to observe or replace only selected interactions:
 
 ```swift
-let spy = try Spy<any UserRepository>(forwardingTo: liveRepository)
+let spy = makeSpy(UserRepository.self, forwardingTo: liveRepository)
 spy.when { $0.find(id: equal(42)) }.thenReturn("Fixture User")
 
 let repository: any UserRepository = spy()
@@ -127,7 +127,10 @@ spy.verify(.exactly(2)) { $0.find(id: any()) }
 
 Matching registrations take precedence; unmatched supported calls forward and
 remain verifiable. The forwarding target supplies the requirement signatures.
-See <doc:ForwardingSpies> for supported shapes and construction failures.
+The factory fails closed with an actionable diagnostic. Use the throwing
+``Spy/init(forwardingTo:)`` initializer when construction failure must be
+handled by the caller. See <doc:ForwardingSpies> for supported shapes and
+construction failures.
 
 ### Capture side effects
 

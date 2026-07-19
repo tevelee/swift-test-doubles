@@ -39,8 +39,9 @@ released.
 
 ### Construction boundary
 
-``makeDummy(_:)`` and ``Dummy/init()`` accept ordinary opaque and class-constrained
-Swift protocol existentials, compositions, inheritance, and concretely bound
-associated types within the protocol-layout boundary shared with ``Stub``.
-Construction terminates with a diagnostic for non-protocol types and unsupported
-existential or protocol metadata shapes.
+``makeDummy(_:)`` and ``Dummy/init()`` accept ordinary opaque and
+class-constrained Swift protocol existentials, compositions, inheritance, and
+concretely bound associated types within the protocol-layout boundary shared
+with ``Stub``. The initializer throws ``StubError`` for non-protocol types and
+unsupported existential or protocol metadata shapes. The factory fails closed
+with the same error rendered as an actionable construction diagnostic.

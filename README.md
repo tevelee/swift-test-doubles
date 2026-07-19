@@ -63,7 +63,7 @@ Use `Spy` when most behavior should stay real and a test needs to observe or
 replace only a few interactions:
 
 ```swift
-let spy = try Spy<any UserService>(forwardingTo: liveService)
+let spy = makeSpy(UserService.self, forwardingTo: liveService)
 spy.when { $0.displayName(for: equal("guest")) }
     .thenReturn("Test Guest")
 
@@ -77,7 +77,9 @@ spy.verify(.exactly(2)) { $0.displayName(for: any()) }
 A matching `when` registration wins. Every unmatched supported call forwards
 to the target and is recorded for verification. The target's conformance also
 provides signature discovery, so `Spy` does not need explicit requirements or
-a second linked conformer.
+a second linked conformer. `makeSpy` fails closed with a construction
+diagnostic; use `try Spy<any P>(forwardingTo:)` when the caller needs to handle
+construction failure.
 
 Forwarding currently supports instance methods and read-only getters whose
 arguments stay within the supported register boundary. Static and

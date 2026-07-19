@@ -73,8 +73,8 @@ struct DummyTests {
         #expect(fallbackValue(using: service) == 42)
     }
 
-    @Test func constructionDoesNotDecodeRequirementSignatures() {
-        let dummy = Dummy<any DummyCallbackService>()
+    @Test func constructionDoesNotDecodeRequirementSignatures() throws {
+        let dummy = try Dummy<any DummyCallbackService>()
 
         #expect(acceptsCallbackService(dummy()))
     }
@@ -84,8 +84,8 @@ struct DummyTests {
         withExtendedLifetime(source) {}
     }
 
-    @Test func supportsInheritanceAndProtocolCompositions() {
-        let dummy = Dummy<
+    @Test func supportsInheritanceAndProtocolCompositions() throws {
+        let dummy = try Dummy<
             any DummyDerivedService & DummyCompanionService
         >()
 
@@ -93,15 +93,15 @@ struct DummyTests {
         withExtendedLifetime(service) {}
     }
 
-    @Test func supportsClassConstrainedProtocols() {
-        let dummy = Dummy<any DummyObjectService>()
+    @Test func supportsClassConstrainedProtocols() throws {
+        let dummy = try Dummy<any DummyObjectService>()
 
         let service: any DummyObjectService = dummy()
         #expect(acceptsObjectService(service))
     }
 
     @Test func generatedValueOwnsItsRuntimeResources() throws {
-        var dummy: Dummy<any DummyService>? = Dummy()
+        var dummy: Dummy<any DummyService>? = try Dummy()
         let service = try #require(dummy?())
 
         dummy = nil
@@ -110,7 +110,7 @@ struct DummyTests {
     }
 
     @Test func repeatedlyMaterializedValuesOwnTheirRuntimeResources() throws {
-        var dummy: Dummy<any DummyService>? = Dummy()
+        var dummy: Dummy<any DummyService>? = try Dummy()
         let first = try #require(dummy?())
         let second = try #require(dummy?())
 
@@ -118,6 +118,15 @@ struct DummyTests {
 
         #expect(fallbackValue(using: first) == 42)
         #expect(fallbackValue(using: second) == 42)
+    }
+
+    @Test func rejectsNonProtocolTypesAtConstruction() {
+        expectStubError({
+            _ = try Dummy<Int>()
+        }) { error in
+            guard case .typeIsNotProtocol = error else { return false }
+            return true
+        }
     }
 }
 
@@ -127,7 +136,7 @@ struct DummyTests {
         case asynchronous
         case modify
         case staticRequirement
-        case nonProtocolConstruction
+        case nonProtocolFactoryConstruction
     }
 
     @Suite struct DummyInvocationExitTests {
@@ -144,8 +153,8 @@ struct DummyTests {
                     try await modifyInvocationFailsClosed()
                 case .staticRequirement:
                     try await staticInvocationFailsClosed()
-                case .nonProtocolConstruction:
-                    try await nonProtocolConstructionFailsClosed()
+                case .nonProtocolFactoryConstruction:
+                    try await nonProtocolFactoryConstructionFailsClosed()
             }
         }
 
@@ -197,12 +206,12 @@ struct DummyTests {
             )
         }
 
-        private func nonProtocolConstructionFailsClosed() async throws {
+        private func nonProtocolFactoryConstructionFailsClosed() async throws {
             let result = try await #require(
                 processExitsWith: .failure,
                 observing: [\.standardErrorContent]
             ) {
-                _ = Dummy<Int>()
+                _ = makeDummy(Int.self)
             }
             let diagnostic = try #require(
                 String(bytes: result.standardErrorContent, encoding: .utf8)

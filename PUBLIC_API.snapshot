@@ -73,6 +73,7 @@ symbol	swift.func	any()	func any<T>() -> T
 symbol	swift.func	any(using:)	func any<T>(using placeholder: T) -> T
 symbol	swift.func	equal(_:)	func equal<T>(_ value: T) -> T where T : Equatable
 symbol	swift.func	makeDummy(_:)	func makeDummy<P>(_ protocolType: P.Type = P.self) -> P
+symbol	swift.func	makeSpy(_:forwardingTo:)	func makeSpy<P>(_ protocolType: P.Type, forwardingTo target: P) -> Spy<P>
 symbol	swift.func	makeStub(_:)	func makeStub<P>(_ configure: (Stub<P>) -> Void) -> P
 symbol	swift.func	makeStub(_:)	func makeStub<P>(_ configure: (Stub<P>) -> Void) -> P where P : Sendable
 symbol	swift.func	makeStub(_:isolation:)	func makeStub<P>(_ configure: (Stub<P>) async -> Void, isolation: isolated (any Actor)? = #isolation) async -> P
@@ -82,7 +83,7 @@ symbol	swift.func	makeStub(sendability:_:isolation:)	func makeStub<P>(sendabilit
 symbol	swift.func	matching(description:where:)	func matching<T>(description: String = "predicate", where predicate: @escaping @Sendable (T) -> Bool) -> T
 symbol	swift.func	matching(using:description:where:)	func matching<T>(using placeholder: T, description: String = "predicate", where predicate: @escaping @Sendable (T) -> Bool) -> T
 symbol	swift.init	ArgumentCaptor.init()	init()
-symbol	swift.init	Dummy.init()	convenience init()
+symbol	swift.init	Dummy.init()	convenience init() throws
 symbol	swift.init	ManualRouteID.init(_:argumentTypes:)	init(_ signature: String = #function, argumentTypes: Any.Type...)
 symbol	swift.init	ManualStub.init()	init()
 symbol	swift.init	Spy.init(forwardingTo:)	init(forwardingTo target: P) throws
