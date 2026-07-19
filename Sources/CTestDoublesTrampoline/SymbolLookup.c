@@ -476,6 +476,22 @@ const void *td_sign_async_function_pointer(const void *pointer,
 #endif
 }
 
+const void *td_strip_witness_function_pointer(const void *pointer) {
+#if defined(__APPLE__) && __has_feature(ptrauth_calls)
+  return ptrauth_strip(pointer, ptrauth_key_function_pointer);
+#else
+  return pointer;
+#endif
+}
+
+const void *td_strip_async_witness_pointer(const void *pointer) {
+#if defined(__APPLE__) && __has_feature(ptrauth_calls)
+  return ptrauth_strip(pointer, ptrauth_key_process_dependent_data);
+#else
+  return pointer;
+#endif
+}
+
 static uint64_t td_rotate_left(uint64_t value, unsigned count) {
   return (value << count) | (value >> (64 - count));
 }

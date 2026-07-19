@@ -11,6 +11,14 @@ func tdSwiftInvokeAsyncFunction(
     _ isThrowing: Bool
 ) async
 
+@_silgen_name("td_swift_invoke_async_witness")
+func tdSwiftInvokeAsyncWitness(
+    _ function: UnsafeRawPointer,
+    _ selfValue: UnsafeRawPointer,
+    _ frame: UnsafeMutablePointer<TDCallFrame>,
+    _ isThrowing: Bool
+) async
+
 func decodeDirectResult(
     _ layout: ABIClass,
     frame: UnsafeMutablePointer<TDCallFrame>,

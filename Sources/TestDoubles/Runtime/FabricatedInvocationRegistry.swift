@@ -35,15 +35,23 @@ final class DummyInvocation: Sendable {
 
 enum FabricatedInvocationTarget: Sendable {
     case stub(StubRecorder)
+    case spy(StubRecorder, any ProtocolForwarding)
     case dummy(DummyInvocation)
 
     func recorderOrReject(slot: Int) -> StubRecorder {
         switch self {
             case .stub(let recorder):
                 return recorder
+            case .spy(let recorder, _):
+                return recorder
             case .dummy(let invocation):
                 invocation.reject(slot: slot)
         }
+    }
+
+    var forwarder: (any ProtocolForwarding)? {
+        guard case .spy(_, let forwarder) = self else { return nil }
+        return forwarder
     }
 }
 

@@ -33,13 +33,13 @@ struct TrampolineCallFrame {
     }
 
     #if arch(x86_64)
-        private static let generalPurposeArgumentLimit = 6
+        static let generalPurposeArgumentLimit = 6
     #else
-        private static let generalPurposeArgumentLimit = 8
+        static let generalPurposeArgumentLimit = 8
     #endif
-    private static let floatingPointArgumentLimit = 8
+    static let floatingPointArgumentLimit = 8
 
-    private let pointer: UnsafeMutablePointer<TDCallFrame>
+    let pointer: UnsafeMutablePointer<TDCallFrame>
 
     init(_ pointer: UnsafeMutablePointer<TDCallFrame>) {
         self.pointer = pointer

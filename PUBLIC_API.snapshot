@@ -35,7 +35,8 @@ conformance	StubSendability	Swift.Sendable	[]
 symbol	swift.class	ArgumentCaptor	final class ArgumentCaptor<T>
 symbol	swift.class	Dummy	final class Dummy<P>
 symbol	swift.class	ManualStub	@dynamicMemberLookup final class ManualStub<T> where T : StubConformer
-symbol	swift.class	Stub	final class Stub<P>
+symbol	swift.class	Spy	final class Spy<P>
+symbol	swift.class	Stub	class Stub<P>
 symbol	swift.class	Stub.Invocation	final class Invocation
 symbol	swift.enum	Stub.GetterEffect	enum GetterEffect
 symbol	swift.enum	StubError	enum StubError
@@ -84,6 +85,7 @@ symbol	swift.init	ArgumentCaptor.init()	init()
 symbol	swift.init	Dummy.init()	convenience init()
 symbol	swift.init	ManualRouteID.init(_:argumentTypes:)	init(_ signature: String = #function, argumentTypes: Any.Type...)
 symbol	swift.init	ManualStub.init()	init()
+symbol	swift.init	Spy.init(forwardingTo:)	init(forwardingTo target: P) throws
 symbol	swift.init	Stub.init(_:)	convenience init(_ requirements: Requirement...) throws
 symbol	swift.init	Stub.init(associatedTypes:_:)	convenience init(associatedTypes: [AssociatedTypeBinding], _ requirements: Requirement...) throws
 symbol	swift.init	Stub.init(getterEffects:_:)	convenience init(getterEffects firstEffect: GetterEffect, _ additionalEffects: GetterEffect...) throws

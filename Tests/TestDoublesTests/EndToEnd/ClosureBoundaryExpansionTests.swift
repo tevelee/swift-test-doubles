@@ -300,7 +300,7 @@ struct ClosureBoundaryExpansionTests {
         #expect(value[identity](21) == "42!")
     }
 
-    @Test func boundAssociatedClosureValuesFailBeforeTransportWhenMetadataOrderIsUnknown() {
+    @Test func boundAssociatedClosureValuesFailBeforeTransport() {
         _ = RealExternalAssociatedClosureService()
         #expect(throws: StubError.self) {
             try Stub<

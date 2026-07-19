@@ -172,8 +172,7 @@ bridge. The dynamic path specifically excludes global-actor or extended
 isolation and sending flags, noncopyable values,
 parameter flags, and layouts that exceed its formal-parameter or register
 budgets. Dependent associated-type closure shapes also remain outside the
-documented slice when their constrained-existential metadata order cannot be
-established.
+documented slice.
 
 Swift's public demangler erases the escaping distinction. To avoid illegally
 retaining a stack closure, automatic discovery checks every raw `XE` noescape
