@@ -10,7 +10,7 @@
 ///
 /// let calculator: any Calculator = stub()
 /// ```
-public final class Stub<P> {
+public class Stub<P> {
     let recorder: StubRecorder
     private let storage: FabricatedExistentialStorage<P>
 

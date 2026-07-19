@@ -231,14 +231,20 @@ private func parseAssociatedTypeReference(
     guard let name = String(bytes: nameBytes, encoding: .utf8) else { return nil }
     cursor += nameLength
 
-    // 0x01 is Swift's direct context-descriptor symbolic-reference marker.
-    guard cursor.load(as: UInt8.self) == 0x01 else { return nil }
+    // Swift may encode the context descriptor as a direct (0x01) or indirect
+    // (0x02) symbolic reference.
+    let directness = cursor.load(as: UInt8.self)
+    guard directness == 0x01 || directness == 0x02 else { return nil }
     let descriptorReference = cursor + 1
-    let descriptorPointer =
+    let descriptorTarget =
         descriptorReference
         + Int(
             descriptorReference.loadUnaligned(as: Int32.self)
         )
+    let descriptorPointer =
+        directness == 0x01
+        ? descriptorTarget
+        : descriptorTarget.load(as: UnsafeRawPointer.self)
     cursor += 5
 
     for expected in suffix {

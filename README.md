@@ -57,6 +57,35 @@ let service: any CurrencyService = makeStub {
 }
 ```
 
+### Forward real behavior with a spy
+
+Use `Spy` when most behavior should stay real and a test needs to observe or
+replace only a few interactions:
+
+```swift
+let spy = try Spy<any UserService>(forwardingTo: liveService)
+spy.when { $0.displayName(for: equal("guest")) }
+    .thenReturn("Test Guest")
+
+let service: any UserService = spy()
+#expect(service.displayName(for: "guest") == "Test Guest") // overridden
+#expect(service.displayName(for: "admin") == "Admin")      // forwarded
+
+spy.verify(.exactly(2)) { $0.displayName(for: any()) }
+```
+
+A matching `when` registration wins. Every unmatched supported call forwards
+to the target and is recorded for verification. The target's conformance also
+provides signature discovery, so `Spy` does not need explicit requirements or
+a second linked conformer.
+
+Forwarding currently supports instance methods and read-only getters whose
+arguments stay within the supported register boundary. Static and
+initializer requirements, dynamic `Self` results, function-valued arguments or
+results, and `_modify` coroutines fail during construction. Use a hand-written
+spy when the protocol needs one of those shapes. See
+[Forwarding Spies](Sources/TestDoubles/Documentation.docc/Articles/ForwardingSpies.md).
+
 ### Dummy dependencies
 
 Use `makeDummy(_:)` when an API requires a protocol value but the exercised code

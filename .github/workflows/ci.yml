@@ -275,6 +275,7 @@ jobs:
         run: |
           arch -x86_64 swift test \
             --parallel \
+            --experimental-maximum-parallelization-width 4 \
             --scratch-path .build/ci-rosetta-debug \
             --triple x86_64-apple-macosx \
             --disable-xctest \
@@ -284,6 +285,7 @@ jobs:
           arch -x86_64 swift test \
             -c release \
             --parallel \
+            --experimental-maximum-parallelization-width 4 \
             --scratch-path .build/ci-rosetta-release \
             --triple x86_64-apple-macosx \
             --disable-xctest \

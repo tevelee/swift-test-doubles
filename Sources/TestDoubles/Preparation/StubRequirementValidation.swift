@@ -80,6 +80,18 @@ extension Stub {
                     break
             }
             let concreteTypes = method.arguments.map(\.value.type) + [method.returnType]
+            let dependentValues = method.arguments.map(\.value) + [method.result]
+            if dependentValues.contains(where: {
+                if case .associatedType = $0.dependency {
+                    return reflect($0.type).kind == .function
+                }
+                return false
+            }) {
+                throw StubError.unsupportedProtocolShape(
+                    protocolName: protocolName,
+                    reason: "Requirement \(method.index) uses a function value through an associated type. Dependent function-value transport is unsupported; use a hand-written test double."
+                )
+            }
             let containsFunction = concreteTypes.contains {
                 reflect($0).kind == .function
             }

@@ -358,6 +358,10 @@ public final class ManualStub<T: StubConformer> {
                 throw error
             case .suspending(let handler):
                 return castResult(try await handler(args), to: R.self, method: method.name)
+            case .forwarding:
+                preconditionFailure(
+                    "[TestDoubles] ManualStub cannot dispatch a forwarding Spy fallback."
+                )
         }
     }
 

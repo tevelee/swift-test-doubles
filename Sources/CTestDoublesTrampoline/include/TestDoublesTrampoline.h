@@ -120,6 +120,8 @@ void td_visit_local_symbols(TDLocalSymbolVisitor visitor, void *context);
 const void *td_sign_function_pointer(const void *pointer, uint16_t discriminator);
 const void *td_sign_async_function_pointer(const void *pointer,
                                            uint16_t discriminator);
+const void *td_strip_witness_function_pointer(const void *pointer);
+const void *td_strip_async_witness_pointer(const void *pointer);
 uint16_t td_generic_function_discriminator(uint16_t parameterCount,
                                            bool hasResult);
 uint16_t td_function_discriminator(const uint8_t *spelling, size_t length);
@@ -129,6 +131,9 @@ void td_swift_invoke_function(const void *function,
                               const void *context,
                               uint16_t discriminator,
                               TDCallFrame *frame);
+void td_swift_invoke_witness(const void *function,
+                             const void *self,
+                             TDCallFrame *frame);
 const void *td_swift_dynamic_async_function_descriptor(void);
 void td_swift_get_error_value(const void *error,
                               void **scratch,

@@ -70,7 +70,8 @@ enum RuntimeArgumentDecoder {
     static func decode(
         for method: MethodDescriptor,
         from frame: TrampolineCallFrame,
-        initialGeneralPurposeOffset: Int = 0
+        initialGeneralPurposeOffset: Int = 0,
+        consumeOwnedArguments: Bool = true
     ) -> DecodedArguments {
         let hasAsyncIndirectResult: Bool
         if method.isAsync, case .indirect = method.result.layout {
@@ -84,7 +85,8 @@ enum RuntimeArgumentDecoder {
                     RuntimeArgumentSpec(
                         type: $0.value.type,
                         layout: $0.value.layout,
-                        ownership: $0.ownership
+                        ownership:
+                            consumeOwnedArguments ? $0.ownership : .borrowed
                     )
                 },
                 initialGeneralPurposeOffset: initialGeneralPurposeOffset

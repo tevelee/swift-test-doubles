@@ -161,6 +161,39 @@ SYMBOL(td_swift_invoke_function):
     ret
 
 .p2align 2
+.globl SYMBOL(td_swift_invoke_witness)
+SYMBOL(td_swift_invoke_witness):
+    stp x29, x30, [sp, #-48]!
+    mov x29, sp
+    stp x19, x20, [sp, #16]
+    str x21, [sp, #32]
+    mov x16, x0
+    mov x20, x1
+    mov x19, x2
+    ldr x8, [x19, #TD_FRAME_INDIRECT_RESULT_OFFSET]
+    ldp q0, q1, [x19, #TD_FRAME_FP_OFFSET]
+    ldp q2, q3, [x19, #176]
+    ldp q4, q5, [x19, #208]
+    ldp q6, q7, [x19, #240]
+    ldp x0, x1, [x19, #TD_FRAME_GP_OFFSET]
+    ldp x2, x3, [x19, #32]
+    ldp x4, x5, [x19, #48]
+    ldp x6, x7, [x19, #64]
+    ldr x21, [x19, #TD_FRAME_SWIFT_ERROR_OFFSET]
+    blr x16
+    stp x0, x1, [x19, #TD_FRAME_RETURN_GP_OFFSET]
+    stp x2, x3, [x19, #456]
+    str d0, [x19, #TD_FRAME_RETURN_FP_OFFSET]
+    str d1, [x19, #480]
+    str d2, [x19, #488]
+    str d3, [x19, #496]
+    str x21, [x19, #TD_FRAME_RETURN_ERROR_OFFSET]
+    ldr x21, [sp, #32]
+    ldp x19, x20, [sp, #16]
+    ldp x29, x30, [sp], #48
+    ret
+
+.p2align 2
 .globl SYMBOL(td_swift_invoke_async_function)
 SYMBOL(td_swift_invoke_async_function):
     stp x29, x30, [sp, #-16]!
@@ -215,6 +248,49 @@ SYMBOL(td_swift_invoke_async_function):
 #else
     br x17
 #endif
+
+.p2align 2
+.globl SYMBOL(td_swift_invoke_async_witness)
+SYMBOL(td_swift_invoke_async_witness):
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    str x2, [x22, #16]
+    str x1, [x22, #32]
+    strb w3, [x22, #48]
+
+    mov x16, x0
+    ldrsw x17, [x16]
+    add x17, x16, x17
+    str x17, [x22, #24]
+    ldr w0, [x16, #4]
+    bl SYMBOL(swift_task_alloc)
+
+    mov x11, x22
+#if defined(__APPLE__)
+    adrp x8, SYMBOL(td_swift_invoke_async_function_complete)@PAGE
+    add x8, x8, SYMBOL(td_swift_invoke_async_function_complete)@PAGEOFF
+#else
+    adrp x8, SYMBOL(td_swift_invoke_async_function_complete)
+    add x8, x8, :lo12:SYMBOL(td_swift_invoke_async_function_complete)
+#endif
+    stp x11, x8, [x0]
+    mov x10, x0
+    ldr x9, [x11, #16]
+    ldr x17, [x11, #24]
+    ldr x20, [x11, #32]
+
+    ldp q0, q1, [x9, #TD_FRAME_FP_OFFSET]
+    ldp q2, q3, [x9, #176]
+    ldp q4, q5, [x9, #208]
+    ldp q6, q7, [x9, #240]
+    ldp x0, x1, [x9, #TD_FRAME_GP_OFFSET]
+    ldp x2, x3, [x9, #32]
+    ldp x4, x5, [x9, #48]
+    ldp x6, x7, [x9, #64]
+    mov x22, x10
+
+    ldp x29, x30, [sp], #16
+    br x17
 
 .p2align 2
 #if defined(__APPLE__)
@@ -661,6 +737,50 @@ SYMBOL(td_swift_invoke_function):
     popq %rbp
     retq
 
+.globl SYMBOL(td_swift_invoke_witness)
+SYMBOL(td_swift_invoke_witness):
+    pushq %rbp
+    movq %rsp, %rbp
+    pushq %rbx
+    pushq %r13
+    pushq %r12
+    subq $8, %rsp
+    movq %rdx, %rbx
+    movq %rsi, %r13
+    movq %rdi, %r11
+    movq TD_FRAME_INDIRECT_RESULT_OFFSET(%rbx), %rax
+    movsd TD_FRAME_FP_OFFSET(%rbx), %xmm0
+    movsd 160(%rbx), %xmm1
+    movsd 176(%rbx), %xmm2
+    movsd 192(%rbx), %xmm3
+    movsd 208(%rbx), %xmm4
+    movsd 224(%rbx), %xmm5
+    movsd 240(%rbx), %xmm6
+    movsd 256(%rbx), %xmm7
+    movq TD_FRAME_GP_OFFSET(%rbx), %rdi
+    movq 24(%rbx), %rsi
+    movq 32(%rbx), %rdx
+    movq 40(%rbx), %rcx
+    movq 48(%rbx), %r8
+    movq 56(%rbx), %r9
+    movq TD_FRAME_SWIFT_ERROR_OFFSET(%rbx), %r12
+    callq *%r11
+    movq %rax, TD_FRAME_RETURN_GP_OFFSET(%rbx)
+    movq %rdx, 448(%rbx)
+    movq %rcx, 456(%rbx)
+    movq %r8, 464(%rbx)
+    movsd %xmm0, TD_FRAME_RETURN_FP_OFFSET(%rbx)
+    movsd %xmm1, 480(%rbx)
+    movsd %xmm2, 488(%rbx)
+    movsd %xmm3, 496(%rbx)
+    movq %r12, TD_FRAME_RETURN_ERROR_OFFSET(%rbx)
+    addq $8, %rsp
+    popq %r12
+    popq %r13
+    popq %rbx
+    popq %rbp
+    retq
+
 .globl SYMBOL(td_swift_invoke_async_function)
 SYMBOL(td_swift_invoke_async_function):
     pushq %rbp
@@ -668,6 +788,47 @@ SYMBOL(td_swift_invoke_async_function):
     movq %rcx, 16(%r14)
     movq %rsi, 32(%r14)
     movb %r8b, 48(%r14)
+
+    movslq (%rdi), %rax
+    addq %rdi, %rax
+    movq %rax, 24(%r14)
+    movl 4(%rdi), %edi
+    callq SYMBOL(swift_task_alloc)
+
+    movq %r14, (%rax)
+    leaq SYMBOL(td_swift_invoke_async_function_complete)(%rip), %rcx
+    movq %rcx, 8(%rax)
+    movq 16(%r14), %r10
+    movq 24(%r14), %r11
+    movq 32(%r14), %r13
+    movq %rax, %r14
+
+    movsd TD_FRAME_FP_OFFSET(%r10), %xmm0
+    movsd 160(%r10), %xmm1
+    movsd 176(%r10), %xmm2
+    movsd 192(%r10), %xmm3
+    movsd 208(%r10), %xmm4
+    movsd 224(%r10), %xmm5
+    movsd 240(%r10), %xmm6
+    movsd 256(%r10), %xmm7
+    movq TD_FRAME_GP_OFFSET(%r10), %rdi
+    movq 24(%r10), %rsi
+    movq 32(%r10), %rdx
+    movq 40(%r10), %rcx
+    movq 48(%r10), %r8
+    movq 56(%r10), %r9
+
+    popq %rbp
+    jmpq *%r11
+
+.p2align 4, 0x90
+.globl SYMBOL(td_swift_invoke_async_witness)
+SYMBOL(td_swift_invoke_async_witness):
+    pushq %rbp
+    movq %rsp, %rbp
+    movq %rdx, 16(%r14)
+    movq %rsi, 32(%r14)
+    movb %cl, 48(%r14)
 
     movslq (%rdi), %rax
     addq %rdi, %rax
@@ -968,6 +1129,12 @@ SYMBOL(td_swift_modify_trampoline_resume):
 .globl SYMBOL(td_swift_invoke_async_functionTu)
 SYMBOL(td_swift_invoke_async_functionTu):
     .long SYMBOL(td_swift_invoke_async_function) - SYMBOL(td_swift_invoke_async_functionTu)
+    .long 64
+
+.p2align 3
+.globl SYMBOL(td_swift_invoke_async_witnessTu)
+SYMBOL(td_swift_invoke_async_witnessTu):
+    .long SYMBOL(td_swift_invoke_async_witness) - SYMBOL(td_swift_invoke_async_witnessTu)
     .long 64
 
 .p2align 3

@@ -3,13 +3,17 @@ import Echo
 private enum FabricatedWitnessDispatch {
     case stub(
         recorder: StubRecorder,
-        methodsByIndex: [Int: MethodDescriptor]
+        methodsByIndex: [Int: MethodDescriptor],
+        forwarder: (any ProtocolForwarding)?
     )
     case dummy(DummyInvocation)
 
     var invocationTarget: FabricatedInvocationTarget {
         switch self {
-            case .stub(let recorder, _):
+            case .stub(let recorder, _, let forwarder):
+                if let forwarder {
+                    return .spy(recorder, forwarder)
+                }
                 return .stub(recorder)
             case .dummy(let invocation):
                 return .dummy(invocation)
@@ -17,7 +21,7 @@ private enum FabricatedWitnessDispatch {
     }
 
     func attachRuntimeResources(_ resources: StubResources) {
-        guard case .stub(let recorder, _) = self else { return }
+        guard case .stub(let recorder, _, _) = self else { return }
         recorder.attachRuntimeResources(resources)
     }
 
@@ -29,7 +33,7 @@ private enum FabricatedWitnessDispatch {
     ) throws -> UnsafeRawPointer {
         let trampoline: UnsafeRawPointer?
         switch self {
-            case .stub(let recorder, let methodsByIndex):
+            case .stub(let recorder, let methodsByIndex, _):
                 guard let method = methodsByIndex[requirement.dispatchIndex] else {
                     throw StubError.requirementCountMismatch(
                         protocolName: node.descriptor.name,
@@ -76,7 +80,8 @@ extension Stub {
         layout: ProtocolLayout,
         associatedTypeBindings: AssociatedTypeBindings,
         representation: StubExistentialRepresentation,
-        methods: [MethodDescriptor]
+        methods: [MethodDescriptor],
+        forwarder: (any ProtocolForwarding)? = nil
     ) throws -> PreparedStub {
         let modifyDispatchDescriptors = try validate(
             methods: methods,
@@ -86,7 +91,8 @@ extension Stub {
 
         let recorder = StubRecorder(
             methods: methods,
-            modifyDispatchDescriptors: modifyDispatchDescriptors
+            modifyDispatchDescriptors: modifyDispatchDescriptors,
+            allowsForwardingFallback: forwarder != nil
         )
         let protocolName = String(reflecting: P.self)
         let runtimePlan = try FabricatedRuntimePlan.prepare(
@@ -100,7 +106,8 @@ extension Stub {
                 recorder: recorder,
                 methodsByIndex: Dictionary(
                     uniqueKeysWithValues: methods.map { ($0.index, $0) }
-                )
+                ),
+                forwarder: forwarder
             ),
             conformanceTypeReference: runtimePlan.conformanceTypeReference
         )

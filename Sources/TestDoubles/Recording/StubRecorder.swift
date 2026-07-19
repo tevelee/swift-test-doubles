@@ -13,6 +13,7 @@ final class StubRecorder: @unchecked Sendable {
     private var behaviorRegistry = StubBehaviorRegistry()
     private var invocationLedger = InvocationLedger()
     private weak var runtimeResources: StubResources?
+    private let allowsForwardingFallback: Bool
 
     /// The recorder is the only owner of the lock protecting its policy state.
     /// Matcher predicates, handlers, and waiter resumes always run after the
@@ -22,12 +23,14 @@ final class StubRecorder: @unchecked Sendable {
 
     init(
         methods: [MethodDescriptor],
-        modifyDispatchDescriptors: [Int: ModifyDispatchDescriptor] = [:]
+        modifyDispatchDescriptors: [Int: ModifyDispatchDescriptor] = [:],
+        allowsForwardingFallback: Bool = false
     ) {
         methodCatalog = ManualMethodCatalog(
             methods: methods,
             modifyDispatchDescriptors: modifyDispatchDescriptors
         )
+        self.allowsForwardingFallback = allowsForwardingFallback
     }
 
     enum Mode {
@@ -45,11 +48,13 @@ final class StubRecorder: @unchecked Sendable {
         case placeholder
         case immediate(Result<Any, any Error>)
         case suspending(([Any]) async throws -> Any)
+        case forwarding
     }
 
-    private enum PreparedDispatch {
+    enum PreparedDispatch {
         case placeholder
         case behavior(StubEntry.Behavior)
+        case forwarding
     }
 
     var mode: Mode {
@@ -210,6 +215,11 @@ final class StubRecorder: @unchecked Sendable {
                                 + "Use it only with an async Stub requirement."
                         )
                 }
+
+            case .forwarding:
+                preconditionFailure(
+                    "[TestDoubles] A forwarding dispatch requires a Spy runtime target."
+                )
         }
     }
 
@@ -255,10 +265,13 @@ final class StubRecorder: @unchecked Sendable {
                     case .suspending(let handler):
                         return .suspending(handler)
                 }
+
+            case .forwarding:
+                return .forwarding
         }
     }
 
-    private func prepareDispatch(
+    func prepareDispatch(
         method: MethodDescriptor,
         args: [Any]
     ) -> PreparedDispatch {
@@ -269,6 +282,10 @@ final class StubRecorder: @unchecked Sendable {
         }
 
         guard let entries = withLock({ behaviorRegistry.entries(for: methodIndex) }) else {
+            if allowsForwardingFallback {
+                recordForwardedInvocation(method: method, args: args)
+                return .forwarding
+            }
             fatalError(
                 diagnosticMessage(
                     title: "No stub configured",
@@ -278,6 +295,10 @@ final class StubRecorder: @unchecked Sendable {
                 ))
         }
         guard let entry = StubBehaviorRegistry.bestMatchingEntry(for: args, in: entries) else {
+            if allowsForwardingFallback {
+                recordForwardedInvocation(method: method, args: args)
+                return .forwarding
+            }
             fatalError(
                 diagnosticMessage(
                     title: "No matching stub",
@@ -299,6 +320,20 @@ final class StubRecorder: @unchecked Sendable {
         }
         resume(waiters, returning: .changed)
         return .behavior(behavior)
+    }
+
+    private func recordForwardedInvocation(
+        method: MethodDescriptor,
+        args: [Any]
+    ) {
+        let waiters = withLock {
+            invocationLedger.append(
+                method: method.index,
+                name: method.name,
+                args: args
+            )
+        }
+        resume(waiters, returning: .changed)
     }
 
     // MARK: - Stub registration
