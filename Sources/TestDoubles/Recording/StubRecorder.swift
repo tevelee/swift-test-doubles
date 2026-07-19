@@ -17,7 +17,7 @@ final class StubRecorder: @unchecked Sendable {
     /// The recorder is the only owner of the lock protecting its policy state.
     /// Matcher predicates, handlers, and waiter resumes always run after the
     /// lock is released. Captor commits share the invocation commit so capture,
-    /// recording, and queued-value reservation have one ordering point.
+    /// recording, and queued-result reservation have one ordering point.
     private let lock = NSLock()
 
     init(
@@ -196,11 +196,11 @@ final class StubRecorder: @unchecked Sendable {
 
             case .behavior(let behavior):
                 switch behavior {
-                    case .value(let value):
-                        return value
-                    case .valueSequence:
+                    case .fixed(let result):
+                        return try result.get()
+                    case .fixedSequence:
                         preconditionFailure(
-                            "[TestDoubles] A queued stub value was not reserved during dispatch."
+                            "[TestDoubles] A queued stub result was not reserved during dispatch."
                         )
                     case .immediate(let handler):
                         return try handler(args)
@@ -240,11 +240,11 @@ final class StubRecorder: @unchecked Sendable {
 
             case .behavior(let behavior):
                 switch behavior {
-                    case .value(let value):
-                        return .immediate(.success(value))
-                    case .valueSequence:
+                    case .fixed(let result):
+                        return .immediate(result)
+                    case .fixedSequence:
                         preconditionFailure(
-                            "[TestDoubles] A queued stub value was not reserved during dispatch."
+                            "[TestDoubles] A queued stub result was not reserved during dispatch."
                         )
                     case .immediate(let handler):
                         do {
@@ -294,7 +294,7 @@ final class StubRecorder: @unchecked Sendable {
                 name: method.name,
                 args: args
             )
-            let behavior = entry.behavior.reservingSequenceValue()
+            let behavior = entry.behavior.reservingSequenceResult()
             return (behavior, waiters)
         }
         resume(waiters, returning: .changed)
@@ -308,19 +308,21 @@ final class StubRecorder: @unchecked Sendable {
         matchers: [ParameterMatcher],
         value: Any
     ) {
-        addEntry(method: method, matchers: matchers, behavior: .value(value))
+        addEntry(method: method, matchers: matchers, behavior: .fixed(.success(value)))
     }
 
-    func addReturnValues(
+    func addFixedResultSequence(
         method: Int,
         matchers: [ParameterMatcher],
-        values: [Any]
-    ) {
+        results: [StubBehaviorRegistry.FixedResult]
+    ) -> ConsumableResults {
+        let sequence = ConsumableResults(results)
         addEntry(
             method: method,
             matchers: matchers,
-            behavior: .valueSequence(ConsumableValues(values))
+            behavior: .fixedSequence(sequence)
         )
+        return sequence
     }
 
     func addStub(

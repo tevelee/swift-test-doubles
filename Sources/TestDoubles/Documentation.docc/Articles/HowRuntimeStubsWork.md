@@ -72,7 +72,7 @@ arguments into values the recorder can inspect.
 
 In normal operation, the recorder evaluates configured matchers, then enters a
 post-matcher dispatch linearization point that commits matcher captures, appends
-the invocation, and reserves a sequenced response atomically. It then runs the
+the invocation, and reserves a sequenced behavior atomically. It then runs the
 selected return value or handler. The result encoder performs the reverse
 operation: it places the result, or a thrown error, into the registers and
 buffers expected by the original caller. The trampoline restores that return

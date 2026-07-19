@@ -2,44 +2,58 @@ import Foundation
 
 /// Lock-agnostic behavior storage owned and synchronized by ``StubRecorder``.
 struct StubBehaviorRegistry {
-    /// Serves queued return values one per matching invocation, repeating the
-    /// final value once the earlier entries are consumed.
-    final class ConsumableValues: @unchecked Sendable {
+    typealias FixedResult = Result<Any, any Error>
+
+    /// Serves queued fixed results one per matching invocation, repeating the
+    /// final result once the earlier entries are consumed.
+    final class ConsumableResults: @unchecked Sendable {
         private let lock = NSLock()
-        private let values: [Any]
+        private var results: [FixedResult]
         private var nextIndex = 0
 
-        init(_ values: [Any]) {
-            precondition(values.isEmpty == false)
-            self.values = values
+        init(_ results: [FixedResult]) {
+            precondition(results.isEmpty == false)
+            self.results = results
         }
 
-        func next() -> Any {
+        func append(_ result: FixedResult) {
+            lock.lock()
+            results.append(result)
+            lock.unlock()
+        }
+
+        func append(contentsOf additionalResults: [FixedResult]) {
+            lock.lock()
+            results.append(contentsOf: additionalResults)
+            lock.unlock()
+        }
+
+        func next() -> FixedResult {
             lock.lock()
             defer { lock.unlock() }
-            let value = values[nextIndex]
-            if nextIndex < values.index(before: values.endIndex) {
+            let result = results[nextIndex]
+            if nextIndex < results.index(before: results.endIndex) {
                 nextIndex += 1
             }
-            return value
+            return result
         }
     }
 
     struct Entry {
         enum Behavior {
-            case value(Any)
-            case valueSequence(ConsumableValues)
+            case fixed(FixedResult)
+            case fixedSequence(ConsumableResults)
             case immediate(@Sendable ([Any]) throws -> Any)
             // This function type remains non-Sendable so Swift preserves the
             // actor/executor on which the user formed an async handler.
             case suspending(([Any]) async throws -> Any)
 
-            /// Reserves the next queued value while the recorder is committing
+            /// Reserves the next queued result while the recorder is committing
             /// the invocation. Other behaviors are immutable selections.
-            func reservingSequenceValue() -> Self {
+            func reservingSequenceResult() -> Self {
                 switch self {
-                    case .valueSequence(let values):
-                        .value(values.next())
+                    case .fixedSequence(let results):
+                        .fixed(results.next())
                     default:
                         self
                 }
@@ -120,6 +134,6 @@ struct StubBehaviorRegistry {
 }
 
 extension StubRecorder {
-    typealias ConsumableValues = StubBehaviorRegistry.ConsumableValues
+    typealias ConsumableResults = StubBehaviorRegistry.ConsumableResults
     typealias StubEntry = StubBehaviorRegistry.Entry
 }

@@ -145,6 +145,20 @@ private struct SaveError: Error, Equatable {}
         #expect(service.fetch(id: 1) == "second")
     }
 
+    @Test func behaviorChainMixesNoOpsAndErrorsThenRepeatsTheLast() throws {
+        let stub = ManualStub<ManualServiceStub>()
+        stub.when { try $0.save(any()) }
+            .thenDoNothing()
+            .thenThrow(SaveError())
+            .thenDoNothing()
+
+        let service: any ManualService = stub()
+        try service.save("first")
+        #expect(throws: SaveError.self) { try service.save("second") }
+        try service.save("third")
+        try service.save("fourth")
+    }
+
     @Test func argumentCaptorCollectsMatchingArguments() {
         let stub = ManualStub<ManualServiceStub>()
         stub.when { $0.fetch(id: any()) }.thenReturn("x")

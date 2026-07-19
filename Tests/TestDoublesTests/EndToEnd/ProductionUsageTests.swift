@@ -128,6 +128,22 @@ private func todaysHeadlines(using loader: some AsyncDataLoader) async throws ->
         #expect(error?.sku == "floppy-disk")
     }
 
+    @Test func publicBehaviorChainSupportsRecoverySequences() throws {
+        struct TransientFailure: Error, Equatable {}
+
+        let stub = try Stub<any PriceCatalog>()
+        stub.when { try $0.price(of: any()) }
+            .thenReturn(3)
+            .thenThrow(TransientFailure())
+            .thenReturn(4)
+        let catalog: any PriceCatalog = stub()
+
+        #expect(try catalog.price(of: "apple") == 3)
+        #expect(throws: TransientFailure.self) { try catalog.price(of: "apple") }
+        #expect(try catalog.price(of: "apple") == 4)
+        #expect(try catalog.price(of: "apple") == 4)
+    }
+
     @Test func asyncComponentsConsumeTheStubThroughStoredGenerics() async throws {
         let stub = try Stub<any AsyncDataLoader>()
         await stub.when { try await $0.load(url: any()) }.thenReturn("first\nsecond")

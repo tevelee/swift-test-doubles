@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Explicit `thenDoNothing()` behavior for `Void`-returning stub requirements;
   `when` now requires a terminal behavior, so ignoring its builder produces a
   compiler warning and no longer installs an implicit `Void` fallback.
+- Chainable fixed returns, errors, and no-ops for consecutive matching
+  invocations, with the final configured behavior repeating.
 
 ## [0.0.1] - 2026-07-18
 

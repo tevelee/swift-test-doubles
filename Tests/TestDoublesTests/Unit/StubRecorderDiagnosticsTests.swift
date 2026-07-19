@@ -122,7 +122,7 @@ private protocol AsyncFailureProbe {
         let entry = StubRecorder.StubEntry(
             matchers: [AnyMatcher()],
             diagnosticSignature: "ping(any())",
-            behavior: .value("pong")
+            behavior: .fixed(.success("pong"))
         )
 
         let message = recorder.diagnosticMessage(

@@ -19,14 +19,6 @@ extension StubRegistrationBuilder {
         )
     }
 
-    func addReturnValues(_ values: [Any]) {
-        recorder.addReturnValues(
-            method: recording.methodIndex,
-            matchers: recording.resolvedMatchers,
-            values: values
-        )
-    }
-
     func addThrownError<Failure: Error>(_ error: Failure) {
         addThrownError(error, for: requireRuntimeMethod())
     }
@@ -35,13 +27,20 @@ extension StubRegistrationBuilder {
         _ error: Failure,
         for method: MethodDescriptor
     ) {
+        requireValidThrownError(error, for: method)
+        addStubBehavior { _, _ -> Any in
+            throw error
+        }
+    }
+
+    func requireValidThrownError<Failure: Error>(
+        _ error: Failure,
+        for method: MethodDescriptor
+    ) {
         guard method.isThrowing else {
             preconditionFailure("[TestDoubles] thenThrow requires a throwing requirement.")
         }
         recorder.requireThrownErrorMatchesRuntimeType(error, for: method)
-        addStubBehavior { _, _ -> Any in
-            throw error
-        }
     }
 
     func addStubBehavior(
@@ -70,6 +69,7 @@ extension StubRegistrationBuilder {
 }
 
 extension StubBuilder: StubRegistrationBuilder {}
+extension StubBehaviorChain: StubRegistrationBuilder {}
 extension StubInitializerBuilder: StubRegistrationBuilder {}
 extension StubFailableInitializerBuilder: StubRegistrationBuilder {}
 extension StubSelfResultBuilder: StubRegistrationBuilder {}

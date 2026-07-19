@@ -171,7 +171,7 @@ handlers. Argument captors are transactional across the sequence: they commit
 only after every expectation matches. Synchronous and async calls may be mixed
 in the async overload. Recorded order follows the post-matcher dispatch
 linearization point, where matcher captures, the call log, and a sequenced
-response reservation are committed atomically. It is not invocation-entry or
+behavior reservation are committed atomically. It is not invocation-entry or
 handler-completion order.
 
 Every successful immediate, eventual, or ordered verification marks its matched
@@ -354,8 +354,8 @@ domain, and do not overlap those operations with calls. Recorder state is
 lock-protected for invocation. For a generated value whose protocol is
 `Sendable`, use `stub(sendability: .unchecked)` (or the corresponding
 ``makeStub(sendability:_:)`` and `withValue(sendability:_:)` overload) to
-acknowledge explicitly that configured fixed and sequenced values, matcher and
-captor state, handler captures, and recorded invocation arguments are
+acknowledge explicitly that configured fixed and sequenced behavior payloads,
+matcher and captor state, handler captures, and recorded invocation arguments are
 type-erased and are not compiler-proven `Sendable`. The no-argument forms are
 deprecated when the compiler can see the `Sendable` constraint, but remain
 functional for compatibility. An unconstrained generic wrapper erases that

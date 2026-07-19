@@ -145,7 +145,7 @@ becomes true monotonically as calls arrive. A timeout is reported at the caller
 like an immediate count mismatch. After successful verifications,
 `verifyNoMoreInteractions()` reports any uncovered calls. Use
 `clearRecordedInvocations()` to begin a new interaction window while preserving
-configured behavior and return-sequence state.
+configured behavior and behavior-chain state.
 
 ### Verify relative call order
 
@@ -168,7 +168,7 @@ calls. The query is non-consuming and does not execute configured handlers. A
 successful sequence marks its selected calls for `verifyNoMoreInteractions()`.
 Captors commit only when the complete sequence matches. Async ordered
 verification uses the post-matcher dispatch order, where matcher captures, call
-logging, and sequence reservation are atomic. It is not invocation-entry or
+logging, and behavior reservation are atomic. It is not invocation-entry or
 handler-completion order.
 
 ### Stub a direct property assignment
@@ -311,27 +311,33 @@ let error = await #expect(throws: LoadError.self) {
 #expect(error?.url == "/missing")
 ```
 
-### Return sequenced responses
+### Sequence fixed behaviors
 
-Pass several values to `thenReturn` when consecutive calls should see consecutive
-results:
+Chain fixed returns, errors, and no-ops when consecutive calls should behave
+differently:
 
 ```swift
-let stub = try Stub<any UserRepository>()
-stub.when { $0.find(id: equal(42)) }.thenReturn("syncing", "ready")
+let stub = try Stub<any AsyncDataLoader>()
+await stub.when { try await $0.load(url: equal("/users/42")) }
+    .thenReturn("cached")
+    .thenThrow(LoadError(url: "/users/42"))
+    .thenReturn("fresh")
 
-let repository: any UserRepository = stub()
-#expect(repository.find(id: 42) == "syncing")
-#expect(repository.find(id: 42) == "ready")
-#expect(repository.find(id: 42) == "ready")
+let loader: any AsyncDataLoader = stub()
+#expect(try await loader.load(url: "/users/42") == "cached")
+await #expect(throws: LoadError.self) {
+    try await loader.load(url: "/users/42")
+}
+#expect(try await loader.load(url: "/users/42") == "fresh")
 ```
 
-Matching calls consume the listed values in order, and the final value repeats
-once the earlier ones are used up. Consumption is internally synchronized, and
-each registration owns its own sequence. Behavior that depends on richer state
-belongs in a `then` handler: synchronous handlers and matcher predicates are
-`@Sendable`, async handlers preserve their creation actor or executor, and
-mutable captures must be synchronized when calls may be concurrent.
+Matching calls consume the configured behaviors in order, and the final behavior
+repeats. Passing several values to one `thenReturn` remains shorthand for a
+return-only chain. Reservation is internally synchronized, and each registration
+owns its own chain. Behavior that depends on arguments or richer state belongs
+in a `then` handler: synchronous handlers and matcher predicates are `@Sendable`,
+async handlers preserve their creation actor or executor, and mutable captures
+must be synchronized when calls may be concurrent.
 
 ### Choose a construction path
 

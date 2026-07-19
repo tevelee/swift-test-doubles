@@ -26,7 +26,7 @@ subscript setters, class-constrained protocols, `NSObject`-backed superclass
 constraints, bounded primary-associated-type bindings across supported
 inheritance and compositions, caller-supplied bindings for covariant associated
 results, recording-result placeholders, direct and optional dynamic `Self`
-results, initializer requirements, sequenced responses, immediate and eventual
+results, initializer requirements, sequenced behaviors, immediate and eventual
 verification, invocation clearing, and unverified-interaction reporting.
 Unsupported runtime shapes fail during construction when they can be detected.
 
@@ -53,6 +53,7 @@ isolation. See
 - ``makeStub(sendability:_:)``
 - ``StubSendability``
 - ``StubBuilder``
+- ``StubBehaviorChain``
 - ``Stub/Invocation``
 - <doc:FunctionValues>
 

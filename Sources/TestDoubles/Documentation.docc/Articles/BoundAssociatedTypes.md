@@ -169,8 +169,8 @@ types than their discovery conformers, exercise inherited and composed witness
 graphs, and invoke a class-bound `Sendable` shape concurrently.
 
 The generated `Sendable` existential crosses concurrency domains only in test
-setups whose configured fixed or sequenced values, matcher or captor state, and
-handler captures are themselves safe to share. Keep configuration and
+setups whose configured fixed and sequenced behavior payloads, matcher or captor
+state, and handler captures are themselves safe to share. Keep configuration and
 verification on one isolation domain.
 
 ### Rejected shapes

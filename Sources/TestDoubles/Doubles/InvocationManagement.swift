@@ -1,7 +1,7 @@
 extension Stub {
     /// Clears every recorded invocation while preserving configured behavior.
     ///
-    /// Return sequences continue from their current position. Eventual
+    /// Behavior chains continue from their current position. Eventual
     /// verifications already waiting on this stub re-evaluate against the
     /// cleared invocation log.
     public func clearRecordedInvocations() {
@@ -28,7 +28,7 @@ extension Stub {
 extension ManualStub {
     /// Clears every recorded invocation while preserving configured behavior.
     ///
-    /// Return sequences continue from their current position. Eventual
+    /// Behavior chains continue from their current position. Eventual
     /// verifications already waiting on this stub re-evaluate against the
     /// cleared invocation log.
     public func clearRecordedInvocations() {

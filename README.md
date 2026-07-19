@@ -224,7 +224,7 @@ A mismatch or timeout is reported through IssueReporting at the `verify`
 call's file and line. Successful verification marks its matching calls. Use
 `verifyNoMoreInteractions()` to report calls not covered by successful
 verification, and `clearRecordedInvocations()` to start a new interaction
-window without changing configured behavior or return-sequence state.
+window without changing configured behavior or behavior-chain state.
 
 ### Ordered interactions
 
@@ -248,7 +248,7 @@ replay configured handlers. A successful sequence marks only its selected calls
 for `verifyNoMoreInteractions()`. Captors commit only after the complete ordered
 sequence matches. For overlapping calls, recorded order follows the
 post-matcher dispatch linearization point: committing matcher captures, logging
-the call, and reserving a sequenced response happen atomically. It is not
+the call, and reserving a sequenced behavior happen atomically. It is not
 invocation-entry or handler-completion order.
 
 ### Direct property setters
@@ -316,27 +316,34 @@ read-write subscript's `_modify` witness uses the same getter-then-setter
 materialization, preserving the setter's value-first ABI order after indexed
 compound mutation.
 
-### Sequenced responses
+### Sequenced behaviors
 
-Pass several values to `thenReturn` when consecutive calls should see consecutive
-results:
+Chain `thenReturn`, `thenThrow`, and `thenDoNothing` when consecutive calls
+should behave differently:
 
 ```swift
-let stub = try Stub<any UserRepository>()
-stub.when { $0.find(id: equal(42)) }.thenReturn("syncing", "ready")
+let stub = try Stub<any AsyncDataLoader>()
+await stub.when { try await $0.load(url: equal("/users/42")) }
+    .thenReturn("cached")
+    .thenThrow(LoadError(url: "/users/42"))
+    .thenReturn("fresh")
 
-let repository: any UserRepository = stub()
-#expect(repository.find(id: 42) == "syncing")
-#expect(repository.find(id: 42) == "ready")
-#expect(repository.find(id: 42) == "ready")
+let loader: any AsyncDataLoader = stub()
+#expect(try await loader.load(url: "/users/42") == "cached")
+await #expect(throws: LoadError.self) {
+    try await loader.load(url: "/users/42")
+}
+#expect(try await loader.load(url: "/users/42") == "fresh")
+#expect(try await loader.load(url: "/users/42") == "fresh")
 ```
 
-Matching calls consume the listed values in order, and the final value repeats
-once the earlier ones are used up. Consumption is internally synchronized, and
-each registration owns its own sequence, so a more specific registration does
-not advance a general fallback. Behavior that depends on richer state belongs
-in a `then` handler; synchronous handlers and matcher predicates are
-`@Sendable`, so synchronize any mutable captures.
+Matching calls consume the configured behaviors in order, and the final behavior
+repeats. Passing several values to one `thenReturn` remains shorthand for a
+return-only chain. Reservation is internally synchronized, and each registration
+owns its own chain, so a more specific registration does not advance a general
+fallback. Behavior that depends on arguments or richer state belongs in a `then`
+handler; synchronous handlers and matcher predicates are `@Sendable`, so
+synchronize any mutable captures.
 
 ### Class and existential values
 
@@ -822,8 +829,8 @@ construction path launches external tools.
   with a concrete error type across otherwise supported concrete and associated
   result layouts, including async suspension and caller-provided indirect
   success and error storage.
-- Fixed values, sequenced values for consecutive calls, and typed handlers of
-  arbitrary arity.
+- Fixed returns and errors, mixed behavior chains for consecutive calls, and
+  typed handlers of arbitrary arity.
 - Genuinely suspending async handlers.
 - Equality, predicate, wildcard, and capture matchers.
 - Immediate and event-driven lower-bound verification, relative-order
@@ -900,11 +907,14 @@ to the trampoline.
   and are outside the library's scope.
 - Configure and verify a stub serially and keep the `Stub` itself on one
   isolation domain. A generated value whose protocol is `Sendable` may cross
-  concurrency domains only when configured fixed and sequenced values, matcher
-  and captor state, and handler captures are themselves safe to share.
+  concurrency domains only when configured fixed and sequenced behavior
+  payloads, matcher and captor state, and handler captures are themselves safe
+  to share.
   Synchronous handlers and predicates satisfy `@Sendable`; async handlers must
-  be actor-isolated or protect mutable captures. Configuration and verification
-  are not compiler-proven `Sendable` APIs.
+  be actor-isolated or protect mutable captures. Keep the `Stub`, its recording
+  builders, and verification operations on one isolation domain. A
+  `StubBehaviorChain` is conditionally `Sendable` when its result is, but finish
+  configuring it before matching invocations begin.
 
 The generated existential and every successful initializer result own their
 payload, witness table, trampolines, and recorder. They remain valid if the

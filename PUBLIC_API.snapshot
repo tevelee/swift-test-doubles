@@ -19,6 +19,7 @@ conformance	Stub.ProtocolGetterEffects	Swift.Sendable	[]
 conformance	Stub.ProtocolRequirements	Swift.Sendable	[]
 conformance	Stub.Requirement	Swift.Sendable	[]
 conformance	Stub.Requirement.Value	Swift.Sendable	[]
+conformance	StubBehaviorChain	Swift.Sendable	[{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 conformance	StubError	Swift.CustomStringConvertible	[]
 conformance	StubError	Swift.Error	[]
 conformance	StubError	Swift.Sendable	[]
@@ -180,15 +181,19 @@ symbol	swift.method	Stub.withValue(_:)	func withValue<Result, Failure>(_ operati
 symbol	swift.method	Stub.withValue(_:)	func withValue<Result, Failure>(_ operation: (P) throws(Failure) -> Result) throws(Failure) -> Result where Failure : Error
 symbol	swift.method	Stub.withValue(sendability:_:)	func withValue<Result, Failure>(sendability: StubSendability, _ operation: (P) async throws(Failure) -> Result) async throws(Failure) -> Result where Failure : Error
 symbol	swift.method	Stub.withValue(sendability:_:)	func withValue<Result, Failure>(sendability: StubSendability, _ operation: (P) throws(Failure) -> Result) throws(Failure) -> Result where Failure : Error
+symbol	swift.method	StubBehaviorChain.thenDoNothing()	@discardableResult func thenDoNothing() -> StubBehaviorChain<Result>
+symbol	swift.method	StubBehaviorChain.thenReturn(_:)	@discardableResult func thenReturn(_ value: Result) -> StubBehaviorChain<Result>
+symbol	swift.method	StubBehaviorChain.thenReturn(_:_:_:)	@discardableResult func thenReturn(_ first: Result, _ second: Result, _ rest: Result...) -> StubBehaviorChain<Result>
+symbol	swift.method	StubBehaviorChain.thenThrow(_:)	@discardableResult func thenThrow<Failure>(_ error: Failure) -> StubBehaviorChain<Result> where Failure : Error
 symbol	swift.method	StubBuilder.then(_:)	func then<Argument>(_ handler: @escaping @Sendable (Argument) throws -> Result)
 symbol	swift.method	StubBuilder.then(_:)	func then<each Argument>(_ handler: @escaping (repeat each Argument) async throws -> Result)
 symbol	swift.method	StubBuilder.then(_:)	func then<each Argument>(_ handler: @escaping @Sendable (repeat each Argument) throws -> Result)
-symbol	swift.method	StubBuilder.thenDoNothing()	func thenDoNothing()
+symbol	swift.method	StubBuilder.thenDoNothing()	@discardableResult func thenDoNothing() -> StubBehaviorChain<Void>
 symbol	swift.method	StubBuilder.thenEscaping(_:)	func thenEscaping<FirstArgument, each AdditionalArgument>(_ handler: @escaping (FirstArgument, repeat each AdditionalArgument) async throws -> Result)
 symbol	swift.method	StubBuilder.thenEscaping(_:)	func thenEscaping<FirstArgument, each AdditionalArgument>(_ handler: @escaping @Sendable (FirstArgument, repeat each AdditionalArgument) throws -> Result)
-symbol	swift.method	StubBuilder.thenReturn(_:)	func thenReturn(_ value: Result)
-symbol	swift.method	StubBuilder.thenReturn(_:_:_:)	func thenReturn(_ first: Result, _ second: Result, _ rest: Result...)
-symbol	swift.method	StubBuilder.thenThrow(_:)	func thenThrow<Failure>(_ error: Failure) where Failure : Error
+symbol	swift.method	StubBuilder.thenReturn(_:)	@discardableResult func thenReturn(_ value: Result) -> StubBehaviorChain<Result>
+symbol	swift.method	StubBuilder.thenReturn(_:_:_:)	@discardableResult func thenReturn(_ first: Result, _ second: Result, _ rest: Result...) -> StubBehaviorChain<Result>
+symbol	swift.method	StubBuilder.thenThrow(_:)	@discardableResult func thenThrow<Failure>(_ error: Failure) -> StubBehaviorChain<Result> where Failure : Error
 symbol	swift.method	StubFailableInitializerBuilder.then(_:)	func then<each Argument>(_ handler: @escaping (repeat each Argument) async throws -> Outcome)
 symbol	swift.method	StubFailableInitializerBuilder.then(_:)	func then<each Argument>(_ handler: @escaping @Sendable (repeat each Argument) throws -> Outcome)
 symbol	swift.method	StubFailableInitializerBuilder.thenInitialize()	func thenInitialize()
@@ -222,6 +227,7 @@ symbol	swift.struct	Stub.ProtocolGetterEffects	struct ProtocolGetterEffects
 symbol	swift.struct	Stub.ProtocolRequirements	struct ProtocolRequirements
 symbol	swift.struct	Stub.Requirement	struct Requirement
 symbol	swift.struct	Stub.Requirement.Value	struct Value
+symbol	swift.struct	StubBehaviorChain	struct StubBehaviorChain<Result>
 symbol	swift.struct	StubBuilder	struct StubBuilder<Result>
 symbol	swift.struct	StubFailableInitializerBuilder	struct StubFailableInitializerBuilder
 symbol	swift.struct	StubInitializerBuilder	struct StubInitializerBuilder

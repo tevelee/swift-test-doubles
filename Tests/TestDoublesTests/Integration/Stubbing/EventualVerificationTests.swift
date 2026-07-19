@@ -179,7 +179,7 @@ private actor EventualVerificationGate {
         let service: any EventualVerificationService = stub(sendability: .unchecked)
         #expect(service.value(for: 42) == "configured")
         await gate.release()
-        await configuration.value
+        _ = await configuration.value
 
         stub.verify(.exactly(1)) { $0.value(for: equal(42)) }
         await stub.verify(.never()) { await $0.load(any()) }

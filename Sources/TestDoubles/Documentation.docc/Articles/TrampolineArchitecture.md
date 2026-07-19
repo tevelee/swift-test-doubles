@@ -147,7 +147,7 @@ completes.
 
 After matcher evaluation, dispatch enters one recorder linearization point that
 atomically commits matcher captures, appends the call, and reserves the next
-configured sequence value. Ordered verification therefore observes this
+configured sequence behavior. Ordered verification therefore observes this
 post-matcher dispatch order, not invocation-entry or handler-completion order.
 Recording an ordered expectation list uses capture mode only; handlers are not
 selected or replayed. Matching scans a snapshot for a relative subsequence and
@@ -182,9 +182,11 @@ and predicates are `@Sendable`. Async handlers intentionally preserve their
 creation actor or executor and must be actor-isolated or protect mutable
 captures when calls overlap. The generated protocol value may cross concurrency
 domains only when its protocol is `Sendable` and every configured fixed or
-sequenced value, matcher or captor state, and handler capture is safe to share.
-The configuration and verification containers are not compiler-proven
-`Sendable` APIs and stay on one isolation domain.
+sequenced behavior payload, matcher or captor state, and handler capture is safe
+to share.
+Keep the `Stub`, its recording builders, and verification operations on one
+isolation domain. A ``StubBehaviorChain`` is conditionally `Sendable` when its
+result is, but configuration must finish before matching invocations begin.
 
 ### Supported ABI boundary
 
