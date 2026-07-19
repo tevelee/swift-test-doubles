@@ -35,6 +35,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   only after successful construction; failed construction releases its
   temporary witness allocations.
 
+### Fixed
+
+- Constructing a test double for a bound existential composition that needs
+  two or more witness tables (for example `any A<Int> & B<String>`) on an OS
+  runtime older than the 26.4 releases now fails with a descriptive
+  `StubError.unsupportedProtocolShape` instead of crashing. Those runtimes
+  miscount witness tables while copying extended existential containers
+  (swiftlang/swift#85346), so materializing the double overran memory with a
+  `SIGBUS`. Unbound compositions with caller-supplied `associatedTypes:`
+  bindings keep working on every supported OS.
+
 ## [0.0.1] - 2026-07-18
 
 ### Added

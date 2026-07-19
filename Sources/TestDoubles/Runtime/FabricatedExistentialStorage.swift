@@ -53,7 +53,11 @@ struct FabricatedExistentialStorage<P> {
         let size = MemoryLayout<P>.size
         precondition(
             size == words.count * MemoryLayout<UInt>.size,
-            "[TestDoubles] Fabricated existential storage no longer matches its runtime metadata."
+            "[TestDoubles] Fabricated existential storage no longer matches its runtime metadata: "
+                + "'\(String(reflecting: P.self))' occupies \(size) bytes "
+                + "(alignment \(MemoryLayout<P>.alignment), stride \(MemoryLayout<P>.stride)), "
+                + "but the fabricated container holds \(words.count) words "
+                + "(\(words.count * MemoryLayout<UInt>.size) bytes)."
         )
         let pointer = UnsafeMutableRawPointer.allocate(
             byteCount: size,
@@ -62,6 +66,11 @@ struct FabricatedExistentialStorage<P> {
         defer { pointer.deallocate() }
 
         words.withUnsafeBytes { bytes in
+            precondition(
+                bytes.count == size,
+                "[TestDoubles] Fabricated existential storage for '\(String(reflecting: P.self))' "
+                    + "would copy \(bytes.count) bytes into a \(size)-byte container."
+            )
             guard let baseAddress = bytes.baseAddress else { return }
             pointer.copyMemory(from: baseAddress, byteCount: size)
         }

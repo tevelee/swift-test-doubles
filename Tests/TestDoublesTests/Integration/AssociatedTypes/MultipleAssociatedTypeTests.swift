@@ -139,6 +139,12 @@ private func uppercasedTextValue<P: TextAssociatedRoot>(_ value: P) -> String {
         typealias CompositionProtocol =
             NumericAssociatedRoot<Int> & TextAssociatedRoot<String>
         typealias Composition = any CompositionProtocol
+        guard runtimeCopiesExtendedExistentialContainersCorrectly else {
+            expectUnsupportedProtocolShape(containing: "26.4") {
+                _ = try Stub<Composition>()
+            }
+            return
+        }
         let stub = try Stub<Composition>()
         stub.when { $0.numericValue() }.thenReturn(21)
         stub.when { $0.textValue() }.thenReturn("composed")
@@ -158,16 +164,25 @@ private func uppercasedTextValue<P: TextAssociatedRoot>(_ value: P) -> String {
             .associatedType(named: "Number")
         let text = CompositionStub.Requirement.Value
             .associatedType(named: "Text")
-        let stub = try CompositionStub(
-            requirementsByProtocol: .requirements(
-                declaredBy: (any TextAssociatedRoot).self,
-                .method(returning: text)
-            ),
-            .requirements(
-                declaredBy: (any NumericAssociatedRoot).self,
-                .method(returning: numeric)
+        let construct: () throws -> CompositionStub = {
+            try CompositionStub(
+                requirementsByProtocol: .requirements(
+                    declaredBy: (any TextAssociatedRoot).self,
+                    .method(returning: text)
+                ),
+                .requirements(
+                    declaredBy: (any NumericAssociatedRoot).self,
+                    .method(returning: numeric)
+                )
             )
-        )
+        }
+        guard runtimeCopiesExtendedExistentialContainersCorrectly else {
+            expectUnsupportedProtocolShape(containing: "26.4") {
+                _ = try construct()
+            }
+            return
+        }
+        let stub = try construct()
         stub.when { $0.numericValue() }.thenReturn(42)
         stub.when { $0.textValue() }.thenReturn("explicit composition")
 

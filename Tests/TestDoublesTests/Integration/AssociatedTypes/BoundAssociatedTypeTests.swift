@@ -409,6 +409,12 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
         // their own typealias first and erasing that works around it.
         typealias CompositionProtocol = BoundAssociatedTypeProbe<Int> & AssociatedCompositionProbe
         typealias Composition = any CompositionProtocol
+        guard runtimeCopiesExtendedExistentialContainersCorrectly else {
+            expectUnsupportedProtocolShape(containing: "26.4") {
+                _ = try Stub<Composition>()
+            }
+            return
+        }
         let stub = try Stub<Composition>()
         stub.when { $0.value() }.thenReturn(21)
         stub.when { $0.transform(any()) }.then { (value: Int) in value * 2 }
@@ -433,19 +439,28 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
         let element = CompositionStub.Requirement.Value
             .associatedType(named: "Element")
         let concreteInt = CompositionStub.Requirement.Value.concrete(Int.self)
-        let stub = try CompositionStub(
-            requirementsByProtocol: .requirements(
-                declaredBy: AssociatedCompositionProbe.self,
-                .method(returning: String.self)
-            ),
-            .requirements(
-                declaredBy: (any BoundAssociatedTypeProbe).self,
-                .method(returning: element),
-                .method(element, returning: element),
-                .method(concreteInt, element, returning: element),
-                .getter(element)
+        let construct: () throws -> CompositionStub = {
+            try CompositionStub(
+                requirementsByProtocol: .requirements(
+                    declaredBy: AssociatedCompositionProbe.self,
+                    .method(returning: String.self)
+                ),
+                .requirements(
+                    declaredBy: (any BoundAssociatedTypeProbe).self,
+                    .method(returning: element),
+                    .method(element, returning: element),
+                    .method(concreteInt, element, returning: element),
+                    .getter(element)
+                )
             )
-        )
+        }
+        guard runtimeCopiesExtendedExistentialContainersCorrectly else {
+            expectUnsupportedProtocolShape(containing: "26.4") {
+                _ = try construct()
+            }
+            return
+        }
+        let stub = try construct()
         stub.when { $0.value() }.thenReturn(42)
         stub.when { $0.transform(any()) }.thenReturn(42)
         stub.when { $0.mix(any(), any()) }.thenReturn(42)
