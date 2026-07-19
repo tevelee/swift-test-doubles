@@ -39,12 +39,16 @@ before opening a pull request:
 
 ```bash
 swift build
-swift test
-swift test -c release
+swift test --parallel
+swift test -c release --parallel
 Scripts/check-public-api.sh
 Scripts/validate-documentation.sh
 git diff --check
 ```
+
+Swift Testing randomizes execution order when parallelization is enabled. Keep
+`--parallel` explicit so local and CI runs exercise both concurrent execution
+and order independence even when SwiftPM's command-line default is serial.
 
 When a public declaration changes intentionally, review the generated diff,
 update the README or Stub Contract when their behavioral contract changes, and
@@ -59,11 +63,12 @@ assembly, dispatch, ownership, or concurrency also need the extended tier:
 
 ```bash
 swift test --sanitize thread --scratch-path .build/tsan \
-  --no-parallel \
+  --parallel \
   --skip DummyInvocationExitTests \
   --skip UnstubbedBehaviorTests
 swift test --sanitize address --scratch-path .build/asan \
-  --no-parallel \
+  --parallel \
+  --experimental-maximum-parallelization-width 4 \
   --skip DummyInvocationExitTests \
   --skip UnstubbedBehaviorTests
 ```
@@ -71,17 +76,20 @@ swift test --sanitize address --scratch-path .build/asan \
 `DummyInvocationExitTests` and `UnstubbedBehaviorTests` still run in the
 baseline suites. Swift Testing executes their process-exit closures in child
 processes that do not inherit the sanitizer runtime early enough for its
-interceptors to initialize.
+interceptors to initialize. Address Sanitizer remains randomized and parallel,
+but its width is capped so instrumentation cannot starve time-bounded tests.
 
 On Apple Silicon, run the complete x86_64 package suite under Rosetta:
 
 ```bash
 arch -x86_64 swift test \
+  --parallel \
   --scratch-path .build/rosetta-debug \
   --triple x86_64-apple-macosx \
   --disable-xctest \
   --enable-swift-testing
 arch -x86_64 swift test -c release \
+  --parallel \
   --scratch-path .build/rosetta-release \
   --triple x86_64-apple-macosx \
   --disable-xctest \

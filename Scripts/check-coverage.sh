@@ -11,7 +11,8 @@ if ! [[ "$threshold" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
 fi
 
 swift test \
-  --no-parallel \
+  --parallel \
+  --experimental-maximum-parallelization-width 4 \
   --enable-code-coverage \
   --scratch-path "$scratch_path"
 

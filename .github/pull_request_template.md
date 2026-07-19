@@ -7,8 +7,8 @@ Closes #
 ## Validation
 
 - [ ] I added or updated focused tests for the change.
-- [ ] `swift test` passes.
-- [ ] `swift test -c release` passes.
+- [ ] `swift test --parallel` passes.
+- [ ] `swift test -c release --parallel` passes.
 - [ ] Public usage examples remain covered by focused package tests.
 - [ ] `Scripts/check-public-api.sh` passes; any intentional API snapshot change was reviewed.
 - [ ] `Scripts/validate-documentation.sh` passes; public source and DocC documentation are current.

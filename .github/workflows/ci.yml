@@ -75,9 +75,18 @@ jobs:
           swift package resolve
           git diff --exit-code -- Package.resolved
       - name: Test debug
-        run: swift test --no-parallel --scratch-path .build/ci
+        run: >-
+          swift test
+          --parallel
+          --experimental-maximum-parallelization-width 4
+          --scratch-path .build/ci
       - name: Test release
-        run: swift test -c release --no-parallel --scratch-path .build/ci
+        run: >-
+          swift test
+          -c release
+          --parallel
+          --experimental-maximum-parallelization-width 4
+          --scratch-path .build/ci
       - name: Validate documentation
         run: Scripts/validate-documentation.sh
 
@@ -105,9 +114,18 @@ jobs:
       - name: Show toolchain
         run: swift --version
       - name: Test debug
-        run: swift test --no-parallel --scratch-path .build/current-toolchain-debug
+        run: >-
+          swift test
+          --parallel
+          --experimental-maximum-parallelization-width 4
+          --scratch-path .build/current-toolchain-debug
       - name: Test release
-        run: swift test -c release --no-parallel --scratch-path .build/current-toolchain-release
+        run: >-
+          swift test
+          -c release
+          --parallel
+          --experimental-maximum-parallelization-width 4
+          --scratch-path .build/current-toolchain-release
       - name: Check public API
         run: Scripts/check-public-api.sh
 
@@ -143,9 +161,9 @@ jobs:
       - name: Resolve dependency checkouts
         run: swift package --scratch-path .build/linux resolve
       - name: Test debug
-        run: swift test --no-parallel --scratch-path .build/linux
+        run: swift test --parallel --scratch-path .build/linux
       - name: Test release
-        run: swift test -c release --no-parallel --scratch-path .build/linux
+        run: swift test -c release --parallel --scratch-path .build/linux
   apple-platforms:
     name: ${{ matrix.name }}
     strategy:
@@ -213,8 +231,10 @@ jobs:
             test -n "$udid"
             xcrun simctl boot "$udid" 2>/dev/null &
             echo "value=id=$udid,arch=arm64" >> "$GITHUB_OUTPUT"
+            echo "parallelism=NO" >> "$GITHUB_OUTPUT"
           else
             echo "value=$DESTINATION" >> "$GITHUB_OUTPUT"
+            echo "parallelism=YES" >> "$GITHUB_OUTPUT"
           fi
       - name: Test
         run: >-
@@ -222,7 +242,7 @@ jobs:
           -scheme swift-test-doubles
           -destination '${{ steps.destination.outputs.value }}'
           -derivedDataPath .build/ci-apple-platform
-          -parallel-testing-enabled NO
+          -parallel-testing-enabled ${{ steps.destination.outputs.parallelism }}
           -quiet
           test
 
@@ -254,7 +274,7 @@ jobs:
       - name: Test debug
         run: |
           arch -x86_64 swift test \
-            --no-parallel \
+            --parallel \
             --scratch-path .build/ci-rosetta-debug \
             --triple x86_64-apple-macosx \
             --disable-xctest \
@@ -263,7 +283,7 @@ jobs:
         run: |
           arch -x86_64 swift test \
             -c release \
-            --no-parallel \
+            --parallel \
             --scratch-path .build/ci-rosetta-release \
             --triple x86_64-apple-macosx \
             --disable-xctest \
@@ -276,8 +296,12 @@ jobs:
         include:
           - name: Address Sanitizer
             sanitizer: address
+            runner_arguments: >-
+              --parallel
+              --experimental-maximum-parallelization-width 4
           - name: Thread Sanitizer
             sanitizer: thread
+            runner_arguments: --parallel
     runs-on: macos-26
     timeout-minutes: 25
     steps:
@@ -303,7 +327,7 @@ jobs:
         run: >-
           swift test
           --sanitize ${{ matrix.sanitizer }}
-          --no-parallel
+          ${{ matrix.runner_arguments }}
           --skip DummyInvocationExitTests
           --skip UnstubbedBehaviorTests
           --scratch-path .build/ci-${{ matrix.sanitizer }}-sanitizer
