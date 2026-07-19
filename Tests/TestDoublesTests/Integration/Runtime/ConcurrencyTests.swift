@@ -92,10 +92,10 @@ private protocol ConcurrentConstructionProbe: Sendable {
     func reset()
 }
 
-private final class ReversedMatcherCompletionGate: @unchecked Sendable {
+private final class BlockedMatcherCompletionGate: @unchecked Sendable {
     private let condition = NSCondition()
-    private var firstEntered = false
-    private var secondCompleted = false
+    private var blockedMatcherEntered = false
+    private var blockedMatcherReleased = false
 
     func matches(_ value: Int) -> Bool {
         condition.lock()
@@ -103,21 +103,34 @@ private final class ReversedMatcherCompletionGate: @unchecked Sendable {
 
         switch value {
             case 1:
-                firstEntered = true
+                blockedMatcherEntered = true
                 condition.broadcast()
-                while secondCompleted == false {
+                while blockedMatcherReleased == false {
                     condition.wait()
                 }
             case 2:
-                while firstEntered == false {
+                while blockedMatcherEntered == false {
                     condition.wait()
                 }
-                secondCompleted = true
-                condition.broadcast()
             default:
                 return false
         }
         return true
+    }
+
+    func waitUntilBlockedMatcherEntered() {
+        condition.lock()
+        defer { condition.unlock() }
+        while blockedMatcherEntered == false {
+            condition.wait()
+        }
+    }
+
+    func releaseBlockedMatcher() {
+        condition.lock()
+        blockedMatcherReleased = true
+        condition.broadcast()
+        condition.unlock()
     }
 }
 
@@ -206,7 +219,7 @@ private func requireSendable<T: Sendable>(_: T) {}
             .method(Int.self, returning: Int.self),
             .method(Int.self, returning: Int.self, isAsync: true)
         )
-        let gate = ReversedMatcherCompletionGate()
+        let gate = BlockedMatcherCompletionGate()
         stub.when {
             $0.synchronous(
                 matching(description: "gated", where: gate.matches)
@@ -214,24 +227,19 @@ private func requireSendable<T: Sendable>(_: T) {}
         }.thenReturn(10, 20)
         let probe: any ConcurrentInvocationProbe = stub(sendability: .unchecked)
 
-        let results = await withTaskGroup(
-            of: (Int, Int).self,
-            returning: [(Int, Int)].self
-        ) { group in
-            for value in 1 ... 2 {
-                group.addTask {
-                    (value, probe.synchronous(value))
-                }
-            }
-            return await group.reduce(into: []) { $0.append($1) }
+        let firstCall = Task.detached {
+            probe.synchronous(1)
         }
-        let resultsByArgument = Dictionary(uniqueKeysWithValues: results)
+        gate.waitUntilBlockedMatcherEntered()
+        let secondCallResult = probe.synchronous(2)
+        gate.releaseBlockedMatcher()
+        let firstCallResult = await firstCall.value
         let recordedArguments = stub.recorder.verificationMatches(method: 0).compactMap {
             $0.args.first as? Int
         }
 
         #expect(recordedArguments == [2, 1])
-        #expect(resultsByArgument[2] == 10)
-        #expect(resultsByArgument[1] == 20)
+        #expect(secondCallResult == 10)
+        #expect(firstCallResult == 20)
     }
 }
