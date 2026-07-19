@@ -55,7 +55,7 @@ private struct SaveError: Error, Equatable {}
 
     @Test func baseRouteVoidMethodRecordsAndVerifies() {
         let stub = ManualStub<ManualServiceStub>()
-        stub.when { $0.reset() }
+        stub.when { $0.reset() }.thenDoNothing()
 
         let service: any ManualService = stub()
         service.reset()

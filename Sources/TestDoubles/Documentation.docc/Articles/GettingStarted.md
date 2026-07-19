@@ -116,7 +116,7 @@ test:
 
 ```swift
 let stub = try Stub<any NotificationService>()
-stub.when { try $0.send(to: any(), message: any()) }
+stub.when { try $0.send(to: any(), message: any()) }.thenDoNothing()
 
 let notifications: any NotificationService = stub()
 try notifications.send(to: 1, message: "Welcome")

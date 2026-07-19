@@ -176,3 +176,10 @@ public struct StubBuilder<Result> {
         return method
     }
 }
+
+extension StubBuilder where Result == Void {
+    /// Completes a matching invocation without performing additional work.
+    public func thenDoNothing() {
+        thenReturn(())
+    }
+}

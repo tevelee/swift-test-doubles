@@ -123,9 +123,9 @@ runtime coverage.
 
 ### Dynamic responses and matching
 
-Use `thenReturn` for a fixed response, `thenThrow` for a fixed error, and `then`
-when behavior depends on the arguments. More specific registrations win over
-general fallbacks:
+Use `thenReturn` for a fixed response, `thenThrow` for a fixed error,
+`thenDoNothing` for a no-op, and `then` when behavior depends on the arguments.
+More specific registrations win over general fallbacks:
 
 ```swift
 stub.when { $0.find(id: any()) }.thenReturn("guest")
@@ -194,7 +194,7 @@ Capture arguments when the interaction itself is the result being tested:
 
 ```swift
 let stub = try Stub<any NotificationService>()
-stub.when { try $0.send(to: any(), message: any()) }
+stub.when { try $0.send(to: any(), message: any()) }.thenDoNothing()
 
 let notifications: any NotificationService = stub()
 try notifications.send(to: 1, message: "Welcome")

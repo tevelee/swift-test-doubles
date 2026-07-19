@@ -183,6 +183,7 @@ symbol	swift.method	Stub.withValue(sendability:_:)	func withValue<Result, Failur
 symbol	swift.method	StubBuilder.then(_:)	func then<Argument>(_ handler: @escaping @Sendable (Argument) throws -> Result)
 symbol	swift.method	StubBuilder.then(_:)	func then<each Argument>(_ handler: @escaping (repeat each Argument) async throws -> Result)
 symbol	swift.method	StubBuilder.then(_:)	func then<each Argument>(_ handler: @escaping @Sendable (repeat each Argument) throws -> Result)
+symbol	swift.method	StubBuilder.thenDoNothing()	func thenDoNothing()
 symbol	swift.method	StubBuilder.thenEscaping(_:)	func thenEscaping<FirstArgument, each AdditionalArgument>(_ handler: @escaping (FirstArgument, repeat each AdditionalArgument) async throws -> Result)
 symbol	swift.method	StubBuilder.thenEscaping(_:)	func thenEscaping<FirstArgument, each AdditionalArgument>(_ handler: @escaping @Sendable (FirstArgument, repeat each AdditionalArgument) throws -> Result)
 symbol	swift.method	StubBuilder.thenReturn(_:)	func thenReturn(_ value: Result)

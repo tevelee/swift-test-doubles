@@ -101,8 +101,9 @@ accidentally.
 
 `when` records one protocol invocation using matcher arguments. Finish a
 value-returning configuration with `thenReturn` for a constant, `thenThrow` for
-a fixed error, or `then` for typed behavior. A bare `when` installs the no-op
-fallback for a `Void` requirement.
+a fixed error, or `then` for typed behavior. Finish a `Void` configuration with
+`thenDoNothing` to state that it has no side effect. A bare `when` remains an
+equivalent no-op fallback.
 The setter-specific `when` overload records a direct assignment through an
 `inout` existential; the assigned value is passed to a typed handler and owned
 according to Swift's setter convention. A subscript setter's runtime argument

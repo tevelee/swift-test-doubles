@@ -15,6 +15,13 @@ private protocol HandlerArityProbe: Sendable {
     func asyncThrowing(_ value: Int) async throws -> Int
 }
 
+private protocol DoNothingProbe: Sendable {
+    func synchronous(_ value: Int)
+    func throwing(_ value: Int) throws
+    func asynchronous(_ value: Int) async
+    func asyncThrowing(_ value: Int) async throws
+}
+
 private struct HandlerError: Error, Equatable {
     let value: Int
 }
@@ -135,6 +142,30 @@ private struct HandlerError: Error, Equatable {
         #expect(try await probe.asyncThrowing(-1) == -1)
         #expect(try await probe.asyncThrowing(1) == 10)
         #expect(try await probe.asyncThrowing(42) == 100)
+    }
+
+    @Test func thenDoNothingSupportsEveryEffectCombination() async throws {
+        let stub = try Stub<any DoNothingProbe>(
+            .method(Int.self, returning: Void.self),
+            .method(Int.self, returning: Void.self, isThrowing: true),
+            .method(Int.self, returning: Void.self, isAsync: true),
+            .method(Int.self, returning: Void.self, isThrowing: true, isAsync: true)
+        )
+        stub.when { $0.synchronous(any()) }.thenDoNothing()
+        stub.when { try $0.throwing(any()) }.thenDoNothing()
+        await stub.when { await $0.asynchronous(any()) }.thenDoNothing()
+        await stub.when { try await $0.asyncThrowing(any()) }.thenDoNothing()
+
+        let probe: any DoNothingProbe = stub(sendability: .unchecked)
+        probe.synchronous(1)
+        try probe.throwing(2)
+        await probe.asynchronous(3)
+        try await probe.asyncThrowing(4)
+
+        stub.verify { $0.synchronous(1) }
+        stub.verify { try $0.throwing(2) }
+        await stub.verify { await $0.asynchronous(3) }
+        await stub.verify { try await $0.asyncThrowing(4) }
     }
 }
 
