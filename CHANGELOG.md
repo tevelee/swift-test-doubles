@@ -10,7 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - WatchOS simulator support
-- Explicit `thenDoNothing()` behavior for `Void`-returning stub requirements.
+- Explicit `thenDoNothing()` behavior for `Void`-returning stub requirements;
+  `when` now requires a terminal behavior, so ignoring its builder produces a
+  compiler warning and no longer installs an implicit `Void` fallback.
 
 ## [0.0.1] - 2026-07-18
 

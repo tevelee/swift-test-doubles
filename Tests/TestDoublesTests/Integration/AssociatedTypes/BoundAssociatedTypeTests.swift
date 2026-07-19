@@ -774,7 +774,7 @@ private func exerciseDependentSetter(
     let returned = BoundAssociatedTypeBox()
     let placeholder = BoundAssociatedTypeBox()
     stub.when(returning: returned) { $0.value }.thenReturn(returned)
-    stub.when { $0.value = any(using: placeholder) }
+    stub.when { $0.value = any(using: placeholder) }.thenDoNothing()
     var probe: Probe = stub()
     #expect(probe.value === returned)
 
@@ -820,7 +820,7 @@ private func exerciseConsumingDependentArguments(
     #expect(asyncMethod.argumentOwnerships == [.owned])
 
     let placeholder = BoundAssociatedTypeBox()
-    stub.when { $0.consume(any(using: placeholder)) }
+    stub.when { $0.consume(any(using: placeholder)) }.thenDoNothing()
     await stub.when {
         await $0.consumeAsync(any(using: placeholder))
     }.then { (_: BoundAssociatedTypeBox) async in

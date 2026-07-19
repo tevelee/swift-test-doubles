@@ -132,7 +132,10 @@ enum StubRecorderDiagnostics {
                 case .instance: "$0"
                 case .metatype: "type(of: $0)"
             }
-        let behavior = method.returnType == Void.self ? "" : ".thenReturn(...)"
+        let behavior =
+            method.returnType == Void.self
+            ? ".thenDoNothing()"
+            : ".thenReturn(...)"
         return "\(configurationPrefix)stub.when { \(requirementCall("\(receiver).\(invocation)")) }\(behavior)"
     }
 

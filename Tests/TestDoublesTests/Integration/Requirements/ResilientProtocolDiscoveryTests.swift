@@ -18,7 +18,7 @@ struct ResilientProtocolDiscoveryTests {
         }
         stub.when(initializer: { type(of: $0).init(id: any()) }).thenInitialize()
         stub.when { $0.count }.thenReturn(7)
-        stub.when { $0.count = any() }
+        stub.when { $0.count = any() }.thenDoNothing()
 
         var value: any ResilientRuntimeService = stub()
         #expect(try value.fetch(id: 1) == "fetched-1")

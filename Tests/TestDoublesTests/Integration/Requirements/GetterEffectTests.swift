@@ -193,7 +193,7 @@ struct RealAssociatedGetterEffectProbe: AssociatedGetterEffectProbe {
             getterEffects: .nonthrowing
         )
         stub.when { $0.value }.thenReturn(7)
-        stub.when { $0.value = any() }
+        stub.when { $0.value = any() }.thenDoNothing()
 
         var probe: any ReadWriteGetterEffectProbe = stub()
         #expect(probe.value == 7)

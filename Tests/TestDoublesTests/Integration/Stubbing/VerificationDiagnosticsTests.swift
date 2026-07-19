@@ -31,7 +31,7 @@ private func makeVerificationDiagnosticsStub() throws -> Stub<any VerificationDi
 
     @Test func exactMismatchReportsWithoutTerminating() throws {
         let stub = try makeVerificationDiagnosticsStub()
-        stub.when { $0.synchronous(any()) }
+        stub.when { $0.synchronous(any()) }.thenDoNothing()
         stub().synchronous(1)
 
         expectReportsIssue {
@@ -43,7 +43,7 @@ private func makeVerificationDiagnosticsStub() throws -> Stub<any VerificationDi
 
     @Test func asynchronousMismatchReportsWithoutTerminating() async throws {
         let stub = try makeVerificationDiagnosticsStub()
-        await stub.when { await $0.asynchronous(any()) }
+        await stub.when { await $0.asynchronous(any()) }.thenDoNothing()
         await stub().asynchronous(1)
 
         await expectReportsIssue {
@@ -55,7 +55,7 @@ private func makeVerificationDiagnosticsStub() throws -> Stub<any VerificationDi
 
     @Test func upperBoundMismatchReportsWithoutTerminating() throws {
         let stub = try makeVerificationDiagnosticsStub()
-        stub.when { $0.synchronous(any()) }
+        stub.when { $0.synchronous(any()) }.thenDoNothing()
         stub().synchronous(1)
 
         expectReportsIssue {
@@ -67,7 +67,7 @@ private func makeVerificationDiagnosticsStub() throws -> Stub<any VerificationDi
 
     @Test func successfulSynchronousVerificationReportsNothing() throws {
         let stub = try makeVerificationDiagnosticsStub()
-        stub.when { $0.synchronous(any()) }
+        stub.when { $0.synchronous(any()) }.thenDoNothing()
         stub().synchronous(1)
 
         expectReportsIssue {
@@ -80,7 +80,7 @@ private func makeVerificationDiagnosticsStub() throws -> Stub<any VerificationDi
 
     @Test func successfulAsynchronousVerificationReportsNothing() async throws {
         let stub = try makeVerificationDiagnosticsStub()
-        await stub.when { await $0.asynchronous(any()) }
+        await stub.when { await $0.asynchronous(any()) }.thenDoNothing()
         await stub().asynchronous(1)
 
         await expectReportsIssue {

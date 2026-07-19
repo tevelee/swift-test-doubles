@@ -99,11 +99,12 @@ accidentally.
 
 ### Configuration and selection
 
-`when` records one protocol invocation using matcher arguments. Finish a
-value-returning configuration with `thenReturn` for a constant, `thenThrow` for
-a fixed error, or `then` for typed behavior. Finish a `Void` configuration with
-`thenDoNothing` to state that it has no side effect. A bare `when` remains an
-equivalent no-op fallback.
+`when` records one protocol invocation using matcher arguments and returns a
+builder. Finish every configuration with `thenReturn` for a constant,
+`thenThrow` for a fixed error, `then` for typed behavior, or `thenDoNothing` for
+a `Void` requirement with no side effect. Ignoring the builder produces a
+compiler warning and does not install behavior.
+
 The setter-specific `when` overload records a direct assignment through an
 `inout` existential; the assigned value is passed to a typed handler and owned
 according to Swift's setter convention. A subscript setter's runtime argument

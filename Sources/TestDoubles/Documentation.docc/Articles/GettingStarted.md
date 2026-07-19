@@ -177,7 +177,7 @@ Read-write protocol properties support their getter and direct setter:
 
 ```swift
 let stub = try Stub<any MutableProfile>()
-stub.when { $0.displayName = any() }
+stub.when { $0.displayName = any() }.thenDoNothing()
 
 var profile: any MutableProfile = stub()
 profile.displayName = "Blob"
@@ -196,7 +196,7 @@ both normal return and thrown unwind:
 
 ```swift
 stub.when { $0.displayName }.thenReturn("Blob")
-stub.when { $0.displayName = any() }
+stub.when { $0.displayName = any() }.thenDoNothing()
 
 var profile: any MutableProfile = stub()
 profile.displayName += "!"
@@ -218,7 +218,7 @@ before its indices:
 ```swift
 let stub = try Stub<any KeyValueStore>()
 stub.when { $0[any()] }.thenReturn(nil)
-stub.when { $0[any()] = any() }
+stub.when { $0[any()] = any() }.thenDoNothing()
 
 var store: any KeyValueStore = stub()
 store["theme"] = "dark"

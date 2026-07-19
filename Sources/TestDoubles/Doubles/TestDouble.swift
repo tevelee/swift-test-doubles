@@ -160,27 +160,6 @@ extension TestDouble {
     }
 }
 
-// MARK: - Builder construction
-
-extension TestDouble {
-    /// Creates the builder for a recorded invocation, first registering the
-    /// Void fallback that lets an unconfigured void recording dispatch.
-    func makeBuilder<Result>(
-        for recording: RecordedCall,
-        returning resultType: Result.Type
-    ) -> StubBuilder<Result> {
-        if resultType == Void.self {
-            recorder.addStub(
-                method: recording.methodIndex,
-                matchers: recording.resolvedMatchers,
-                returnValue: { _ in () },
-                isFallback: true
-            )
-        }
-        return StubBuilder(recorder: recorder, recording: recording)
-    }
-}
-
 // MARK: - Verification
 
 extension TestDouble {

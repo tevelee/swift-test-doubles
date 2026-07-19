@@ -182,7 +182,7 @@ private func makeOrderedVerificationStub() throws -> Stub<any OrderedVerificatio
     @Test func mutatingSequenceReportsSetterOrderFailuresAtTheCaller() throws {
         let stub = try makeOrderedVerificationStub()
         stub.when { $0.first(any()) }.thenReturn(0)
-        stub.when { $0.value = any() }
+        stub.when { $0.value = any() }.thenDoNothing()
         var probe: any OrderedVerificationProbe = stub()
         _ = probe.first(1)
         probe.value = 2

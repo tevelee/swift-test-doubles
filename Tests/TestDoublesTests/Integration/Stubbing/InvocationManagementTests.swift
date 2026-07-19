@@ -54,7 +54,7 @@ private struct ManualInvocationManagementServiceStub: ManualInvocationManagement
     @Test func manualStubHasClearingParityWithoutInterceptingReset() {
         let stub = ManualStub<ManualInvocationManagementServiceStub>()
         stub.when { $0.value(for: any()) }.thenReturn("configured")
-        stub.when { $0.reset() }
+        stub.when { $0.reset() }.thenDoNothing()
         let service: any ManualInvocationManagementService = stub()
 
         #expect(service.value(for: 1) == "configured")
@@ -87,7 +87,7 @@ private struct ManualInvocationManagementServiceStub: ManualInvocationManagement
     @MainActor
     @Test func eventualVerificationReevaluatesAcrossClear() async throws {
         let stub = try Stub<any InvocationManagementService>()
-        stub.when { $0.notify(any()) }
+        stub.when { $0.notify(any()) }.thenDoNothing()
         let service: any InvocationManagementService = stub(sendability: .unchecked)
         let completions = LockedCounter()
 

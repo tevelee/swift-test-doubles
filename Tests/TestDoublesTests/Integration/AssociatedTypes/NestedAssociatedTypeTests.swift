@@ -437,14 +437,14 @@ private func exerciseConsumingNestedAssociatedTypes(
     )
 
     let placeholder = NestedAssociatedTypeBox()
-    stub.when { $0.consume(optional: any(using: Optional(placeholder))) }
-    stub.when { $0.consume(array: any(using: [placeholder])) }
+    stub.when { $0.consume(optional: any(using: Optional(placeholder))) }.thenDoNothing()
+    stub.when { $0.consume(array: any(using: [placeholder])) }.thenDoNothing()
     await stub.when {
         await $0.consumeAsync(optional: any(using: Optional(placeholder)))
-    }
+    }.thenDoNothing()
     await stub.when {
         await $0.consumeAsync(array: any(using: [placeholder]))
-    }
+    }.thenDoNothing()
 
     let probe: Probe = stub()
     var (optionalSyncValue, optionalSyncLifetime) = makeOptionalNestedAssociatedTypeBox()

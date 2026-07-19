@@ -140,12 +140,12 @@ struct RealFileLoader: FileLoader {
         #expect(config.scale == 2.5)
     }
 
-    @Test func getterAndVoidFallbacks() throws {
+    @Test func gettersAndExplicitVoidBehaviors() throws {
         let stub = try Stub<any Settings>()
         stub.when { $0.theme }.thenReturn("dark")
         stub.when { $0.fontSize }.thenReturn(16)
-        stub.when { $0.reset() }
-        stub.when { $0.apply(key: any()) }
+        stub.when { $0.reset() }.thenDoNothing()
+        stub.when { $0.apply(key: any()) }.thenDoNothing()
 
         let settings: any Settings = stub()
         #expect(settings.theme == "dark")
@@ -178,9 +178,9 @@ struct RealFileLoader: FileLoader {
         stub.verify(.never()) { $0.exists(path: equal("/missing")) }
     }
 
-    @Test func throwingVoidRequirementUsesFallback() throws {
+    @Test func throwingVoidRequirementCanExplicitlyDoNothing() throws {
         let stub = try Stub<any ThrowingFileService>()
-        stub.when { try $0.write(path: any(), content: any()) }
+        stub.when { try $0.write(path: any(), content: any()) }.thenDoNothing()
 
         try stub().write(path: "/out", content: "data")
         stub.verify { try $0.write(path: "/out", content: "data") }
@@ -211,7 +211,7 @@ struct RealFileLoader: FileLoader {
             .getter(Int.self)
         )
         await stub.when { try await $0.load(url: any()) }.thenReturn("data")
-        await stub.when { await $0.prefetch(urls: any()) }
+        await stub.when { await $0.prefetch(urls: any()) }.thenDoNothing()
         stub.when { $0.cacheSize }.thenReturn(3)
 
         let loader: any AsyncDataLoader = stub()

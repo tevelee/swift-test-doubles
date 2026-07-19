@@ -50,19 +50,16 @@ struct StubBehaviorRegistry {
         let diagnosticSignature: String
         let behavior: Behavior
         let specificity: Int
-        let priority: Int
 
         init(
             matchers: [ParameterMatcher],
             diagnosticSignature: String,
-            behavior: Behavior,
-            isFallback: Bool
+            behavior: Behavior
         ) {
             self.matchers = matchers
             self.diagnosticSignature = diagnosticSignature
             self.behavior = behavior
             self.specificity = matchers.reduce(0) { $0 + $1.specificity }
-            self.priority = isFallback ? 0 : 1
         }
     }
 
@@ -76,34 +73,28 @@ struct StubBehaviorRegistry {
         method: Int,
         matchers: [ParameterMatcher],
         diagnosticSignature: String,
-        behavior: Entry.Behavior,
-        isFallback: Bool
+        behavior: Entry.Behavior
     ) {
         entriesByMethod[method, default: []].append(
             Entry(
                 matchers: matchers,
                 diagnosticSignature: diagnosticSignature,
-                behavior: behavior,
-                isFallback: isFallback
+                behavior: behavior
             ))
     }
 
     /// Returns the first registered entry among those with the highest matcher
-    /// specificity. Registration kind never affects precedence.
+    /// specificity.
     static func bestMatchingEntry(
         for args: [Any],
         in entries: [Entry]
     ) -> Entry? {
         var bestEntry: Entry?
         var bestSpecificity = -1
-        var bestPriority = -1
         for entry in entries
         where entry.matchers.isEmpty || argumentsMatch(args, against: entry.matchers) {
-            if entry.specificity > bestSpecificity
-                || (entry.specificity == bestSpecificity && entry.priority > bestPriority)
-            {
+            if entry.specificity > bestSpecificity {
                 bestSpecificity = entry.specificity
-                bestPriority = entry.priority
                 bestEntry = entry
             }
         }

@@ -130,11 +130,11 @@ symbol	swift.method	ManualStub.verifyInOrder(_:fileID:filePath:line:column:)	fun
 symbol	swift.method	ManualStub.verifyInOrder(_:isolation:fileID:filePath:line:column:)	func verifyInOrder(_ calls: (T) async throws -> Void, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
 symbol	swift.method	ManualStub.verifyInOrder(mutating:fileID:filePath:line:column:)	func verifyInOrder(mutating calls: (inout T) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	swift.method	ManualStub.verifyNoMoreInteractions(fileID:filePath:line:column:)	func verifyNoMoreInteractions(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
-symbol	swift.method	ManualStub.when(_:)	@discardableResult func when(_ call: (inout T) throws -> Void) -> StubBuilder<Void>
-symbol	swift.method	ManualStub.when(_:)	@discardableResult func when<Result>(_ call: (T) throws -> Result) -> StubBuilder<Result>
-symbol	swift.method	ManualStub.when(_:isolation:)	@discardableResult func when<Result>(_ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation) async -> StubBuilder<Result>
-symbol	swift.method	ManualStub.when(returning:_:)	@discardableResult func when<Result>(returning placeholder: Result, _ call: (T) throws -> Result) -> StubBuilder<Result>
-symbol	swift.method	ManualStub.when(returning:_:isolation:)	@discardableResult func when<Result>(returning placeholder: Result, _ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation) async -> StubBuilder<Result>
+symbol	swift.method	ManualStub.when(_:)	func when(_ call: (inout T) throws -> Void) -> StubBuilder<Void>
+symbol	swift.method	ManualStub.when(_:)	func when<Result>(_ call: (T) throws -> Result) -> StubBuilder<Result>
+symbol	swift.method	ManualStub.when(_:isolation:)	func when<Result>(_ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation) async -> StubBuilder<Result>
+symbol	swift.method	ManualStub.when(returning:_:)	func when<Result>(returning placeholder: Result, _ call: (T) throws -> Result) -> StubBuilder<Result>
+symbol	swift.method	ManualStub.when(returning:_:isolation:)	func when<Result>(returning placeholder: Result, _ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation) async -> StubBuilder<Result>
 symbol	swift.method	ManualThrowingMethodProxy.dynamicallyCall(withKeywordArguments:)	func dynamicallyCall(withKeywordArguments args: KeyValuePairs<String, Any>) async throws
 symbol	swift.method	ManualThrowingMethodProxy.dynamicallyCall(withKeywordArguments:)	func dynamicallyCall(withKeywordArguments args: KeyValuePairs<String, Any>) throws
 symbol	swift.method	ManualThrowingMethodProxy.dynamicallyCall(withKeywordArguments:)	func dynamicallyCall<R>(withKeywordArguments args: KeyValuePairs<String, Any>) async throws -> R
@@ -161,19 +161,19 @@ symbol	swift.method	Stub.verifyInOrder(_:fileID:filePath:line:column:)	func veri
 symbol	swift.method	Stub.verifyInOrder(_:isolation:fileID:filePath:line:column:)	func verifyInOrder(_ calls: (P) async throws -> Void, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
 symbol	swift.method	Stub.verifyInOrder(mutating:fileID:filePath:line:column:)	func verifyInOrder(mutating calls: (inout P) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	swift.method	Stub.verifyNoMoreInteractions(fileID:filePath:line:column:)	func verifyNoMoreInteractions(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
-symbol	swift.method	Stub.when(_:)	@discardableResult func when(_ call: (inout P) throws -> Void) -> StubBuilder<Void>
-symbol	swift.method	Stub.when(_:)	@discardableResult func when<Result>(_ call: (P) throws -> Result) -> StubBuilder<Result>
-symbol	swift.method	Stub.when(_:isolation:)	@discardableResult func when<Result>(_ call: (P) async throws -> Result, isolation: isolated (any Actor)? = #isolation) async -> StubBuilder<Result>
-symbol	swift.method	Stub.when(initializer:)	@discardableResult func when(initializer call: (P) throws -> P) -> StubInitializerBuilder
-symbol	swift.method	Stub.when(initializer:)	@discardableResult func when(initializer call: (P) throws -> P?) -> StubFailableInitializerBuilder
-symbol	swift.method	Stub.when(initializer:isolation:)	@discardableResult func when(initializer call: (P) async throws -> P, isolation: isolated (any Actor)? = #isolation) async -> StubInitializerBuilder
-symbol	swift.method	Stub.when(initializer:isolation:)	@discardableResult func when(initializer call: (P) async throws -> P?, isolation: isolated (any Actor)? = #isolation) async -> StubFailableInitializerBuilder
-symbol	swift.method	Stub.when(returning:_:)	@discardableResult func when<Result>(returning placeholder: Result, _ call: (P) throws -> Result) -> StubBuilder<Result>
-symbol	swift.method	Stub.when(returning:_:isolation:)	@discardableResult func when<Result>(returning placeholder: Result, _ call: (P) async throws -> Result, isolation: isolated (any Actor)? = #isolation) async -> StubBuilder<Result>
-symbol	swift.method	Stub.when(returningOptionalSelf:)	@discardableResult func when(returningOptionalSelf call: (P) throws -> P?) -> StubOptionalSelfResultBuilder
-symbol	swift.method	Stub.when(returningOptionalSelf:isolation:)	@discardableResult func when(returningOptionalSelf call: (P) async throws -> P?, isolation: isolated (any Actor)? = #isolation) async -> StubOptionalSelfResultBuilder
-symbol	swift.method	Stub.when(returningSelf:)	@discardableResult func when(returningSelf call: (P) throws -> P) -> StubSelfResultBuilder
-symbol	swift.method	Stub.when(returningSelf:isolation:)	@discardableResult func when(returningSelf call: (P) async throws -> P, isolation: isolated (any Actor)? = #isolation) async -> StubSelfResultBuilder
+symbol	swift.method	Stub.when(_:)	func when(_ call: (inout P) throws -> Void) -> StubBuilder<Void>
+symbol	swift.method	Stub.when(_:)	func when<Result>(_ call: (P) throws -> Result) -> StubBuilder<Result>
+symbol	swift.method	Stub.when(_:isolation:)	func when<Result>(_ call: (P) async throws -> Result, isolation: isolated (any Actor)? = #isolation) async -> StubBuilder<Result>
+symbol	swift.method	Stub.when(initializer:)	func when(initializer call: (P) throws -> P) -> StubInitializerBuilder
+symbol	swift.method	Stub.when(initializer:)	func when(initializer call: (P) throws -> P?) -> StubFailableInitializerBuilder
+symbol	swift.method	Stub.when(initializer:isolation:)	func when(initializer call: (P) async throws -> P, isolation: isolated (any Actor)? = #isolation) async -> StubInitializerBuilder
+symbol	swift.method	Stub.when(initializer:isolation:)	func when(initializer call: (P) async throws -> P?, isolation: isolated (any Actor)? = #isolation) async -> StubFailableInitializerBuilder
+symbol	swift.method	Stub.when(returning:_:)	func when<Result>(returning placeholder: Result, _ call: (P) throws -> Result) -> StubBuilder<Result>
+symbol	swift.method	Stub.when(returning:_:isolation:)	func when<Result>(returning placeholder: Result, _ call: (P) async throws -> Result, isolation: isolated (any Actor)? = #isolation) async -> StubBuilder<Result>
+symbol	swift.method	Stub.when(returningOptionalSelf:)	func when(returningOptionalSelf call: (P) throws -> P?) -> StubOptionalSelfResultBuilder
+symbol	swift.method	Stub.when(returningOptionalSelf:isolation:)	func when(returningOptionalSelf call: (P) async throws -> P?, isolation: isolated (any Actor)? = #isolation) async -> StubOptionalSelfResultBuilder
+symbol	swift.method	Stub.when(returningSelf:)	func when(returningSelf call: (P) throws -> P) -> StubSelfResultBuilder
+symbol	swift.method	Stub.when(returningSelf:isolation:)	func when(returningSelf call: (P) async throws -> P, isolation: isolated (any Actor)? = #isolation) async -> StubSelfResultBuilder
 symbol	swift.method	Stub.withValue(_:)	func withValue<Result, Failure>(_ operation: (P) async throws(Failure) -> Result) async throws(Failure) -> Result where Failure : Error
 symbol	swift.method	Stub.withValue(_:)	func withValue<Result, Failure>(_ operation: (P) async throws(Failure) -> Result) async throws(Failure) -> Result where Failure : Error
 symbol	swift.method	Stub.withValue(_:)	func withValue<Result, Failure>(_ operation: (P) throws(Failure) -> Result) throws(Failure) -> Result where Failure : Error

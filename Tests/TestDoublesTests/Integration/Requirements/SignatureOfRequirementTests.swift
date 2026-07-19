@@ -192,7 +192,7 @@ struct SignatureOfRequirementTests {
         #expect(methods[5].isAsync)
 
         stub.when { $0.count }.thenReturn(7)
-        stub.when { $0.count = any() }
+        stub.when { $0.count = any() }.thenDoNothing()
         stub.when { $0.title }.thenReturn("title")
         stub.when { try $0.throwingValue }.thenReturn(8)
         await stub.when { await $0.asynchronousValue }.thenReturn(9)

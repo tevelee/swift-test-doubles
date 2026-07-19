@@ -3,7 +3,6 @@ extension Stub {
     ///
     /// Swift cannot express the opened existential metatype as a generic closure
     /// parameter, so invoke the initializer through `type(of:)` inside `call`.
-    @discardableResult
     public func when(initializer call: (P) throws -> P) -> StubInitializerBuilder {
         let recording = recordInvocation(call)
         requireInitializerRecording(recording, returnConvention: .selfType)
@@ -14,7 +13,6 @@ extension Stub {
     ///
     /// Swift cannot express the opened existential metatype as a generic closure
     /// parameter, so invoke the initializer through `type(of:)` inside `call`.
-    @discardableResult
     public func when(
         initializer call: (P) async throws -> P,
         isolation: isolated (any Actor)? = #isolation
@@ -28,7 +26,6 @@ extension Stub {
     ///
     /// Swift cannot express the opened existential metatype as a generic closure
     /// parameter, so invoke the initializer through `type(of:)` inside `call`.
-    @discardableResult
     public func when(initializer call: (P) throws -> P?) -> StubFailableInitializerBuilder {
         let recording = recordInvocation(call)
         requireInitializerRecording(recording, returnConvention: .optionalSelf)
@@ -39,7 +36,6 @@ extension Stub {
     ///
     /// Swift cannot express the opened existential metatype as a generic closure
     /// parameter, so invoke the initializer through `type(of:)` inside `call`.
-    @discardableResult
     public func when(
         initializer call: (P) async throws -> P?,
         isolation: isolated (any Actor)? = #isolation
@@ -53,7 +49,6 @@ extension Stub {
     ///
     /// The configured invocation returns a fresh generated value backed by
     /// this stub's runtime resources.
-    @discardableResult
     public func when(returningSelf call: (P) throws -> P) -> StubSelfResultBuilder {
         let recording = recordInvocation(call)
         requireSelfResultRecording(recording)
@@ -64,7 +59,6 @@ extension Stub {
     ///
     /// The configured invocation returns a fresh generated value backed by
     /// this stub's runtime resources.
-    @discardableResult
     public func when(
         returningSelf call: (P) async throws -> P,
         isolation: isolated (any Actor)? = #isolation
@@ -78,7 +72,6 @@ extension Stub {
     ///
     /// A matching invocation can return a fresh generated value backed by this
     /// stub's runtime resources or `nil`.
-    @discardableResult
     public func when(
         returningOptionalSelf call: (P) throws -> P?
     ) -> StubOptionalSelfResultBuilder {
@@ -91,7 +84,6 @@ extension Stub {
     ///
     /// A matching invocation can return a fresh generated value backed by this
     /// stub's runtime resources or `nil`.
-    @discardableResult
     public func when(
         returningOptionalSelf call: (P) async throws -> P?,
         isolation: isolated (any Actor)? = #isolation
@@ -102,10 +94,9 @@ extension Stub {
     }
 
     /// Stubs an instance or static method, or getter, including throwing requirements.
-    @discardableResult
     public func when<Result>(_ call: (P) throws -> Result) -> StubBuilder<Result> {
         let recording = recordInvocation(call)
-        return builder(for: recording, returning: Result.self)
+        return StubBuilder(recorder: recorder, recording: recording)
     }
 
     /// Stubs a requirement whose result needs a valid value while recording.
@@ -114,33 +105,30 @@ extension Stub {
     /// the runtime cannot safely synthesize a recording placeholder. The
     /// placeholder is returned only while capturing `call`; configured behavior
     /// still comes from the resulting builder.
-    @discardableResult
     public func when<Result>(
         returning placeholder: Result,
         _ call: (P) throws -> Result
     ) -> StubBuilder<Result> {
         let recording = recordInvocation(returning: placeholder, call)
-        return builder(for: recording, returning: Result.self)
+        return StubBuilder(recorder: recorder, recording: recording)
     }
 
     /// Stubs a direct property assignment.
     ///
     /// Compound assignment and `inout` access use Swift's `_modify` coroutine.
     /// Configure its ordinary getter and direct setter separately with `when`.
-    @discardableResult
     public func when(_ call: (inout P) throws -> Void) -> StubBuilder<Void> {
         let recording = recordMutation(call)
-        return builder(for: recording, returning: Void.self)
+        return StubBuilder(recorder: recorder, recording: recording)
     }
 
     /// Stubs an async instance or static method, or getter, including throwing requirements.
-    @discardableResult
     public func when<Result>(
         _ call: (P) async throws -> Result,
         isolation: isolated (any Actor)? = #isolation
     ) async -> StubBuilder<Result> {
         let recording = await recordAsyncInvocation(call, isolation: isolation)
-        return builder(for: recording, returning: Result.self)
+        return StubBuilder(recorder: recorder, recording: recording)
     }
 
     /// Stubs an async requirement whose result needs a valid value while recording.
@@ -149,7 +137,6 @@ extension Stub {
     /// the runtime cannot safely synthesize a recording placeholder. The
     /// placeholder is returned only while capturing `call`; configured behavior
     /// still comes from the resulting builder.
-    @discardableResult
     public func when<Result>(
         returning placeholder: Result,
         _ call: (P) async throws -> Result,
@@ -160,14 +147,7 @@ extension Stub {
             call,
             isolation: isolation
         )
-        return builder(for: recording, returning: Result.self)
-    }
-
-    private func builder<Result>(
-        for recording: RecordedCall,
-        returning resultType: Result.Type
-    ) -> StubBuilder<Result> {
-        return makeBuilder(for: recording, returning: resultType)
+        return StubBuilder(recorder: recorder, recording: recording)
     }
 
     private func requireInitializerRecording(

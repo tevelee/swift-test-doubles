@@ -122,8 +122,7 @@ private protocol AsyncFailureProbe {
         let entry = StubRecorder.StubEntry(
             matchers: [AnyMatcher()],
             diagnosticSignature: "ping(any())",
-            behavior: .value("pong"),
-            isFallback: false
+            behavior: .value("pong")
         )
 
         let message = recorder.diagnosticMessage(
@@ -162,8 +161,7 @@ private protocol AsyncFailureProbe {
                 "await stub.when { try await $0.load(id: equal(42)) }.thenReturn(...)"
             )
         )
-        #expect(void.contains("stub.when { $0.reset() }"))
-        #expect(void.contains("thenReturn") == false)
+        #expect(void.contains("stub.when { $0.reset() }.thenDoNothing()"))
     }
 
     @Test func suggestionsHandleUnlabeledAndUnparenthesizedNames() {

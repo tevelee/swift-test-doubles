@@ -180,16 +180,16 @@ private struct PurgeError: Error, Equatable {}
         #expect(reverseService.render("8") == "string-first")
     }
 
-    @Test func typedFallbacksCoverEveryEffectAndResultCombination() async throws {
+    @Test func typedBehaviorsCoverEveryEffectAndResultCombination() async throws {
         let stub = ManualStub<ManualTypedRouteServiceStub>()
-        stub.when { $0.consume(equal(1)) }
+        stub.when { $0.consume(equal(1)) }.thenDoNothing()
         stub.when { try $0.throwingValue(equal(2)) }.thenReturn("throwing")
-        stub.when { try $0.throwingEffect(equal(3)) }
+        stub.when { try $0.throwingEffect(equal(3)) }.thenDoNothing()
         await stub.when { await $0.asyncValue(equal(4)) }.thenReturn("async")
-        await stub.when { await $0.asyncEffect(equal(5)) }
+        await stub.when { await $0.asyncEffect(equal(5)) }.thenDoNothing()
         await stub.when { try await $0.asyncThrowingValue(equal(6)) }
             .thenReturn("async-throwing")
-        await stub.when { try await $0.asyncThrowingEffect(equal(7)) }
+        await stub.when { try await $0.asyncThrowingEffect(equal(7)) }.thenDoNothing()
 
         let service: any ManualTypedRouteService = stub()
         service.consume(1)
@@ -262,11 +262,11 @@ private struct PurgeError: Error, Equatable {}
     @Test func explicitRoutesCoverEveryEffectCombination() async throws {
         let stub = ManualStub<ManualOverloadServiceStub>()
         stub.when { $0.labelFor(equal(3)) }.thenReturn("three")
-        stub.when { $0.clear() }
+        stub.when { $0.clear() }.thenDoNothing()
         stub.when { try $0.code() }.thenReturn(200)
-        stub.when { try $0.commit() }
-        await stub.when { await $0.warmup() }
-        await stub.when { try await $0.syncUp() }
+        stub.when { try $0.commit() }.thenDoNothing()
+        await stub.when { await $0.warmup() }.thenDoNothing()
+        await stub.when { try await $0.syncUp() }.thenDoNothing()
 
         let service: any ManualOverloadService = stub()
         #expect(service.labelFor(3) == "three")
@@ -299,8 +299,8 @@ private struct PurgeError: Error, Equatable {}
 
     @Test func asyncVerifyCountsAndOrderingCoverAsyncRecordings() async {
         let stub = ManualStub<ManualOverloadServiceStub>()
-        await stub.when { await $0.warmup() }
-        stub.when { $0.clear() }
+        await stub.when { await $0.warmup() }.thenDoNothing()
+        stub.when { $0.clear() }.thenDoNothing()
 
         let service: any ManualOverloadService = stub()
         await service.warmup()
@@ -315,7 +315,7 @@ private struct PurgeError: Error, Equatable {}
 
     @Test func setterCountVerificationUsesTheInoutOverload() {
         let stub = ManualStub<ManualOverloadServiceStub>()
-        stub.when { $0.count = any() }
+        stub.when { $0.count = any() }.thenDoNothing()
 
         var service: any ManualOverloadService = stub()
         service.count = 5

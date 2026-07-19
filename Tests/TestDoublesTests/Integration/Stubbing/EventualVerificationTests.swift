@@ -67,7 +67,7 @@ private actor EventualVerificationGate {
 @Suite struct EventualVerificationTests {
     @Test func waitsForALateSynchronousCall() async throws {
         let stub = try Stub<any EventualVerificationService>()
-        stub.when { $0.notify(any()) }
+        stub.when { $0.notify(any()) }.thenDoNothing()
         let service: any EventualVerificationService = stub(sendability: .unchecked)
 
         let invocation = Task {
@@ -81,7 +81,7 @@ private actor EventualVerificationGate {
 
     @Test func waitsUntilTheLowerBoundIsReached() async throws {
         let stub = try Stub<any EventualVerificationService>()
-        stub.when { $0.notify(any()) }
+        stub.when { $0.notify(any()) }.thenDoNothing()
         let service: any EventualVerificationService = stub(sendability: .unchecked)
 
         let invocations = Task {
@@ -111,7 +111,7 @@ private actor EventualVerificationGate {
     @MainActor
     @Test func timeoutReportsAtTheCallerAndDoesNotRetainItsWaiter() async throws {
         let stub = try Stub<any EventualVerificationService>()
-        stub.when { $0.notify(any()) }
+        stub.when { $0.notify(any()) }.thenDoNothing()
         let expectedLine = UInt(#line + 2)
         await expectReportsIssue {
             await stub.verify(within: .milliseconds(1)) { $0.notify(any()) }
@@ -131,7 +131,7 @@ private actor EventualVerificationGate {
 
     @Test func manualStubHasEventualVerificationParity() async throws {
         let stub = ManualStub<ManualEventualVerificationServiceStub>()
-        stub.when { $0.notify(any()) }
+        stub.when { $0.notify(any()) }.thenDoNothing()
         let service: any ManualEventualVerificationService = stub()
 
         let invocation = Task {
@@ -145,7 +145,7 @@ private actor EventualVerificationGate {
 
     @Test func captorCommitsExactlyOnceAfterThresholdSuccess() async throws {
         let stub = try Stub<any EventualVerificationService>()
-        stub.when { $0.notify(any()) }
+        stub.when { $0.notify(any()) }.thenDoNothing()
         let service: any EventualVerificationService = stub(sendability: .unchecked)
         let values = ArgumentCaptor<Int>()
 
@@ -188,7 +188,7 @@ private actor EventualVerificationGate {
     @MainActor
     @Test func cancellationRemovesTheWaiterWithoutReporting() async throws {
         let stub = try Stub<any EventualVerificationService>()
-        stub.when { $0.notify(any()) }
+        stub.when { $0.notify(any()) }.thenDoNothing()
 
         let verification = Task { @MainActor in
             await stub.verify(within: .seconds(60)) { $0.notify(any()) }
@@ -212,7 +212,7 @@ private actor EventualVerificationGate {
         let stub = try Stub<any EventualVerificationService>()
         let placeholder = EventualVerificationReference()
         stub.when(returning: placeholder) { $0.makeReference() }.thenReturn(placeholder)
-        stub.when { $0.count = any() }
+        stub.when { $0.count = any() }.thenDoNothing()
         var service: any EventualVerificationService = stub(sendability: .unchecked)
 
         let invocations = Task {

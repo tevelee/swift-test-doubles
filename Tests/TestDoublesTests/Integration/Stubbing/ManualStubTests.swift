@@ -68,7 +68,7 @@ private struct SaveError: Error, Equatable {}
     @Test func baseRouteGetterAndSetterMatchAndVerify() {
         let stub = ManualStub<ManualServiceStub>()
         stub.when { $0.count }.thenReturn(7)
-        stub.when { $0.count = any() }
+        stub.when { $0.count = any() }.thenDoNothing()
 
         var service: any ManualService = stub()
         #expect(service.count == 7)
@@ -80,7 +80,7 @@ private struct SaveError: Error, Equatable {}
     @Test func baseRouteAsyncMethodsMatchAndReturn() async {
         let stub = ManualStub<ManualServiceStub>()
         await stub.when { await $0.load() }.then { () async -> String in "loaded" }
-        await stub.when { await $0.tick() }
+        await stub.when { await $0.tick() }.thenDoNothing()
 
         let service: any ManualService = stub()
         #expect(await service.load() == "loaded")
@@ -92,7 +92,7 @@ private struct SaveError: Error, Equatable {}
 
     @Test func throwingRouteSyncMethodPropagatesSuccessAndFailure() throws {
         let stub = ManualStub<ManualServiceStub>()
-        stub.when { try $0.save(equal("ok")) }
+        stub.when { try $0.save(equal("ok")) }.thenDoNothing()
         stub.when { try $0.save(equal("bad")) }.then { (_: String) throws -> Void in
             throw SaveError()
         }
@@ -177,8 +177,8 @@ private struct SaveError: Error, Equatable {}
         let stub = ManualStub<ManualServiceStub>()
         stub.when { $0.fetch(id: any()) }.thenReturn("x")
         stub.when { $0.count }.thenReturn(7)
-        stub.when { $0.count = any() }
-        stub.when { $0.reset() }
+        stub.when { $0.count = any() }.thenDoNothing()
+        stub.when { $0.reset() }.thenDoNothing()
         var service: any ManualService = stub()
 
         _ = service.fetch(id: 1)
@@ -199,7 +199,7 @@ private struct SaveError: Error, Equatable {}
     @Test func verifyInOrderReportsManualSetterOrderFailures() {
         let stub = ManualStub<ManualServiceStub>()
         stub.when { $0.fetch(id: any()) }.thenReturn("x")
-        stub.when { $0.count = any() }
+        stub.when { $0.count = any() }.thenDoNothing()
         var service: any ManualService = stub()
         _ = service.fetch(id: 1)
         service.count = 2

@@ -166,6 +166,7 @@ private final class LockedSetterValue<Value>: @unchecked Sendable {
             .setter(String.self)
         )
         stub.when { $0.text = matching(description: "prefix") { $0.hasPrefix("new") } }
+            .thenDoNothing()
 
         var probe: any ExplicitSetterProbe = stub()
         probe.text = "new value"
@@ -190,8 +191,8 @@ private final class LockedSetterValue<Value>: @unchecked Sendable {
     @Test func inheritedSettersUseTheirDeclaringWitnessTables() throws {
         #expect(useLinkedInheritedSetter(LinkedInheritedSetterProbe()) == 0)
         let stub = try Stub<any InheritedSetterChildProbe>()
-        stub.when { $0.inheritedValue = any() }
-        stub.when { $0.childValue = any() }
+        stub.when { $0.inheritedValue = any() }.thenDoNothing()
+        stub.when { $0.childValue = any() }.thenDoNothing()
 
         var probe: any InheritedSetterChildProbe = stub()
         probe.inheritedValue = 7
@@ -205,8 +206,8 @@ private final class LockedSetterValue<Value>: @unchecked Sendable {
         #expect(useLinkedSetterCompositionA(LinkedSetterCompositionA()) == 0)
         #expect(useLinkedSetterCompositionB(LinkedSetterCompositionB()) == "")
         let automatic = try Stub<any SetterCompositionA & SetterCompositionB>()
-        automatic.when { $0.firstValue = any() }
-        automatic.when { $0.secondValue = any() }
+        automatic.when { $0.firstValue = any() }.thenDoNothing()
+        automatic.when { $0.secondValue = any() }.thenDoNothing()
 
         var automaticProbe: any SetterCompositionA & SetterCompositionB = automatic()
         automaticProbe.firstValue = 1
@@ -226,8 +227,8 @@ private final class LockedSetterValue<Value>: @unchecked Sendable {
                 .setter(Int.self)
             )
         )
-        explicit.when { $0.firstValue = 3 }
-        explicit.when { $0.secondValue = "four" }
+        explicit.when { $0.firstValue = 3 }.thenDoNothing()
+        explicit.when { $0.secondValue = "four" }.thenDoNothing()
 
         var explicitProbe: any SetterCompositionA & SetterCompositionB = explicit()
         explicitProbe.firstValue = 3
@@ -255,7 +256,7 @@ private final class LockedSetterValue<Value>: @unchecked Sendable {
         #expect(useLinkedAutomaticSetter(LinkedAutomaticSetterProbe()) == 0)
         let stub = try Stub<any AutomaticSetterProbe>()
         stub.when { $0.integer }.thenReturn(40)
-        stub.when { $0.integer = any() }
+        stub.when { $0.integer = any() }.thenDoNothing()
         var probe: any AutomaticSetterProbe = stub()
 
         probe.integer += 2
@@ -272,7 +273,7 @@ private final class LockedSetterValue<Value>: @unchecked Sendable {
         #expect(useLinkedAutomaticSetter(LinkedAutomaticSetterProbe()) == 0)
         let stub = try Stub<any AutomaticSetterProbe>()
         stub.when { $0.integer }.thenReturn(8)
-        stub.when { $0.integer = any() }
+        stub.when { $0.integer = any() }.thenDoNothing()
         var probe: any AutomaticSetterProbe = stub()
 
         increment(&probe.integer)
@@ -285,7 +286,7 @@ private final class LockedSetterValue<Value>: @unchecked Sendable {
         #expect(useLinkedAutomaticSetter(LinkedAutomaticSetterProbe()) == 0)
         let stub = try Stub<any AutomaticSetterProbe>()
         stub.when { $0.integer }.thenReturn(10)
-        stub.when { $0.integer = any() }
+        stub.when { $0.integer = any() }.thenDoNothing()
         var probe: any AutomaticSetterProbe = stub()
 
         do {
@@ -307,7 +308,7 @@ private final class LockedSetterValue<Value>: @unchecked Sendable {
             .setter(String.self)
         )
         stub.when { $0.text }.thenReturn("swift")
-        stub.when { $0.text = any() }
+        stub.when { $0.text = any() }.thenDoNothing()
         var probe: any ExplicitSetterProbe = stub()
 
         appendExclamationMark(&probe.text)
@@ -331,7 +332,7 @@ private final class LockedSetterValue<Value>: @unchecked Sendable {
             }
             return value
         }
-        stub.when { $0.value = any() }
+        stub.when { $0.value = any() }.thenDoNothing()
         var probe: any ReferenceModifyProbe = stub()
 
         clearReferenceAndIncrement(&probe.value)
@@ -408,7 +409,7 @@ private func exerciseReferenceSetterLifetime() throws -> WeakReference<SetterRef
         .setter(SetterReference.self)
     )
     var placeholder: SetterReference? = SetterReference()
-    stub?.when { $0.reference = any(using: placeholder!) }
+    stub?.when { $0.reference = any(using: placeholder!) }.thenDoNothing()
     var probe: (any ReferenceSetterProbe)? = stub?()
     var assigned: SetterReference? = SetterReference()
     let weakReference = WeakReference(assigned)
@@ -437,7 +438,7 @@ private func exerciseLargeSetterLifetime() throws -> WeakReference<SetterReferen
                 first: 0,
                 second: 0
             ))
-    }
+    }.thenDoNothing()
     var probe: (any LargeSetterProbe)? = stub?()
     var assignedReference: SetterReference? = SetterReference()
     let weakReference = WeakReference(assignedReference)
@@ -469,7 +470,7 @@ private func exerciseMixedSetterLifetime() throws -> WeakReference<SetterReferen
                 reference: placeholderReference!,
                 amount: 0
             ))
-    }
+    }.thenDoNothing()
     var probe: (any MixedSetterProbe)? = stub?()
     var assignedReference: SetterReference? = SetterReference()
     let weakReference = WeakReference(assignedReference)

@@ -22,6 +22,14 @@ private protocol MissingImplementationProbe {
     func load() -> String
 }
 
+protocol UnfinishedVoidConfigurationProbe {
+    func reset()
+}
+
+struct RealUnfinishedVoidConfigurationProbe: UnfinishedVoidConfigurationProbe {
+    func reset() {}
+}
+
 private struct UnstubbedManualProbeStub: UnstubbedManualProbe, StubConformer {
     let stub: ManualStub<Self>
     func load() -> String { stub.load() }
@@ -38,6 +46,7 @@ private struct UnexpectedTypedError: Error {}
         case missingConformanceMetadata
         case unmatchedArguments
         case throwingRequirement
+        case unfinishedVoidConfiguration
         case emptyRecordingClosure
         case multipleRecordedRequirements
         case nonthrowingThenThrow
@@ -57,6 +66,8 @@ private struct UnexpectedTypedError: Error {}
                     try await invokingWithUnmatchedArgumentsHaltsListingRegisteredStubs()
                 case .throwingRequirement:
                     try await throwingRequirementsHaltRatherThanInventAnError()
+                case .unfinishedVoidConfiguration:
+                    try await unfinishedVoidConfigurationDoesNotInstallBehavior()
                 case .emptyRecordingClosure:
                     try await recordingClosuresMustInvokeARequirement()
                 case .multipleRecordedRequirements:
@@ -136,6 +147,24 @@ private struct UnexpectedTypedError: Error {}
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
                 _ = try stub().total(of: [1, 2])
             }
+        }
+
+        private func unfinishedVoidConfigurationDoesNotInstallBehavior() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                _ = RealUnfinishedVoidConfigurationProbe()
+                let stub = try Stub<any UnfinishedVoidConfigurationProbe>()
+                _ = stub.when { $0.reset() }
+                stub().reset()
+            }
+
+            let diagnostic = try #require(
+                String(bytes: result.standardErrorContent, encoding: .utf8)
+            )
+            #expect(diagnostic.contains("No stub configured for reset()"))
+            #expect(diagnostic.contains("stub.when { $0.reset() }.thenDoNothing()"))
         }
 
         private func recordingClosuresMustInvokeARequirement() async throws {

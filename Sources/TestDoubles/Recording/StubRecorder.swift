@@ -326,22 +326,19 @@ final class StubRecorder: @unchecked Sendable {
     func addStub(
         method: Int,
         matchers: [ParameterMatcher],
-        returnValue: @escaping @Sendable ([Any]) throws -> Any,
-        isFallback: Bool = false
+        returnValue: @escaping @Sendable ([Any]) throws -> Any
     ) {
         addEntry(
             method: method,
             matchers: matchers,
-            behavior: .immediate(returnValue),
-            isFallback: isFallback
+            behavior: .immediate(returnValue)
         )
     }
 
     private func addEntry(
         method: Int,
         matchers: [ParameterMatcher],
-        behavior: StubEntry.Behavior,
-        isFallback: Bool = false
+        behavior: StubEntry.Behavior
     ) {
         withLock {
             behaviorRegistry.add(
@@ -351,8 +348,7 @@ final class StubRecorder: @unchecked Sendable {
                     method: method,
                     matchers: matchers
                 ),
-                behavior: behavior,
-                isFallback: isFallback
+                behavior: behavior
             )
         }
     }

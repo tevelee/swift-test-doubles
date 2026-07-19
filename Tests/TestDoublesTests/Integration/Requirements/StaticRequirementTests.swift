@@ -102,7 +102,7 @@ struct StaticRequirementTests {
             "stub-\(value)"
         }
         stub.when { type(of: $0).count }.thenReturn(7)
-        stub.when { type(of: $0).count = any() }
+        stub.when { type(of: $0).count = any() }.thenDoNothing()
         await stub.when { try await type(of: $0).load(any()) }.then { value in
             if value < 0 { throw StaticRequirementError.rejected(value) }
             return "loaded-\(value)"

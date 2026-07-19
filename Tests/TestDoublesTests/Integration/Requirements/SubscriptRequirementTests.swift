@@ -177,7 +177,7 @@ private func useLinkedAssociatedReadWriteSubscript(
             )
         )
         stub.when { $0[any(), named: any()] }.thenReturn(true)
-        stub.when { $0[any(), named: any()] = any() }
+        stub.when { $0[any(), named: any()] = any() }.thenDoNothing()
 
         var probe: any ExplicitNoLinkedReadWriteSubscriptProbe = stub()
         #expect(probe[1, named: "one"])
@@ -203,7 +203,7 @@ private func useLinkedAssociatedReadWriteSubscript(
             )
         )
         stub.when { $0[equal("answer")] }.thenReturn(42)
-        stub.when { $0[any()] = any() }
+        stub.when { $0[any()] = any() }.thenDoNothing()
 
         var probe: any AssociatedReadWriteSubscriptProbe<Int> = stub()
         #expect(probe["answer"] == 42)

@@ -33,7 +33,7 @@ private actor SuspensionGate {
     @Test func automaticAsyncConstructionAndDirectVerification() async throws {
         let stub = try Stub<any AsyncDataLoader>()
         await stub.when { try await $0.load(url: any()) }.thenReturn("runtime-data")
-        await stub.when { await $0.prefetch(urls: any()) }
+        await stub.when { await $0.prefetch(urls: any()) }.thenDoNothing()
         stub.when { $0.cacheSize }.thenReturn(3)
 
         let loader: any AsyncDataLoader = stub()
