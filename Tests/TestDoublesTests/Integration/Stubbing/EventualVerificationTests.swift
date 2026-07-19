@@ -39,26 +39,33 @@ struct ManualEventualVerificationServiceStub: ManualEventualVerificationService,
 
 private actor EventualVerificationGate {
     private var started = false
-    private var startWaiters: [CheckedContinuation<Void, Never>] = []
+    private var released = false
     private var releaseContinuation: CheckedContinuation<Void, Never>?
 
     func suspend() async {
         started = true
-        startWaiters.forEach { $0.resume() }
-        startWaiters.removeAll()
+        guard released == false else { return }
         await withCheckedContinuation { continuation in
-            releaseContinuation = continuation
+            if released {
+                continuation.resume()
+            } else {
+                releaseContinuation = continuation
+            }
         }
     }
 
-    func waitUntilStarted() async {
-        guard started == false else { return }
-        await withCheckedContinuation { continuation in
-            startWaiters.append(continuation)
+    func waitUntilStarted(within timeout: Duration) async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: timeout)
+        while started == false {
+            guard clock.now < deadline else { return false }
+            await Task.yield()
         }
+        return true
     }
 
     func release() {
+        released = true
         releaseContinuation?.resume()
         releaseContinuation = nil
     }
@@ -163,7 +170,8 @@ private actor EventualVerificationGate {
     }
 
     @MainActor
-    @Test func suspendedAsyncCaptureDoesNotCaptureAnotherTasksNormalCall() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func suspendedAsyncCaptureDoesNotCaptureAnotherTasksNormalCall() async throws {
         let stub = try Stub<any EventualVerificationService>()
         stub.when { $0.value(for: any()) }.thenReturn("configured")
         let gate = EventualVerificationGate()
@@ -175,7 +183,13 @@ private actor EventualVerificationGate {
             }.thenReturn("loaded")
         }
 
-        await gate.waitUntilStarted()
+        guard await gate.waitUntilStarted(within: .seconds(10)) else {
+            await gate.release()
+            configuration.cancel()
+            _ = await configuration.value
+            Issue.record("The suspended recording closure did not start within 10 seconds.")
+            return
+        }
         let service: any EventualVerificationService = stub(sendability: .unchecked)
         #expect(service.value(for: 42) == "configured")
         await gate.release()

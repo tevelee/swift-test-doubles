@@ -111,13 +111,13 @@ extension Stub {
             ),
             conformanceTypeReference: runtimePlan.conformanceTypeReference
         )
+        let storage: FabricatedExistentialStorage<P> = try fabricated.makeStorage(
+            representation: representation,
+            payload: runtimePlan.makePayload(resources: fabricated.resources)
+        )
         return PreparedStub(
             recorder: recorder,
-            storage: try FabricatedExistentialStorage(
-                witnessTables: fabricated.roots,
-                representation: representation,
-                payload: runtimePlan.makePayload(resources: fabricated.resources)
-            )
+            storage: storage
         )
     }
 
@@ -150,12 +150,12 @@ extension Stub {
             dispatch: .dummy(invocation),
             conformanceTypeReference: runtimePlan.conformanceTypeReference
         )
+        let storage: FabricatedExistentialStorage<P> = try fabricated.makeStorage(
+            representation: shape.representation,
+            payload: runtimePlan.makePayload(resources: fabricated.resources)
+        )
         return Dummy<P>.PreparedDummy(
-            storage: try FabricatedExistentialStorage(
-                witnessTables: fabricated.roots,
-                representation: shape.representation,
-                payload: runtimePlan.makePayload(resources: fabricated.resources)
-            )
+            storage: storage
         )
     }
 

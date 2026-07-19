@@ -27,8 +27,11 @@ public final class Dummy<P> {
     /// Creates a dummy generator for a protocol existential using its runtime metadata.
     ///
     /// - Throws: ``StubError`` when the protocol layout cannot be fabricated safely.
-    public convenience init() throws {
-        self.init(prepared: try Stub<P>.prepareDummy())
+    public convenience init() throws(StubError) {
+        let prepared = try withStubConstructionError(for: P.self) {
+            try Stub<P>.prepareDummy()
+        }
+        self.init(prepared: prepared)
     }
 
     /// Returns the generated protocol existential.
@@ -50,16 +53,7 @@ extension Dummy: @unchecked Sendable where P: Sendable {}
 /// - Parameter protocolType: The protocol metatype that determines the returned existential.
 /// - Returns: A protocol value with no behavior, call recording, or verification.
 public func makeDummy<P>(_ protocolType: P.Type = P.self) -> P {
-    do {
-        return try Dummy<P>()()
-    } catch {
-        fatalError(dummyConstructionFailure(for: protocolType, error: error))
+    constructTestDoubleOrFail(.dummy, for: protocolType) { () throws(StubError) -> P in
+        try Dummy<P>()()
     }
-}
-
-private func dummyConstructionFailure<P>(
-    for protocolType: P.Type,
-    error: any Error
-) -> String {
-    "[TestDoubles] Could not construct a dummy for '\(String(reflecting: protocolType))': \(error)"
 }

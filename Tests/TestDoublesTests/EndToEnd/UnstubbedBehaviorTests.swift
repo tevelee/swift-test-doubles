@@ -54,7 +54,7 @@ private struct UnexpectedTypedError: Error {}
         case throwingManualHandler
     }
 
-    @Suite struct UnstubbedBehaviorTests {
+    @Suite struct UnstubbedBehaviorExitTests {
         @Test(.serialized, arguments: UnstubbedExitScenario.allCases)
         func processExitDiagnostics(_ scenario: UnstubbedExitScenario) async throws {
             switch scenario {
@@ -73,9 +73,9 @@ private struct UnexpectedTypedError: Error {}
                 case .multipleRecordedRequirements:
                     try await singleInvocationRecordingClosuresRejectMultipleRequirements()
                 case .nonthrowingThenThrow:
-                    await thenThrowRejectsNonthrowingRequirementsAtConfiguration()
+                    try await thenThrowRejectsNonthrowingRequirementsAtConfiguration()
                 case .mismatchedTypedError:
-                    await thenThrowRejectsMismatchedTypedErrorsAtConfiguration()
+                    try await thenThrowRejectsMismatchedTypedErrorsAtConfiguration()
                 case .throwingManualHandler:
                     try await manualNonthrowingRouteHaltsWhenAHandlerThrows()
             }
@@ -120,7 +120,8 @@ private struct UnexpectedTypedError: Error {}
             #expect(diagnostic.contains("2. Library evolution:"))
             #expect(diagnostic.contains("no conformer is needed"))
             #expect(diagnostic.contains("3. Neither source available:"))
-            #expect(diagnostic.contains("explicit `Stub.Requirement` values"))
+            #expect(diagnostic.contains("`Requirement` factories using `signatureOf:`"))
+            #expect(diagnostic.contains("source-less factories"))
         }
 
         private func invokingWithUnmatchedArgumentsHaltsListingRegisteredStubs() async throws {
@@ -143,10 +144,15 @@ private struct UnexpectedTypedError: Error {}
         private func throwingRequirementsHaltRatherThanInventAnError() async throws {
             // A throwing requirement does not turn "unstubbed" into a thrown
             // error: only configured behavior may produce values or errors.
-            await #expect(processExitsWith: .failure) {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
                 _ = try stub().total(of: [1, 2])
             }
+            let diagnostic = try requireStandardErrorDiagnostic(from: result)
+            #expect(diagnostic.contains("No stub configured for total(of:)"))
         }
 
         private func unfinishedVoidConfigurationDoesNotInstallBehavior() async throws {
@@ -204,19 +210,30 @@ private struct UnexpectedTypedError: Error {}
             #expect(diagnostic.contains("use `verifyInOrder`"))
         }
 
-        private func thenThrowRejectsNonthrowingRequirementsAtConfiguration() async {
-            await #expect(processExitsWith: .failure) {
+        private func thenThrowRejectsNonthrowingRequirementsAtConfiguration() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
                 stub.when { $0.greet(name: any()) }.thenThrow(ManualLoadError())
             }
+            let diagnostic = try requireStandardErrorDiagnostic(from: result)
+            #expect(diagnostic.contains("thenThrow requires a throwing requirement"))
         }
 
-        private func thenThrowRejectsMismatchedTypedErrorsAtConfiguration() async {
-            await #expect(processExitsWith: .failure) {
+        private func thenThrowRejectsMismatchedTypedErrorsAtConfiguration() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
                 _ = RealTypedThrowsRequirementProbe()
                 let stub = try Stub<any TypedThrowsRequirementProbe>()
                 stub.when { try $0.load() }.thenThrow(UnexpectedTypedError())
             }
+            let diagnostic = try requireStandardErrorDiagnostic(from: result)
+            #expect(diagnostic.contains("Typed error must be"))
+            #expect(diagnostic.contains("UnexpectedTypedError"))
         }
 
         private func manualNonthrowingRouteHaltsWhenAHandlerThrows() async throws {

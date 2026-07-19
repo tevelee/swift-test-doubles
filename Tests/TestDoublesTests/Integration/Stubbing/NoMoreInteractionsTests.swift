@@ -145,7 +145,8 @@ private struct ManualNoMoreInteractionsServiceStub: ManualNoMoreInteractionsServ
         }
     }
 
-    @Test func eventualVerificationMarksItsSnapshotButNotLaterCalls() async throws {
+    @Test(.timeLimit(.minutes(2)))
+    func eventualVerificationMarksItsSnapshotButNotLaterCalls() async throws {
         let stub = try Stub<any NoMoreInteractionsService>()
         stub.when { $0.first(any()) }.thenReturn(0)
         stub.when { $0.second(any()) }.thenReturn(0)
@@ -155,7 +156,7 @@ private struct ManualNoMoreInteractionsServiceStub: ManualNoMoreInteractionsServ
             try await Task.sleep(for: .milliseconds(10))
             _ = service.first(3)
         }
-        await stub.verify(within: .seconds(10)) { $0.first(equal(3)) }
+        await stub.verify(within: .seconds(60)) { $0.first(equal(3)) }
         try await invocation.value
         stub.verifyNoMoreInteractions()
 

@@ -8,6 +8,10 @@ symbols="$build_path/symbols"
 
 cd "$root"
 mkdir -p "$symbols"
+for stale_symbol_graph in "$symbols"/TestDoubles*.symbols.json; do
+    [[ -e "$stale_symbol_graph" ]] || continue
+    rm "$stale_symbol_graph"
+done
 
 swift build \
     --target TestDoubles \

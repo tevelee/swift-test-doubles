@@ -118,8 +118,11 @@ The existential's private payload owns its recorder, witness tables, page-backed
 executable veneer arena, and related allocations. A generated protocol value
 can therefore outlive the ``Stub`` that created it. When the last owning value
 is released, its recorder is unregistered and its executable veneer pages are
-unmapped. The small descriptor/witness-table allocation keeps its process-stable
-address because Swift's generic-metadata caches may still refer to that identity.
+unmapped. Witness allocation has a transactional boundary: a construction that
+fails before the generated existential is complete releases its temporary
+descriptor and table allocations. Successful construction commits that witness
+identity, whose small allocation keeps a process-stable address because Swift's
+generic-metadata caches may still refer to it after the payload is gone.
 
 Recorder state is protected for calls that arrive concurrently after
 configuration. Configuration and verification are intentionally serial because

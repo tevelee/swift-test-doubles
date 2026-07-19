@@ -15,9 +15,7 @@ mkdir -p "$symbols"
 SWIFT_TEST_DOUBLES_SYMBOL_GRAPH_BUILD_PATH="$symbol_build_path" \
     Scripts/generate-symbol-graph.sh
 
-cp \
-    "$raw_symbols/TestDoubles.symbols.json" \
-    "$symbols/TestDoubles.symbols.json"
+cp "$raw_symbols"/TestDoubles*.symbols.json "$symbols/"
 
 xcrun docc convert \
     Sources/TestDoubles/Documentation.docc \

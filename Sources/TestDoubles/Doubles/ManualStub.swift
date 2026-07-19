@@ -161,9 +161,38 @@ public final class ManualStub<T: StubConformer> {
         try dispatchThrowingMethod(key: function, args: args)
     }
 
+    /// Typed-throws variant of `throwingCall(_:function:)`.
+    ///
+    /// The configured handler must throw `Failure`; any other error fails
+    /// closed with an expected/actual type diagnostic.
+    public func throwingCall<R, Failure: Error>(
+        _ args: Any...,
+        throwing failureType: Failure.Type,
+        function: String = #function
+    ) throws(Failure) -> R {
+        try dispatchThrowingMethod(
+            key: function,
+            args: args,
+            throwing: failureType
+        )
+    }
+
     /// Void variant of `throwingCall(_:function:)`.
     public func throwingCall(_ args: Any..., function: String = #function) throws {
         let _: Void = try dispatchThrowingMethod(key: function, args: args)
+    }
+
+    /// Void typed-throws variant of `throwingCall(_:function:)`.
+    public func throwingCall<Failure: Error>(
+        _ args: Any...,
+        throwing failureType: Failure.Type,
+        function: String = #function
+    ) throws(Failure) {
+        let _: Void = try dispatchThrowingMethod(
+            key: function,
+            args: args,
+            throwing: failureType
+        )
     }
 
     /// Typed-route variant of `throwingCall(_:function:)` for overloads whose
@@ -172,9 +201,35 @@ public final class ManualStub<T: StubConformer> {
         try dispatchThrowingMethod(route: .typed(route), args: args)
     }
 
+    /// Typed-throws variant of `throwingCall(_:route:)`.
+    public func throwingCall<R, Failure: Error>(
+        _ args: Any...,
+        route: ManualRouteID,
+        throwing failureType: Failure.Type
+    ) throws(Failure) -> R {
+        try dispatchThrowingMethod(
+            route: .typed(route),
+            args: args,
+            throwing: failureType
+        )
+    }
+
     /// Void typed-route variant of `throwingCall(_:function:)`.
     public func throwingCall(_ args: Any..., route: ManualRouteID) throws {
         let _: Void = try dispatchThrowingMethod(route: .typed(route), args: args)
+    }
+
+    /// Void typed-throws variant of `throwingCall(_:route:)`.
+    public func throwingCall<Failure: Error>(
+        _ args: Any...,
+        route: ManualRouteID,
+        throwing failureType: Failure.Type
+    ) throws(Failure) {
+        let _: Void = try dispatchThrowingMethod(
+            route: .typed(route),
+            args: args,
+            throwing: failureType
+        )
     }
 
     /// Forwards an asynchronous non-throwing requirement through its
@@ -205,9 +260,38 @@ public final class ManualStub<T: StubConformer> {
         try await dispatchAsyncThrowingMethod(key: function, args: args)
     }
 
+    /// Typed-throws variant of `asyncThrowingCall(_:function:)`.
+    ///
+    /// The configured handler must throw `Failure`; any other error fails
+    /// closed with an expected/actual type diagnostic.
+    public func asyncThrowingCall<R, Failure: Error>(
+        _ args: Any...,
+        throwing failureType: Failure.Type,
+        function: String = #function
+    ) async throws(Failure) -> R {
+        try await dispatchAsyncThrowingMethod(
+            key: function,
+            args: args,
+            throwing: failureType
+        )
+    }
+
     /// Void variant of `asyncThrowingCall(_:function:)`.
     public func asyncThrowingCall(_ args: Any..., function: String = #function) async throws {
         let _: Void = try await dispatchAsyncThrowingMethod(key: function, args: args)
+    }
+
+    /// Void typed-throws variant of `asyncThrowingCall(_:function:)`.
+    public func asyncThrowingCall<Failure: Error>(
+        _ args: Any...,
+        throwing failureType: Failure.Type,
+        function: String = #function
+    ) async throws(Failure) {
+        let _: Void = try await dispatchAsyncThrowingMethod(
+            key: function,
+            args: args,
+            throwing: failureType
+        )
     }
 
     /// Typed-route variant of `asyncThrowingCall(_:function:)` for overloads
@@ -216,9 +300,35 @@ public final class ManualStub<T: StubConformer> {
         try await dispatchAsyncThrowingMethod(route: .typed(route), args: args)
     }
 
+    /// Typed-throws variant of `asyncThrowingCall(_:route:)`.
+    public func asyncThrowingCall<R, Failure: Error>(
+        _ args: Any...,
+        route: ManualRouteID,
+        throwing failureType: Failure.Type
+    ) async throws(Failure) -> R {
+        try await dispatchAsyncThrowingMethod(
+            route: .typed(route),
+            args: args,
+            throwing: failureType
+        )
+    }
+
     /// Void typed-route variant of `asyncThrowingCall(_:function:)`.
     public func asyncThrowingCall(_ args: Any..., route: ManualRouteID) async throws {
         let _: Void = try await dispatchAsyncThrowingMethod(route: .typed(route), args: args)
+    }
+
+    /// Void typed-throws variant of `asyncThrowingCall(_:route:)`.
+    public func asyncThrowingCall<Failure: Error>(
+        _ args: Any...,
+        route: ManualRouteID,
+        throwing failureType: Failure.Type
+    ) async throws(Failure) {
+        let _: Void = try await dispatchAsyncThrowingMethod(
+            route: .typed(route),
+            args: args,
+            throwing: failureType
+        )
     }
 
     // MARK: - Method interning + dispatch
@@ -258,6 +368,43 @@ public final class ManualStub<T: StubConformer> {
         )
     }
 
+    func dispatchThrowingMethod<R, Failure: Error>(
+        key: String,
+        args: [Any],
+        throwing failureType: Failure.Type
+    ) throws(Failure) -> R {
+        try dispatchThrowingMethod(
+            route: .implicit(key),
+            args: args,
+            throwing: failureType
+        )
+    }
+
+    func dispatchThrowingMethod<R, Failure: Error>(
+        route: ManualMethodRouteIdentity,
+        args: [Any],
+        throwing failureType: Failure.Type
+    ) throws(Failure) -> R {
+        let method = internMethod(
+            route: route,
+            returnType: R.self,
+            isAsync: false,
+            isThrowing: true
+        )
+        do {
+            return try dispatchThrowingValue(method: method, args: args)
+        } catch let failure as Failure {
+            throw failure
+        } catch {
+            failTypedErrorMismatch(
+                method: method.name,
+                expected: failureType,
+                actual: error,
+                forwardingMethod: "throwingCall"
+            )
+        }
+    }
+
     func dispatchAsyncMethod<R>(key: String, args: [Any]) async -> R {
         await dispatchAsyncMethod(route: .implicit(key), args: args)
     }
@@ -290,6 +437,46 @@ public final class ManualStub<T: StubConformer> {
         )
     }
 
+    func dispatchAsyncThrowingMethod<R, Failure: Error>(
+        key: String,
+        args: [Any],
+        throwing failureType: Failure.Type
+    ) async throws(Failure) -> R {
+        try await dispatchAsyncThrowingMethod(
+            route: .implicit(key),
+            args: args,
+            throwing: failureType
+        )
+    }
+
+    func dispatchAsyncThrowingMethod<R, Failure: Error>(
+        route: ManualMethodRouteIdentity,
+        args: [Any],
+        throwing failureType: Failure.Type
+    ) async throws(Failure) -> R {
+        let method = internMethod(
+            route: route,
+            returnType: R.self,
+            isAsync: true,
+            isThrowing: true
+        )
+        do {
+            return try await dispatchAsyncThrowingValue(
+                method: method,
+                args: args
+            )
+        } catch let failure as Failure {
+            throw failure
+        } catch {
+            failTypedErrorMismatch(
+                method: method.name,
+                expected: failureType,
+                actual: error,
+                forwardingMethod: "asyncThrowingCall"
+            )
+        }
+    }
+
     private func internMethod(
         route: ManualMethodRouteIdentity,
         returnType: Any.Type,
@@ -307,14 +494,9 @@ public final class ManualStub<T: StubConformer> {
 
     // MARK: - Dispatch
     //
-    // The throwing variants check the recorder's mode themselves rather than
-    // routing the capturing-mode placeholder through `StubRecorder.dispatch`'s
-    // `Any` return: that path returns an untyped sentinel meant to be
-    // discarded by its only other caller (the runtime trampoline), not cast
-    // to an arbitrary generic `R`. `PlaceholderValue.make` and
-    // `RecordingReturnPlaceholderContext` already do exactly this generic job
-    // for argument-side placeholders and are reused here. The nonthrowing
-    // variants delegate and turn any thrown error into a diagnostic trap.
+    // The nonthrowing variants delegate and turn any thrown error into a
+    // diagnostic trap. Typed capture dispatch and placeholder resolution are
+    // shared with `Stub.Invocation` through the recorder.
 
     func dispatchValue<R>(method: MethodDescriptor, args: [Any]) -> R {
         do {
@@ -327,11 +509,7 @@ public final class ManualStub<T: StubConformer> {
     }
 
     func dispatchThrowingValue<R>(method: MethodDescriptor, args: [Any]) throws -> R {
-        if recorder.mode == .capturing {
-            _ = try? recorder.dispatch(method: method, args: args)
-            return manualPlaceholder(for: R.self)
-        }
-        return castResult(try recorder.dispatch(method: method, args: args), to: R.self, method: method.name)
+        try recorder.dispatchTyped(method: method, args: args, as: R.self)
     }
 
     func dispatchAsyncValue<R>(method: MethodDescriptor, args: [Any]) async -> R {
@@ -345,19 +523,22 @@ public final class ManualStub<T: StubConformer> {
     }
 
     func dispatchAsyncThrowingValue<R>(method: MethodDescriptor, args: [Any]) async throws -> R {
-        if recorder.mode == .capturing {
-            _ = try? recorder.dispatch(method: method, args: args)
-            return manualPlaceholder(for: R.self)
-        }
         switch recorder.prepareAsyncDispatch(method: method, args: args) {
             case .placeholder:
-                return manualPlaceholder(for: R.self)
+                return RecordingReturnPlaceholderContext.requiredValue(
+                    for: R.self,
+                    method: method.name
+                )
             case .immediate(.success(let result)):
-                return castResult(result, to: R.self, method: method.name)
+                return requireStubbedResult(result, as: R.self, method: method.name)
             case .immediate(.failure(let error)):
                 throw error
             case .suspending(let handler):
-                return castResult(try await handler(args), to: R.self, method: method.name)
+                return requireStubbedResult(
+                    try await handler(args),
+                    as: R.self,
+                    method: method.name
+                )
             case .forwarding:
                 preconditionFailure(
                     "[TestDoubles] ManualStub cannot dispatch a forwarding Spy fallback."
@@ -365,22 +546,16 @@ public final class ManualStub<T: StubConformer> {
         }
     }
 
-    private func manualPlaceholder<R>(for type: R.Type) -> R {
-        if let box = RecordingReturnPlaceholderContext.box, let value = box.value as? R {
-            return value
-        }
-        guard let placeholder = PlaceholderValue.make(R.self) else {
-            preconditionFailure(
-                "[TestDoubles] Cannot synthesize a recording placeholder for \(R.self). " + "Use the `returning:` placeholder overload of `when`/`verify` instead."
-            )
-        }
-        return placeholder
-    }
-
-    private func castResult<R>(_ value: Any, to type: R.Type, method: String) -> R {
-        guard let typed = value as? R else {
-            fatalError("[TestDoubles] Stubbed return for '\(method)' is not \(R.self).")
-        }
-        return typed
+    private func failTypedErrorMismatch<Failure: Error>(
+        method: String,
+        expected: Failure.Type,
+        actual: any Error,
+        forwardingMethod: String
+    ) -> Never {
+        fatalError(
+            "[TestDoubles] Typed ManualStub handler error mismatch for '\(method)': "
+                + "expected \(expected), got \(type(of: actual)). Configure a \(expected) "
+                + "error or use the untyped `\(forwardingMethod)` overload."
+        )
     }
 }

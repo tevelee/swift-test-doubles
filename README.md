@@ -105,13 +105,13 @@ safe in the protocol shape as long as the dummy is never used. See
 
 ## Installation
 
-Until the first tagged release, depend on the `main` branch explicitly:
+Depend on the first tagged release or a later compatible version:
 
 ```swift
 dependencies: [
     .package(
         url: "https://github.com/tevelee/swift-test-doubles",
-        branch: "main"
+        .upToNextMinor(from: "0.0.1")
     ),
 ],
 targets: [
@@ -127,8 +127,8 @@ targets: [
 ]
 ```
 
-Once `0.1.0` is tagged, replace `branch: "main"` with `from: "0.1.0"` to use
-semantic-versioned releases.
+Use `branch: "main"` only when a test target intentionally needs unreleased
+changes.
 
 ## Runtime support
 
@@ -738,10 +738,35 @@ for those forms.
 ## Explicit requirements
 
 If no conformer is linked and resilient requirement symbols are unavailable,
-describe the requirements with Swift types. For one root protocol, use a flat
-base-first, depth-first order: each inherited protocol appears at its first
-occurrence, followed by the requirements declared by the root. A shared diamond
-base appears once.
+prefer member references. The compiler derives concrete value types and effects
+from the protocol declaration:
+
+```swift
+let stub = try Stub<any PrototypeCalculator>(
+    .method(signatureOf: PrototypeCalculator.add),
+    .method(signatureOf: PrototypeCalculator.describe),
+    .getter(signatureOf: \PrototypeCalculator.precision)
+)
+```
+
+The reference supplies the signature, not the requirement identity. Entries
+remain positional and must follow protocol declaration order. Use an accessor
+closure for an effectful getter, for example
+`.getter(signatureOf: { try await $0.currentValue })`.
+
+Only use the source-less factories when a member reference cannot preserve the
+required ABI information, such as associated-type values, dynamic `Self`,
+initializers, subscripts, function adapters, or methods above the supported
+reference arity. They are ABI schemas without a referenced declaration. If
+their kind, order, value types, ownership, or effects differ from the
+declaration and no runtime
+signature source is available to validate them, invoking the generated value
+has undefined behavior.
+
+For one root protocol, source-less requirements use a flat base-first,
+depth-first order: each inherited protocol appears at its first occurrence,
+followed by the requirements declared by the root. A shared diamond base
+appears once.
 
 ```swift
 let stub = try Stub<any PrototypeCalculator>(
@@ -816,12 +841,14 @@ let stub = try Stub<any AsyncTypedDataLoader>(
 )
 ```
 
-Construction throws `StubError` when the protocol or a requirement shape cannot
-be supported. Automatic discovery resolves concrete runtime metadata for every
+The recoverable `Stub`, `Dummy`, and `Spy` constructors declare
+`throws(StubError)` when the protocol or a requirement shape cannot be
+supported. Automatic discovery resolves concrete runtime metadata for every
 argument and result before allocating a witness table. When a linked
 conformance is available, it also validates every signature component that can
-be discovered reliably. Getter throwing behavior remains caller-supplied. No
-construction path launches external tools.
+be discovered reliably. Getter throwing behavior remains caller-supplied. The
+`makeStub`, `makeDummy`, and `makeSpy` factories fail fast with the same
+actionable diagnostic. No construction path launches external tools.
 
 ## Supported features
 
@@ -949,7 +976,12 @@ to the trampoline.
 
 The generated existential and every successful initializer result own their
 payload, witness table, trampolines, and recorder. They remain valid if the
-original `Stub` instance is released.
+original `Stub` instance is released. Construction retains a fabricated witness
+identity for the process only after the complete existential is created. A
+failed construction releases its temporary witness allocations. Successful
+identities stay at stable addresses because Swift's generic-metadata caches may
+retain those keys after the generated value releases its other runtime
+resources.
 
 ## Manual stubbing
 
@@ -975,10 +1007,25 @@ let service: any MyService = stub()
 stub.verify { $0.fetch(id: equal(42)) }
 ```
 
+For a typed-throwing requirement, use the explicit `throwing:` fallback so the
+forwarder preserves the declared error channel:
+
+```swift
+enum ServiceError: Error { case unavailable }
+
+func load() throws(ServiceError) -> String {
+    try stub.throwingCall(throwing: ServiceError.self)
+}
+
+func refresh() async throws(ServiceError) {
+    try await stub.asyncThrowingCall(throwing: ServiceError.self)
+}
+```
+
 See [Manual Stub](Sources/TestDoubles/Documentation.docc/Articles/ManualStubbing.md)
 for the full route reference (throwing methods and getters route through
-`.throwing`; async property getters need an explicit fallback method) and
-tradeoffs.
+`.throwing`; typed throws route through the explicit `throwing:` fallback;
+async property getters need an explicit fallback method) and tradeoffs.
 
 ## Architecture and further documentation
 

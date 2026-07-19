@@ -12,7 +12,7 @@ final class StubRecorder: @unchecked Sendable {
     private var methodCatalog: ManualMethodCatalog
     private var behaviorRegistry = StubBehaviorRegistry()
     private var invocationLedger = InvocationLedger()
-    private weak var runtimeResources: StubResources?
+    private weak var runtimeResourceOwner: AnyObject?
     private let allowsForwardingFallback: Bool
 
     /// The recorder is the only owner of the lock protecting its policy state.
@@ -114,24 +114,24 @@ final class StubRecorder: @unchecked Sendable {
             error is Expected
         }
         guard _openExistential(expectedType, do: matches) else {
-            preconditionFailure(
+            fatalError(
                 "[TestDoubles] Typed error must be \(expectedType), got \(type(of: error))."
             )
         }
     }
 
-    func attachRuntimeResources(_ resources: StubResources) {
+    func attachRuntimeResources(_ resources: AnyObject) {
         withLock {
             precondition(
-                runtimeResources == nil,
+                runtimeResourceOwner == nil,
                 "[TestDoubles] Runtime resources may only be attached once."
             )
-            runtimeResources = resources
+            runtimeResourceOwner = resources
         }
     }
 
     func makeRuntimePayload() -> StubPayload? {
-        withLock { runtimeResources }.map(StubPayload.init(resources:))
+        withLock { runtimeResourceOwner }.map(StubPayload.init(resources:))
     }
 
     // MARK: - Manual stub method interning
@@ -221,6 +221,25 @@ final class StubRecorder: @unchecked Sendable {
                     "[TestDoubles] A forwarding dispatch requires a Spy runtime target."
                 )
         }
+    }
+
+    func dispatchTyped<Result>(
+        method: MethodDescriptor,
+        args: [Any],
+        as type: Result.Type
+    ) throws -> Result {
+        if mode == .capturing {
+            _ = try? dispatch(method: method, args: args)
+            return RecordingReturnPlaceholderContext.requiredValue(
+                for: type,
+                method: method.name
+            )
+        }
+        return requireStubbedResult(
+            try dispatch(method: method, args: args),
+            as: type,
+            method: method.name
+        )
     }
 
     func addAsyncStub(

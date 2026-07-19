@@ -1,13 +1,5 @@
 import Foundation
 
-final class StubPayload {
-    let resources: StubResources
-
-    init(resources: StubResources) {
-        self.resources = resources
-    }
-}
-
 /// Keeps fabricated conformance descriptors and witness tables at stable
 /// addresses for as long as Swift's generic-metadata caches may reference them.
 private final class FabricatedWitnessAllocationArena: @unchecked Sendable {
@@ -23,15 +15,36 @@ private final class FabricatedWitnessAllocationArena: @unchecked Sendable {
     }
 }
 
+enum FabricatedWitnessAllocationDisposition: Equatable, Sendable {
+    case deallocatedAfterFailedConstruction
+    case retainedForProcessLifetime
+}
+
 /// Owns every runtime object used by fabricated protocol-conformance graphs.
 final class StubResources: @unchecked Sendable {
+    private enum ConstructionState {
+        case constructing
+        case committed
+    }
+
     private var registryKeys: [UnsafeRawPointer] = []
     private var allocations: [UnsafeMutableRawPointer] = []
     private let trampolineArena: TrampolineFactory.Arena? = .init()
     private var lastTrampolineRequirementIndex: Int?
     private var typedWitnessAdapters: [TypedWitnessAdapter] = []
+    private let witnessLifetimeObserver: (@Sendable (FabricatedWitnessAllocationDisposition) -> Void)?
+    private var constructionState = ConstructionState.constructing
+
+    init(
+        witnessLifetimeObserver: (
+            @Sendable (FabricatedWitnessAllocationDisposition) -> Void
+        )? = nil
+    ) {
+        self.witnessLifetimeObserver = witnessLifetimeObserver
+    }
 
     func own(_ allocation: UnsafeMutableRawPointer) {
+        requireConstructionInProgress()
         allocations.append(allocation)
     }
 
@@ -39,6 +52,7 @@ final class StubResources: @unchecked Sendable {
         _ target: FabricatedInvocationTarget,
         for registryKey: UnsafeRawPointer
     ) {
+        requireConstructionInProgress()
         FabricatedInvocationRegistry.register(target, for: registryKey)
         registryKeys.append(registryKey)
     }
@@ -48,6 +62,7 @@ final class StubResources: @unchecked Sendable {
         slot: Int,
         context: UnsafeRawPointer
     ) -> UnsafeRawPointer? {
+        requireConstructionInProgress()
         guard
             let trampoline = trampolineArena?.make(
                 kind: kind,
@@ -66,6 +81,7 @@ final class StubResources: @unchecked Sendable {
         recorder: StubRecorder,
         method: MethodDescriptor
     ) -> UnsafeRawPointer? {
+        requireConstructionInProgress()
         let adapter = factory.make(recorder, method)
         guard
             let trampoline = trampolineArena?.makeTyped(
@@ -82,6 +98,7 @@ final class StubResources: @unchecked Sendable {
     }
 
     func publishTrampolines() throws {
+        requireConstructionInProgress()
         guard trampolineArena?.publish() == true else {
             throw StubError.trampolineAllocationFailed(
                 requirementIndex: lastTrampolineRequirementIndex ?? 0
@@ -89,15 +106,39 @@ final class StubResources: @unchecked Sendable {
         }
     }
 
+    /// Marks the fabricated witness identities as observable by generated
+    /// existentials. Their addresses must remain stable for the rest of the
+    /// process because Swift's generic-metadata caches may retain those keys.
+    func commitWitnessIdentityLifetime() {
+        requireConstructionInProgress()
+        constructionState = .committed
+    }
+
     deinit {
         for registryKey in registryKeys {
             FabricatedInvocationRegistry.remove(for: registryKey)
         }
         trampolineArena?.destroy()
-        // Generic metadata caches retain witness-table identity without
-        // retaining StubResources. Reusing one of these allocations could
-        // therefore leave a cache key pointing at unrelated descriptor bytes.
-        FabricatedWitnessAllocationArena.shared.retain(allocations)
+        switch constructionState {
+            case .constructing:
+                // No fabricated existential escaped, so these identities could
+                // not have entered a generic-metadata cache.
+                allocations.forEach { $0.deallocate() }
+                witnessLifetimeObserver?(.deallocatedAfterFailedConstruction)
+            case .committed:
+                // Generic metadata caches retain witness-table identity without
+                // retaining StubResources. Reusing one of these allocations
+                // could leave a cache key pointing at unrelated descriptor bytes.
+                FabricatedWitnessAllocationArena.shared.retain(allocations)
+                witnessLifetimeObserver?(.retainedForProcessLifetime)
+        }
+    }
+
+    private func requireConstructionInProgress() {
+        precondition(
+            constructionState == .constructing,
+            "[TestDoubles] Fabricated runtime resources cannot change after construction commits."
+        )
     }
 }
 
@@ -105,4 +146,17 @@ struct FabricatedWitnessTables {
     /// Root tables in canonical existential-metadata order.
     let roots: [UnsafeMutableRawPointer]
     let resources: StubResources
+
+    func makeStorage<P>(
+        representation: StubExistentialRepresentation,
+        payload: AnyObject
+    ) throws -> FabricatedExistentialStorage<P> {
+        let storage = try FabricatedExistentialStorage<P>(
+            witnessTables: roots,
+            representation: representation,
+            payload: payload
+        )
+        resources.commitWitnessIdentityLifetime()
+        return storage
+    }
 }

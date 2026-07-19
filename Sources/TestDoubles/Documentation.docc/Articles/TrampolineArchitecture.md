@@ -162,8 +162,11 @@ and veneers alive. Protocol values therefore remain valid after the original
 `Stub` is released; destroying the last payload unregisters the recorder,
 unmaps its executable veneer pages, and releases the behavior graph. The small
 allocation containing each fabricated conformance descriptor and witness table
-remains at a process-stable address because Swift's generic-metadata caches may
-retain that identity without retaining the payload.
+is committed only after the complete existential is created. Failed
+construction deallocates that temporary identity. A committed identity remains
+at a process-stable address because Swift's generic-metadata caches may retain
+it without retaining the payload. This trades a small allocation for safe cache
+identity while reclaiming every unobservable failed-construction allocation.
 The fabricated tables travel only in the returned existential; TestDoubles does
 not register a process-wide conformance. In particular, erasing a fabricated
 class existential to `AnyObject` and dynamically casting it back is unsupported

@@ -118,7 +118,11 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                     + "Choose a construction path:\n"
                     + "1. Linked conformer: Link and reference a concrete conforming instance as a protocol existential, then use `try Stub<any P>()`. TestDoubles inspects it; it does not invoke it.\n"
                     + "2. Library evolution: Build the protocol module with library evolution so it exports resilient requirement symbols, then use `try Stub<any P>()`; no conformer is needed.\n"
-                    + "3. Neither source available: Pass explicit `Stub.Requirement` values to `Stub<any P>(...)`, grouped by declaring protocol for compositions."
+                    + "3. Neither source available: Prefer `Requirement` factories using "
+                    + "`signatureOf:` protocol members. Use source-less factories "
+                    + "only when the reference forms cannot express the ABI shape, and match "
+                    + "the declaration exactly. Group requirements by declaring protocol for "
+                    + "compositions."
 
             case .requirementCountMismatch(let protocolName, let expected, let actual):
                 return "Expected \(expected) requirements for '\(protocolName)', but received \(actual). Supply every mockable requirement in declaration order."
@@ -128,7 +132,10 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
 
             case .signatureDiscoveryFailed(let protocolName, let requirementIndex, let details):
                 return "Could not discover the signature of '\(protocolName)' requirement \(requirementIndex). \(details)\n"
-                    + "Recovery: Supply explicit `Stub.Requirement` values when the signature is supported. Otherwise use `ManualStub` with a hand-written `StubConformer`."
+                    + "Recovery: Prefer a `Stub.Requirement` using `signatureOf:` when it "
+                    + "supports the declaration. Use a source-less factory only when "
+                    + "necessary and match the ABI shape exactly. Otherwise use `ManualStub` "
+                    + "with a hand-written `StubConformer`."
 
             case .trampolineAllocationFailed(let requirementIndex):
                 return "Could not allocate an executable trampoline for requirement \(requirementIndex).\n"

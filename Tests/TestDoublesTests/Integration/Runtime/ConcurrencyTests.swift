@@ -118,12 +118,14 @@ private final class BlockedMatcherCompletionGate: @unchecked Sendable {
         return true
     }
 
-    func waitUntilBlockedMatcherEntered() {
+    func waitUntilBlockedMatcherEntered(within timeout: TimeInterval) -> Bool {
         condition.lock()
         defer { condition.unlock() }
+        let deadline = Date().addingTimeInterval(timeout)
         while blockedMatcherEntered == false {
-            condition.wait()
+            guard condition.wait(until: deadline) else { return false }
         }
+        return true
     }
 
     func releaseBlockedMatcher() {
@@ -214,7 +216,8 @@ private func requireSendable<T: Sendable>(_: T) {}
         await stub.verify(.exactly(callCount)) { await $0.asynchronous(any()) }
     }
 
-    @Test func recordingAndQueuedValuesShareMatcherCompletionOrder() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func recordingAndQueuedValuesShareMatcherCompletionOrder() async throws {
         let stub = try Stub<any ConcurrentInvocationProbe>(
             .method(Int.self, returning: Int.self),
             .method(Int.self, returning: Int.self, isAsync: true)
@@ -230,7 +233,13 @@ private func requireSendable<T: Sendable>(_: T) {}
         let firstCall = Task.detached {
             probe.synchronous(1)
         }
-        gate.waitUntilBlockedMatcherEntered()
+        guard gate.waitUntilBlockedMatcherEntered(within: 10) else {
+            gate.releaseBlockedMatcher()
+            firstCall.cancel()
+            _ = await firstCall.value
+            Issue.record("The blocking matcher did not start within 10 seconds.")
+            return
+        }
         let secondCallResult = probe.synchronous(2)
         gate.releaseBlockedMatcher()
         let firstCallResult = await firstCall.value

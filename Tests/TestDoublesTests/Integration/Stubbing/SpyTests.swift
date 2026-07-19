@@ -122,6 +122,24 @@ struct RealMutableSpyService: MutableSpyService {
     var value = 0
 }
 
+protocol DynamicSelfSpyService {
+    func duplicate() -> Self
+}
+
+struct RealDynamicSelfSpyService: DynamicSelfSpyService {
+    func duplicate() -> Self { self }
+}
+
+protocol FunctionValueSpyService {
+    func transform(_ operation: @escaping (Int) -> Int) -> (Int) -> Int
+}
+
+struct RealFunctionValueSpyService: FunctionValueSpyService {
+    func transform(_ operation: @escaping (Int) -> Int) -> (Int) -> Int {
+        operation
+    }
+}
+
 @Suite struct SpyTests {
     @Test func factoryForwardsUnmatchedCallsAndRecordsThem() {
         let target = RealSpyService()
@@ -213,21 +231,62 @@ struct RealMutableSpyService: MutableSpyService {
     }
 
     @Test func rejectsStaticRequirementsAtConstruction() {
-        #expect(throws: StubError.self) {
+        let error = #expect(throws: StubError.self) {
             _ = try Spy<any StaticSpyService>(forwardingTo: RealStaticSpyService())
         }
+        #expect(
+            error?.description.contains(
+                "supports instance requirements only"
+            ) == true
+        )
     }
 
     @Test func rejectsArgumentsThatCannotPreserveTheOriginalStack() {
-        #expect(throws: StubError.self) {
+        let error = #expect(throws: StubError.self) {
             _ = try Spy<any WideSpyService>(forwardingTo: RealWideSpyService())
         }
+        #expect(
+            error?.description.contains(
+                "uses stack arguments or leaves no registers"
+            ) == true
+        )
     }
 
     @Test func rejectsModifyCoroutinesAtConstruction() {
-        #expect(throws: StubError.self) {
+        let error = #expect(throws: StubError.self) {
             _ = try Spy<any MutableSpyService>(forwardingTo: RealMutableSpyService())
         }
+        #expect(
+            error?.description.contains(
+                "does not yet support _modify coroutine requirements"
+            ) == true
+        )
+    }
+
+    @Test func rejectsDynamicSelfResultsAtConstruction() {
+        let error = #expect(throws: StubError.self) {
+            _ = try Spy<any DynamicSelfSpyService>(
+                forwardingTo: RealDynamicSelfSpyService()
+            )
+        }
+        #expect(
+            error?.description.contains(
+                "does not yet support dynamic Self results"
+            ) == true
+        )
+    }
+
+    @Test func rejectsFunctionValuesAtConstruction() {
+        let error = #expect(throws: StubError.self) {
+            _ = try Spy<any FunctionValueSpyService>(
+                forwardingTo: RealFunctionValueSpyService()
+            )
+        }
+        #expect(
+            error?.description.contains(
+                "does not yet support function-valued arguments or results"
+            ) == true
+        )
     }
 }
 
@@ -243,12 +302,23 @@ struct RealMutableSpyService: MutableSpyService {
                     forwardingTo: RealStaticSpyService()
                 )
             }
-            let diagnostic = try #require(
-                String(bytes: result.standardErrorContent, encoding: .utf8)
-            )
+            let diagnostic = try requireStandardErrorDiagnostic(from: result)
             #expect(diagnostic.contains("Could not construct a spy"))
             #expect(diagnostic.contains("StaticSpyService"))
             #expect(diagnostic.contains("supports instance requirements only"))
+        }
+
+        @Test func concreteTargetInferenceFailsClosed() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                _ = makeSpy(forwardingTo: RealSpyService())
+            }
+            let diagnostic = try requireStandardErrorDiagnostic(from: result)
+            #expect(diagnostic.contains("Could not construct a spy"))
+            #expect(diagnostic.contains("RealSpyService"))
+            #expect(diagnostic.contains("protocol existential"))
         }
     }
 #endif

@@ -102,11 +102,7 @@ public func makeStub<P: Sendable>(
 }
 
 private func constructStubOrFail<P>() -> Stub<P> {
-    do {
-        return try Stub<P>()
-    } catch {
-        fatalError(
-            "[TestDoubles] Could not construct a stub for '\(String(reflecting: P.self))': \(error)"
-        )
+    constructTestDoubleOrFail(.stub, for: P.self) { () throws(StubError) -> Stub<P> in
+        try Stub<P>()
     }
 }

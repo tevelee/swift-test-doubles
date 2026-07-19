@@ -101,21 +101,9 @@ Use explicit requirements when no automatic signature source is available.
 ### Explicit requirements
 
 If no conformer is linked and resilient requirement symbols are unavailable,
-describe the requirements with Swift types. For one root protocol, use a flat
-base-first, depth-first order: each inherited protocol appears at its first
-occurrence, followed by the requirements declared by the root. A shared diamond
-base appears once.
-
-```swift
-let stub = try Stub<any PrototypeCalculator>(
-    .method(Int.self, Int.self, returning: Int.self),
-    .method(Int.self, returning: String.self),
-    .getter(Int.self)
-)
-```
-
-For requirements containing only independent concrete values, infer those types
-and method effects from protocol member references instead:
+start with protocol member references. For requirements containing only
+independent concrete values, the compiler derives their types and effects from
+the declaration:
 
 ```swift
 let stub = try Stub<any PrototypeCalculator>(
@@ -134,8 +122,29 @@ dynamic-`Self` semantics, so `signatureOf:` construction rejects those
 existentials; use explicit ``Stub/Requirement/Value`` descriptions instead.
 Method-reference convenience overloads accept up to six arguments because
 Swift 6.3 cannot reabstract unbound method references through a parameter pack.
-Use the metatype-based `method(_:returning:isThrowing:isAsync:)` factory for a
+Use `Stub.Requirement.method(_:returning:isThrowing:isAsync:)` for a
 higher-arity requirement.
+
+Source-less factories are ABI schemas without a referenced declaration. Use them only
+when a member reference cannot preserve the required ABI information, such as
+associated-type values, dynamic `Self`, initializers, subscripts, function
+adapters, or methods above the supported reference arity. If their kind, order,
+value types, ownership, or effects differ from the declaration and no runtime
+signature source is available to validate them, invoking the generated value
+has undefined behavior.
+
+For one root protocol, source-less requirements use a flat base-first,
+depth-first order: each inherited protocol appears at its first occurrence,
+followed by the requirements declared by the root. A shared diamond base
+appears once.
+
+```swift
+let stub = try Stub<any PrototypeCalculator>(
+    .method(Int.self, Int.self, returning: Int.self),
+    .method(Int.self, returning: String.self),
+    .getter(Int.self)
+)
+```
 
 Read-write properties contribute their getter followed by their setter:
 
@@ -267,9 +276,12 @@ fresh generated value or `nil`. Direct `Self` inputs remain unsupported.
 
 ### Construction failures
 
-Construction throws ``StubError`` when the protocol or a requirement shape
-cannot be supported. Automatic discovery resolves concrete runtime metadata for
-every argument and result before allocating a witness table. When a linked
+The recoverable ``Stub``, ``Dummy``, and ``Spy`` constructors declare
+`throws(StubError)` when the protocol or a requirement shape cannot be
+supported. Automatic discovery resolves concrete runtime metadata for every
+argument and result before allocating a witness table. When a linked
 conformance is available, explicit construction also validates every signature
 component that can be discovered reliably. Getter throwing behavior remains
-caller-supplied. No construction path launches external tools.
+caller-supplied. The fail-fast `makeStub`, `makeDummy`, and `makeSpy` factories
+terminate with the same actionable diagnostic. No construction path launches
+external tools.

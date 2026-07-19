@@ -197,7 +197,7 @@ extension ArgumentCaptor: @unchecked Sendable where T: Sendable {}
 /// value.
 private func synthesizedPlaceholder<T>(for api: String, fallback: String) -> T {
     guard let placeholder = PlaceholderValue.make(T.self) else {
-        preconditionFailure(
+        fatalError(
             "[TestDoubles] \(api) cannot safely synthesize a placeholder for \(T.self). "
                 + "Pass a valid value with \(fallback) instead."
         )

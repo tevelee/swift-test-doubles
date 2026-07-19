@@ -28,7 +28,8 @@
 
 #define TD_MODIFY_CONTEXT_STATE_OFFSET 0
 // Swift 6.3.3's arm64e discriminator for a yield-once resume function
-// authenticated against the caller-provided coroutine context.
+// authenticated against the caller-provided coroutine context. Keep this in
+// sync with Scripts/check-swift-abi-constants.sh.
 #define TD_MODIFY_RESUME_DISCRIMINATOR 3909
 
 #ifndef __ASSEMBLER__

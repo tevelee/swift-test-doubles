@@ -17,11 +17,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   invocations, with the final configured behavior repeating.
 - `makeSpy(_:forwardingTo:)` for fail-fast construction of a forwarding spy
   that remains available for stubbing and verification.
+- Typed-throws forwarding for `ManualStub` through the explicit
+  `throwing:` overloads of `throwingCall` and `asyncThrowingCall`.
 
 ### Changed
 
-- `Dummy.init()` now throws `StubError`, matching the recoverable `Stub` and
-  `Spy` initializers; `makeDummy(_:)` remains the fail-fast convenience API.
+- Recoverable `Stub`, `Dummy`, and `Spy` constructors now declare
+  `throws(StubError)`; the corresponding `makeStub`, `makeDummy`, and `makeSpy`
+  factories remain fail-fast conveniences.
+- The `makeSpy` protocol metatype parameter defaults to the contextual type,
+  so the existential can come from the result annotation:
+  `let spy: Spy<any P> = makeSpy(forwardingTo: live)`. Without an annotation
+  or explicit metatype, the forwarding target's concrete type is inferred and
+  construction fails fast with a protocol-existential diagnostic. Spy
+  construction also accepts flat or declaration-grouped getter-effect hints.
+- Fabricated witness identities are retained for process-stable cache identity
+  only after successful construction; failed construction releases its
+  temporary witness allocations.
 
 ## [0.0.1] - 2026-07-18
 

@@ -12,7 +12,8 @@ import TestDoublesFixtures
             }
             return protocolName == "PrototypeCalculator"
                 && error.description.contains("found neither a linked conformer")
-                && error.description.contains("Pass explicit `Stub.Requirement` values")
+                && error.description.contains("using `signatureOf:` protocol members")
+                && error.description.contains("source-less factories")
         }
     }
 

@@ -19,64 +19,125 @@ public final class Spy<P>: Stub<P> {
     /// The target's own witness tables provide signature discovery, so this
     /// initializer does not need a separately linked conformer or explicit
     /// ``Stub/Requirement`` values.
-    public init(forwardingTo target: P) throws {
-        let shape = try Stub<P>.extractProtocolShape()
-        let forwardingTarget = try ForwardingTarget(
-            target,
-            layout: shape.layout,
-            representation: shape.representation
+    public convenience init(forwardingTo target: P) throws(StubError) {
+        try self.init(forwardingTo: target, getterEffectInput: .automatic)
+    }
+
+    /// Creates a single-root protocol spy using the target's witness tables plus
+    /// one throwing-effect hint for each getter.
+    ///
+    /// Supply effects in base-first, depth-first getter declaration order. Every
+    /// getter must have a hint because Swift runtime metadata does not distinguish
+    /// a synchronous nonthrowing getter from a synchronous throwing getter.
+    public convenience init(
+        forwardingTo target: P,
+        getterEffects firstEffect: Stub<P>.GetterEffect,
+        _ additionalEffects: Stub<P>.GetterEffect...
+    ) throws(StubError) {
+        try self.init(
+            forwardingTo: target,
+            getterEffectInput: .ordered([firstEffect] + additionalEffects)
         )
-        let methods = try discoverMethods(
-            witnessTables: forwardingTarget.witnessTables,
-            layout: shape.layout,
-            associatedTypeBindings: shape.associatedTypeBindings,
-            selfIsClassConstrained: shape.representation.isClassConstrained,
-            getterEffectPolicy: .automatic
+    }
+
+    /// Creates a spy using getter-effect hints grouped by their declaring protocols.
+    ///
+    /// Use this initializer for inheritance graphs and protocol compositions.
+    /// Group order does not matter. Supply one group for every protocol that
+    /// directly declares a getter.
+    public convenience init(
+        forwardingTo target: P,
+        getterEffectsByProtocol firstGroup: Stub<P>.ProtocolGetterEffects,
+        _ additionalGroups: Stub<P>.ProtocolGetterEffects...
+    ) throws(StubError) {
+        try self.init(
+            forwardingTo: target,
+            getterEffectInput: .grouped([firstGroup] + additionalGroups)
         )
-        let forwarder = try ProtocolForwarder(
-            target: forwardingTarget,
-            methods: methods,
-            layout: shape.layout
-        )
-        let prepared = try Stub<P>.prepareFabricated(
-            layout: shape.layout,
-            associatedTypeBindings: shape.associatedTypeBindings,
-            representation: shape.representation,
-            methods: methods,
-            forwarder: forwarder
-        )
+    }
+
+    fileprivate init(
+        forwardingTo target: P,
+        getterEffectInput: SpyGetterEffectInput<P>
+    ) throws(StubError) {
+        let prepared = try withStubConstructionError(for: P.self) {
+            try Stub<P>.prepareSpy(
+                forwardingTo: target,
+                getterEffects: getterEffectInput
+            )
+        }
         super.init(prepared: prepared)
     }
 }
 
 /// Returns a forwarding spy for `protocolType` that records calls to `target`.
 ///
-/// The protocol metatype selects the existential that the spy implements. It
-/// defaults to `P.self`, allowing the surrounding return context to infer the
-/// protocol. Pass it explicitly when no return context supplies `P` so the
-/// target's concrete implementation type is not inferred instead. Construction
-/// terminates the process with a diagnostic if the protocol cannot be forwarded
-/// safely. Use the throwing ``Spy/init(forwardingTo:)`` initializer when
-/// construction failure must be handled by the caller.
+/// The protocol metatype defaults to the contextual type, so prefer stating
+/// the existential in the result annotation:
+///
+/// ```swift
+/// let spy: Spy<any UserService> = makeSpy(forwardingTo: liveService)
+/// ```
+///
+/// Without an annotation or an explicit metatype, `P` is inferred from the
+/// target's concrete implementation type, which fails fast with a
+/// protocol-existential diagnostic. Construction also terminates the process
+/// when the protocol cannot be forwarded safely. Use the throwing
+/// ``Spy/init(forwardingTo:)`` initializer when construction failure must be
+/// handled by the caller.
 ///
 /// - Parameters:
 ///   - protocolType: The protocol metatype implemented by the returned spy.
+///     Defaults to the contextual type.
 ///   - target: The real protocol implementation that receives unmatched calls.
 /// - Returns: A forwarding spy that supports stubbing and verification.
 public func makeSpy<P>(
     _ protocolType: P.Type = P.self,
     forwardingTo target: P
 ) -> Spy<P> {
-    do {
-        return try Spy<P>(forwardingTo: target)
-    } catch {
-        fatalError(spyConstructionFailure(for: protocolType, error: error))
+    constructSpyOrFail(for: protocolType) { () throws(StubError) -> Spy<P> in
+        try Spy<P>(forwardingTo: target)
     }
 }
 
-private func spyConstructionFailure<P>(
+/// Returns a forwarding spy using one throwing-effect hint for each getter.
+///
+/// The target still supplies every discoverable signature component. Effects
+/// only provide the getter throwing information omitted by runtime metadata.
+public func makeSpy<P>(
+    _ protocolType: P.Type = P.self,
+    forwardingTo target: P,
+    getterEffects firstEffect: Stub<P>.GetterEffect,
+    _ additionalEffects: Stub<P>.GetterEffect...
+) -> Spy<P> {
+    let effects = [firstEffect] + additionalEffects
+    return constructSpyOrFail(for: protocolType) { () throws(StubError) -> Spy<P> in
+        try Spy<P>(
+            forwardingTo: target,
+            getterEffectInput: .ordered(effects)
+        )
+    }
+}
+
+/// Returns a forwarding spy using getter-effect hints grouped by their declaring protocols.
+public func makeSpy<P>(
+    _ protocolType: P.Type = P.self,
+    forwardingTo target: P,
+    getterEffectsByProtocol firstGroup: Stub<P>.ProtocolGetterEffects,
+    _ additionalGroups: Stub<P>.ProtocolGetterEffects...
+) -> Spy<P> {
+    let groups = [firstGroup] + additionalGroups
+    return constructSpyOrFail(for: protocolType) { () throws(StubError) -> Spy<P> in
+        try Spy<P>(
+            forwardingTo: target,
+            getterEffectInput: .grouped(groups)
+        )
+    }
+}
+
+private func constructSpyOrFail<P>(
     for protocolType: P.Type,
-    error: any Error
-) -> String {
-    "[TestDoubles] Could not construct a spy for '\(String(reflecting: protocolType))': \(error)"
+    _ operation: () throws(StubError) -> Spy<P>
+) -> Spy<P> {
+    constructTestDoubleOrFail(.spy, for: protocolType, operation)
 }

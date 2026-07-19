@@ -53,6 +53,15 @@ extension Stub {
     /// at its first occurrence. Use explicit requirements when automatic
     /// discovery is unavailable or an effectful getter needs its throwing
     /// behavior stated explicitly.
+    ///
+    /// Source-less factories describe ABI details without referencing a
+    /// protocol declaration. The caller must keep their order, value types,
+    /// ownership, and effects exactly synchronized with that declaration. Prefer
+    /// the `signatureOf:` factories whenever they can express the requirement.
+    ///
+    /// - Warning: When no linked or resilient signature source can validate a
+    ///   source-less schema, a mismatch can violate the witness ABI and cause
+    ///   undefined behavior when the generated value is invoked.
     public struct Requirement: Sendable {
         /// A direct concrete or associated-type value in a requirement.
         public struct Value: Sendable {

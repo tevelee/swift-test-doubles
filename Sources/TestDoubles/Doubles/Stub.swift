@@ -34,13 +34,14 @@ public class Stub<P> {
     /// `init(requirementsByProtocol:)` for multi-root compositions. Linked
     /// witnesses and resilient requirement symbols also validate every
     /// reliably discoverable explicit signature component.
-    public convenience init(_ requirements: Requirement...) throws {
-        let prepared =
+    public convenience init(_ requirements: Requirement...) throws(StubError) {
+        let prepared = try withStubConstructionError(for: P.self) {
             if requirements.isEmpty {
                 try Self.prepare()
             } else {
                 try Self.prepare(requirements: requirements)
             }
+        }
         self.init(prepared: prepared)
     }
 
@@ -54,12 +55,14 @@ public class Stub<P> {
     public convenience init(
         associatedTypes: [AssociatedTypeBinding],
         _ requirements: Requirement...
-    ) throws {
-        self.init(
-            prepared: try Self.prepare(
+    ) throws(StubError) {
+        let prepared = try withStubConstructionError(for: P.self) {
+            try Self.prepare(
                 callerAssociatedTypeBindings: associatedTypes,
                 requirements: requirements
-            ))
+            )
+        }
+        self.init(prepared: prepared)
     }
 
     /// Creates a single-root protocol stub using automatic signature discovery
@@ -74,11 +77,11 @@ public class Stub<P> {
     public convenience init(
         getterEffects firstEffect: GetterEffect,
         _ additionalEffects: GetterEffect...
-    ) throws {
-        self.init(
-            prepared: try Self.prepare(
-                getterEffects: [firstEffect] + additionalEffects
-            ))
+    ) throws(StubError) {
+        let prepared = try withStubConstructionError(for: P.self) {
+            try Self.prepare(getterEffects: [firstEffect] + additionalEffects)
+        }
+        self.init(prepared: prepared)
     }
 
     /// Creates a stub using getter-effect hints grouped by their declaring protocols.
@@ -90,11 +93,11 @@ public class Stub<P> {
     public convenience init(
         getterEffectsByProtocol firstGroup: ProtocolGetterEffects,
         _ additionalGroups: ProtocolGetterEffects...
-    ) throws {
-        self.init(
-            prepared: try Self.prepare(
-                getterEffectGroups: [firstGroup] + additionalGroups
-            ))
+    ) throws(StubError) {
+        let prepared = try withStubConstructionError(for: P.self) {
+            try Self.prepare(getterEffectGroups: [firstGroup] + additionalGroups)
+        }
+        self.init(prepared: prepared)
     }
 
     /// Creates a stub using explicit requirements grouped by their declaring
@@ -107,11 +110,11 @@ public class Stub<P> {
     public convenience init(
         requirementsByProtocol firstGroup: ProtocolRequirements,
         _ additionalGroups: ProtocolRequirements...
-    ) throws {
-        self.init(
-            prepared: try Self.prepare(
-                requirementGroups: [firstGroup] + additionalGroups
-            ))
+    ) throws(StubError) {
+        let prepared = try withStubConstructionError(for: P.self) {
+            try Self.prepare(requirementGroups: [firstGroup] + additionalGroups)
+        }
+        self.init(prepared: prepared)
     }
 
     /// Creates a stub from an array of requirements grouped by declaring
@@ -119,8 +122,11 @@ public class Stub<P> {
     /// requirements by accepting an empty array.
     public convenience init(
         requirementsByProtocol groups: [ProtocolRequirements]
-    ) throws {
-        self.init(prepared: try Self.prepare(requirementGroups: groups))
+    ) throws(StubError) {
+        let prepared = try withStubConstructionError(for: P.self) {
+            try Self.prepare(requirementGroups: groups)
+        }
+        self.init(prepared: prepared)
     }
 
     /// Returns the generated protocol existential.

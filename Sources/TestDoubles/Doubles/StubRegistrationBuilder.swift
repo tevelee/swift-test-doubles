@@ -38,7 +38,7 @@ extension StubRegistrationBuilder {
         for method: MethodDescriptor
     ) {
         guard method.isThrowing else {
-            preconditionFailure("[TestDoubles] thenThrow requires a throwing requirement.")
+            fatalError("[TestDoubles] thenThrow requires a throwing requirement.")
         }
         recorder.requireThrownErrorMatchesRuntimeType(error, for: method)
     }

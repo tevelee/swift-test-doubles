@@ -32,7 +32,7 @@ jobs:
           rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
 
   swift-quality:
-    name: Swift format and lint
+    name: Swift format, lint, and boundaries
     runs-on: macos-26
     timeout-minutes: 10
     steps:
@@ -41,6 +41,10 @@ jobs:
           persist-credentials: false
       - name: Check generated fixed-arity sources
         run: xcrun swift Scripts/generate-fixed-arity.swift --check
+      - name: Check Swift ABI constants
+        run: Scripts/check-swift-abi-constants.sh
+      - name: Check internal source boundaries
+        run: Scripts/check-internal-boundaries.sh
       - uses: ./.github/actions/brew-bundle
       - name: Run swift-format
         run: swift-format lint --strict --recursive Sources Tests
@@ -232,12 +236,23 @@ jobs:
           DESTINATION: ${{ matrix.destination }}
         run: |
           if [[ -n "$PLATFORM" ]]; then
+            runtime="$(
+              xcrun simctl list runtimes --json |
+                jq -r --arg platform "$PLATFORM" '
+                  [.runtimes[] | select(.isAvailable and (.name | startswith($platform + " ")))]
+                  | min_by(.version | split(".") | map(tonumber))
+                  | .identifier // empty
+                '
+            )"
+            test -n "$runtime"
             udid="$(
-              xcrun simctl list devices available "$PLATFORM" |
-                grep -oiE '[0-9A-Fa-f-]{36}' |
-                tail -1
+              xcrun simctl list devices available --json |
+                jq -r --arg runtime "$runtime" '
+                  .devices[$runtime] | sort_by(.name) | first | .udid // empty
+                '
             )"
             test -n "$udid"
+            echo "Selected $runtime device $udid"
             xcrun simctl boot "$udid" 2>/dev/null &
             echo "value=id=$udid,arch=arm64" >> "$GITHUB_OUTPUT"
             echo "parallelism=NO" >> "$GITHUB_OUTPUT"
@@ -312,7 +327,9 @@ jobs:
               --experimental-maximum-parallelization-width 4
           - name: Thread Sanitizer
             sanitizer: thread
-            runner_arguments: --parallel
+            runner_arguments: >-
+              --parallel
+              --experimental-maximum-parallelization-width 4
     runs-on: macos-26
     timeout-minutes: 25
     steps:
@@ -339,9 +356,7 @@ jobs:
           swift test
           --sanitize ${{ matrix.sanitizer }}
           ${{ matrix.runner_arguments }}
-          --skip DummyInvocationExitTests
-          --skip SpyFactoryExitTests
-          --skip UnstubbedBehaviorTests
+          --skip ExitTests
           --scratch-path .build/ci-${{ matrix.sanitizer }}-sanitizer
 
   coverage:

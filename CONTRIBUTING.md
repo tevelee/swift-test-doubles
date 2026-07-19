@@ -64,20 +64,19 @@ assembly, dispatch, ownership, or concurrency also need the extended tier:
 ```bash
 swift test --sanitize thread --scratch-path .build/tsan \
   --parallel \
-  --skip DummyInvocationExitTests \
-  --skip UnstubbedBehaviorTests
+  --experimental-maximum-parallelization-width 4 \
+  --skip ExitTests
 swift test --sanitize address --scratch-path .build/asan \
   --parallel \
   --experimental-maximum-parallelization-width 4 \
-  --skip DummyInvocationExitTests \
-  --skip UnstubbedBehaviorTests
+  --skip ExitTests
 ```
 
-`DummyInvocationExitTests` and `UnstubbedBehaviorTests` still run in the
-baseline suites. Swift Testing executes their process-exit closures in child
-processes that do not inherit the sanitizer runtime early enough for its
-interceptors to initialize. Address Sanitizer remains randomized and parallel,
-but its width is capped so instrumentation cannot starve time-bounded tests.
+Suites whose names end in `ExitTests` still run in the baseline suites. Swift
+Testing executes their process-exit closures in child processes that do not
+inherit the sanitizer runtime early enough for its interceptors to initialize.
+Address Sanitizer remains randomized and parallel, but its width is capped so
+instrumentation cannot starve time-bounded tests.
 
 On Apple Silicon, run the complete x86_64 package suite under Rosetta:
 

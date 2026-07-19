@@ -94,6 +94,32 @@ var status: Status {
 The fallback methods default their `function` parameter to `#function`, so the
 forwarding body usually does not need to repeat the requirement name.
 
+For typed throws, use the explicit fallback and pass the declared error type to
+`throwing:`. This preserves the restricted error channel for synchronous,
+asynchronous, value-returning, and `Void` requirements:
+
+```swift
+enum ServiceError: Error { case unavailable }
+
+var token: String {
+    get throws(ServiceError) {
+        try stub.throwingCall(throwing: ServiceError.self)
+    }
+}
+
+func refresh(_ id: Int) async throws(ServiceError) -> Item {
+    try await stub.asyncThrowingCall(
+        id,
+        throwing: ServiceError.self
+    )
+}
+```
+
+The configured handler must throw exactly that error type. A different error
+cannot cross Swift's typed-throws boundary, so ManualStub fails closed with an
+expected and actual type diagnostic. Use the untyped `.throwing` dynamic-member
+route only for requirements declared with ordinary untyped `throws`.
+
 When overloads have the same labels, result, and effects but different argument
 types, use a ``ManualRouteID`` with the explicit fallback. The route keeps the
 static types separate while diagnostics continue to show the ordinary
@@ -106,6 +132,18 @@ func render(_ value: Int) -> String {
 
 func render(_ value: String) -> String {
     stub.call(value, route: ManualRouteID(argumentTypes: String.self))
+}
+```
+
+The same route parameter composes with typed throws:
+
+```swift
+func load(_ id: Int) throws(ServiceError) -> Item {
+    try stub.throwingCall(
+        id,
+        route: ManualRouteID(argumentTypes: Int.self),
+        throwing: ServiceError.self
+    )
 }
 ```
 

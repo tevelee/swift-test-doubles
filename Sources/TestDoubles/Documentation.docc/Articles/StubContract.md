@@ -29,6 +29,18 @@ per-requirement method descriptor symbols emitted for a resilient protocol.
 It walks the complete inherited and composed graph, and each declaring
 protocol must provide one of those sources.
 
+When automatic discovery is unavailable, prefer ``Stub/Requirement`` factories
+using `signatureOf:` protocol members. The compiler then derives the concrete
+value types and effects from the declaration. A member reference supplies a
+signature, not requirement identity, so entries remain positional.
+
+Source-less factories describe ABI schemas for shapes the
+member-reference forms cannot preserve, including dependent values, dynamic
+`Self`, initializers, subscripts, and explicit function adapters. Their kind,
+order, types, ownership, and effects must match the declaration exactly. If no
+runtime source can validate a mismatch, invoking the generated value has
+undefined behavior.
+
 Flat ``Stub/Requirement`` values describe one root protocol. Their order is
 base-first, depth-first, and first-seen, followed by the requirements declared
 on the root. A base inherited through multiple paths appears once. Grouped
@@ -37,9 +49,9 @@ by a bare `Protocol.self`, group order is irrelevant, and requirements inside a
 group remain in declaration order. An inherited requirement belongs to its
 original declaring protocol; a shared base is grouped once.
 
-Explicit requirement kinds, types, and method effects must exactly match the
-declaration. A read-write property or subscript contributes its getter then
-setter. Explicit subscript accessors use
+Explicit source-less requirement kinds, types, and method effects must exactly
+match the declaration. A read-write property or subscript contributes its
+getter then setter. Explicit subscript accessors use
 `Stub.Requirement.subscriptGetter(indexedBy:returning:)` and
 `Stub.Requirement.subscriptSetter(indexedBy:assigning:)`.
 Construction validates all reliably discoverable components before allocating
@@ -65,8 +77,9 @@ The bounded associated-type path uses
 containers, and ``Stub/Requirement/Value/consuming()`` to mark any of these
 dependent method argument values as consuming.
 ``Stub/Requirement/Value/consumingAssociatedType(named:)`` remains a direct-value
-convenience. ``Stub/Requirement/setter(_:)-(Value)`` describes a dependent
-setter, while ``Stub/Requirement/initializer(_:_:isFailable:isThrowing:isAsync:)``
+convenience. `Stub.Requirement.setter(_:)` describes a dependent setter,
+while
+`Stub.Requirement.initializer(_:_:isFailable:isThrowing:isAsync:)`
 accepts one or more dependent values using the initializer's owned convention.
 The stub itself must be specialized as a constrained
 existential such as `Stub<any Source<Int>>` so the runtime has concrete metadata
@@ -369,9 +382,11 @@ The generated existential retains its payload, recorder, fabricated witness
 table, and page-backed executable veneer arena. Releasing the ``Stub`` does not
 invalidate protocol values already produced from it. When the last generated
 value releases its payload, TestDoubles unregisters the recorder and unmaps the
-arena pages. The small conformance-descriptor and witness-table
-allocation remains process-stable because Swift's generic-metadata caches may
-retain that identity after the value is gone.
+arena pages. Construction commits the small conformance-descriptor and
+witness-table identity only after the complete existential is created; failed
+attempts deallocate those temporary allocations. A committed identity remains
+process-stable because Swift's generic-metadata caches may retain it after the
+value is gone.
 
 An existential metatype extracted with `type(of:)` does not retain the payload.
 Use `Stub.withValue(_:)` to keep a generated value alive while passing its

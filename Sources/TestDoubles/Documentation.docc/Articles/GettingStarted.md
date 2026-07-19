@@ -15,11 +15,12 @@ requirement signatures:
 | --- | --- |
 | A concrete conformer is linked into the test process | Use `try Stub<any P>()`. TestDoubles inspects the conformance metadata but never invokes the conformer. |
 | The protocol module is built with library evolution and exports resilient requirement symbols | Use `try Stub<any P>()`; no concrete conformer is needed. |
-| Neither source is available | Pass explicit ``Stub/Requirement`` values to `Stub<any P>(...)`, in protocol declaration order. |
+| Neither source is available | Prefer ``Stub/Requirement`` factories using `signatureOf:` protocol members. Use source-less factories only for shapes member references cannot express. |
 
 The first two paths use the same zero-argument initializer. The difference is
 only where signature metadata comes from. See <doc:ConstructionGuide> for
-explicit requirements, inheritance order, and compositions.
+safe source-backed requirements, source-less ABI schemas, inheritance order,
+and compositions.
 
 ### Define a protocol boundary
 

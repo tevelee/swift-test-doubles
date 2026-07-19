@@ -130,14 +130,27 @@ protocol MatcherPlaceholderService {
         #expect(values.first is SecondMatcherExistentialValue)
     }
 
-    #if compiler(>=6.2) && (os(macOS) || os(Linux) || targetEnvironment(macCatalyst))
-        @Test func synthesizedReferencePlaceholderFailsClosed() async {
-            await #expect(processExitsWith: .failure) {
+}
+
+#if compiler(>=6.2) && (os(macOS) || os(Linux) || targetEnvironment(macCatalyst))
+    @Suite struct MatcherExitTests {
+        @Test func synthesizedReferencePlaceholderFailsClosed() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
                 let _: MatcherReferenceBox = any()
             }
+            let diagnostic = try requireStandardErrorDiagnostic(from: result)
+            #expect(
+                diagnostic.contains(
+                    "any() cannot safely synthesize a placeholder"
+                )
+            )
+            #expect(diagnostic.contains("any(using:)"))
         }
-    #endif
-}
+    }
+#endif
 
 @Suite struct TypedThenTests {
     @Test func zeroOneAndTwoArgumentHandlers() throws {

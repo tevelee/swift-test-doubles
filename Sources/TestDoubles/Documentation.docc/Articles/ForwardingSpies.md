@@ -47,13 +47,52 @@ Class-constrained targets receive calls on the same object passed to
 so mutations performed by forwarded requirements persist for later forwarded
 calls.
 
+### Getter effect hints
+
+Swift runtime metadata does not distinguish a nonthrowing getter from an
+ordinary throwing getter. When the protocol has getters, preserve signature
+discovery from the target's witness tables and supply that missing
+classification explicitly:
+
+```swift
+let spy: Spy<any CachedProfile> = makeSpy(
+    forwardingTo: liveProfile,
+    getterEffects: .nonthrowing, // var cachedName: String { get }
+    .throwing                    // var freshName: String { get async throws }
+)
+```
+
+Supply one hint for every getter in base-first declaration order. Methods,
+initializers, and setters do not consume a hint. For a composition, group hints
+by the protocol that declares each getter:
+
+```swift
+let spy = try Spy<any CachedProfile & NetworkProfile>(
+    forwardingTo: liveProfile,
+    getterEffectsByProtocol: .effects(
+        declaredBy: CachedProfile.self,
+        .nonthrowing
+    ),
+    .effects(
+        declaredBy: NetworkProfile.self,
+        .throwing
+    )
+)
+```
+
+The hints affect calling-convention discovery only. Unmatched calls still use
+the target implementation, and an override still uses the normal `when` API.
+Typed-throwing getters cannot be represented by the forwarding trampoline; use
+``ManualStub`` or a hand-written spy for that shape.
+
 ### Supported boundary
 
 Forwarding uses the same runtime-generated existential and platform boundary as
 ``Stub``. It currently accepts synchronous, throwing, async, and
 async-throwing instance methods and read-only getters when their
 arguments fit the supported register transport. This includes inherited
-requirements and concretely bound associated-type values.
+requirements and concretely bound associated-type values. Getter effects cover
+ordinary untyped `throws`; typed-throwing getters remain unsupported.
 
 Construction fails with ``StubError/unsupportedProtocolShape(protocolName:reason:)``
 when the protocol requires any of these forwarding shapes:

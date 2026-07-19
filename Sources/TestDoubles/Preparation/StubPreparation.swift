@@ -1,5 +1,11 @@
 import Echo
 
+enum SpyGetterEffectInput<P> {
+    case automatic
+    case ordered([Stub<P>.GetterEffect])
+    case grouped([Stub<P>.ProtocolGetterEffects])
+}
+
 enum StubExistentialRepresentation {
     case opaque
     case classConstrained
@@ -42,6 +48,52 @@ struct GroupDiagnostics: Sendable {
 }
 
 extension Stub {
+    static func prepareSpy(
+        forwardingTo target: P,
+        getterEffects input: SpyGetterEffectInput<P>
+    ) throws -> PreparedStub {
+        let shape = try extractProtocolShape()
+        let forwardingTarget = try ForwardingTarget(
+            target,
+            layout: shape.layout,
+            representation: shape.representation
+        )
+        let resolvedGetterEffectPolicy: GetterEffectDiscoveryPolicy
+        switch input {
+            case .automatic:
+                resolvedGetterEffectPolicy = .automatic
+            case .ordered(let effects):
+                resolvedGetterEffectPolicy = try getterEffectPolicy(
+                    effects,
+                    layout: shape.layout
+                )
+            case .grouped(let groups):
+                resolvedGetterEffectPolicy = try getterEffectPolicy(
+                    groups,
+                    layout: shape.layout
+                )
+        }
+        let methods = try discoverMethods(
+            witnessTables: forwardingTarget.witnessTables,
+            layout: shape.layout,
+            associatedTypeBindings: shape.associatedTypeBindings,
+            selfIsClassConstrained: shape.representation.isClassConstrained,
+            getterEffectPolicy: resolvedGetterEffectPolicy
+        )
+        let forwarder = try ProtocolForwarder(
+            target: forwardingTarget,
+            methods: methods,
+            layout: shape.layout
+        )
+        return try prepareFabricated(
+            layout: shape.layout,
+            associatedTypeBindings: shape.associatedTypeBindings,
+            representation: shape.representation,
+            methods: methods,
+            forwarder: forwarder
+        )
+    }
+
     struct PreparationContext {
         private let shape: StubProtocolShape
 
@@ -126,7 +178,18 @@ extension Stub {
 
     static func prepare(getterEffects: [GetterEffect]) throws -> PreparedStub {
         let context = PreparationContext(shape: try extractProtocolShape())
-        let layout = context.layout
+        let policy = try getterEffectPolicy(
+            getterEffects,
+            layout: context.layout
+        )
+        let methods = try context.discoverMethods(using: policy)
+        return try context.finalize(methods: methods)
+    }
+
+    static func getterEffectPolicy(
+        _ getterEffects: [GetterEffect],
+        layout: ProtocolLayout
+    ) throws -> GetterEffectDiscoveryPolicy {
         guard layout.roots.count == 1 else {
             throw StubError.compositionRequiresGroupedGetterEffects(
                 typeDescription: String(reflecting: P.self)
@@ -137,17 +200,28 @@ extension Stub {
             effects: getterEffects,
             protocolName: layout.roots[0].name
         )
-        let methods = try context.discoverMethods(using: .hints(hints))
-        return try context.finalize(methods: methods)
+        return .hints(hints)
     }
 
     static func prepare(
         getterEffectGroups: [ProtocolGetterEffects]
     ) throws -> PreparedStub {
         let context = PreparationContext(shape: try extractProtocolShape())
+        let policy = try getterEffectPolicy(
+            getterEffectGroups,
+            layout: context.layout
+        )
+        let methods = try context.discoverMethods(using: policy)
+        return try context.finalize(methods: methods)
+    }
+
+    static func getterEffectPolicy(
+        _ getterEffectGroups: [ProtocolGetterEffects],
+        layout: ProtocolLayout
+    ) throws -> GetterEffectDiscoveryPolicy {
         let matched = try matchGroups(
             getterEffectGroups,
-            toDeclaringNodes: context.layout.nodes.filter {
+            toDeclaringNodes: layout.nodes.filter {
                 $0.callableRequirements.contains { $0.kind == .getter }
             },
             protocolType: \.protocolType,
@@ -165,8 +239,7 @@ extension Stub {
                 )
             ) { _, new in new }
         }
-        let methods = try context.discoverMethods(using: .hints(hints))
-        return try context.finalize(methods: methods)
+        return .hints(hints)
     }
 
     static func prepare(requirements: [Requirement]) throws -> PreparedStub {
