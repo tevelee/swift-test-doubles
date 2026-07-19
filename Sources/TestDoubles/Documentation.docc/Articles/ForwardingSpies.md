@@ -8,7 +8,7 @@ for the interactions a test needs to control.
 Create a ``Spy`` from a protocol and its real implementation:
 
 ```swift
-let spy = makeSpy(UserService.self, forwardingTo: liveService)
+let spy: Spy<any UserService> = makeSpy(forwardingTo: liveService)
 let service: any UserService = spy()
 
 #expect(service.displayName(for: "admin") == "Admin")

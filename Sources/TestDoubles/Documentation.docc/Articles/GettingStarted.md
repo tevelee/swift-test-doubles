@@ -115,7 +115,7 @@ Use ``Spy`` when a real implementation should handle most calls and the test
 needs to observe or replace only selected interactions:
 
 ```swift
-let spy = makeSpy(UserRepository.self, forwardingTo: liveRepository)
+let spy: Spy<any UserRepository> = makeSpy(forwardingTo: liveRepository)
 spy.when { $0.find(id: equal(42)) }.thenReturn("Fixture User")
 
 let repository: any UserRepository = spy()

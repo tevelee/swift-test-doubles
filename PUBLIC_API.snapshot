@@ -73,7 +73,7 @@ symbol	swift.func	any()	func any<T>() -> T
 symbol	swift.func	any(using:)	func any<T>(using placeholder: T) -> T
 symbol	swift.func	equal(_:)	func equal<T>(_ value: T) -> T where T : Equatable
 symbol	swift.func	makeDummy(_:)	func makeDummy<P>(_ protocolType: P.Type = P.self) -> P
-symbol	swift.func	makeSpy(_:forwardingTo:)	func makeSpy<P>(_ protocolType: P.Type, forwardingTo target: P) -> Spy<P>
+symbol	swift.func	makeSpy(_:forwardingTo:)	func makeSpy<P>(_ protocolType: P.Type = P.self, forwardingTo target: P) -> Spy<P>
 symbol	swift.func	makeStub(_:)	func makeStub<P>(_ configure: (Stub<P>) -> Void) -> P
 symbol	swift.func	makeStub(_:)	func makeStub<P>(_ configure: (Stub<P>) -> Void) -> P where P : Sendable
 symbol	swift.func	makeStub(_:isolation:)	func makeStub<P>(_ configure: (Stub<P>) async -> Void, isolation: isolated (any Actor)? = #isolation) async -> P

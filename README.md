@@ -63,7 +63,7 @@ Use `Spy` when most behavior should stay real and a test needs to observe or
 replace only a few interactions:
 
 ```swift
-let spy = makeSpy(UserService.self, forwardingTo: liveService)
+let spy: Spy<any UserService> = makeSpy(forwardingTo: liveService)
 spy.when { $0.displayName(for: equal("guest")) }
     .thenReturn("Test Guest")
 

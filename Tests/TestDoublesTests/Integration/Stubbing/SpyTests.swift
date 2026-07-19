@@ -125,7 +125,7 @@ struct RealMutableSpyService: MutableSpyService {
 @Suite struct SpyTests {
     @Test func factoryForwardsUnmatchedCallsAndRecordsThem() {
         let target = RealSpyService()
-        let spy = makeSpy(SpyService.self, forwardingTo: target)
+        let spy: Spy<any SpyService> = makeSpy(forwardingTo: target)
         let service: any SpyService = spy()
 
         #expect(service.fetch(id: 7) == "real:7")
