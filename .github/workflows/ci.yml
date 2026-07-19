@@ -161,9 +161,18 @@ jobs:
       - name: Resolve dependency checkouts
         run: swift package --scratch-path .build/linux resolve
       - name: Test debug
-        run: swift test --parallel --scratch-path .build/linux
+        run: >-
+          swift test
+          --parallel
+          --experimental-maximum-parallelization-width 4
+          --scratch-path .build/linux
       - name: Test release
-        run: swift test -c release --parallel --scratch-path .build/linux
+        run: >-
+          swift test
+          -c release
+          --parallel
+          --experimental-maximum-parallelization-width 4
+          --scratch-path .build/linux
   apple-platforms:
     name: ${{ matrix.name }}
     strategy:
@@ -331,6 +340,7 @@ jobs:
           --sanitize ${{ matrix.sanitizer }}
           ${{ matrix.runner_arguments }}
           --skip DummyInvocationExitTests
+          --skip SpyFactoryExitTests
           --skip UnstubbedBehaviorTests
           --scratch-path .build/ci-${{ matrix.sanitizer }}-sanitizer
 
