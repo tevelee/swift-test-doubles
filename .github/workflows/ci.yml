@@ -220,25 +220,14 @@ jobs:
           DESTINATION: ${{ matrix.destination }}
         run: |
           if [[ -n "$PLATFORM" ]]; then
-            runtime="$(
-              xcrun simctl list runtimes --json |
-                jq -r --arg platform "$PLATFORM" '
-                  [.runtimes[] | select(.isAvailable and (.name | startswith($platform + " ")))]
-                  | min_by(.version | split(".") | map(tonumber))
-                  | .identifier // empty
-                '
-            )"
-            test -n "$runtime"
             udid="$(
-              xcrun simctl list devices available --json |
-                jq -r --arg runtime "$runtime" '
-                  .devices[$runtime] | sort_by(.name) | first | .udid // empty
-                '
+              xcrun simctl list devices available "$PLATFORM" |
+                grep -oiE '[0-9A-Fa-f-]{36}' |
+                tail -1
             )"
             test -n "$udid"
-            echo "Selected $runtime device $udid"
-            xcrun simctl boot "$udid" &
-            echo "value=platform=$PLATFORM Simulator,id=$udid,arch=arm64" >> "$GITHUB_OUTPUT"
+            xcrun simctl boot "$udid" 2>/dev/null &
+            echo "value=id=$udid,arch=arm64" >> "$GITHUB_OUTPUT"
             echo "parallelism=NO" >> "$GITHUB_OUTPUT"
           else
             echo "value=$DESTINATION" >> "$GITHUB_OUTPUT"
