@@ -99,13 +99,19 @@ jobs:
             hashFiles('Package.resolved') }}
           restore-keys: |
             swiftpm-codeql-v1-${{ runner.os }}-${{ runner.arch }}-
+      - name: Resolve dependencies
+        run: swift package resolve
       - name: Initialize CodeQL
         uses: github/codeql-action/init@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
         with:
           languages: swift
           build-mode: manual
+      # Build only the targets whose sources are analyzed
       - name: Build
-        run: swift build
+        run: |
+          swift build --target TestDoubles
+          swift build --target TestDoublesFixtures
+          swift build --target TestDoublesResilientFixtures
       - name: Analyze
         uses: github/codeql-action/analyze@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
         with:
