@@ -20,6 +20,34 @@ struct StubProtocolMetadata {
     let associatedTypeBindings: [AssociatedTypeBinding]
 }
 
+/// Whether an accepted extended existential shape is copied through the
+/// value witnesses the Swift runtime instantiates on demand, instead of one
+/// of the fixed tables it pre-builds for small witness-table counts.
+///
+/// The runtime pre-builds opaque-existential tables for zero and one witness
+/// tables and class-existential tables for up to two.
+func extendedExistentialUsesRuntimeInstantiatedValueWitnesses(
+    isClassConstrained: Bool,
+    numberOfWitnessTables: Int
+) -> Bool {
+    numberOfWitnessTables >= (isClassConstrained ? 3 : 2)
+}
+
+/// Whether this process's Swift runtime copies extended existential
+/// containers correctly through its runtime-instantiated value witnesses.
+///
+/// Runtimes that shipped before the 26.4 OS releases read the witness-table
+/// count of an extended existential through the ordinary-existential flags
+/// word, which actually stores half of the shape pointer, so every container
+/// copy overruns the destination by whatever count those pointer bits encode
+/// (swiftlang/swift#85346, rdar://163980446).
+let runtimeCopiesExtendedExistentialContainersCorrectly: Bool = {
+    if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
+        return true
+    }
+    return false
+}()
+
 func inspectStubProtocolMetadata(
     _ type: Any.Type,
     typeDescription: String
@@ -165,6 +193,18 @@ private func inspectExtendedExistential(
         throw StubError.unsupportedProtocolShape(
             protocolName: typeDescription,
             reason: "Bound associated-type support requires one same-type binding per metadata argument and one witness-table requirement per distinct root protocol."
+        )
+    }
+    if extendedExistentialUsesRuntimeInstantiatedValueWitnesses(
+        isClassConstrained: specialKind == 1,
+        numberOfWitnessTables: protocols.count
+    ),
+        runtimeCopiesExtendedExistentialContainersCorrectly == false
+    {
+        throw StubError.unsupportedProtocolShape(
+            protocolName: typeDescription,
+            reason: "The Swift runtime in this process miscounts witness tables while copying bound existential compositions, so materializing one would overrun memory "
+                + "(fixed in the 26.4 OS releases by swiftlang/swift#85346). Run on an OS at 26.4 or newer, or stub the unbound composition and supply `associatedTypes:` bindings instead."
         )
     }
     // TargetExtendedExistentialTypeMetadata is kind, shape, then the
