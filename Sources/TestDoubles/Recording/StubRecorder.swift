@@ -334,7 +334,25 @@ final class StubRecorder: @unchecked Sendable {
                 name: method.name,
                 args: args
             )
-            let behavior = entry.behavior.reservingSequenceResult()
+            let behavior: StubEntry.Behavior
+            switch entry.behavior {
+                case .fixedSequence(let results):
+                    switch results.next() {
+                        case .value(let result):
+                            behavior = .fixed(result)
+                        case .fatal(let message):
+                            fatalError(
+                                diagnosticMessage(
+                                    title: message.map { "Explicit stub failure: \($0)" }
+                                        ?? "Explicit stub failure",
+                                    method: method,
+                                    args: args,
+                                    entries: entries
+                                ))
+                    }
+                default:
+                    behavior = entry.behavior
+            }
             return (behavior, waiters)
         }
         resume(waiters, returning: .changed)
@@ -368,9 +386,9 @@ final class StubRecorder: @unchecked Sendable {
     func addFixedResultSequence(
         method: Int,
         matchers: [ParameterMatcher],
-        results: [StubBehaviorRegistry.FixedResult]
+        answers: [(QueuedAnswer, RepeatCount)]
     ) -> ConsumableResults {
-        let sequence = ConsumableResults(results)
+        let sequence = ConsumableResults(answers)
         addEntry(
             method: method,
             matchers: matchers,

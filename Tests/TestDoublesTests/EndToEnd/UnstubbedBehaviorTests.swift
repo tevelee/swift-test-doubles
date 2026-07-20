@@ -52,6 +52,8 @@ private struct UnexpectedTypedError: Error {}
         case nonthrowingThenThrow
         case mismatchedTypedError
         case throwingManualHandler
+        case explicitFatalError
+        case timesBelowOne
     }
 
     @Suite struct UnstubbedBehaviorExitTests {
@@ -78,6 +80,10 @@ private struct UnexpectedTypedError: Error {}
                     try await thenThrowRejectsMismatchedTypedErrorsAtConfiguration()
                 case .throwingManualHandler:
                     try await manualNonthrowingRouteHaltsWhenAHandlerThrows()
+                case .explicitFatalError:
+                    try await thenFatalErrorHaltsWithTheConfiguredMessage()
+                case .timesBelowOne:
+                    try await timesBelowOneHaltsAtConfiguration()
             }
         }
 
@@ -253,6 +259,47 @@ private struct UnexpectedTypedError: Error {}
             )
             #expect(diagnostic.contains("A nonthrowing stub handler for 'load()' threw"))
             #expect(diagnostic.contains("Forward this requirement through `stub.throwing`"))
+        }
+
+        /// An overrun on an exhausted chain is a test bug the same way an
+        /// unstubbed call is: `thenFatalError` opts a specific matcher into
+        /// halting instead of letting the preceding behavior repeat.
+        private func thenFatalErrorHaltsWithTheConfiguredMessage() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let stub = try Stub<any UnstubbedBehaviorProbe>()
+                stub.when { $0.greet(name: any()) }
+                    .thenFatalError("greet should not be called more than expected")
+                _ = stub().greet(name: "eve")
+            }
+
+            let diagnostic = try #require(
+                String(bytes: result.standardErrorContent, encoding: .utf8)
+            )
+            #expect(
+                diagnostic.contains(
+                    "Explicit stub failure: greet should not be called more than expected"
+                )
+            )
+            #expect(diagnostic.contains("greet(name:)"))
+            #expect(diagnostic.contains("arg0: \"eve\""))
+        }
+
+        private func timesBelowOneHaltsAtConfiguration() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let stub = try Stub<any UnstubbedBehaviorProbe>()
+                _ = stub.when { $0.greet(name: any()) }.thenReturn("hi", times: 0 ... 3)
+            }
+
+            let diagnostic = try #require(
+                String(bytes: result.standardErrorContent, encoding: .utf8)
+            )
+            #expect(diagnostic.contains("times: must start at 1"))
         }
     }
 #endif

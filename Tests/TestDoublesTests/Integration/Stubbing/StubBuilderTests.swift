@@ -186,6 +186,57 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
         #expect(probe.one(9) == 91)
     }
 
+    @Test func timesServesABoundedRunThenAdvances() throws {
+        let stub = try makeHandlerArityStub()
+        stub.when { $0.one(any()) }
+            .thenReturn(0, times: 1 ... 3)
+            .thenReturn(9)
+
+        let probe: any HandlerArityProbe = stub(sendability: .unchecked)
+        #expect(probe.one(0) == 0)
+        #expect(probe.one(0) == 0)
+        #expect(probe.one(0) == 0)
+        #expect(probe.one(0) == 9)
+        #expect(probe.one(0) == 9)
+    }
+
+    // Chaining after an unbounded entry (`times: 1...`, or plain `thenReturn`/
+    // `thenThrow` with no `times:`) is a compile error, not a runtime
+    // unreachable-entry footgun: the unbounded overloads return `Void`, so
+    // there is nothing to call a further `.thenX` on.
+
+    @Test func concurrentCallsReserveEachRunExactlyItsCount() async throws {
+        let stub = try makeHandlerArityStub()
+        stub.when { try $0.throwing(any()) }
+            .thenReturn(1, times: 1 ... 10)
+            .thenThrow(HandlerError(value: 2), times: 1 ... 10)
+            .thenReturn(3, times: 1...)
+        let probe: any HandlerArityProbe = stub(sendability: .unchecked)
+
+        let outcomes = await withTaskGroup(
+            of: FixedBehaviorOutcome.self,
+            returning: [FixedBehaviorOutcome].self
+        ) { group in
+            for _ in 0 ..< 100 {
+                group.addTask {
+                    do {
+                        return .value(try probe.throwing(0))
+                    } catch let error as HandlerError {
+                        return .failure(error)
+                    } catch {
+                        return .unexpectedError(String(reflecting: error))
+                    }
+                }
+            }
+            return await group.reduce(into: []) { $0.append($1) }
+        }
+
+        #expect(outcomes.filter { $0 == .value(1) }.count == 10)
+        #expect(outcomes.filter { $0 == .failure(HandlerError(value: 2)) }.count == 10)
+        #expect(outcomes.filter { $0 == .value(3) }.count == 80)
+        #expect(outcomes.contains { if case .unexpectedError = $0 { true } else { false } } == false)
+    }
+
     @Test func thenReturnAndThenShareResolutionRules() async throws {
         let stub = try makeHandlerArityStub()
         await stub.when { try await $0.asyncThrowing(equal(42)) }.then {

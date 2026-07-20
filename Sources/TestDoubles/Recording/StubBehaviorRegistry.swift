@@ -4,38 +4,65 @@ import Foundation
 struct StubBehaviorRegistry {
     typealias FixedResult = Result<Any, any Error>
 
-    /// Serves queued fixed results one per matching invocation, repeating the
-    /// final result once the earlier entries are consumed.
+    /// How many consecutive matching calls a single queued answer serves
+    /// before the sequence advances to the next one.
+    enum RepeatCount {
+        case exactly(Int)
+        case unbounded
+    }
+
+    /// A single queued answer: either a fixed value/error, or an explicit
+    /// crash for whichever call reaches it.
+    enum QueuedAnswer {
+        case value(FixedResult)
+        case fatal(message: String?)
+    }
+
+    /// Serves queued answers one per matching invocation, repeating the final
+    /// run once the earlier ones are consumed. A bounded run with nothing
+    /// after it keeps repeating too, exactly like an unbounded run — only an
+    /// explicit next run advances the cursor past it.
     final class ConsumableResults: @unchecked Sendable {
+        private struct Run {
+            let answer: QueuedAnswer
+            let repeatCount: RepeatCount
+        }
+
         private let lock = NSLock()
-        private var results: [FixedResult]
-        private var nextIndex = 0
+        private var runs: [Run]
+        private var runIndex = 0
+        private var consumedInRun = 0
 
-        init(_ results: [FixedResult]) {
-            precondition(results.isEmpty == false)
-            self.results = results
+        init(_ answers: [(QueuedAnswer, RepeatCount)]) {
+            precondition(answers.isEmpty == false)
+            self.runs = answers.map { Run(answer: $0.0, repeatCount: $0.1) }
         }
 
-        func append(_ result: FixedResult) {
+        func append(_ answer: QueuedAnswer, times repeatCount: RepeatCount) {
             lock.lock()
-            results.append(result)
+            runs.append(Run(answer: answer, repeatCount: repeatCount))
             lock.unlock()
         }
 
-        func append(contentsOf additionalResults: [FixedResult]) {
+        func append(contentsOf answers: [QueuedAnswer]) {
             lock.lock()
-            results.append(contentsOf: additionalResults)
+            runs.append(contentsOf: answers.map { Run(answer: $0, repeatCount: .exactly(1)) })
             lock.unlock()
         }
 
-        func next() -> FixedResult {
+        func next() -> QueuedAnswer {
             lock.lock()
             defer { lock.unlock() }
-            let result = results[nextIndex]
-            if nextIndex < results.index(before: results.endIndex) {
-                nextIndex += 1
+            let run = runs[runIndex]
+            consumedInRun += 1
+            if case .exactly(let count) = run.repeatCount,
+                consumedInRun >= count,
+                runIndex < runs.index(before: runs.endIndex)
+            {
+                runIndex += 1
+                consumedInRun = 0
             }
-            return result
+            return run.answer
         }
     }
 
@@ -47,17 +74,6 @@ struct StubBehaviorRegistry {
             // This function type remains non-Sendable so Swift preserves the
             // actor/executor on which the user formed an async handler.
             case suspending(([Any]) async throws -> Any)
-
-            /// Reserves the next queued result while the recorder is committing
-            /// the invocation. Other behaviors are immutable selections.
-            func reservingSequenceResult() -> Self {
-                switch self {
-                    case .fixedSequence(let results):
-                        .fixed(results.next())
-                    default:
-                        self
-                }
-            }
         }
 
         let matchers: [ParameterMatcher]
@@ -117,4 +133,6 @@ struct StubBehaviorRegistry {
 extension StubRecorder {
     typealias ConsumableResults = StubBehaviorRegistry.ConsumableResults
     typealias StubEntry = StubBehaviorRegistry.Entry
+    typealias QueuedAnswer = StubBehaviorRegistry.QueuedAnswer
+    typealias RepeatCount = StubBehaviorRegistry.RepeatCount
 }
