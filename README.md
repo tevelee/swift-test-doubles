@@ -105,7 +105,10 @@ let sut: any FeatureFlags = flags()
 predicate, `equal(_:)` matches a value, and `then` computes the answer from
 the actual arguments. Registration order does not matter for precedence: an
 `equal` match outranks a predicate, and a predicate outranks a wildcard or
-capture. When two registrations are equally specific, the first one wins.
+capture. When two registrations are equally specific, the most recent one
+wins, so re-registering a matcher overrides the earlier behavior. All
+predicates rank equally; when you mean equality, use `equal(_:)` so ordering
+never matters.
 
 ### Simulate failure and recovery
 
@@ -214,7 +217,8 @@ let translator: any Translator = spy()
 spy.verify(.exactly(2)) { $0.translate(any()) }
 ```
 
-A matching `when` registration wins. Every other supported call forwards to
+A matching `when` registration wins, resolved by the same precedence rules as
+`Stub`. Every other supported call forwards to
 the target and is recorded, so verification covers overridden and forwarded
 calls alike. The target's conformance also supplies the signature metadata,
 so a spy needs no other discovery source.

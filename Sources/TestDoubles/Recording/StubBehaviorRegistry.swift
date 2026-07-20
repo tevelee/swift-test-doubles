@@ -97,8 +97,9 @@ struct StubBehaviorRegistry {
             ))
     }
 
-    /// Returns the first registered entry among those with the highest matcher
-    /// specificity.
+    /// Returns the most recently registered entry among those with the highest
+    /// matcher specificity, so re-registering equally specific matchers
+    /// overrides earlier behavior.
     static func bestMatchingEntry(
         for args: [Any],
         in entries: [Entry]
@@ -107,7 +108,7 @@ struct StubBehaviorRegistry {
         var bestSpecificity = -1
         for entry in entries
         where entry.matchers.isEmpty || argumentsMatch(args, against: entry.matchers) {
-            if entry.specificity > bestSpecificity {
+            if entry.specificity >= bestSpecificity {
                 bestSpecificity = entry.specificity
                 bestEntry = entry
             }

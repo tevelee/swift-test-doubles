@@ -155,8 +155,9 @@ tables.
 
 When multiple registrations match, explicit equality outranks a literal, a
 literal outranks a predicate, and a predicate outranks `any()` or capture. The
-first registration wins a tie. Literal matching is best-effort textual
-matching; prefer `equal(_:)` for meaningful equality.
+most recent registration wins a tie, so re-registering an equally specific
+matcher overrides the earlier behavior. Literal matching is best-effort
+textual matching; prefer `equal(_:)` for meaningful equality.
 
 ### Verification
 

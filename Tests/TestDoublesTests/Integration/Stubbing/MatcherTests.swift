@@ -56,6 +56,36 @@ protocol MatcherPlaceholderService {
         #expect(stub().search(query: "public.users", limit: 10).isEmpty)
     }
 
+    @Test func specificityOutranksRegistrationOrder() throws {
+        let stub = try Stub<any MatcherService>()
+        stub.when { $0.find(id: equal(42)) }.thenReturn("exact")
+        stub.when { $0.find(id: any()) }.thenReturn("fallback")
+
+        #expect(stub().find(id: 42) == "exact")
+        #expect(stub().find(id: 1) == "fallback")
+    }
+
+    @Test func mostRecentRegistrationWinsSpecificityTie() throws {
+        let stub = try Stub<any MatcherService>()
+        stub.when { $0.find(id: any()) }.thenReturn("guest")
+        stub.when { $0.find(id: any()) }.thenReturn("admin")
+
+        #expect(stub().find(id: 1) == "admin")
+    }
+
+    @Test func overlappingPredicatesResolveToMostRecentRegistration() throws {
+        let stub = try Stub<any MatcherService>()
+        stub.when {
+            $0.find(id: matching(description: "even", where: { $0 % 2 == 0 }))
+        }.thenReturn("even")
+        stub.when {
+            $0.find(id: matching(description: "six", where: { $0 == 6 }))
+        }.thenReturn("six")
+
+        #expect(stub().find(id: 6) == "six")
+        #expect(stub().find(id: 4) == "even")
+    }
+
     @Test func captorCollectsValuesDuringVerification() throws {
         let stub = try Stub<any MatcherService>()
         stub.when { $0.find(id: any()) }.thenReturn("X")
