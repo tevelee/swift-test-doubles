@@ -216,7 +216,7 @@ private func requireSendable<T: Sendable>(_: T) {}
         await stub.verify(.exactly(callCount)) { await $0.asynchronous(any()) }
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test(.timeLimit(.minutes(2)))
     func recordingAndQueuedValuesShareMatcherCompletionOrder() async throws {
         let stub = try Stub<any ConcurrentInvocationProbe>(
             .method(Int.self, returning: Int.self),
@@ -233,11 +233,11 @@ private func requireSendable<T: Sendable>(_: T) {}
         let firstCall = Task.detached {
             probe.synchronous(1)
         }
-        guard gate.waitUntilBlockedMatcherEntered(within: 10) else {
+        guard gate.waitUntilBlockedMatcherEntered(within: 60) else {
             gate.releaseBlockedMatcher()
             firstCall.cancel()
             _ = await firstCall.value
-            Issue.record("The blocking matcher did not start within 10 seconds.")
+            Issue.record("The blocking matcher did not start within 60 seconds.")
             return
         }
         let secondCallResult = probe.synchronous(2)

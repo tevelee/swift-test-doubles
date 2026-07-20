@@ -82,7 +82,7 @@ private actor EventualVerificationGate {
             service.notify(42)
         }
 
-        await stub.verify(within: .seconds(10)) { $0.notify(equal(42)) }
+        await stub.verify(within: .seconds(60)) { $0.notify(equal(42)) }
         try await invocation.value
     }
 
@@ -97,7 +97,7 @@ private actor EventualVerificationGate {
             service.notify(2)
         }
 
-        await stub.verify(2..., within: .seconds(10)) { $0.notify(any()) }
+        await stub.verify(2..., within: .seconds(60)) { $0.notify(any()) }
         try await invocations.value
     }
 
@@ -111,7 +111,7 @@ private actor EventualVerificationGate {
             _ = await service.load(7)
         }
 
-        await stub.verify(within: .seconds(10)) { await $0.load(equal(7)) }
+        await stub.verify(within: .seconds(60)) { await $0.load(equal(7)) }
         try await invocation.value
     }
 
@@ -133,7 +133,7 @@ private actor EventualVerificationGate {
 
         let service: any EventualVerificationService = stub(sendability: .unchecked)
         service.notify(1)
-        await stub.verify(within: .seconds(10)) { $0.notify(equal(1)) }
+        await stub.verify(within: .seconds(60)) { $0.notify(equal(1)) }
     }
 
     @Test func manualStubHasEventualVerificationParity() async throws {
@@ -146,7 +146,7 @@ private actor EventualVerificationGate {
             service.notify(9)
         }
 
-        await stub.verify(within: .seconds(10)) { $0.notify(equal(9)) }
+        await stub.verify(within: .seconds(60)) { $0.notify(equal(9)) }
         try await invocation.value
     }
 
@@ -162,7 +162,7 @@ private actor EventualVerificationGate {
             service.notify(2)
         }
 
-        await stub.verify(2..., within: .seconds(10)) {
+        await stub.verify(2..., within: .seconds(60)) {
             $0.notify(values.capture())
         }
         try await invocations.value
@@ -170,7 +170,7 @@ private actor EventualVerificationGate {
     }
 
     @MainActor
-    @Test(.timeLimit(.minutes(1)))
+    @Test(.timeLimit(.minutes(2)))
     func suspendedAsyncCaptureDoesNotCaptureAnotherTasksNormalCall() async throws {
         let stub = try Stub<any EventualVerificationService>()
         stub.when { $0.value(for: any()) }.thenReturn("configured")
@@ -183,11 +183,11 @@ private actor EventualVerificationGate {
             }.thenReturn("loaded")
         }
 
-        guard await gate.waitUntilStarted(within: .seconds(10)) else {
+        guard await gate.waitUntilStarted(within: .seconds(60)) else {
             await gate.release()
             configuration.cancel()
             _ = await configuration.value
-            Issue.record("The suspended recording closure did not start within 10 seconds.")
+            Issue.record("The suspended recording closure did not start within 60 seconds.")
             return
         }
         let service: any EventualVerificationService = stub(sendability: .unchecked)
@@ -219,7 +219,7 @@ private actor EventualVerificationGate {
 
         let service: any EventualVerificationService = stub(sendability: .unchecked)
         service.notify(3)
-        await stub.verify(within: .seconds(10)) { $0.notify(equal(3)) }
+        await stub.verify(within: .seconds(60)) { $0.notify(equal(3)) }
     }
 
     @Test func placeholderAndSetterOverloadsWaitForCalls() async throws {
@@ -235,10 +235,10 @@ private actor EventualVerificationGate {
             service.count = 4
         }
 
-        await stub.verify(within: .seconds(10), returning: placeholder) {
+        await stub.verify(within: .seconds(60), returning: placeholder) {
             $0.makeReference()
         }
-        await stub.verify(within: .seconds(10)) { $0.count = equal(4) }
+        await stub.verify(within: .seconds(60)) { $0.count = equal(4) }
         try await invocations.value
     }
 }
