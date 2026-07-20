@@ -36,7 +36,7 @@ jobs:
           languages: actions
           build-mode: none
       - name: Analyze
-        uses: github/codeql-action/analyze@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4
         with:
           category: /language:actions
 
@@ -113,7 +113,7 @@ jobs:
           swift build --target TestDoublesFixtures
           swift build --target TestDoublesResilientFixtures
       - name: Analyze
-        uses: github/codeql-action/analyze@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4
         with:
           category: /language:swift
 
@@ -150,7 +150,7 @@ jobs:
               -o "$output/${object//./_}.o"
           done
       - name: Analyze
-        uses: github/codeql-action/analyze@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4
         with:
           category: /language:c-cpp
 
