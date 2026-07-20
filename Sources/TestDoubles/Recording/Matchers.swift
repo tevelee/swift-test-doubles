@@ -69,6 +69,20 @@ enum MatcherContext {
         activeRecording?.append(matcher)
     }
 
+    /// Runs `body` against a fresh sub-recording and returns the matchers it
+    /// appended without leaking them into the enclosing invocation's list.
+    ///
+    /// Combinators such as ``not(_:)`` and ``allOf(_:_:)`` use this to fold the
+    /// matchers their nested expressions record into one composite matcher, so
+    /// a composed argument stays a single positional matcher.
+    static func captureNested<Result>(
+        _ body: () -> Result
+    ) -> (result: Result, matchers: [ParameterMatcher]) {
+        let recording = MatcherRecording()
+        let result = $activeRecording.withValue(recording) { body() }
+        return (result, recording.takeMatchers())
+    }
+
     /// Removes and returns the matchers formed since the previous captured
     /// invocation. Argument evaluation completes before trampoline dispatch, so
     /// all pending matchers belong to the invocation entering the recorder.
@@ -195,7 +209,7 @@ extension ArgumentCaptor: @unchecked Sendable where T: Sendable {}
 /// Synthesizes the recording placeholder a matcher returns at its call site,
 /// or traps pointing at the `using:` overload that accepts a caller-supplied
 /// value.
-private func synthesizedPlaceholder<T>(for api: String, fallback: String) -> T {
+func synthesizedPlaceholder<T>(for api: String, fallback: String) -> T {
     guard let placeholder = PlaceholderValue.make(T.self) else {
         fatalError(
             "[TestDoubles] \(api) cannot safely synthesize a placeholder for \(T.self). "

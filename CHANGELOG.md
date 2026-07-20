@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Rich argument matchers that compose on the existing matching engine:
+  logical combinators `not`, `allOf`, `anyOf`, and `oneOf`; the equality and
+  identity matchers `notEqual` and `identical(to:)`; the comparison matchers
+  `greaterThan`, `atLeast`, `lessThan`, `atMost`, and `inRange`; the optional
+  matchers `isNil`, `notNil`, and `some`; the collection matchers `isEmpty`,
+  `nonEmpty`, `hasCount` (by value or nested matcher), `contains`,
+  `contains(where:)`, `containsAll`, `startsWith`, and `endsWith`; and the
+  string matchers `hasPrefix`, `hasSuffix`, `containsSubstring`,
+  `equalsIgnoringCase`, and `matchesRegex`. Combinators fold nested matchers
+  into a single positional matcher, so `allOf(captor.capture(),
+  greaterThan(0))` captures only the arguments that satisfy the whole
+  expression, and composed matchers keep legible diagnostic descriptions.
 - WatchOS simulator support
 - Explicit `thenDoNothing()` behavior for `Void`-returning stub requirements;
   `when` now requires a terminal behavior, so ignoring its builder produces a

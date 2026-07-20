@@ -68,9 +68,34 @@ symbol	swift.enum.case	StubFailableInitializerBuilder.Outcome.returnNil	case ret
 symbol	swift.enum.case	StubOptionalSelfResultBuilder.Outcome.returnNil	case returnNil
 symbol	swift.enum.case	StubOptionalSelfResultBuilder.Outcome.returnValue	case returnValue
 symbol	swift.enum.case	StubSendability.unchecked	case unchecked
+symbol	swift.func	allOf(_:_:)	func allOf<T>(_ first: @autoclosure () -> T, _ second: @autoclosure () -> T) -> T
+symbol	swift.func	allOf(_:_:_:)	func allOf<T>(_ first: @autoclosure () -> T, _ second: @autoclosure () -> T, _ third: @autoclosure () -> T) -> T
+symbol	swift.func	allOf(_:_:_:_:)	func allOf<T>(_ first: @autoclosure () -> T, _ second: @autoclosure () -> T, _ third: @autoclosure () -> T, _ fourth: @autoclosure () -> T) -> T
 symbol	swift.func	any()	func any<T>() -> T
 symbol	swift.func	any(using:)	func any<T>(using placeholder: T) -> T
+symbol	swift.func	anyOf(_:_:)	func anyOf<T>(_ first: @autoclosure () -> T, _ second: @autoclosure () -> T) -> T
+symbol	swift.func	anyOf(_:_:_:)	func anyOf<T>(_ first: @autoclosure () -> T, _ second: @autoclosure () -> T, _ third: @autoclosure () -> T) -> T
+symbol	swift.func	anyOf(_:_:_:_:)	func anyOf<T>(_ first: @autoclosure () -> T, _ second: @autoclosure () -> T, _ third: @autoclosure () -> T, _ fourth: @autoclosure () -> T) -> T
+symbol	swift.func	atLeast(_:)	func atLeast<T>(_ value: T) -> T where T : Comparable
+symbol	swift.func	atMost(_:)	func atMost<T>(_ value: T) -> T where T : Comparable
+symbol	swift.func	contains(_:)	func contains<C>(_ element: C.Element) -> C where C : Collection, C.Element : Equatable, C.Element : Sendable
+symbol	swift.func	contains(where:)	func contains<C>(where predicate: @escaping @Sendable (C.Element) -> Bool) -> C where C : Collection
+symbol	swift.func	containsAll(_:)	func containsAll<C>(_ elements: C.Element...) -> C where C : Collection, C.Element : Equatable, C.Element : Sendable
+symbol	swift.func	containsSubstring(_:)	func containsSubstring(_ substring: String) -> String
+symbol	swift.func	endsWith(_:)	func endsWith<C>(_ suffix: C.Element...) -> C where C : Collection, C.Element : Equatable, C.Element : Sendable
 symbol	swift.func	equal(_:)	func equal<T>(_ value: T) -> T where T : Equatable
+symbol	swift.func	equalsIgnoringCase(_:)	func equalsIgnoringCase(_ value: String) -> String
+symbol	swift.func	greaterThan(_:)	func greaterThan<T>(_ value: T) -> T where T : Comparable
+symbol	swift.func	hasCount(_:)	func hasCount<C>(_ count: Int) -> C where C : Collection
+symbol	swift.func	hasCount(matching:)	func hasCount<C>(matching matcher: @autoclosure () -> Int) -> C where C : Collection
+symbol	swift.func	hasPrefix(_:)	func hasPrefix(_ prefix: String) -> String
+symbol	swift.func	hasSuffix(_:)	func hasSuffix(_ suffix: String) -> String
+symbol	swift.func	identical(to:)	func identical<T>(to object: T) -> T where T : AnyObject
+symbol	swift.func	inRange(_:)	func inRange<Bound>(_ range: ClosedRange<Bound>) -> Bound where Bound : Comparable, Bound : Sendable
+symbol	swift.func	inRange(_:)	func inRange<Bound>(_ range: Range<Bound>) -> Bound where Bound : Comparable, Bound : Sendable
+symbol	swift.func	isEmpty()	func isEmpty<C>() -> C where C : Collection
+symbol	swift.func	isNil()	func isNil<Wrapped>() -> Wrapped?
+symbol	swift.func	lessThan(_:)	func lessThan<T>(_ value: T) -> T where T : Comparable
 symbol	swift.func	makeDummy(_:)	func makeDummy<P>(_ protocolType: P.Type = P.self) -> P
 symbol	swift.func	makeSpy(_:forwardingTo:)	func makeSpy<P>(_ protocolType: P.Type = P.self, forwardingTo target: P) -> Spy<P>
 symbol	swift.func	makeSpy(_:forwardingTo:getterEffects:_:)	func makeSpy<P>(_ protocolType: P.Type = P.self, forwardingTo target: P, getterEffects firstEffect: Stub<P>.GetterEffect, _ additionalEffects: Stub<P>.GetterEffect...) -> Spy<P>
@@ -81,8 +106,16 @@ symbol	swift.func	makeStub(_:isolation:)	func makeStub<P>(_ configure: (Stub<P>)
 symbol	swift.func	makeStub(_:isolation:)	func makeStub<P>(_ configure: (Stub<P>) async -> Void, isolation: isolated (any Actor)? = #isolation) async -> P where P : Sendable
 symbol	swift.func	makeStub(sendability:_:)	func makeStub<P>(sendability: StubSendability, _ configure: (Stub<P>) -> Void) -> P where P : Sendable
 symbol	swift.func	makeStub(sendability:_:isolation:)	func makeStub<P>(sendability: StubSendability, _ configure: (Stub<P>) async -> Void, isolation: isolated (any Actor)? = #isolation) async -> P where P : Sendable
+symbol	swift.func	matchesRegex(_:)	func matchesRegex(_ pattern: String) -> String
 symbol	swift.func	matching(description:where:)	func matching<T>(description: String = "predicate", where predicate: @escaping @Sendable (T) -> Bool) -> T
 symbol	swift.func	matching(using:description:where:)	func matching<T>(using placeholder: T, description: String = "predicate", where predicate: @escaping @Sendable (T) -> Bool) -> T
+symbol	swift.func	nonEmpty()	func nonEmpty<C>() -> C where C : Collection
+symbol	swift.func	not(_:)	func not<T>(_ matcher: @autoclosure () -> T) -> T
+symbol	swift.func	notEqual(_:)	func notEqual<T>(_ value: T) -> T where T : Equatable
+symbol	swift.func	notNil()	func notNil<Wrapped>() -> Wrapped?
+symbol	swift.func	oneOf(_:)	func oneOf<T>(_ values: T...) -> T where T : Equatable
+symbol	swift.func	some(_:)	func some<Wrapped>(_ matcher: @autoclosure () -> Wrapped) -> Wrapped?
+symbol	swift.func	startsWith(_:)	func startsWith<C>(_ prefix: C.Element...) -> C where C : Collection, C.Element : Equatable, C.Element : Sendable
 symbol	swift.init	ArgumentCaptor.init()	init()
 symbol	swift.init	Dummy.init()	convenience init() throws(StubError)
 symbol	swift.init	ManualRouteID.init(_:argumentTypes:)	init(_ signature: String = #function, argumentTypes: Any.Type...)

@@ -102,9 +102,52 @@ isolation. See
 - ``any()``
 - ``any(using:)``
 - ``equal(_:)``
+- ``notEqual(_:)``
+- ``identical(to:)``
 - ``matching(description:where:)``
 - ``matching(using:description:where:)``
 - ``ArgumentCaptor``
+
+### Value and Optional Matchers
+
+- ``greaterThan(_:)``
+- ``atLeast(_:)``
+- ``lessThan(_:)``
+- ``atMost(_:)``
+- ``isNil()``
+- ``notNil()``
+- ``some(_:)``
+
+### Collection Matchers
+
+- ``isEmpty()``
+- ``nonEmpty()``
+- ``hasCount(_:)``
+- ``hasCount(matching:)``
+- ``contains(_:)``
+- ``contains(where:)``
+- ``containsAll(_:)``
+- ``startsWith(_:)``
+- ``endsWith(_:)``
+
+### String Matchers
+
+- ``hasPrefix(_:)``
+- ``hasSuffix(_:)``
+- ``containsSubstring(_:)``
+- ``equalsIgnoringCase(_:)``
+- ``matchesRegex(_:)``
+
+### Composing Matchers
+
+- ``not(_:)``
+- ``allOf(_:_:)``
+- ``allOf(_:_:_:)``
+- ``allOf(_:_:_:_:)``
+- ``anyOf(_:_:)``
+- ``anyOf(_:_:_:)``
+- ``anyOf(_:_:_:_:)``
+- ``oneOf(_:)``
 
 ### Diagnostics and Runtime Internals
 

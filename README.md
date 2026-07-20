@@ -108,6 +108,19 @@ wins, like the cases of a `switch`: register specific matchers first and
 broad fallbacks last, because a catch-all registered first swallows
 everything after it.
 
+There is a richer vocabulary for common cases. `notEqual(_:)` and
+`identical(to:)` refine equality; `greaterThan`, `atLeast`, `lessThan`,
+`atMost`, and `inRange(_:)` match `Comparable` arguments; `isNil()`,
+`notNil()`, and `some(matcher)` match optionals; `isEmpty()`, `nonEmpty()`,
+`hasCount`, `contains`, `containsAll`, `startsWith`, and `endsWith` match
+collections; `hasPrefix`, `hasSuffix`, `containsSubstring`,
+`equalsIgnoringCase`, and `matchesRegex` match strings; and `not`, `allOf`,
+`anyOf`, and `oneOf` compose matchers with boolean logic. Composition stays
+positional, so `allOf(events.capture(), hasPrefix("purchase"))` captures only
+the arguments that satisfy the whole expression. Use matcher functions for
+every argument of a registration or none — a call cannot mix bare literals and
+matchers.
+
 ### Simulate failure and recovery
 
 Chain behaviors for consecutive calls to simulate conditions you could never
