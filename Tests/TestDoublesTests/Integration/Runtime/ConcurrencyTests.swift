@@ -230,7 +230,7 @@ private func requireSendable<T: Sendable>(_: T) {}
         }.thenReturn(10, 20)
         let probe: any ConcurrentInvocationProbe = stub()
 
-        let firstCall = Task.detached {
+        let firstCall = Task.detached(priority: Task.currentPriority) {
             probe.synchronous(1)
         }
         guard gate.waitUntilBlockedMatcherEntered(within: 60) else {
