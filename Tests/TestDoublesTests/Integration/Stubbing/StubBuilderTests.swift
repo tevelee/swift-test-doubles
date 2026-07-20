@@ -200,6 +200,16 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
         #expect(probe.one(0) == 9)
     }
 
+    @Test func timesBoundedReturnCanBeTerminal() throws {
+        let stub = try makeHandlerArityStub()
+        stub.when { $0.one(any()) }.thenReturn(3, times: 1 ... 2)
+
+        let probe: any HandlerArityProbe = stub(sendability: .unchecked)
+        #expect(probe.one(0) == 3)
+        #expect(probe.one(0) == 3)
+        #expect(probe.one(0) == 3)
+    }
+
     // Chaining after an unbounded entry (`times: 1...`, or plain `thenReturn`/
     // `thenThrow` with no `times:`) is a compile error, not a runtime
     // unreachable-entry footgun: the unbounded overloads return `Void`, so

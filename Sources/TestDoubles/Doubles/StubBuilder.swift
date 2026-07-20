@@ -26,6 +26,7 @@ public struct StubBuilder<Result> {
     /// keep chaining, or use the unbounded overload (`thenReturn(_:times:)`
     /// with a `PartialRangeFrom`, or the plain `thenReturn(_:)` with no
     /// `times:` at all) if you actually mean "forever."
+    @discardableResult
     public func thenReturn(_ value: Result, times: ClosedRange<Int>) -> StubBehaviorChain<Result> {
         requireOrdinaryResult()
         recorder.requireReturnValueMatchesRuntimeType(
@@ -99,6 +100,7 @@ public struct StubBuilder<Result> {
     /// unbounded overload (`thenThrow(_:times:)` with a `PartialRangeFrom`,
     /// or the plain `thenThrow(_:)` with no `times:` at all) if you actually
     /// mean "forever."
+    @discardableResult
     public func thenThrow<Failure: Error>(
         _ error: Failure,
         times: ClosedRange<Int>
@@ -301,6 +303,7 @@ extension StubBuilder where Result == Void {
     /// Completes `times` consecutive matching invocations without performing
     /// additional work, and requires the returned chain to be continued or
     /// explicitly discarded.
+    @discardableResult
     public func thenDoNothing(times: ClosedRange<Int>) -> StubBehaviorChain<Void> {
         thenReturn((), times: times)
     }
@@ -361,6 +364,7 @@ public struct StubBehaviorChain<Result> {
     /// (`thenReturn(_:times:)` with a `PartialRangeFrom`, or the plain
     /// `thenReturn(_:)` with no `times:` at all) if you actually mean
     /// "forever."
+    @discardableResult
     public func thenReturn(_ value: Result, times: ClosedRange<Int>) -> Self {
         recorder.requireReturnValueMatchesRuntimeType(
             value,
@@ -425,6 +429,7 @@ public struct StubBehaviorChain<Result> {
     /// (`thenThrow(_:times:)` with a `PartialRangeFrom`, or the plain
     /// `thenThrow(_:)` with no `times:` at all) if you actually mean
     /// "forever."
+    @discardableResult
     public func thenThrow<Failure: Error>(_ error: Failure, times: ClosedRange<Int>) -> Self {
         let method = requireRuntimeMethod()
         requireValidThrownError(error, for: method)
@@ -466,6 +471,7 @@ extension StubBehaviorChain where Result == Void {
 
     /// Appends a no-op behavior for `times` consecutive matching invocations,
     /// and requires the chain to be continued or explicitly discarded.
+    @discardableResult
     public func thenDoNothing(times: ClosedRange<Int>) -> Self {
         thenReturn((), times: times)
     }
