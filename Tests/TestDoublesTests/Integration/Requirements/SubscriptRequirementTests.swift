@@ -233,11 +233,11 @@ private func useLinkedAssociatedReadWriteSubscript(
             ])
     }
 
-    @Test func matcherSpecificityAppliesToSubscriptIndices() throws {
+    @Test func matcherOrderAppliesToSubscriptIndices() throws {
         #expect(useLinkedGetOnlySubscript(LinkedAutomaticGetOnlySubscriptProbe()) == "1")
         let stub = try Stub<any AutomaticGetOnlySubscriptProbe>()
-        stub.when { $0[any()] }.thenReturn("fallback")
         stub.when { $0[equal(7)] }.thenReturn("specific")
+        stub.when { $0[any()] }.thenReturn("fallback")
 
         let probe: any AutomaticGetOnlySubscriptProbe = stub()
         #expect(probe[7] == "specific")

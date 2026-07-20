@@ -85,13 +85,13 @@ struct StubBehaviorRegistry {
             ))
     }
 
-    /// Returns the most recently registered matching entry, so a later
-    /// registration always overrides earlier ones it overlaps with.
-    static func latestMatchingEntry(
+    /// Returns the first registered matching entry, like the first matching
+    /// case of a `switch`: register specific matchers before broad fallbacks.
+    static func firstMatchingEntry(
         for args: [Any],
         in entries: [Entry]
     ) -> Entry? {
-        entries.last { entry in
+        entries.first { entry in
             entry.matchers.isEmpty || argumentsMatch(args, against: entry.matchers)
         }
     }

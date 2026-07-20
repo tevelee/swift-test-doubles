@@ -22,11 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- When multiple `when` registrations match a call, the most recent
-  registration now wins. Matcher specificity no longer ranks registrations, so
-  registration order is the entire contract: register broad fallbacks first
-  and specific behavior after them, since a later registration overrides any
-  earlier one it overlaps with.
+- When multiple `when` registrations match a call, the first matching
+  registration now wins and matcher specificity no longer ranks
+  registrations. Registration order is the entire contract, like the cases of
+  a `switch`: register specific matchers first and broad fallbacks last,
+  since an earlier registration shadows any later one it overlaps with.
 - Recoverable `Stub`, `Dummy`, and `Spy` constructors now declare
   `throws(StubError)`; the corresponding `makeStub`, `makeDummy`, and `makeSpy`
   factories remain fail-fast conveniences.

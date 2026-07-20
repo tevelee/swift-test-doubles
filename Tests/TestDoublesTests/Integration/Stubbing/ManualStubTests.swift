@@ -40,8 +40,8 @@ private struct SaveError: Error, Equatable {}
 @Suite struct ManualStubTests {
     @Test func baseRouteSyncMethodsMatchAndReturn() {
         let stub = ManualStub<ManualServiceStub>()
-        stub.when { $0.fetch(id: any()) }.thenReturn("guest")
         stub.when { $0.fetch(id: equal(42)) }.thenReturn("Alice")
+        stub.when { $0.fetch(id: any()) }.thenReturn("guest")
         stub.when { $0.add(any(), any()) }.then { (a: Int, b: Int) in a + b }
 
         let service: any ManualService = stub()

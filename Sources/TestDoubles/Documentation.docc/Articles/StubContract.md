@@ -153,10 +153,11 @@ returns ``StubFailableInitializerBuilder/Outcome/initialize`` or
 uses a new private payload that shares the recorder and fabricated witness
 tables.
 
-When multiple registrations match, the most recent registration wins, so a
-later registration overrides any earlier one it overlaps with. Register broad
-fallbacks before specific behavior. Literal matching is best-effort textual
-matching; prefer `equal(_:)` for meaningful equality.
+When multiple registrations match, the first registration wins, like the
+first matching case of a `switch`. Register specific matchers before broad
+fallbacks; an earlier registration shadows any later one it overlaps with.
+Literal matching is best-effort textual matching; prefer `equal(_:)` for
+meaningful equality.
 
 ### Verification
 

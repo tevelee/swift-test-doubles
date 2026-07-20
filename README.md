@@ -25,10 +25,10 @@ enum AuthError: Error { case invalidCredentials }
 ```swift
 let auth = try Stub<any AuthService>()
 
-await auth.when { try await $0.signIn(user: any(), password: any()) }
-    .thenThrow(AuthError.invalidCredentials)
 await auth.when { try await $0.signIn(user: equal("blob"), password: equal("sekret")) }
     .thenReturn("session-42")
+await auth.when { try await $0.signIn(user: any(), password: any()) }
+    .thenThrow(AuthError.invalidCredentials)
 
 // A real `any AuthService`, ready to hand to the code under test.
 let service: any AuthService = auth()
@@ -90,10 +90,10 @@ protocol FeatureFlags {
 ```swift
 let flags = try Stub<any FeatureFlags>()
 
-flags.when { $0.isEnabled(any(), for: any()) }.thenReturn(false)
+flags.when { $0.isEnabled(equal("new_checkout"), for: equal(7)) }.thenReturn(true)
 flags.when { $0.isEnabled(equal("new_checkout"), for: any()) }
     .then { (_: String, userID: Int) in userID.isMultiple(of: 2) }
-flags.when { $0.isEnabled(equal("new_checkout"), for: equal(7)) }.thenReturn(true)
+flags.when { $0.isEnabled(any(), for: any()) }.thenReturn(false)
 
 let sut: any FeatureFlags = flags()
 #expect(sut.isEnabled("dark_mode", for: 1) == false)   // fallback
@@ -103,10 +103,10 @@ let sut: any FeatureFlags = flags()
 
 `any()` matches everything, `matching(description:where:)` matches a
 predicate, `equal(_:)` matches a value, and `then` computes the answer from
-the actual arguments. When several registrations match a call, the most
-recent one wins. Register broad fallbacks first and specific behavior after
-them; a later registration overrides any earlier one it overlaps with, so a
-catch-all registered last swallows everything before it.
+the actual arguments. When several registrations match a call, the first one
+wins, like the cases of a `switch`: register specific matchers first and
+broad fallbacks last, because a catch-all registered first swallows
+everything after it.
 
 ### Simulate failure and recovery
 
@@ -215,10 +215,9 @@ let translator: any Translator = spy()
 spy.verify(.exactly(2)) { $0.translate(any()) }
 ```
 
-A matching `when` registration wins, and the most recent matching one is
-used, just as with `Stub`. Every other supported call forwards to the target
-and is recorded, so verification covers overridden and forwarded calls
-alike. The target's conformance also supplies the signature metadata,
+A matching `when` registration wins, and the first matching one is used,
+just as with `Stub`. Every other supported call forwards to the target and
+is recorded, so verification covers overridden and forwarded calls alike. The target's conformance also supplies the signature metadata,
 so a spy needs no other discovery source.
 
 ### Dummy: dependencies that must never be touched

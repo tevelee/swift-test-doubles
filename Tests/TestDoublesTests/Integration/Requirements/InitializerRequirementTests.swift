@@ -255,11 +255,11 @@ struct InitializerRequirementTests {
         )
         let stub = try Stub<any FailableInitializerRequirementProbe>()
         stub.when(initializer: {
-            type(of: $0).init(value: any())
-        }).thenReturnNil()
-        stub.when(initializer: {
             type(of: $0).init(value: equal(1))
         }).thenInitialize()
+        stub.when(initializer: {
+            type(of: $0).init(value: any())
+        }).thenReturnNil()
         stub.when { $0.storedValue() }.thenReturn(21)
 
         let seed: any FailableInitializerRequirementProbe = stub()
@@ -280,11 +280,11 @@ struct InitializerRequirementTests {
         )
         let stub = try Stub<any ThrowingInitializerRequirementProbe>()
         stub.when(initializer: {
-            try type(of: $0).init(value: any())
-        }).thenInitialize()
-        stub.when(initializer: {
             try type(of: $0).init(value: equal(-2))
         }).thenThrow(InitializerRequirementError.rejected(-2))
+        stub.when(initializer: {
+            try type(of: $0).init(value: any())
+        }).thenInitialize()
         stub.when { $0.storedValue() }.thenReturn(34)
 
         let seed: any ThrowingInitializerRequirementProbe = stub()
@@ -319,14 +319,14 @@ struct InitializerRequirementTests {
     @Test func asyncFailableInitializersChooseSuccessNilAndError() async throws {
         let stub = try Stub<any AsyncFailableInitializerRequirementProbe>()
         await stub.when(initializer: {
-            try await type(of: $0).init(value: any())
-        }).thenInitialize()
-        await stub.when(initializer: {
             try await type(of: $0).init(value: equal(0))
         }).thenReturnNil()
         await stub.when(initializer: {
             try await type(of: $0).init(value: equal(-1))
         }).thenThrow(InitializerRequirementError.rejected(-1))
+        await stub.when(initializer: {
+            try await type(of: $0).init(value: any())
+        }).thenInitialize()
         stub.when { $0.storedValue() }.thenReturn(89)
 
         let seed: any AsyncFailableInitializerRequirementProbe = stub()

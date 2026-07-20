@@ -40,7 +40,6 @@ protocol MatcherPlaceholderService {
 @Suite struct MatcherTests {
     @Test func matchingSupportsDefaultAndNamedDescriptions() throws {
         let stub = try Stub<any MatcherService>()
-        stub.when { $0.search(query: any(), limit: any()) }.thenReturn([])
         stub.when { $0.search(query: matching(where: { $0.hasPrefix("test") }), limit: any()) }
             .thenReturn(["test"])
         stub.when {
@@ -50,46 +49,47 @@ protocol MatcherPlaceholderService {
             )
         }
         .thenReturn(["admin"])
+        stub.when { $0.search(query: any(), limit: any()) }.thenReturn([])
 
         #expect(stub().search(query: "test.users", limit: 10) == ["test"])
         #expect(stub().search(query: "admin.users", limit: 10) == ["admin"])
         #expect(stub().search(query: "public.users", limit: 10).isEmpty)
     }
 
-    @Test func latestMatchingRegistrationWins() throws {
+    @Test func firstMatchingRegistrationWins() throws {
         let stub = try Stub<any MatcherService>()
-        stub.when { $0.find(id: any()) }.thenReturn("fallback")
         stub.when { $0.find(id: equal(42)) }.thenReturn("exact")
+        stub.when { $0.find(id: any()) }.thenReturn("fallback")
 
         #expect(stub().find(id: 42) == "exact")
         #expect(stub().find(id: 1) == "fallback")
     }
 
-    @Test func catchAllRegisteredLastShadowsEarlierMatchers() throws {
+    @Test func catchAllRegisteredFirstShadowsLaterMatchers() throws {
         let stub = try Stub<any MatcherService>()
-        stub.when { $0.find(id: equal(42)) }.thenReturn("exact")
         stub.when { $0.find(id: any()) }.thenReturn("fallback")
+        stub.when { $0.find(id: equal(42)) }.thenReturn("exact")
 
         #expect(stub().find(id: 42) == "fallback")
         #expect(stub().find(id: 1) == "fallback")
     }
 
-    @Test func reRegisteringAMatcherOverridesEarlierBehavior() throws {
+    @Test func reRegisteringAMatcherKeepsTheFirstBehavior() throws {
         let stub = try Stub<any MatcherService>()
         stub.when { $0.find(id: any()) }.thenReturn("guest")
         stub.when { $0.find(id: any()) }.thenReturn("admin")
 
-        #expect(stub().find(id: 1) == "admin")
+        #expect(stub().find(id: 1) == "guest")
     }
 
-    @Test func overlappingPredicatesResolveToMostRecentRegistration() throws {
+    @Test func overlappingPredicatesResolveToFirstRegistration() throws {
         let stub = try Stub<any MatcherService>()
-        stub.when {
-            $0.find(id: matching(description: "even", where: { $0 % 2 == 0 }))
-        }.thenReturn("even")
         stub.when {
             $0.find(id: matching(description: "six", where: { $0 == 6 }))
         }.thenReturn("six")
+        stub.when {
+            $0.find(id: matching(description: "even", where: { $0 % 2 == 0 }))
+        }.thenReturn("even")
 
         #expect(stub().find(id: 6) == "six")
         #expect(stub().find(id: 4) == "even")
@@ -133,7 +133,6 @@ protocol MatcherPlaceholderService {
             .method((any MatcherExistentialValue).self, returning: String.self)
         )
         let placeholder = MatcherReferenceBox(value: 0)
-        stub.when { $0.inspect(reference: any(using: placeholder)) }.thenReturn("any")
         stub.when {
             $0.inspect(
                 reference: matching(
@@ -143,6 +142,7 @@ protocol MatcherPlaceholderService {
                 )
             )
         }.thenReturn("positive")
+        stub.when { $0.inspect(reference: any(using: placeholder)) }.thenReturn("any")
 
         #expect(stub().inspect(reference: MatcherReferenceBox(value: 2)) == "positive")
         #expect(stub().inspect(reference: MatcherReferenceBox(value: -1)) == "any")

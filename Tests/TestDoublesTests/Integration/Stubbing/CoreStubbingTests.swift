@@ -55,8 +55,8 @@ struct RealFileLoader: FileLoader {
 @Suite struct StubbingTests {
     @Test func exactAndWildcardMatching() throws {
         let stub = try Stub<any Calculator>()
-        stub.when { $0.add(any(), any()) }.thenReturn(-1)
         stub.when { $0.add(1, 2) }.thenReturn(42)
+        stub.when { $0.add(any(), any()) }.thenReturn(-1)
         stub.when { $0.describe(any()) }.thenReturn("anything")
         stub.when { $0.precision }.thenReturn(5)
 
@@ -162,9 +162,9 @@ struct RealFileLoader: FileLoader {
         struct ReadError: Error, Equatable { let path: String }
 
         let stub = try Stub<any FileLoader>()
-        stub.when { try $0.load(path: any()) }.then { (path: String) in "contents:\(path)" }
         stub.when { try $0.load(path: equal("/missing")) }
             .thenThrow(ReadError(path: "/missing"))
+        stub.when { try $0.load(path: any()) }.then { (path: String) in "contents:\(path)" }
         stub.when { $0.exists(path: any()) }.thenReturn(true)
 
         let loader: any FileLoader = stub()

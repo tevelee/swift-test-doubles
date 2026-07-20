@@ -97,7 +97,7 @@ For a synchronous call, the trampoline:
 1. Captures general-purpose, floating-point, and stack argument state.
 2. Uses the veneer index to find the method descriptor and owning recorder.
 3. Decodes arguments from runtime metadata.
-4. Records the call and selects the most recently configured matching response.
+4. Records the call and selects the first configured matching response.
 5. Encodes the result or Swift error into the caller's expected ABI state.
 
 Capture mode normally encodes a synthesized recording result so the `when` or

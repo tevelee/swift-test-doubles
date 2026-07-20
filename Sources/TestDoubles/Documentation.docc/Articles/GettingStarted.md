@@ -43,17 +43,17 @@ needed by zero-argument construction. It is inspected, not invoked.
 
 ### Match and return values
 
-Register a broad fallback first, then add more specific behavior:
+Register specific behavior first, then a broad fallback:
 
 ```swift
 let stub = try Stub<any UserRepository>()
-stub.when { $0.find(id: any()) }.thenReturn("guest")
+stub.when { $0.find(id: equal(42)) }.thenReturn("Alice")
 stub.when {
     $0.find(id: matching(description: "positive", where: { $0 > 0 }))
 }.then { (id: Int) in
     "member-\(id)"
 }
-stub.when { $0.find(id: equal(42)) }.thenReturn("Alice")
+stub.when { $0.find(id: any()) }.thenReturn("guest")
 
 let repository: any UserRepository = stub()
 #expect(repository.find(id: -1) == "guest")
@@ -67,9 +67,9 @@ stub.verify(.never()) { $0.find(id: equal(999)) }
 
 `any()` accepts every value, `equal(_:)` uses `Equatable` equality, and
 `matching(description:where:)` accepts values satisfying a predicate. When
-several registrations match a call, the most recent one wins, so register
-broad fallbacks first and specific behavior after them; a catch-all
-registered last overrides everything before it. Verification
+several registrations match a call, the first one wins, like the cases of a
+`switch`: register specific matchers first and broad fallbacks last, because
+a catch-all registered first swallows everything after it. Verification
 defaults to at least one matching call; state a count only when it adds meaning.
 A mismatch is reported as a test issue at the `verify` call's source location
 and does not terminate the process.

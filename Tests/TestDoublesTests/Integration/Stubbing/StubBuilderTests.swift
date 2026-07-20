@@ -174,8 +174,8 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
 
     @Test func thenReturnSequencesAdvanceIndependentlyPerRegistration() throws {
         let stub = try makeHandlerArityStub()
-        stub.when { $0.one(any()) }.thenReturn(1, 2)
         stub.when { $0.one(equal(9)) }.thenReturn(90, 91)
+        stub.when { $0.one(any()) }.thenReturn(1, 2)
 
         let probe: any HandlerArityProbe = stub(sendability: .unchecked)
         #expect(probe.one(0) == 1)
@@ -188,16 +188,16 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
 
     @Test func thenReturnAndThenShareResolutionRules() async throws {
         let stub = try makeHandlerArityStub()
-        await stub.when { try await $0.asyncThrowing(any()) }.then {
-            (value: Int) async throws -> Int in value
+        await stub.when { try await $0.asyncThrowing(equal(42)) }.then {
+            (_: Int) async throws -> Int in 100
         }
         await stub.when {
             try await $0.asyncThrowing(
                 matching(description: "positive", where: { $0 > 0 })
             )
         }.thenReturn(10)
-        await stub.when { try await $0.asyncThrowing(equal(42)) }.then {
-            (_: Int) async throws -> Int in 100
+        await stub.when { try await $0.asyncThrowing(any()) }.then {
+            (value: Int) async throws -> Int in value
         }
 
         let probe: any HandlerArityProbe = stub(sendability: .unchecked)
