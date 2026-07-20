@@ -207,13 +207,77 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
         let probe: any HandlerArityProbe = stub()
         #expect(probe.one(0) == 3)
         #expect(probe.one(0) == 3)
+    }
+
+    // Chaining after an unbounded entry (`times: 1...`, plain `thenReturn`/
+    // `thenThrow` with no `times:` left standalone, or the variadic
+    // thenReturn(_:_:_:), whose last entry is always unbounded) is a compile
+    // error in one fluent expression: every overload that produces an
+    // unbounded entry returns `Void`, so there is nothing to call a further
+    // `.thenX` on. A captured, explicitly type-annotated handle can still
+    // reach the append across separate statements, though — see
+    // UnstubbedBehaviorExitTests.appendingAfterUnbounded for the guard that
+    // traps that case instead of silently discarding it.
+
+    @Test func bareStandaloneRepeatsForever() throws {
+        let stub = try makeHandlerArityStub()
+        stub.when { $0.one(any()) }.thenReturn(7)
+
+        let probe: any HandlerArityProbe = stub()
+        #expect(probe.one(0) == 7)
+        #expect(probe.one(0) == 7)
+        #expect(probe.one(0) == 7)
+    }
+
+    @Test func bareChainedDefaultsToBoundedOnce() throws {
+        let stub = try makeHandlerArityStub()
+        stub.when { $0.one(any()) }
+            .thenReturn(1)
+            .thenReturn(2)
+            .thenReturn(3)
+
+        let probe: any HandlerArityProbe = stub()
+        #expect(probe.one(0) == 1)
+        #expect(probe.one(0) == 2)
+        #expect(probe.one(0) == 3)
         #expect(probe.one(0) == 3)
     }
 
-    // Chaining after an unbounded entry (`times: 1...`, or plain `thenReturn`/
-    // `thenThrow` with no `times:`) is a compile error, not a runtime
-    // unreachable-entry footgun: the unbounded overloads return `Void`, so
-    // there is nothing to call a further `.thenX` on.
+    @Test func timesIntShorthandMatchesEquivalentRange() throws {
+        let stub = try makeHandlerArityStub()
+        stub.when { $0.one(any()) }.thenReturn(5, times: 3)
+
+        let probe: any HandlerArityProbe = stub()
+        #expect(probe.one(0) == 5)
+        #expect(probe.one(0) == 5)
+        #expect(probe.one(0) == 5)
+    }
+
+    @Test func timesIntShorthandAdvancesWhenChained() throws {
+        let stub = try makeHandlerArityStub()
+        stub.when { try $0.throwing(any()) }
+            .thenReturn(1, times: 2)
+            .thenThrow(HandlerError(value: 9), times: 2)
+            .thenReturn(3)
+
+        let probe: any HandlerArityProbe = stub()
+        #expect(try probe.throwing(0) == 1)
+        #expect(try probe.throwing(0) == 1)
+        #expect(throws: HandlerError(value: 9)) { try probe.throwing(0) }
+        #expect(throws: HandlerError(value: 9)) { try probe.throwing(0) }
+        #expect(try probe.throwing(0) == 3)
+        #expect(try probe.throwing(0) == 3)
+    }
+
+    @Test func variadicThenReturnWorksWithExactlyTwoValues() throws {
+        let stub = try makeHandlerArityStub()
+        stub.when { $0.one(any()) }.thenReturn(10, 20)
+
+        let probe: any HandlerArityProbe = stub()
+        #expect(probe.one(0) == 10)
+        #expect(probe.one(0) == 20)
+        #expect(probe.one(0) == 20)
+    }
 
     @Test func concurrentCallsReserveEachRunExactlyItsCount() async throws {
         let stub = try makeHandlerArityStub()
@@ -291,6 +355,48 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
         await stub.verify { try await $0.asyncThrowing(4) }
     }
 }
+
+#if compiler(>=6.2) && (os(macOS) || os(Linux) || targetEnvironment(macCatalyst))
+    @Suite struct StubBuilderExitTests {
+        @Test func timesBoundedReturnCanBeOverrun() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let stub = try makeHandlerArityStub()
+                stub.when { $0.one(any()) }.thenReturn(3, times: 1 ... 2)
+
+                let probe: any HandlerArityProbe = stub()
+                _ = probe.one(0)
+                _ = probe.one(0)
+                _ = probe.one(0)
+            }
+
+            let diagnostic = try requireStandardErrorDiagnostic(from: result)
+            #expect(diagnostic.contains("Explicit stub failure"))
+            #expect(diagnostic.contains("Bounded stub behavior exhausted"))
+        }
+
+        @Test func fatalErrorChainedAfterAGenuinelyBoundedRunWorks() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let stub = try makeHandlerArityStub()
+                stub.when { $0.one(any()) }
+                    .thenReturn(1, times: 1 ... 2)
+                    .thenFatalError("no more than 2 calls expected")
+
+                let probe: any HandlerArityProbe = stub()
+                _ = probe.one(0)
+                _ = probe.one(0)
+                _ = probe.one(0)
+            }
+            let diagnostic = try requireStandardErrorDiagnostic(from: result)
+            #expect(diagnostic.contains("no more than 2 calls expected"))
+        }
+    }
+#endif
 
 private func makeHandlerArityStub() throws -> Stub<any HandlerArityProbe> {
     try Stub<any HandlerArityProbe>(

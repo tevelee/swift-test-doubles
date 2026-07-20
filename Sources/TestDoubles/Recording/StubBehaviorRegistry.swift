@@ -18,10 +18,9 @@ struct StubBehaviorRegistry {
         case fatal(message: String?)
     }
 
-    /// Serves queued answers one per matching invocation, repeating the final
-    /// run once the earlier ones are consumed. A bounded run with nothing
-    /// after it keeps repeating too, exactly like an unbounded run — only an
-    /// explicit next run advances the cursor past it.
+    /// Serves queued answers one per matching invocation. Exact-count runs
+    /// advance when exhausted if there is a next run. Bounded terminal runs
+    /// fail once their own count is exceeded.
     final class ConsumableResults: @unchecked Sendable {
         private struct Run {
             let answer: QueuedAnswer
@@ -40,14 +39,34 @@ struct StubBehaviorRegistry {
 
         func append(_ answer: QueuedAnswer, times repeatCount: RepeatCount) {
             lock.lock()
+            defer { lock.unlock() }
+            requireNotSealed()
             runs.append(Run(answer: answer, repeatCount: repeatCount))
-            lock.unlock()
         }
 
         func append(contentsOf answers: [QueuedAnswer]) {
             lock.lock()
+            defer { lock.unlock() }
+            requireNotSealed()
             runs.append(contentsOf: answers.map { Run(answer: $0, repeatCount: .exactly(1)) })
-            lock.unlock()
+        }
+
+        /// An unbounded run already answers every call from here on, so a
+        /// fluent chain can never type-check an append after one — the
+        /// unbounded overloads return `Void`. A captured, explicitly
+        /// type-annotated handle can still reach this call, though, since the
+        /// annotation forces the compiler to select the chain-returning
+        /// overload regardless of what followed at the original call site.
+        /// This is the same mistake either way, so it gets the same
+        /// crash-with-diagnostic treatment as every other "there is no
+        /// sensible value here" situation in this library.
+        private func requireNotSealed() {
+            guard case .unbounded = runs.last?.repeatCount else { return }
+            preconditionFailure(
+                "[TestDoubles] Cannot append another behavior after an unbounded one; "
+                    + "it already answers every matching call from here on, so anything "
+                    + "appended after it could never run."
+            )
         }
 
         func next() -> QueuedAnswer {
@@ -55,12 +74,22 @@ struct StubBehaviorRegistry {
             defer { lock.unlock() }
             let run = runs[runIndex]
             consumedInRun += 1
-            if case .exactly(let count) = run.repeatCount,
-                consumedInRun >= count,
-                runIndex < runs.index(before: runs.endIndex)
-            {
-                runIndex += 1
-                consumedInRun = 0
+
+            switch run.repeatCount {
+                case .exactly(let count):
+                    if consumedInRun > count {
+                        if runIndex < runs.index(before: runs.endIndex) {
+                            runIndex += 1
+                            consumedInRun = 1
+                            return runs[runIndex].answer
+                        }
+                        return .fatal(
+                            message: "Bounded stub behavior exhausted after exactly "
+                                + "\(count) matching calls."
+                        )
+                    }
+                case .unbounded:
+                    break
             }
             return run.answer
         }

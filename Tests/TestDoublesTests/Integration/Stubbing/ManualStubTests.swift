@@ -150,7 +150,7 @@ private struct SaveError: Error, Equatable {}
         stub.when { try $0.save(any()) }
             .thenDoNothing()
             .thenThrow(SaveError())
-            .thenDoNothing()
+            .thenDoNothing(times: 1...)
 
         let service: any ManualService = stub()
         try service.save("first")

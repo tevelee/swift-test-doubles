@@ -54,6 +54,8 @@ private struct UnexpectedTypedError: Error {}
         case throwingManualHandler
         case explicitFatalError
         case timesBelowOne
+        case appendingAfterUnbounded
+        case timesIntShorthandBelowOne
     }
 
     @Suite struct UnstubbedBehaviorExitTests {
@@ -84,6 +86,10 @@ private struct UnexpectedTypedError: Error {}
                     try await thenFatalErrorHaltsWithTheConfiguredMessage()
                 case .timesBelowOne:
                     try await timesBelowOneHaltsAtConfiguration()
+                case .appendingAfterUnbounded:
+                    try await appendingAfterUnboundedHaltsAtConfiguration()
+                case .timesIntShorthandBelowOne:
+                    try await timesIntShorthandBelowOneHaltsAtConfiguration()
             }
         }
 
@@ -293,13 +299,70 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                _ = stub.when { $0.greet(name: any()) }.thenReturn("hi", times: 0 ... 3)
+                stub.when { $0.greet(name: any()) }.thenReturn("hi", times: 0 ... 3)
             }
 
             let diagnostic = try #require(
                 String(bytes: result.standardErrorContent, encoding: .utf8)
             )
             #expect(diagnostic.contains("times: must start at 1"))
+        }
+
+        /// The `times: Int` shorthand builds `1...times` internally; a count
+        /// below 1 must still surface the library's own diagnostic instead of
+        /// crashing inside `ClosedRange`'s own precondition first.
+        ///
+        /// `StubBuilder` and `StubBehaviorChain` each implement this
+        /// overload independently, so the first call (a valid count, on
+        /// `StubBuilder`) chains into the second (the invalid one, on
+        /// `StubBehaviorChain`) to reach both from one exit test rather than
+        /// spawning a subprocess per type for what's the same guard.
+        private func timesIntShorthandBelowOneHaltsAtConfiguration() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let stub = try Stub<any UnstubbedBehaviorProbe>()
+                stub.when { $0.greet(name: any()) }
+                    .thenReturn("hi", times: 2)
+                    .thenReturn("bye", times: 0)
+            }
+
+            let diagnostic = try #require(
+                String(bytes: result.standardErrorContent, encoding: .utf8)
+            )
+            #expect(diagnostic.contains("times: must be at least 1"))
+        }
+
+        /// A fluent chain can't type-check an append after an unbounded
+        /// entry — every unbounded-producing overload returns `Void`. A
+        /// captured, explicitly type-annotated handle still reaches the
+        /// append at runtime, though: the annotation forces the bounded
+        /// call that creates `chain` to resolve to its disfavored
+        /// chain-returning overload, and nothing about `chain`'s type
+        /// changes when a later, separate statement calls the bare
+        /// `thenReturn` that seals it with an unbounded entry. Same
+        /// underlying mistake as a single fluent expression, same halt.
+        private func appendingAfterUnboundedHaltsAtConfiguration() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let stub = try Stub<any UnstubbedBehaviorProbe>()
+                let chain: StubBehaviorChain<String> = stub.when { $0.greet(name: any()) }
+                    .thenReturn("hi", times: 2)
+                chain.thenReturn("bye")
+                chain.thenReturn("late", times: 1 ... 1)
+            }
+
+            let diagnostic = try #require(
+                String(bytes: result.standardErrorContent, encoding: .utf8)
+            )
+            #expect(
+                diagnostic.contains(
+                    "Cannot append another behavior after an unbounded one"
+                )
+            )
         }
     }
 #endif
