@@ -66,11 +66,10 @@ stub.verify(.never()) { $0.find(id: equal(999)) }
 ```
 
 `any()` accepts every value, `equal(_:)` uses `Equatable` equality, and
-`matching(description:where:)` accepts values satisfying a predicate. Explicit
-equality outranks a literal, a literal outranks a predicate, and a predicate
-outranks a wildcard or capture. The most recent registration wins a tie, so
-re-registering an equally specific matcher overrides the earlier behavior.
-Verification
+`matching(description:where:)` accepts values satisfying a predicate. When
+several registrations match a call, the most recent one wins, so register
+broad fallbacks first and specific behavior after them; a catch-all
+registered last overrides everything before it. Verification
 defaults to at least one matching call; state a count only when it adds meaning.
 A mismatch is reported as a test issue at the `verify` call's source location
 and does not terminate the process.

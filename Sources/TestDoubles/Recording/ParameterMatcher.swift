@@ -1,7 +1,6 @@
 protocol ParameterMatcher {
     func matches(value: Any) -> Bool
     func commit(value: Any)
-    var specificity: Int { get }
     var diagnosticDescription: String { get }
 }
 
@@ -12,7 +11,6 @@ extension ParameterMatcher {
 
 struct AnyMatcher: ParameterMatcher {
     func matches(value: Any) -> Bool { true }
-    var specificity: Int { 0 }
     var diagnosticDescription: String { "any()" }
 }
 
@@ -28,7 +26,6 @@ struct CaptureMatcher<T>: ParameterMatcher {
         captor.append(value)
     }
 
-    var specificity: Int { 0 }
     var diagnosticDescription: String { "capture(\(T.self))" }
 }
 
@@ -41,7 +38,6 @@ struct PredicateMatcher<Value>: ParameterMatcher {
         return predicate(value)
     }
 
-    var specificity: Int { 1 }
     var diagnosticDescription: String { "matching(\(description))" }
 }
 
@@ -56,7 +52,6 @@ struct DescriptionMatcher: ParameterMatcher {
         String(describing: value) == description
     }
 
-    var specificity: Int { 2 }
     var diagnosticDescription: String { "literal(\(description))" }
 }
 
@@ -64,6 +59,5 @@ struct EqualMatcher<Value: Equatable>: ParameterMatcher {
     let expected: Value
 
     func matches(value: Any) -> Bool { (value as? Value) == expected }
-    var specificity: Int { 3 }
     var diagnosticDescription: String { "equal(\(String(describing: expected)))" }
 }

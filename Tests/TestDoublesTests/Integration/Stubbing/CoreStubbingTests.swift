@@ -55,8 +55,8 @@ struct RealFileLoader: FileLoader {
 @Suite struct StubbingTests {
     @Test func exactAndWildcardMatching() throws {
         let stub = try Stub<any Calculator>()
-        stub.when { $0.add(1, 2) }.thenReturn(42)
         stub.when { $0.add(any(), any()) }.thenReturn(-1)
+        stub.when { $0.add(1, 2) }.thenReturn(42)
         stub.when { $0.describe(any()) }.thenReturn("anything")
         stub.when { $0.precision }.thenReturn(5)
 

@@ -186,7 +186,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
         #expect(probe.one(9) == 91)
     }
 
-    @Test func thenReturnAndThenShareSpecificityRules() async throws {
+    @Test func thenReturnAndThenShareResolutionRules() async throws {
         let stub = try makeHandlerArityStub()
         await stub.when { try await $0.asyncThrowing(any()) }.then {
             (value: Int) async throws -> Int in value

@@ -40,6 +40,7 @@ protocol MatcherPlaceholderService {
 @Suite struct MatcherTests {
     @Test func matchingSupportsDefaultAndNamedDescriptions() throws {
         let stub = try Stub<any MatcherService>()
+        stub.when { $0.search(query: any(), limit: any()) }.thenReturn([])
         stub.when { $0.search(query: matching(where: { $0.hasPrefix("test") }), limit: any()) }
             .thenReturn(["test"])
         stub.when {
@@ -49,23 +50,31 @@ protocol MatcherPlaceholderService {
             )
         }
         .thenReturn(["admin"])
-        stub.when { $0.search(query: any(), limit: any()) }.thenReturn([])
 
         #expect(stub().search(query: "test.users", limit: 10) == ["test"])
         #expect(stub().search(query: "admin.users", limit: 10) == ["admin"])
         #expect(stub().search(query: "public.users", limit: 10).isEmpty)
     }
 
-    @Test func specificityOutranksRegistrationOrder() throws {
+    @Test func latestMatchingRegistrationWins() throws {
         let stub = try Stub<any MatcherService>()
-        stub.when { $0.find(id: equal(42)) }.thenReturn("exact")
         stub.when { $0.find(id: any()) }.thenReturn("fallback")
+        stub.when { $0.find(id: equal(42)) }.thenReturn("exact")
 
         #expect(stub().find(id: 42) == "exact")
         #expect(stub().find(id: 1) == "fallback")
     }
 
-    @Test func mostRecentRegistrationWinsSpecificityTie() throws {
+    @Test func catchAllRegisteredLastShadowsEarlierMatchers() throws {
+        let stub = try Stub<any MatcherService>()
+        stub.when { $0.find(id: equal(42)) }.thenReturn("exact")
+        stub.when { $0.find(id: any()) }.thenReturn("fallback")
+
+        #expect(stub().find(id: 42) == "fallback")
+        #expect(stub().find(id: 1) == "fallback")
+    }
+
+    @Test func reRegisteringAMatcherOverridesEarlierBehavior() throws {
         let stub = try Stub<any MatcherService>()
         stub.when { $0.find(id: any()) }.thenReturn("guest")
         stub.when { $0.find(id: any()) }.thenReturn("admin")
@@ -124,6 +133,7 @@ protocol MatcherPlaceholderService {
             .method((any MatcherExistentialValue).self, returning: String.self)
         )
         let placeholder = MatcherReferenceBox(value: 0)
+        stub.when { $0.inspect(reference: any(using: placeholder)) }.thenReturn("any")
         stub.when {
             $0.inspect(
                 reference: matching(
@@ -133,7 +143,6 @@ protocol MatcherPlaceholderService {
                 )
             )
         }.thenReturn("positive")
-        stub.when { $0.inspect(reference: any(using: placeholder)) }.thenReturn("any")
 
         #expect(stub().inspect(reference: MatcherReferenceBox(value: 2)) == "positive")
         #expect(stub().inspect(reference: MatcherReferenceBox(value: -1)) == "any")

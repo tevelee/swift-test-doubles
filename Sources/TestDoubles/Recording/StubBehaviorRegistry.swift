@@ -63,18 +63,6 @@ struct StubBehaviorRegistry {
         let matchers: [ParameterMatcher]
         let diagnosticSignature: String
         let behavior: Behavior
-        let specificity: Int
-
-        init(
-            matchers: [ParameterMatcher],
-            diagnosticSignature: String,
-            behavior: Behavior
-        ) {
-            self.matchers = matchers
-            self.diagnosticSignature = diagnosticSignature
-            self.behavior = behavior
-            self.specificity = matchers.reduce(0) { $0 + $1.specificity }
-        }
     }
 
     private var entriesByMethod: [Int: [Entry]] = [:]
@@ -97,23 +85,15 @@ struct StubBehaviorRegistry {
             ))
     }
 
-    /// Returns the most recently registered entry among those with the highest
-    /// matcher specificity, so re-registering equally specific matchers
-    /// overrides earlier behavior.
-    static func bestMatchingEntry(
+    /// Returns the most recently registered matching entry, so a later
+    /// registration always overrides earlier ones it overlaps with.
+    static func latestMatchingEntry(
         for args: [Any],
         in entries: [Entry]
     ) -> Entry? {
-        var bestEntry: Entry?
-        var bestSpecificity = -1
-        for entry in entries
-        where entry.matchers.isEmpty || argumentsMatch(args, against: entry.matchers) {
-            if entry.specificity >= bestSpecificity {
-                bestSpecificity = entry.specificity
-                bestEntry = entry
-            }
+        entries.last { entry in
+            entry.matchers.isEmpty || argumentsMatch(args, against: entry.matchers)
         }
-        return bestEntry
     }
 
     static func argumentsMatch(

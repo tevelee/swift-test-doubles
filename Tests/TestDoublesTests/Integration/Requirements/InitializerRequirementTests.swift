@@ -255,11 +255,11 @@ struct InitializerRequirementTests {
         )
         let stub = try Stub<any FailableInitializerRequirementProbe>()
         stub.when(initializer: {
-            type(of: $0).init(value: equal(1))
-        }).thenInitialize()
-        stub.when(initializer: {
             type(of: $0).init(value: any())
         }).thenReturnNil()
+        stub.when(initializer: {
+            type(of: $0).init(value: equal(1))
+        }).thenInitialize()
         stub.when { $0.storedValue() }.thenReturn(21)
 
         let seed: any FailableInitializerRequirementProbe = stub()

@@ -25,10 +25,10 @@ enum AuthError: Error { case invalidCredentials }
 ```swift
 let auth = try Stub<any AuthService>()
 
-await auth.when { try await $0.signIn(user: equal("blob"), password: equal("sekret")) }
-    .thenReturn("session-42")
 await auth.when { try await $0.signIn(user: any(), password: any()) }
     .thenThrow(AuthError.invalidCredentials)
+await auth.when { try await $0.signIn(user: equal("blob"), password: equal("sekret")) }
+    .thenReturn("session-42")
 
 // A real `any AuthService`, ready to hand to the code under test.
 let service: any AuthService = auth()
@@ -103,12 +103,10 @@ let sut: any FeatureFlags = flags()
 
 `any()` matches everything, `matching(description:where:)` matches a
 predicate, `equal(_:)` matches a value, and `then` computes the answer from
-the actual arguments. Registration order does not matter for precedence: an
-`equal` match outranks a predicate, and a predicate outranks a wildcard or
-capture. When two registrations are equally specific, the most recent one
-wins, so re-registering a matcher overrides the earlier behavior. All
-predicates rank equally; when you mean equality, use `equal(_:)` so ordering
-never matters.
+the actual arguments. When several registrations match a call, the most
+recent one wins. Register broad fallbacks first and specific behavior after
+them; a later registration overrides any earlier one it overlaps with, so a
+catch-all registered last swallows everything before it.
 
 ### Simulate failure and recovery
 
@@ -217,10 +215,10 @@ let translator: any Translator = spy()
 spy.verify(.exactly(2)) { $0.translate(any()) }
 ```
 
-A matching `when` registration wins, resolved by the same precedence rules as
-`Stub`. Every other supported call forwards to
-the target and is recorded, so verification covers overridden and forwarded
-calls alike. The target's conformance also supplies the signature metadata,
+A matching `when` registration wins, and the most recent matching one is
+used, just as with `Stub`. Every other supported call forwards to the target
+and is recorded, so verification covers overridden and forwarded calls
+alike. The target's conformance also supplies the signature metadata,
 so a spy needs no other discovery source.
 
 ### Dummy: dependencies that must never be touched

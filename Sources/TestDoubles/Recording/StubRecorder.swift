@@ -313,7 +313,7 @@ final class StubRecorder: @unchecked Sendable {
                     entries: []
                 ))
         }
-        guard let entry = StubBehaviorRegistry.bestMatchingEntry(for: args, in: entries) else {
+        guard let entry = StubBehaviorRegistry.latestMatchingEntry(for: args, in: entries) else {
             if allowsForwardingFallback {
                 recordForwardedInvocation(method: method, args: args)
                 return .forwarding
