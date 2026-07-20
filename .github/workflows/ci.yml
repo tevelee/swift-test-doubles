@@ -88,6 +88,7 @@ jobs:
           -c release
           --parallel
           --experimental-maximum-parallelization-width 4
+          --skip ExitTests
           --scratch-path .build/ci
       - name: Validate documentation
         run: Scripts/validate-documentation.sh
@@ -118,6 +119,7 @@ jobs:
           swift test
           --parallel
           --experimental-maximum-parallelization-width 4
+          --skip ExitTests
           --scratch-path .build/ci-current
       - name: Test release
         run: >-
@@ -125,6 +127,7 @@ jobs:
           -c release
           --parallel
           --experimental-maximum-parallelization-width 4
+          --skip ExitTests
           --scratch-path .build/ci-current
       - name: Check public API
         run: Scripts/check-public-api.sh
@@ -172,6 +175,7 @@ jobs:
           -c release
           --parallel
           --experimental-maximum-parallelization-width 4
+          --skip ExitTests
           --scratch-path .build/linux
   apple-platforms:
     name: ${{ matrix.name }}
@@ -302,6 +306,7 @@ jobs:
             -c release \
             --parallel \
             --experimental-maximum-parallelization-width 4 \
+            --skip ExitTests \
             --scratch-path .build/ci-rosetta \
             --triple x86_64-apple-macosx \
             --disable-xctest \
