@@ -67,7 +67,7 @@ private actor CustomExecutorCaller {
             guard self.executor.isCurrent else { throw CustomExecutorError.wrongExecutor }
             throw CustomExecutorError.expected
         }
-        return stub(sendability: .unchecked)
+        return stub()
     }
 
     func exercise(_ probe: any CustomExecutorProbe) async {
@@ -193,7 +193,7 @@ private func requireSendable<T: Sendable>(_: T) {}
             await Task.yield()
             return value * 3
         }
-        let probe: any ConcurrentInvocationProbe = stub(sendability: .unchecked)
+        let probe: any ConcurrentInvocationProbe = stub()
         let callCount = 250
 
         requireSendable(ArgumentCaptor<Int>())
@@ -228,7 +228,7 @@ private func requireSendable<T: Sendable>(_: T) {}
                 matching(description: "gated", where: gate.matches)
             )
         }.thenReturn(10, 20)
-        let probe: any ConcurrentInvocationProbe = stub(sendability: .unchecked)
+        let probe: any ConcurrentInvocationProbe = stub()
 
         let firstCall = Task.detached {
             probe.synchronous(1)

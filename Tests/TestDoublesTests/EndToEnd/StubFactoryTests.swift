@@ -47,7 +47,7 @@ struct StubFactoryTests {
 
     @Test func sendableProtocolsRequireAnExplicitUncheckedBoundary() {
         _ = LiveFactorySendableService()
-        let service: any FactorySendableService = makeStub(sendability: .unchecked) {
+        let service: any FactorySendableService = makeStub {
             $0.when { $0.value }.thenReturn(42)
         }
 
@@ -56,7 +56,7 @@ struct StubFactoryTests {
 
     @Test func asyncFactoryPreservesTheExplicitUncheckedBoundary() async {
         _ = LiveFactorySendableService()
-        let service: any FactorySendableService = await makeStub(sendability: .unchecked) {
+        let service: any FactorySendableService = await makeStub {
             stub in
             await Task.yield()
             stub.when { $0.value }.thenReturn(42)

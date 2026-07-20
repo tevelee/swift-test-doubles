@@ -366,8 +366,7 @@ resuming the caller continuation.
 Configure and verify a stub serially, keep the ``Stub`` itself on one isolation
 domain, and do not overlap those operations with calls. Recorder state is
 lock-protected for invocation. For a generated value whose protocol is
-`Sendable`, use `stub(sendability: .unchecked)` (or the corresponding
-``makeStub(sendability:_:)`` and `withValue(sendability:_:)` overload) to
+`Sendable`, use `stub()` to
 acknowledge explicitly that configured fixed and sequenced behavior payloads,
 matcher and captor state, handler captures, and recorded invocation arguments are
 type-erased and are not compiler-proven `Sendable`. The no-argument forms are

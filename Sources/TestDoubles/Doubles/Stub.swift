@@ -186,83 +186,19 @@ public class Stub<P> {
 }
 
 extension Stub where P: Sendable {
-    /// Returns the generated `Sendable` protocol existential.
-    ///
-    /// This compatibility overload remains functional, but use
-    /// ``callAsFunction(sendability:)`` to make the unchecked concurrency
-    /// boundary explicit.
-    @available(
-        *,
-        deprecated,
-        message: "Use `stub(sendability: .unchecked)` to acknowledge unchecked Sendable state."
-    )
     public func callAsFunction() -> P {
         materializeUnchecked()
     }
 
-    /// Returns the generated `Sendable` protocol existential after the caller
-    /// explicitly accepts responsibility for its unchecked stored state.
-    public func callAsFunction(sendability: StubSendability) -> P {
-        switch sendability {
-            case .unchecked:
-                materializeUnchecked()
-        }
-    }
-
-    /// Calls `operation` with a generated `Sendable` value.
-    ///
-    /// This compatibility overload remains functional, but use
-    /// `withValue(sendability:_:)` to make the unchecked concurrency boundary
-    /// explicit.
-    @available(
-        *,
-        deprecated,
-        message: "Use `withValue(sendability: .unchecked)` to acknowledge unchecked Sendable state."
-    )
     public func withValue<Result, Failure: Error>(
         _ operation: (P) throws(Failure) -> Result
     ) throws(Failure) -> Result {
         try withMaterializedValue(operation)
     }
 
-    /// Calls `operation` with a generated `Sendable` value after the caller
-    /// explicitly accepts responsibility for its unchecked stored state.
-    public func withValue<Result, Failure: Error>(
-        sendability: StubSendability,
-        _ operation: (P) throws(Failure) -> Result
-    ) throws(Failure) -> Result {
-        switch sendability {
-            case .unchecked:
-                try withMaterializedValue(operation)
-        }
-    }
-
-    /// Asynchronously calls `operation` with a generated `Sendable` value.
-    ///
-    /// This compatibility overload remains functional, but use
-    /// `withValue(sendability:_:)` to make the unchecked concurrency boundary
-    /// explicit.
-    @available(
-        *,
-        deprecated,
-        message: "Use `withValue(sendability: .unchecked)` to acknowledge unchecked Sendable state."
-    )
     public func withValue<Result, Failure: Error>(
         _ operation: (P) async throws(Failure) -> Result
     ) async throws(Failure) -> Result {
         try await withMaterializedValue(operation)
-    }
-
-    /// Asynchronously calls `operation` with a generated `Sendable` value
-    /// after the caller explicitly accepts responsibility for its unchecked
-    /// stored state.
-    public func withValue<Result, Failure: Error>(
-        sendability: StubSendability,
-        _ operation: (P) async throws(Failure) -> Result
-    ) async throws(Failure) -> Result {
-        switch sendability {
-            case .unchecked:
-                try await withMaterializedValue(operation)
-        }
     }
 }

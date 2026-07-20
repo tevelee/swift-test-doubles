@@ -485,7 +485,7 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
         stub.when { $0.value() }.thenReturn(42)
         stub.when { $0.transform(any()) }.then { (value: Int) in value }
 
-        let probe: Probe = stub(sendability: .unchecked)
+        let probe: Probe = stub()
 
         #expect(MemoryLayout<Probe>.size == 2 * MemoryLayout<UInt>.size)
         #expect(probe.value() == 42)
@@ -556,7 +556,7 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
         stub.when { $0.transform(any()) }.then { (value: Int) in value + 1 }
         stub.when { $0.label() }.thenReturn("class-composed")
 
-        let probe: Composition = stub(sendability: .unchecked)
+        let probe: Composition = stub()
 
         #expect(MemoryLayout<Composition>.size == 3 * MemoryLayout<UInt>.size)
         #expect(probe.value() == 42)

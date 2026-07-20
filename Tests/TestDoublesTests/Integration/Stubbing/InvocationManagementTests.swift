@@ -32,7 +32,7 @@ private struct ManualInvocationManagementServiceStub: ManualInvocationManagement
     @Test func stubClearsOldCallsButPreservesBehaviorAndRecordsNewCalls() throws {
         let stub = try Stub<any InvocationManagementService>()
         stub.when { $0.value(for: any()) }.thenReturn("configured")
-        let service: any InvocationManagementService = stub(sendability: .unchecked)
+        let service: any InvocationManagementService = stub()
 
         #expect(service.value(for: 1) == "configured")
         stub.verify(.exactly(1)) { $0.value(for: any()) }
@@ -75,7 +75,7 @@ private struct ManualInvocationManagementServiceStub: ManualInvocationManagement
     @Test func clearingDoesNotResetReturnSequenceCursor() throws {
         let stub = try Stub<any InvocationManagementService>()
         stub.when { $0.next() }.thenReturn(1, 2, 3)
-        let service: any InvocationManagementService = stub(sendability: .unchecked)
+        let service: any InvocationManagementService = stub()
 
         #expect(service.next() == 1)
         stub.clearRecordedInvocations()
@@ -88,7 +88,7 @@ private struct ManualInvocationManagementServiceStub: ManualInvocationManagement
     @Test func eventualVerificationReevaluatesAcrossClear() async throws {
         let stub = try Stub<any InvocationManagementService>()
         stub.when { $0.notify(any()) }.thenDoNothing()
-        let service: any InvocationManagementService = stub(sendability: .unchecked)
+        let service: any InvocationManagementService = stub()
         let completions = LockedCounter()
 
         service.notify(1)

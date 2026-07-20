@@ -151,7 +151,7 @@ private protocol ExplicitAsyncTypedThrowsAssociatedProbe<Element> {
 private func callWithValue(
     _ stub: Stub<any AsyncTypedThrowsRequirementProbe>
 ) async throws(TypedThrowsPayloadError) {
-    try await stub.withValue(sendability: .unchecked) {
+    try await stub.withValue {
         _ async throws(TypedThrowsPayloadError) in
         throw TypedThrowsPayloadError(code: 42, message: "failed")
     }
@@ -185,7 +185,7 @@ private func callWithValue(
             throw TypedThrowsPayloadError(code: 3, message: "suspending")
         }
 
-        let probe = stub(sendability: .unchecked)
+        let probe = stub()
         #expect(try await probe.load(0) == "immediate")
         let immediateError = await #expect(throws: TypedThrowsPayloadError.self) {
             _ = try await probe.load(1)
@@ -391,7 +391,7 @@ private func callWithValue(
         }
 
         let error = await #expect(throws: TypedThrowsPayloadError.self) {
-            _ = try await stub(sendability: .unchecked).load(9)
+            _ = try await stub().load(9)
         }
         #expect(error == TypedThrowsPayloadError(code: 9, message: "main actor"))
         MainActor.preconditionIsolated()

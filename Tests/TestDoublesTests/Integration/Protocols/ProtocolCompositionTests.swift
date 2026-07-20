@@ -204,7 +204,7 @@ func useLinkedMarkerComposition(
         let stub = try Stub<any MarkerCompositionProtocol & Sendable>()
         stub.when { $0.markerValue() }.thenReturn(42)
 
-        let probe: any MarkerCompositionProtocol & Sendable = stub(sendability: .unchecked)
+        let probe: any MarkerCompositionProtocol & Sendable = stub()
         #expect(probe.markerValue() == 42)
     }
 

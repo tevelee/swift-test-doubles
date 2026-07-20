@@ -286,7 +286,7 @@ struct RealSpyGetterService: SpyGetterService {
         let target = RealSpySequencingService()
         let spy = try Spy<any SpySequencingService>(forwardingTo: target)
         spy.when { $0.value(for: equal(1)) }.thenReturn("overridden")
-        let service: any SpySequencingService = spy(sendability: .unchecked)
+        let service: any SpySequencingService = spy()
 
         #expect(service.value(for: 1) == "overridden")
         #expect(service.value(for: 2) == "real:2")
@@ -301,7 +301,7 @@ struct RealSpyGetterService: SpyGetterService {
     func eventualVerificationObservesAForwardedCall() async throws {
         let target = RealSpySequencingService()
         let spy = try Spy<any SpySequencingService>(forwardingTo: target)
-        let service: any SpySequencingService = spy(sendability: .unchecked)
+        let service: any SpySequencingService = spy()
 
         let invocation = Task {
             try await Task.sleep(for: .milliseconds(10))

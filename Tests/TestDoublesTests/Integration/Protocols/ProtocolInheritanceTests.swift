@@ -177,7 +177,7 @@ private func useLinkedAsyncInheritance(
         stub.when { $0.baseValue }.thenReturn(5)
         stub.when { $0.sendableChild() }.thenReturn(8)
 
-        let probe: any SendableInheritanceProbe = stub(sendability: .unchecked)
+        let probe: any SendableInheritanceProbe = stub()
         #expect(probe.base(4) == "sendable:4")
         #expect(probe.baseValue == 5)
         #expect(probe.sendableChild() == 8)

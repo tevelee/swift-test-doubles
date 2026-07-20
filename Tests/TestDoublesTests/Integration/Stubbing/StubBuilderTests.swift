@@ -56,7 +56,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
             a + b + c + d + e + f + g
         }
 
-        let probe: any HandlerArityProbe = stub(sendability: .unchecked)
+        let probe: any HandlerArityProbe = stub()
         #expect(probe.zero() == 0)
         #expect(probe.one(1) == 1)
         #expect(probe.two(1, 2) == 3)
@@ -85,7 +85,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
             return value + 2
         }
 
-        let probe: any HandlerArityProbe = stub(sendability: .unchecked)
+        let probe: any HandlerArityProbe = stub()
         #expect(try probe.throwing(21) == 42)
         #expect(throws: HandlerError.self) { try probe.throwing(-1) }
         #expect(await probe.asynchronous(41) == 42)
@@ -99,7 +99,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
         let stub = try makeHandlerArityStub()
         stub.when { $0.one(any()) }.thenReturn(1, 2, 3)
 
-        let probe: any HandlerArityProbe = stub(sendability: .unchecked)
+        let probe: any HandlerArityProbe = stub()
         #expect(probe.one(0) == 1)
         #expect(probe.one(0) == 2)
         #expect(probe.one(0) == 3)
@@ -110,7 +110,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
         let stub = try makeHandlerArityStub()
         await stub.when { try await $0.asyncThrowing(any()) }.thenReturn(1, 2)
 
-        let probe: any HandlerArityProbe = stub(sendability: .unchecked)
+        let probe: any HandlerArityProbe = stub()
         #expect(try await probe.asyncThrowing(0) == 1)
         #expect(try await probe.asyncThrowing(0) == 2)
         #expect(try await probe.asyncThrowing(0) == 2)
@@ -126,7 +126,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
             .thenThrow(HandlerError(value: 5))
             .thenReturn(6)
 
-        let probe: any HandlerArityProbe = stub(sendability: .unchecked)
+        let probe: any HandlerArityProbe = stub()
         #expect(try probe.throwing(0) == 1)
         #expect(throws: HandlerError(value: 2)) { try probe.throwing(0) }
         #expect(try probe.throwing(0) == 3)
@@ -146,7 +146,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
             .thenReturn(1)
             .thenThrow(HandlerError(value: 2))
             .thenReturn(3)
-        let probe: any HandlerArityProbe = stub(sendability: .unchecked)
+        let probe: any HandlerArityProbe = stub()
 
         let outcomes = await withTaskGroup(
             of: FixedBehaviorOutcome.self,
@@ -177,7 +177,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
         stub.when { $0.one(equal(9)) }.thenReturn(90, 91)
         stub.when { $0.one(any()) }.thenReturn(1, 2)
 
-        let probe: any HandlerArityProbe = stub(sendability: .unchecked)
+        let probe: any HandlerArityProbe = stub()
         #expect(probe.one(0) == 1)
         #expect(probe.one(9) == 90)
         #expect(probe.one(0) == 2)
@@ -192,7 +192,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
             .thenReturn(0, times: 1 ... 3)
             .thenReturn(9)
 
-        let probe: any HandlerArityProbe = stub(sendability: .unchecked)
+        let probe: any HandlerArityProbe = stub()
         #expect(probe.one(0) == 0)
         #expect(probe.one(0) == 0)
         #expect(probe.one(0) == 0)
@@ -204,7 +204,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
         let stub = try makeHandlerArityStub()
         stub.when { $0.one(any()) }.thenReturn(3, times: 1 ... 2)
 
-        let probe: any HandlerArityProbe = stub(sendability: .unchecked)
+        let probe: any HandlerArityProbe = stub()
         #expect(probe.one(0) == 3)
         #expect(probe.one(0) == 3)
         #expect(probe.one(0) == 3)
@@ -221,7 +221,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
             .thenReturn(1, times: 1 ... 10)
             .thenThrow(HandlerError(value: 2), times: 1 ... 10)
             .thenReturn(3, times: 1...)
-        let probe: any HandlerArityProbe = stub(sendability: .unchecked)
+        let probe: any HandlerArityProbe = stub()
 
         let outcomes = await withTaskGroup(
             of: FixedBehaviorOutcome.self,
@@ -261,7 +261,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
             (value: Int) async throws -> Int in value
         }
 
-        let probe: any HandlerArityProbe = stub(sendability: .unchecked)
+        let probe: any HandlerArityProbe = stub()
         #expect(try await probe.asyncThrowing(-1) == -1)
         #expect(try await probe.asyncThrowing(1) == 10)
         #expect(try await probe.asyncThrowing(42) == 100)
@@ -279,7 +279,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
         await stub.when { await $0.asynchronous(any()) }.thenDoNothing()
         await stub.when { try await $0.asyncThrowing(any()) }.thenDoNothing()
 
-        let probe: any DoNothingProbe = stub(sendability: .unchecked)
+        let probe: any DoNothingProbe = stub()
         probe.synchronous(1)
         try probe.throwing(2)
         await probe.asynchronous(3)

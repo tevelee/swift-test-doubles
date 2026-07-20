@@ -320,7 +320,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
             () async throws -> Void in await Task.yield()
         }
 
-        let probe: any AsyncABIProbe = stub(sendability: .unchecked)
+        let probe: any AsyncABIProbe = stub()
         #expect(await probe.noArguments() == 17)
         #expect(await probe.integer(41) == 42)
         #expect(await probe.floating(2) == 6.75)
@@ -339,7 +339,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
             return .code(code + 1)
         }
 
-        #expect(await stub(sendability: .unchecked).enumValue(.code(7)) == .code(8))
+        #expect(await stub().enumValue(.code(7)) == .code(8))
     }
 
     @Test func asyncOptionalValueShape() async throws {
@@ -348,7 +348,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
             (value: String?) async throws -> String? in value?.uppercased()
         }
 
-        #expect(await stub(sendability: .unchecked).optional("optional") == "OPTIONAL")
+        #expect(await stub().optional("optional") == "OPTIONAL")
     }
 
     @Test func asyncTupleValueShape() async throws {
@@ -358,7 +358,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
             (id: value.id + 1, amount: value.amount + 0.5)
         }
 
-        let tuple = await stub(sendability: .unchecked).tuple((id: 9, amount: 2.5))
+        let tuple = await stub().tuple((id: 9, amount: 2.5))
         #expect(tuple.id == 10)
         #expect(tuple.amount == 3)
     }
@@ -370,7 +370,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
         }
 
         #expect(
-            await stub(sendability: .unchecked).metatype(ABIMetatypeToken.self)
+            await stub().metatype(ABIMetatypeToken.self)
                 == ABIMetatypeToken.self
         )
     }
@@ -380,7 +380,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
         await stub.when { await $0.existential(FirstABIExistentialValue(id: 12)) }
             .thenReturn(SecondABIExistentialValue(id: 13))
 
-        let existential = await stub(sendability: .unchecked).existential(
+        let existential = await stub().existential(
             FirstABIExistentialValue(id: 12)
         )
         #expect(existential.id == 13)
@@ -401,7 +401,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
         }
 
         let result = await StubTaskValues.$marker.withValue("caller") {
-            await stub(sendability: .unchecked).integer(42)
+            await stub().integer(42)
         }
         #expect(result == 42)
     }
@@ -417,7 +417,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
             return value
         }
 
-        #expect(await stub(sendability: .unchecked).integer(42) == 42)
+        #expect(await stub().integer(42) == 42)
     }
 }
 

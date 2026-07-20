@@ -163,7 +163,7 @@ struct SignatureOfRequirementTests {
         stub.when { $0.render(any(), label: any()) }.thenReturn("rendered")
         await stub.when { try await $0.asynchronousTyped(any()) }.thenReturn("loaded")
 
-        let probe: any SignatureOfMethodProbe = stub(sendability: .unchecked)
+        let probe: any SignatureOfMethodProbe = stub()
         #expect(probe.render(7, label: "value") == "rendered")
         #expect(try await probe.asynchronousTyped(4) == "loaded")
     }
@@ -198,7 +198,7 @@ struct SignatureOfRequirementTests {
         await stub.when { await $0.asynchronousValue }.thenReturn(9)
         await stub.when { try await $0.asynchronousThrowingValue }.thenReturn(10)
 
-        var probe: any SignatureOfPropertyProbe = stub(sendability: .unchecked)
+        var probe: any SignatureOfPropertyProbe = stub()
         #expect(probe.count == 7)
         probe.count = 11
         #expect(probe.title == "title")

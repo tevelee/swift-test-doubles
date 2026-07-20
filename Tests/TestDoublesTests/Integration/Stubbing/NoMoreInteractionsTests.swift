@@ -31,7 +31,7 @@ private struct ManualNoMoreInteractionsServiceStub: ManualNoMoreInteractionsServ
         let stub = try Stub<any NoMoreInteractionsService>()
         stub.when { $0.first(any()) }.thenReturn(0)
         stub.when { $0.second(any()) }.thenReturn(0)
-        let service: any NoMoreInteractionsService = stub(sendability: .unchecked)
+        let service: any NoMoreInteractionsService = stub()
 
         _ = service.first(1)
         _ = service.second(2)
@@ -77,7 +77,7 @@ private struct ManualNoMoreInteractionsServiceStub: ManualNoMoreInteractionsServ
         let stub = try Stub<any NoMoreInteractionsService>()
         stub.when { $0.first(any()) }.thenReturn(0)
         stub.when { $0.second(any()) }.thenReturn(0)
-        let service: any NoMoreInteractionsService = stub(sendability: .unchecked)
+        let service: any NoMoreInteractionsService = stub()
 
         _ = service.first(1)
         _ = service.second(99)
@@ -100,7 +100,7 @@ private struct ManualNoMoreInteractionsServiceStub: ManualNoMoreInteractionsServ
     @Test func failedExactVerificationLeavesInteractionAndCaptorUntouched() throws {
         let stub = try Stub<any NoMoreInteractionsService>()
         stub.when { $0.first(any()) }.thenReturn(0)
-        let service: any NoMoreInteractionsService = stub(sendability: .unchecked)
+        let service: any NoMoreInteractionsService = stub()
         let values = ArgumentCaptor<Int>()
 
         _ = service.first(7)
@@ -123,7 +123,7 @@ private struct ManualNoMoreInteractionsServiceStub: ManualNoMoreInteractionsServ
         let stub = try Stub<any NoMoreInteractionsService>()
         stub.when { $0.first(any()) }.thenReturn(0)
         stub.when { $0.second(any()) }.thenReturn(0)
-        let service: any NoMoreInteractionsService = stub(sendability: .unchecked)
+        let service: any NoMoreInteractionsService = stub()
         let values = ArgumentCaptor<Int>()
 
         _ = service.first(7)
@@ -150,7 +150,7 @@ private struct ManualNoMoreInteractionsServiceStub: ManualNoMoreInteractionsServ
         let stub = try Stub<any NoMoreInteractionsService>()
         stub.when { $0.first(any()) }.thenReturn(0)
         stub.when { $0.second(any()) }.thenReturn(0)
-        let service: any NoMoreInteractionsService = stub(sendability: .unchecked)
+        let service: any NoMoreInteractionsService = stub()
 
         let invocation = Task {
             try await Task.sleep(for: .milliseconds(10))
@@ -172,7 +172,7 @@ private struct ManualNoMoreInteractionsServiceStub: ManualNoMoreInteractionsServ
     @Test func clearRemovesUnverifiedInteractionsAndTheirLedgerState() throws {
         let stub = try Stub<any NoMoreInteractionsService>()
         stub.when { $0.first(any()) }.thenReturn(0)
-        let service: any NoMoreInteractionsService = stub(sendability: .unchecked)
+        let service: any NoMoreInteractionsService = stub()
 
         _ = service.first(1)
         stub.clearRecordedInvocations()

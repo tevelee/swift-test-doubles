@@ -274,7 +274,7 @@ private func exerciseSuperclassPayloadLifetime() throws -> (
         stub.when { $0.doubled(any()) }.then { (value: Int) in
             value * 2
         }
-        let probe: any ConcurrentClassProbe = stub(sendability: .unchecked)
+        let probe: any ConcurrentClassProbe = stub()
 
         let results = await withTaskGroup(of: Int.self, returning: [Int].self) { group in
             for value in 0 ..< 50 {

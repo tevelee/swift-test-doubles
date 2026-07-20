@@ -294,13 +294,6 @@ execution policy. [`ManualStub`](Sources/TestDoubles/Documentation.docc/Articles
 provides the same `when`/`then`/`verify` API on those targets with a small
 hand-written conformer.
 
-For a protocol that conforms to `Sendable`, materialize its value with
-`stub(sendability: .unchecked)` or `makeStub(sendability: .unchecked)`. The
-explicit spelling acknowledges that the recorder stores type-erased
-configuration and invocation state whose sendability Swift cannot prove; use
-it only when the values, matchers, captors, and handlers in the test are safe
-for its concurrency pattern.
-
 </details>
 
 <details>

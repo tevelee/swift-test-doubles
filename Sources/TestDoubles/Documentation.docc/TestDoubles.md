@@ -57,8 +57,6 @@ isolation. See
 - ``Spy``
 - ``makeSpy(_:forwardingTo:)``
 - ``makeStub(_:)-7h3si``
-- ``makeStub(sendability:_:)``
-- ``StubSendability``
 - ``StubBuilder``
 - ``StubBehaviorChain``
 - ``Stub/Invocation``
