@@ -256,7 +256,7 @@ jobs:
           test
       - name: Upload xcresult
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: xcresult-${{ matrix.cache_key }}
           path: .build/results/${{ matrix.cache_key }}.xcresult
