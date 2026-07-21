@@ -76,7 +76,8 @@ jobs:
           path: .build/ci
           key: >-
             swift-build-v1-${{ runner.os }}-${{ runner.arch
-            }}-min-toolchain-${{ github.sha }}
+            }}-min-toolchain-${{
+            hashFiles('Package.swift', 'Package.resolved') }}
           restore-keys: |
             swift-build-v1-${{ runner.os }}-${{ runner.arch }}-min-toolchain-
       - name: Select Xcode 26.4.1
@@ -118,7 +119,8 @@ jobs:
           path: .build/ci-current
           key: >-
             swift-build-v1-${{ runner.os }}-${{ runner.arch
-            }}-current-toolchain-${{ github.sha }}
+            }}-current-toolchain-${{
+            hashFiles('Package.swift', 'Package.resolved') }}
           restore-keys: |
             swift-build-v1-${{ runner.os }}-${{ runner.arch }}-current-toolchain-
       - name: Select Xcode 26.6
@@ -164,7 +166,7 @@ jobs:
           path: .build/linux
           key: >-
             swift-build-v1-${{ runner.os }}-${{ runner.arch }}-linux-${{
-            github.sha }}
+            hashFiles('Package.swift', 'Package.resolved') }}
           restore-keys: |
             swift-build-v1-${{ runner.os }}-${{ runner.arch }}-linux-
       - name: Show toolchain
@@ -222,7 +224,8 @@ jobs:
           path: .build/ci-apple-platform
           key: >-
             derived-data-v2-${{ runner.os }}-${{ runner.arch }}-${{
-            matrix.cache_key }}-xcode-26.4.1-${{ github.sha }}
+            matrix.cache_key }}-xcode-26.4.1-${{
+            hashFiles('Package.swift', 'Package.resolved') }}
           restore-keys: |
             derived-data-v2-${{ runner.os }}-${{ runner.arch }}-${{ matrix.cache_key }}-xcode-26.4.1-
       - name: Select destination
@@ -290,7 +293,7 @@ jobs:
           path: .build/ci-native-intel
           key: >-
             swift-build-v1-${{ runner.os }}-${{ runner.arch }}-native-intel-${{
-            github.sha }}
+            hashFiles('Package.swift', 'Package.resolved') }}
           restore-keys: |
             swift-build-v1-${{ runner.os }}-${{ runner.arch }}-native-intel-
       - name: Select Xcode 26.4.1
@@ -345,7 +348,8 @@ jobs:
           path: .build/ci-${{ matrix.sanitizer }}-sanitizer
           key: >-
             swift-build-v1-${{ runner.os }}-${{ runner.arch }}-${{
-            matrix.sanitizer }}-sanitizer-${{ github.sha }}
+            matrix.sanitizer }}-sanitizer-${{
+            hashFiles('Package.swift', 'Package.resolved') }}
           restore-keys: |
             swift-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ matrix.sanitizer }}-sanitizer-
       - name: Select Xcode 26.4.1
@@ -374,7 +378,7 @@ jobs:
           path: .build/ci-coverage
           key: >-
             swift-build-v1-${{ runner.os }}-${{ runner.arch }}-coverage-${{
-            github.sha }}
+            hashFiles('Package.swift', 'Package.resolved') }}
           restore-keys: |
             swift-build-v1-${{ runner.os }}-${{ runner.arch }}-coverage-
       - name: Select Xcode 26.4.1
