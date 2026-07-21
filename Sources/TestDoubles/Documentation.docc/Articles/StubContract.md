@@ -74,8 +74,11 @@ The bounded associated-type path uses
 ``Stub/Requirement/Value/optionalAssociatedType(named:)`` or
 ``Stub/Requirement/Value/arrayOfAssociatedType(named:)`` or
 ``Stub/Requirement/Value/setOfAssociatedType(named:)`` for the supported
-containers, and ``Stub/Requirement/Value/consuming()`` to mark any of these
-dependent method argument values as consuming.
+single-parameter containers. The `dictionary` factories distinguish a dependent
+key, value, or both, while ``Stub/Requirement/Value/consuming()`` marks any of
+these dependent method argument values as consuming. A direct associated typed
+error is named with
+`Stub.Requirement.method(_:returning:throwingAssociatedTypeNamed:isAsync:)`.
 ``Stub/Requirement/Value/consumingAssociatedType(named:)`` remains a direct-value
 convenience. `Stub.Requirement.setter(_:)` describes a dependent setter,
 while
@@ -88,12 +91,12 @@ for every binding.
 For an unbound existential, ``Stub/AssociatedTypeBinding`` and
 ``Stub/AssociatedTypeBinding/binding(declaredBy:named:to:)`` inject complete
 concrete metadata at construction. This caller-bound mode is limited to
-associated types in covariant method and getter results. Swift exposes those
-results at their upper bound, so fixed values are checked against the binding
-when registered and handler results are checked when invoked. The declaring
-protocol plus associated-type name forms the binding identity. Associated
-inputs remain rejected; use a constrained existential such as
-`Stub<any Source<Int>>` for the full dependent interface.
+associated types in covariant method and getter results or as a direct typed
+error. Swift exposes dependent success results at their upper bound, so fixed
+values are checked against the binding when registered and handler results are
+checked when invoked. The declaring protocol plus associated-type name forms
+the binding identity. Associated inputs remain rejected; use a constrained
+existential such as `Stub<any Source<Int>>` for the full dependent interface.
 
 A direct dynamic `Self` result is described by
 ``Stub/Requirement/Value/dynamicSelf``. Record it with
@@ -264,9 +267,10 @@ associated types across the complete layout, including direct protocol
 constraints on each type. Declarations may belong to inherited bases, appear
 alongside inheritance, or span multiple composed roots. Direct dependent
 arguments and results, dependent setters and initializer arguments, and
-dependent `Optional`, `Array`, and `Set` values are supported. Direct and
+dependent `Optional`, `Array`, `Set`, and direct `Dictionary` key or value
+occurrences are supported. Direct and
 supported container method arguments may be consuming. Methods may combine
-these values with `async` and untyped `throws`;
+these values with `async`, untyped `throws`, and a direct associated typed error;
 effectful getters must be
 described explicitly. Both automatic discovery and explicit
 ``Stub/Requirement`` construction are supported. See
@@ -281,12 +285,15 @@ indirect aggregates, `Void`, existentials, optionals, enums, tuples, metatypes,
 and strings. These source-level types share runtime calling-convention
 machinery; they do not each need a dedicated stubbing API.
 Automatically discovered or explicitly described typed-throwing methods support
-concrete error types across otherwise supported concrete and associated result
-layouts, including async suspension. Explicit requirements name the error with
-`.method(..., throwing:)` and add `isAsync: true` when needed. Direct values
-share result registers; indirect success or error values use caller-provided
-storage, with distinct buffers across an async continuation. A typed-throwing
-handler must throw only the declared concrete error type; TestDoubles
+concrete error types and direct associated error types across otherwise
+supported concrete and associated result layouts, including async suspension.
+Explicit requirements use `.method(..., throwing:)` for a concrete error or
+`.method(..., throwingAssociatedTypeNamed:)` for a direct associated error, and
+add `isAsync: true` when needed. Concrete direct values may share result
+registers. Associated errors always use caller-provided indirect storage after
+substituting their concrete binding, with distinct buffers across an async
+continuation. A typed-throwing handler must throw only the declared error type;
+TestDoubles
 configuration or runtime failures cannot be transported through that restricted
 error channel.
 

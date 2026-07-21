@@ -23,7 +23,8 @@ stub.when { $0.transform(any()) }.then { $0 + 1 }
 ```
 
 It also accepts a complete caller-supplied binding set for an unbound
-existential when associated types occur only in covariant results:
+existential when associated types occur only in covariant results or as a
+direct typed error:
 
 ```swift
 let stub = try Stub<any Source>(
@@ -155,13 +156,15 @@ it must evolve alongside the repository's Swift runtime support matrix.
   result reuses the async indirect-result slot. Effectful dependent getters
   must be described explicitly because witness symbols never encode getter
   throwing.
-- Method results may combine a dependent success value with a concrete typed
-  error in synchronous or async requirements. A typed error that itself depends
-  on an associated type remains unsupported.
+- Direct associated typed errors are supported in synchronous and async methods.
+  Their substituted concrete metadata always drives an indirect error-result
+  slot, even when that concrete type would ordinarily fit in registers. A typed
+  error that wraps an associated type remains unsupported.
 - Automatic discovery and explicit requirement descriptions.
 - Complete caller-supplied bindings for unbound associated types used only in
-  covariant method or getter results. Flat explicit requirements are supported;
-  result values remain statically erased to their upper bounds at the call site.
+  covariant method or getter results or as a direct typed error. Flat explicit
+  requirements are supported; result values remain statically erased to their
+  upper bounds at the call site.
 
 The implementation has tests that pass fabricated existentials to generic code,
 use multiple associated-type conformances, bind stubs to different concrete

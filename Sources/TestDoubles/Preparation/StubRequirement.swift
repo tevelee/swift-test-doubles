@@ -223,6 +223,7 @@ extension Stub {
         let arguments: [Value]
         let result: Value
         let typedErrorType: Any.Type?
+        let typedErrorAssociatedTypeName: String?
         let isThrowing: Bool
         let isAsync: Bool
         let typedWitnessAdapterFactory: TypedWitnessAdapterFactory?
@@ -233,6 +234,7 @@ extension Stub {
             arguments: [Value],
             result: Value,
             typedErrorType: Any.Type? = nil,
+            typedErrorAssociatedTypeName: String? = nil,
             isThrowing: Bool,
             isAsync: Bool,
             typedWitnessAdapterFactory: TypedWitnessAdapterFactory? = nil,
@@ -242,6 +244,7 @@ extension Stub {
             self.arguments = arguments
             self.result = result
             self.typedErrorType = typedErrorType
+            self.typedErrorAssociatedTypeName = typedErrorAssociatedTypeName
             self.isThrowing = isThrowing
             self.isAsync = isAsync
             self.typedWitnessAdapterFactory = typedWitnessAdapterFactory
@@ -380,6 +383,25 @@ extension Stub {
                 typedErrorType: error,
                 isThrowing: true,
                 isAsync: false
+            )
+        }
+
+        /// Describes a method whose typed error is a directly named associated type.
+        ///
+        /// The associated type's concrete binding must conform to `Error`.
+        public static func method(
+            _ arguments: Value...,
+            returning result: Value,
+            throwingAssociatedTypeNamed errorName: String,
+            isAsync: Bool = false
+        ) -> Self {
+            Self(
+                kind: .method,
+                arguments: arguments,
+                result: result,
+                typedErrorAssociatedTypeName: errorName,
+                isThrowing: true,
+                isAsync: isAsync
             )
         }
 
@@ -749,6 +771,29 @@ extension Stub {
                 protocolDescriptor: protocolDescriptor,
                 containsAssociatedTypes: containsAssociatedTypes
             )
+            let resolvedTypedError:
+                (
+                    type: Any.Type?,
+                    dependency: WitnessValueDependency
+                )
+            if let name = typedErrorAssociatedTypeName {
+                let binding = try bindings.binding(
+                    named: name,
+                    declaredBy: protocolDescriptor
+                )
+                guard binding.type is any Error.Type else {
+                    throw StubError.unsupportedProtocolShape(
+                        protocolName: protocolDescriptor.name,
+                        reason: "Associated typed error '\(name)' is bound to '\(runtimeTypeName(binding.type))', which does not conform to Error."
+                    )
+                }
+                resolvedTypedError = (
+                    binding.type,
+                    .associatedType(name: name)
+                )
+            } else {
+                resolvedTypedError = (typedErrorType, .independent)
+            }
             return try MethodDescriptor(
                 kind: kind,
                 receiver: receiver,
@@ -764,7 +809,8 @@ extension Stub {
                     bindings: bindings
                 ),
                 protocolName: protocolDescriptor.name,
-                typedErrorType: typedErrorType,
+                typedErrorType: resolvedTypedError.type,
+                typedErrorDependency: resolvedTypedError.dependency,
                 selfIsClassConstrained: selfIsClassConstrained,
                 isThrowing: isThrowing,
                 isAsync: isAsync,
@@ -802,7 +848,9 @@ extension Stub {
                 )
             }
 
-            if typedErrorType != nil, kind != .method {
+            if typedErrorType != nil || typedErrorAssociatedTypeName != nil,
+                kind != .method
+            {
                 throw StubError.unsupportedProtocolShape(
                     protocolName: protocolDescriptor.name,
                     reason: "Requirement \(index) uses `signatureOf:` with typed throws on an accessor. Typed-throwing accessors are unsupported."

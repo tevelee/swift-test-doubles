@@ -407,7 +407,8 @@ What's supported:
 
 - Instance and static methods, property getters and setters, subscripts, and
   initializer requirements, in sync, throwing, async, and async-throwing
-  forms, including typed `throws` with a concrete error type.
+  forms, including typed `throws` with a concrete or directly bound associated
+  error type.
 - Protocol inheritance, diamond bases, and multi-protocol compositions;
   class-constrained protocols, and `NSObject`-backed superclass existentials
   on Apple platforms.

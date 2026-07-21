@@ -85,10 +85,11 @@ associated metadata. Caller-bound construction validates an explicit mapping
 from declaring protocol plus associated-type name to concrete metadata, then
 installs that mapping in the same fabricated structural witness entries. This
 reuses dependent indirect-result lowering for covariant method and getter
-results. Swift erases such calls to the associated type's upper bound, so the
-runtime dynamically casts the configured result back to the bound concrete type
-before initializing the indirect return buffer. Associated inputs stay
-fail-closed because the unbound existential interface cannot express them.
+results, and supplies the indirect error metadata for a direct associated typed
+error. Swift erases dependent success calls to the associated type's upper
+bound, so the runtime dynamically casts the configured result back to the bound
+concrete type before initializing the indirect return buffer. Associated inputs
+stay fail-closed because the unbound existential interface cannot express them.
 
 ### Invocation
 
@@ -246,8 +247,9 @@ result registers when both layouts are direct. If either the success or concrete
 error layout is indirect, the decoder consumes Swift's extra typed-error buffer
 after the user arguments and writes failures into that caller-owned storage.
 Async dispatch retains that error buffer separately from both the indirect
-success result and the saved continuation context. Error types that themselves
-depend on an associated type remain fail-closed.
+success result and the saved continuation context. A direct associated error
+substitutes its concrete binding and always uses that indirect error buffer;
+wrappers containing an associated type remain fail-closed.
 
 Construction rejects architecture-specific unsupported signatures before
 allocation. Per-requirement veneers are aligned and packed into page-backed

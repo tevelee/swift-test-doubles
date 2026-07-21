@@ -97,12 +97,13 @@ func discoverMethods(
             mangledSignature: parsedMangledName
         )
 
-        let typedErrorType = try resolveTypedErrorType(
+        let typedError = try resolveTypedError(
             parsed.typedError,
             protocolDescriptor: proto,
-            requirementIndex: requirement.dispatchIndex
+            requirementIndex: requirement.dispatchIndex,
+            associatedTypeBindings: associatedTypeBindings
         )
-        if typedErrorType != nil {
+        if typedError != nil {
             let supportsResultConvention =
                 switch result.convention {
                     case .concrete, .associatedType:
@@ -130,7 +131,8 @@ func discoverMethods(
                 arguments: arguments,
                 result: result,
                 protocolName: proto.name,
-                typedErrorType: typedErrorType,
+                typedErrorType: typedError?.type,
+                typedErrorDependency: typedError?.dependency ?? .independent,
                 selfIsClassConstrained: selfIsClassConstrained,
                 isThrowing: getterEffect?.isThrowing ?? parsed.isThrowing,
                 isAsync: isAsync,
@@ -345,19 +347,42 @@ private func resolveWitnessValue(
     )
 }
 
-private func resolveTypedErrorType(
+private func resolveTypedError(
     _ syntax: DemangledTypeSyntax?,
     protocolDescriptor: ProtocolDescriptor,
-    requirementIndex: Int
-) throws -> Any.Type? {
+    requirementIndex: Int,
+    associatedTypeBindings: AssociatedTypeBindings
+) throws -> (type: Any.Type, dependency: WitnessValueDependency)? {
     guard let syntax else { return nil }
     let name = syntax.canonicalSpelling
-    guard name.contains("A.") == false,
-        name.contains("Self.") == false
-    else {
+    if let associatedTypeName = directAssociatedTypeName(
+        in: name,
+        protocolDescriptor: protocolDescriptor,
+        associatedTypeBindings: associatedTypeBindings
+    ) {
+        let binding = try associatedTypeBindings.binding(
+            named: associatedTypeName,
+            declaredBy: protocolDescriptor
+        )
+        guard binding.type is any Error.Type else {
+            throw StubError.unsupportedProtocolShape(
+                protocolName: protocolDescriptor.name,
+                reason: "Associated typed error '\(associatedTypeName)' is bound to '\(runtimeTypeName(binding.type))', which does not conform to Error."
+            )
+        }
+        return (
+            binding.type,
+            .associatedType(name: associatedTypeName)
+        )
+    }
+    if referencesAssociatedType(
+        in: name,
+        protocolDescriptor: protocolDescriptor,
+        associatedTypeBindings: associatedTypeBindings
+    ) {
         throw StubError.unsupportedProtocolShape(
             protocolName: protocolDescriptor.name,
-            reason: "Requirement \(requirementIndex) uses a dependent typed error. Dependent typed throws requires a separate indirect error-result slot."
+            reason: "Requirement \(requirementIndex) embeds an associated type inside typed error '\(name)'. Only a direct associated typed error is supported."
         )
     }
     guard let type = resolveRuntimeType(syntax) else {
@@ -372,7 +397,7 @@ private func resolveTypedErrorType(
             reason: "Requirement \(requirementIndex) has a function-valued typed error."
         )
     }
-    return type
+    return (type, .independent)
 }
 
 private func associatedTypeContainer(

@@ -13,6 +13,21 @@ struct RealAsyncTypedThrowsRequirementProbe: AsyncTypedThrowsRequirementProbe {
     }
 }
 
+struct AsyncAssociatedTypedThrowsError: Error, Equatable {
+    let code: Int
+}
+
+protocol AsyncAssociatedTypedThrowsProbe<Failure> {
+    associatedtype Failure: Error
+    func load(_ shouldFail: Bool) async throws(Failure) -> String
+}
+
+struct RealAsyncAssociatedTypedThrowsProbe: AsyncAssociatedTypedThrowsProbe {
+    func load(_ shouldFail: Bool) async throws(AsyncAssociatedTypedThrowsError) -> String {
+        "linked"
+    }
+}
+
 protocol AsyncIndirectTypedErrorProbe {
     func load(_ shouldFail: Bool) async throws(IndirectTypedThrowsRequirementError) -> Int
 }
@@ -196,6 +211,37 @@ private func callWithValue(
             _ = try await probe.load(3)
         }
         #expect(suspendingError == TypedThrowsPayloadError(code: 3, message: "suspending"))
+    }
+
+    @Test func directAssociatedTypedErrorsUseIndirectStorageAcrossSuspension() async throws {
+        _ = RealAsyncAssociatedTypedThrowsProbe()
+        typealias Probe = any AsyncAssociatedTypedThrowsProbe<
+            AsyncAssociatedTypedThrowsError
+        >
+        let stub = try Stub<Probe>()
+        let method = try #require(stub.recorder.runtimeMethod(for: 0))
+
+        #expect(method.isAsync)
+        #expect(
+            method.typedErrorType.map(ObjectIdentifier.init)
+                == ObjectIdentifier(AsyncAssociatedTypedThrowsError.self)
+        )
+        #expect(method.typedErrorDependency == .associatedType(name: "Failure"))
+        #expect(method.typedErrorUsesIndirectResultSlot)
+
+        await stub.when { try await $0.load(equal(false)) }.thenReturn("loaded")
+        await stub.when { try await $0.load(equal(true)) }.then {
+            (_: Bool) async throws -> String in
+            await Task.yield()
+            throw AsyncAssociatedTypedThrowsError(code: 42)
+        }
+        let probe: Probe = stub()
+
+        #expect(try await probe.load(false) == "loaded")
+        let error = await #expect(throws: AsyncAssociatedTypedThrowsError.self) {
+            _ = try await probe.load(true)
+        }
+        #expect(error == AsyncAssociatedTypedThrowsError(code: 42))
     }
 
     @Test func indirectResultsAndErrorsUseDistinctCallerStorage() async throws {

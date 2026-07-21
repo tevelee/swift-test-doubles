@@ -220,6 +220,7 @@ struct ResolvedWitnessValue: Sendable {
 struct TypedErrorTransport: Sendable {
     let type: Any.Type
     let layout: ABIClass
+    let dependency: WitnessValueDependency
     let usesIndirectResultSlot: Bool
 }
 
@@ -303,6 +304,7 @@ struct MethodDescriptor: Sendable {
         returnConvention: WitnessValueConvention = .concrete,
         returnDependency: WitnessValueDependency? = nil,
         typedErrorType: Any.Type? = nil,
+        typedErrorDependency: WitnessValueDependency = .independent,
         selfIsClassConstrained: Bool = false,
         isThrowing: Bool = false,
         isAsync: Bool = false,
@@ -365,18 +367,26 @@ struct MethodDescriptor: Sendable {
                 "[TestDoubles] A typed-error transport requires a throwing requirement."
             )
             let errorLayout = abiClass(for: typedErrorType, isReturn: true)
-            let usesIndirectResultSlot =
+            let concreteLayoutUsesIndirectResultSlot =
                 switch (resultLayout, errorLayout) {
                     case (.indirect, _), (_, .indirect): true
                     default: false
                 }
+            let usesIndirectResultSlot =
+                typedErrorDependency.isAssociatedTypeDependent
+                || concreteLayoutUsesIndirectResultSlot
             throwing = .typed(
                 TypedErrorTransport(
                     type: typedErrorType,
                     layout: errorLayout,
+                    dependency: typedErrorDependency,
                     usesIndirectResultSlot: usesIndirectResultSlot
                 ))
         } else if isThrowing {
+            precondition(
+                typedErrorDependency == .independent,
+                "[TestDoubles] A typed-error dependency requires error metadata."
+            )
             throwing = .untyped(reliable: hasReliableThrowing)
         } else {
             throwing = .nonthrowing(reliable: hasReliableThrowing)
@@ -399,6 +409,7 @@ struct MethodDescriptor: Sendable {
         result: ResolvedWitnessValue,
         protocolName: String,
         typedErrorType: Any.Type? = nil,
+        typedErrorDependency: WitnessValueDependency = .independent,
         selfIsClassConstrained: Bool,
         isThrowing: Bool,
         isAsync: Bool,
@@ -428,6 +439,7 @@ struct MethodDescriptor: Sendable {
             returnConvention: result.convention,
             returnDependency: result.dependency,
             typedErrorType: typedErrorType,
+            typedErrorDependency: typedErrorDependency,
             selfIsClassConstrained: selfIsClassConstrained,
             isThrowing: isThrowing,
             isAsync: isAsync,
@@ -456,6 +468,9 @@ struct MethodDescriptor: Sendable {
     var returnLayout: ABIClass { result.layout }
     var typedErrorType: Any.Type? { effects.throwing.typedError?.type }
     var typedErrorLayout: ABIClass? { effects.throwing.typedError?.layout }
+    var typedErrorDependency: WitnessValueDependency {
+        effects.throwing.typedError?.dependency ?? .independent
+    }
     var typedErrorUsesIndirectResultSlot: Bool {
         effects.throwing.typedError?.usesIndirectResultSlot ?? false
     }
@@ -465,8 +480,8 @@ struct MethodDescriptor: Sendable {
 
     var signatureDescription: String {
         let throwingEffect =
-            typedErrorType.map {
-                "throws(\(runtimeTypeName($0)))"
+            effects.throwing.typedError.map {
+                "throws(\(typedErrorDescription($0)))"
             } ?? (isThrowing ? "throws" : nil)
         let effectDescription = [isAsync ? "async" : nil, throwingEffect]
             .compactMap { $0 }
@@ -503,7 +518,9 @@ struct MethodDescriptor: Sendable {
             case (nil, nil):
                 typedErrorsMatch = true
             case (.some(let lhs), .some(let rhs)):
-                typedErrorsMatch = sameType(lhs, rhs)
+                typedErrorsMatch =
+                    sameType(lhs, rhs)
+                    && typedErrorDependency == discovered.typedErrorDependency
             case (.none, .some), (.some, .none):
                 typedErrorsMatch = false
         }
@@ -588,6 +605,14 @@ private func witnessValueDescription(
         case .optionalSelf:
             "Self?"
     }
+}
+
+private func typedErrorDescription(_ error: TypedErrorTransport) -> String {
+    let typeName = runtimeTypeName(error.type)
+    if case .associatedType(let name) = error.dependency {
+        return "\(typeName) [associated \(name)]"
+    }
+    return typeName
 }
 
 private func sameType(_ lhs: Any.Type, _ rhs: Any.Type) -> Bool {

@@ -58,6 +58,19 @@ struct LinkedCallerBoundSink: CallerBoundSink {
     func consume(_ value: Int) {}
 }
 
+struct CallerBoundTypedFailure: Error, Equatable {
+    let code: Int
+}
+
+protocol CallerBoundTypedThrowingProbe<Failure> {
+    associatedtype Failure: Error
+    func load(_ shouldFail: Bool) throws(Failure) -> Int
+}
+
+struct LinkedCallerBoundTypedThrowingProbe: CallerBoundTypedThrowingProbe {
+    func load(_ shouldFail: Bool) throws(CallerBoundTypedFailure) -> Int { 0 }
+}
+
 private protocol ForeignCallerBoundSource<Element> {
     associatedtype Element
 }
@@ -89,6 +102,33 @@ private final class NonEquatableCallerBinding {}
         #expect(source.current as? String == "current")
         #expect(try await source.load() as? String == "loaded")
         #expect(callerBoundElementType(of: source) == ObjectIdentifier(String.self))
+    }
+
+    @Test func associatedTypedErrorUsesCallerBinding() throws {
+        _ = LinkedCallerBoundTypedThrowingProbe()
+        typealias ProbeStub = Stub<any CallerBoundTypedThrowingProbe>
+        let stub = try ProbeStub(
+            associatedTypes: [
+                .binding(
+                    declaredBy: (any CallerBoundTypedThrowingProbe).self,
+                    named: "Failure",
+                    to: CallerBoundTypedFailure.self
+                )
+            ]
+        )
+        let method = try #require(stub.recorder.runtimeMethod(for: 0))
+
+        #expect(method.typedErrorDependency == .associatedType(name: "Failure"))
+        #expect(method.typedErrorUsesIndirectResultSlot)
+        stub.when { try $0.load(equal(false)) }.thenReturn(42)
+        stub.when { try $0.load(equal(true)) }.thenThrow(CallerBoundTypedFailure(code: 7))
+
+        let probe = stub()
+        #expect(try probe.load(false) == 42)
+        let error = #expect(throws: CallerBoundTypedFailure.self) {
+            _ = try probe.load(true)
+        }
+        #expect(error == CallerBoundTypedFailure(code: 7))
     }
 
     @Test func flatExplicitRequirementsDoNotNeedALinkedConformer() throws {
