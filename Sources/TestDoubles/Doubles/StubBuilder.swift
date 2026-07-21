@@ -591,8 +591,8 @@ public struct StubBehaviorChain<Result> {
     ///
     /// With nothing appended after it, this behaves like `times: 1...`
     /// (repeats forever). `after:` delays delivery; see
-    /// ``StubBuilder/thenReturn(_:after:times:)-swift.method`` for the delay
-    /// and cancellation contract, which applies here identically.
+    /// `StubBuilder.thenReturn(_:after:times:)` for the delay and
+    /// cancellation contract, which applies here identically.
     @_disfavoredOverload
     public func thenReturn(
         _ value: Result,
