@@ -56,6 +56,7 @@ private struct UnexpectedTypedError: Error {}
         case timesBelowOne
         case appendingAfterUnbounded
         case timesIntShorthandBelowOne
+        case delayOnSynchronousRequirement
     }
 
     @Suite struct UnstubbedBehaviorExitTests {
@@ -90,7 +91,26 @@ private struct UnexpectedTypedError: Error {}
                     try await appendingAfterUnboundedHaltsAtConfiguration()
                 case .timesIntShorthandBelowOne:
                     try await timesIntShorthandBelowOneHaltsAtConfiguration()
+                case .delayOnSynchronousRequirement:
+                    try await delayOnSynchronousRequirementHaltsAtConfiguration()
             }
+        }
+
+        private func delayOnSynchronousRequirementHaltsAtConfiguration() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let stub = try Stub<any UnstubbedBehaviorProbe>()
+                stub.when { $0.greet(name: any()) }
+                    .thenReturn("hi", after: .milliseconds(1))
+            }
+
+            let diagnostic = try #require(
+                String(bytes: result.standardErrorContent, encoding: .utf8)
+            )
+            #expect(diagnostic.contains("after: requires an async requirement"))
+            #expect(diagnostic.contains("greet(name:)"))
         }
 
         private func invokingAnUnstubbedRequirementHaltsWithASuggestedStub() async throws {

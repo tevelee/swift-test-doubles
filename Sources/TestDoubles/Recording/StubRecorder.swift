@@ -340,6 +340,15 @@ final class StubRecorder: @unchecked Sendable {
                     switch results.next() {
                         case .value(let result):
                             behavior = .fixed(result)
+                        case .delayed(let result, let delay):
+                            let cancellableDelay = method.isThrowing
+                            behavior = .suspending { _ in
+                                try await StubRecorder.deliverFixedResult(
+                                    result,
+                                    after: delay,
+                                    cancellableDelay: cancellableDelay
+                                )
+                            }
                         case .fatal(let message):
                             fatalError(
                                 diagnosticMessage(
@@ -357,6 +366,23 @@ final class StubRecorder: @unchecked Sendable {
         }
         resume(waiters, returning: .changed)
         return .behavior(behavior)
+    }
+
+    /// Delivers a queued fixed result after its configured delay. A throwing
+    /// requirement's delay is cancellable and surfaces the cancellation error;
+    /// a non-throwing requirement has no error channel for cancellation, so
+    /// its delay always runs to completion.
+    private static func deliverFixedResult(
+        _ result: Result<Any, any Error>,
+        after delay: Duration,
+        cancellableDelay: Bool
+    ) async throws -> Any {
+        if cancellableDelay {
+            try await ContinuousClock().sleep(for: delay)
+        } else {
+            await Task { try? await ContinuousClock().sleep(for: delay) }.value
+        }
+        return try result.get()
     }
 
     private func recordForwardedInvocation(

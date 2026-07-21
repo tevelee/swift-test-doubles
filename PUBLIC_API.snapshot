@@ -209,45 +209,45 @@ symbol	swift.method	Stub.when(returningSelf:)	func when(returningSelf call: (P) 
 symbol	swift.method	Stub.when(returningSelf:isolation:)	func when(returningSelf call: (P) async throws -> P, isolation: isolated (any Actor)? = #isolation) async -> StubSelfResultBuilder
 symbol	swift.method	Stub.withValue(_:)	func withValue<Result, Failure>(_ operation: (P) async throws(Failure) -> Result) async throws(Failure) -> Result where Failure : Error
 symbol	swift.method	Stub.withValue(_:)	func withValue<Result, Failure>(_ operation: (P) throws(Failure) -> Result) throws(Failure) -> Result where Failure : Error
-symbol	swift.method	StubBehaviorChain.thenDoNothing(times:)	func thenDoNothing(times: ClosedRange<Int>)
-symbol	swift.method	StubBehaviorChain.thenDoNothing(times:)	func thenDoNothing(times: ClosedRange<Int>) -> StubBehaviorChain<Result>
-symbol	swift.method	StubBehaviorChain.thenDoNothing(times:)	func thenDoNothing(times: Int = 1) -> StubBehaviorChain<Result>
-symbol	swift.method	StubBehaviorChain.thenDoNothing(times:)	func thenDoNothing(times: Int)
-symbol	swift.method	StubBehaviorChain.thenDoNothing(times:)	func thenDoNothing(times: PartialRangeFrom<Int> = 1...)
+symbol	swift.method	StubBehaviorChain.thenDoNothing(after:times:)	func thenDoNothing(after delay: Duration? = nil, times: ClosedRange<Int>)
+symbol	swift.method	StubBehaviorChain.thenDoNothing(after:times:)	func thenDoNothing(after delay: Duration? = nil, times: ClosedRange<Int>) -> StubBehaviorChain<Result>
+symbol	swift.method	StubBehaviorChain.thenDoNothing(after:times:)	func thenDoNothing(after delay: Duration? = nil, times: Int = 1) -> StubBehaviorChain<Result>
+symbol	swift.method	StubBehaviorChain.thenDoNothing(after:times:)	func thenDoNothing(after delay: Duration? = nil, times: Int)
+symbol	swift.method	StubBehaviorChain.thenDoNothing(after:times:)	func thenDoNothing(after delay: Duration? = nil, times: PartialRangeFrom<Int> = 1...)
 symbol	swift.method	StubBehaviorChain.thenFatalError(_:)	func thenFatalError(_ message: String? = nil)
 symbol	swift.method	StubBehaviorChain.thenReturn(_:_:_:)	func thenReturn(_ first: Result, _ second: Result, _ rest: Result...)
-symbol	swift.method	StubBehaviorChain.thenReturn(_:times:)	func thenReturn(_ value: Result, times: ClosedRange<Int>)
-symbol	swift.method	StubBehaviorChain.thenReturn(_:times:)	func thenReturn(_ value: Result, times: ClosedRange<Int>) -> StubBehaviorChain<Result>
-symbol	swift.method	StubBehaviorChain.thenReturn(_:times:)	func thenReturn(_ value: Result, times: Int = 1) -> StubBehaviorChain<Result>
-symbol	swift.method	StubBehaviorChain.thenReturn(_:times:)	func thenReturn(_ value: Result, times: Int)
-symbol	swift.method	StubBehaviorChain.thenReturn(_:times:)	func thenReturn(_ value: Result, times: PartialRangeFrom<Int> = 1...)
-symbol	swift.method	StubBehaviorChain.thenThrow(_:times:)	func thenThrow<Failure>(_ error: Failure, times: ClosedRange<Int>) -> StubBehaviorChain<Result> where Failure : Error
-symbol	swift.method	StubBehaviorChain.thenThrow(_:times:)	func thenThrow<Failure>(_ error: Failure, times: ClosedRange<Int>) where Failure : Error
-symbol	swift.method	StubBehaviorChain.thenThrow(_:times:)	func thenThrow<Failure>(_ error: Failure, times: Int = 1) -> StubBehaviorChain<Result> where Failure : Error
-symbol	swift.method	StubBehaviorChain.thenThrow(_:times:)	func thenThrow<Failure>(_ error: Failure, times: Int) where Failure : Error
-symbol	swift.method	StubBehaviorChain.thenThrow(_:times:)	func thenThrow<Failure>(_ error: Failure, times: PartialRangeFrom<Int> = 1...) where Failure : Error
+symbol	swift.method	StubBehaviorChain.thenReturn(_:after:times:)	func thenReturn(_ value: Result, after delay: Duration? = nil, times: ClosedRange<Int>)
+symbol	swift.method	StubBehaviorChain.thenReturn(_:after:times:)	func thenReturn(_ value: Result, after delay: Duration? = nil, times: ClosedRange<Int>) -> StubBehaviorChain<Result>
+symbol	swift.method	StubBehaviorChain.thenReturn(_:after:times:)	func thenReturn(_ value: Result, after delay: Duration? = nil, times: Int = 1) -> StubBehaviorChain<Result>
+symbol	swift.method	StubBehaviorChain.thenReturn(_:after:times:)	func thenReturn(_ value: Result, after delay: Duration? = nil, times: Int)
+symbol	swift.method	StubBehaviorChain.thenReturn(_:after:times:)	func thenReturn(_ value: Result, after delay: Duration? = nil, times: PartialRangeFrom<Int> = 1...)
+symbol	swift.method	StubBehaviorChain.thenThrow(_:after:times:)	func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, times: ClosedRange<Int>) -> StubBehaviorChain<Result> where Failure : Error
+symbol	swift.method	StubBehaviorChain.thenThrow(_:after:times:)	func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, times: ClosedRange<Int>) where Failure : Error
+symbol	swift.method	StubBehaviorChain.thenThrow(_:after:times:)	func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, times: Int = 1) -> StubBehaviorChain<Result> where Failure : Error
+symbol	swift.method	StubBehaviorChain.thenThrow(_:after:times:)	func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, times: Int) where Failure : Error
+symbol	swift.method	StubBehaviorChain.thenThrow(_:after:times:)	func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, times: PartialRangeFrom<Int> = 1...) where Failure : Error
 symbol	swift.method	StubBuilder.then(_:)	func then<Argument>(_ handler: @escaping @Sendable (Argument) throws -> Result)
 symbol	swift.method	StubBuilder.then(_:)	func then<each Argument>(_ handler: @escaping (repeat each Argument) async throws -> Result)
 symbol	swift.method	StubBuilder.then(_:)	func then<each Argument>(_ handler: @escaping @Sendable (repeat each Argument) throws -> Result)
-symbol	swift.method	StubBuilder.thenDoNothing(times:)	func thenDoNothing(times: ClosedRange<Int>)
-symbol	swift.method	StubBuilder.thenDoNothing(times:)	func thenDoNothing(times: ClosedRange<Int>) -> StubBehaviorChain<Void>
-symbol	swift.method	StubBuilder.thenDoNothing(times:)	func thenDoNothing(times: Int = 1) -> StubBehaviorChain<Void>
-symbol	swift.method	StubBuilder.thenDoNothing(times:)	func thenDoNothing(times: Int)
-symbol	swift.method	StubBuilder.thenDoNothing(times:)	func thenDoNothing(times: PartialRangeFrom<Int> = 1...)
+symbol	swift.method	StubBuilder.thenDoNothing(after:times:)	func thenDoNothing(after delay: Duration? = nil, times: ClosedRange<Int>)
+symbol	swift.method	StubBuilder.thenDoNothing(after:times:)	func thenDoNothing(after delay: Duration? = nil, times: ClosedRange<Int>) -> StubBehaviorChain<Void>
+symbol	swift.method	StubBuilder.thenDoNothing(after:times:)	func thenDoNothing(after delay: Duration? = nil, times: Int = 1) -> StubBehaviorChain<Void>
+symbol	swift.method	StubBuilder.thenDoNothing(after:times:)	func thenDoNothing(after delay: Duration? = nil, times: Int)
+symbol	swift.method	StubBuilder.thenDoNothing(after:times:)	func thenDoNothing(after delay: Duration? = nil, times: PartialRangeFrom<Int> = 1...)
 symbol	swift.method	StubBuilder.thenEscaping(_:)	func thenEscaping<FirstArgument, each AdditionalArgument>(_ handler: @escaping (FirstArgument, repeat each AdditionalArgument) async throws -> Result)
 symbol	swift.method	StubBuilder.thenEscaping(_:)	func thenEscaping<FirstArgument, each AdditionalArgument>(_ handler: @escaping @Sendable (FirstArgument, repeat each AdditionalArgument) throws -> Result)
 symbol	swift.method	StubBuilder.thenFatalError(_:)	func thenFatalError(_ message: String? = nil)
 symbol	swift.method	StubBuilder.thenReturn(_:_:_:)	func thenReturn(_ first: Result, _ second: Result, _ rest: Result...)
-symbol	swift.method	StubBuilder.thenReturn(_:times:)	func thenReturn(_ value: Result, times: ClosedRange<Int>)
-symbol	swift.method	StubBuilder.thenReturn(_:times:)	func thenReturn(_ value: Result, times: ClosedRange<Int>) -> StubBehaviorChain<Result>
-symbol	swift.method	StubBuilder.thenReturn(_:times:)	func thenReturn(_ value: Result, times: Int = 1) -> StubBehaviorChain<Result>
-symbol	swift.method	StubBuilder.thenReturn(_:times:)	func thenReturn(_ value: Result, times: Int)
-symbol	swift.method	StubBuilder.thenReturn(_:times:)	func thenReturn(_ value: Result, times: PartialRangeFrom<Int> = 1...)
-symbol	swift.method	StubBuilder.thenThrow(_:times:)	func thenThrow<Failure>(_ error: Failure, times: ClosedRange<Int>) -> StubBehaviorChain<Result> where Failure : Error
-symbol	swift.method	StubBuilder.thenThrow(_:times:)	func thenThrow<Failure>(_ error: Failure, times: ClosedRange<Int>) where Failure : Error
-symbol	swift.method	StubBuilder.thenThrow(_:times:)	func thenThrow<Failure>(_ error: Failure, times: Int = 1) -> StubBehaviorChain<Result> where Failure : Error
-symbol	swift.method	StubBuilder.thenThrow(_:times:)	func thenThrow<Failure>(_ error: Failure, times: Int) where Failure : Error
-symbol	swift.method	StubBuilder.thenThrow(_:times:)	func thenThrow<Failure>(_ error: Failure, times: PartialRangeFrom<Int> = 1...) where Failure : Error
+symbol	swift.method	StubBuilder.thenReturn(_:after:times:)	func thenReturn(_ value: Result, after delay: Duration? = nil, times: ClosedRange<Int>)
+symbol	swift.method	StubBuilder.thenReturn(_:after:times:)	func thenReturn(_ value: Result, after delay: Duration? = nil, times: ClosedRange<Int>) -> StubBehaviorChain<Result>
+symbol	swift.method	StubBuilder.thenReturn(_:after:times:)	func thenReturn(_ value: Result, after delay: Duration? = nil, times: Int = 1) -> StubBehaviorChain<Result>
+symbol	swift.method	StubBuilder.thenReturn(_:after:times:)	func thenReturn(_ value: Result, after delay: Duration? = nil, times: Int)
+symbol	swift.method	StubBuilder.thenReturn(_:after:times:)	func thenReturn(_ value: Result, after delay: Duration? = nil, times: PartialRangeFrom<Int> = 1...)
+symbol	swift.method	StubBuilder.thenThrow(_:after:times:)	func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, times: ClosedRange<Int>) -> StubBehaviorChain<Result> where Failure : Error
+symbol	swift.method	StubBuilder.thenThrow(_:after:times:)	func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, times: ClosedRange<Int>) where Failure : Error
+symbol	swift.method	StubBuilder.thenThrow(_:after:times:)	func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, times: Int = 1) -> StubBehaviorChain<Result> where Failure : Error
+symbol	swift.method	StubBuilder.thenThrow(_:after:times:)	func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, times: Int) where Failure : Error
+symbol	swift.method	StubBuilder.thenThrow(_:after:times:)	func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, times: PartialRangeFrom<Int> = 1...) where Failure : Error
 symbol	swift.method	StubFailableInitializerBuilder.then(_:)	func then<each Argument>(_ handler: @escaping (repeat each Argument) async throws -> Outcome)
 symbol	swift.method	StubFailableInitializerBuilder.then(_:)	func then<each Argument>(_ handler: @escaping @Sendable (repeat each Argument) throws -> Outcome)
 symbol	swift.method	StubFailableInitializerBuilder.thenInitialize()	func thenInitialize()

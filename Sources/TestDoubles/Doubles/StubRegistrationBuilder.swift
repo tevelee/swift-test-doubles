@@ -43,6 +43,29 @@ extension StubRegistrationBuilder {
         recorder.requireThrownErrorMatchesRuntimeType(error, for: method)
     }
 
+    /// Wraps a fixed result as a queued answer, attaching the `after:` delay
+    /// when one was given. A delay needs an async requirement — a synchronous
+    /// caller has nowhere to suspend — so that shape fails here at
+    /// registration rather than at the eventual call.
+    func fixedAnswer(
+        _ result: StubBehaviorRegistry.FixedResult,
+        after delay: Duration?
+    ) -> StubRecorder.QueuedAnswer {
+        guard let delay else { return .value(result) }
+        let method = requireRuntimeMethod()
+        guard method.isAsync else {
+            fatalError(
+                "[TestDoubles] after: requires an async requirement; "
+                    + "\(method.name) completes synchronously."
+            )
+        }
+        precondition(
+            delay >= .zero,
+            "[TestDoubles] after: requires a nonnegative delay."
+        )
+        return .delayed(result, delay)
+    }
+
     func addStubBehavior(
         _ behavior: @escaping @Sendable (_ arguments: [Any], _ methodName: String) throws -> Any
     ) {

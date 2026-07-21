@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Delayed delivery for fixed behaviors on async requirements: every
+  `thenReturn`, `thenThrow`, and `thenDoNothing` overload takes an
+  `after: Duration` that suspends the matching call for that long before
+  completing, including inside behavior chains, so tests can drive loading
+  states and retry timing against realistic latency. During the delay a
+  throwing requirement observes task cancellation and rethrows it; a
+  non-throwing requirement's delay always runs to completion. Registering a
+  delay on a synchronous requirement fails with a diagnostic.
 - Rich argument matchers that compose on the existing matching engine:
   logical combinators `not`, `allOf`, `anyOf`, and `oneOf`; the equality and
   identity matchers `notEqual` and `identical(to:)`; the comparison matchers
