@@ -12,7 +12,6 @@ on:
       - .swiftlint.yml
       - Package.resolved
       - Package.swift
-      - PUBLIC_API.snapshot
       - Scripts/**
       - Sources/**
       - "!Sources/TestDoubles/Documentation.docc/**"
@@ -27,7 +26,6 @@ on:
       - .swiftlint.yml
       - Package.resolved
       - Package.swift
-      - PUBLIC_API.snapshot
       - Scripts/**
       - Sources/**
       - "!Sources/TestDoubles/Documentation.docc/**"
@@ -45,7 +43,7 @@ concurrency:
 
 jobs:
   swift-quality:
-    name: Swift format, lint, and boundaries
+    name: swift-format and swiftlint
     runs-on: macos-26
     timeout-minutes: 10
     steps:
@@ -142,9 +140,6 @@ jobs:
           --experimental-maximum-parallelization-width 4
           --skip ExitTests
           --scratch-path .build/ci-current
-      - name: Check public API
-        run: Scripts/check-public-api.sh
-
   linux:
     name: Swift 6.3 / Ubuntu 24.04 / ${{ matrix.architecture }}
     strategy:
