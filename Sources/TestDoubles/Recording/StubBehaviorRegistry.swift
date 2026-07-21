@@ -12,10 +12,12 @@ struct StubBehaviorRegistry {
     }
 
     /// A single queued answer: a fixed value/error delivered immediately or
-    /// after a delay, or an explicit crash for whichever call reaches it.
+    /// after a delay, a park that never completes, or an explicit crash for
+    /// whichever call reaches it.
     enum QueuedAnswer {
         case value(FixedResult)
         case delayed(FixedResult, Duration)
+        case never
         case fatal(message: String?)
     }
 

@@ -349,6 +349,10 @@ final class StubRecorder: @unchecked Sendable {
                                     cancellableDelay: cancellableDelay
                                 )
                             }
+                        case .never:
+                            behavior = .suspending { _ in
+                                await StubRecorder.parkForever()
+                            }
                         case .fatal(let message):
                             fatalError(
                                 diagnosticMessage(
@@ -383,6 +387,16 @@ final class StubRecorder: @unchecked Sendable {
             await Task { try? await ContinuousClock().sleep(for: delay) }.value
         }
         return try result.get()
+    }
+
+    /// Suspends the calling task and never resumes it, deliberately ignoring
+    /// cancellation: a parked call models a dependency that has wedged, and
+    /// completing on cancellation is a different behavior's contract. An
+    /// unsafe continuation avoids the checked-leak bookkeeping for a
+    /// suspension that is intentionally permanent.
+    private static func parkForever() async -> Never {
+        await withUnsafeContinuation { (_: UnsafeContinuation<Void, Never>) in }
+        fatalError("[TestDoubles] A permanently parked call resumed.")
     }
 
     private func recordForwardedInvocation(

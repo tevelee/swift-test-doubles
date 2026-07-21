@@ -52,18 +52,32 @@ extension StubRegistrationBuilder {
         after delay: Duration?
     ) -> StubRecorder.QueuedAnswer {
         guard let delay else { return .value(result) }
-        let method = requireRuntimeMethod()
-        guard method.isAsync else {
-            fatalError(
-                "[TestDoubles] after: requires an async requirement; "
-                    + "\(method.name) completes synchronously."
-            )
-        }
+        requireAsyncRequirement(configuring: "after:")
         precondition(
             delay >= .zero,
             "[TestDoubles] after: requires a nonnegative delay."
         )
         return .delayed(result, delay)
+    }
+
+    /// Wraps a park-forever behavior as a queued answer. Suspending without
+    /// ever completing needs an async requirement, so a synchronous shape
+    /// fails here at registration rather than at the eventual call.
+    func neverAnswer() -> StubRecorder.QueuedAnswer {
+        requireAsyncRequirement(configuring: "thenNeverReturn")
+        return .never
+    }
+
+    @discardableResult
+    private func requireAsyncRequirement(configuring feature: String) -> MethodDescriptor {
+        let method = requireRuntimeMethod()
+        guard method.isAsync else {
+            fatalError(
+                "[TestDoubles] \(feature) requires an async requirement; "
+                    + "\(method.name) completes synchronously."
+            )
+        }
+        return method
     }
 
     func addStubBehavior(

@@ -252,6 +252,21 @@ public struct StubBuilder<Result> {
         _ = makeBehaviorChain([(.fatal(message: message), .unbounded)])
     }
 
+    /// Parks every matching invocation from here on, never completing it, to
+    /// model a dependency that has wedged. This is terminal, like the
+    /// unbounded `thenReturn`/`thenThrow`: nothing can be chained after it.
+    ///
+    /// The requirement must be async. A parked call stays suspended even if
+    /// its task is cancelled — reacting to cancellation is
+    /// `thenAwaitCancellation`'s contract — so drive it from a task the test
+    /// does not await, and pair it with the timeout path under test. The
+    /// invocation is recorded before parking, so verification (including
+    /// `verify(_:within:)`) observes calls that never complete.
+    public func thenNeverReturn() {
+        requireOrdinaryResult()
+        _ = makeBehaviorChain([(neverAnswer(), .unbounded)])
+    }
+
     /// Handles a matching invocation whose first argument needs to preserve
     /// its concrete value type, including an escaping closure.
     ///
@@ -663,6 +678,13 @@ public struct StubBehaviorChain<Result> {
     /// ``StubBuilder/thenFatalError(_:)``.
     public func thenFatalError(_ message: String? = nil) {
         sequence.append(.fatal(message: message), times: .unbounded)
+    }
+
+    /// Parks every matching invocation from here on, never completing it.
+    /// This is terminal, like the unbounded `thenReturn`/`thenThrow`. See
+    /// ``StubBuilder/thenNeverReturn()`` for the full contract.
+    public func thenNeverReturn() {
+        sequence.append(neverAnswer(), times: .unbounded)
     }
 }
 

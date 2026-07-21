@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   throwing requirement observes task cancellation and rethrows it; a
   non-throwing requirement's delay always runs to completion. Registering a
   delay on a synchronous requirement fails with a diagnostic.
+- `thenNeverReturn()` parks every matching async invocation without ever
+  completing it, modeling a wedged dependency for timeout and hedging paths.
+  Parked calls ignore cancellation, stay observable through verification, and
+  the behavior can terminate a chain, such as failing once and then hanging.
+  Registering it on a synchronous requirement fails with a diagnostic.
 - Rich argument matchers that compose on the existing matching engine:
   logical combinators `not`, `allOf`, `anyOf`, and `oneOf`; the equality and
   identity matchers `notEqual` and `identical(to:)`; the comparison matchers
