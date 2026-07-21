@@ -69,6 +69,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   double. Works across `Stub`, `Spy`, and `ManualStub`, sync and async. A
   failed step reports a test issue at its own call site; successful steps
   commit captors and count for `verifyNoMoreInteractions()`.
+- `verifyNoUnusedStubs()` reports every `when` registration that no recorded
+  call ever matched, listing each unused registration's signature. This
+  catches stale setup and, more importantly, registrations left unreachable
+  behind an earlier catch-all under first-match-wins ordering.
 - Rich argument matchers that compose on the existing matching engine:
   logical combinators `not`, `allOf`, `anyOf`, and `oneOf`; the equality and
   identity matchers `notEqual` and `identical(to:)`; the comparison matchers

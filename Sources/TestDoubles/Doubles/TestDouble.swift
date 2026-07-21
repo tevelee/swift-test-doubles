@@ -304,4 +304,22 @@ extension TestDouble {
             column: column
         )
     }
+
+    func reportUnusedRegistrations(
+        fileID: StaticString,
+        filePath: StaticString,
+        line: UInt,
+        column: UInt
+    ) {
+        guard let diagnostic = recorder.unusedRegistrationsDiagnostic() else {
+            return
+        }
+        reportIssue(
+            diagnostic,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
 }

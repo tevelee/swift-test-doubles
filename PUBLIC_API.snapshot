@@ -179,6 +179,7 @@ symbol	swift.method	ManualStub.verifyInOrder(_:fileID:filePath:line:column:)	fun
 symbol	swift.method	ManualStub.verifyInOrder(_:isolation:fileID:filePath:line:column:)	func verifyInOrder(_ calls: (T) async throws -> Void, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
 symbol	swift.method	ManualStub.verifyInOrder(mutating:fileID:filePath:line:column:)	func verifyInOrder(mutating calls: (inout T) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	swift.method	ManualStub.verifyNoMoreInteractions(fileID:filePath:line:column:)	func verifyNoMoreInteractions(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
+symbol	swift.method	ManualStub.verifyNoUnusedStubs(fileID:filePath:line:column:)	func verifyNoUnusedStubs(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	swift.method	ManualStub.when(_:)	func when(_ call: (inout T) throws -> Void) -> StubBuilder<Void>
 symbol	swift.method	ManualStub.when(_:)	func when<Result>(_ call: (T) throws -> Result) -> StubBuilder<Result>
 symbol	swift.method	ManualStub.when(_:isolation:)	func when<Result>(_ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation) async -> StubBuilder<Result>
@@ -214,6 +215,7 @@ symbol	swift.method	Stub.verifyInOrder(_:fileID:filePath:line:column:)	func veri
 symbol	swift.method	Stub.verifyInOrder(_:isolation:fileID:filePath:line:column:)	func verifyInOrder(_ calls: (P) async throws -> Void, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
 symbol	swift.method	Stub.verifyInOrder(mutating:fileID:filePath:line:column:)	func verifyInOrder(mutating calls: (inout P) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	swift.method	Stub.verifyNoMoreInteractions(fileID:filePath:line:column:)	func verifyNoMoreInteractions(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
+symbol	swift.method	Stub.verifyNoUnusedStubs(fileID:filePath:line:column:)	func verifyNoUnusedStubs(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	swift.method	Stub.when(_:)	func when(_ call: (inout P) throws -> Void) -> StubBuilder<Void>
 symbol	swift.method	Stub.when(_:)	func when<Result>(_ call: (P) throws -> Result) -> StubBuilder<Result>
 symbol	swift.method	Stub.when(_:isolation:)	func when<Result>(_ call: (P) async throws -> Result, isolation: isolated (any Actor)? = #isolation) async -> StubBuilder<Result>

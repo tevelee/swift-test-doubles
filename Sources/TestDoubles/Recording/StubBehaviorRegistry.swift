@@ -118,6 +118,7 @@ struct StubBehaviorRegistry {
     }
 
     private var entriesByMethod: [Int: [Entry]] = [:]
+    private var consumedEntryIndicesByMethod: [Int: Set<Int>] = [:]
 
     func entries(for method: Int) -> [Entry]? {
         entriesByMethod[method]
@@ -125,6 +126,26 @@ struct StubBehaviorRegistry {
 
     mutating func removeAll() {
         entriesByMethod.removeAll()
+        consumedEntryIndicesByMethod.removeAll()
+    }
+
+    /// Marks a registration as having answered at least one call. Entries are
+    /// append-only between `removeAll` calls, so the index is a stable
+    /// identity.
+    mutating func markConsumed(method: Int, entryIndex: Int) {
+        consumedEntryIndicesByMethod[method, default: []].insert(entryIndex)
+    }
+
+    /// Returns the diagnostic signatures of registrations that never answered
+    /// a call, in registration order per method.
+    func unusedRegistrationSignatures() -> [String] {
+        entriesByMethod.sorted { $0.key < $1.key }.flatMap { method, entries in
+            entries.enumerated().compactMap { index, entry in
+                consumedEntryIndicesByMethod[method]?.contains(index) == true
+                    ? nil
+                    : entry.diagnosticSignature
+            }
+        }
     }
 
     mutating func add(
@@ -141,13 +162,14 @@ struct StubBehaviorRegistry {
             ))
     }
 
-    /// Returns the first registered matching entry, like the first matching
-    /// case of a `switch`: register specific matchers before broad fallbacks.
-    static func firstMatchingEntry(
+    /// Returns the first registered matching entry's index, like the first
+    /// matching case of a `switch`: register specific matchers before broad
+    /// fallbacks.
+    static func firstMatchingEntryIndex(
         for args: [Any],
         in entries: [Entry]
-    ) -> Entry? {
-        entries.first { entry in
+    ) -> Int? {
+        entries.firstIndex { entry in
             entry.matchers.isEmpty || argumentsMatch(args, against: entry.matchers)
         }
     }

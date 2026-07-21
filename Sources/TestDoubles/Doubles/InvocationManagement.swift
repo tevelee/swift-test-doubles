@@ -42,6 +42,25 @@ extension Stub {
             column: column
         )
     }
+
+    /// Reports every `when` registration that no recorded call ever matched.
+    ///
+    /// An unused registration is usually stale setup, or a specific
+    /// registration unreachable behind an earlier catch-all under
+    /// first-match-wins. Call at the end of a test to catch both.
+    public func verifyNoUnusedStubs(
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) {
+        reportUnusedRegistrations(
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
 }
 
 extension ManualStub {
@@ -76,6 +95,25 @@ extension ManualStub {
         column: UInt = #column
     ) {
         reportUnverifiedInteractions(
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
+    /// Reports every `when` registration that no recorded call ever matched.
+    ///
+    /// An unused registration is usually stale setup, or a specific
+    /// registration unreachable behind an earlier catch-all under
+    /// first-match-wins. Call at the end of a test to catch both.
+    public func verifyNoUnusedStubs(
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) {
+        reportUnusedRegistrations(
             fileID: fileID,
             filePath: filePath,
             line: line,

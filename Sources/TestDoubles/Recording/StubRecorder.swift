@@ -313,7 +313,12 @@ final class StubRecorder: @unchecked Sendable {
                     entries: []
                 ))
         }
-        guard let entry = StubBehaviorRegistry.firstMatchingEntry(for: args, in: entries) else {
+        guard
+            let entryIndex = StubBehaviorRegistry.firstMatchingEntryIndex(
+                for: args,
+                in: entries
+            )
+        else {
             if allowsForwardingFallback {
                 recordForwardedInvocation(method: method, args: args)
                 return .forwarding
@@ -326,8 +331,10 @@ final class StubRecorder: @unchecked Sendable {
                     entries: entries
                 ))
         }
+        let entry = entries[entryIndex]
 
         let (dispatch, waiters): (PreparedDispatch, [InvocationLedgerWaiter]) = withLock {
+            behaviorRegistry.markConsumed(method: methodIndex, entryIndex: entryIndex)
             StubBehaviorRegistry.commitCaptures(in: args, against: entry.matchers)
             let waiters = invocationLedger.append(
                 method: methodIndex,
@@ -670,6 +677,13 @@ extension StubRecorder {
         StubRecorderDiagnostics.unverifiedInteractions(
             withLock { invocationLedger.unverifiedCalls() }
         )
+    }
+
+    func unusedRegistrationsDiagnostic() -> String? {
+        let signatures = withLock { behaviorRegistry.unusedRegistrationSignatures() }
+        guard signatures.isEmpty == false else { return nil }
+        return "Unused stub registrations (never matched by any call):\n"
+            + signatures.map { "  - \($0)" }.joined(separator: "\n")
     }
 
     private func markVerified(_ calls: [RecordedCall]) {
