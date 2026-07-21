@@ -30,10 +30,14 @@ enum RecordingReturnPlaceholderContext {
             }
             return value
         }
+        if let registered = RecordingPlaceholders.make(type) {
+            return registered
+        }
         guard let placeholder = PlaceholderValue.make(type) else {
             fatalError(
                 "[TestDoubles] Cannot synthesize a recording placeholder for \(type). "
-                    + "Use the `returning:` placeholder overload of `when`/`verify` instead."
+                    + "Use the `returning:` placeholder overload of `when`/`verify`, or "
+                    + "register a suite-wide factory with RecordingPlaceholders.register."
             )
         }
         return placeholder

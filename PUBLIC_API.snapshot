@@ -34,6 +34,7 @@ symbol	swift.class	Spy	final class Spy<P>
 symbol	swift.class	Stub	class Stub<P>
 symbol	swift.class	Stub.Invocation	final class Invocation
 symbol	swift.class	StubSuspension	final class StubSuspension<Result>
+symbol	swift.enum	RecordingPlaceholders	enum RecordingPlaceholders
 symbol	swift.enum	Stub.GetterEffect	enum GetterEffect
 symbol	swift.enum	StubError	enum StubError
 symbol	swift.enum	StubFailableInitializerBuilder.Outcome	enum Outcome
@@ -330,6 +331,8 @@ symbol	swift.subscript	ManualThrowingRoute.subscript(dynamicMember:)	subscript(d
 symbol	swift.subscript	ManualThrowingRoute.subscript(dynamicMember:)	subscript<R>(dynamicMember member: String) -> R { get throws }
 symbol	swift.type.method	RangeExpression.exactly(_:)	static func exactly(_ count: Int) -> Self
 symbol	swift.type.method	RangeExpression.never()	static func never() -> Self
+symbol	swift.type.method	RecordingPlaceholders.register(_:_:)	static func register<Value>(_ type: Value.Type = Value.self, _ make: @escaping @Sendable () -> Value)
+symbol	swift.type.method	RecordingPlaceholders.unregister(_:)	static func unregister<Value>(_ type: Value.Type)
 symbol	swift.type.method	Stub.AssociatedTypeBinding.binding(declaredBy:named:to:)	static func binding(declaredBy protocolType: Any.Type, named name: String, to type: Any.Type) -> Stub<P>.AssociatedTypeBinding
 symbol	swift.type.method	Stub.ProtocolGetterEffects.effects(declaredBy:_:_:)	static func effects(declaredBy protocolType: Any.Type, _ firstEffect: GetterEffect, _ additionalEffects: GetterEffect...) -> Stub<P>.ProtocolGetterEffects
 symbol	swift.type.method	Stub.ProtocolRequirements.requirements(declaredBy:_:)	static func requirements(declaredBy protocolType: Any.Type, _ requirements: Requirement...) -> Stub<P>.ProtocolRequirements

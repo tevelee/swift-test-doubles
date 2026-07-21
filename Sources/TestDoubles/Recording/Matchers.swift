@@ -207,13 +207,17 @@ public final class ArgumentCaptor<T> {
 extension ArgumentCaptor: @unchecked Sendable where T: Sendable {}
 
 /// Synthesizes the recording placeholder a matcher returns at its call site,
-/// or traps pointing at the `using:` overload that accepts a caller-supplied
-/// value.
+/// preferring a suite-wide registered factory, or traps pointing at the
+/// `using:` overload that accepts a caller-supplied value.
 func synthesizedPlaceholder<T>(for api: String, fallback: String) -> T {
+    if let registered = RecordingPlaceholders.make(T.self) {
+        return registered
+    }
     guard let placeholder = PlaceholderValue.make(T.self) else {
         fatalError(
             "[TestDoubles] \(api) cannot safely synthesize a placeholder for \(T.self). "
-                + "Pass a valid value with \(fallback) instead."
+                + "Pass a valid value with \(fallback), or register a suite-wide "
+                + "factory with RecordingPlaceholders.register."
         )
     }
     return placeholder

@@ -73,6 +73,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   call ever matched, listing each unused registration's signature. This
   catches stale setup and, more importantly, registrations left unreachable
   behind an earlier catch-all under first-match-wins ordering.
+- `RecordingPlaceholders` registers suite-wide factories for recording
+  placeholder values, so class and existential arguments and results no
+  longer need `using:` or `returning:` at every `when`/`verify` site.
+  Explicit `using:`/`returning:` values win over registered factories, and
+  registered factories win over synthesized values; registered values are
+  used only during the recording pass and are never matched against or
+  returned.
 - Rich argument matchers that compose on the existing matching engine:
   logical combinators `not`, `allOf`, `anyOf`, and `oneOf`; the equality and
   identity matchers `notEqual` and `identical(to:)`; the comparison matchers
