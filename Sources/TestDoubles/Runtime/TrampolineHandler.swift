@@ -9,8 +9,10 @@ func td_swift_trampoline_handler(_ rawFrame: UnsafeMutablePointer<TDCallFrame>?)
 @_cdecl("td_swift_async_trampoline_handler")
 func td_swift_async_trampoline_handler(
     _ rawFrame: UnsafeMutablePointer<TDCallFrame>?
-) -> UnsafeMutableRawPointer? {
-    guard let rawFrame else { return nil }
+) -> TDAsyncTrampolineResult {
+    guard let rawFrame else {
+        return TDAsyncTrampolineResult(state: nil, stackAdjustment: 0)
+    }
     return RuntimeTrampolineHandler.prepareAsync(
         TrampolineCallFrame(rawFrame)
     )
@@ -204,11 +206,29 @@ enum RuntimeTrampolineHandler {
 
     static func prepareAsync(
         _ frame: TrampolineCallFrame
-    ) -> UnsafeMutableRawPointer? {
+    ) -> TDAsyncTrampolineResult {
         if frame.slot == Int.max {
-            return prepareDynamicAsyncFunctionReturn(frame)
+            return TDAsyncTrampolineResult(
+                state: prepareDynamicAsyncFunctionReturn(frame),
+                stackAdjustment: 0
+            )
         }
         let invocation = invocation(for: frame)
+        let state = prepareAsync(frame, invocation: invocation)
+        let stackAdjustment = asyncWitnessStackPlan(
+            for: invocation.method,
+            architecture: .current
+        ).stackAdjustmentByteCount
+        return TDAsyncTrampolineResult(
+            state: state,
+            stackAdjustment: UInt64(stackAdjustment)
+        )
+    }
+
+    private static func prepareAsync(
+        _ frame: TrampolineCallFrame,
+        invocation: Invocation
+    ) -> UnsafeMutableRawPointer? {
         switch invocation.recorder.prepareAsyncDispatch(
             method: invocation.method,
             args: invocation.decodedArguments.values

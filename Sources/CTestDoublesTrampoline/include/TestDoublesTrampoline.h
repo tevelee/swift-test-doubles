@@ -107,6 +107,16 @@ typedef struct TDReadCoroutineResult {
   void *yieldedStorage;
 } TDReadCoroutineResult;
 
+/// The result of preparing one async witness dispatch.
+///
+/// `stackAdjustment` is the 16-byte-aligned distance from async witness entry
+/// SP to caller continuation SP. The entry trampoline applies it exactly once
+/// before branching to either the immediate continuation or the dispatcher.
+typedef struct TDAsyncTrampolineResult {
+  void *state;
+  uint64_t stackAdjustment;
+} TDAsyncTrampolineResult;
+
 /// Authenticated Swift 6.3 yield_once_2 witness entry information.
 ///
 /// `entry` is the raw relative entry address from the authenticated descriptor.
@@ -195,7 +205,7 @@ void td_swift_read_trampoline_entry(void);
 void td_swift_read_trampoline_resume(void);
 void td_swift_trampoline_handler(TDCallFrame *frame);
 void td_swift_dynamic_function_handler(TDCallFrame *frame);
-void *td_swift_async_trampoline_handler(TDCallFrame *frame);
+TDAsyncTrampolineResult td_swift_async_trampoline_handler(TDCallFrame *frame);
 void td_swift_async_dispatch_finish(void *state, TDCallFrame *frame);
 
 /// Begins a `_modify` dispatch captured in `frame`.

@@ -346,7 +346,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
         }
     }
 
-    @Test func asyncRegisterBoundariesHaveConstructionGuards() throws {
+    @Test func asyncStackBoundaryAllowsOnlyTheFirstSpilledWord() throws {
         let method = MethodDescriptor(
             kind: .method,
             name: "call(_:_:_:_:_:_:)",
@@ -356,37 +356,53 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
             isAsync: true
         )
         #expect(unsupportedRuntimeReason(for: method, architecture: .arm64) == nil)
-        #expect(unsupportedRuntimeReason(for: method, architecture: .x86_64) != nil)
+        #expect(unsupportedRuntimeReason(for: method, architecture: .x86_64) == nil)
 
-        let armBoundary = MethodDescriptor(
+        let firstX86Spill = MethodDescriptor(
             kind: .method,
-            name: "call(_:_:_:_:_:_:_:_:)",
+            name: "call",
+            index: 0,
+            argumentTypes: Array(repeating: Int.self, count: 7),
+            returnType: Int.self,
+            isAsync: true
+        )
+        let secondX86Spill = MethodDescriptor(
+            kind: .method,
+            name: "call",
             index: 0,
             argumentTypes: Array(repeating: Int.self, count: 8),
             returnType: Int.self,
             isAsync: true
         )
-        #expect(unsupportedRuntimeReason(for: armBoundary, architecture: .arm64) != nil)
+        let firstArmSpill = MethodDescriptor(
+            kind: .method,
+            name: "call",
+            index: 0,
+            argumentTypes: Array(repeating: Int.self, count: 9),
+            returnType: Int.self,
+            isAsync: true
+        )
+        let secondArmSpill = MethodDescriptor(
+            kind: .method,
+            name: "call",
+            index: 0,
+            argumentTypes: Array(repeating: Int.self, count: 10),
+            returnType: Int.self,
+            isAsync: true
+        )
 
-        #if arch(x86_64)
-            expectUnsupportedProtocolShape {
-                _ = try Stub<any SixIntegerAsyncRequirementProbe>(
-                    .method(
-                        Int.self, Int.self, Int.self, Int.self, Int.self, Int.self,
-                        returning: Int.self,
-                        isAsync: true
-                    )
-                )
-            }
-        #else
-            _ = try Stub<any SixIntegerAsyncRequirementProbe>(
-                .method(
-                    Int.self, Int.self, Int.self, Int.self, Int.self, Int.self,
-                    returning: Int.self,
-                    isAsync: true
-                )
+        #expect(unsupportedRuntimeReason(for: firstX86Spill, architecture: .x86_64) == nil)
+        #expect(unsupportedRuntimeReason(for: secondX86Spill, architecture: .x86_64) != nil)
+        #expect(unsupportedRuntimeReason(for: firstArmSpill, architecture: .arm64) == nil)
+        #expect(unsupportedRuntimeReason(for: secondArmSpill, architecture: .arm64) != nil)
+
+        _ = try Stub<any SixIntegerAsyncRequirementProbe>(
+            .method(
+                Int.self, Int.self, Int.self, Int.self, Int.self, Int.self,
+                returning: Int.self,
+                isAsync: true
             )
-        #endif
+        )
     }
 
     @Test func unsupportedStructuralRequirementsAreRejected() {

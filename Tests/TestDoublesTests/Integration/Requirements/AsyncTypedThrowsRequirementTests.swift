@@ -305,11 +305,21 @@ private func callWithValue(
         #expect(directError == TypedThrowsPayloadError(code: 42, message: "failed"))
     }
 
-    @Test func spilledTypedErrorBuffersFailClosedDuringConstruction() {
+    @Test func typedErrorBuffersBeyondOneSpilledWordFailClosed() async throws {
         _ = RealAsyncSpilledTypedErrorBufferProbe()
-        #expect(throws: StubError.self) {
-            _ = try Stub<any AsyncSpilledTypedErrorBufferProbe>()
-        }
+        #if arch(x86_64)
+            #expect(throws: StubError.self) {
+                _ = try Stub<any AsyncSpilledTypedErrorBufferProbe>()
+            }
+        #else
+            let stub = try Stub<any AsyncSpilledTypedErrorBufferProbe>()
+            await stub.when {
+                try await $0.load(
+                    any(), any(), any(), any(), any(), any(), any(), any()
+                )
+            }.thenReturn(36)
+            #expect(try await stub().load(1, 2, 3, 4, 5, 6, 7, 8) == 36)
+        #endif
     }
 
     @Test func indirectTypedErrorRegisterBoundariesIncludeHiddenStorage() {
@@ -326,16 +336,16 @@ private func callWithValue(
             )
         }
 
-        let x86Supported = method(argumentCount: 3)
-        let x86Spilled = method(argumentCount: 4)
-        let armSupported = method(argumentCount: 5)
-        let armSpilled = method(argumentCount: 6)
+        let firstX86Spill = method(argumentCount: 6)
+        let secondX86Spill = method(argumentCount: 7)
+        let firstArmSpill = method(argumentCount: 8)
+        let secondArmSpill = method(argumentCount: 9)
 
-        #expect(x86Supported.typedErrorUsesIndirectResultSlot)
-        #expect(unsupportedRuntimeReason(for: x86Supported, architecture: .x86_64) == nil)
-        #expect(unsupportedRuntimeReason(for: x86Spilled, architecture: .x86_64) != nil)
-        #expect(unsupportedRuntimeReason(for: armSupported, architecture: .arm64) == nil)
-        #expect(unsupportedRuntimeReason(for: armSpilled, architecture: .arm64) != nil)
+        #expect(firstX86Spill.typedErrorUsesIndirectResultSlot)
+        #expect(unsupportedRuntimeReason(for: firstX86Spill, architecture: .x86_64) == nil)
+        #expect(unsupportedRuntimeReason(for: secondX86Spill, architecture: .x86_64) != nil)
+        #expect(unsupportedRuntimeReason(for: firstArmSpill, architecture: .arm64) == nil)
+        #expect(unsupportedRuntimeReason(for: secondArmSpill, architecture: .arm64) != nil)
     }
 
     @Test func directTypedErrorsDoNotConsumeHiddenRegisterStorage() {
@@ -352,16 +362,16 @@ private func callWithValue(
             )
         }
 
-        let x86Supported = method(argumentCount: 4)
-        let x86Spilled = method(argumentCount: 5)
-        let armSupported = method(argumentCount: 6)
-        let armSpilled = method(argumentCount: 7)
+        let firstX86Spill = method(argumentCount: 7)
+        let secondX86Spill = method(argumentCount: 8)
+        let firstArmSpill = method(argumentCount: 9)
+        let secondArmSpill = method(argumentCount: 10)
 
-        #expect(x86Supported.typedErrorUsesIndirectResultSlot == false)
-        #expect(unsupportedRuntimeReason(for: x86Supported, architecture: .x86_64) == nil)
-        #expect(unsupportedRuntimeReason(for: x86Spilled, architecture: .x86_64) != nil)
-        #expect(unsupportedRuntimeReason(for: armSupported, architecture: .arm64) == nil)
-        #expect(unsupportedRuntimeReason(for: armSpilled, architecture: .arm64) != nil)
+        #expect(firstX86Spill.typedErrorUsesIndirectResultSlot == false)
+        #expect(unsupportedRuntimeReason(for: firstX86Spill, architecture: .x86_64) == nil)
+        #expect(unsupportedRuntimeReason(for: secondX86Spill, architecture: .x86_64) != nil)
+        #expect(unsupportedRuntimeReason(for: firstArmSpill, architecture: .arm64) == nil)
+        #expect(unsupportedRuntimeReason(for: secondArmSpill, architecture: .arm64) != nil)
     }
 
     @Test func supportedIndirectTypedErrorBoundaryReturnsAndThrows() async throws {
@@ -410,17 +420,21 @@ private func callWithValue(
         #expect(error == expectedError)
     }
 
-    @Test func firstSpilledIndirectTypedErrorBoundaryFailsClosed() {
+    @Test func formerlyReservedTypedErrorRegisterBoundaryIsSupported() async throws {
         #if arch(x86_64)
-            #expect(throws: StubError.self) {
-                _ = RealAsyncIndirectTypedErrorFourArgumentProbe()
-                _ = try Stub<any AsyncIndirectTypedErrorFourArgumentProbe>()
-            }
+            _ = RealAsyncIndirectTypedErrorFourArgumentProbe()
+            let stub = try Stub<any AsyncIndirectTypedErrorFourArgumentProbe>()
+            await stub.when {
+                try await $0.load(any(), any(), any(), equal(false))
+            }.thenReturn(6)
+            #expect(try await stub().load(1, 2, 3, false) == 6)
         #else
-            #expect(throws: StubError.self) {
-                _ = RealAsyncIndirectTypedErrorSixArgumentProbe()
-                _ = try Stub<any AsyncIndirectTypedErrorSixArgumentProbe>()
-            }
+            _ = RealAsyncIndirectTypedErrorSixArgumentProbe()
+            let stub = try Stub<any AsyncIndirectTypedErrorSixArgumentProbe>()
+            await stub.when {
+                try await $0.load(any(), any(), any(), any(), any(), equal(false))
+            }.thenReturn(15)
+            #expect(try await stub().load(1, 2, 3, 4, 5, false) == 15)
         #endif
     }
 

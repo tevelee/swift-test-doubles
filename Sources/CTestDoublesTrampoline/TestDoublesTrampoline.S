@@ -451,6 +451,7 @@ SYMBOL(td_swift_async_trampoline_entry):
 
     mov x0, x9
     bl SYMBOL(td_swift_async_trampoline_handler)
+    str x1, [sp, #TD_FRAME_STACK_POINTER_OFFSET]
 
     cbz x0, .Ltd_async_immediate_arm64
     str x0, [x22, #TD_ASYNC_CONTEXT_STATE_OFFSET]
@@ -481,9 +482,11 @@ SYMBOL(td_swift_async_trampoline_entry):
     mov x22, x0
     mov x0, x1
     ldr x17, [sp, #TD_FRAME_RETURN_GP_OFFSET]
+    ldr x10, [sp, #TD_FRAME_STACK_POINTER_OFFSET]
 
     add sp, sp, #TD_FRAME_SIZE
     ldp x29, x30, [sp], #16
+    add sp, sp, x10
     br x17
 
 .Ltd_async_immediate_arm64:
@@ -499,9 +502,11 @@ SYMBOL(td_swift_async_trampoline_entry):
     ldr x20, [x9, #TD_FRAME_RETURN_ERROR_OFFSET]
     ldr x22, [x9, #TD_FRAME_RESERVED_OFFSET]
     ldr x16, [x22, #8]
+    ldr x10, [x9, #TD_FRAME_STACK_POINTER_OFFSET]
 
     add sp, sp, #TD_FRAME_SIZE
     ldp x29, x30, [sp], #16
+    add sp, sp, x10
     br x16
 
 .p2align 2
@@ -1202,6 +1207,7 @@ SYMBOL(td_swift_async_trampoline_entry):
 
     movq %rax, %rdi
     callq SYMBOL(td_swift_async_trampoline_handler)
+    movq %rdx, TD_FRAME_STACK_POINTER_OFFSET(%rsp)
 
     testq %rax, %rax
     je .Ltd_async_immediate_x86_64
@@ -1221,8 +1227,14 @@ SYMBOL(td_swift_async_trampoline_entry):
     movq TD_ASYNC_CONTEXT_STATE_OFFSET(%r14), %rdi
     movq %rax, %r14
     movq TD_FRAME_RETURN_GP_OFFSET(%rsp), %r11
+    movq TD_FRAME_STACK_POINTER_OFFSET(%rsp), %r10
 
     leave
+    // Entry SP + 0 is a live concurrency return/job slot. Carry it to
+    // continuation SP exactly as the compiler-generated witness thunk does.
+    movq (%rsp), %rax
+    movq %rax, (%rsp, %r10)
+    addq %r10, %rsp
     jmpq *%r11
 
 .Ltd_async_immediate_x86_64:
@@ -1238,8 +1250,12 @@ SYMBOL(td_swift_async_trampoline_entry):
     movq TD_FRAME_RETURN_ERROR_OFFSET(%r10), %r13
     movq TD_FRAME_RESERVED_OFFSET(%r10), %r14
     movq 8(%r14), %r11
+    movq TD_FRAME_STACK_POINTER_OFFSET(%r10), %r10
 
     leave
+    movq (%rsp), %rax
+    movq %rax, (%rsp, %r10)
+    addq %r10, %rsp
     jmpq *%r11
 
 #if defined(__APPLE__)

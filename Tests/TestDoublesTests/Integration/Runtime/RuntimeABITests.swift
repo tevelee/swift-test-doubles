@@ -174,6 +174,194 @@ protocol ExtendedAsyncABIProbe: Sendable {
 }
 
 @Suite struct RuntimeABITests {
+    @Test func asyncStackBoundaryUsesPlannedPhysicalLocations() {
+        func method(
+            argumentCount: Int,
+            result: Any.Type = Int.self,
+            typedError: (any Error.Type)? = nil
+        ) -> MethodDescriptor {
+            MethodDescriptor(
+                kind: .method,
+                name: "load",
+                index: 0,
+                argumentTypes: Array(repeating: Int.self, count: argumentCount),
+                returnType: result,
+                typedErrorType: typedError,
+                isThrowing: typedError != nil,
+                isAsync: true
+            )
+        }
+
+        #expect(
+            asyncWitnessStackPlan(
+                for: method(argumentCount: 4),
+                architecture: .x86_64
+            )
+                == AsyncWitnessStackPlan(
+                    decodedStackByteCount: 0,
+                    hiddenStackByteCount: 0,
+                    stackAdjustmentByteCount: 0
+                )
+        )
+        #expect(
+            asyncWitnessStackPlan(
+                for: method(argumentCount: 6),
+                architecture: .arm64
+            )
+                == AsyncWitnessStackPlan(
+                    decodedStackByteCount: 0,
+                    hiddenStackByteCount: 0,
+                    stackAdjustmentByteCount: 0
+                )
+        )
+        #expect(
+            asyncWitnessStackPlan(
+                for: method(argumentCount: 5),
+                architecture: .x86_64
+            )
+                == AsyncWitnessStackPlan(
+                    decodedStackByteCount: 0,
+                    hiddenStackByteCount: 8,
+                    stackAdjustmentByteCount: 0
+                )
+        )
+        #expect(
+            asyncWitnessStackPlan(
+                for: method(argumentCount: 7),
+                architecture: .arm64
+            )
+                == AsyncWitnessStackPlan(
+                    decodedStackByteCount: 0,
+                    hiddenStackByteCount: 8,
+                    stackAdjustmentByteCount: 16
+                )
+        )
+        #expect(
+            asyncWitnessStackPlan(
+                for: method(argumentCount: 6),
+                architecture: .x86_64
+            )
+                == AsyncWitnessStackPlan(
+                    decodedStackByteCount: 0,
+                    hiddenStackByteCount: 16,
+                    stackAdjustmentByteCount: 16
+                )
+        )
+
+        let firstVisibleX86Spill = asyncWitnessStackPlan(
+            for: method(argumentCount: 7),
+            architecture: .x86_64
+        )
+        let firstVisibleArmSpill = asyncWitnessStackPlan(
+            for: method(argumentCount: 9),
+            architecture: .arm64
+        )
+        #expect(
+            firstVisibleX86Spill
+                == AsyncWitnessStackPlan(
+                    decodedStackByteCount: 8,
+                    hiddenStackByteCount: 16,
+                    stackAdjustmentByteCount: 16
+                )
+        )
+        #expect(
+            firstVisibleArmSpill
+                == AsyncWitnessStackPlan(
+                    decodedStackByteCount: 8,
+                    hiddenStackByteCount: 16,
+                    stackAdjustmentByteCount: 32
+                )
+        )
+
+        #expect(
+            unsupportedRuntimeReason(
+                for: method(argumentCount: 7),
+                architecture: .x86_64
+            ) == nil
+        )
+        #expect(
+            unsupportedRuntimeReason(
+                for: method(argumentCount: 8),
+                architecture: .x86_64
+            ) != nil
+        )
+        #expect(
+            unsupportedRuntimeReason(
+                for: method(argumentCount: 9),
+                architecture: .arm64
+            ) == nil
+        )
+        #expect(
+            unsupportedRuntimeReason(
+                for: method(argumentCount: 10),
+                architecture: .arm64
+            ) != nil
+        )
+
+        let indirectX86 = method(
+            argumentCount: 6,
+            result: AsyncStackLargeResult.self
+        )
+        let indirectArm = method(
+            argumentCount: 8,
+            result: AsyncStackLargeResult.self
+        )
+        #expect(
+            asyncWitnessStackPlan(
+                for: indirectX86,
+                architecture: .x86_64
+            ) == firstVisibleX86Spill
+        )
+        #expect(
+            asyncWitnessStackPlan(
+                for: indirectArm,
+                architecture: .arm64
+            ) == firstVisibleArmSpill
+        )
+        #expect(
+            unsupportedRuntimeReason(for: indirectX86, architecture: .x86_64)
+                == nil
+        )
+        #expect(
+            unsupportedRuntimeReason(for: indirectArm, architecture: .arm64)
+                == nil
+        )
+
+        let typedErrorX86 = method(
+            argumentCount: 6,
+            typedError: AsyncStackLargeError.self
+        )
+        let typedErrorArm = method(
+            argumentCount: 8,
+            typedError: AsyncStackLargeError.self
+        )
+        #expect(typedErrorX86.typedErrorUsesIndirectResultSlot)
+        #expect(
+            asyncWitnessStackPlan(
+                for: typedErrorX86,
+                architecture: .x86_64
+            ) == firstVisibleX86Spill
+        )
+        #expect(
+            asyncWitnessStackPlan(
+                for: typedErrorArm,
+                architecture: .arm64
+            ) == firstVisibleArmSpill
+        )
+        #expect(
+            unsupportedRuntimeReason(
+                for: typedErrorX86,
+                architecture: .x86_64
+            ) == nil
+        )
+        #expect(
+            unsupportedRuntimeReason(
+                for: typedErrorArm,
+                architecture: .arm64
+            ) == nil
+        )
+    }
+
     @Test func argumentLocationPlanPreservesArchitectureRegisterLimits() {
         let integer = CallFrameArgumentShape(
             type: Int.self,

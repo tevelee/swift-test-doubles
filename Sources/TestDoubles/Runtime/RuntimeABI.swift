@@ -97,6 +97,12 @@ struct DirectValuePart: Sendable {
     }
 }
 
+struct AsyncWitnessStackPlan: Equatable, Sendable {
+    let decodedStackByteCount: Int
+    let hiddenStackByteCount: Int
+    let stackAdjustmentByteCount: Int
+}
+
 extension Metadata {
     /// The byte count of temporary storage for one value of this type, padded
     /// to `minimum` bytes so register-word codecs may address whole words.
@@ -142,38 +148,123 @@ func unsupportedRuntimeReason(
 ) -> String? {
     guard method.isAsync else { return nil }
 
-    let registerLimit = architecture.generalPurposeArgumentRegisterCount
+    let stackPlan = asyncWitnessStackPlan(
+        for: method,
+        architecture: architecture
+    )
+    // `prepareAsync` decodes this ingress plan before it can return a retained
+    // state to assembly. The state owns decoded arguments and never follows the
+    // snapshot's caller-stack pointer after suspension.
+    let supportedStackByteCount = MemoryLayout<UInt>.size
 
-    // A generated witness also needs one general-purpose word for its receiver
-    // across the async continuation boundary.
-    var generalPurposeWords = 1
+    guard stackPlan.decodedStackByteCount > supportedStackByteCount else {
+        return nil
+    }
+    let requiredStackWords =
+        stackPlan.decodedStackByteCount / MemoryLayout<UInt>.size
+    return "Its arguments and hidden result or error storage require \(requiredStackWords) incoming "
+        + "stack words on \(architecture). The async Stub trampoline supports only the "
+        + "first spilled word; wider ingress needs continuation-owned stack transport. "
+        + "Use fewer values or a hand-written test double."
+}
+
+func asyncWitnessStackPlan(
+    for method: MethodDescriptor,
+    architecture: RuntimeArchitecture
+) -> AsyncWitnessStackPlan {
+    precondition(method.isAsync)
+
+    let hasIndirectResult: Bool
     if case .indirect = method.result.layout {
-        generalPurposeWords += 1
+        hasIndirectResult = true
+    } else {
+        hasIndirectResult = false
     }
-    if method.typedErrorUsesIndirectResultSlot {
-        generalPurposeWords += 1
+    let locationPlan = CallFrameArgumentLocationPlan(
+        arguments: method.arguments.map {
+            CallFrameArgumentShape(
+                type: $0.value.type,
+                layout: $0.value.layout
+            )
+        },
+        initialGeneralPurposeOffset: hasIndirectResult ? 1 : 0,
+        trailingGeneralPurposeWordCount:
+            method.typedErrorUsesIndirectResultSlot ? 1 : 0,
+        architecture: architecture
+    )
+    let occupiedGeneralPurposeRegisters = min(
+        locationPlan.generalPurposeWordCount,
+        architecture.generalPurposeArgumentRegisterCount
+    )
+    let availableGeneralPurposeRegisters =
+        architecture.generalPurposeArgumentRegisterCount
+        - occupiedGeneralPurposeRegisters
+    // Generic protocol witnesses append dynamic-Self metadata and the witness
+    // table after formal arguments and hidden result/error storage.
+    let hiddenStackWordCount = max(
+        2 - availableGeneralPurposeRegisters,
+        0
+    )
+    let wordByteCount = MemoryLayout<UInt>.size
+    let (hiddenStackByteCount, hiddenOverflow) =
+        hiddenStackWordCount.multipliedReportingOverflow(by: wordByteCount)
+    precondition(
+        hiddenOverflow == false,
+        "[TestDoubles] Async witness hidden stack-byte count overflowed."
+    )
+    let (unalignedStackByteCount, totalOverflow) =
+        locationPlan.stackByteCount.addingReportingOverflow(
+            hiddenStackByteCount
+        )
+    precondition(
+        totalOverflow == false,
+        "[TestDoubles] Async witness stack-byte count overflowed."
+    )
+    let stackAlignment = 2 * wordByteCount
+    let stackAdjustmentByteCount: Int
+    switch architecture {
+        case .arm64:
+            let (alignmentNumerator, alignmentOverflow) =
+                unalignedStackByteCount.addingReportingOverflow(
+                    stackAlignment - 1
+                )
+            precondition(
+                alignmentOverflow == false,
+                "[TestDoubles] arm64 async witness stack adjustment overflowed."
+            )
+            stackAdjustmentByteCount =
+                unalignedStackByteCount == 0
+                ? 0
+                : alignmentNumerator / stackAlignment * stackAlignment
+            precondition(
+                stackAdjustmentByteCount >= unalignedStackByteCount
+                    && stackAdjustmentByteCount - unalignedStackByteCount
+                        < stackAlignment,
+                "[TestDoubles] arm64 async witness stack adjustment did not round up."
+            )
+        case .x86_64:
+            // Swift's x86_64 async witness entry leaves an implicit eight-byte
+            // slot below the address captured by `stackPointer`. One logical
+            // stack word therefore needs no SP movement; each complete pair
+            // advances continuation SP by one 16-byte aligned block.
+            stackAdjustmentByteCount =
+                unalignedStackByteCount / stackAlignment * stackAlignment
+            precondition(
+                stackAdjustmentByteCount <= unalignedStackByteCount
+                    && unalignedStackByteCount - stackAdjustmentByteCount
+                        < stackAlignment,
+                "[TestDoubles] x86_64 async witness stack adjustment did not round down."
+            )
     }
-    for argument in method.arguments {
-        switch argument.value.layout {
-            case .void, .floatingPoint:
-                break
-            case .integer(let words):
-                generalPurposeWords += words
-            case .aggregate(let parts):
-                generalPurposeWords +=
-                    parts
-                    .filter { $0.register == .gp }
-                    .count
-            case .indirect:
-                generalPurposeWords += 1
-        }
-    }
-
-    guard generalPurposeWords >= registerLimit else { return nil }
-    return "Its witness receiver, arguments, and hidden result storage consume all \(registerLimit) "
-        + "\(architecture) general-purpose argument registers, crossing an "
-        + "unsupported async continuation boundary. Use fewer integer-class "
-        + "values or a hand-written test double."
+    precondition(
+        stackAdjustmentByteCount % stackAlignment == 0,
+        "[TestDoubles] Async witness stack adjustment is not ABI-aligned."
+    )
+    return AsyncWitnessStackPlan(
+        decodedStackByteCount: locationPlan.stackByteCount,
+        hiddenStackByteCount: hiddenStackByteCount,
+        stackAdjustmentByteCount: stackAdjustmentByteCount
+    )
 }
 
 func directArgumentParts(for type: Any.Type) -> [DirectValuePart]? {

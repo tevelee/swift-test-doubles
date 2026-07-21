@@ -155,7 +155,20 @@ a different fabricated graph.
 For an async call, the entry trampoline preserves the caller continuation,
 creates a Swift task continuation around recorder dispatch, and resumes through
 an architecture-specific continuation trampoline after recorder dispatch
-completes.
+completes. A bounded ingress path also accepts exactly one eight-byte stack
+argument word after the arm64 or x86_64 register banks are exhausted. The entry
+frame points at that word only while synchronous preparation is running, so the
+decoder copies its value before returning a retained suspension state. The
+state never reads the saved stack pointer. The Swift handler returns the complete
+entry-SP-to-continuation-SP adjustment alongside that state. arm64 rounds the
+logical stack area up to its 16-byte boundary; x86_64 rounds down because its
+captured first-stack-argument address follows an implicit eight-byte async ABI
+slot. Before x86_64 advances the stack pointer, it carries that live slot to the
+resumed continuation stack pointer just as a compiler-generated witness thunk
+does. Assembly applies the adjustment once on both immediate and suspending
+entry exits, never from the completion trampoline. A second spilled word,
+outgoing forwarding call, or other requirement for continuation-owned stack
+transport still fails closed.
 
 After matcher evaluation, dispatch enters one recorder linearization point that
 atomically commits matcher captures, appends the call, and reserves the next
@@ -206,8 +219,9 @@ result is, but configuration must finish before matching invocations begin.
 ### Supported ABI boundary
 
 The implementation has focused arm64 and x86_64 coverage for integer and
-floating-point registers, stack arguments, mixed aggregates, indirect results,
-throwing calls, async continuations, and owned setter inputs. Direct concrete
+floating-point registers, synchronous stack arguments, mixed aggregates,
+indirect results, throwing calls, async continuations, one-word async Stub
+ingress, and owned setter inputs. Direct concrete
 native function values use canonical function metadata plus compiler-emitted
 partial-apply reabstraction thunks found in the linked client or a bounded
 runtime-built arm64/x86_64 bridge. Arguments are wrapped from direct witness ABI

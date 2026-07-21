@@ -390,11 +390,18 @@ devices. Linux CI uses the tagged Echo dependency without patching dependency
 checkouts. The README installation section lists the complete supported platform
 policy.
 
-Construction rejects async requirements whose witness receiver, arguments,
-and hidden result or error storage consume all available general-purpose
-argument registers: six on x86_64 and eight on arm64. The trampoline keeps one
-register free because it cannot safely remove spilled witness arguments before
-resuming the caller continuation.
+An async Stub requirement may use the architecture's complete argument-register
+banks plus exactly one eight-byte incoming stack word. The entry trampoline
+decodes that first spilled word while the caller's invocation frame is still
+live, before an async handler can suspend. Arguments are copied into the retained
+dispatch state; indirect result and typed-error destination pointers already
+refer to caller-owned async storage and are retained separately. Construction
+still rejects a second spilled word. Before either an immediate return or a
+genuine suspension, the entry bridge removes the compiler-planned, ABI-aligned
+outgoing stack reservation exactly once. This is not general async stack transport:
+forwarding spies and typed closure adapters keep their independent boundaries,
+and signatures that would need outgoing stack assembly or stack access after
+suspension remain unsupported.
 
 ### Ownership and concurrency
 

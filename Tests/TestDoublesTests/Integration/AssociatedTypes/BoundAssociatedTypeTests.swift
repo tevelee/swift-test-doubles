@@ -714,44 +714,30 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
         #expect(try await stub().current == 42)
     }
 
-    @Test func x86AsyncDependentRegisterBoundaryCountsIndirectWords() {
+    @Test func asyncDependentStackBoundaryCountsIndirectResultAndArguments() {
         let element = WitnessValueConvention.associatedType(name: "Element")
-        let armSupported = MethodDescriptor(
-            kind: .method,
-            name: "requirement_0",
-            index: 0,
-            argumentTypes: Array(repeating: Int.self, count: 5),
-            returnType: Int.self,
-            argumentConventions: Array(repeating: element, count: 5),
-            returnConvention: element,
-            isAsync: true
-        )
-        #expect(unsupportedRuntimeReason(for: armSupported, architecture: .arm64) == nil)
-        #expect(unsupportedRuntimeReason(for: armSupported, architecture: .x86_64) != nil)
+        func method(argumentCount: Int) -> MethodDescriptor {
+            MethodDescriptor(
+                kind: .method,
+                name: "requirement_0",
+                index: 0,
+                argumentTypes: Array(repeating: Int.self, count: argumentCount),
+                returnType: Int.self,
+                argumentConventions: Array(repeating: element, count: argumentCount),
+                returnConvention: element,
+                isAsync: true
+            )
+        }
 
-        let firstX86Spill = MethodDescriptor(
-            kind: .method,
-            name: "requirement_0",
-            index: 0,
-            argumentTypes: Array(repeating: Int.self, count: 4),
-            returnType: Int.self,
-            argumentConventions: Array(repeating: element, count: 4),
-            returnConvention: element,
-            isAsync: true
-        )
-        #expect(unsupportedRuntimeReason(for: firstX86Spill, architecture: .x86_64) != nil)
+        let firstX86Spill = method(argumentCount: 6)
+        let secondX86Spill = method(argumentCount: 7)
+        let firstArmSpill = method(argumentCount: 8)
+        let secondArmSpill = method(argumentCount: 9)
 
-        let x86Supported = MethodDescriptor(
-            kind: .method,
-            name: "requirement_0",
-            index: 0,
-            argumentTypes: Array(repeating: Int.self, count: 3),
-            returnType: Int.self,
-            argumentConventions: Array(repeating: element, count: 3),
-            returnConvention: element,
-            isAsync: true
-        )
-        #expect(unsupportedRuntimeReason(for: x86Supported, architecture: .x86_64) == nil)
+        #expect(unsupportedRuntimeReason(for: firstX86Spill, architecture: .x86_64) == nil)
+        #expect(unsupportedRuntimeReason(for: secondX86Spill, architecture: .x86_64) != nil)
+        #expect(unsupportedRuntimeReason(for: firstArmSpill, architecture: .arm64) == nil)
+        #expect(unsupportedRuntimeReason(for: secondArmSpill, architecture: .arm64) != nil)
     }
 
     @Test func unsupportedAssociatedShapesFailClosed() {

@@ -81,6 +81,7 @@ struct CallFrameArgumentLocation: Equatable, Sendable {
 struct CallFrameArgumentLocationPlan: Sendable {
     let arguments: [[CallFrameArgumentLocation]]
     let trailingGeneralPurpose: [CallFrameArgumentLocation]
+    let generalPurposeWordCount: Int
     let stackByteCount: Int
 
     init(
@@ -106,6 +107,7 @@ struct CallFrameArgumentLocationPlan: Sendable {
                     byteCount: MemoryLayout<UInt>.size
                 ))
         }
+        generalPurposeWordCount = cursor.generalPurpose
         stackByteCount = cursor.stackByteCount
     }
 
@@ -127,9 +129,14 @@ struct CallFrameArgumentLocationPlan: Sendable {
                 case .fp where vector < vectorLimit:
                     storage = .vectorRegister(vector)
                     vector += 1
-                case .gp, .fp:
+                case .gp:
                     storage = .stack(byteOffset: stackByteCount)
                     stackByteCount += stackSlotByteCount(for: piece)
+                    generalPurpose += 1
+                case .fp:
+                    storage = .stack(byteOffset: stackByteCount)
+                    stackByteCount += stackSlotByteCount(for: piece)
+                    vector += 1
             }
             return CallFrameArgumentLocation(
                 storage: storage,
