@@ -21,6 +21,7 @@ struct StubBehaviorRegistry {
         case delayed(FixedResult, Duration)
         case never
         case awaitCancellation(FixedResult?)
+        case forward
         case fatal(message: String?)
     }
 

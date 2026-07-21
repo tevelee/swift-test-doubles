@@ -13,7 +13,7 @@ final class StubRecorder: @unchecked Sendable {
     private var behaviorRegistry = StubBehaviorRegistry()
     private var invocationLedger = InvocationLedger()
     private weak var runtimeResourceOwner: AnyObject?
-    private let allowsForwardingFallback: Bool
+    let allowsForwardingFallback: Bool
 
     /// The recorder is the only owner of the lock protecting its policy state.
     /// Matcher predicates, handlers, and waiter resumes always run after the
@@ -327,47 +327,58 @@ final class StubRecorder: @unchecked Sendable {
                 ))
         }
 
-        let (behavior, waiters) = withLock {
+        let (dispatch, waiters): (PreparedDispatch, [InvocationLedgerWaiter]) = withLock {
             StubBehaviorRegistry.commitCaptures(in: args, against: entry.matchers)
             let waiters = invocationLedger.append(
                 method: methodIndex,
                 name: method.name,
                 args: args
             )
-            let behavior: StubEntry.Behavior
+            let dispatch: PreparedDispatch
             switch entry.behavior {
                 case .fixedSequence(let results):
                     switch results.next() {
                         case .value(let result):
-                            behavior = .fixed(result)
+                            dispatch = .behavior(.fixed(result))
                         case .delayed(let result, let delay):
                             let cancellableDelay = method.isThrowing
-                            behavior = .suspending { _ in
-                                try await StubRecorder.deliverFixedResult(
-                                    result,
-                                    after: delay,
-                                    cancellableDelay: cancellableDelay
-                                )
-                            }
+                            dispatch = .behavior(
+                                .suspending { _ in
+                                    try await StubRecorder.deliverFixedResult(
+                                        result,
+                                        after: delay,
+                                        cancellableDelay: cancellableDelay
+                                    )
+                                })
                         case .never:
-                            behavior = .suspending { _ in
-                                await StubRecorder.parkForever()
-                            }
+                            dispatch = .behavior(
+                                .suspending { _ in
+                                    await StubRecorder.parkForever()
+                                })
                         case .awaitCancellation(let outcome):
                             let isThrowing = method.isThrowing
-                            behavior = .suspending { _ in
-                                await StubRecorder.waitUntilCancelled()
-                                switch outcome {
-                                    case .some(let result):
-                                        return try result.get()
-                                    case .none where isThrowing:
-                                        throw CancellationError()
-                                    case .none:
-                                        // Registration allows a nil outcome on a
-                                        // non-throwing requirement only for Void.
-                                        return ()
-                                }
+                            dispatch = .behavior(
+                                .suspending { _ in
+                                    await StubRecorder.waitUntilCancelled()
+                                    switch outcome {
+                                        case .some(let result):
+                                            return try result.get()
+                                        case .none where isThrowing:
+                                            throw CancellationError()
+                                        case .none:
+                                            // Registration allows a nil outcome on a
+                                            // non-throwing requirement only for Void.
+                                            return ()
+                                    }
+                                })
+                        case .forward:
+                            guard allowsForwardingFallback else {
+                                fatalError(
+                                    "[TestDoubles] thenForward requires a Spy with a "
+                                        + "forwarding target."
+                                )
                             }
+                            dispatch = .forwarding
                         case .fatal(let message):
                             fatalError(
                                 diagnosticMessage(
@@ -379,12 +390,12 @@ final class StubRecorder: @unchecked Sendable {
                                 ))
                     }
                 default:
-                    behavior = entry.behavior
+                    dispatch = .behavior(entry.behavior)
             }
-            return (behavior, waiters)
+            return (dispatch, waiters)
         }
         resume(waiters, returning: .changed)
-        return .behavior(behavior)
+        return dispatch
     }
 
     /// Delivers a queued fixed result after its configured delay. A throwing

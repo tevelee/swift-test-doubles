@@ -55,6 +55,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `clearConfiguredBehaviors()` but deliberately no `reset()`, since member
   names dispatch requirements there and a concrete `reset` would shadow a
   protocol's own `reset` requirement.
+- `thenForward()` on `Spy` registrations explicitly forwards matching calls
+  to the real target. At the end of a chain it hands remaining calls back to
+  the live implementation, such as failing twice and then recovering for
+  real; standalone, registered before a broader override, it punches a hole
+  through it under first-match-wins. Forwarded calls stay recorded and
+  verifiable. Registering it on a double without a forwarding target fails
+  with a diagnostic.
 - Rich argument matchers that compose on the existing matching engine:
   logical combinators `not`, `allOf`, `anyOf`, and `oneOf`; the equality and
   identity matchers `notEqual` and `identical(to:)`; the comparison matchers

@@ -267,6 +267,21 @@ public struct StubBuilder<Result> {
         _ = makeBehaviorChain([(neverAnswer(), .unbounded)])
     }
 
+    /// Forwards every matching invocation from here on to the spy's real
+    /// target, as if no registration had matched. This is terminal, like the
+    /// unbounded `thenReturn`/`thenThrow`: nothing can be chained after it.
+    ///
+    /// Only a `Spy` can forward. Under first-match-wins, a standalone
+    /// `thenForward()` registered before a broader override punches a hole
+    /// through it, keeping the real behavior for the arguments it matches.
+    /// At the end of a chain it hands the remaining calls back to the live
+    /// implementation, such as failing twice and then recovering for real.
+    /// Forwarded calls are recorded and verifiable like any other.
+    public func thenForward() {
+        requireOrdinaryResult()
+        _ = makeBehaviorChain([(forwardAnswer(), .unbounded)])
+    }
+
     /// Parks every matching invocation from here on and hands control to the
     /// returned suspension: the test awaits the call's arrival with
     /// `waitForCall(count:)`, asserts whatever must hold while the call is in
@@ -747,6 +762,13 @@ public struct StubBehaviorChain<Result> {
     /// ``StubBuilder/thenNeverReturn()`` for the full contract.
     public func thenNeverReturn() {
         sequence.append(neverAnswer(), times: .unbounded)
+    }
+
+    /// Forwards every matching invocation from here on to the spy's real
+    /// target. This is terminal, like the unbounded `thenReturn`/`thenThrow`.
+    /// See ``StubBuilder/thenForward()`` for the full contract.
+    public func thenForward() {
+        sequence.append(forwardAnswer(), times: .unbounded)
     }
 
     /// Parks every matching invocation from here on until its task is

@@ -79,6 +79,19 @@ extension StubRegistrationBuilder {
         return .awaitCancellation(outcome)
     }
 
+    /// Wraps an explicit fall-through to the forwarding target as a queued
+    /// answer. Only a `Spy` has a target to forward to, so any other double
+    /// fails here at registration rather than at the eventual call.
+    func forwardAnswer() -> StubRecorder.QueuedAnswer {
+        guard recorder.allowsForwardingFallback else {
+            fatalError(
+                "[TestDoubles] thenForward requires a Spy with a forwarding "
+                    + "target; this test double has none."
+            )
+        }
+        return .forward
+    }
+
     /// Validates the bare `thenAwaitCancellation()` form, whose outcome is
     /// implied by the requirement's shape: a throwing requirement rethrows
     /// the cancellation and a `Void` requirement returns. Any other shape has

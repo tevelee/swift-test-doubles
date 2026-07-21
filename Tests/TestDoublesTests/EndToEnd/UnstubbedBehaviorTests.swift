@@ -71,6 +71,7 @@ private struct UnexpectedTypedError: Error {}
         case suspendOnSynchronousRequirement
         case resumeWithoutSuspendedCall
         case resumeThrowingOnNonThrowingRequirement
+        case forwardOnPlainStub
     }
 
     @Suite struct UnstubbedBehaviorExitTests {
@@ -119,7 +120,24 @@ private struct UnexpectedTypedError: Error {}
                     try await resumeWithoutSuspendedCallHalts()
                 case .resumeThrowingOnNonThrowingRequirement:
                     try await resumeThrowingOnNonThrowingRequirementHalts()
+                case .forwardOnPlainStub:
+                    try await forwardOnPlainStubHaltsAtConfiguration()
             }
+        }
+
+        private func forwardOnPlainStubHaltsAtConfiguration() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let stub = try Stub<any UnstubbedBehaviorProbe>()
+                stub.when { $0.greet(name: any()) }.thenForward()
+            }
+
+            let diagnostic = try #require(
+                String(bytes: result.standardErrorContent, encoding: .utf8)
+            )
+            #expect(diagnostic.contains("thenForward requires a Spy with a forwarding target"))
         }
 
         private func suspendOnSynchronousRequirementHaltsAtConfiguration() async throws {
