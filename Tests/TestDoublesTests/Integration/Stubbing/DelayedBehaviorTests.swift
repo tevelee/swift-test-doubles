@@ -74,27 +74,26 @@ private enum DelayedTestError: Error, Equatable {
     }
 
     @Test func cancellationCutsAThrowingDelayShort() async throws {
-        let stub = try Stub<any AsyncDataLoader>()
+        let stub = try Stub<any AsyncDataLoader & Sendable>()
         await stub.when { try await $0.load(url: any()) }
             .thenReturn("never-delivered", after: .seconds(60))
 
-        let loader: any AsyncDataLoader = stub()
-        let clock = ContinuousClock()
-        let start = clock.now
+        let loader: any AsyncDataLoader & Sendable = stub()
         let task = Task {
             try await loader.load(url: "cancelled")
         }
-        // Give the call a moment to reach the delay before cancelling.
-        try await ContinuousClock().sleep(for: .milliseconds(50))
+
+        await stub.verify(1..., within: .seconds(60)) {
+            try await $0.load(url: equal("cancelled"))
+        }
+
+        let clock = ContinuousClock()
+        let cancellationStart = clock.now
         task.cancel()
 
-        let result = await task.result
-        #expect(clock.now - start < .seconds(30))
-        switch result {
-            case .success(let value):
-                Issue.record("Expected cancellation, got \(value)")
-            case .failure(let error):
-                #expect(error is CancellationError)
+        await #expect(throws: CancellationError.self) {
+            try await task.value
         }
+        #expect(clock.now - cancellationStart < .seconds(30))
     }
 }
