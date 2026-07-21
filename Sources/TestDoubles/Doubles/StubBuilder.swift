@@ -267,6 +267,45 @@ public struct StubBuilder<Result> {
         _ = makeBehaviorChain([(neverAnswer(), .unbounded)])
     }
 
+    /// Parks every matching invocation from here on until its task is
+    /// cancelled, then completes it the way a well-behaved dependency would:
+    /// a throwing requirement throws `CancellationError`, and a non-throwing
+    /// `Void` requirement returns. A non-throwing requirement with a result
+    /// has no implicit outcome; use `thenAwaitCancellation(returning:)`. This
+    /// is terminal, like the unbounded `thenReturn`/`thenThrow`.
+    ///
+    /// The requirement must be async. A call whose task is already cancelled
+    /// completes immediately, and the invocation is recorded before parking,
+    /// so verification observes calls still awaiting cancellation.
+    public func thenAwaitCancellation() {
+        requireOrdinaryResult()
+        requireImplicitCancellationOutcome(returning: Result.self)
+        _ = makeBehaviorChain([(awaitCancellationAnswer(nil), .unbounded)])
+    }
+
+    /// Parks every matching invocation from here on until its task is
+    /// cancelled, then completes it with `value`. This is terminal, like the
+    /// unbounded `thenReturn`/`thenThrow`. See
+    /// ``StubBuilder/thenAwaitCancellation()`` for the full contract.
+    public func thenAwaitCancellation(returning value: Result) {
+        requireOrdinaryResult()
+        recorder.requireReturnValueMatchesRuntimeType(
+            value,
+            for: recording.methodIndex
+        )
+        _ = makeBehaviorChain([(awaitCancellationAnswer(.success(value)), .unbounded)])
+    }
+
+    /// Parks every matching invocation from here on until its task is
+    /// cancelled, then throws `error`. This is terminal, like the unbounded
+    /// `thenReturn`/`thenThrow`. See ``StubBuilder/thenAwaitCancellation()``
+    /// for the full contract.
+    public func thenAwaitCancellation<Failure: Error>(throwing error: Failure) {
+        let method = requireOrdinaryResult()
+        requireValidThrownError(error, for: method)
+        _ = makeBehaviorChain([(awaitCancellationAnswer(.failure(error)), .unbounded)])
+    }
+
     /// Handles a matching invocation whose first argument needs to preserve
     /// its concrete value type, including an escaping closure.
     ///
@@ -685,6 +724,37 @@ public struct StubBehaviorChain<Result> {
     /// ``StubBuilder/thenNeverReturn()`` for the full contract.
     public func thenNeverReturn() {
         sequence.append(neverAnswer(), times: .unbounded)
+    }
+
+    /// Parks every matching invocation from here on until its task is
+    /// cancelled, then completes it with the requirement's implicit outcome.
+    /// This is terminal, like the unbounded `thenReturn`/`thenThrow`. See
+    /// ``StubBuilder/thenAwaitCancellation()`` for the full contract.
+    public func thenAwaitCancellation() {
+        requireImplicitCancellationOutcome(returning: Result.self)
+        sequence.append(awaitCancellationAnswer(nil), times: .unbounded)
+    }
+
+    /// Parks every matching invocation from here on until its task is
+    /// cancelled, then completes it with `value`. This is terminal, like the
+    /// unbounded `thenReturn`/`thenThrow`. See
+    /// ``StubBuilder/thenAwaitCancellation()`` for the full contract.
+    public func thenAwaitCancellation(returning value: Result) {
+        recorder.requireReturnValueMatchesRuntimeType(
+            value,
+            for: recording.methodIndex
+        )
+        sequence.append(awaitCancellationAnswer(.success(value)), times: .unbounded)
+    }
+
+    /// Parks every matching invocation from here on until its task is
+    /// cancelled, then throws `error`. This is terminal, like the unbounded
+    /// `thenReturn`/`thenThrow`. See ``StubBuilder/thenAwaitCancellation()``
+    /// for the full contract.
+    public func thenAwaitCancellation<Failure: Error>(throwing error: Failure) {
+        let method = requireRuntimeMethod()
+        requireValidThrownError(error, for: method)
+        sequence.append(awaitCancellationAnswer(.failure(error)), times: .unbounded)
     }
 }
 

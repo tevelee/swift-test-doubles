@@ -68,6 +68,34 @@ extension StubRegistrationBuilder {
         return .never
     }
 
+    /// Wraps a cancellation-reactive park as a queued answer. Waiting for the
+    /// calling task's cancellation needs an async requirement, so a
+    /// synchronous shape fails here at registration rather than at the
+    /// eventual call.
+    func awaitCancellationAnswer(
+        _ outcome: StubBehaviorRegistry.FixedResult?
+    ) -> StubRecorder.QueuedAnswer {
+        requireAsyncRequirement(configuring: "thenAwaitCancellation")
+        return .awaitCancellation(outcome)
+    }
+
+    /// Validates the bare `thenAwaitCancellation()` form, whose outcome is
+    /// implied by the requirement's shape: a throwing requirement rethrows
+    /// the cancellation and a `Void` requirement returns. Any other shape has
+    /// no implicit way to complete and must name a value.
+    func requireImplicitCancellationOutcome<Result>(returning resultType: Result.Type) {
+        let method = requireRuntimeMethod()
+        if method.isThrowing {
+            requireValidThrownError(CancellationError(), for: method)
+        } else if resultType != Void.self {
+            fatalError(
+                "[TestDoubles] thenAwaitCancellation on a non-throwing requirement "
+                    + "with a result needs a value to complete with; use "
+                    + "thenAwaitCancellation(returning:)."
+            )
+        }
+    }
+
     @discardableResult
     private func requireAsyncRequirement(configuring feature: String) -> MethodDescriptor {
         let method = requireRuntimeMethod()

@@ -353,6 +353,21 @@ final class StubRecorder: @unchecked Sendable {
                             behavior = .suspending { _ in
                                 await StubRecorder.parkForever()
                             }
+                        case .awaitCancellation(let outcome):
+                            let isThrowing = method.isThrowing
+                            behavior = .suspending { _ in
+                                await StubRecorder.waitUntilCancelled()
+                                switch outcome {
+                                    case .some(let result):
+                                        return try result.get()
+                                    case .none where isThrowing:
+                                        throw CancellationError()
+                                    case .none:
+                                        // Registration allows a nil outcome on a
+                                        // non-throwing requirement only for Void.
+                                        return ()
+                                }
+                            }
                         case .fatal(let message):
                             fatalError(
                                 diagnosticMessage(
@@ -397,6 +412,50 @@ final class StubRecorder: @unchecked Sendable {
     private static func parkForever() async -> Never {
         await withUnsafeContinuation { (_: UnsafeContinuation<Void, Never>) in }
         fatalError("[TestDoubles] A permanently parked call resumed.")
+    }
+
+    /// Suspends until the calling task is cancelled, resuming immediately for
+    /// a task that is already cancelled on entry. Never throws: the caller
+    /// decides how cancellation completes the stubbed call.
+    private static func waitUntilCancelled() async {
+        let state = CancellationWaitState()
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                state.register(continuation)
+            }
+        } onCancel: {
+            state.markCancelled()
+        }
+    }
+
+    /// One suspension point's cancellation handshake. `onCancel` can run
+    /// before, during, or after continuation registration, and on a different
+    /// thread, so both sides synchronize on the lock and whichever side
+    /// arrives second performs the resume.
+    private final class CancellationWaitState: @unchecked Sendable {
+        private let lock = NSLock()
+        private var continuation: CheckedContinuation<Void, Never>?
+        private var isCancelled = false
+
+        func register(_ continuation: CheckedContinuation<Void, Never>) {
+            lock.lock()
+            if isCancelled {
+                lock.unlock()
+                continuation.resume()
+                return
+            }
+            self.continuation = continuation
+            lock.unlock()
+        }
+
+        func markCancelled() {
+            lock.lock()
+            isCancelled = true
+            let continuation = self.continuation
+            self.continuation = nil
+            lock.unlock()
+            continuation?.resume()
+        }
     }
 
     private func recordForwardedInvocation(

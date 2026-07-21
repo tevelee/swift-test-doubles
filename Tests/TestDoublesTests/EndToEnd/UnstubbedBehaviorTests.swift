@@ -26,6 +26,14 @@ protocol UnfinishedVoidConfigurationProbe {
     func reset()
 }
 
+protocol AsyncOutcomeProbe {
+    func currentValue() async -> Int
+}
+
+struct RealAsyncOutcomeProbe: AsyncOutcomeProbe {
+    func currentValue() async -> Int { 0 }
+}
+
 struct RealUnfinishedVoidConfigurationProbe: UnfinishedVoidConfigurationProbe {
     func reset() {}
 }
@@ -58,6 +66,8 @@ private struct UnexpectedTypedError: Error {}
         case timesIntShorthandBelowOne
         case delayOnSynchronousRequirement
         case neverReturnOnSynchronousRequirement
+        case awaitCancellationOnSynchronousRequirement
+        case bareAwaitCancellationWithoutImplicitOutcome
     }
 
     @Suite struct UnstubbedBehaviorExitTests {
@@ -96,7 +106,43 @@ private struct UnexpectedTypedError: Error {}
                     try await delayOnSynchronousRequirementHaltsAtConfiguration()
                 case .neverReturnOnSynchronousRequirement:
                     try await neverReturnOnSynchronousRequirementHaltsAtConfiguration()
+                case .awaitCancellationOnSynchronousRequirement:
+                    try await awaitCancellationOnSynchronousRequirementHaltsAtConfiguration()
+                case .bareAwaitCancellationWithoutImplicitOutcome:
+                    try await bareAwaitCancellationWithoutImplicitOutcomeHaltsAtConfiguration()
             }
+        }
+
+        private func awaitCancellationOnSynchronousRequirementHaltsAtConfiguration() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let stub = try Stub<any UnstubbedBehaviorProbe>()
+                stub.when { try $0.total(of: any()) }.thenAwaitCancellation()
+            }
+
+            let diagnostic = try #require(
+                String(bytes: result.standardErrorContent, encoding: .utf8)
+            )
+            #expect(diagnostic.contains("thenAwaitCancellation requires an async requirement"))
+            #expect(diagnostic.contains("total(of:)"))
+        }
+
+        private func bareAwaitCancellationWithoutImplicitOutcomeHaltsAtConfiguration() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let stub = try Stub<any AsyncOutcomeProbe>()
+                await stub.when { await $0.currentValue() }.thenAwaitCancellation()
+            }
+
+            let diagnostic = try #require(
+                String(bytes: result.standardErrorContent, encoding: .utf8)
+            )
+            #expect(diagnostic.contains("needs a value to complete with"))
+            #expect(diagnostic.contains("thenAwaitCancellation(returning:)"))
         }
 
         private func neverReturnOnSynchronousRequirementHaltsAtConfiguration() async throws {

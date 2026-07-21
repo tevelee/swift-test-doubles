@@ -209,6 +209,9 @@ symbol	swift.method	Stub.when(returningSelf:)	func when(returningSelf call: (P) 
 symbol	swift.method	Stub.when(returningSelf:isolation:)	func when(returningSelf call: (P) async throws -> P, isolation: isolated (any Actor)? = #isolation) async -> StubSelfResultBuilder
 symbol	swift.method	Stub.withValue(_:)	func withValue<Result, Failure>(_ operation: (P) async throws(Failure) -> Result) async throws(Failure) -> Result where Failure : Error
 symbol	swift.method	Stub.withValue(_:)	func withValue<Result, Failure>(_ operation: (P) throws(Failure) -> Result) throws(Failure) -> Result where Failure : Error
+symbol	swift.method	StubBehaviorChain.thenAwaitCancellation()	func thenAwaitCancellation()
+symbol	swift.method	StubBehaviorChain.thenAwaitCancellation(returning:)	func thenAwaitCancellation(returning value: Result)
+symbol	swift.method	StubBehaviorChain.thenAwaitCancellation(throwing:)	func thenAwaitCancellation<Failure>(throwing error: Failure) where Failure : Error
 symbol	swift.method	StubBehaviorChain.thenDoNothing(after:times:)	func thenDoNothing(after delay: Duration? = nil, times: ClosedRange<Int>)
 symbol	swift.method	StubBehaviorChain.thenDoNothing(after:times:)	func thenDoNothing(after delay: Duration? = nil, times: ClosedRange<Int>) -> StubBehaviorChain<Result>
 symbol	swift.method	StubBehaviorChain.thenDoNothing(after:times:)	func thenDoNothing(after delay: Duration? = nil, times: Int = 1) -> StubBehaviorChain<Result>
@@ -230,6 +233,9 @@ symbol	swift.method	StubBehaviorChain.thenThrow(_:after:times:)	func thenThrow<F
 symbol	swift.method	StubBuilder.then(_:)	func then<Argument>(_ handler: @escaping @Sendable (Argument) throws -> Result)
 symbol	swift.method	StubBuilder.then(_:)	func then<each Argument>(_ handler: @escaping (repeat each Argument) async throws -> Result)
 symbol	swift.method	StubBuilder.then(_:)	func then<each Argument>(_ handler: @escaping @Sendable (repeat each Argument) throws -> Result)
+symbol	swift.method	StubBuilder.thenAwaitCancellation()	func thenAwaitCancellation()
+symbol	swift.method	StubBuilder.thenAwaitCancellation(returning:)	func thenAwaitCancellation(returning value: Result)
+symbol	swift.method	StubBuilder.thenAwaitCancellation(throwing:)	func thenAwaitCancellation<Failure>(throwing error: Failure) where Failure : Error
 symbol	swift.method	StubBuilder.thenDoNothing(after:times:)	func thenDoNothing(after delay: Duration? = nil, times: ClosedRange<Int>)
 symbol	swift.method	StubBuilder.thenDoNothing(after:times:)	func thenDoNothing(after delay: Duration? = nil, times: ClosedRange<Int>) -> StubBehaviorChain<Void>
 symbol	swift.method	StubBuilder.thenDoNothing(after:times:)	func thenDoNothing(after delay: Duration? = nil, times: Int = 1) -> StubBehaviorChain<Void>

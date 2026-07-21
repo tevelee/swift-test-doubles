@@ -22,6 +22,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Parked calls ignore cancellation, stay observable through verification, and
   the behavior can terminate a chain, such as failing once and then hanging.
   Registering it on a synchronous requirement fails with a diagnostic.
+- `thenAwaitCancellation()` parks every matching async invocation until its
+  task is cancelled, then completes it the way a well-behaved dependency
+  would: a throwing requirement throws `CancellationError` and a non-throwing
+  `Void` requirement returns. The `returning:` and `throwing:` forms name an
+  explicit post-cancellation outcome, an already-cancelled task completes
+  immediately, parked calls stay observable through verification, and the
+  behavior can terminate a chain. Registering it on a synchronous
+  requirement, or the bare form where no implicit outcome exists, fails with
+  a diagnostic.
 - Rich argument matchers that compose on the existing matching engine:
   logical combinators `not`, `allOf`, `anyOf`, and `oneOf`; the equality and
   identity matchers `notEqual` and `identical(to:)`; the comparison matchers

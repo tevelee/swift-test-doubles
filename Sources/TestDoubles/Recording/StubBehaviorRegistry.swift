@@ -12,12 +12,15 @@ struct StubBehaviorRegistry {
     }
 
     /// A single queued answer: a fixed value/error delivered immediately or
-    /// after a delay, a park that never completes, or an explicit crash for
-    /// whichever call reaches it.
+    /// after a delay, a park that never completes, a park that completes on
+    /// task cancellation, or an explicit crash for whichever call reaches it.
+    /// A `nil` cancellation outcome resolves at dispatch: a throwing
+    /// requirement rethrows the cancellation, a `Void` requirement returns.
     enum QueuedAnswer {
         case value(FixedResult)
         case delayed(FixedResult, Duration)
         case never
+        case awaitCancellation(FixedResult?)
         case fatal(message: String?)
     }
 
