@@ -136,6 +136,35 @@ private protocol AsyncFailureProbe {
         #expect(message.contains("whose matchers accept these arguments"))
     }
 
+    @Test func noMatchDiagnosticShowsWhichMatcherRejectedPerArgument() {
+        let recorder = makeRecorder(
+            methods: [makeMethod(name: "isEnabled(_:for:)", argumentTypes: [String.self, Int.self])]
+        )
+        let entry = StubRecorder.StubEntry(
+            matchers: [EqualMatcher(expected: "new_checkout"), EqualMatcher(expected: 7)],
+            diagnosticSignature: "isEnabled(equal(new_checkout), for: equal(7))",
+            behavior: .fixed(.success(true))
+        )
+
+        let message = recorder.diagnosticMessage(
+            title: "No matching stub",
+            method: makeMethod(
+                name: "isEnabled(_:for:)",
+                argumentTypes: [String.self, Int.self]
+            ),
+            args: ["dark_mode", 7],
+            entries: [entry]
+        )
+
+        // Per-argument breakdown: the first matcher rejected, the second accepted.
+        #expect(
+            message.contains(
+                "arg0 rejected: expected equal(new_checkout), got \"dark_mode\""
+            )
+        )
+        #expect(message.contains("arg1 matched: equal(7)"))
+    }
+
     @Test func suggestionsIncludeRequirementEffectsAndVoidConfiguration() {
         let recorder = makeRecorder()
         let asyncThrowing = recorder.diagnosticMessage(

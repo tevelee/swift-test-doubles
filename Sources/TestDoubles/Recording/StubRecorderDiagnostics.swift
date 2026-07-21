@@ -25,6 +25,7 @@ enum StubRecorderDiagnostics {
         } else {
             for entry in entries {
                 lines.append("  \(entry.diagnosticSignature)")
+                lines.append(contentsOf: nearMissBreakdown(entry: entry, args: args))
             }
         }
 
@@ -47,6 +48,32 @@ enum StubRecorderDiagnostics {
             lines.append("  \(suggestedStubSnippet(method: method, args: args))")
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// Shows, per argument, which matcher of a registered stub accepted or
+    /// rejected the actual call, so the closest near-miss is visible.
+    ///
+    /// Emitted only when the registration's matcher count matches the call's
+    /// argument count. A count mismatch (an empty catch-all, which would not
+    /// have reached a "no matching stub" failure, or an inconsistent
+    /// requirement) gets a single explanatory line instead.
+    private static func nearMissBreakdown(
+        entry: StubRecorder.StubEntry,
+        args: [Any]
+    ) -> [String] {
+        let matchers = entry.matchers
+        guard matchers.isEmpty == false else { return [] }
+        guard matchers.count == args.count else {
+            return ["    expects \(matchers.count) argument(s), call had \(args.count)"]
+        }
+        return zip(args, matchers).enumerated().map { index, pair in
+            let (arg, matcher) = pair
+            if matcher.matches(value: arg) {
+                return "    arg\(index) matched: \(matcher.diagnosticDescription)"
+            }
+            return "    arg\(index) rejected: expected \(matcher.diagnosticDescription), "
+                + "got \(String(reflecting: arg))"
+        }
     }
 
     static func orderedVerificationFailure(

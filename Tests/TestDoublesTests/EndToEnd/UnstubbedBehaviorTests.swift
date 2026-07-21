@@ -312,6 +312,9 @@ private struct UnexpectedTypedError: Error {}
             )
             #expect(diagnostic.contains("No matching stub for greet(name:)"))
             #expect(diagnostic.contains("greet(name:)(equal(alice))"))
+            #expect(
+                diagnostic.contains("arg0 rejected: expected equal(alice), got \"bob\"")
+            )
         }
 
         private func throwingRequirementsHaltRatherThanInventAnError() async throws {
