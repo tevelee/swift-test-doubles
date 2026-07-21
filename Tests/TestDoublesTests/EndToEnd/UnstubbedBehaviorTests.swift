@@ -68,6 +68,9 @@ private struct UnexpectedTypedError: Error {}
         case neverReturnOnSynchronousRequirement
         case awaitCancellationOnSynchronousRequirement
         case bareAwaitCancellationWithoutImplicitOutcome
+        case suspendOnSynchronousRequirement
+        case resumeWithoutSuspendedCall
+        case resumeThrowingOnNonThrowingRequirement
     }
 
     @Suite struct UnstubbedBehaviorExitTests {
@@ -110,7 +113,62 @@ private struct UnexpectedTypedError: Error {}
                     try await awaitCancellationOnSynchronousRequirementHaltsAtConfiguration()
                 case .bareAwaitCancellationWithoutImplicitOutcome:
                     try await bareAwaitCancellationWithoutImplicitOutcomeHaltsAtConfiguration()
+                case .suspendOnSynchronousRequirement:
+                    try await suspendOnSynchronousRequirementHaltsAtConfiguration()
+                case .resumeWithoutSuspendedCall:
+                    try await resumeWithoutSuspendedCallHalts()
+                case .resumeThrowingOnNonThrowingRequirement:
+                    try await resumeThrowingOnNonThrowingRequirementHalts()
             }
+        }
+
+        private func suspendOnSynchronousRequirementHaltsAtConfiguration() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let stub = try Stub<any UnstubbedBehaviorProbe>()
+                _ = stub.when { $0.greet(name: any()) }.thenSuspend()
+            }
+
+            let diagnostic = try #require(
+                String(bytes: result.standardErrorContent, encoding: .utf8)
+            )
+            #expect(diagnostic.contains("thenSuspend requires an async requirement"))
+            #expect(diagnostic.contains("greet(name:)"))
+        }
+
+        private func resumeWithoutSuspendedCallHalts() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let stub = try Stub<any AsyncOutcomeProbe>()
+                let suspension = await stub.when { await $0.currentValue() }.thenSuspend()
+                suspension.resume(returning: 1)
+            }
+
+            let diagnostic = try #require(
+                String(bytes: result.standardErrorContent, encoding: .utf8)
+            )
+            #expect(diagnostic.contains("No suspended call to resume"))
+            #expect(diagnostic.contains("waitForCall()"))
+        }
+
+        private func resumeThrowingOnNonThrowingRequirementHalts() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let stub = try Stub<any AsyncOutcomeProbe>()
+                let suspension = await stub.when { await $0.currentValue() }.thenSuspend()
+                suspension.resume(throwing: ManualLoadError())
+            }
+
+            let diagnostic = try #require(
+                String(bytes: result.standardErrorContent, encoding: .utf8)
+            )
+            #expect(diagnostic.contains("resume(throwing:) requires a throwing requirement"))
         }
 
         private func awaitCancellationOnSynchronousRequirementHaltsAtConfiguration() async throws {

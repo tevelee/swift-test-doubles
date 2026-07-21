@@ -24,12 +24,14 @@ conformance	StubFailableInitializerBuilder.Outcome	Swift.Sendable	[]
 conformance	StubOptionalSelfResultBuilder.Outcome	Swift.Equatable	[]
 conformance	StubOptionalSelfResultBuilder.Outcome	Swift.Hashable	[]
 conformance	StubOptionalSelfResultBuilder.Outcome	Swift.Sendable	[]
+conformance	StubSuspension	Swift.Sendable	[{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 symbol	swift.class	ArgumentCaptor	final class ArgumentCaptor<T>
 symbol	swift.class	Dummy	final class Dummy<P>
 symbol	swift.class	ManualStub	@dynamicMemberLookup final class ManualStub<T> where T : StubConformer
 symbol	swift.class	Spy	final class Spy<P>
 symbol	swift.class	Stub	class Stub<P>
 symbol	swift.class	Stub.Invocation	final class Invocation
+symbol	swift.class	StubSuspension	final class StubSuspension<Result>
 symbol	swift.enum	Stub.GetterEffect	enum GetterEffect
 symbol	swift.enum	StubError	enum StubError
 symbol	swift.enum	StubFailableInitializerBuilder.Outcome	enum Outcome
@@ -251,6 +253,7 @@ symbol	swift.method	StubBuilder.thenReturn(_:after:times:)	func thenReturn(_ val
 symbol	swift.method	StubBuilder.thenReturn(_:after:times:)	func thenReturn(_ value: Result, after delay: Duration? = nil, times: Int = 1) -> StubBehaviorChain<Result>
 symbol	swift.method	StubBuilder.thenReturn(_:after:times:)	func thenReturn(_ value: Result, after delay: Duration? = nil, times: Int)
 symbol	swift.method	StubBuilder.thenReturn(_:after:times:)	func thenReturn(_ value: Result, after delay: Duration? = nil, times: PartialRangeFrom<Int> = 1...)
+symbol	swift.method	StubBuilder.thenSuspend()	func thenSuspend() -> StubSuspension<Result>
 symbol	swift.method	StubBuilder.thenThrow(_:after:times:)	func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, times: ClosedRange<Int>) -> StubBehaviorChain<Result> where Failure : Error
 symbol	swift.method	StubBuilder.thenThrow(_:after:times:)	func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, times: ClosedRange<Int>) where Failure : Error
 symbol	swift.method	StubBuilder.thenThrow(_:after:times:)	func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, times: Int = 1) -> StubBehaviorChain<Result> where Failure : Error
@@ -274,6 +277,10 @@ symbol	swift.method	StubSelfResultBuilder.then(_:)	func then<each Argument>(_ ha
 symbol	swift.method	StubSelfResultBuilder.then(_:)	func then<each Argument>(_ handler: @escaping @Sendable (repeat each Argument) throws -> Void)
 symbol	swift.method	StubSelfResultBuilder.thenReturnValue()	func thenReturnValue()
 symbol	swift.method	StubSelfResultBuilder.thenThrow(_:)	func thenThrow<Failure>(_ error: Failure) where Failure : Error
+symbol	swift.method	StubSuspension.resume()	func resume()
+symbol	swift.method	StubSuspension.resume(returning:)	func resume(returning value: sending Result)
+symbol	swift.method	StubSuspension.resume(throwing:)	func resume<Failure>(throwing error: Failure) where Failure : Error
+symbol	swift.method	StubSuspension.waitForCall(count:)	func waitForCall(count: Int = 1) async
 symbol	swift.property	ArgumentCaptor.first	var first: T? { get }
 symbol	swift.property	ArgumentCaptor.last	var last: T? { get }
 symbol	swift.property	ArgumentCaptor.values	var values: [T] { get }

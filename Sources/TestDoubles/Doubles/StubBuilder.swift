@@ -267,6 +267,29 @@ public struct StubBuilder<Result> {
         _ = makeBehaviorChain([(neverAnswer(), .unbounded)])
     }
 
+    /// Parks every matching invocation from here on and hands control to the
+    /// returned suspension: the test awaits the call's arrival with
+    /// `waitForCall(count:)`, asserts whatever must hold while the call is in
+    /// flight, then completes it with `resume(returning:)` or
+    /// `resume(throwing:)`. Parked calls resume in arrival order. This is
+    /// terminal, like the unbounded `thenReturn`/`thenThrow`: nothing can be
+    /// chained after it.
+    ///
+    /// The requirement must be async. A parked call stays suspended even if
+    /// its task is cancelled; the suspension is the only thing that completes
+    /// it. Resuming with no call parked is a test bug and halts with a
+    /// diagnostic. The invocation is recorded before parking, so verification
+    /// observes calls still in flight.
+    public func thenSuspend() -> StubSuspension<Result> {
+        let method = requireOrdinaryResult()
+        requireAsyncRequirement(configuring: "thenSuspend")
+        let suspension = StubSuspension<Result>(recorder: recorder, method: method)
+        addAsyncStubBehavior { _, _ in
+            try await suspension.park()
+        }
+        return suspension
+    }
+
     /// Parks every matching invocation from here on until its task is
     /// cancelled, then completes it the way a well-behaved dependency would:
     /// a throwing requirement throws `CancellationError`, and a non-throwing

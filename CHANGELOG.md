@@ -31,6 +31,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   behavior can terminate a chain. Registering it on a synchronous
   requirement, or the bare form where no implicit outcome exists, fails with
   a diagnostic.
+- `thenSuspend()` parks matching async invocations and returns a
+  `StubSuspension` handle the test drives: `waitForCall(count:)` awaits a
+  call's arrival deterministically, and `resume(returning:)`,
+  `resume(throwing:)`, or the `Void` shorthand `resume()` completes parked
+  calls in arrival order. This makes loading states, in-flight assertions,
+  and race ordering testable without sleeps. Resuming with no call parked,
+  registering on a synchronous requirement, or throwing into a non-throwing
+  requirement each fail with a diagnostic.
 - Rich argument matchers that compose on the existing matching engine:
   logical combinators `not`, `allOf`, `anyOf`, and `oneOf`; the equality and
   identity matchers `notEqual` and `identical(to:)`; the comparison matchers

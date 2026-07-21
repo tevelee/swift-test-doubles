@@ -97,7 +97,7 @@ extension StubRegistrationBuilder {
     }
 
     @discardableResult
-    private func requireAsyncRequirement(configuring feature: String) -> MethodDescriptor {
+    func requireAsyncRequirement(configuring feature: String) -> MethodDescriptor {
         let method = requireRuntimeMethod()
         guard method.isAsync else {
             fatalError(
