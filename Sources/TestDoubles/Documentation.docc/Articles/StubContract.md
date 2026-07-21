@@ -366,6 +366,12 @@ iOS 16+, tvOS 16+, visionOS 1+, and watchOS 9+. Deployment targets are compiled
 at their declared minimum and executed on CI's available runner or simulator
 OS. macOS x86_64 coverage runs under Rosetta.
 
+The repository includes `Scripts/validate-android.sh` to cross-build the test
+targets for Android arm64 and x86_64 with the official Swift 6.3.3 Android SDK
+and NDK r27d or later. Android remains outside release support until a tagged
+Echo dependency exposes its ELF image-discovery implementation on Android and
+that cross-build passes without patching the dependency checkout.
+
 Physical iOS, tvOS, visionOS, and watchOS devices are unsupported because the
 runtime generates executable trampoline code and CI cannot exercise device
 execution policy. `ManualStub` remains available when building for those
