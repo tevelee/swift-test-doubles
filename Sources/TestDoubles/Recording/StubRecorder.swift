@@ -533,6 +533,10 @@ final class StubRecorder: @unchecked Sendable {
         resume(waiters, returning: .changed)
     }
 
+    func clearConfiguredBehaviors() {
+        withLock { behaviorRegistry.removeAll() }
+    }
+
     /// Returns an ordered-verification diagnostic, or `nil` after committing
     /// captures for a fully matched expectation sequence.
     func orderedVerificationFailure(for expectations: [RecordedCall]) -> String? {

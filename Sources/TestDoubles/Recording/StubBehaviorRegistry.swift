@@ -122,6 +122,10 @@ struct StubBehaviorRegistry {
         entriesByMethod[method]
     }
 
+    mutating func removeAll() {
+        entriesByMethod.removeAll()
+    }
+
     mutating func add(
         method: Int,
         matchers: [ParameterMatcher],

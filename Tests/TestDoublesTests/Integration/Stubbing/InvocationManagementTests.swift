@@ -29,6 +29,62 @@ private struct ManualInvocationManagementServiceStub: ManualInvocationManagement
 }
 
 @Suite struct InvocationManagementTests {
+    @Test func stubClearingBehaviorsRemovesShadowingRegistrations() throws {
+        let stub = try Stub<any InvocationManagementService>()
+        stub.when { $0.value(for: any()) }.thenReturn("old")
+        let service: any InvocationManagementService = stub()
+        #expect(service.value(for: 1) == "old")
+
+        stub.clearConfiguredBehaviors()
+
+        // Without the clear, first-match-wins would keep answering "old".
+        stub.when { $0.value(for: any()) }.thenReturn("new")
+        #expect(service.value(for: 2) == "new")
+
+        // Clearing behaviors preserves the invocation log.
+        stub.verify(.exactly(2)) { $0.value(for: any()) }
+    }
+
+    @Test func stubResetRestoresJustConstructedState() throws {
+        let stub = try Stub<any InvocationManagementService>()
+        stub.when { $0.value(for: any()) }.thenReturn("old")
+        let service: any InvocationManagementService = stub()
+        #expect(service.value(for: 1) == "old")
+
+        stub.reset()
+
+        stub.verify(.never()) { $0.value(for: any()) }
+        stub.when { $0.value(for: any()) }.thenReturn("new")
+        #expect(service.value(for: 2) == "new")
+        stub.verify(.exactly(1)) { $0.value(for: any()) }
+    }
+
+    @Test func spyClearingBehaviorsRestoresForwarding() throws {
+        let spy: Spy<any InvocationManagementService> = makeSpy(
+            forwardingTo: RealInvocationManagementService()
+        )
+        spy.when { $0.value(for: any()) }.thenReturn("stubbed")
+        let service: any InvocationManagementService = spy()
+        #expect(service.value(for: 7) == "stubbed")
+
+        spy.clearConfiguredBehaviors()
+
+        #expect(service.value(for: 7) == "7")
+    }
+
+    @Test func manualStubClearingBehaviorsRemovesShadowingRegistrations() {
+        let stub = ManualStub<ManualInvocationManagementServiceStub>()
+        stub.when { $0.value(for: any()) }.thenReturn("old")
+        let service: any ManualInvocationManagementService = stub()
+        #expect(service.value(for: 1) == "old")
+
+        stub.clearConfiguredBehaviors()
+
+        stub.when { $0.value(for: any()) }.thenReturn("new")
+        #expect(service.value(for: 2) == "new")
+        stub.verify(.exactly(2)) { $0.value(for: any()) }
+    }
+
     @Test func stubClearsOldCallsButPreservesBehaviorAndRecordsNewCalls() throws {
         let stub = try Stub<any InvocationManagementService>()
         stub.when { $0.value(for: any()) }.thenReturn("configured")

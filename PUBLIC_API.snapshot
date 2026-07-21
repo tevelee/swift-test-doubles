@@ -144,6 +144,7 @@ symbol	swift.method	ManualStub.call(_:function:)	func call<R>(_ args: Any..., fu
 symbol	swift.method	ManualStub.call(_:route:)	func call(_ args: Any..., route: ManualRouteID)
 symbol	swift.method	ManualStub.call(_:route:)	func call<R>(_ args: Any..., route: ManualRouteID) -> R
 symbol	swift.method	ManualStub.callAsFunction()	func callAsFunction() -> T
+symbol	swift.method	ManualStub.clearConfiguredBehaviors()	func clearConfiguredBehaviors()
 symbol	swift.method	ManualStub.clearRecordedInvocations()	func clearRecordedInvocations()
 symbol	swift.method	ManualStub.invocations(_:)	func invocations<Result, each Argument>(_ call: (T) throws -> Result) -> [(repeat each Argument)]
 symbol	swift.method	ManualStub.invocations(_:isolation:)	func invocations<Result, each Argument>(_ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation) async -> [(repeat each Argument)]
@@ -185,11 +186,13 @@ symbol	swift.method	Stub.Invocation.call(_:returning:throwing:)	func call<each A
 symbol	swift.method	Stub.Invocation.callThrowing(_:returning:)	func callThrowing<each Argument, Result>(_ arguments: repeat each Argument, returning resultType: Result.Type = Result.self) throws -> Result
 symbol	swift.method	Stub.Requirement.Value.consuming()	func consuming() -> Stub<P>.Requirement.Value
 symbol	swift.method	Stub.callAsFunction()	func callAsFunction() -> P
+symbol	swift.method	Stub.clearConfiguredBehaviors()	func clearConfiguredBehaviors()
 symbol	swift.method	Stub.clearRecordedInvocations()	func clearRecordedInvocations()
 symbol	swift.method	Stub.invocations(_:)	func invocations<Result, each Argument>(_ call: (P) throws -> Result) -> [(repeat each Argument)]
 symbol	swift.method	Stub.invocations(_:isolation:)	func invocations<Result, each Argument>(_ call: (P) async throws -> Result, isolation: isolated (any Actor)? = #isolation) async -> [(repeat each Argument)]
 symbol	swift.method	Stub.invocations(returning:_:)	func invocations<Result, each Argument>(returning placeholder: Result, _ call: (P) throws -> Result) -> [(repeat each Argument)]
 symbol	swift.method	Stub.invocations(returning:_:isolation:)	func invocations<Result, each Argument>(returning placeholder: Result, _ call: (P) async throws -> Result, isolation: isolated (any Actor)? = #isolation) async -> [(repeat each Argument)]
+symbol	swift.method	Stub.reset()	func reset()
 symbol	swift.method	Stub.verify(_:_:fileID:filePath:line:column:)	func verify(_ expectedCounts: any RangeExpression<Int> = 1..., _ call: (inout P) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	swift.method	Stub.verify(_:_:fileID:filePath:line:column:)	func verify<Result>(_ expectedCounts: any RangeExpression<Int> = 1..., _ call: (P) throws -> Result, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	swift.method	Stub.verify(_:_:isolation:fileID:filePath:line:column:)	func verify<Result>(_ expectedCounts: any RangeExpression<Int> = 1..., _ call: (P) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async

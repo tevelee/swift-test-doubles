@@ -48,6 +48,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pure query that neither verifies, consumes configured behavior, nor
   commits captors. `returning:` overloads cover results that need a valid
   recording placeholder.
+- `clearConfiguredBehaviors()` removes every `when` registration while
+  preserving the invocation log, returning a `Spy` to pure forwarding, and
+  `reset()` on `Stub` and `Spy` restores the just-constructed state by
+  clearing behaviors and invocations together. `ManualStub` gets
+  `clearConfiguredBehaviors()` but deliberately no `reset()`, since member
+  names dispatch requirements there and a concrete `reset` would shadow a
+  protocol's own `reset` requirement.
 - Rich argument matchers that compose on the existing matching engine:
   logical combinators `not`, `allOf`, `anyOf`, and `oneOf`; the equality and
   identity matchers `notEqual` and `identical(to:)`; the comparison matchers
