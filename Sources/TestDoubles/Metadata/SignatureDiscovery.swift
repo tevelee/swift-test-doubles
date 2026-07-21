@@ -295,7 +295,7 @@ private func resolveWitnessValue(
                 protocolName: protocolDescriptor.name,
                 reason:
                     "Requirement \(requirementIndex) embeds associated type '\(binding.name)' inside unsupported type '\(name)'. "
-                    + "Bound associated-type support accepts recursive combinations of Optional, Array, Set, and Dictionary."
+                    + "Bound associated-type support accepts recursive combinations of Optional, Array, Set, Dictionary, and Result."
             )
         }
     }
@@ -511,6 +511,24 @@ private func resolveSupportedTypeComponent(
                     ),
                     protocolName: protocolDescriptor.name
                 )
+            case .result(let success, let failure):
+                return try .result(
+                    success: resolveSupportedTypeComponent(
+                        success,
+                        protocolDescriptor: protocolDescriptor,
+                        requirementIndex: requirementIndex,
+                        associatedTypeBindings: associatedTypeBindings,
+                        mangledSignature: mangledSignature
+                    ),
+                    failure: resolveSupportedTypeComponent(
+                        failure,
+                        protocolDescriptor: protocolDescriptor,
+                        requirementIndex: requirementIndex,
+                        associatedTypeBindings: associatedTypeBindings,
+                        mangledSignature: mangledSignature
+                    ),
+                    protocolName: protocolDescriptor.name
+                )
         }
     }
     if referencesAssociatedType(
@@ -520,7 +538,7 @@ private func resolveSupportedTypeComponent(
     ) {
         throw StubError.unsupportedProtocolShape(
             protocolName: protocolDescriptor.name,
-            reason: "Requirement \(requirementIndex) embeds an associated type inside unsupported type '\(spelling)'. Bound associated-type support accepts recursive combinations of Optional, Array, Set, and Dictionary."
+            reason: "Requirement \(requirementIndex) embeds an associated type inside unsupported type '\(spelling)'. Bound associated-type support accepts recursive combinations of Optional, Array, Set, Dictionary, and Result."
         )
     }
     guard let syntax = DemangledTypeSyntax(spelling),
@@ -543,6 +561,7 @@ private enum StandardLibraryDependentShape {
     case array(String)
     case set(String)
     case dictionary(key: String, value: String)
+    case result(success: String, failure: String)
 }
 
 private func standardLibraryDependentShape(
@@ -560,6 +579,15 @@ private func standardLibraryDependentShape(
     if let components = dictionaryComponents(in: spelling) {
         return .dictionary(key: components.key, value: components.value)
     }
+    if let components = binaryGenericArguments(
+        in: spelling,
+        constructors: ["Result", "Swift.Result"]
+    ) {
+        return .result(
+            success: components.first,
+            failure: components.second
+        )
+    }
     if spelling.first == "[", spelling.last == "]" {
         return .array(String(spelling.dropFirst().dropLast()))
     }
@@ -574,6 +602,24 @@ private func standardLibraryDependentShape(
         constructors: ["Set", "Swift.Set"]
     ) {
         return .set(element)
+    }
+    return nil
+}
+
+private func binaryGenericArguments(
+    in spelling: String,
+    constructors: [String]
+) -> (first: String, second: String)? {
+    for constructor in constructors {
+        let prefix = "\(constructor)<"
+        guard spelling.hasPrefix(prefix), spelling.last == ">" else { continue }
+        let arguments = String(spelling.dropFirst(prefix.count).dropLast())
+        guard let components = topLevelComponents(in: arguments),
+            components.count == 2
+        else {
+            return nil
+        }
+        return (components[0], components[1])
     }
     return nil
 }

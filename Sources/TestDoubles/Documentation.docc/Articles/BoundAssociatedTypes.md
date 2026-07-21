@@ -70,6 +70,10 @@ let elementsByOptionalSet = SourceStub.Requirement.Value.dictionary(
     key: .optional(wrapping: .set(of: .optional(wrapping: element))),
     value: .array(of: .optional(wrapping: element))
 )
+let elementResult = SourceStub.Requirement.Value.result(
+    success: .array(of: element),
+    failure: .concrete(Never.self)
+)
 let consumedElements = elements.consuming()
 
 let stub = try SourceStub(
@@ -120,10 +124,18 @@ indirectly, and a direct `Element` result uses an indirect result buffer. An
 layout. This rule composes recursively. `Element??` remains indirect, but
 `[Element]?`, `[Element?]`, and `[String: [Element?]]` are fixed because the
 nearest opaque occurrence is enclosed by a reference-backed collection shell.
+`Result` considers both payloads: its formal witness transport is indirect when
+either its success or failure dependency remains opaque, and uses ordinary
+concrete enum classification only when both payloads have fixed transport.
+Consequently, `Result<Element, ConcreteFailure>` and
+`Result<[Int], Failure>` are indirect, while
+`Result<[Element], ConcreteFailure>` is fixed. The rule composes through both
+payloads and the surrounding supported containers.
 Dependency and ABI layout are therefore tracked separately: `[Int]` and
 `[Element]` have the same physical layout but are different explicit signature
 contracts. Dictionary dependencies additionally preserve the complete key and
-value source shapes.
+value source shapes, and Result dependencies preserve the success and failure
+source shapes.
 
 The fabricated witness table also needs its structural entries. TestDoubles
 flattens the inheritance and composition graph, then maps every metadata
@@ -160,12 +172,13 @@ it must evolve alongside the repository's Swift runtime support matrix.
   `Element: Equatable`.
 - Direct associated-type method arguments and results, including consuming
   direct arguments.
-- Direct associated-type property getters, Swift 6.3 `read` accessors, and
-  setters.
-- Arbitrarily recursive combinations of `Optional`, `Array`, `Set`, and
-  `Dictionary` containing associated and concrete leaves, in method arguments,
-  results, and getter results. Every resolved `Set` element and `Dictionary`
-  key must prove `Hashable`. Method arguments in all supported container forms
+- Direct associated-type property getters, Swift 6.3 `read` accessors, Swift
+  6.4 `yielding borrow` accessors through their supported witness, and setters.
+- Arbitrarily recursive combinations of `Optional`, `Array`, `Set`,
+  `Dictionary`, and `Result` containing associated and concrete leaves, in
+  method arguments, results, and getter results. Every resolved `Set` element
+  and `Dictionary` key must prove `Hashable`, and every resolved `Result`
+  failure must prove `Error`. Method arguments in all supported container forms
   may be consuming.
 - Direct and supported-container associated-type initializer arguments. Swift's
   initializer witness convention owns every parameter.
@@ -207,9 +220,9 @@ signature validation possible:
   non-covariant positions.
 - A missing, duplicate, or unknown concrete binding for any associated-type
   declaration in the flattened layout.
-- Dependent values outside recursive `Optional`, `Array`, `Set`, and
-  `Dictionary`, such as tuples, `Result`, arbitrary generic wrappers,
-  metatypes, existentials, or function types containing `Element`.
+- Dependent values outside recursive `Optional`, `Array`, `Set`, `Dictionary`,
+  and `Result`, such as tuples, arbitrary generic wrappers, metatypes,
+  existentials, or function types containing `Element`.
 - Typed errors that wrap an associated type rather than naming it directly.
 - Same-type constraints other than concrete primary bindings, superclass
   constraints, `AnyObject`-constrained associated types, and other generic
@@ -234,24 +247,28 @@ rejected declarations through construction.
 ### Work required for broader support
 
 The recursive classifier is deliberately bounded to standard-library
-`Optional`, `Array`, `Set`, and `Dictionary`. Supporting other dependent types
-requires formal lowering evidence for tuples, `Result`, custom generic values,
-metatypes, existentials, and function types. The implemented containers model
-their distinct lowering instead of inferring a universal convention from
-substituted concrete metadata.
+`Optional`, `Array`, `Set`, `Dictionary`, and `Result`. Supporting other
+dependent types requires formal lowering evidence for tuples, custom generic
+values, metatypes, existentials, and function types. The implemented containers
+model their distinct lowering instead of inferring a universal convention from
+substituted concrete metadata. `Result` is special-cased as a two-payload enum:
+either formally opaque payload makes the complete value indirect, while two
+fixed payloads permit ordinary concrete enum classification.
 
-Consuming `Optional`, `Array`, `Set`, and Dictionary values reuse the implemented
-value-witness and per-argument ownership path. Other nested, noncopyable, and
-nonescapable associated types still require additional lowering and lifetime
-models. An `AnyObject` associated-type constraint is also a separate dependent
-reference ABI; recognizing its metadata is not enough to transport its values
-safely, so construction rejects it explicitly.
+Consuming `Optional`, `Array`, `Set`, `Dictionary`, and `Result` values reuse the
+implemented value-witness and per-argument ownership path. Other nested,
+noncopyable, and nonescapable associated types still require additional
+lowering and lifetime models. An `AnyObject` associated-type constraint is also
+a separate dependent reference ABI; recognizing its metadata is not enough to
+transport its values safely, so construction rejects it explicitly.
 
 Typed throws is a separate ABI case. Concrete typed errors share direct result
 registers or use the caller's indirect typed-error slot as required. A direct
 associated error substitutes its binding metadata and always uses the indirect
 slot so the generic witness convention remains stable. Wrappers containing an
-associated type still require recursive dependent-type lowering.
+associated type still require recursive dependent-type lowering. Supporting
+`Result` as an ordinary argument or result does not widen that typed-error
+boundary.
 
 The implemented multiple-binding path maps every constrained-existential
 metadata argument to its same-type relationship and declaring protocol's

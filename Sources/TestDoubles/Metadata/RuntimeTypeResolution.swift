@@ -553,7 +553,7 @@ private func openedSetType<Element: Hashable>(of _: Element.Type) -> Any.Type {
     Set<Element>.self
 }
 
-private func resultType(success: Any.Type, failure: Any.Type) -> Any.Type? {
+func resultType(success: Any.Type, failure: Any.Type) -> Any.Type? {
     guard let errorType = failure as? any Error.Type else { return nil }
     return openedResultType(success: success, failure: errorType)
 }

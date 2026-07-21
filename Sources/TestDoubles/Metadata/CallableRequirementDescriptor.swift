@@ -156,6 +156,31 @@ struct ResolvedDependentType: Sendable {
             )
         )
     }
+
+    static func result(
+        success: Self,
+        failure: Self,
+        protocolName: String
+    ) throws -> Self {
+        guard
+            let type = resultType(
+                success: success.type,
+                failure: failure.type
+            )
+        else {
+            throw StubError.unsupportedProtocolShape(
+                protocolName: protocolName,
+                reason: "Result failure '\(runtimeTypeName(failure.type))' does not conform to Error."
+            )
+        }
+        return Self(
+            type: type,
+            dependency: .result(
+                success: success.dependency,
+                failure: failure.dependency
+            )
+        )
+    }
 }
 
 /// A value resolved from either an explicit requirement or an automatically
@@ -605,6 +630,8 @@ private func witnessValueDescription(
                 valueDependency.directAssociatedTypeName.map { "value \($0)" }
             ].compactMap { $0 }.joined(separator: ", ")
             return "\(runtimeTypeName(value.type)) [associated Dictionary \(components)]"
+        case .result:
+            break
         case .optional, .array, .set:
             break
     }

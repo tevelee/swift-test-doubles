@@ -1,6 +1,8 @@
 import Testing
 @testable import TestDoubles
 
+// swiftlint:disable file_length
+
 // Runtime-discovery fixtures must remain module-internal. With a private
 // protocol, release whole-module optimization can remove its only declared
 // conformance and bypass fabricated witness-table dispatch.
@@ -823,6 +825,7 @@ private indirect enum ExpectedDependency: Equatable {
     case array(Self)
     case set(Self)
     case dictionary(key: Self, value: Self)
+    case result(success: Self, failure: Self)
 }
 
 private func expectedDependency(
@@ -843,6 +846,11 @@ private func expectedDependency(
             .dictionary(
                 key: expectedDependency(key),
                 value: expectedDependency(value)
+            )
+        case .result(let success, let failure):
+            .result(
+                success: expectedDependency(success),
+                failure: expectedDependency(failure)
             )
     }
 }

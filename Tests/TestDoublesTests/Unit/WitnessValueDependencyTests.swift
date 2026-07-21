@@ -69,5 +69,23 @@ private protocol SecondDependencyScope {
             WitnessValueDependency.dictionary(key: first, value: second)
                 .usesOpaqueValueWitnessConvention == false
         )
+        #expect(
+            WitnessValueDependency.result(
+                success: first,
+                failure: .independent
+            ).usesOpaqueValueWitnessConvention
+        )
+        #expect(
+            WitnessValueDependency.result(
+                success: .array(first),
+                failure: .independent
+            ).usesOpaqueValueWitnessConvention == false
+        )
+        #expect(
+            WitnessValueDependency.result(
+                success: .independent,
+                failure: second
+            ).usesOpaqueValueWitnessConvention
+        )
     }
 }

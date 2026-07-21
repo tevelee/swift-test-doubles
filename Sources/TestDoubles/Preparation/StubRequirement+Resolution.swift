@@ -67,6 +67,18 @@ extension Stub.Requirement.Value.Source {
                     ),
                     protocolName: protocolDescriptor.name
                 )
+            case .result(let success, let failure):
+                return try .result(
+                    success: success.resolveDependentType(
+                        protocolDescriptor: protocolDescriptor,
+                        bindings: bindings
+                    ),
+                    failure: failure.resolveDependentType(
+                        protocolDescriptor: protocolDescriptor,
+                        bindings: bindings
+                    ),
+                    protocolName: protocolDescriptor.name
+                )
             case .selfType:
                 throw StubError.unsupportedProtocolShape(
                     protocolName: protocolDescriptor.name,

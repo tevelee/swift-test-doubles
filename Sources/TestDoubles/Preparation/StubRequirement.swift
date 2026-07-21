@@ -72,6 +72,7 @@ extension Stub {
                 case array(Source)
                 case set(Source)
                 case dictionary(key: Source, value: Source)
+                case result(success: Source, failure: Source)
                 case selfType(isOptional: Bool)
             }
             let source: Source

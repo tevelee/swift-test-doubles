@@ -31,6 +31,10 @@ indirect enum WitnessValueDependency: Equatable, Sendable {
         key: WitnessValueDependency,
         value: WitnessValueDependency
     )
+    case result(
+        success: WitnessValueDependency,
+        failure: WitnessValueDependency
+    )
 
     /// Compatibility construction for synthetic descriptors and focused
     /// descriptor tests that have no declaring protocol metadata.
@@ -60,6 +64,9 @@ indirect enum WitnessValueDependency: Equatable, Sendable {
                 wrapped.isAssociatedTypeDependent
             case .dictionary(let key, let value):
                 key.isAssociatedTypeDependent || value.isAssociatedTypeDependent
+            case .result(let success, let failure):
+                success.isAssociatedTypeDependent
+                    || failure.isAssociatedTypeDependent
         }
     }
 
@@ -80,6 +87,9 @@ indirect enum WitnessValueDependency: Equatable, Sendable {
                 wrapped.usesOpaqueValueWitnessConvention
             case .array, .set, .dictionary:
                 false
+            case .result(let success, let failure):
+                success.usesOpaqueValueWitnessConvention
+                    || failure.usesOpaqueValueWitnessConvention
         }
     }
 
@@ -93,6 +103,9 @@ indirect enum WitnessValueDependency: Equatable, Sendable {
                 wrapped.firstAssociatedTypeName
             case .dictionary(let key, let value):
                 key.firstAssociatedTypeName ?? value.firstAssociatedTypeName
+            case .result(let success, let failure):
+                success.firstAssociatedTypeName
+                    ?? failure.firstAssociatedTypeName
         }
     }
 
@@ -115,6 +128,11 @@ indirect enum WitnessValueDependency: Equatable, Sendable {
                 .dictionary(
                     key: key.legacyProjection,
                     value: value.legacyProjection
+                )
+            case .result(let success, let failure):
+                .result(
+                    success: success.legacyProjection,
+                    failure: failure.legacyProjection
                 )
         }
     }
