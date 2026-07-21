@@ -5,16 +5,6 @@ import CTestDoublesTrampoline
 /// The C layout remains the source of truth. Keeping every byte offset here
 /// prevents the Swift codecs from depending directly on frame representation.
 struct TrampolineCallFrame {
-    struct ArgumentCursor {
-        var generalPurpose: Int
-        var floatingPoint = 0
-        var stack = 0
-
-        init(initialGeneralPurposeOffset: Int = 0) {
-            generalPurpose = initialGeneralPurposeOffset
-        }
-    }
-
     static let generalPurposeReturnCount = 4
     static let floatingPointReturnCount = 4
 
@@ -63,22 +53,19 @@ struct TrampolineCallFrame {
         pointer.pointee = snapshot
     }
 
-    func takeGeneralPurposeWord(_ cursor: inout ArgumentCursor) -> UInt {
-        if cursor.generalPurpose < Self.generalPurposeArgumentLimit {
-            defer { cursor.generalPurpose += 1 }
-            return generalPurposeWord(cursor.generalPurpose)
+    func scalarBits(at location: CallFrameArgumentLocation) -> UInt64 {
+        precondition(
+            location.byteCount <= MemoryLayout<UInt64>.size,
+            "[TestDoubles] Scalar call-frame decoding cannot read a wider vector lane."
+        )
+        return switch location.storage {
+            case .generalPurposeRegister(let index):
+                UInt64(generalPurposeWord(index))
+            case .vectorRegister(let index):
+                floatingPointLowWord(index)
+            case .stack(let byteOffset):
+                UInt64(stackWord(byteOffset: byteOffset))
         }
-        defer { cursor.stack += 1 }
-        return stackWord(cursor.stack)
-    }
-
-    func takeFloatingPointWord(_ cursor: inout ArgumentCursor) -> UInt64 {
-        if cursor.floatingPoint < Self.floatingPointArgumentLimit {
-            defer { cursor.floatingPoint += 1 }
-            return floatingPointLowWord(cursor.floatingPoint)
-        }
-        defer { cursor.stack += 1 }
-        return UInt64(stackWord(cursor.stack))
     }
 
     func storeGeneralPurposeReturn(_ value: UInt, at index: Int = 0) {
@@ -137,13 +124,13 @@ struct TrampolineCallFrame {
         )
     }
 
-    private func stackWord(_ index: Int) -> UInt {
+    private func stackWord(byteOffset: Int) -> UInt {
         let address = loadWord(at: Offset.stackPointer)
         guard let stack = UnsafeRawPointer(bitPattern: address) else {
             preconditionFailure(
                 "[TestDoubles] Trampoline captured an invalid stack pointer."
             )
         }
-        return stack.loadUnaligned(fromByteOffset: index * 8, as: UInt.self)
+        return stack.loadUnaligned(fromByteOffset: byteOffset, as: UInt.self)
     }
 }

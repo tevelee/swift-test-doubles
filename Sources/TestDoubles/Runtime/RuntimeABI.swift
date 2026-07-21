@@ -21,6 +21,15 @@ enum RuntimeArchitecture: Equatable, Sendable {
             .arm64
         #endif
     }
+
+    var generalPurposeArgumentRegisterCount: Int {
+        switch self {
+            case .arm64: 8
+            case .x86_64: 6
+        }
+    }
+
+    var vectorArgumentRegisterCount: Int { 8 }
 }
 
 enum DirectValueRegister: Equatable, Sendable {
@@ -133,11 +142,7 @@ func unsupportedRuntimeReason(
 ) -> String? {
     guard method.isAsync else { return nil }
 
-    let registerLimit =
-        switch architecture {
-            case .arm64: 8
-            case .x86_64: 6
-        }
+    let registerLimit = architecture.generalPurposeArgumentRegisterCount
 
     // A generated witness also needs one general-purpose word for its receiver
     // across the async continuation boundary.

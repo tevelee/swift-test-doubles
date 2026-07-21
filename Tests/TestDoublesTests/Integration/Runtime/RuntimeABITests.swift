@@ -174,6 +174,110 @@ protocol ExtendedAsyncABIProbe: Sendable {
 }
 
 @Suite struct RuntimeABITests {
+    @Test func argumentLocationPlanPreservesArchitectureRegisterLimits() {
+        let integer = CallFrameArgumentShape(
+            type: Int.self,
+            layout: abiClass(for: Int.self)
+        )
+
+        let arm64 = CallFrameArgumentLocationPlan(
+            arguments: Array(repeating: integer, count: 10),
+            architecture: .arm64
+        )
+        #expect(
+            arm64.arguments.map { $0[0].storage }
+                == (0 ..< 8).map {
+                    .generalPurposeRegister($0)
+                } + [.stack(byteOffset: 0), .stack(byteOffset: 8)]
+        )
+        #expect(arm64.stackByteCount == 16)
+
+        let x86_64 = CallFrameArgumentLocationPlan(
+            arguments: Array(repeating: integer, count: 10),
+            architecture: .x86_64
+        )
+        #expect(
+            x86_64.arguments.map { $0[0].storage }
+                == (0 ..< 6).map {
+                    .generalPurposeRegister($0)
+                } + [
+                    .stack(byteOffset: 0),
+                    .stack(byteOffset: 8),
+                    .stack(byteOffset: 16),
+                    .stack(byteOffset: 24)
+                ]
+        )
+        #expect(x86_64.stackByteCount == 32)
+    }
+
+    @Test func argumentLocationPlanUsesIndependentRegisterBanksAndOneStackCursor() {
+        let integer = CallFrameArgumentShape(
+            type: Int.self,
+            layout: abiClass(for: Int.self)
+        )
+        let floatingPoint = CallFrameArgumentShape(
+            type: Double.self,
+            layout: abiClass(for: Double.self)
+        )
+        let shapes =
+            Array(repeating: integer, count: 6)
+            + Array(repeating: floatingPoint, count: 8)
+            + [integer, floatingPoint]
+        let plan = CallFrameArgumentLocationPlan(
+            arguments: shapes,
+            architecture: .x86_64
+        )
+
+        #expect(plan.arguments[5][0].storage == .generalPurposeRegister(5))
+        #expect(plan.arguments[6][0].storage == .vectorRegister(0))
+        #expect(plan.arguments[13][0].storage == .vectorRegister(7))
+        #expect(plan.arguments[14][0].storage == .stack(byteOffset: 0))
+        #expect(plan.arguments[15][0].storage == .stack(byteOffset: 8))
+        #expect(plan.stackByteCount == 16)
+    }
+
+    @Test func argumentLocationPlanRetainsVectorWidthWithoutEnablingSIMD() {
+        let vector = CallFrameArgumentShape(
+            type: SIMD4<Float>.self,
+            layout: .aggregate(
+                parts: [
+                    DirectValuePart(
+                        register: .fp,
+                        offset: 0,
+                        byteCount: 16
+                    )
+                ]
+            )
+        )
+        let plan = CallFrameArgumentLocationPlan(
+            arguments: [vector],
+            architecture: .arm64
+        )
+
+        #expect(plan.arguments[0][0].storage == .vectorRegister(0))
+        #expect(plan.arguments[0][0].valueOffset == 0)
+        #expect(plan.arguments[0][0].byteCount == 16)
+        #expect(plan.stackByteCount == 0)
+    }
+
+    @Test func trailingHiddenWordsShareTheArgumentLocationPlan() {
+        let integer = CallFrameArgumentShape(
+            type: Int.self,
+            layout: abiClass(for: Int.self)
+        )
+        let plan = CallFrameArgumentLocationPlan(
+            arguments: Array(repeating: integer, count: 6),
+            trailingGeneralPurposeWordCount: 1,
+            architecture: .x86_64
+        )
+
+        #expect(
+            plan.trailingGeneralPurpose.map(\.storage)
+                == [.stack(byteOffset: 0)]
+        )
+        #expect(plan.stackByteCount == 8)
+    }
+
     @Test func wideDirectArgumentsAreLimitedToFunctionContainers() {
         #expect(directArgumentParts(for: OrdinaryWideABIValue.self) == nil)
 

@@ -102,20 +102,30 @@ enum RuntimeArgumentDecoder {
         _ plan: RuntimeArgumentDecodingPlan,
         from frame: TrampolineCallFrame
     ) -> DecodedArguments {
-        var cursor = TrampolineCallFrame.ArgumentCursor(
-            initialGeneralPurposeOffset: plan.initialGeneralPurposeOffset
+        let locationPlan = CallFrameArgumentLocationPlan(
+            arguments: plan.arguments.map {
+                CallFrameArgumentShape(type: $0.type, layout: $0.layout)
+            },
+            initialGeneralPurposeOffset: plan.initialGeneralPurposeOffset,
+            trailingGeneralPurposeWordCount:
+                plan.hasTypedErrorDestination ? 1 : 0
         )
         var values: [Any] = []
         values.reserveCapacity(plan.arguments.count)
 
-        for argument in plan.arguments {
+        for (argument, locations) in zip(
+            plan.arguments,
+            locationPlan.arguments
+        ) {
             let consumesArgument = argument.ownership == .owned
             switch argument.layout {
                 case .void:
+                    precondition(locations.isEmpty)
                     values.append(())
 
                 case .floatingPoint:
-                    let bits = frame.takeFloatingPointWord(&cursor)
+                    precondition(locations.count == 1)
+                    let bits = frame.scalarBits(at: locations[0])
                     if argument.type == Float.self {
                         var raw = UInt32(truncatingIfNeeded: bits)
                         values.append(
@@ -135,12 +145,13 @@ enum RuntimeArgumentDecoder {
                     }
 
                 case .integer(let words):
+                    precondition(locations.count == words)
                     var storage = (UInt64(0), UInt64(0))
                     withUnsafeMutableBytes(of: &storage) { bytes in
-                        for word in 0 ..< words {
+                        for location in locations {
                             bytes.storeBytes(
-                                of: UInt64(frame.takeGeneralPurposeWord(&cursor)),
-                                toByteOffset: word * 8,
+                                of: frame.scalarBits(at: location),
+                                toByteOffset: location.valueOffset,
                                 as: UInt64.self
                             )
                         }
@@ -159,13 +170,14 @@ enum RuntimeArgumentDecoder {
                         decodeAggregateArgument(
                             type: argument.type,
                             parts: parts,
-                            cursor: &cursor,
+                            locations: locations,
                             from: frame,
                             consuming: consumesArgument
                         ))
 
                 case .indirect:
-                    let address = frame.takeGeneralPurposeWord(&cursor)
+                    precondition(locations.count == 1)
+                    let address = UInt(frame.scalarBits(at: locations[0]))
                     guard let source = UnsafeMutableRawPointer(bitPattern: address) else {
                         fatalError(plan.diagnosticContext.missingIndirectArgument)
                     }
@@ -180,7 +192,12 @@ enum RuntimeArgumentDecoder {
 
         let typedErrorDestination: UnsafeMutableRawPointer?
         if plan.hasTypedErrorDestination {
-            let address = frame.takeGeneralPurposeWord(&cursor)
+            guard let location = locationPlan.trailingGeneralPurpose.first else {
+                preconditionFailure(
+                    "[TestDoubles] Typed-error storage has no call-frame location."
+                )
+            }
+            let address = UInt(frame.scalarBits(at: location))
             guard let destination = UnsafeMutableRawPointer(bitPattern: address) else {
                 fatalError(plan.diagnosticContext.missingTypedErrorDestination)
             }
@@ -198,10 +215,11 @@ enum RuntimeArgumentDecoder {
     private static func decodeAggregateArgument(
         type: Any.Type,
         parts: [DirectValuePart],
-        cursor: inout TrampolineCallFrame.ArgumentCursor,
+        locations: [CallFrameArgumentLocation],
         from frame: TrampolineCallFrame,
         consuming: Bool
     ) -> Any {
+        precondition(parts.count == locations.count)
         let metadata = reflect(type)
         let temporary = metadata.allocateValueBuffer()
         temporary.initializeMemory(
@@ -209,15 +227,8 @@ enum RuntimeArgumentDecoder {
             repeating: 0,
             count: metadata.valueBufferByteCount()
         )
-        for part in parts {
-            let value: UInt64
-            switch part.register {
-                case .gp:
-                    value = UInt64(frame.takeGeneralPurposeWord(&cursor))
-                case .fp:
-                    value = frame.takeFloatingPointWord(&cursor)
-            }
-            part.store(value, into: temporary)
+        for (part, location) in zip(parts, locations) {
+            part.store(frame.scalarBits(at: location), into: temporary)
         }
         let boxed = copyArgument(
             type: type,
