@@ -77,6 +77,75 @@ struct ResolutionElementValue: Equatable, Hashable, Sendable {
         )
     }
 
+    @Test func linkedGenericClassAccessorsReconstructExactClassMetadata() throws {
+        let intBox = try #require(
+            genericClassType(
+                named: "TestDoublesFixtures.ExternalAssociatedBox",
+                arguments: [Int.self]
+            )
+        )
+        let stringBox = try #require(
+            genericClassType(
+                named: "TestDoublesFixtures.ExternalAssociatedBox",
+                arguments: [String.self]
+            )
+        )
+        let pair = try #require(
+            genericClassType(
+                named: "TestDoublesFixtures.ExternalAssociatedPair",
+                arguments: [Optional<[Int]>.self, String.self]
+            )
+        )
+        let alternative = try #require(
+            genericClassType(
+                named: "TestDoublesFixtures.ExternalAlternativeAssociatedBox",
+                arguments: [Int.self]
+            )
+        )
+
+        #expect(
+            ObjectIdentifier(intBox.type)
+                == ObjectIdentifier(ExternalAssociatedBox<Int>.self)
+        )
+        #expect(
+            ObjectIdentifier(stringBox.type)
+                == ObjectIdentifier(ExternalAssociatedBox<String>.self)
+        )
+        #expect(
+            ObjectIdentifier(pair.type)
+                == ObjectIdentifier(
+                    ExternalAssociatedPair<[Int]?, String>.self
+                )
+        )
+        #expect(intBox.constructor == stringBox.constructor)
+        #expect(intBox.constructor != alternative.constructor)
+        #expect(
+            intBox.constructor.name
+                == "TestDoublesFixtures.ExternalAssociatedBox"
+        )
+    }
+
+    @Test func genericClassAccessorRejectsNonClassesAndConstrainedClasses() {
+        #expect(
+            genericClassType(
+                named: "TestDoublesFixtures.ExternalAssociatedValue",
+                arguments: [Int.self]
+            ) == nil
+        )
+        #expect(
+            genericClassType(
+                named: "TestDoublesFixtures.ExternalAssociatedChoice",
+                arguments: [Int.self]
+            ) == nil
+        )
+        #expect(
+            genericClassType(
+                named: "TestDoublesFixtures.ExternalConstrainedAssociatedBox",
+                arguments: [Int.self]
+            ) == nil
+        )
+    }
+
     @Test func closurePointerAuthenticationMatchesSwiftStableHashes() throws {
         let discriminators = try #require(
             FunctionReabstraction.pointerAuthDiscriminators(

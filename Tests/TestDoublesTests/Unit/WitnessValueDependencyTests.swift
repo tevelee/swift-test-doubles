@@ -87,5 +87,24 @@ private protocol SecondDependencyScope {
                 failure: second
             ).usesOpaqueValueWitnessConvention
         )
+        let genericClass = WitnessValueDependency.genericClass(
+            constructor: GenericClassID(
+                name: "Module.Box",
+                descriptorAddress: 1
+            ),
+            arguments: [first]
+        )
+        #expect(genericClass.isAssociatedTypeDependent)
+        #expect(genericClass.usesOpaqueValueWitnessConvention == false)
+        #expect(
+            genericClass
+                != .genericClass(
+                    constructor: GenericClassID(
+                        name: "Module.Box",
+                        descriptorAddress: 2
+                    ),
+                    arguments: [first]
+                )
+        )
     }
 }

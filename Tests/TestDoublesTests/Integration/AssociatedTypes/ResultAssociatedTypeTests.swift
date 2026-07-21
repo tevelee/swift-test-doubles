@@ -316,6 +316,7 @@ private indirect enum ResultDependencyShape: Equatable {
     case set(Self)
     case dictionary(key: Self, value: Self)
     case result(success: Self, failure: Self)
+    case genericClass(String, [Self])
 }
 
 private func resultDependencyShape(
@@ -341,6 +342,11 @@ private func resultDependencyShape(
             .result(
                 success: resultDependencyShape(success),
                 failure: resultDependencyShape(failure)
+            )
+        case .genericClass(let constructor, let arguments):
+            .genericClass(
+                constructor.name,
+                arguments.map(resultDependencyShape)
             )
     }
 }

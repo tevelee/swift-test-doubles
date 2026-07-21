@@ -287,8 +287,12 @@ constraints on each type. Declarations may belong to inherited bases, appear
 alongside inheritance, or span multiple composed roots. Direct dependent
 arguments and results, dependent setters and initializer arguments, and
 dependent `Optional`, `Array`, `Set`, and direct `Dictionary` key or value
-occurrences are supported. Direct and
-supported container method arguments may be consuming. Methods may combine
+occurrences are supported. Automatic discovery additionally accepts linked,
+public, top-level generic Swift classes with one or two unconstrained type
+parameters when every argument recursively resolves and reconstructed metadata
+proves the exact class descriptor. No source-less explicit generic-class schema
+is available. Direct and supported container method arguments may be consuming.
+Methods may combine
 these values with `async`, untyped `throws`, and a direct associated typed error;
 effectful getters must be
 described explicitly. Both automatic discovery and explicit

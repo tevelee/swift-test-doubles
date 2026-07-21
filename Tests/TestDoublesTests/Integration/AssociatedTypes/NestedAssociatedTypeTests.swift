@@ -826,6 +826,7 @@ private indirect enum ExpectedDependency: Equatable {
     case set(Self)
     case dictionary(key: Self, value: Self)
     case result(success: Self, failure: Self)
+    case genericClass(String, [Self])
 }
 
 private func expectedDependency(
@@ -851,6 +852,11 @@ private func expectedDependency(
             .result(
                 success: expectedDependency(success),
                 failure: expectedDependency(failure)
+            )
+        case .genericClass(let constructor, let arguments):
+            .genericClass(
+                constructor.name,
+                arguments.map(expectedDependency)
             )
     }
 }

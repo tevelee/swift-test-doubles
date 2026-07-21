@@ -630,7 +630,7 @@ private func witnessValueDescription(
                 valueDependency.directAssociatedTypeName.map { "value \($0)" }
             ].compactMap { $0 }.joined(separator: ", ")
             return "\(runtimeTypeName(value.type)) [associated Dictionary \(components)]"
-        case .result:
+        case .result, .genericClass:
             break
         case .optional, .array, .set:
             break

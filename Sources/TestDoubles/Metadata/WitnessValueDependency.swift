@@ -35,6 +35,10 @@ indirect enum WitnessValueDependency: Equatable, Sendable {
         success: WitnessValueDependency,
         failure: WitnessValueDependency
     )
+    case genericClass(
+        constructor: GenericClassID,
+        arguments: [WitnessValueDependency]
+    )
 
     /// Compatibility construction for synthetic descriptors and focused
     /// descriptor tests that have no declaring protocol metadata.
@@ -67,6 +71,8 @@ indirect enum WitnessValueDependency: Equatable, Sendable {
             case .result(let success, let failure):
                 success.isAssociatedTypeDependent
                     || failure.isAssociatedTypeDependent
+            case .genericClass(_, let arguments):
+                arguments.contains(where: \.isAssociatedTypeDependent)
         }
     }
 
@@ -90,6 +96,8 @@ indirect enum WitnessValueDependency: Equatable, Sendable {
             case .result(let success, let failure):
                 success.usesOpaqueValueWitnessConvention
                     || failure.usesOpaqueValueWitnessConvention
+            case .genericClass:
+                false
         }
     }
 
@@ -106,6 +114,8 @@ indirect enum WitnessValueDependency: Equatable, Sendable {
             case .result(let success, let failure):
                 success.firstAssociatedTypeName
                     ?? failure.firstAssociatedTypeName
+            case .genericClass(_, let arguments):
+                arguments.lazy.compactMap(\.firstAssociatedTypeName).first
         }
     }
 
@@ -133,6 +143,11 @@ indirect enum WitnessValueDependency: Equatable, Sendable {
                 .result(
                     success: success.legacyProjection,
                     failure: failure.legacyProjection
+                )
+            case .genericClass(let constructor, let arguments):
+                .genericClass(
+                    constructor: constructor,
+                    arguments: arguments.map(\.legacyProjection)
                 )
         }
     }

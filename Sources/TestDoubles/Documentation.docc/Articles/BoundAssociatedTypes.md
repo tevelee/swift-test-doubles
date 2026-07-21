@@ -82,6 +82,30 @@ let stub = try SourceStub(
 )
 ```
 
+Automatic discovery also recognizes a bounded generic-class shape. The class
+must be a linked, public, top-level Swift class with one or two unconstrained
+type parameters, and every argument must resolve recursively from concrete or
+associated metadata:
+
+```swift
+public final class Page<Value> {}
+
+protocol PageSource<Element> {
+    associatedtype Element
+    func load() -> Page<Element>
+}
+
+let stub = try Stub<any PageSource<Int>>()
+```
+
+There is no source-less explicit `Value` schema for a generic class. Swift does
+not expose an unbound generic class metatype that could identify `Page` without
+either a string name or an arbitrary placeholder specialization. Both would
+make the schema less precise than automatic descriptor discovery. When a linked
+signature is available, describing `Page<Element>` as
+`.concrete(Page<Int>.self)` is rejected because it erases the dependent source
+shape.
+
 Initializer parameters use Swift's owned initializer convention. Describe a
 dependent initializer by passing one or more `Value`s:
 
@@ -131,6 +155,11 @@ Consequently, `Result<Element, ConcreteFailure>` and
 `Result<[Int], Failure>` are indirect, while
 `Result<[Element], ConcreteFailure>` is fixed. The rule composes through both
 payloads and the surrounding supported containers.
+Likewise, a reconstructed generic class is definitively reference metadata, so
+`Page<Element>` remains a direct one-word reference regardless of the payload's
+formal opacity. `Page<Element>?` is also one word, and wrapping the class in an
+Array, Set, or Dictionary retains that container's fixed reference-backed
+transport.
 Dependency and ABI layout are therefore tracked separately: `[Int]` and
 `[Element]` have the same physical layout but are different explicit signature
 contracts. Dictionary dependencies additionally preserve the complete key and
@@ -180,6 +209,12 @@ it must evolve alongside the repository's Swift runtime support matrix.
   and `Dictionary` key must prove `Hashable`, and every resolved `Result`
   failure must prove `Error`. Method arguments in all supported container forms
   may be consuming.
+- Automatically discovered linked, public, top-level generic Swift classes
+  with one or two unconstrained type parameters. Every argument may recursively
+  contain concrete types, associated types, and supported standard-library or
+  generic-class shapes. Reconstructed metadata must identify the exact linked
+  class descriptor and prove class reference metadata before construction
+  proceeds.
 - Direct and supported-container associated-type initializer arguments. Swift's
   initializer witness convention owns every parameter.
 - Requirements with any combination of `async` and ordinary untyped `throws`.
@@ -221,8 +256,12 @@ signature validation possible:
 - A missing, duplicate, or unknown concrete binding for any associated-type
   declaration in the flattened layout.
 - Dependent values outside recursive `Optional`, `Array`, `Set`, `Dictionary`,
-  and `Result`, such as tuples, arbitrary generic wrappers, metatypes,
-  existentials, or function types containing `Element`.
+  `Result`, and the bounded automatic generic-class slice, such as tuples,
+  generic structs or enums, metatypes, existentials, or function types
+  containing `Element`.
+- Generic classes with constraints, more than two type parameters, nested or
+  unlinked constructors, constructors whose metadata accessor needs non-type
+  arguments, and source-less explicit generic-class schemas.
 - Typed errors that wrap an associated type rather than naming it directly.
 - Same-type constraints other than concrete primary bindings, superclass
   constraints, `AnyObject`-constrained associated types, and other generic
@@ -248,12 +287,20 @@ rejected declarations through construction.
 
 The recursive classifier is deliberately bounded to standard-library
 `Optional`, `Array`, `Set`, `Dictionary`, and `Result`. Supporting other
-dependent types requires formal lowering evidence for tuples, custom generic
-values, metatypes, existentials, and function types. The implemented containers
-model their distinct lowering instead of inferring a universal convention from
-substituted concrete metadata. `Result` is special-cased as a two-payload enum:
-either formally opaque payload makes the complete value indirect, while two
-fixed payloads permit ordinary concrete enum classification.
+dependent values requires formal lowering evidence for tuples, generic structs
+and enums, metatypes, existentials, and function types. The implemented
+containers model their distinct lowering instead of inferring a universal
+convention from substituted concrete metadata. `Result` is special-cased as a
+two-payload enum: either formally opaque payload makes the complete value
+indirect, while two fixed payloads permit ordinary concrete enum
+classification. Generic classes are accepted only after exact descriptor-based
+metadata reconstruction proves reference identity and layout.
+
+Expanding generic-class support to explicit source-less schemas needs a durable
+way to identify an unapplied constructor. A string is tied to symbol spelling,
+while a specialization such as `Page<Int>.self` does not state that `Int` is a
+placeholder to be replaced. Until Swift can express that constructor directly,
+the explicit path continues to fail closed rather than publish either contract.
 
 Consuming `Optional`, `Array`, `Set`, `Dictionary`, and `Result` values reuse the
 implemented value-witness and per-argument ownership path. Other nested,

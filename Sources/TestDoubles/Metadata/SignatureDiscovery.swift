@@ -295,7 +295,7 @@ private func resolveWitnessValue(
                 protocolName: protocolDescriptor.name,
                 reason:
                     "Requirement \(requirementIndex) embeds associated type '\(binding.name)' inside unsupported type '\(name)'. "
-                    + "Bound associated-type support accepts recursive combinations of Optional, Array, Set, Dictionary, and Result."
+                    + "Bound associated-type support accepts recursive combinations of Optional, Array, Set, Dictionary, Result, and linked generic classes with one or two unconstrained type parameters."
             )
         }
     }
@@ -410,6 +410,7 @@ private func resolveSupportedDependentType(
             protocolDescriptor: protocolDescriptor,
             associatedTypeBindings: associatedTypeBindings
         ) != nil || standardLibraryDependentShape(in: spelling) != nil
+            || genericApplication(spelling) != nil
     else {
         return nil
     }
@@ -531,6 +532,42 @@ private func resolveSupportedTypeComponent(
                 )
         }
     }
+    if let application = genericApplication(spelling),
+        let argumentSpellings = topLevelComponents(
+            in: application.arguments
+        )
+    {
+        let arguments = try argumentSpellings.map {
+            try resolveSupportedTypeComponent(
+                $0,
+                protocolDescriptor: protocolDescriptor,
+                requirementIndex: requirementIndex,
+                associatedTypeBindings: associatedTypeBindings,
+                mangledSignature: mangledSignature
+            )
+        }
+        guard
+            let resolved = genericClassType(
+                named: application.constructor,
+                arguments: arguments.map(\.type)
+            )
+        else {
+            throw StubError.unsupportedProtocolShape(
+                protocolName: protocolDescriptor.name,
+                reason:
+                    "Requirement \(requirementIndex) embeds an associated type inside unsupported generic nominal '\(spelling)'. "
+                    + "Only linked, top-level generic classes with one or two unconstrained type parameters are supported. "
+                    + "Generic structs, enums, constrained classes, and other constructors remain unsupported."
+            )
+        }
+        return ResolvedDependentType(
+            type: resolved.type,
+            dependency: .genericClass(
+                constructor: resolved.constructor,
+                arguments: arguments.map(\.dependency)
+            )
+        )
+    }
     if referencesAssociatedType(
         in: spelling,
         protocolDescriptor: protocolDescriptor,
@@ -538,7 +575,10 @@ private func resolveSupportedTypeComponent(
     ) {
         throw StubError.unsupportedProtocolShape(
             protocolName: protocolDescriptor.name,
-            reason: "Requirement \(requirementIndex) embeds an associated type inside unsupported type '\(spelling)'. Bound associated-type support accepts recursive combinations of Optional, Array, Set, Dictionary, and Result."
+            reason:
+                "Requirement \(requirementIndex) embeds an associated type inside unsupported type '\(spelling)'. "
+                + "Bound associated-type support accepts recursive combinations of Optional, Array, Set, Dictionary, Result, "
+                + "and linked generic classes with one or two unconstrained type parameters."
         )
     }
     guard let syntax = DemangledTypeSyntax(spelling),
