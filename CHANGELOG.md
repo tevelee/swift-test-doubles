@@ -62,6 +62,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   through it under first-match-wins. Forwarded calls stay recorded and
   verifiable. Registering it on a double without a forwarding target fails
   with a diagnostic.
+- `InvocationOrder` verifies interaction order across any number of doubles:
+  each `verify(stub) { ... }` step matches the earliest recorded invocation
+  after the previously verified one and advances a shared cursor, with
+  unrelated calls allowed in between, like `verifyInOrder` on a single
+  double. Works across `Stub`, `Spy`, and `ManualStub`, sync and async. A
+  failed step reports a test issue at its own call site; successful steps
+  commit captors and count for `verifyNoMoreInteractions()`.
 - Rich argument matchers that compose on the existing matching engine:
   logical combinators `not`, `allOf`, `anyOf`, and `oneOf`; the equality and
   identity matchers `notEqual` and `identical(to:)`; the comparison matchers

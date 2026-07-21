@@ -1,6 +1,24 @@
+import Foundation
+
+/// Process-global monotonic stamp shared by every recorder, so ordered
+/// verification can compare invocation order across separate doubles, each of
+/// which otherwise numbers its calls independently.
+enum GlobalInvocationSequence {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var current: UInt64 = 0
+
+    static func take() -> UInt64 {
+        lock.lock()
+        defer { lock.unlock() }
+        current &+= 1
+        return current
+    }
+}
+
 /// A recorded playback invocation or a capture-mode expectation.
 struct RecordedCall: @unchecked Sendable {
     let id: UInt64?
+    let sequence: UInt64?
     let methodIndex: Int
     let name: String
     let args: [Any]
@@ -8,12 +26,14 @@ struct RecordedCall: @unchecked Sendable {
 
     init(
         id: UInt64? = nil,
+        sequence: UInt64? = nil,
         methodIndex: Int,
         name: String,
         args: [Any],
         matchers: [ParameterMatcher]
     ) {
         self.id = id
+        self.sequence = sequence
         self.methodIndex = methodIndex
         self.name = name
         self.args = args
@@ -88,6 +108,7 @@ struct InvocationLedger {
         calls.append(
             RecordedCall(
                 id: callID,
+                sequence: GlobalInvocationSequence.take(),
                 methodIndex: method,
                 name: name,
                 args: args,

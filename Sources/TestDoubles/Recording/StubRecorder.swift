@@ -638,6 +638,24 @@ extension StubRecorder {
         matchingCalls(method: method, matchers: matchers)
     }
 
+    /// Returns the earliest recorded call matching `recording` whose global
+    /// sequence stamp is later than `cursor`. Matcher predicates are user
+    /// code, so the calls are snapshotted under the lock and evaluated after
+    /// releasing it.
+    func earliestOrderedMatch(
+        recording: RecordedCall,
+        after cursor: UInt64
+    ) -> RecordedCall? {
+        let calls = withLock { invocationLedger.allCalls }
+        let matchers = recording.resolvedMatchers
+        return calls.first { call in
+            guard let sequence = call.sequence, sequence > cursor else { return false }
+            return call.methodIndex == recording.methodIndex
+                && (matchers.isEmpty
+                    || StubBehaviorRegistry.argumentsMatch(call.args, against: matchers))
+        }
+    }
+
     func commitSuccessfulVerification(
         of calls: [RecordedCall],
         against matchers: [ParameterMatcher]

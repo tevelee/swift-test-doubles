@@ -2,6 +2,7 @@
 # Format: symbol <kind> <path> <declaration>, including public conformances.
 conformance	ArgumentCaptor	Swift.Sendable	[{"kind":"conformance","lhs":"T","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"T","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"T","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 conformance	Dummy	Swift.Sendable	[{"kind":"conformance","lhs":"P","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"P","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"P","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
+conformance	InvocationOrder	Swift.Sendable	[]
 conformance	ManualRouteID	Swift.Equatable	[]
 conformance	ManualRouteID	Swift.Hashable	[]
 conformance	ManualRouteID	Swift.Sendable	[]
@@ -27,6 +28,7 @@ conformance	StubOptionalSelfResultBuilder.Outcome	Swift.Sendable	[]
 conformance	StubSuspension	Swift.Sendable	[{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 symbol	swift.class	ArgumentCaptor	final class ArgumentCaptor<T>
 symbol	swift.class	Dummy	final class Dummy<P>
+symbol	swift.class	InvocationOrder	final class InvocationOrder
 symbol	swift.class	ManualStub	@dynamicMemberLookup final class ManualStub<T> where T : StubConformer
 symbol	swift.class	Spy	final class Spy<P>
 symbol	swift.class	Stub	class Stub<P>
@@ -107,6 +109,7 @@ symbol	swift.func	some(_:)	func some<Wrapped>(_ matcher: @autoclosure () -> Wrap
 symbol	swift.func	startsWith(_:)	func startsWith<C>(_ prefix: C.Element...) -> C where C : Collection, C.Element : Equatable, C.Element : Sendable
 symbol	swift.init	ArgumentCaptor.init()	init()
 symbol	swift.init	Dummy.init()	convenience init() throws(StubError)
+symbol	swift.init	InvocationOrder.init()	init()
 symbol	swift.init	ManualRouteID.init(_:argumentTypes:)	init(_ signature: String = #function, argumentTypes: Any.Type...)
 symbol	swift.init	ManualStub.init()	init()
 symbol	swift.init	Spy.init(forwardingTo:)	convenience init(forwardingTo target: P) throws(StubError)
@@ -123,6 +126,10 @@ symbol	swift.method	ArgumentCaptor.capture()	func capture() -> T
 symbol	swift.method	ArgumentCaptor.capture(using:)	func capture(using placeholder: T) -> T
 symbol	swift.method	ArgumentCaptor.reset()	func reset()
 symbol	swift.method	Dummy.callAsFunction()	func callAsFunction() -> P
+symbol	swift.method	InvocationOrder.verify(_:_:fileID:filePath:line:column:)	func verify<P, Result>(_ stub: Stub<P>, _ call: (P) throws -> Result, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
+symbol	swift.method	InvocationOrder.verify(_:_:fileID:filePath:line:column:)	func verify<T, Result>(_ stub: ManualStub<T>, _ call: (T) throws -> Result, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) where T : StubConformer
+symbol	swift.method	InvocationOrder.verify(_:_:isolation:fileID:filePath:line:column:)	func verify<P, Result>(_ stub: Stub<P>, _ call: (P) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
+symbol	swift.method	InvocationOrder.verify(_:_:isolation:fileID:filePath:line:column:)	func verify<T, Result>(_ stub: ManualStub<T>, _ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async where T : StubConformer
 symbol	swift.method	ManualMethodProxy.dynamicallyCall(withKeywordArguments:)	func dynamicallyCall(withKeywordArguments args: KeyValuePairs<String, Any>)
 symbol	swift.method	ManualMethodProxy.dynamicallyCall(withKeywordArguments:)	func dynamicallyCall(withKeywordArguments args: KeyValuePairs<String, Any>) async
 symbol	swift.method	ManualMethodProxy.dynamicallyCall(withKeywordArguments:)	func dynamicallyCall<R>(withKeywordArguments args: KeyValuePairs<String, Any>) -> R
