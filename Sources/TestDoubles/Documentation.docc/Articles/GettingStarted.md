@@ -172,6 +172,10 @@ like an immediate count mismatch. After successful verifications,
 `clearRecordedInvocations()` to begin a new interaction window while preserving
 configured behavior and behavior-chain state.
 
+To read recorded arguments as typed values, order interactions across several
+doubles, flag registrations no call ever used, or reset a double between
+parameterized cases, see <doc:InspectingInteractions>.
+
 ### Verify relative call order
 
 List only the interactions whose order matters:
@@ -335,6 +339,9 @@ let error = await #expect(throws: LoadError.self) {
 }
 #expect(error?.url == "/missing")
 ```
+
+To control *when* an async call completes rather than only its result, for
+loading states, latency, timeouts, and cancellation, see <doc:AsyncBehaviors>.
 
 ### Sequence fixed behaviors
 

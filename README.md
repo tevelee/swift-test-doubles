@@ -153,6 +153,35 @@ repeats for every call after that. Each registration owns its own chain, so a
 call that matches a more specific registration does not advance a general
 fallback's chain. Retry logic like this is hard to test any other way.
 
+### Control async timing
+
+Testing async code often means asserting what happens *while* a call is in
+flight, not just what it returns. Configure the timing of a completion with the
+same vocabulary, no `Task.sleep` required.
+
+```swift
+let loader = try Stub<any FeedLoader>()
+let suspension = await loader.when { try await $0.loadFeed() }.thenSuspend()
+
+let feed = FeedViewModel(loader: loader())
+let refresh = Task { await feed.refresh() }
+
+await suspension.waitForCall()   // the call has arrived and parked
+#expect(feed.isLoading)
+
+suspension.resume(returning: ["Hello, world"])
+await refresh.value
+#expect(feed.isLoading == false)
+```
+
+`thenSuspend()` hands the test a handle that completes parked calls on demand,
+in arrival order. Alongside it, `thenReturn(_:after:)` delivers a result after a
+delay, `thenNeverReturn()` models a wedged dependency for timeout paths, and
+`thenAwaitCancellation()` completes when the calling task is cancelled. All four
+need an async requirement and fail closed on a synchronous one. See
+[Async Behaviors](Sources/TestDoubles/Documentation.docc/Articles/AsyncBehaviors.md)
+for the full contract.
+
 ### Verify what happened
 
 When the interaction is the outcome, as with analytics, persistence, or
@@ -202,6 +231,19 @@ failures are reported as test issues at the `verify` call's own file and
 line. There is also `verifyNoMoreInteractions()` to catch calls no successful
 verification has covered.
 
+For custom assertions, read recorded arguments as typed tuples with
+`invocations`; `InvocationOrder` checks call order across several doubles at
+once; `verifyNoUnusedStubs()` flags registrations no call matched; and
+`reset()` restores a double between parameterized cases. See
+[Inspecting Interactions](Sources/TestDoubles/Documentation.docc/Articles/InspectingInteractions.md).
+
+```swift
+let events: [(String, Int)] = analytics.invocations {
+    $0.track(event: any(), value: any())
+}
+#expect(events == [("add_to_cart", 30), ("add_to_cart", 12), ("purchase", 42)])
+```
+
 ### Spy: keep the real thing, override one call
 
 `Spy` forwards to a real implementation, records everything, and lets you
@@ -231,7 +273,9 @@ spy.verify(.exactly(2)) { $0.translate(any()) }
 A matching `when` registration wins, and the first matching one is used,
 just as with `Stub`. Every other supported call forwards to the target and
 is recorded, so verification covers overridden and forwarded calls alike. The target's conformance also supplies the signature metadata,
-so a spy needs no other discovery source.
+so a spy needs no other discovery source. A registration can also hand a call
+back to the real implementation explicitly with `thenForward()`, which lets a
+chain fail a few times and then forward for real.
 
 ### Dummy: dependencies that must never be touched
 
@@ -400,6 +444,8 @@ and
 The DocC catalog covers the rest of the surface, with examples:
 
 - [Getting Started](Sources/TestDoubles/Documentation.docc/Articles/GettingStarted.md): the guided tour.
+- [Async Behaviors](Sources/TestDoubles/Documentation.docc/Articles/AsyncBehaviors.md): delays, wedged dependencies, cancellation, and test-driven suspension.
+- [Inspecting Interactions](Sources/TestDoubles/Documentation.docc/Articles/InspectingInteractions.md): typed invocation access, cross-double ordering, unused-stub detection, placeholder registry, and reset.
 - [Construction Guide](Sources/TestDoubles/Documentation.docc/Articles/ConstructionGuide.md): explicit requirements, getter effects, inheritance and composition ordering.
 - [Forwarding Spies](Sources/TestDoubles/Documentation.docc/Articles/ForwardingSpies.md): the forwarding boundary and diagnostics.
 - [Dummy Test Doubles](Sources/TestDoubles/Documentation.docc/Articles/DummyTestDoubles.md): fail-on-use placeholders.

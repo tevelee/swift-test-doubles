@@ -18,11 +18,14 @@ must not use. A dummy has no behavior or recorder, and every invocation fails
 closed with an actionable diagnostic.
 
 Start with <doc:GettingStarted> for task-oriented examples. Use
-<doc:ConstructionGuide> when choosing a construction path, <doc:StubContract>
-when checking the supported runtime boundary, and <doc:ManualStubbing> when a
-hand-written conformer is a better fit. No construction path launches an
-external tool. The generated existential owns its runtime resources and may
-outlive the ``Stub`` that created it.
+<doc:AsyncBehaviors> to control when async requirements complete, for loading
+states, timeouts, and cancellation, and <doc:InspectingInteractions> to read
+recorded arguments, order calls across doubles, and reset a double between
+cases. Use <doc:ConstructionGuide> when choosing a construction path,
+<doc:StubContract> when checking the supported runtime boundary, and
+<doc:ManualStubbing> when a hand-written conformer is a better fit. No
+construction path launches an external tool. The generated existential owns its
+runtime resources and may outlive the ``Stub`` that created it.
 
 Runtime stubs support synchronous, throwing, async, and async-throwing
 requirements, inherited protocols, protocol compositions, direct property and
@@ -30,8 +33,10 @@ subscript setters, class-constrained protocols, `NSObject`-backed superclass
 constraints, bounded primary-associated-type bindings across supported
 inheritance and compositions, caller-supplied bindings for covariant associated
 results, recording-result placeholders, direct and optional dynamic `Self`
-results, initializer requirements, sequenced behaviors, immediate and eventual
-verification, invocation clearing, and unverified-interaction reporting.
+results, initializer requirements, sequenced behaviors, delayed and
+suspend-controlled async completion, immediate and eventual verification,
+typed invocation access, cross-double ordered verification, invocation and
+behavior clearing, and unverified- and unused-registration reporting.
 Unsupported runtime shapes fail during construction when they can be detected.
 
 Methods, static methods, initializers, properties, and subscripts may
@@ -47,6 +52,8 @@ isolation. See
 ### Start Here
 
 - <doc:GettingStarted>
+- <doc:AsyncBehaviors>
+- <doc:InspectingInteractions>
 - <doc:ForwardingSpies>
 - <doc:StubContract>
 - <doc:ManualStubbing>
@@ -59,8 +66,15 @@ isolation. See
 - ``makeStub(_:)-7h3si``
 - ``StubBuilder``
 - ``StubBehaviorChain``
+- ``StubSuspension``
 - ``Stub/Invocation``
 - <doc:FunctionValues>
+
+### Inspecting and Ordering Interactions
+
+- <doc:InspectingInteractions>
+- ``InvocationOrder``
+- ``RecordingPlaceholders``
 
 ### Dummy API
 
