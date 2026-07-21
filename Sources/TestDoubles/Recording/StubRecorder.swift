@@ -1,4 +1,5 @@
 import Foundation
+import IssueReporting
 
 struct ModifyDispatchDescriptor: Sendable {
     let getterDispatchIndex: Int
@@ -245,6 +246,7 @@ final class StubRecorder: @unchecked Sendable {
     func addAsyncStub(
         method: Int,
         matchers: [ParameterMatcher],
+        location: StubSourceLocation? = nil,
         handler: @escaping ([Any]) async throws -> Any
     ) {
         guard runtimeMethod(for: method)?.isAsync == true else {
@@ -253,7 +255,12 @@ final class StubRecorder: @unchecked Sendable {
                     + "Synchronous requirements support only immediate handlers."
             )
         }
-        addEntry(method: method, matchers: matchers, behavior: .suspending(handler))
+        addEntry(
+            method: method,
+            matchers: matchers,
+            behavior: .suspending(handler),
+            location: location
+        )
     }
 
     /// Selects and records a suspending handler without invoking it under the
@@ -495,21 +502,29 @@ final class StubRecorder: @unchecked Sendable {
     func addReturnValue(
         method: Int,
         matchers: [ParameterMatcher],
+        location: StubSourceLocation? = nil,
         value: Any
     ) {
-        addEntry(method: method, matchers: matchers, behavior: .fixed(.success(value)))
+        addEntry(
+            method: method,
+            matchers: matchers,
+            behavior: .fixed(.success(value)),
+            location: location
+        )
     }
 
     func addFixedResultSequence(
         method: Int,
         matchers: [ParameterMatcher],
+        location: StubSourceLocation? = nil,
         answers: [(QueuedAnswer, RepeatCount)]
     ) -> ConsumableResults {
         let sequence = ConsumableResults(answers)
         addEntry(
             method: method,
             matchers: matchers,
-            behavior: .fixedSequence(sequence)
+            behavior: .fixedSequence(sequence),
+            location: location
         )
         return sequence
     }
@@ -517,29 +532,53 @@ final class StubRecorder: @unchecked Sendable {
     func addStub(
         method: Int,
         matchers: [ParameterMatcher],
+        location: StubSourceLocation? = nil,
         returnValue: @escaping @Sendable ([Any]) throws -> Any
     ) {
         addEntry(
             method: method,
             matchers: matchers,
-            behavior: .immediate(returnValue)
+            behavior: .immediate(returnValue),
+            location: location
         )
     }
 
     private func addEntry(
         method: Int,
         matchers: [ParameterMatcher],
-        behavior: StubEntry.Behavior
+        behavior: StubEntry.Behavior,
+        location: StubSourceLocation?
     ) {
-        withLock {
+        let shadow: (new: String, shadowedBy: String)? = withLock {
+            let newSignature = methodCatalog.diagnosticSignature(
+                method: method,
+                matchers: matchers
+            )
+            let shadowedBy = behaviorRegistry.shadowingSignature(
+                forMethod: method,
+                newMatchers: matchers
+            )
             behaviorRegistry.add(
                 method: method,
                 matchers: matchers,
-                diagnosticSignature: methodCatalog.diagnosticSignature(
-                    method: method,
-                    matchers: matchers
-                ),
+                diagnosticSignature: newSignature,
                 behavior: behavior
+            )
+            return shadowedBy.map { (newSignature, $0) }
+        }
+
+        // Predicates and issue reporting are user-visible work, kept off the
+        // recorder lock.
+        if let shadow, let location {
+            reportIssue(
+                "[TestDoubles] Unreachable stub registration: \(shadow.new) can never "
+                    + "match because the earlier registration \(shadow.shadowedBy) accepts "
+                    + "every call it would. Under first-match-wins, register specific "
+                    + "matchers before broad fallbacks.",
+                fileID: location.fileID,
+                filePath: location.filePath,
+                line: location.line,
+                column: location.column
             )
         }
     }

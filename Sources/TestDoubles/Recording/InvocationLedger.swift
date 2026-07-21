@@ -15,6 +15,15 @@ enum GlobalInvocationSequence {
     }
 }
 
+/// The source location of a `when` call, so a diagnostic about the
+/// registration (such as an unreachable stub) can point at the test.
+struct StubSourceLocation: Sendable {
+    let fileID: StaticString
+    let filePath: StaticString
+    let line: UInt
+    let column: UInt
+}
+
 /// A recorded playback invocation or a capture-mode expectation.
 struct RecordedCall: @unchecked Sendable {
     let id: UInt64?
@@ -23,6 +32,7 @@ struct RecordedCall: @unchecked Sendable {
     let name: String
     let args: [Any]
     let matchers: [ParameterMatcher]
+    let registrationLocation: StubSourceLocation?
 
     init(
         id: UInt64? = nil,
@@ -30,7 +40,8 @@ struct RecordedCall: @unchecked Sendable {
         methodIndex: Int,
         name: String,
         args: [Any],
-        matchers: [ParameterMatcher]
+        matchers: [ParameterMatcher],
+        registrationLocation: StubSourceLocation? = nil
     ) {
         self.id = id
         self.sequence = sequence
@@ -38,6 +49,20 @@ struct RecordedCall: @unchecked Sendable {
         self.name = name
         self.args = args
         self.matchers = matchers
+        self.registrationLocation = registrationLocation
+    }
+
+    /// Returns a copy tagged with the `when` call's source location.
+    func taggingRegistrationLocation(_ location: StubSourceLocation?) -> RecordedCall {
+        RecordedCall(
+            id: id,
+            sequence: sequence,
+            methodIndex: methodIndex,
+            name: name,
+            args: args,
+            matchers: matchers,
+            registrationLocation: location
+        )
     }
 
     var resolvedMatchers: [ParameterMatcher] {

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Eager detection of unreachable stub registrations. When a new `when`
+  registration is provably shadowed by an earlier one under first-match-wins,
+  such as a specific matcher registered behind an earlier catch-all, an issue
+  is reported at that `when` site instead of silently never firing. The check
+  is sound: it flags only registrations proven unreachable (a universal
+  earlier matcher, or the identical accepted set at every position) and never
+  guesses through opaque predicates.
 - Delayed delivery for fixed behaviors on async requirements: every
   `thenReturn`, `thenThrow`, and `thenDoNothing` overload takes an
   `after: Duration` that suspends the matching call for that long before
@@ -105,6 +112,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The "no matching stub" diagnostic now shows, for each registered stub, which
+  argument its matcher accepted or rejected with the actual value against the
+  expected matcher, so the closest near-miss is visible at a glance instead of
+  only listing the registrations.
 - When multiple `when` registrations match a call, the first matching
   registration now wins and matcher specificity no longer ranks
   registrations. Registration order is the entire contract, like the cases of

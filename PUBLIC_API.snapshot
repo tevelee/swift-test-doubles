@@ -217,15 +217,15 @@ symbol	swift.method	Stub.verifyInOrder(_:isolation:fileID:filePath:line:column:)
 symbol	swift.method	Stub.verifyInOrder(mutating:fileID:filePath:line:column:)	func verifyInOrder(mutating calls: (inout P) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	swift.method	Stub.verifyNoMoreInteractions(fileID:filePath:line:column:)	func verifyNoMoreInteractions(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	swift.method	Stub.verifyNoUnusedStubs(fileID:filePath:line:column:)	func verifyNoUnusedStubs(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
-symbol	swift.method	Stub.when(_:)	func when(_ call: (inout P) throws -> Void) -> StubBuilder<Void>
-symbol	swift.method	Stub.when(_:)	func when<Result>(_ call: (P) throws -> Result) -> StubBuilder<Result>
-symbol	swift.method	Stub.when(_:isolation:)	func when<Result>(_ call: (P) async throws -> Result, isolation: isolated (any Actor)? = #isolation) async -> StubBuilder<Result>
+symbol	swift.method	Stub.when(_:fileID:filePath:line:column:)	func when(_ call: (inout P) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> StubBuilder<Void>
+symbol	swift.method	Stub.when(_:fileID:filePath:line:column:)	func when<Result>(_ call: (P) throws -> Result, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> StubBuilder<Result>
+symbol	swift.method	Stub.when(_:isolation:fileID:filePath:line:column:)	func when<Result>(_ call: (P) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> StubBuilder<Result>
 symbol	swift.method	Stub.when(initializer:)	func when(initializer call: (P) throws -> P) -> StubInitializerBuilder
 symbol	swift.method	Stub.when(initializer:)	func when(initializer call: (P) throws -> P?) -> StubFailableInitializerBuilder
 symbol	swift.method	Stub.when(initializer:isolation:)	func when(initializer call: (P) async throws -> P, isolation: isolated (any Actor)? = #isolation) async -> StubInitializerBuilder
 symbol	swift.method	Stub.when(initializer:isolation:)	func when(initializer call: (P) async throws -> P?, isolation: isolated (any Actor)? = #isolation) async -> StubFailableInitializerBuilder
-symbol	swift.method	Stub.when(returning:_:)	func when<Result>(returning placeholder: Result, _ call: (P) throws -> Result) -> StubBuilder<Result>
-symbol	swift.method	Stub.when(returning:_:isolation:)	func when<Result>(returning placeholder: Result, _ call: (P) async throws -> Result, isolation: isolated (any Actor)? = #isolation) async -> StubBuilder<Result>
+symbol	swift.method	Stub.when(returning:_:fileID:filePath:line:column:)	func when<Result>(returning placeholder: Result, _ call: (P) throws -> Result, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> StubBuilder<Result>
+symbol	swift.method	Stub.when(returning:_:isolation:fileID:filePath:line:column:)	func when<Result>(returning placeholder: Result, _ call: (P) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> StubBuilder<Result>
 symbol	swift.method	Stub.when(returningOptionalSelf:)	func when(returningOptionalSelf call: (P) throws -> P?) -> StubOptionalSelfResultBuilder
 symbol	swift.method	Stub.when(returningOptionalSelf:isolation:)	func when(returningOptionalSelf call: (P) async throws -> P?, isolation: isolated (any Actor)? = #isolation) async -> StubOptionalSelfResultBuilder
 symbol	swift.method	Stub.when(returningSelf:)	func when(returningSelf call: (P) throws -> P) -> StubSelfResultBuilder

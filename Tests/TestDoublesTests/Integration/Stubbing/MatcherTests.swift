@@ -1,3 +1,4 @@
+import IssueReporting
 import Testing
 @testable import TestDoubles
 import TestDoublesFixtures
@@ -68,7 +69,13 @@ protocol MatcherPlaceholderService {
     @Test func catchAllRegisteredFirstShadowsLaterMatchers() throws {
         let stub = try Stub<any MatcherService>()
         stub.when { $0.find(id: any()) }.thenReturn("fallback")
-        stub.when { $0.find(id: equal(42)) }.thenReturn("exact")
+        // The catch-all shadows this specific registration, which is reported
+        // at the when site in addition to the runtime first-match-wins result.
+        expectReportsIssue {
+            stub.when { $0.find(id: equal(42)) }.thenReturn("exact")
+        } matching: {
+            $0.description.contains("Unreachable stub registration")
+        }
 
         #expect(stub().find(id: 42) == "fallback")
         #expect(stub().find(id: 1) == "fallback")
@@ -77,7 +84,13 @@ protocol MatcherPlaceholderService {
     @Test func reRegisteringAMatcherKeepsTheFirstBehavior() throws {
         let stub = try Stub<any MatcherService>()
         stub.when { $0.find(id: any()) }.thenReturn("guest")
-        stub.when { $0.find(id: any()) }.thenReturn("admin")
+        // A second identical registration is unreachable, reported at the
+        // when site.
+        expectReportsIssue {
+            stub.when { $0.find(id: any()) }.thenReturn("admin")
+        } matching: {
+            $0.description.contains("Unreachable stub registration")
+        }
 
         #expect(stub().find(id: 1) == "guest")
     }

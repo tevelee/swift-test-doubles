@@ -140,7 +140,7 @@ resumes on its executor. Actor-isolate it or synchronize mutable captures when
 the generated existential can be invoked concurrently. Synchronous handlers and
 matcher predicates are `@Sendable`.
 
-Static requirements use ``Stub/when(_:)->StubBuilder<Result>`` and are
+Static requirements use ``Stub/when(_:fileID:filePath:line:column:)->StubBuilder<Result>`` and are
 invoked as `type(of: value).requirement(...)`. Initializers are recorded with
 the `initializer:` label. Nonfailable initializers complete with
 ``StubInitializerBuilder/thenInitialize()``, `thenThrow`, or a typed `then`

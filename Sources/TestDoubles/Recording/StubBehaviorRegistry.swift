@@ -174,6 +174,42 @@ struct StubBehaviorRegistry {
         }
     }
 
+    /// Reports the diagnostic signature of an already-registered entry for
+    /// `method` that provably shadows a new registration with `newMatchers`,
+    /// or `nil` when none does. A shadowing entry accepts a superset of the
+    /// calls the new one would, so under first-match-wins the new one can
+    /// never be selected.
+    func shadowingSignature(
+        forMethod method: Int,
+        newMatchers: [ParameterMatcher]
+    ) -> String? {
+        entriesByMethod[method]?
+            .first { StubBehaviorRegistry.matchesSuperset($0.matchers, of: newMatchers) }?
+            .diagnosticSignature
+    }
+
+    /// Whether `earlier` accepts every call `later` would, proven soundly.
+    ///
+    /// An empty matcher list is a universal catch-all (it matches any call for
+    /// the method). Otherwise every position of `earlier` must accept a
+    /// superset of the same position in `later`: either it accepts any value,
+    /// or both positions are value matchers with the identical accepted set.
+    /// Opaque predicates yield `nil` identities and never satisfy the rule, so
+    /// a real shadow through them is missed rather than a reachable
+    /// registration falsely flagged.
+    static func matchesSuperset(
+        _ earlier: [ParameterMatcher],
+        of later: [ParameterMatcher]
+    ) -> Bool {
+        if earlier.isEmpty { return true }
+        guard earlier.count == later.count else { return false }
+        return zip(earlier, later).allSatisfy { earlierMatcher, laterMatcher in
+            earlierMatcher.acceptsAnyValue
+                || (earlierMatcher.acceptanceIdentity != nil
+                    && earlierMatcher.acceptanceIdentity == laterMatcher.acceptanceIdentity)
+        }
+    }
+
     static func argumentsMatch(
         _ args: [Any],
         against matchers: [ParameterMatcher]

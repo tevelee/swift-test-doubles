@@ -2,16 +2,32 @@ protocol ParameterMatcher {
     func matches(value: Any) -> Bool
     func commit(value: Any)
     var diagnosticDescription: String { get }
+
+    /// `true` when this matcher accepts every value at its argument position.
+    /// Used to prove an earlier registration shadows a later one. A universal
+    /// matcher at a position accepts a superset of anything registered after
+    /// it there.
+    var acceptsAnyValue: Bool { get }
+
+    /// A stable identity for matchers whose accepted set is fully determined
+    /// by their description (value matchers like `equal`/`inRange`). Two
+    /// matchers with equal, non-`nil` identities provably accept the same
+    /// set. `nil` when acceptance depends on an opaque predicate, a captured
+    /// reference, or composition, so equality cannot be proven soundly.
+    var acceptanceIdentity: String? { get }
 }
 
 extension ParameterMatcher {
     func commit(value: Any) {}
     var diagnosticDescription: String { String(describing: Self.self) }
+    var acceptsAnyValue: Bool { false }
+    var acceptanceIdentity: String? { nil }
 }
 
 struct AnyMatcher: ParameterMatcher {
     func matches(value: Any) -> Bool { true }
     var diagnosticDescription: String { "any()" }
+    var acceptsAnyValue: Bool { true }
 }
 
 struct CaptureMatcher<T>: ParameterMatcher {
@@ -27,6 +43,10 @@ struct CaptureMatcher<T>: ParameterMatcher {
     }
 
     var diagnosticDescription: String { "capture(\(T.self))" }
+
+    // A bare capture accepts every value of its argument's type, so it
+    // shadows anything registered after it at that position.
+    var acceptsAnyValue: Bool { true }
 }
 
 struct PredicateMatcher<Value>: ParameterMatcher {
@@ -53,6 +73,7 @@ struct DescriptionMatcher: ParameterMatcher {
     }
 
     var diagnosticDescription: String { "literal(\(description))" }
+    var acceptanceIdentity: String? { diagnosticDescription }
 }
 
 struct EqualMatcher<Value: Equatable>: ParameterMatcher {
@@ -60,6 +81,7 @@ struct EqualMatcher<Value: Equatable>: ParameterMatcher {
 
     func matches(value: Any) -> Bool { (value as? Value) == expected }
     var diagnosticDescription: String { "equal(\(String(describing: expected)))" }
+    var acceptanceIdentity: String? { diagnosticDescription }
 }
 
 struct NotEqualMatcher<Value: Equatable>: ParameterMatcher {
@@ -67,6 +89,7 @@ struct NotEqualMatcher<Value: Equatable>: ParameterMatcher {
 
     func matches(value: Any) -> Bool { (value as? Value) != expected }
     var diagnosticDescription: String { "notEqual(\(String(describing: expected)))" }
+    var acceptanceIdentity: String? { diagnosticDescription }
 }
 
 struct IdenticalMatcher: ParameterMatcher {
@@ -98,6 +121,7 @@ struct ComparisonMatcher<Value: Comparable>: ParameterMatcher {
     }
 
     var diagnosticDescription: String { "\(relation.rawValue)(\(String(describing: bound)))" }
+    var acceptanceIdentity: String? { diagnosticDescription }
 }
 
 struct RangeMatcher<Bound: Comparable>: ParameterMatcher {
@@ -110,6 +134,7 @@ struct RangeMatcher<Bound: Comparable>: ParameterMatcher {
     }
 
     var diagnosticDescription: String { "inRange(\(boundsDescription))" }
+    var acceptanceIdentity: String? { diagnosticDescription }
 }
 
 struct NilMatcher: ParameterMatcher {
@@ -117,6 +142,7 @@ struct NilMatcher: ParameterMatcher {
 
     func matches(value: Any) -> Bool { valueIsNil(value) == expectsNil }
     var diagnosticDescription: String { expectsNil ? "isNil()" : "notNil()" }
+    var acceptanceIdentity: String? { diagnosticDescription }
 }
 
 /// Matches a non-`nil` optional whose wrapped value satisfies every nested matcher.

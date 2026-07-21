@@ -94,8 +94,16 @@ extension Stub {
     }
 
     /// Stubs an instance or static method, or getter, including throwing requirements.
-    public func when<Result>(_ call: (P) throws -> Result) -> StubBuilder<Result> {
-        let recording = recordInvocation(call)
+    public func when<Result>(
+        _ call: (P) throws -> Result,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) -> StubBuilder<Result> {
+        let recording = recordInvocation(call).taggingRegistrationLocation(
+            StubSourceLocation(fileID: fileID, filePath: filePath, line: line, column: column)
+        )
         return StubBuilder(recorder: recorder, recording: recording)
     }
 
@@ -107,9 +115,16 @@ extension Stub {
     /// still comes from the resulting builder.
     public func when<Result>(
         returning placeholder: Result,
-        _ call: (P) throws -> Result
+        _ call: (P) throws -> Result,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
     ) -> StubBuilder<Result> {
         let recording = recordInvocation(returning: placeholder, call)
+            .taggingRegistrationLocation(
+                StubSourceLocation(fileID: fileID, filePath: filePath, line: line, column: column)
+            )
         return StubBuilder(recorder: recorder, recording: recording)
     }
 
@@ -117,17 +132,32 @@ extension Stub {
     ///
     /// Compound assignment and `inout` access use Swift's `_modify` coroutine.
     /// Configure its ordinary getter and direct setter separately with `when`.
-    public func when(_ call: (inout P) throws -> Void) -> StubBuilder<Void> {
-        let recording = recordMutation(call)
+    public func when(
+        _ call: (inout P) throws -> Void,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) -> StubBuilder<Void> {
+        let recording = recordMutation(call).taggingRegistrationLocation(
+            StubSourceLocation(fileID: fileID, filePath: filePath, line: line, column: column)
+        )
         return StubBuilder(recorder: recorder, recording: recording)
     }
 
     /// Stubs an async instance or static method, or getter, including throwing requirements.
     public func when<Result>(
         _ call: (P) async throws -> Result,
-        isolation: isolated (any Actor)? = #isolation
+        isolation: isolated (any Actor)? = #isolation,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
     ) async -> StubBuilder<Result> {
         let recording = await recordAsyncInvocation(call, isolation: isolation)
+            .taggingRegistrationLocation(
+                StubSourceLocation(fileID: fileID, filePath: filePath, line: line, column: column)
+            )
         return StubBuilder(recorder: recorder, recording: recording)
     }
 
@@ -140,12 +170,18 @@ extension Stub {
     public func when<Result>(
         returning placeholder: Result,
         _ call: (P) async throws -> Result,
-        isolation: isolated (any Actor)? = #isolation
+        isolation: isolated (any Actor)? = #isolation,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
     ) async -> StubBuilder<Result> {
         let recording = await recordAsyncInvocation(
             returning: placeholder,
             call,
             isolation: isolation
+        ).taggingRegistrationLocation(
+            StubSourceLocation(fileID: fileID, filePath: filePath, line: line, column: column)
         )
         return StubBuilder(recorder: recorder, recording: recording)
     }

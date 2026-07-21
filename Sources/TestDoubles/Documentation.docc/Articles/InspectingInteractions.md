@@ -114,6 +114,14 @@ Call it at the end of a test to keep registrations honest. It reads the same
 consumption tracking the matcher engine already maintains, so it costs nothing
 during the test itself.
 
+A shadowed registration is also caught eagerly: when a new `when` is provably
+unreachable behind an earlier one, an issue is reported at that `when` site as
+you register it, without waiting for `verifyNoUnusedStubs()`. The check is
+sound, flagging only registrations proven unreachable (a universal earlier
+matcher such as `any()`, or the identical accepted set at every argument
+position) and never guessing through opaque predicates, so correct
+specific-before-broad ordering is never flagged.
+
 ### Register recording placeholders once
 
 The recording pass behind every `when`, `verify`, and `invocations` closure

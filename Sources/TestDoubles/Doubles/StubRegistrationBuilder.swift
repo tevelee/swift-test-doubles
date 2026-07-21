@@ -15,6 +15,7 @@ extension StubRegistrationBuilder {
         recorder.addReturnValue(
             method: recording.methodIndex,
             matchers: recording.resolvedMatchers,
+            location: recording.registrationLocation,
             value: value
         )
     }
@@ -127,7 +128,8 @@ extension StubRegistrationBuilder {
         let methodName = recording.name
         recorder.addStub(
             method: recording.methodIndex,
-            matchers: recording.resolvedMatchers
+            matchers: recording.resolvedMatchers,
+            location: recording.registrationLocation
         ) { arguments in
             try behavior(arguments, methodName)
         }
@@ -139,7 +141,8 @@ extension StubRegistrationBuilder {
         let methodName = recording.name
         recorder.addAsyncStub(
             method: recording.methodIndex,
-            matchers: recording.resolvedMatchers
+            matchers: recording.resolvedMatchers,
+            location: recording.registrationLocation
         ) { arguments in
             try await behavior(arguments, methodName)
         }

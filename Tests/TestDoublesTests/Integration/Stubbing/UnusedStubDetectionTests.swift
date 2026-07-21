@@ -55,9 +55,15 @@ private struct ManualUnusedStubServiceStub: ManualUnusedStubService, StubConform
     @Test func reportsARegistrationShadowedByAnEarlierCatchAll() throws {
         let stub = try Stub<any UnusedStubProbeService>()
         // Registered in the wrong order: the catch-all swallows every call,
-        // so the specific registration below it can never match.
+        // so the specific registration below it can never match. The shadow
+        // is reported eagerly at the when site, and verifyNoUnusedStubs
+        // reports it again as an unused registration at end of test.
         stub.when { $0.value(for: any()) }.thenReturn("broad")
-        stub.when { $0.value(for: equal(7)) }.thenReturn("specific")
+        expectReportsIssue {
+            stub.when { $0.value(for: equal(7)) }.thenReturn("specific")
+        } matching: {
+            $0.description.contains("Unreachable stub registration")
+        }
 
         #expect(stub().value(for: 7) == "broad")
 
