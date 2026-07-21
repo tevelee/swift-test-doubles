@@ -1,13 +1,13 @@
 {
-  "originHash" : "24d3fd5ba14ebccb0656d6ef07e36502ba13c0c6b081785fc8000fc473495ed4",
+  "originHash" : "95f75c75f005a617d58eb2bbc8168dc646aef1efe25f4ae6ce9df21bfdca7cff",
   "pins" : [
     {
       "identity" : "echo",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tevelee/Echo.git",
       "state" : {
-        "revision" : "e6167123f605284a33f87a101519d7b3882da981",
-        "version" : "0.0.4"
+        "revision" : "d6fb041ed0f76b76904a8e804ff3808edf0fc750",
+        "version" : "0.0.5"
       }
     },
     {

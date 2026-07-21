@@ -364,16 +364,16 @@ even if it cannot be diagnosed during construction.
 ### Runtime and platform boundary
 
 CI-backed release support covers macOS 13+ on arm64 and x86_64, Linux on arm64
-and x86_64 with Swift 6.3+, Mac Catalyst 16+ on arm64, and arm64 simulators for
-iOS 16+, tvOS 16+, visionOS 1+, and watchOS 9+. Deployment targets are compiled
-at their declared minimum and executed on CI's available runner or simulator
-OS. macOS x86_64 coverage runs under Rosetta.
+and x86_64 with Swift 6.3+, Android arm64 and x86_64 cross-builds, Mac Catalyst
+16+ on arm64, and arm64 simulators for iOS 16+, tvOS 16+, visionOS 1+, and
+watchOS 9+. Deployment targets are compiled at their declared minimum and
+executed on CI's available runner or simulator OS. macOS x86_64 coverage runs
+under Rosetta.
 
-The repository includes `Scripts/validate-android.sh` to cross-build the test
-targets for Android arm64 and x86_64 with the official Swift 6.3.3 Android SDK
-and NDK r27d or later. Android remains outside release support until a tagged
-Echo dependency exposes its ELF image-discovery implementation on Android and
-that cross-build passes without patching the dependency checkout.
+Android CI cross-builds debug and release test targets with the official Swift
+6.3.3 Android SDK, NDK r27d or later, and Echo 0.0.5's Android ELF image
+discovery. It does not currently execute the tests on an Android emulator or
+device.
 
 Physical iOS, tvOS, visionOS, and watchOS devices are unsupported because the
 runtime generates executable trampoline code and CI cannot exercise device

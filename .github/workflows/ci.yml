@@ -187,6 +187,47 @@ jobs:
           --experimental-maximum-parallelization-width 4
           --skip ExitTests
           --scratch-path .build/linux
+
+  android:
+    name: Swift 6.3 / Android SDK / arm64 + x86_64
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Install Swift 6.3.3
+        uses: swift-actions/setup-swift@364295d9c23900ce04d4e5cc708387921b4e50f9 # v3
+        with:
+          swift-version: 6.3.3
+      - name: Restore Swift Android SDK
+        id: android-sdk-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.swiftpm/swift-sdks/swift-6.3.3-RELEASE_android.artifactbundle
+          key: swift-android-sdk-${{ runner.os }}-6.3.3-d160cc3206dd1886dae3fef2337af5e25ec034692cd0ec225721c56cc69da7f5
+      - name: Install Swift Android SDK
+        if: steps.android-sdk-cache.outputs.cache-hit != 'true'
+        run: >-
+          swift sdk install
+          https://download.swift.org/swift-6.3.3-release/android-sdk/swift-6.3.3-RELEASE/swift-6.3.3-RELEASE_android.artifactbundle.tar.gz
+          --checksum d160cc3206dd1886dae3fef2337af5e25ec034692cd0ec225721c56cc69da7f5
+      - name: Configure Swift Android SDK
+        run: |
+          cd "$HOME/.swiftpm/swift-sdks/swift-6.3.3-RELEASE_android.artifactbundle/swift-android"
+          ./scripts/setup-android-sdk.sh
+      - name: Restore Android build cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: .build/android
+          key: >-
+            swift-build-v1-${{ runner.os }}-${{ runner.arch }}-android-6.3.3-${{
+            hashFiles('Package.swift', 'Package.resolved') }}
+          restore-keys: |
+            swift-build-v1-${{ runner.os }}-${{ runner.arch }}-android-6.3.3-
+      - name: Cross-build Android tests
+        run: Scripts/validate-android.sh
+
   apple-platforms:
     name: ${{ matrix.name }}
     strategy:

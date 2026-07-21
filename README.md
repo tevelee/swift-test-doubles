@@ -329,14 +329,14 @@ targets: [
 <summary><strong>Requirements and platforms</strong></summary>
 
 TestDoubles requires Swift 6.3. The supported runtime matrix is macOS 13+ on
-arm64 and x86_64, Linux on arm64 and x86_64, Mac Catalyst 16+ on arm64, and
-arm64 simulators for iOS 16+, tvOS 16+, visionOS 1+, and watchOS 9+.
+arm64 and x86_64, Linux on arm64 and x86_64, Android on arm64 and x86_64, Mac
+Catalyst 16+ on arm64, and arm64 simulators for iOS 16+, tvOS 16+, visionOS 1+,
+and watchOS 9+.
 
-Android arm64 and x86_64 cross-build validation is prepared in
-[`Scripts/validate-android.sh`](Scripts/validate-android.sh), using the official
-Swift 6.3.3 Android SDK and NDK r27d or later. Android is not yet in the release
-support matrix because the tagged Echo 0.0.4 dependency does not expose its ELF
-image-discovery path on Android.
+Android support is cross-build validated in CI for debug and release test
+targets with the official Swift 6.3.3 Android SDK, NDK r27d or later, and Echo
+0.0.5's Android ELF image discovery. CI does not currently execute the tests on
+an Android emulator or device.
 
 Physical iOS, tvOS, visionOS, and watchOS devices are unsupported because the
 runtime generates executable trampoline code and CI cannot exercise device

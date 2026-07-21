@@ -73,7 +73,7 @@ fi
 echo "Swift host toolchain: $expected_swift_version"
 echo "Swift Android SDK: $android_sdk_id"
 echo "Android NDK: $ndk_revision"
-echo "Dependency prerequisite: Package.resolved must select an Android-capable Echo release; Echo 0.0.4 is a known external blocker."
+echo "Dependency prerequisite: Echo 0.0.5 or newer with Android ELF metadata support."
 
 readonly target_triples=(
   "x86_64-unknown-linux-android${android_api_level}"
