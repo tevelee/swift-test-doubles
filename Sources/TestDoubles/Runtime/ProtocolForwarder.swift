@@ -3,6 +3,10 @@ import Echo
 
 protocol ProtocolForwarding: AnyObject, Sendable {
     func forward(_ method: MethodDescriptor, frame: TrampolineCallFrame)
+    func makeReadState(
+        for method: MethodDescriptor,
+        frame: TrampolineCallFrame
+    ) -> any ReadCoroutineForwardingState
     func makeAsyncState(
         for method: MethodDescriptor,
         frame: TrampolineCallFrame
@@ -120,6 +124,104 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
         let isAsync: Bool
     }
 
+    private struct ReadPlan: @unchecked Sendable {
+        let entry: UnsafeRawPointer
+        let descriptorSlot: UnsafeRawPointer
+        let declarationDiscriminator: UInt16
+        let resumeDiscriminator: UInt16
+        let selfValue: UnsafeRawPointer
+        let witnessTable: UnsafeRawPointer
+        let hiddenArgumentIndex: Int
+        let callerFrameSize: Int
+        let resultIsIndirect: Bool
+    }
+
+    private final class ReadState:
+        ReadCoroutineForwardingState,
+        @unchecked Sendable
+    {
+        let yieldedStorage: UnsafeMutableRawPointer?
+
+        private let owner: AnyObject
+        private let resume: UnsafeRawPointer
+        private let resumeDiscriminator: UInt16
+        private let callerFrame: UnsafeMutableRawPointer
+        private let storedFrame: UnsafeMutablePointer<TDCallFrame>
+        private var didFinish = false
+
+        init(
+            owner: AnyObject,
+            plan: ReadPlan,
+            metadata: UnsafeRawPointer,
+            frame: TrampolineCallFrame
+        ) {
+            self.owner = owner
+            resumeDiscriminator = plan.resumeDiscriminator
+            callerFrame = .allocate(
+                byteCount: plan.callerFrameSize,
+                alignment: 16
+            )
+            callerFrame.initializeMemory(
+                as: UInt8.self,
+                repeating: 0,
+                count: plan.callerFrameSize
+            )
+            storedFrame = .allocate(capacity: 1)
+            storedFrame.initialize(to: frame.snapshot)
+            let targetFrame = TrampolineCallFrame(storedFrame)
+            targetFrame.storeGeneralPurposeArgument(
+                UInt(bitPattern: metadata),
+                at: plan.hiddenArgumentIndex
+            )
+            targetFrame.storeGeneralPurposeArgument(
+                UInt(bitPattern: plan.witnessTable),
+                at: plan.hiddenArgumentIndex + 1
+            )
+
+            let result = td_swift_invoke_read_witness(
+                plan.entry,
+                plan.descriptorSlot,
+                plan.declarationDiscriminator,
+                plan.selfValue,
+                storedFrame,
+                callerFrame
+            )
+            guard let rawResume = result.state else {
+                preconditionFailure(
+                    "[TestDoubles] A forwarded read witness returned a null continuation."
+                )
+            }
+            resume = UnsafeRawPointer(rawResume)
+            yieldedStorage =
+                plan.resultIsIndirect ? result.yieldedStorage : nil
+            frame.restore(storedFrame.pointee)
+        }
+
+        deinit {
+            precondition(
+                didFinish,
+                "[TestDoubles] A forwarded read coroutine was released before resumption."
+            )
+            storedFrame.deinitialize(count: 1)
+            storedFrame.deallocate()
+            callerFrame.deallocate()
+        }
+
+        func finish() {
+            precondition(
+                didFinish == false,
+                "[TestDoubles] A forwarded read coroutine resumed more than once."
+            )
+            didFinish = true
+            td_swift_resume_read_witness(
+                resume,
+                callerFrame,
+                resumeDiscriminator
+            )
+            withExtendedLifetime(owner) {}
+        }
+    }
+
     private final class AsyncState:
         AsyncTrampolineDispatchState,
         @unchecked Sendable
@@ -167,6 +269,7 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
 
     private let target: ForwardingTarget<P>
     private let plans: [Int: CallPlan]
+    private let readPlans: [Int: ReadPlan]
 
     init(
         target: ForwardingTarget<P>,
@@ -185,7 +288,15 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
             )
         }
 
+        var readRequirements: [Int: ProtocolLayout.ReadCoroutineRequirement] = [:]
+        for node in layout.nodes {
+            for requirement in node.readCoroutineRequirements {
+                readRequirements[requirement.recorderDispatchIndex] = requirement
+            }
+        }
+
         var plans: [Int: CallPlan] = [:]
+        var readPlans: [Int: ReadPlan] = [:]
         for method in methods {
             let requirement = layout.callableRequirements[method.index]
             let protocolName = requirement.protocolDescriptor.name
@@ -213,10 +324,6 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
                 )
             }
 
-            let hiddenArgumentIndex = try Self.hiddenArgumentIndex(
-                for: method,
-                protocolName: protocolName
-            )
             let identifier = ProtocolLayout.DescriptorID(
                 requirement.protocolDescriptor
             )
@@ -226,10 +333,80 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
                     reason: "The forwarding target is missing a witness table for requirement \(method.index)."
                 )
             }
-            let signedFunction =
-                (witnessTable.ptr
-                + (1 + method.witnessIndex) * MemoryLayout<UInt>.size)
-                .load(as: UnsafeRawPointer.self)
+            let witnessSlot =
+                witnessTable.ptr
+                + (1 + method.witnessIndex) * MemoryLayout<UInt>.size
+            let signedFunction = witnessSlot.load(as: UnsafeRawPointer.self)
+
+            if let readRequirement = readRequirements[method.index] {
+                guard method.kind == .getter,
+                    method.receiver == readRequirement.receiver,
+                    method.isAsync == false,
+                    method.isThrowing == false,
+                    method.arguments.allSatisfy({ $0.ownership == .borrowed }),
+                    let resumeDiscriminator =
+                        ReadCoroutineRuntime.resumeDiscriminator(for: method)
+                else {
+                    throw StubError.unsupportedProtocolShape(
+                        protocolName: protocolName,
+                        reason:
+                            "The read requirement at witness index \(readRequirement.witnessIndex) is outside the supported synchronous, nonthrowing borrowed-value forwarding ABI."
+                    )
+                }
+                let flags = requirement.protocolDescriptor.requirements[
+                    method.witnessIndex
+                ].flags
+                let declarationDiscriminator = UInt16(
+                    truncatingIfNeeded: flags.bits >> 16
+                )
+                var descriptorTarget = TDReadWitnessTarget()
+                guard
+                    td_prepare_read_witness_target(
+                        signedFunction,
+                        UnsafeRawPointer(witnessSlot),
+                        declarationDiscriminator,
+                        &descriptorTarget
+                    ),
+                    let entry = descriptorTarget.entry,
+                    descriptorTarget.callerFrameSize == 32
+                else {
+                    throw StubError.unsupportedProtocolShape(
+                        protocolName: protocolName,
+                        reason:
+                            "The forwarding target's read witness at index \(readRequirement.witnessIndex) is not a supported Swift 6.3 yield_once_2 descriptor with a 32-byte caller frame."
+                    )
+                }
+                #if arch(x86_64)
+                    let initialGeneralPurposeOffset = 2
+                #else
+                    let initialGeneralPurposeOffset = 1
+                #endif
+                let hiddenArgumentIndex = try Self.hiddenArgumentIndex(
+                    for: method,
+                    protocolName: protocolName,
+                    initialGeneralPurposeOffset: initialGeneralPurposeOffset
+                )
+                readPlans[method.index] = ReadPlan(
+                    entry: entry,
+                    descriptorSlot: UnsafeRawPointer(witnessSlot),
+                    declarationDiscriminator: declarationDiscriminator,
+                    resumeDiscriminator: resumeDiscriminator,
+                    selfValue: target.selfValue,
+                    witnessTable: witnessTable.ptr,
+                    hiddenArgumentIndex: hiddenArgumentIndex,
+                    callerFrameSize: Int(descriptorTarget.callerFrameSize),
+                    resultIsIndirect: {
+                        if case .indirect = method.result.layout { return true }
+                        return false
+                    }()
+                )
+                continue
+            }
+
+            let hiddenArgumentIndex = try Self.hiddenArgumentIndex(
+                for: method,
+                protocolName: protocolName
+            )
             let function =
                 if method.isAsync {
                     td_strip_async_witness_pointer(signedFunction)
@@ -251,6 +428,7 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
             )
         }
         self.plans = plans
+        self.readPlans = readPlans
     }
 
     func forward(_ method: MethodDescriptor, frame: TrampolineCallFrame) {
@@ -260,6 +438,23 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
             "[TestDoubles] An async Spy requirement entered synchronous forwarding."
         )
         td_swift_invoke_witness(plan.function, plan.selfValue, frame.pointer)
+    }
+
+    func makeReadState(
+        for method: MethodDescriptor,
+        frame: TrampolineCallFrame
+    ) -> any ReadCoroutineForwardingState {
+        guard let plan = readPlans[method.index] else {
+            preconditionFailure(
+                "[TestDoubles] No read forwarding plan exists for Spy requirement \(method.index)."
+            )
+        }
+        return ReadState(
+            owner: self,
+            plan: plan,
+            metadata: target.metadata,
+            frame: frame
+        )
     }
 
     func makeAsyncState(
@@ -302,9 +497,10 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
 
     private static func hiddenArgumentIndex(
         for method: MethodDescriptor,
-        protocolName: String
+        protocolName: String,
+        initialGeneralPurposeOffset: Int = 0
     ) throws -> Int {
-        var generalPurpose = 0
+        var generalPurpose = initialGeneralPurposeOffset
         var floatingPoint = 0
         var stack = 0
 

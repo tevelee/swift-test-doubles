@@ -152,6 +152,102 @@ private struct ReadAbortFailure: Error {}
         #expect(mallocTypeID == 0)
         #expect(entry != descriptor)
     }
+
+    @Test func spyForwardsConcreteReadPropertiesAndSubscripts() throws {
+        let trace = ReadForwardingTrace()
+        let spy = try Spy<any ConcreteReadAccessorProbe>(
+            forwardingTo: ForwardingConcreteReadAccessorProbe(trace: trace)
+        )
+        let probe: any ConcreteReadAccessorProbe = spy()
+
+        #expect(probe.integer == 7)
+        #expect(probe.text == "forwarded")
+        #expect(probe.dictionary == ["forwarded": 42])
+        #expect(probe[21] == 42)
+        #expect(
+            trace.events
+                == [
+                    "integer.begin", "integer.end",
+                    "text.begin", "text.end",
+                    "dictionary.begin", "dictionary.end",
+                    "subscript.21.begin", "subscript.21.end"
+                ]
+        )
+        spy.verify { $0.integer }
+        spy.verify { $0.text }
+        spy.verify(returning: ["placeholder": -1]) { $0.dictionary }
+        spy.verify { $0[equal(21)] }
+    }
+
+    @Test func configuredSpyReadOverrideWinsWithoutEnteringTarget() throws {
+        let trace = ReadForwardingTrace()
+        let spy = try Spy<any ConcreteReadAccessorProbe>(
+            forwardingTo: ForwardingConcreteReadAccessorProbe(trace: trace)
+        )
+        spy.when { $0.integer }.thenReturn(42)
+        let probe: any ConcreteReadAccessorProbe = spy()
+
+        #expect(probe.integer == 42)
+        #expect(trace.events.isEmpty)
+        spy.verify { $0.integer }
+    }
+
+    @Test func spyForwardsFormallyIndirectAssociatedReadResults() throws {
+        let trace = ReadForwardingTrace()
+        let spy = try Spy<any AssociatedReadAccessorProbe<Int>>(
+            forwardingTo: ForwardingAssociatedReadAccessorProbe(trace: trace)
+        )
+        let probe: any AssociatedReadAccessorProbe<Int> = spy()
+
+        #expect(probe.value == 41)
+        #expect(probe[41] == 42)
+        #expect(
+            trace.events
+                == [
+                    "associated.value.begin", "associated.value.end",
+                    "associated.subscript.41.begin",
+                    "associated.subscript.41.end"
+                ]
+        )
+        spy.verify { $0.value }
+        spy.verify { $0[equal(41)] }
+    }
+
+    @Test func forwardedReadRetainsYieldedValueUntilNormalResume() throws {
+        let trace = ReadForwardingTrace()
+        let spy = try Spy<any ReadLifetimeProbe>(
+            forwardingTo: ForwardingReadLifetimeProbe(trace: trace)
+        )
+        let probe: any ReadLifetimeProbe = spy()
+
+        #expect(consumeReadLifetimeValue(probe) == 42)
+        #expect(trace.events == ["lifetime.begin", "lifetime.end"])
+        #expect(trace.borrowedReference == nil)
+        spy.verify(
+            returning: ReadLifetimeValue(
+                reference: ReadLifetimeReference(value: -1)
+            )
+        ) { $0.value }
+    }
+
+    @Test func forwardedReadResumesTargetExactlyOnceAfterAbort() throws {
+        let trace = ReadForwardingTrace()
+        let spy = try Spy<any ReadLifetimeProbe>(
+            forwardingTo: ForwardingReadLifetimeProbe(trace: trace)
+        )
+        let probe: any ReadLifetimeProbe = spy()
+
+        #expect(throws: ReadForwardingAbortError.self) {
+            try probe.value.reference.abortBorrow()
+        }
+        #expect(trace.events == ["lifetime.begin", "lifetime.end"])
+        #expect(trace.borrowedReference == nil)
+        spy.verify(
+            returning: ReadLifetimeValue(
+                reference: ReadLifetimeReference(value: -1)
+            )
+        ) { $0.value }
+    }
 }
 
 @inline(never)

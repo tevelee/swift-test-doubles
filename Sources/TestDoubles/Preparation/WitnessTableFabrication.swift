@@ -85,13 +85,7 @@ private enum FabricatedWitnessDispatch {
         in node: ProtocolLayout.Node
     ) throws -> ReadWitnessPlan {
         switch self {
-            case .stub(_, let methodsByIndex, let forwarder):
-                guard forwarder == nil else {
-                    throw StubError.unsupportedProtocolShape(
-                        protocolName: node.descriptor.name,
-                        reason: "The read requirement at witness index \(requirement.witnessIndex) cannot be forwarded by a Spy. Use a Stub or a hand-written forwarding type."
-                    )
-                }
+            case .stub(_, let methodsByIndex, _):
                 guard let method = methodsByIndex[requirement.recorderDispatchIndex]
                 else {
                     throw StubError.requirementCountMismatch(

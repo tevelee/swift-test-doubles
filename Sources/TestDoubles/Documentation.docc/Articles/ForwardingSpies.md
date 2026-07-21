@@ -94,6 +94,12 @@ arguments fit the supported register transport. This includes inherited
 requirements and concretely bound associated-type values. Getter effects cover
 ordinary untyped `throws`; typed-throwing getters remain unsupported.
 
+Swift 6.3 `read` property and subscript accessors are supported within the
+synchronous, nonthrowing, borrowed-value ABI used by ``Stub``. A matching
+registration still wins without entering the target. Otherwise the spy enters
+the target's coroutine, relays its yielded value and borrow lifetime, and
+resumes the target exactly once when the caller ends or unwinds the borrow.
+
 Construction fails with ``StubError/unsupportedProtocolShape(protocolName:reason:)``
 when the protocol requires any of these forwarding shapes:
 
@@ -102,7 +108,8 @@ when the protocol requires any of these forwarding shapes:
 - Function-valued arguments or results
 - Arguments that spill to the stack or leave no registers for target metadata
 - `_modify` coroutines used by compound assignment and `inout` access
-- Swift 6.3 `read` accessors
+- `read` coroutine descriptors outside the supported Swift 6.3 `yield_once_2`
+  shape, including the Swift 6.4 yielding-borrow runtime
 
 Use a small hand-written spy when the protocol needs one of the other shapes;
 construction fails before a generated value can be invoked.

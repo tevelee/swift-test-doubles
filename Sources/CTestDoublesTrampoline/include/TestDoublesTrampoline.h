@@ -107,6 +107,17 @@ typedef struct TDReadCoroutineResult {
   void *yieldedStorage;
 } TDReadCoroutineResult;
 
+/// Authenticated Swift 6.3 yield_once_2 witness entry information.
+///
+/// `entry` is the raw relative entry address from the authenticated descriptor.
+/// The assembly caller signs it with the descriptor slot and declaration
+/// discriminator immediately before invocation.
+typedef struct TDReadWitnessTarget {
+  const void *entry;
+  uint32_t callerFrameSize;
+  uint32_t reserved;
+} TDReadWitnessTarget;
+
 typedef struct TDWitnessVeneerArena TDWitnessVeneerArena;
 
 TDWitnessVeneerArena *td_witness_veneer_arena_create(void);
@@ -141,6 +152,10 @@ const void *td_sign_async_function_pointer(const void *pointer,
 const void *td_sign_coro_witness_pointer(const void *pointer,
                                          const void *slot,
                                          uint16_t discriminator);
+bool td_prepare_read_witness_target(const void *signedDescriptor,
+                                    const void *slot,
+                                    uint16_t declarationDiscriminator,
+                                    TDReadWitnessTarget *result);
 const void *td_strip_witness_function_pointer(const void *pointer);
 const void *td_strip_async_witness_pointer(const void *pointer);
 uint16_t td_generic_function_discriminator(uint16_t parameterCount,
@@ -155,6 +170,16 @@ void td_swift_invoke_function(const void *function,
 void td_swift_invoke_witness(const void *function,
                              const void *self,
                              TDCallFrame *frame);
+TDReadCoroutineResult td_swift_invoke_read_witness(
+    const void *entry,
+    const void *slot,
+    uint16_t declarationDiscriminator,
+    const void *self,
+    TDCallFrame *frame,
+    void *callerFrame);
+void td_swift_resume_read_witness(const void *resume,
+                                  void *callerFrame,
+                                  uint16_t resumeDiscriminator);
 const void *td_swift_dynamic_async_function_descriptor(void);
 void td_swift_get_error_value(const void *error,
                               void **scratch,

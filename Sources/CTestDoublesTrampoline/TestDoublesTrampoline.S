@@ -194,6 +194,79 @@ SYMBOL(td_swift_invoke_witness):
     ret
 
 .p2align 2
+.globl SYMBOL(td_swift_invoke_read_witness)
+SYMBOL(td_swift_invoke_read_witness):
+    stp x29, x30, [sp, #-64]!
+    mov x29, sp
+    stp x19, x20, [sp, #16]
+    stp x23, x24, [sp, #32]
+    mov x16, x0
+    mov x17, x1
+    bfi x17, x2, #48, #16
+    mov x20, x3
+    mov x19, x4
+    mov x24, x5
+    ldr x8, [x19, #TD_FRAME_INDIRECT_RESULT_OFFSET]
+    ldp q0, q1, [x19, #TD_FRAME_FP_OFFSET]
+    ldp q2, q3, [x19, #176]
+    ldp q4, q5, [x19, #208]
+    ldp q6, q7, [x19, #240]
+    mov x0, x24
+    ldp x1, x2, [x19, #24]
+    ldp x3, x4, [x19, #40]
+    ldp x5, x6, [x19, #56]
+    ldr x7, [x19, #72]
+#if defined(__APPLE__)
+    adrp x23, SYMBOL(td_swift_read_coro_allocator)@PAGE
+    add x23, x23, SYMBOL(td_swift_read_coro_allocator)@PAGEOFF
+#else
+    adrp x23, SYMBOL(td_swift_read_coro_allocator)
+    add x23, x23, :lo12:SYMBOL(td_swift_read_coro_allocator)
+#endif
+#if defined(__arm64e__)
+    pacia x16, x17
+    blraa x16, x17
+#else
+    blr x16
+#endif
+    stp x1, x2, [x19, #TD_FRAME_RETURN_GP_OFFSET]
+    stp x3, x4, [x19, #456]
+    str d0, [x19, #TD_FRAME_RETURN_FP_OFFSET]
+    str d1, [x19, #480]
+    str d2, [x19, #488]
+    str d3, [x19, #496]
+    ldp x23, x24, [sp, #32]
+    ldp x19, x20, [sp, #16]
+    ldp x29, x30, [sp], #64
+    ret
+
+.p2align 2
+.globl SYMBOL(td_swift_resume_read_witness)
+SYMBOL(td_swift_resume_read_witness):
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    str x23, [sp, #16]
+    mov x16, x0
+    mov x0, x1
+    mov x17, x1
+    bfi x17, x2, #48, #16
+#if defined(__APPLE__)
+    adrp x23, SYMBOL(td_swift_read_coro_allocator)@PAGE
+    add x23, x23, SYMBOL(td_swift_read_coro_allocator)@PAGEOFF
+#else
+    adrp x23, SYMBOL(td_swift_read_coro_allocator)
+    add x23, x23, :lo12:SYMBOL(td_swift_read_coro_allocator)
+#endif
+#if defined(__arm64e__)
+    blraa x16, x17
+#else
+    blr x16
+#endif
+    ldr x23, [sp, #16]
+    ldp x29, x30, [sp], #32
+    ret
+
+.p2align 2
 .globl SYMBOL(td_swift_invoke_async_function)
 SYMBOL(td_swift_invoke_async_function):
     stp x29, x30, [sp, #-16]!
@@ -650,6 +723,16 @@ SYMBOL(td_swift_read_trampoline_resume):
 SYMBOL(td_swift_deleted_callee_allocated_coroutine_method):
     brk #0xc472
 
+.p2align 2
+SYMBOL(td_swift_read_coro_malloc):
+    mov x0, x1
+    b SYMBOL(malloc)
+
+.p2align 2
+SYMBOL(td_swift_read_coro_free):
+    mov x0, x1
+    b SYMBOL(free)
+
 #elif defined(__x86_64__)
 
 .text
@@ -879,6 +962,61 @@ SYMBOL(td_swift_invoke_witness):
     popq %r12
     popq %r13
     popq %rbx
+    popq %rbp
+    retq
+
+.p2align 4, 0x90
+.globl SYMBOL(td_swift_invoke_read_witness)
+SYMBOL(td_swift_invoke_read_witness):
+    pushq %rbp
+    movq %rsp, %rbp
+    pushq %rbx
+    pushq %r13
+    pushq %r12
+    subq $8, %rsp
+    movq %rdi, %r11
+    movq %rcx, %r13
+    movq %r8, %rbx
+    movq %r9, %rdi
+    leaq SYMBOL(td_swift_read_coro_allocator)(%rip), %rsi
+    movq TD_FRAME_INDIRECT_RESULT_OFFSET(%rbx), %rax
+    movsd TD_FRAME_FP_OFFSET(%rbx), %xmm0
+    movsd 160(%rbx), %xmm1
+    movsd 176(%rbx), %xmm2
+    movsd 192(%rbx), %xmm3
+    movsd 208(%rbx), %xmm4
+    movsd 224(%rbx), %xmm5
+    movsd 240(%rbx), %xmm6
+    movsd 256(%rbx), %xmm7
+    movq 32(%rbx), %rdx
+    movq 40(%rbx), %rcx
+    movq 48(%rbx), %r8
+    movq 56(%rbx), %r9
+    callq *%r11
+    movq %rdx, TD_FRAME_RETURN_GP_OFFSET(%rbx)
+    movq %rcx, 448(%rbx)
+    movq %r8, 456(%rbx)
+    movq %r9, 464(%rbx)
+    movsd %xmm0, TD_FRAME_RETURN_FP_OFFSET(%rbx)
+    movsd %xmm1, 480(%rbx)
+    movsd %xmm2, 488(%rbx)
+    movsd %xmm3, 496(%rbx)
+    addq $8, %rsp
+    popq %r12
+    popq %r13
+    popq %rbx
+    popq %rbp
+    retq
+
+.p2align 4, 0x90
+.globl SYMBOL(td_swift_resume_read_witness)
+SYMBOL(td_swift_resume_read_witness):
+    pushq %rbp
+    movq %rsp, %rbp
+    movq %rdi, %r11
+    movq %rsi, %rdi
+    leaq SYMBOL(td_swift_read_coro_allocator)(%rip), %rsi
+    callq *%r11
     popq %rbp
     retq
 
@@ -1319,6 +1457,16 @@ SYMBOL(td_swift_read_trampoline_resume):
 SYMBOL(td_swift_deleted_callee_allocated_coroutine_method):
     ud2
 
+.p2align 4, 0x90
+SYMBOL(td_swift_read_coro_malloc):
+    movq %rdx, %rdi
+    jmp SYMBOL(malloc)
+
+.p2align 4, 0x90
+SYMBOL(td_swift_read_coro_free):
+    movq %rdx, %rdi
+    jmp SYMBOL(free)
+
 #endif
 
 #if defined(__APPLE__)
@@ -1358,3 +1506,28 @@ SYMBOL(swift_deletedCalleeAllocatedCoroutineMethodErrorTwc):
     .long SYMBOL(td_swift_deleted_callee_allocated_coroutine_method) - SYMBOL(swift_deletedCalleeAllocatedCoroutineMethodErrorTwc)
     .long 0
     .quad 0
+
+#if defined(__APPLE__)
+.section __DATA,__const
+#else
+.section .data.rel.ro
+#endif
+.p2align 3
+.globl SYMBOL(td_swift_read_coro_allocator)
+#if defined(__APPLE__)
+.private_extern SYMBOL(td_swift_read_coro_allocator)
+#endif
+SYMBOL(td_swift_read_coro_allocator):
+    .long 258
+    .long 0
+#if defined(__arm64e__)
+    .quad SYMBOL(td_swift_read_coro_malloc)@AUTH(ia,24469,addr)
+    .quad SYMBOL(td_swift_read_coro_free)@AUTH(ia,40879,addr)
+    .quad SYMBOL(td_swift_read_coro_malloc)@AUTH(ia,53841,addr)
+    .quad SYMBOL(td_swift_read_coro_free)@AUTH(ia,23464,addr)
+#else
+    .quad SYMBOL(td_swift_read_coro_malloc)
+    .quad SYMBOL(td_swift_read_coro_free)
+    .quad SYMBOL(td_swift_read_coro_malloc)
+    .quad SYMBOL(td_swift_read_coro_free)
+#endif

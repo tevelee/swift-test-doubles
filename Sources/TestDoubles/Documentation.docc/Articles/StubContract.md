@@ -15,7 +15,7 @@ For construction examples and requirement-order recipes, see
 | --- | --- | --- |
 | Ordinary protocol methods, getters, setters, subscripts, inheritance, and compositions | Automatic discovery from linked conformers or resilient requirement symbols; explicit requirements otherwise | Compositions use one group per declaring protocol. |
 | Effectful getters | Automatic discovery plus complete ``Stub/GetterEffect`` hints, or explicit requirements | Swift metadata omits getter throwing behavior. |
-| Swift 6.3 `read` accessors | Configure and verify them like synchronous nonthrowing getters | Stub yields the configured property or subscript result with borrowed lifetime; forwarding spies and dummies remain fail-closed. |
+| Swift 6.3 `read` accessors | Configure and verify them like synchronous nonthrowing getters | Stub yields the configured result; Spy forwards the target coroutine when no registration matches; Dummy remains fail-closed. |
 | Static requirements, initializers, and dynamic `Self` results | Supported with the dedicated configuration builders | Use `Stub.withValue(_:)` when passing a generated metatype to code under test. |
 | Bounded primary associated types | Supported for the documented direct, `Optional`, `Array`, `Set`, `Dictionary`, setter, initializer, and direct associated-error slice | See <doc:BoundAssociatedTypes> for exact supported and rejected shapes. |
 | Function arguments and results | Automatic for concrete native Swift closures, C function pointers, blocks, and documented structural containers; explicit compiler-typed adapter otherwise | See <doc:FunctionValues>; top-level nonescaping, thin, declaration-level consuming or `inout`, dependent, and parameter-pack closure shapes remain fail-closed. |
@@ -147,8 +147,11 @@ A Swift 6.3 `read` accessor uses its one coroutine witness as a getter-shaped
 recorder dispatch. Configure and verify a property or subscript with the normal
 getter APIs. The runtime initializes result storage, yields a borrowed direct or
 indirect value, and destroys it only when Swift resumes or aborts the borrow.
-This slice is synchronous, nonthrowing, and Stub-only; forwarding and Dummy
-construction fail closed.
+This slice is synchronous, nonthrowing, and limited to the borrowed-value ABI.
+For a forwarding ``Spy``, a matching registration yields its configured result
+without invoking the target. An unmatched call enters the target coroutine,
+relays its yielded value and lifetime, and resumes the target exactly once on
+both the normal and unwind paths. ``Dummy`` construction remains fail-closed.
 
 Handlers accept arbitrary arity through Swift parameter packs. Async handlers
 may suspend as part of the caller's task, preserving task-local values,
@@ -340,9 +343,9 @@ error channel.
   bound-associated-type extended layout, no usable `NSObject` default
   initializer, an initializer requirement, or a dynamic `Self` result.
   Objective-C-only protocol existentials are also unsupported.
-- `read` accessors in forwarding spies or dummies, and `read` results containing
-  a function or dynamic `Self`. Use a Stub with an ordinary supported result or
-  a hand-written test double.
+- `read` accessors in dummies, Swift 6.4 yielding-borrow coroutine descriptors,
+  and `read` results containing a function or dynamic `Self`. Use a Stub or Spy
+  with an ordinary supported result, or a hand-written test double.
 - Direct `Self` arguments.
 - Async getters discovered automatically without ``Stub/GetterEffect`` hints,
   because their throwing behavior cannot be determined safely. Supply complete

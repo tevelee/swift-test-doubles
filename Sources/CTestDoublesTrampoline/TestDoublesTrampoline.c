@@ -30,6 +30,7 @@ extern void swift_errorRelease(const void *error);
 extern void *swift_retain(const void *object);
 extern void swift_release(const void *object);
 extern const uint32_t td_swift_dynamic_async_function_entryTu[];
+extern const uint8_t td_swift_read_coro_allocator[];
 
 #if __has_attribute(swiftcall)
 #define TD_SWIFT_CC __attribute__((swiftcall))
@@ -68,6 +69,8 @@ _Static_assert(sizeof(TDModifyCoroutineResult) == 2 * sizeof(void *),
                "TDModifyCoroutineResult size changed");
 _Static_assert(sizeof(TDReadCoroutineResult) == 2 * sizeof(void *),
                "TDReadCoroutineResult size changed");
+_Static_assert(sizeof(TDReadWitnessTarget) == sizeof(void *) + 2 * sizeof(uint32_t),
+               "TDReadWitnessTarget size changed");
 
 #if __has_attribute(weak)
 #define TD_WEAK __attribute__((weak))
@@ -274,6 +277,33 @@ _Static_assert(offsetof(TDCoroFunctionPointer, callerFrameSize) == 4,
                "coroutine descriptor frame size offset changed");
 _Static_assert(offsetof(TDCoroFunctionPointer, mallocTypeID) == 8,
                "coroutine descriptor malloc type ID offset changed");
+
+bool td_prepare_read_witness_target(const void *signedDescriptor,
+                                    const void *slot,
+                                    uint16_t declarationDiscriminator,
+                                    TDReadWitnessTarget *result) {
+  if (!signedDescriptor || !slot || !result) {
+    return false;
+  }
+
+  const TDCoroFunctionPointer *descriptor = signedDescriptor;
+#if defined(__APPLE__) && __has_feature(ptrauth_calls)
+  uintptr_t blended = ptrauth_blend_discriminator(
+      slot, declarationDiscriminator);
+  descriptor = ptrauth_auth_data(
+      descriptor, ptrauth_key_process_dependent_data, blended);
+#else
+  (void)declarationDiscriminator;
+#endif
+
+  if (!descriptor->relativeFunction || !descriptor->callerFrameSize) {
+    return false;
+  }
+  result->entry = (const uint8_t *)descriptor + descriptor->relativeFunction;
+  result->callerFrameSize = descriptor->callerFrameSize;
+  result->reserved = 0;
+  return true;
+}
 
 static bool td_emit_witness_veneer(uint8_t *code, uintptr_t slot,
                                    uintptr_t context, const void *entryTarget) {

@@ -1,6 +1,11 @@
 import CTestDoublesTrampoline
 import Echo
 
+protocol ReadCoroutineForwardingState: AnyObject, Sendable {
+    var yieldedStorage: UnsafeMutableRawPointer? { get }
+    func finish()
+}
+
 @_cdecl("td_swift_read_trampoline_handler")
 func td_swift_read_trampoline_handler(
     _ rawFrame: UnsafeMutablePointer<TDCallFrame>?
@@ -23,10 +28,10 @@ func td_swift_read_trampoline_resume_handler(
 }
 
 enum ReadCoroutineRuntime {
-    /// Keeps the borrowed result alive until Swift resumes or aborts the
+    /// Keeps a configured borrowed result alive until Swift resumes the
     /// yield_once_2 coroutine. Formally indirect results additionally own an
     /// initialized value buffer whose address is yielded to the caller.
-    private final class DispatchState {
+    private final class ConfiguredState {
         let storage: UnsafeMutableRawPointer
         let metadata: Metadata
 
@@ -53,12 +58,50 @@ enum ReadCoroutineRuntime {
         }
     }
 
+    /// Retains either owned configured storage or the target Spy coroutine
+    /// until Swift resumes the fabricated outer coroutine exactly once.
+    private final class DispatchState {
+        private enum Storage {
+            case configured(ConfiguredState)
+            case forwarded(any ReadCoroutineForwardingState)
+        }
+
+        let yieldedStorage: UnsafeMutableRawPointer?
+        private let storage: Storage
+
+        init(
+            configured: ConfiguredState,
+            resultIsIndirect: Bool
+        ) {
+            storage = .configured(configured)
+            yieldedStorage = resultIsIndirect ? configured.storage : nil
+        }
+
+        init(forwarded: any ReadCoroutineForwardingState) {
+            storage = .forwarded(forwarded)
+            yieldedStorage = forwarded.yieldedStorage
+        }
+
+        func finish() {
+            guard case .forwarded(let forwarded) = storage else { return }
+            forwarded.finish()
+        }
+    }
+
     static func prepare(
         _ rawFrame: UnsafeMutablePointer<TDCallFrame>
     ) -> TDReadCoroutineResult {
         let frame = TrampolineCallFrame(rawFrame)
         let dispatchIndex = frame.slot
-        guard let recorder = RuntimeTrampolineHandler.findRecorder(in: frame),
+        guard let key = UnsafeRawPointer(bitPattern: frame.context),
+            let target = FabricatedInvocationRegistry.resolveOptional(key)
+        else {
+            fatalError(
+                "[TestDoubles] read trampoline could not resolve recorder dispatch \(dispatchIndex)."
+            )
+        }
+        let recorder = target.recorderOrReject(slot: dispatchIndex)
+        guard
             let method = recorder.runtimeMethod(for: dispatchIndex),
             method.kind == .getter
         else {
@@ -77,23 +120,50 @@ enum ReadCoroutineRuntime {
             from: frame,
             initialGeneralPurposeOffset: argumentOffset
         ).values
-        let result = dispatch(method: method, arguments: arguments, recorder: recorder)
-        let state = DispatchState(result: result, method: method)
+        let state: DispatchState
+        if let forwarder = target.forwarder {
+            switch recorder.prepareDispatch(method: method, args: arguments) {
+                case .forwarding:
+                    state = DispatchState(
+                        forwarded: forwarder.makeReadState(
+                            for: method,
+                            frame: frame
+                        )
+                    )
 
-        if case .indirect = method.result.layout {
-            return TDReadCoroutineResult(
-                state: Unmanaged.passRetained(state).toOpaque(),
-                yieldedStorage: state.storage
+                case .placeholder:
+                    state = makeConfiguredState(
+                        result: placeholderResult(for: method),
+                        method: method,
+                        frame: frame
+                    )
+
+                case .behavior(let behavior):
+                    state = makeConfiguredState(
+                        result: behaviorResult(
+                            behavior,
+                            method: method,
+                            arguments: arguments
+                        ),
+                        method: method,
+                        frame: frame
+                    )
+            }
+        } else {
+            state = makeConfiguredState(
+                result: dispatch(
+                    method: method,
+                    arguments: arguments,
+                    recorder: recorder
+                ),
+                method: method,
+                frame: frame
             )
         }
-        RuntimeResultEncoder.encodeBorrowedDirectValue(
-            from: state.storage,
-            layout: method.result.layout,
-            into: frame
-        )
+
         return TDReadCoroutineResult(
             state: Unmanaged.passRetained(state).toOpaque(),
-            yieldedStorage: nil
+            yieldedStorage: state.yieldedStorage
         )
     }
 
@@ -101,8 +171,13 @@ enum ReadCoroutineRuntime {
         _ rawState: UnsafeMutableRawPointer,
         isAborting: Bool
     ) {
+        // Swift 6.3 lowers both normal completion and unwind of yield_once_2
+        // through the same continuation. The outer abort bit is therefore not
+        // forwarded as a distinct target argument.
         _ = isAborting
-        _ = Unmanaged<DispatchState>.fromOpaque(rawState).takeRetainedValue()
+        let state = Unmanaged<DispatchState>.fromOpaque(rawState)
+            .takeRetainedValue()
+        state.finish()
     }
 
     static func resumeDiscriminator(for method: MethodDescriptor) -> UInt16? {
@@ -140,6 +215,74 @@ enum ReadCoroutineRuntime {
                     "[TestDoubles] A nonthrowing read accessor handler threw \(error)."
                 )
             }
+        }
+        return _openExistential(method.returnType, do: opened)
+    }
+
+    private static func makeConfiguredState(
+        result: Any,
+        method: MethodDescriptor,
+        frame: TrampolineCallFrame
+    ) -> DispatchState {
+        let configured = ConfiguredState(result: result, method: method)
+        let resultIsIndirect: Bool
+        if case .indirect = method.result.layout {
+            resultIsIndirect = true
+        } else {
+            resultIsIndirect = false
+            RuntimeResultEncoder.encodeBorrowedDirectValue(
+                from: configured.storage,
+                layout: method.result.layout,
+                into: frame
+            )
+        }
+        return DispatchState(
+            configured: configured,
+            resultIsIndirect: resultIsIndirect
+        )
+    }
+
+    private static func placeholderResult(
+        for method: MethodDescriptor
+    ) -> Any {
+        func opened<Result>(_ type: Result.Type) -> Any {
+            RecordingReturnPlaceholderContext.requiredValue(
+                for: type,
+                method: method.name
+            )
+        }
+        return _openExistential(method.returnType, do: opened)
+    }
+
+    private static func behaviorResult(
+        _ behavior: StubRecorder.StubEntry.Behavior,
+        method: MethodDescriptor,
+        arguments: [Any]
+    ) -> Any {
+        let result: Any
+        do {
+            switch behavior {
+                case .fixed(let fixedResult):
+                    result = try fixedResult.get()
+                case .fixedSequence:
+                    preconditionFailure(
+                        "[TestDoubles] A queued read result was not reserved during dispatch."
+                    )
+                case .immediate(let handler):
+                    result = try handler(arguments)
+                case .suspending:
+                    fatalError(
+                        "[TestDoubles] A suspending handler was selected for synchronous read dispatch of \(method.name)."
+                    )
+            }
+        } catch {
+            fatalError(
+                "[TestDoubles] A nonthrowing read accessor handler threw \(error)."
+            )
+        }
+
+        func opened<Result>(_ type: Result.Type) -> Any {
+            requireStubbedResult(result, as: type, method: method.name)
         }
         return _openExistential(method.returnType, do: opened)
     }
