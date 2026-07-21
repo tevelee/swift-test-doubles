@@ -45,22 +45,6 @@ enum WitnessValueConvention: Equatable, Sendable {
     case optionalSelf
 }
 
-enum WitnessValueDependency: Equatable, Sendable {
-    case independent
-    case associatedType(name: String)
-    /// A Dictionary whose key, value, or both are associated types. Keeping
-    /// the positions distinct prevents equal concrete substitutions from
-    /// erasing the source witness schema during explicit validation.
-    case dictionary(key: String?, value: String?)
-
-    var isAssociatedTypeDependent: Bool {
-        switch self {
-            case .independent: false
-            case .associatedType, .dictionary: true
-        }
-    }
-}
-
 enum WitnessArgumentOwnership: String, Equatable, Sendable {
     case borrowed
     case owned
@@ -129,7 +113,7 @@ struct ResolvedWitnessValue: Sendable {
         Self(
             type: binding.type,
             convention: .associatedType(name: binding.name),
-            dependency: .associatedType(name: binding.name),
+            dependency: .associatedType(id: binding.id),
             ownership: ownership
         )
     }
@@ -140,14 +124,15 @@ struct ResolvedWitnessValue: Sendable {
     /// of strict signature validation.
     static func associatedTypeDictionary(
         keyType: Any.Type,
-        keyAssociatedTypeName: String?,
+        keyDependency: WitnessValueDependency,
         valueType: Any.Type,
-        valueAssociatedTypeName: String?,
+        valueDependency: WitnessValueDependency,
         protocolName: String,
         ownership: WitnessArgumentOwnership? = nil
     ) throws -> Self {
         precondition(
-            keyAssociatedTypeName != nil || valueAssociatedTypeName != nil,
+            keyDependency.isAssociatedTypeDependent
+                || valueDependency.isAssociatedTypeDependent,
             "[TestDoubles] A dependent Dictionary needs an associated key or value."
         )
         guard let type = dictionaryType(key: keyType, value: valueType) else {
@@ -160,8 +145,8 @@ struct ResolvedWitnessValue: Sendable {
             type: type,
             convention: .concrete,
             dependency: .dictionary(
-                key: keyAssociatedTypeName,
-                value: valueAssociatedTypeName
+                key: keyDependency,
+                value: valueDependency
             ),
             ownership: ownership
         )
@@ -193,10 +178,19 @@ struct ResolvedWitnessValue: Sendable {
                 type = resolvedSetType
                 convention = .concrete
         }
+        let nestedDependency = WitnessValueDependency.associatedType(
+            id: binding.id
+        )
+        let dependency: WitnessValueDependency =
+            switch container {
+                case .optional: .optional(nestedDependency)
+                case .array: .array(nestedDependency)
+                case .set: .set(nestedDependency)
+            }
         return Self(
             type: type,
             convention: convention,
-            dependency: .associatedType(name: binding.name),
+            dependency: dependency,
             ownership: ownership
         )
     }
@@ -457,19 +451,21 @@ struct MethodDescriptor: Sendable {
         arguments.map(\.value.convention)
     }
     var argumentDependencies: [WitnessValueDependency] {
-        arguments.map(\.value.dependency)
+        arguments.map { $0.value.dependency.legacyProjection }
     }
     var argumentOwnerships: [WitnessArgumentOwnership] {
         arguments.map(\.ownership)
     }
     var returnConvention: WitnessValueConvention { result.convention }
-    var returnDependency: WitnessValueDependency { result.dependency }
+    var returnDependency: WitnessValueDependency {
+        result.dependency.legacyProjection
+    }
     var argumentLayouts: [ABIClass] { arguments.map(\.value.layout) }
     var returnLayout: ABIClass { result.layout }
     var typedErrorType: Any.Type? { effects.throwing.typedError?.type }
     var typedErrorLayout: ABIClass? { effects.throwing.typedError?.layout }
     var typedErrorDependency: WitnessValueDependency {
-        effects.throwing.typedError?.dependency ?? .independent
+        effects.throwing.typedError?.dependency.legacyProjection ?? .independent
     }
     var typedErrorUsesIndirectResultSlot: Bool {
         effects.throwing.typedError?.usesIndirectResultSlot ?? false
@@ -514,13 +510,16 @@ struct MethodDescriptor: Sendable {
 
     func hasSameSignature(as discovered: Self) -> Bool {
         let typedErrorsMatch: Bool
-        switch (typedErrorType, discovered.typedErrorType) {
+        switch (
+            effects.throwing.typedError,
+            discovered.effects.throwing.typedError
+        ) {
             case (nil, nil):
                 typedErrorsMatch = true
             case (.some(let lhs), .some(let rhs)):
                 typedErrorsMatch =
-                    sameType(lhs, rhs)
-                    && typedErrorDependency == discovered.typedErrorDependency
+                    sameType(lhs.type, rhs.type)
+                    && lhs.dependency == rhs.dependency
             case (.none, .some), (.some, .none):
                 typedErrorsMatch = false
         }
@@ -584,17 +583,19 @@ private func witnessArgumentDescription(
 private func witnessValueDescription(
     _ value: WitnessValueDescriptor
 ) -> String {
-    switch value.dependency {
+    switch value.dependency.legacyProjection {
         case .independent:
             break
-        case .associatedType(let name):
-            return "\(runtimeTypeName(value.type)) [associated \(name)]"
-        case .dictionary(let key, let valueName):
+        case .associatedType(let reference):
+            return "\(runtimeTypeName(value.type)) [associated \(reference.name)]"
+        case .dictionary(let key, let valueDependency):
             let components = [
-                key.map { "key \($0)" },
-                valueName.map { "value \($0)" }
+                key.directAssociatedTypeName.map { "key \($0)" },
+                valueDependency.directAssociatedTypeName.map { "value \($0)" }
             ].compactMap { $0 }.joined(separator: ", ")
             return "\(runtimeTypeName(value.type)) [associated Dictionary \(components)]"
+        case .optional, .array, .set:
+            break
     }
     return switch value.convention {
         case .concrete: runtimeTypeName(value.type)
@@ -609,7 +610,7 @@ private func witnessValueDescription(
 
 private func typedErrorDescription(_ error: TypedErrorTransport) -> String {
     let typeName = runtimeTypeName(error.type)
-    if case .associatedType(let name) = error.dependency {
+    if let name = error.dependency.directAssociatedTypeName {
         return "\(typeName) [associated \(name)]"
     }
     return typeName

@@ -375,7 +375,7 @@ private func resolveTypedError(
         }
         return (
             binding.type,
-            .associatedType(name: associatedTypeName)
+            .associatedType(id: binding.id)
         )
     }
     if referencesAssociatedType(
@@ -455,14 +455,17 @@ private func associatedTypeDictionary(
         associatedTypeBindings: associatedTypeBindings,
         mangledSignature: mangledSignature
     )
-    guard key.associatedTypeName != nil || value.associatedTypeName != nil else {
+    guard
+        key.dependency.isAssociatedTypeDependent
+            || value.dependency.isAssociatedTypeDependent
+    else {
         return nil
     }
     return try .associatedTypeDictionary(
         keyType: key.type,
-        keyAssociatedTypeName: key.associatedTypeName,
+        keyDependency: key.dependency,
         valueType: value.type,
-        valueAssociatedTypeName: value.associatedTypeName,
+        valueDependency: value.dependency,
         protocolName: protocolDescriptor.name,
         ownership: ownership
     )
@@ -497,7 +500,7 @@ private func resolveDictionaryComponent(
     requirementIndex: Int,
     associatedTypeBindings: AssociatedTypeBindings,
     mangledSignature: String
-) throws -> (type: Any.Type, associatedTypeName: String?) {
+) throws -> (type: Any.Type, dependency: WitnessValueDependency) {
     if let name = directAssociatedTypeName(
         in: spelling,
         protocolDescriptor: protocolDescriptor,
@@ -507,7 +510,7 @@ private func resolveDictionaryComponent(
             named: name,
             declaredBy: protocolDescriptor
         )
-        return (binding.type, name)
+        return (binding.type, .associatedType(id: binding.id))
     }
     if referencesAssociatedType(
         in: spelling,
@@ -531,7 +534,7 @@ private func resolveDictionaryComponent(
             details: "Could not resolve runtime metadata for Dictionary generic argument '\(spelling)'. Supply explicit Requirement values."
         )
     }
-    return (type, nil)
+    return (type, .independent)
 }
 
 private func directAssociatedTypeName(

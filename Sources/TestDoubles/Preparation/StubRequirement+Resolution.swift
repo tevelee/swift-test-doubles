@@ -35,9 +35,9 @@ extension Stub.Requirement.Value {
                 )
                 return try .associatedTypeDictionary(
                     keyType: resolvedKey.type,
-                    keyAssociatedTypeName: resolvedKey.associatedTypeName,
+                    keyDependency: resolvedKey.dependency,
                     valueType: resolvedValue.type,
-                    valueAssociatedTypeName: resolvedValue.associatedTypeName,
+                    valueDependency: resolvedValue.dependency,
                     protocolName: protocolDescriptor.name,
                     ownership: ownership
                 )
@@ -51,18 +51,28 @@ extension Stub.Requirement.Value.DictionaryComponent {
     func resolve(
         protocolDescriptor: ProtocolDescriptor,
         bindings: AssociatedTypeBindings
-    ) throws -> (type: Any.Type, associatedTypeName: String?) {
+    ) throws -> (type: Any.Type, dependency: WitnessValueDependency) {
         switch self {
             case .concrete(let type):
-                (type, nil)
+                (type, .independent)
             case .associatedType(let name):
-                (
-                    try bindings.binding(
-                        named: name,
-                        declaredBy: protocolDescriptor
-                    ).type,
-                    name
+                try resolvedAssociatedType(
+                    named: name,
+                    protocolDescriptor: protocolDescriptor,
+                    bindings: bindings
                 )
         }
     }
+}
+
+private func resolvedAssociatedType(
+    named name: String,
+    protocolDescriptor: ProtocolDescriptor,
+    bindings: AssociatedTypeBindings
+) throws -> (type: Any.Type, dependency: WitnessValueDependency) {
+    let binding = try bindings.binding(
+        named: name,
+        declaredBy: protocolDescriptor
+    )
+    return (binding.type, .associatedType(id: binding.id))
 }

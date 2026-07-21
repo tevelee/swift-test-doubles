@@ -789,7 +789,7 @@ extension Stub {
                 }
                 resolvedTypedError = (
                     binding.type,
-                    .associatedType(name: name)
+                    .associatedType(id: binding.id)
                 )
             } else {
                 resolvedTypedError = (typedErrorType, .independent)
