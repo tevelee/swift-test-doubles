@@ -39,6 +39,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and race ordering testable without sleeps. Resuming with no call parked,
   registering on a synchronous requirement, or throwing into a non-throwing
   requirement each fail with a diagnostic.
+- Typed invocation access on `Stub`, `Spy`, and `ManualStub`: `invocations`
+  returns the recorded arguments of matching calls as typed tuples in call
+  order, with the tuple shape selected by the result annotation, such as
+  `let events: [(String, Int)] = analytics.invocations { $0.track(event:
+  any(), value: any()) }`. Components bind to the requirement's arguments
+  from the front, matchers filter which calls are included, and reading is a
+  pure query that neither verifies, consumes configured behavior, nor
+  commits captors. `returning:` overloads cover results that need a valid
+  recording placeholder.
 - Rich argument matchers that compose on the existing matching engine:
   logical combinators `not`, `allOf`, `anyOf`, and `oneOf`; the equality and
   identity matchers `notEqual` and `identical(to:)`; the comparison matchers
