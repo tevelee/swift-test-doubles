@@ -9,7 +9,7 @@ public struct RealFileService: ThrowingFileService {
     public func write(path: String, content: String) throws {}
 }
 
-public protocol AsyncDataLoader {
+public protocol AsyncDataLoader: Sendable {
     func load(url: String) async throws -> String
     func prefetch(urls: [String]) async
     var cacheSize: Int { get }
