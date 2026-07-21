@@ -38,7 +38,7 @@ extension Stub {
                     case .setter, .initializer:
                         break
                     case .method:
-                        guard case .associatedType = argument.value.dependency else {
+                        guard argument.value.dependency.isAssociatedTypeDependent else {
                             throw StubError.unsupportedProtocolShape(
                                 protocolName: protocolName,
                                 reason: "Requirement \(method.index) consumes a non-dependent method argument. Consuming method support accepts values that depend on an associated type."
@@ -82,7 +82,7 @@ extension Stub {
             let concreteTypes = method.arguments.map(\.value.type) + [method.returnType]
             let dependentValues = method.arguments.map(\.value) + [method.result]
             if dependentValues.contains(where: {
-                if case .associatedType = $0.dependency {
+                if $0.dependency.isAssociatedTypeDependent {
                     return reflect($0.type).kind == .function
                 }
                 return false

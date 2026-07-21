@@ -44,6 +44,32 @@ private protocol ExplicitSetNestedAssociatedTypeProbe<Element> {
     func transform(set values: Set<Element>) -> Set<Element>
 }
 
+protocol DictionaryNestedAssociatedTypeProbe<Key, Value> {
+    associatedtype Key: Hashable
+    associatedtype Value
+
+    func transform(values: [String: Value]) -> [String: Value]
+    func transform(keys: [Key: Int]) -> [Key: Int]
+    func transform(entries: [Key: Value]) -> [Key: Value]
+}
+
+struct RealDictionaryNestedAssociatedTypeProbe:
+    DictionaryNestedAssociatedTypeProbe
+{
+    func transform(values: [String: String]) -> [String: String] { values }
+    func transform(keys: [String: Int]) -> [String: Int] { keys }
+    func transform(entries: [String: String]) -> [String: String] { entries }
+}
+
+private protocol ExplicitDictionaryNestedAssociatedTypeProbe<Key, Value> {
+    associatedtype Key: Hashable
+    associatedtype Value
+
+    func transform(values: [String: Value]) -> [String: Value]
+    func transform(keys: [Key: Int]) -> [Key: Int]
+    func transform(entries: [Key: Value]) -> [Key: Value]
+}
+
 private protocol ExplicitNonHashableAssociatedTypeProbe<Element> {
     associatedtype Element
 
@@ -266,6 +292,121 @@ struct NestedAssociatedTypeTests {
         expectRequirementMismatch(at: 0) {
             _ = try ProbeStub(
                 .method(Set<Int>.self, returning: Set<Int>.self)
+            )
+        }
+    }
+
+    @Test func automaticDiscoverySupportsDictionaryKeyAndValuePositions() throws {
+        _ = RealDictionaryNestedAssociatedTypeProbe()
+        typealias Probe = any DictionaryNestedAssociatedTypeProbe<String, String>
+        let stub = try Stub<Probe>()
+        let values = try #require(stub.recorder.runtimeMethod(for: 0))
+        let keys = try #require(stub.recorder.runtimeMethod(for: 1))
+        let entries = try #require(stub.recorder.runtimeMethod(for: 2))
+
+        assertDependentDictionary(
+            values,
+            type: [String: String].self,
+            dependency: .dictionary(key: nil, value: "Value")
+        )
+        assertDependentDictionary(
+            keys,
+            type: [String: Int].self,
+            dependency: .dictionary(key: "Key", value: nil)
+        )
+        assertDependentDictionary(
+            entries,
+            type: [String: String].self,
+            dependency: .dictionary(key: "Key", value: "Value")
+        )
+
+        stub.when { $0.transform(values: any()) }.then { (values: [String: String]) in
+            values.mapValues { $0.uppercased() }
+        }
+        stub.when { $0.transform(keys: any()) }.then { (keys: [String: Int]) in
+            keys.mapValues { $0 + 1 }
+        }
+        stub.when { $0.transform(entries: any()) }.then { (entries: [String: String]) in
+            entries.mapValues { $0.uppercased() }
+        }
+        let probe: Probe = stub()
+
+        #expect(probe.transform(values: ["value": "one"]) == ["value": "ONE"])
+        #expect(probe.transform(keys: ["value": 1]) == ["value": 2])
+        #expect(probe.transform(entries: ["value": "two"]) == ["value": "TWO"])
+    }
+
+    @Test func explicitRequirementsSupportDictionaryWithoutLinkedConformer() throws {
+        typealias ProbeStub = Stub<
+            any ExplicitDictionaryNestedAssociatedTypeProbe<String, String>
+        >
+        let values = ProbeStub.Requirement.Value.dictionary(
+            key: String.self,
+            valueAssociatedTypeNamed: "Value"
+        )
+        let keys = ProbeStub.Requirement.Value.dictionary(
+            keyAssociatedTypeNamed: "Key",
+            value: Int.self
+        )
+        let entries = ProbeStub.Requirement.Value.dictionary(
+            keyAssociatedTypeNamed: "Key",
+            valueAssociatedTypeNamed: "Value"
+        )
+        let stub = try ProbeStub(
+            .method(values, returning: values),
+            .method(keys, returning: keys),
+            .method(entries, returning: entries)
+        )
+
+        assertDependentDictionary(
+            try #require(stub.recorder.runtimeMethod(for: 0)),
+            type: [String: String].self,
+            dependency: .dictionary(key: nil, value: "Value")
+        )
+        assertDependentDictionary(
+            try #require(stub.recorder.runtimeMethod(for: 1)),
+            type: [String: Int].self,
+            dependency: .dictionary(key: "Key", value: nil)
+        )
+        assertDependentDictionary(
+            try #require(stub.recorder.runtimeMethod(for: 2)),
+            type: [String: String].self,
+            dependency: .dictionary(key: "Key", value: "Value")
+        )
+
+        stub.when { $0.transform(values: any()) }.thenReturn(["explicit": "value"])
+        stub.when { $0.transform(keys: any()) }.thenReturn(["explicit": 42])
+        stub.when { $0.transform(entries: any()) }.thenReturn(["explicit": "entry"])
+        let probe = stub()
+
+        #expect(probe.transform(values: [:]) == ["explicit": "value"])
+        #expect(probe.transform(keys: [:]) == ["explicit": 42])
+        #expect(probe.transform(entries: [:]) == ["explicit": "entry"])
+    }
+
+    @Test func explicitValidationPreservesDictionaryDependencyPositions() {
+        _ = RealDictionaryNestedAssociatedTypeProbe()
+        typealias ProbeStub = Stub<
+            any DictionaryNestedAssociatedTypeProbe<String, String>
+        >
+        let wrongValues = ProbeStub.Requirement.Value.dictionary(
+            keyAssociatedTypeNamed: "Key",
+            value: String.self
+        )
+        let keys = ProbeStub.Requirement.Value.dictionary(
+            keyAssociatedTypeNamed: "Key",
+            value: Int.self
+        )
+        let entries = ProbeStub.Requirement.Value.dictionary(
+            keyAssociatedTypeNamed: "Key",
+            valueAssociatedTypeNamed: "Value"
+        )
+
+        expectDictionaryRequirementMismatch(at: 0) {
+            _ = try ProbeStub(
+                .method(wrongValues, returning: wrongValues),
+                .method(keys, returning: keys),
+                .method(entries, returning: entries)
             )
         }
     }
@@ -644,6 +785,32 @@ private func assertDependentSet<Argument, Result>(
     #expect(isSingleWordInteger(method.returnLayout), sourceLocation: sourceLocation)
 }
 
+private func assertDependentDictionary<Value>(
+    _ method: MethodDescriptor,
+    type: Value.Type,
+    dependency: WitnessValueDependency,
+    sourceLocation: SourceLocation = #_sourceLocation
+) {
+    #expect(method.argumentTypes.count == 1, sourceLocation: sourceLocation)
+    #expect(
+        method.argumentTypes.first.map(ObjectIdentifier.init) == ObjectIdentifier(type),
+        sourceLocation: sourceLocation
+    )
+    #expect(
+        ObjectIdentifier(method.returnType) == ObjectIdentifier(type),
+        sourceLocation: sourceLocation
+    )
+    #expect(method.argumentConventions == [.concrete], sourceLocation: sourceLocation)
+    #expect(method.returnConvention == .concrete, sourceLocation: sourceLocation)
+    #expect(method.argumentDependencies == [dependency], sourceLocation: sourceLocation)
+    #expect(method.returnDependency == dependency, sourceLocation: sourceLocation)
+    #expect(
+        method.argumentLayouts.first.map(isSingleWordInteger) == true,
+        sourceLocation: sourceLocation
+    )
+    #expect(isSingleWordInteger(method.returnLayout), sourceLocation: sourceLocation)
+}
+
 private func isIndirect(_ layout: ABIClass) -> Bool {
     if case .indirect = layout { true } else { false }
 }
@@ -664,5 +831,20 @@ private func expectRequirementMismatch(
         return actualIndex == requirementIndex
             && expected.contains("[associated Element]")
             && actual.contains("[associated Element]") == false
+    }
+}
+
+private func expectDictionaryRequirementMismatch(
+    at requirementIndex: Int,
+    sourceLocation: SourceLocation = #_sourceLocation,
+    _ operation: () throws -> Void
+) {
+    expectStubError(operation, sourceLocation: sourceLocation) { error in
+        guard case .requirementMismatch(_, let actualIndex, let expected, let actual) = error else {
+            return false
+        }
+        return actualIndex == requirementIndex
+            && expected.contains("associated Dictionary value Value")
+            && actual.contains("associated Dictionary key Key")
     }
 }

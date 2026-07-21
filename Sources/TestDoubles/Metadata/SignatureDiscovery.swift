@@ -254,17 +254,17 @@ private func resolveWitnessValue(
     }
 
     let bindings = associatedTypeBindings.declared(by: protocolDescriptor)
+    let valueName: String
+    let ownership: WitnessArgumentOwnership?
+    if name.hasPrefix("__owned ") {
+        valueName = String(name.dropFirst("__owned ".count))
+        ownership = .owned
+    } else {
+        valueName = name
+        ownership = nil
+    }
     for binding in bindings {
         let spellings = ["A.\(binding.name)", "Self.\(binding.name)"]
-        let valueName: String
-        let ownership: WitnessArgumentOwnership?
-        if name.hasPrefix("__owned ") {
-            valueName = String(name.dropFirst("__owned ".count))
-            ownership = .owned
-        } else {
-            valueName = name
-            ownership = nil
-        }
         if spellings.contains(valueName) {
             return .associatedType(binding: binding, ownership: ownership)
         }
@@ -275,6 +275,17 @@ private func resolveWitnessValue(
                 ownership: ownership
             )
         }
+    }
+
+    if let dictionary = try associatedTypeDictionary(
+        in: valueName,
+        protocolDescriptor: protocolDescriptor,
+        requirementIndex: requirementIndex,
+        associatedTypeBindings: associatedTypeBindings,
+        mangledSignature: mangledSignature,
+        ownership: ownership
+    ) {
+        return dictionary
     }
 
     for binding in bindings {
@@ -289,7 +300,8 @@ private func resolveWitnessValue(
         if spellings.contains(where: name.contains) {
             throw StubError.unsupportedProtocolShape(
                 protocolName: protocolDescriptor.name,
-                reason: "Requirement \(requirementIndex) embeds associated type '\(binding.name)' inside unsupported type '\(name)'. Bound associated-type support accepts direct, Optional, Array, and Set occurrences."
+                reason:
+                    "Requirement \(requirementIndex) embeds associated type '\(binding.name)' inside unsupported type '\(name)'. Bound associated-type support accepts direct, Optional, Array, Set, and direct Dictionary key or value occurrences."
             )
         }
     }
@@ -390,6 +402,129 @@ private func associatedTypeContainer(
         }
     }
     return nil
+}
+
+private func associatedTypeDictionary(
+    in name: String,
+    protocolDescriptor: ProtocolDescriptor,
+    requirementIndex: Int,
+    associatedTypeBindings: AssociatedTypeBindings,
+    mangledSignature: String,
+    ownership: WitnessArgumentOwnership?
+) throws -> ResolvedWitnessValue? {
+    guard let components = dictionaryComponents(in: name) else { return nil }
+    let key = try resolveDictionaryComponent(
+        components.key,
+        protocolDescriptor: protocolDescriptor,
+        requirementIndex: requirementIndex,
+        associatedTypeBindings: associatedTypeBindings,
+        mangledSignature: mangledSignature
+    )
+    let value = try resolveDictionaryComponent(
+        components.value,
+        protocolDescriptor: protocolDescriptor,
+        requirementIndex: requirementIndex,
+        associatedTypeBindings: associatedTypeBindings,
+        mangledSignature: mangledSignature
+    )
+    guard key.associatedTypeName != nil || value.associatedTypeName != nil else {
+        return nil
+    }
+    return try .associatedTypeDictionary(
+        keyType: key.type,
+        keyAssociatedTypeName: key.associatedTypeName,
+        valueType: value.type,
+        valueAssociatedTypeName: value.associatedTypeName,
+        protocolName: protocolDescriptor.name,
+        ownership: ownership
+    )
+}
+
+private func dictionaryComponents(in name: String) -> (key: String, value: String)? {
+    if name.first == "[", name.last == "]" {
+        let contents = String(name.dropFirst().dropLast())
+        guard let colon = lastTopLevelColon(in: contents) else { return nil }
+        return (
+            String(contents[..<colon]).trimmingCharacters(in: .whitespaces),
+            String(contents[contents.index(after: colon)...])
+                .trimmingCharacters(in: .whitespaces)
+        )
+    }
+    for constructor in ["Dictionary", "Swift.Dictionary"] {
+        let prefix = "\(constructor)<"
+        guard name.hasPrefix(prefix), name.last == ">" else { continue }
+        let arguments = String(name.dropFirst(prefix.count).dropLast())
+        guard let components = topLevelComponents(in: arguments), components.count == 2
+        else {
+            return nil
+        }
+        return (components[0], components[1])
+    }
+    return nil
+}
+
+private func resolveDictionaryComponent(
+    _ spelling: String,
+    protocolDescriptor: ProtocolDescriptor,
+    requirementIndex: Int,
+    associatedTypeBindings: AssociatedTypeBindings,
+    mangledSignature: String
+) throws -> (type: Any.Type, associatedTypeName: String?) {
+    if let name = directAssociatedTypeName(
+        in: spelling,
+        protocolDescriptor: protocolDescriptor,
+        associatedTypeBindings: associatedTypeBindings
+    ) {
+        let binding = try associatedTypeBindings.binding(
+            named: name,
+            declaredBy: protocolDescriptor
+        )
+        return (binding.type, name)
+    }
+    if referencesAssociatedType(
+        in: spelling,
+        protocolDescriptor: protocolDescriptor,
+        associatedTypeBindings: associatedTypeBindings
+    ) {
+        throw StubError.unsupportedProtocolShape(
+            protocolName: protocolDescriptor.name,
+            reason: "Requirement \(requirementIndex) embeds an associated type inside Dictionary generic argument '\(spelling)'. Only a direct associated key or value is supported."
+        )
+    }
+    guard let syntax = DemangledTypeSyntax(spelling),
+        let type = resolveRuntimeType(
+            syntax,
+            containedInMangledSymbol: mangledSignature
+        )
+    else {
+        throw StubError.signatureDiscoveryFailed(
+            protocolName: protocolDescriptor.name,
+            requirementIndex: requirementIndex,
+            details: "Could not resolve runtime metadata for Dictionary generic argument '\(spelling)'. Supply explicit Requirement values."
+        )
+    }
+    return (type, nil)
+}
+
+private func directAssociatedTypeName(
+    in spelling: String,
+    protocolDescriptor: ProtocolDescriptor,
+    associatedTypeBindings: AssociatedTypeBindings
+) -> String? {
+    associatedTypeBindings.declared(by: protocolDescriptor).first { binding in
+        spelling == "A.\(binding.name)" || spelling == "Self.\(binding.name)"
+    }?.name
+}
+
+private func referencesAssociatedType(
+    in spelling: String,
+    protocolDescriptor: ProtocolDescriptor,
+    associatedTypeBindings: AssociatedTypeBindings
+) -> Bool {
+    associatedTypeBindings.declared(by: protocolDescriptor).contains { binding in
+        spelling.contains("A.\(binding.name)")
+            || spelling.contains("Self.\(binding.name)")
+    }
 }
 
 extension ProtocolRequirement.Flags {

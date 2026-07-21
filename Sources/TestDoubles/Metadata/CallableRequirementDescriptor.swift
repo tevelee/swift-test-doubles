@@ -48,6 +48,17 @@ enum WitnessValueConvention: Equatable, Sendable {
 enum WitnessValueDependency: Equatable, Sendable {
     case independent
     case associatedType(name: String)
+    /// A Dictionary whose key, value, or both are associated types. Keeping
+    /// the positions distinct prevents equal concrete substitutions from
+    /// erasing the source witness schema during explicit validation.
+    case dictionary(key: String?, value: String?)
+
+    var isAssociatedTypeDependent: Bool {
+        switch self {
+            case .independent: false
+            case .associatedType, .dictionary: true
+        }
+    }
 }
 
 enum WitnessArgumentOwnership: String, Equatable, Sendable {
@@ -119,6 +130,39 @@ struct ResolvedWitnessValue: Sendable {
             type: binding.type,
             convention: .associatedType(name: binding.name),
             dependency: .associatedType(name: binding.name),
+            ownership: ownership
+        )
+    }
+
+    /// A Dictionary whose key, value, or both depend directly on concretely
+    /// bound associated types. Dictionary retains its ordinary direct
+    /// reference transport while its generic-argument positions remain part
+    /// of strict signature validation.
+    static func associatedTypeDictionary(
+        keyType: Any.Type,
+        keyAssociatedTypeName: String?,
+        valueType: Any.Type,
+        valueAssociatedTypeName: String?,
+        protocolName: String,
+        ownership: WitnessArgumentOwnership? = nil
+    ) throws -> Self {
+        precondition(
+            keyAssociatedTypeName != nil || valueAssociatedTypeName != nil,
+            "[TestDoubles] A dependent Dictionary needs an associated key or value."
+        )
+        guard let type = dictionaryType(key: keyType, value: valueType) else {
+            throw StubError.unsupportedProtocolShape(
+                protocolName: protocolName,
+                reason: "Dictionary key '\(runtimeTypeName(keyType))' does not conform to Hashable. Bind its associated type to a Hashable concrete type."
+            )
+        }
+        return Self(
+            type: type,
+            convention: .concrete,
+            dependency: .dictionary(
+                key: keyAssociatedTypeName,
+                value: valueAssociatedTypeName
+            ),
             ownership: ownership
         )
     }
@@ -523,8 +567,17 @@ private func witnessArgumentDescription(
 private func witnessValueDescription(
     _ value: WitnessValueDescriptor
 ) -> String {
-    if case .associatedType(let name) = value.dependency {
-        return "\(runtimeTypeName(value.type)) [associated \(name)]"
+    switch value.dependency {
+        case .independent:
+            break
+        case .associatedType(let name):
+            return "\(runtimeTypeName(value.type)) [associated \(name)]"
+        case .dictionary(let key, let valueName):
+            let components = [
+                key.map { "key \($0)" },
+                valueName.map { "value \($0)" }
+            ].compactMap { $0 }.joined(separator: ", ")
+            return "\(runtimeTypeName(value.type)) [associated Dictionary \(components)]"
     }
     return switch value.convention {
         case .concrete: runtimeTypeName(value.type)

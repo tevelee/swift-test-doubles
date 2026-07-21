@@ -197,8 +197,7 @@ extension Stub {
         for method in methods {
             guard
                 method.arguments.allSatisfy({ argument in
-                    if case .associatedType = argument.value.dependency { return false }
-                    return true
+                    argument.value.dependency.isAssociatedTypeDependent == false
                 })
             else {
                 let protocolName = layout.callableRequirements[method.index]

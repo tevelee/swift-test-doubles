@@ -568,7 +568,7 @@ private func openedResultType<Failure: Error>(
     return _openExistential(success, do: openSuccess)
 }
 
-private func dictionaryType(key: Any.Type, value: Any.Type) -> Any.Type? {
+func dictionaryType(key: Any.Type, value: Any.Type) -> Any.Type? {
     guard let hashableKey = key as? any Hashable.Type else { return nil }
     return openedDictionaryType(key: hashableKey, value: value)
 }

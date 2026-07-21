@@ -72,7 +72,16 @@ extension Stub {
                     name: String,
                     container: AssociatedTypeContainer
                 )
+                case associatedTypeDictionary(
+                    key: DictionaryComponent,
+                    value: DictionaryComponent
+                )
                 case selfType(isOptional: Bool)
+            }
+
+            enum DictionaryComponent: Sendable {
+                case concrete(Any.Type)
+                case associatedType(String)
             }
             let source: Source
             let ownership: WitnessArgumentOwnership?
@@ -140,6 +149,52 @@ extension Stub {
                     source: .associatedTypeContainer(
                         name: name,
                         container: .set
+                    ),
+                    ownership: nil
+                )
+            }
+
+            /// Describes a Dictionary with a concrete key and an associated value.
+            public static func dictionary<Key: Hashable>(
+                key: Key.Type,
+                valueAssociatedTypeNamed valueName: String
+            ) -> Self {
+                Self(
+                    source: .associatedTypeDictionary(
+                        key: .concrete(key),
+                        value: .associatedType(valueName)
+                    ),
+                    ownership: nil
+                )
+            }
+
+            /// Describes a Dictionary with an associated key and a concrete value.
+            ///
+            /// The associated key's concrete binding must conform to `Hashable`.
+            public static func dictionary<Value>(
+                keyAssociatedTypeNamed keyName: String,
+                value: Value.Type
+            ) -> Self {
+                Self(
+                    source: .associatedTypeDictionary(
+                        key: .associatedType(keyName),
+                        value: .concrete(value)
+                    ),
+                    ownership: nil
+                )
+            }
+
+            /// Describes a Dictionary whose key and value are associated types.
+            ///
+            /// The associated key's concrete binding must conform to `Hashable`.
+            public static func dictionary(
+                keyAssociatedTypeNamed keyName: String,
+                valueAssociatedTypeNamed valueName: String
+            ) -> Self {
+                Self(
+                    source: .associatedTypeDictionary(
+                        key: .associatedType(keyName),
+                        value: .associatedType(valueName)
                     ),
                     ownership: nil
                 )
@@ -802,8 +857,45 @@ extension Stub.Requirement.Value {
                     container: container,
                     ownership: ownership
                 )
+            case .associatedTypeDictionary(let key, let value):
+                let resolvedKey = try key.resolve(
+                    protocolDescriptor: protocolDescriptor,
+                    bindings: bindings
+                )
+                let resolvedValue = try value.resolve(
+                    protocolDescriptor: protocolDescriptor,
+                    bindings: bindings
+                )
+                return try .associatedTypeDictionary(
+                    keyType: resolvedKey.type,
+                    keyAssociatedTypeName: resolvedKey.associatedTypeName,
+                    valueType: resolvedValue.type,
+                    valueAssociatedTypeName: resolvedValue.associatedTypeName,
+                    protocolName: protocolDescriptor.name,
+                    ownership: ownership
+                )
             case .selfType(let isOptional):
                 return .selfValue(isOptional: isOptional, ownership: ownership)
+        }
+    }
+}
+
+extension Stub.Requirement.Value.DictionaryComponent {
+    fileprivate func resolve(
+        protocolDescriptor: ProtocolDescriptor,
+        bindings: AssociatedTypeBindings
+    ) throws -> (type: Any.Type, associatedTypeName: String?) {
+        switch self {
+            case .concrete(let type):
+                (type, nil)
+            case .associatedType(let name):
+                (
+                    try bindings.binding(
+                        named: name,
+                        declaredBy: protocolDescriptor
+                    ).type,
+                    name
+                )
         }
     }
 }
