@@ -605,7 +605,7 @@ private func pointerAuthFunctionSpelling(
     return spelling
 }
 
-private func pointerAuthTypeSpelling(_ type: Any.Type) -> String? {
+func pointerAuthTypeSpelling(_ type: Any.Type) -> String? {
     let metadata = reflect(type)
     switch metadata.kind {
         case .class, .foreignClass, .objcClassWrapper:

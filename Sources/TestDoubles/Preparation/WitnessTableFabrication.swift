@@ -1,4 +1,10 @@
+import CTestDoublesTrampoline
 import Echo
+
+private struct ReadWitnessPlan {
+    let method: MethodDescriptor
+    let resumeDiscriminator: UInt16
+}
 
 private enum FabricatedWitnessDispatch {
     case stub(
@@ -72,6 +78,58 @@ private enum FabricatedWitnessDispatch {
             )
         }
         return trampoline
+    }
+
+    func readPlan(
+        for requirement: ProtocolLayout.ReadCoroutineRequirement,
+        in node: ProtocolLayout.Node
+    ) throws -> ReadWitnessPlan {
+        switch self {
+            case .stub(_, let methodsByIndex, let forwarder):
+                guard forwarder == nil else {
+                    throw StubError.unsupportedProtocolShape(
+                        protocolName: node.descriptor.name,
+                        reason: "The read requirement at witness index \(requirement.witnessIndex) cannot be forwarded by a Spy. Use a Stub or a hand-written forwarding type."
+                    )
+                }
+                guard let method = methodsByIndex[requirement.recorderDispatchIndex]
+                else {
+                    throw StubError.requirementCountMismatch(
+                        protocolName: node.descriptor.name,
+                        expected: node.callableRequirements.count,
+                        actual: 0
+                    )
+                }
+                guard method.kind == .getter,
+                    method.receiver == requirement.receiver,
+                    method.isAsync == false,
+                    method.isThrowing == false,
+                    method.typedWitnessAdapterFactory == nil,
+                    method.arguments.allSatisfy({ $0.ownership == .borrowed }),
+                    method.returnConvention != .selfType,
+                    method.returnConvention != .optionalSelf,
+                    reflect(method.returnType).kind != .function,
+                    let resumeDiscriminator =
+                        ReadCoroutineRuntime.resumeDiscriminator(for: method)
+                else {
+                    throw StubError.unsupportedProtocolShape(
+                        protocolName: node.descriptor.name,
+                        reason:
+                            "The read requirement at witness index \(requirement.witnessIndex) is outside the supported synchronous, nonthrowing borrowed-value ABI. "
+                            + "Function, dynamic Self, typed-adapter, and result layouts whose resume discriminator cannot be derived require a hand-written test double."
+                    )
+                }
+                return ReadWitnessPlan(
+                    method: method,
+                    resumeDiscriminator: resumeDiscriminator
+                )
+
+            case .dummy:
+                throw StubError.unsupportedProtocolShape(
+                    protocolName: node.descriptor.name,
+                    reason: "Dummy cannot fabricate the result-dependent resume ABI for the read requirement at witness index \(requirement.witnessIndex). Use a Stub or a hand-written dummy."
+                )
+        }
     }
 }
 
@@ -183,7 +241,11 @@ extension Stub {
                     reason: "Failed to allocate a protocol witness table."
                 )
             }
-            for requirement in node.callableRequirements {
+            let readWitnessIndices = Set(
+                node.readCoroutineRequirements.map(\.witnessIndex)
+            )
+            for requirement in node.callableRequirements
+            where readWitnessIndices.contains(requirement.witnessIndex) == false {
                 let trampoline = try dispatch.makeCallableTrampoline(
                     for: requirement,
                     in: node,
@@ -192,6 +254,43 @@ extension Stub {
                 )
                 (witnessTable + (1 + requirement.witnessIndex) * wordSize).storeBytes(
                     of: trampoline,
+                    as: UnsafeRawPointer.self
+                )
+            }
+
+            for requirement in node.readCoroutineRequirements {
+                let plan = try dispatch.readPlan(
+                    for: requirement,
+                    in: node
+                )
+                guard
+                    let descriptor = resources.makeTrampoline(
+                        kind: .read(
+                            resumeDiscriminator: plan.resumeDiscriminator
+                        ),
+                        slot: requirement.recorderDispatchIndex,
+                        context: UnsafeRawPointer(witnessTable)
+                    )
+                else {
+                    throw StubError.trampolineAllocationFailed(
+                        requirementIndex: requirement.witnessIndex
+                    )
+                }
+                let slot = witnessTable + (1 + requirement.witnessIndex) * wordSize
+                let flags = node.descriptor.requirements[
+                    requirement.witnessIndex
+                ].flags
+                let declarationDiscriminator = UInt16(
+                    truncatingIfNeeded: flags.bits >> 16
+                )
+                let signedDescriptor =
+                    td_sign_coro_witness_pointer(
+                        descriptor,
+                        UnsafeRawPointer(slot),
+                        declarationDiscriminator
+                    ) ?? descriptor
+                slot.storeBytes(
+                    of: signedDescriptor,
                     as: UnsafeRawPointer.self
                 )
             }

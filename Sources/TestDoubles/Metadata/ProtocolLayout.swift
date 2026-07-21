@@ -63,12 +63,21 @@ struct ProtocolLayout {
         let receiver: StubRequirementReceiver
     }
 
+    /// A Swift 6.3 `read` witness and the getter-shaped recorder dispatch that
+    /// supplies the value borrowed for the duration of the coroutine.
+    struct ReadCoroutineRequirement {
+        let witnessIndex: Int
+        let recorderDispatchIndex: Int
+        let receiver: StubRequirementReceiver
+    }
+
     struct Node {
         let descriptor: ProtocolDescriptor
         let baseProtocols: [BaseProtocol]
         let associatedTypes: [AssociatedTypeRequirement]
         let associatedConformances: [AssociatedConformanceRequirement]
         let callableRequirements: [CallableRequirement]
+        let readCoroutineRequirements: [ReadCoroutineRequirement]
         let modifyCoroutineRequirements: [ModifyCoroutineRequirement]
     }
 
@@ -120,6 +129,11 @@ extension ProtocolLayout {
             witnessIndex: Int,
             getterWitnessIndex: Int,
             setterWitnessIndex: Int,
+            receiver: StubRequirementReceiver
+        )
+        typealias LocalReadRequirement = (
+            witnessIndex: Int,
+            recorderWitnessIndex: Int,
             receiver: StubRequirementReceiver
         )
 
@@ -177,6 +191,24 @@ extension ProtocolLayout {
                         )
                     },
                     callableRequirements: requirements,
+                    readCoroutineRequirements: try local.readCoroutineRequirements.map {
+                        readRequirement in
+                        guard
+                            let dispatch = requirements.first(where: {
+                                $0.witnessIndex == readRequirement.recorderWitnessIndex
+                            })
+                        else {
+                            throw StubError.unsupportedProtocolShape(
+                                protocolName: descriptor.name,
+                                reason: "A read coroutine is missing its getter dispatch mapping."
+                            )
+                        }
+                        return ReadCoroutineRequirement(
+                            witnessIndex: readRequirement.witnessIndex,
+                            recorderDispatchIndex: dispatch.dispatchIndex,
+                            receiver: readRequirement.receiver
+                        )
+                    },
                     modifyCoroutineRequirements: try local.modifyCoroutineRequirements.map {
                         modifyRequirement in
                         guard
@@ -218,6 +250,7 @@ extension ProtocolLayout {
                 kind: StubRequirementKind,
                 receiver: StubRequirementReceiver
             )],
+            readCoroutineRequirements: [LocalReadRequirement],
             modifyCoroutineRequirements: [LocalModifyRequirement]
         ) {
             // Echo 0.0.4 constructs these arrays with
@@ -351,6 +384,7 @@ extension ProtocolLayout {
                     kind: StubRequirementKind,
                     receiver: StubRequirementReceiver
                 )] = []
+            var readCoroutineRequirements: [LocalReadRequirement] = []
             var modifyCoroutineRequirements: [LocalModifyRequirement] = []
             for (index, requirement) in localRequirements.enumerated() {
                 switch requirement.flags.kind {
@@ -438,10 +472,17 @@ extension ProtocolLayout {
                             ))
 
                     case .readCoroutine:
-                        throw StubError.unsupportedProtocolShape(
-                            protocolName: descriptor.name,
-                            reason: "Requirement \(index) is an unsupported _read coroutine."
-                        )
+                        // A `read` requirement has no separate ordinary getter
+                        // slot. Expose one getter-shaped dispatch descriptor to
+                        // the recorder, then replace this witness slot with the
+                        // 16-byte yield_once_2 descriptor during fabrication.
+                        callableRequirements.append((index, .getter, requirement.flags.isInstance ? .instance : .metatype))
+                        readCoroutineRequirements.append(
+                            (
+                                witnessIndex: index,
+                                recorderWitnessIndex: index,
+                                receiver: requirement.flags.isInstance ? .instance : .metatype
+                            ))
 
                     @unknown default:
                         throw StubError.unsupportedProtocolShape(
@@ -456,6 +497,7 @@ extension ProtocolLayout {
                 associatedTypes,
                 associatedConformances,
                 callableRequirements,
+                readCoroutineRequirements,
                 modifyCoroutineRequirements
             )
         }

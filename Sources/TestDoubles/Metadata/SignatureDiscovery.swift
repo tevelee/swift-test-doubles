@@ -67,7 +67,9 @@ func discoverMethods(
             )
         }
         let kind = requirement.kind
-        let isAsync = req.flags.isAsync
+        // Swift 6.3 read-coroutine flags reuse bit 0x20 as part of the
+        // requirement kind, so it is not the ordinary async marker here.
+        let isAsync = req.flags.kind == .readCoroutine ? false : req.flags.isAsync
         let getterEffect: (isThrowing: Bool, isReliable: Bool)? =
             if kind == .getter {
                 try resolveGetterEffect(
@@ -303,7 +305,8 @@ private func resolveWitnessValue(
             throw StubError.unsupportedProtocolShape(
                 protocolName: protocolDescriptor.name,
                 reason:
-                    "Requirement \(requirementIndex) embeds associated type '\(binding.name)' inside unsupported type '\(name)'. Bound associated-type support accepts direct, Optional, Array, Set, and direct Dictionary key or value occurrences."
+                    "Requirement \(requirementIndex) embeds associated type '\(binding.name)' inside unsupported type '\(name)'. "
+                    + "Bound associated-type support accepts direct, Optional, Array, Set, and direct Dictionary key or value occurrences."
             )
         }
     }

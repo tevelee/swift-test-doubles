@@ -59,6 +59,10 @@ let elements = SourceStub.Requirement.Value
     .arrayOfAssociatedType(named: "Element")
 let elementSet = SourceStub.Requirement.Value
     .setOfAssociatedType(named: "Element")
+let elementsByName = SourceStub.Requirement.Value.dictionary(
+    key: String.self,
+    valueAssociatedTypeNamed: "Element"
+)
 let consumedElements = elements.consuming()
 
 let stub = try SourceStub(
@@ -104,10 +108,12 @@ associated accessor in the flattened layout before fabrication.
 Associated-type substitution does not specialize a dependent witness method to
 the concrete type's ordinary ABI. A direct `Element` argument is passed
 indirectly, and a direct `Element` result uses an indirect result buffer. An
-`Element?` value is also indirect, while `[Element]` and `Set<Element>` retain
-their collection's direct reference layout. Dependency and ABI layout are
-therefore tracked separately: `[Int]` and `[Element]` have the same physical
-layout but are different explicit signature contracts.
+`Element?` value is also indirect, while `[Element]`, `Set<Element>`, and
+`Dictionary<String, Element>` retain their collection's direct reference
+layout. Dependency and ABI layout are therefore tracked separately: `[Int]`
+and `[Element]` have the same physical layout but are different explicit
+signature contracts. Dictionary dependencies additionally preserve whether the
+key, value, or both came from an associated type.
 
 The fabricated witness table also needs its structural entries. TestDoubles
 flattens the inheritance and composition graph, then maps every metadata
@@ -144,10 +150,13 @@ it must evolve alongside the repository's Swift runtime support matrix.
   `Element: Equatable`.
 - Direct associated-type method arguments and results, including consuming
   direct arguments.
-- Direct associated-type property getters and setters.
-- `Optional`, `Array`, and `Set` values containing an associated type in method
-  arguments, results, and getter results. `Set` requires a `Hashable` concrete
-  binding. Method arguments in all supported container forms may be consuming.
+- Direct associated-type property getters, Swift 6.3 `read` accessors, and
+  setters.
+- `Optional`, `Array`, and `Set` values containing an associated type, plus a
+  `Dictionary` whose key, value, or both are direct associated-type occurrences,
+  in method arguments, results, and getter results. `Set` and dependent
+  Dictionary keys require a `Hashable` concrete binding. Method arguments in
+  all supported container forms may be consuming.
 - Direct and supported-container associated-type initializer arguments. Swift's
   initializer witness convention owns every parameter.
 - Requirements with any combination of `async` and ordinary untyped `throws`.
@@ -188,17 +197,18 @@ signature validation possible:
   non-covariant positions.
 - A missing, duplicate, or unknown concrete binding for any associated-type
   declaration in the flattened layout.
-- Nested dependent values other than the supported `Optional`, `Array`, and
-  `Set` forms, such as tuples containing `Element` or arbitrary generic
-  wrappers.
-- Typed errors that themselves depend on an associated type.
+- Nested dependent values other than the supported `Optional`, `Array`, `Set`,
+  and direct Dictionary key or value forms, such as tuples containing `Element`
+  or arbitrary generic wrappers.
+- Typed errors that wrap an associated type rather than naming it directly.
 - Same-type constraints other than concrete primary bindings, superclass
   constraints, `AnyObject`-constrained associated types, and other generic
   constraints outside the directly witnessed protocol-conformance form.
 - Function values involving an associated type.
 
 Borrowed and consuming direct or optional arguments use the supported indirect
-call-frame shape; arrays and sets keep their one-word direct representation.
+call-frame shape; arrays, sets, and dictionaries keep their one-word direct
+representation.
 Per-argument ownership ensures the trampoline destroys only owned input storage
 after first copying it into recorder-owned type erasure. Noncopyable and
 nonescapable dependent values remain outside the boundary.
@@ -217,21 +227,22 @@ Supporting arbitrary nested dependent types requires a recursive generic ABI
 classifier. It must understand lowered generic values, ownership, multiple
 indirect result buffers, and substitutions inside tuples, collections,
 metatypes, existentials, and function types. The implemented `Optional`,
-`Array`, and `Set` cases deliberately model their distinct lowering instead of
-inferring a universal convention from substituted concrete metadata.
+`Array`, `Set`, and direct Dictionary key or value cases deliberately model
+their distinct lowering instead of inferring a universal convention from
+substituted concrete metadata.
 
-Consuming `Optional`, `Array`, and `Set` values reuse the implemented
+Consuming `Optional`, `Array`, `Set`, and Dictionary values reuse the implemented
 value-witness and per-argument ownership path. Other nested, noncopyable, and
 nonescapable associated types still require additional lowering and lifetime
 models. An `AnyObject` associated-type constraint is also a separate dependent
 reference ABI; recognizing its metadata is not enough to transport its values
 safely, so construction rejects it explicitly.
 
-Typed throws is a separate ABI case. Concrete typed errors now share direct
-result registers or use the caller's indirect typed-error slot as required, so
-they can accompany a supported associated result. An error type that itself
-depends on an associated type still needs metadata substitution before that
-storage can be initialized.
+Typed throws is a separate ABI case. Concrete typed errors share direct result
+registers or use the caller's indirect typed-error slot as required. A direct
+associated error substitutes its binding metadata and always uses the indirect
+slot so the generic witness convention remains stable. Wrappers containing an
+associated type still require recursive dependent-type lowering.
 
 The implemented multiple-binding path maps every constrained-existential
 metadata argument to its same-type relationship and declaring protocol's

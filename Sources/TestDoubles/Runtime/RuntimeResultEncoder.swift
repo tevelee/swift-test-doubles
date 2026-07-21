@@ -333,30 +333,11 @@ enum RuntimeResultEncoder {
             case .void:
                 return
 
-            case .floatingPoint:
-                let bits = copiedReturnBytes(
-                    value,
-                    expectedType: expectedType,
-                    byteCount: 8
-                )
-                frame.storeFloatingPointReturn(bits.0)
-
-            case .integer(let words):
-                let bytes = copiedReturnBytes(
-                    value,
-                    expectedType: expectedType,
-                    byteCount: words * 8
-                )
-                frame.storeGeneralPurposeReturn(bytes.0)
-                if words > 1 {
-                    frame.storeGeneralPurposeReturn(bytes.1, at: 1)
-                }
-
-            case .aggregate(let parts):
+            case .floatingPoint, .integer, .aggregate:
                 withCopiedReturn(value, expectedType: expectedType) { source in
-                    encodeAggregateReturn(
-                        parts: parts,
+                    encodeBorrowedDirectValue(
                         from: source,
+                        layout: abi,
                         into: frame
                     )
                 }
@@ -382,6 +363,51 @@ enum RuntimeResultEncoder {
                         frame.storeGeneralPurposeReturn(destinationWord)
                     }
                 #endif
+        }
+    }
+
+    /// Copies an already initialized value's bits into direct result registers
+    /// without retaining or destroying the source. The caller defines whether
+    /// those bits transfer ownership or remain borrowed and keeps `source`
+    /// alive for the required lifetime.
+    static func encodeBorrowedDirectValue(
+        from source: UnsafeRawPointer,
+        layout: ABIClass,
+        into frame: TrampolineCallFrame
+    ) {
+        frame.zeroReturn()
+        switch layout {
+            case .void:
+                return
+            case .floatingPoint:
+                frame.storeFloatingPointReturn(
+                    UInt(source.loadUnaligned(as: UInt64.self))
+                )
+            case .integer(let words):
+                guard words <= TrampolineCallFrame.generalPurposeReturnCount else {
+                    fatalError(
+                        "[TestDoubles] Direct integer return uses too many general-purpose registers."
+                    )
+                }
+                for index in 0 ..< words {
+                    frame.storeGeneralPurposeReturn(
+                        UInt(
+                            (source + index * MemoryLayout<UInt64>.size)
+                                .loadUnaligned(as: UInt64.self)
+                        ),
+                        at: index
+                    )
+                }
+            case .aggregate(let parts):
+                encodeAggregateReturn(
+                    parts: parts,
+                    from: source,
+                    into: frame
+                )
+            case .indirect:
+                preconditionFailure(
+                    "[TestDoubles] Indirect results must be initialized in caller storage."
+                )
         }
     }
 
@@ -507,7 +533,7 @@ enum RuntimeResultEncoder {
 
     private static func encodeAggregateReturn(
         parts: [DirectValuePart],
-        from source: UnsafeMutableRawPointer,
+        from source: UnsafeRawPointer,
         into frame: TrampolineCallFrame
     ) {
         var generalPurpose = 0
@@ -545,24 +571,6 @@ enum RuntimeResultEncoder {
                     floatingPoint += 1
             }
         }
-    }
-
-    private static func copiedReturnBytes(
-        _ result: Any,
-        expectedType: Any.Type?,
-        byteCount: Int
-    ) -> (UInt, UInt) {
-        var first = UInt(0)
-        var second = UInt(0)
-        withCopiedReturn(result, expectedType: expectedType) { source in
-            if byteCount > 0 {
-                first = source.loadUnaligned(as: UInt.self)
-            }
-            if byteCount > 8 {
-                second = (source + 8).loadUnaligned(as: UInt.self)
-            }
-        }
-        return (first, second)
     }
 
     private static func withCopiedReturn(

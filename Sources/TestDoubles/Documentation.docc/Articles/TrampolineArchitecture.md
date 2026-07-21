@@ -74,9 +74,11 @@ associated-type name, and checks that mapping against the flattened inheritance
 and composition graph. It installs the associated metadata and direct
 conformance witnesses. Direct associated arguments and results, and dependent
 `Optional` values, lower indirectly even when their bindings are register-sized;
-dependent `Array` and `Set` values retain their ordinary direct reference layout
-while remaining dependent for signature validation. Opaque and class-constrained
-extended existentials use their respective container layouts. An associated
+dependent `Array`, `Set`, and `Dictionary` values retain their ordinary direct
+reference layout while remaining dependent for signature validation. Dictionary
+dependencies preserve whether the key, value, or both came from an associated
+type. Opaque and class-constrained extended existentials use their respective
+container layouts. An associated
 type constrained to `AnyObject` has a different dependent reference ABI and is
 rejected before witness fabrication.
 
@@ -121,6 +123,15 @@ exactly once, then writes it back through the paired setter. Both normal and
 abort resumes perform writeback because Swift preserves mutations made before
 a thrown unwind. Indexed access retains the borrowed indices across the yield
 and restores the setter's `[value, indices...]` ABI order.
+
+A Swift 6.3 `read` property or subscript instead has one `yield_once_2`
+coroutine descriptor and no separate getter slot. Fabrication maps that witness
+to a getter-shaped recorder entry, emits the compiler's 16-byte descriptor, and
+signs both the descriptor and resume function on arm64e. Dispatch initializes
+metadata-backed storage, returns borrowed direct register bits or an indirect
+storage address, and keeps the value alive until either resume path releases it.
+The resume discriminator is derived from the yielded result type rather than
+the fixed `_modify` discriminator.
 
 A static witness uses the same explicit argument and result lowering as its
 instance counterpart. Its hidden `Self` value is a metatype rather than an
@@ -230,15 +241,17 @@ explicit-adapter or fail-closed paths described in <doc:FunctionValues>.
 Ordinary class constraints and exact concrete primary-associated-type bindings
 across inheritance, composition, and opaque or class storage are supported.
 That dependent slice includes direct values, `Optional`, `Array`, `Set`, direct
-setters, initializer arguments, and consuming direct or supported-container
-method arguments. Static requirements, initializers, direct or optional dynamic
+Dictionary key or value occurrences, direct setters, initializer arguments, and
+consuming direct or supported-container method arguments. Static requirements,
+initializers, direct or optional dynamic
 `Self` results, and `_modify` getter/setter materialization are supported across
 opaque and class storage. Ordinary `NSObject`-backed superclass constraints
 support Swift protocol calls, compositions, static concrete results, and real superclass
 members, but not initializer requirements or dynamic `Self` results. Native
 Swift-only superclasses, superclass-constrained extended existentials, broader
 dependent-value lowering, `AnyObject`-constrained associated types, direct
-`Self` arguments, and `_read` remain outside the supported layout.
+`Self` arguments, and `read` forwarding or Dummy requirements remain outside
+the supported layout.
 Ordinary unbound existentials may receive complete caller-supplied bindings for
 covariant associated results; this is an injection into the existing dependent
 result path, not a new trampoline convention.

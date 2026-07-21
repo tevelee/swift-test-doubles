@@ -102,6 +102,7 @@ when the protocol requires any of these forwarding shapes:
 - Function-valued arguments or results
 - Arguments that spill to the stack or leave no registers for target metadata
 - `_modify` coroutines used by compound assignment and `inout` access
+- Swift 6.3 `read` accessors
 
 Use a small hand-written spy when the protocol needs one of the other shapes;
 construction fails before a generated value can be invoked.

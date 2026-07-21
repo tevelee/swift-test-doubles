@@ -15,10 +15,11 @@ For construction examples and requirement-order recipes, see
 | --- | --- | --- |
 | Ordinary protocol methods, getters, setters, subscripts, inheritance, and compositions | Automatic discovery from linked conformers or resilient requirement symbols; explicit requirements otherwise | Compositions use one group per declaring protocol. |
 | Effectful getters | Automatic discovery plus complete ``Stub/GetterEffect`` hints, or explicit requirements | Swift metadata omits getter throwing behavior. |
+| Swift 6.3 `read` accessors | Configure and verify them like synchronous nonthrowing getters | Stub yields the configured property or subscript result with borrowed lifetime; forwarding spies and dummies remain fail-closed. |
 | Static requirements, initializers, and dynamic `Self` results | Supported with the dedicated configuration builders | Use `Stub.withValue(_:)` when passing a generated metatype to code under test. |
-| Bounded primary associated types | Supported for the documented direct, `Optional`, `Array`, `Set`, setter, and initializer slice | See <doc:BoundAssociatedTypes> for exact supported and rejected shapes. |
+| Bounded primary associated types | Supported for the documented direct, `Optional`, `Array`, `Set`, `Dictionary`, setter, initializer, and direct associated-error slice | See <doc:BoundAssociatedTypes> for exact supported and rejected shapes. |
 | Function arguments and results | Automatic for concrete native Swift closures, C function pointers, blocks, and documented structural containers; explicit compiler-typed adapter otherwise | See <doc:FunctionValues>; top-level nonescaping, thin, declaration-level consuming or `inout`, dependent, and parameter-pack closure shapes remain fail-closed. |
-| Unsupported dependent shapes, native Swift-only superclasses, `_read`, and device-only execution policy | Use ``ManualStub`` or a hand-written fake | These stay fail-closed instead of guessing at ABI behavior. |
+| Unsupported dependent shapes, native Swift-only superclasses, and device-only execution policy | Use ``ManualStub`` or a hand-written fake | These stay fail-closed instead of guessing at ABI behavior. |
 
 ### Construction
 
@@ -54,6 +55,9 @@ match the declaration. A read-write property or subscript contributes its
 getter then setter. Explicit subscript accessors use
 `Stub.Requirement.subscriptGetter(indexedBy:returning:)` and
 `Stub.Requirement.subscriptSetter(indexedBy:assigning:)`.
+An experimental Swift 6.3 `read` property or subscript contributes one
+coroutine witness and is described explicitly with the corresponding getter
+factory.
 Construction validates all reliably discoverable components before allocating
 runtime state. Getter throwing behavior remains caller-supplied because witness
 symbols do not encode it. Detectable failures are reported as ``StubError``
@@ -135,6 +139,14 @@ metadata-backed writable storage, then dispatches the setter with the final
 value. Swift unwind is non-transactional, so a value changed before a thrown
 error is written back on the abort path too. Subscript indices are retained
 across the yield and passed after the final value in setter ABI order.
+
+A Swift 6.3 `read` accessor uses its one coroutine witness as a getter-shaped
+recorder dispatch. Configure and verify a property or subscript with the normal
+getter APIs. The runtime initializes result storage, yields a borrowed direct or
+indirect value, and destroys it only when Swift resumes or aborts the borrow.
+This slice is synchronous, nonthrowing, and Stub-only; forwarding and Dummy
+construction fail closed.
+
 Handlers accept arbitrary arity through Swift parameter packs. Async handlers
 may suspend as part of the caller's task, preserving task-local values,
 cancellation, and priority. An async handler preserves the actor or executor on
@@ -311,24 +323,23 @@ error channel.
   thunks. C function pointers and block values are supported without native
   reabstraction thunks. The
   explicit adapter path remains unavailable for async requirements, initializers,
-  `_modify`, dependent closure shapes, and signatures without a free
+  `_modify`, `read`, dependent closure shapes, and signatures without a free
   general-purpose argument register. A
   thick closure cannot serve as that adapter because its abstraction ABI is not
   a witness ABI.
-- Typed errors that themselves depend on an associated type. Supporting them
-  still needs associated metadata substitution. Ordinary untyped `throws` is
-  supported across the broader documented boundary.
 - Associated-type protocols outside the bounded slice documented in
   <doc:BoundAssociatedTypes>, including unbound associated types without
   complete caller bindings, caller-bound dependent inputs, nested dependent
-  types other than `Optional`, `Array`, and `Set`, broader same-type
-  constraints, `AnyObject`-constrained associated types, and typed errors that
-  themselves depend on an associated type.
+  types other than `Optional`, `Array`, `Set`, and direct `Dictionary` key or
+  value occurrences, broader same-type constraints, `AnyObject`-constrained
+  associated types, and typed errors that wrap an associated type.
 - Superclass-constrained existentials with a native Swift-only base class, a
   bound-associated-type extended layout, no usable `NSObject` default
   initializer, an initializer requirement, or a dynamic `Self` result.
-  Objective-C-only protocol existentials and `_read` requirements are also
-  unsupported.
+  Objective-C-only protocol existentials are also unsupported.
+- `read` accessors in forwarding spies or dummies, and `read` results containing
+  a function or dynamic `Self`. Use a Stub with an ordinary supported result or
+  a hand-written test double.
 - Direct `Self` arguments.
 - Async getters discovered automatically without ``Stub/GetterEffect`` hints,
   because their throwing behavior cannot be determined safely. Supply complete

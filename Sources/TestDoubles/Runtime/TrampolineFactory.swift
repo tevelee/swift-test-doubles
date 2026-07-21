@@ -5,6 +5,7 @@ enum TrampolineFactory {
         case synchronous
         case asynchronous
         case modify
+        case read(resumeDiscriminator: UInt16)
     }
 
     /// Builds one fabricated witness graph's veneers before publishing all of
@@ -54,6 +55,13 @@ enum TrampolineFactory {
                         rawArena,
                         UInt(slot),
                         UInt(bitPattern: context)
+                    )
+                case .read(let resumeDiscriminator):
+                    pointer = td_witness_veneer_arena_make_read(
+                        rawArena,
+                        UInt(slot),
+                        UInt(bitPattern: context),
+                        resumeDiscriminator
                     )
             }
             return pointer.map(UnsafeRawPointer.init)

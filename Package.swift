@@ -48,6 +48,13 @@ let package = Package(
                 .unsafeFlags(["-enable-library-evolution"])
             ]
         ),
+        .target(
+            name: "TestDoublesReadFixtures",
+            path: "Tests/TestDoublesReadFixtures",
+            swiftSettings: [
+                .enableExperimentalFeature("CoroutineAccessors")
+            ]
+        ),
         .testTarget(
             name: "TestDoublesTests",
             dependencies: [
@@ -55,6 +62,17 @@ let package = Package(
                 "TestDoublesFixtures",
                 "TestDoublesResilientFixtures",
                 .product(name: "IssueReportingTestSupport", package: "swift-issue-reporting")
+            ]
+        ),
+        .testTarget(
+            name: "TestDoublesReadTests",
+            dependencies: [
+                "TestDoubles",
+                "TestDoublesReadFixtures"
+            ],
+            path: "Tests/TestDoublesReadTests",
+            swiftSettings: [
+                .enableExperimentalFeature("CoroutineAccessors")
             ]
         )
     ],

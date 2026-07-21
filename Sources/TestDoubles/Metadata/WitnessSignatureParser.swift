@@ -36,6 +36,7 @@ func parseWitnessSignature(
     }
 
     let prefixes = [
+        "coro function pointer to ",
         "protocol witness for ",
         "method descriptor for ",
         "dispatch thunk of "
@@ -46,10 +47,22 @@ func parseWitnessSignature(
 
     // Accessor: "count.getter : Int", "count.setter : Int", or
     // "subscript.getter : (Swift.Int) -> Swift.String".
-    if kind == .getter || kind == .setter {
-        let marker = kind == .getter ? ".getter : " : ".setter : "
-        if let range = cleaned.range(of: marker) {
-            return parseAccessorSignature(cleaned, accessorTypeAt: range, kind: kind)
+    if kind == .getter || kind == .setter || kind == .readCoroutine {
+        let markers: [String]
+        switch kind {
+            case .getter:
+                markers = [".getter : "]
+            case .setter:
+                markers = [".setter : "]
+            case .readCoroutine:
+                markers = [".read2 : ", ".read : "]
+            default:
+                preconditionFailure("Accessor kind was validated before parsing.")
+        }
+        for marker in markers {
+            if let range = cleaned.range(of: marker) {
+                return parseAccessorSignature(cleaned, accessorTypeAt: range, kind: kind)
+            }
         }
     }
 
@@ -114,12 +127,12 @@ private func parseAccessorSignature(
     }
     return ParsedWitnessSignature(
         name: propertyName,
-        argumentTypes: kind == .getter
-            ? indexTypes
-            : [valueType] + indexTypes,
-        returnType: kind == .getter
-            ? valueType
-            : .concrete("Swift.Void"),
+        argumentTypes: kind == .setter
+            ? [valueType] + indexTypes
+            : indexTypes,
+        returnType: kind == .setter
+            ? .concrete("Swift.Void")
+            : valueType,
         isThrowing: false,
         typedError: nil
     )

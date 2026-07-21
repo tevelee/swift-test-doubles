@@ -413,9 +413,10 @@ What's supported:
   class-constrained protocols, and `NSObject`-backed superclass existentials
   on Apple platforms.
 - Dynamic `Self` results, bound primary associated types (direct values plus
-  `Optional`, `Array`, and `Set` of them), and native Swift closures as
-  arguments and results.
-- Compound assignment and `inout` access through `_modify`, concurrent
+  `Optional`, `Array`, `Set`, and direct `Dictionary` key, value, or both
+  occurrences), and native Swift closures as arguments and results.
+- Borrowing property and subscript access through Swift 6.3 `read` accessors,
+  compound assignment and `inout` access through `_modify`, concurrent
   invocation of generated values, behavior chains, argument captors, ordered
   and event-driven verification.
 

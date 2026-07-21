@@ -81,11 +81,13 @@ state and completes the witness call.
 Async requirements follow the same model while also preserving the caller's
 continuation across suspension. Read-write properties and subscripts use a
 specialized `_modify` path that yields temporary storage and writes the final
-value back through the configured setter. Function-valued arguments and results
-may need an additional reabstraction step because a concrete Swift closure and
-an `Any`-based recorder do not necessarily use the same calling convention.
-These are adaptations around the same central recorder path, not separate
-mocking systems.
+value back through the configured setter. Swift 6.3 `read` accessors use a
+separate borrowed coroutine path: the configured getter result stays alive until
+the caller resumes or aborts the borrow, without a setter writeback.
+Function-valued arguments and results may need an additional reabstraction step
+because a concrete Swift closure and an `Any`-based recorder do not necessarily
+use the same calling convention. These are adaptations around the same central
+recorder path, not separate mocking systems.
 
 ### Configuration uses the same path
 

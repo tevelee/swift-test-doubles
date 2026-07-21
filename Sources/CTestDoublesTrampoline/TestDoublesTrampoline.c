@@ -66,6 +66,8 @@ _Static_assert(offsetof(TDCallFrame, returnFP) == TD_FRAME_RETURN_FP_OFFSET, "re
 _Static_assert(offsetof(TDCallFrame, returnError) == TD_FRAME_RETURN_ERROR_OFFSET, "returnError offset changed");
 _Static_assert(sizeof(TDModifyCoroutineResult) == 2 * sizeof(void *),
                "TDModifyCoroutineResult size changed");
+_Static_assert(sizeof(TDReadCoroutineResult) == 2 * sizeof(void *),
+               "TDReadCoroutineResult size changed");
 
 #if __has_attribute(weak)
 #define TD_WEAK __attribute__((weak))
@@ -87,9 +89,34 @@ TD_WEAK void td_swift_modify_trampoline_resume_handler(void *state, bool isAbort
   __builtin_trap();
 }
 
+TD_WEAK TDReadCoroutineResult td_swift_read_trampoline_handler(TDCallFrame *frame) {
+  (void)frame;
+  __builtin_trap();
+}
+
+TD_WEAK void td_swift_read_trampoline_resume_handler(void *state, bool isAborting) {
+  (void)state;
+  (void)isAborting;
+  __builtin_trap();
+}
+
 TD_WEAK void td_swift_dynamic_function_handler(TDCallFrame *frame) {
   (void)frame;
   __builtin_trap();
+}
+
+const void *td_sign_coro_witness_pointer(const void *pointer,
+                                         const void *slot,
+                                         uint16_t discriminator) {
+#if defined(__APPLE__) && __has_feature(ptrauth_calls)
+  uintptr_t blended = ptrauth_blend_discriminator(slot, discriminator);
+  return ptrauth_sign_unauthenticated(
+      pointer, ptrauth_key_process_dependent_data, blended);
+#else
+  (void)slot;
+  (void)discriminator;
+  return pointer;
+#endif
 }
 
 static size_t td_page_size(void) {
@@ -228,11 +255,25 @@ typedef struct TDAsyncFunctionPointer {
   uint32_t expectedContextSize;
 } TDAsyncFunctionPointer;
 
+typedef struct TDCoroFunctionPointer {
+  int32_t relativeFunction;
+  uint32_t callerFrameSize;
+  uint64_t mallocTypeID;
+} TDCoroFunctionPointer;
+
 _Static_assert(sizeof(TDAsyncFunctionPointer) == 8, "async function descriptor size changed");
 _Static_assert(offsetof(TDAsyncFunctionPointer, relativeFunction) == 0,
                "async function descriptor relative function offset changed");
 _Static_assert(offsetof(TDAsyncFunctionPointer, expectedContextSize) == 4,
                "async function descriptor context size offset changed");
+_Static_assert(sizeof(TDCoroFunctionPointer) == 16,
+               "coroutine function descriptor size changed");
+_Static_assert(offsetof(TDCoroFunctionPointer, relativeFunction) == 0,
+               "coroutine descriptor relative function offset changed");
+_Static_assert(offsetof(TDCoroFunctionPointer, callerFrameSize) == 4,
+               "coroutine descriptor frame size offset changed");
+_Static_assert(offsetof(TDCoroFunctionPointer, mallocTypeID) == 8,
+               "coroutine descriptor malloc type ID offset changed");
 
 static bool td_emit_witness_veneer(uint8_t *code, uintptr_t slot,
                                    uintptr_t context, const void *entryTarget) {
@@ -255,6 +296,20 @@ static bool td_emit_witness_veneer(uint8_t *code, uintptr_t slot,
   (void)context;
   (void)entryTarget;
   return false;
+#endif
+}
+
+static bool td_emit_read_witness_veneer(uint8_t *code, uintptr_t slot,
+                                        uintptr_t context,
+                                        uint16_t resumeDiscriminator,
+                                        const void *entryTarget) {
+#if defined(__aarch64__) || defined(__arm64__)
+  uint32_t *cursor = (uint32_t *)code;
+  *cursor++ = td_arm64_movz(14, resumeDiscriminator, 0);
+  return td_emit_witness_veneer((uint8_t *)cursor, slot, context, entryTarget);
+#else
+  (void)resumeDiscriminator;
+  return td_emit_witness_veneer(code, slot, context, entryTarget);
 #endif
 }
 
@@ -302,6 +357,8 @@ static bool td_emit_typed_witness_veneer(uint8_t *code,
 #if defined(__aarch64__) || defined(__arm64__)
 _Static_assert(TD_WITNESS_VENEER_CODE_CAPACITY >= 52,
                "arm64 witness veneer capacity is too small");
+_Static_assert(TD_WITNESS_VENEER_CODE_CAPACITY >= 56,
+               "arm64 read witness veneer capacity is too small");
 _Static_assert(TD_TYPED_WITNESS_VENEER_CODE_CAPACITY >= 36,
                "arm64 typed witness veneer capacity is too small");
 #elif defined(__x86_64__)
@@ -314,14 +371,16 @@ _Static_assert(TD_TYPED_WITNESS_VENEER_CODE_CAPACITY >= 24,
 typedef enum TDVeneerLayout {
   TD_VENEER_LAYOUT_DIRECT,
   TD_VENEER_LAYOUT_ASYNC,
+  TD_VENEER_LAYOUT_READ,
 } TDVeneerLayout;
 
 static void *td_witness_veneer_arena_make(
     TDWitnessVeneerArena *arena, uintptr_t slot, uintptr_t context,
-    const void *entryTarget, TDVeneerLayout layout) {
-  size_t descriptorSize = layout == TD_VENEER_LAYOUT_ASYNC
-                              ? TD_ASYNC_VENEER_DESCRIPTOR_CAPACITY
-                              : 0;
+    uint16_t resumeDiscriminator, const void *entryTarget,
+    TDVeneerLayout layout) {
+  size_t descriptorSize =
+      layout == TD_VENEER_LAYOUT_DIRECT ? 0
+                                        : TD_ASYNC_VENEER_DESCRIPTOR_CAPACITY;
   uint8_t *entry = td_reserve_veneer(
       arena, descriptorSize + TD_WITNESS_VENEER_CODE_CAPACITY);
   if (!entry) {
@@ -334,9 +393,22 @@ static void *td_witness_veneer_arena_make(
     code = entry + TD_ASYNC_VENEER_DESCRIPTOR_CAPACITY;
     descriptor->relativeFunction = (int32_t)(code - entry);
     descriptor->expectedContextSize = TD_ASYNC_CONTEXT_SIZE;
+  } else if (layout == TD_VENEER_LAYOUT_READ) {
+    TDCoroFunctionPointer *descriptor = (TDCoroFunctionPointer *)entry;
+    code = entry + TD_ASYNC_VENEER_DESCRIPTOR_CAPACITY;
+    descriptor->relativeFunction = (int32_t)(code - entry);
+    descriptor->callerFrameSize = TD_READ_CONTEXT_SIZE;
+    // Swift IRGen deliberately uses zero when typed coroutine-frame malloc is
+    // disabled. This veneer never requests an auxiliary allocation.
+    descriptor->mallocTypeID = 0;
   }
 
-  if (!td_emit_witness_veneer(code, slot, context, entryTarget)) {
+  bool emitted =
+      layout == TD_VENEER_LAYOUT_READ
+          ? td_emit_read_witness_veneer(code, slot, context,
+                                        resumeDiscriminator, entryTarget)
+          : td_emit_witness_veneer(code, slot, context, entryTarget);
+  if (!emitted) {
     arena->failed = true;
     return 0;
   }
@@ -361,7 +433,7 @@ void *td_witness_veneer_arena_make_witness(TDWitnessVeneerArena *arena,
                                            uintptr_t slot,
                                            uintptr_t context) {
   return td_witness_veneer_arena_make(
-      arena, slot, context, (const void *)&td_swift_trampoline_entry,
+      arena, slot, context, 0, (const void *)&td_swift_trampoline_entry,
       TD_VENEER_LAYOUT_DIRECT);
 }
 
@@ -369,7 +441,7 @@ void *td_witness_veneer_arena_make_async(TDWitnessVeneerArena *arena,
                                          uintptr_t slot,
                                          uintptr_t context) {
   return td_witness_veneer_arena_make(
-      arena, slot, context, (const void *)&td_swift_async_trampoline_entry,
+      arena, slot, context, 0, (const void *)&td_swift_async_trampoline_entry,
       TD_VENEER_LAYOUT_ASYNC);
 }
 
@@ -377,8 +449,16 @@ void *td_witness_veneer_arena_make_modify(TDWitnessVeneerArena *arena,
                                           uintptr_t slot,
                                           uintptr_t context) {
   return td_witness_veneer_arena_make(
-      arena, slot, context, (const void *)&td_swift_modify_trampoline_entry,
+      arena, slot, context, 0, (const void *)&td_swift_modify_trampoline_entry,
       TD_VENEER_LAYOUT_DIRECT);
+}
+
+void *td_witness_veneer_arena_make_read(TDWitnessVeneerArena *arena,
+                                        uintptr_t slot, uintptr_t context,
+                                        uint16_t resumeDiscriminator) {
+  return td_witness_veneer_arena_make(
+      arena, slot, context, resumeDiscriminator,
+      (const void *)&td_swift_read_trampoline_entry, TD_VENEER_LAYOUT_READ);
 }
 
 void *td_witness_veneer_arena_make_typed(

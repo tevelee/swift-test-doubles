@@ -234,6 +234,25 @@ stub.verify { $0.displayName }
 stub.verify { $0.displayName = equal("Blob!") }
 ```
 
+Swift 6.3's experimental `read` accessor uses the ordinary getter API while
+preserving a borrowed result for the caller:
+
+```swift
+protocol Snapshot {
+    var value: String { read }
+}
+
+let stub = try Stub<any Snapshot>()
+stub.when { $0.value }.thenReturn("ready")
+
+let snapshot: any Snapshot = stub()
+#expect(snapshot.value == "ready")
+stub.verify { $0.value }
+```
+
+Until `CoroutineAccessors` graduates from experimental status, enable that
+feature in the target that declares or implements a `read` accessor.
+
 Capture closures should name the ordinary getter or direct setter rather than
 perform compound mutation. Use the labeled `verifyInOrder(mutating:)` overload
 for an ordered sequence containing assignments, and `verify` for setter counts.

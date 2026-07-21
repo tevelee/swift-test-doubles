@@ -32,6 +32,9 @@
 // sync with Scripts/check-swift-abi-constants.sh.
 #define TD_MODIFY_RESUME_DISCRIMINATOR 3909
 
+#define TD_READ_CONTEXT_STATE_OFFSET 0
+#define TD_READ_CONTEXT_SIZE 16
+
 #ifndef __ASSEMBLER__
 #include <stdbool.h>
 #include <stddef.h>
@@ -94,6 +97,16 @@ typedef struct TDModifyCoroutineResult {
   void *yieldedStorage;
 } TDModifyCoroutineResult;
 
+/// The result of beginning a Swift 6.3 yield_once_2 `read` coroutine.
+///
+/// `state` is consumed by the resume handler. `yieldedStorage` is non-null
+/// only for a formally indirect result, where Swift borrows the initialized
+/// value through that address instead of receiving direct register words.
+typedef struct TDReadCoroutineResult {
+  void *state;
+  void *yieldedStorage;
+} TDReadCoroutineResult;
+
 typedef struct TDWitnessVeneerArena TDWitnessVeneerArena;
 
 TDWitnessVeneerArena *td_witness_veneer_arena_create(void);
@@ -106,6 +119,10 @@ void *td_witness_veneer_arena_make_async(TDWitnessVeneerArena *arena,
 void *td_witness_veneer_arena_make_modify(TDWitnessVeneerArena *arena,
                                           uintptr_t slot,
                                           uintptr_t context);
+void *td_witness_veneer_arena_make_read(TDWitnessVeneerArena *arena,
+                                        uintptr_t slot,
+                                        uintptr_t context,
+                                        uint16_t resumeDiscriminator);
 void *td_witness_veneer_arena_make_typed(
     TDWitnessVeneerArena *arena,
     const void *target,
@@ -121,6 +138,9 @@ void td_visit_local_symbols(TDLocalSymbolVisitor visitor, void *context);
 const void *td_sign_function_pointer(const void *pointer, uint16_t discriminator);
 const void *td_sign_async_function_pointer(const void *pointer,
                                            uint16_t discriminator);
+const void *td_sign_coro_witness_pointer(const void *pointer,
+                                         const void *slot,
+                                         uint16_t discriminator);
 const void *td_strip_witness_function_pointer(const void *pointer);
 const void *td_strip_async_witness_pointer(const void *pointer);
 uint16_t td_generic_function_discriminator(uint16_t parameterCount,
@@ -146,6 +166,8 @@ void td_swift_dynamic_async_function_entry(void);
 void td_swift_async_trampoline_entry(void);
 void td_swift_modify_trampoline_entry(void);
 void td_swift_modify_trampoline_resume(void);
+void td_swift_read_trampoline_entry(void);
+void td_swift_read_trampoline_resume(void);
 void td_swift_trampoline_handler(TDCallFrame *frame);
 void td_swift_dynamic_function_handler(TDCallFrame *frame);
 void *td_swift_async_trampoline_handler(TDCallFrame *frame);
@@ -168,6 +190,15 @@ TDModifyCoroutineResult td_swift_modify_trampoline_handler(TDCallFrame *frame);
 /// `isAborting` is the Swift coroutine abort flag. Implementations must perform
 /// any required writeback and release the state on both paths.
 void td_swift_modify_trampoline_resume_handler(void *state, bool isAborting);
+
+/// Begins a Swift 6.3 `read` dispatch captured in `frame`.
+///
+/// The generated descriptor supplies a 16-byte caller frame. User arguments
+/// begin after that hidden frame (and the x86_64 allocator argument). The
+/// implementation retains the yielded value until the resume handler consumes
+/// `result.state` exactly once on either normal completion or abort.
+TDReadCoroutineResult td_swift_read_trampoline_handler(TDCallFrame *frame);
+void td_swift_read_trampoline_resume_handler(void *state, bool isAborting);
 TDSwiftErrorAllocation td_swift_alloc_error(const void *type,
                                             const void *witnessTable,
                                             const void *flags,
