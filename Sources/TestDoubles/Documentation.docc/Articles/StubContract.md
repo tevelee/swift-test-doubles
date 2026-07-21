@@ -78,8 +78,11 @@ The bounded associated-type path uses
 ``Stub/Requirement/Value/optionalAssociatedType(named:)`` or
 ``Stub/Requirement/Value/arrayOfAssociatedType(named:)`` or
 ``Stub/Requirement/Value/setOfAssociatedType(named:)`` for the supported
-single-parameter containers. The `dictionary` factories distinguish a dependent
-key, value, or both, while ``Stub/Requirement/Value/consuming()`` marks any of
+single-parameter containers. Compose ``Stub/Requirement/Value/optional(wrapping:)``,
+``Stub/Requirement/Value/array(of:)``, ``Stub/Requirement/Value/set(of:)``, and
+``Stub/Requirement/Value/dictionary(key:value:)`` for arbitrary recursive
+combinations of those containers. Every resolved set element and Dictionary key
+must conform to `Hashable`. ``Stub/Requirement/Value/consuming()`` marks any of
 these dependent method argument values as consuming. A direct associated typed
 error is named with
 `Stub.Requirement.method(_:returning:throwingAssociatedTypeNamed:isAsync:)`.

@@ -63,6 +63,13 @@ let elementsByName = SourceStub.Requirement.Value.dictionary(
     key: String.self,
     valueAssociatedTypeNamed: "Element"
 )
+let optionalElementArrays = SourceStub.Requirement.Value.optional(
+    wrapping: .array(of: element)
+)
+let elementsByOptionalSet = SourceStub.Requirement.Value.dictionary(
+    key: .optional(wrapping: .set(of: .optional(wrapping: element))),
+    value: .array(of: .optional(wrapping: element))
+)
 let consumedElements = elements.consuming()
 
 let stub = try SourceStub(
@@ -110,10 +117,13 @@ the concrete type's ordinary ABI. A direct `Element` argument is passed
 indirectly, and a direct `Element` result uses an indirect result buffer. An
 `Element?` value is also indirect, while `[Element]`, `Set<Element>`, and
 `Dictionary<String, Element>` retain their collection's direct reference
-layout. Dependency and ABI layout are therefore tracked separately: `[Int]`
-and `[Element]` have the same physical layout but are different explicit
-signature contracts. Dictionary dependencies additionally preserve whether the
-key, value, or both came from an associated type.
+layout. This rule composes recursively. `Element??` remains indirect, but
+`[Element]?`, `[Element?]`, and `[String: [Element?]]` are fixed because the
+nearest opaque occurrence is enclosed by a reference-backed collection shell.
+Dependency and ABI layout are therefore tracked separately: `[Int]` and
+`[Element]` have the same physical layout but are different explicit signature
+contracts. Dictionary dependencies additionally preserve the complete key and
+value source shapes.
 
 The fabricated witness table also needs its structural entries. TestDoubles
 flattens the inheritance and composition graph, then maps every metadata
@@ -152,11 +162,11 @@ it must evolve alongside the repository's Swift runtime support matrix.
   direct arguments.
 - Direct associated-type property getters, Swift 6.3 `read` accessors, and
   setters.
-- `Optional`, `Array`, and `Set` values containing an associated type, plus a
-  `Dictionary` whose key, value, or both are direct associated-type occurrences,
-  in method arguments, results, and getter results. `Set` and dependent
-  Dictionary keys require a `Hashable` concrete binding. Method arguments in
-  all supported container forms may be consuming.
+- Arbitrarily recursive combinations of `Optional`, `Array`, `Set`, and
+  `Dictionary` containing associated and concrete leaves, in method arguments,
+  results, and getter results. Every resolved `Set` element and `Dictionary`
+  key must prove `Hashable`. Method arguments in all supported container forms
+  may be consuming.
 - Direct and supported-container associated-type initializer arguments. Swift's
   initializer witness convention owns every parameter.
 - Requirements with any combination of `async` and ordinary untyped `throws`.
@@ -171,9 +181,9 @@ it must evolve alongside the repository's Swift runtime support matrix.
   error that wraps an associated type remains unsupported.
 - Automatic discovery and explicit requirement descriptions.
 - Complete caller-supplied bindings for unbound associated types used only in
-  covariant method or getter results or as a direct typed error. Flat explicit
-  requirements are supported; result values remain statically erased to their
-  upper bounds at the call site.
+  covariant method or getter results or as a direct typed error. Both flat and
+  recursively nested supported-container requirements are supported; result
+  values remain statically erased to their upper bounds at the call site.
 
 The implementation has tests that pass fabricated existentials to generic code,
 use multiple associated-type conformances, bind stubs to different concrete
@@ -197,9 +207,9 @@ signature validation possible:
   non-covariant positions.
 - A missing, duplicate, or unknown concrete binding for any associated-type
   declaration in the flattened layout.
-- Nested dependent values other than the supported `Optional`, `Array`, `Set`,
-  and direct Dictionary key or value forms, such as tuples containing `Element`
-  or arbitrary generic wrappers.
+- Dependent values outside recursive `Optional`, `Array`, `Set`, and
+  `Dictionary`, such as tuples, `Result`, arbitrary generic wrappers,
+  metatypes, existentials, or function types containing `Element`.
 - Typed errors that wrap an associated type rather than naming it directly.
 - Same-type constraints other than concrete primary bindings, superclass
   constraints, `AnyObject`-constrained associated types, and other generic
@@ -221,13 +231,12 @@ demonstrated above, but cannot make another nested or otherwise unsupported
 source declaration safe. Do not use explicit values to force one of these
 rejected declarations through construction.
 
-### Work required for general support
+### Work required for broader support
 
-Supporting arbitrary nested dependent types requires a recursive generic ABI
-classifier. It must understand lowered generic values, ownership, multiple
-indirect result buffers, and substitutions inside tuples, collections,
-metatypes, existentials, and function types. The implemented `Optional`,
-`Array`, `Set`, and direct Dictionary key or value cases deliberately model
+The recursive classifier is deliberately bounded to standard-library
+`Optional`, `Array`, `Set`, and `Dictionary`. Supporting other dependent types
+requires formal lowering evidence for tuples, `Result`, custom generic values,
+metatypes, existentials, and function types. The implemented containers model
 their distinct lowering instead of inferring a universal convention from
 substituted concrete metadata.
 

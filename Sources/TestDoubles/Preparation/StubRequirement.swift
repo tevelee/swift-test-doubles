@@ -65,23 +65,14 @@ extension Stub {
     public struct Requirement: Sendable {
         /// A direct concrete or associated-type value in a requirement.
         public struct Value: Sendable {
-            enum Source: Sendable {
+            indirect enum Source: Sendable {
                 case concrete(Any.Type)
                 case associatedType(String)
-                case associatedTypeContainer(
-                    name: String,
-                    container: AssociatedTypeContainer
-                )
-                case associatedTypeDictionary(
-                    key: DictionaryComponent,
-                    value: DictionaryComponent
-                )
+                case optional(Source)
+                case array(Source)
+                case set(Source)
+                case dictionary(key: Source, value: Source)
                 case selfType(isOptional: Bool)
-            }
-
-            enum DictionaryComponent: Sendable {
-                case concrete(Any.Type)
-                case associatedType(String)
             }
             let source: Source
             let ownership: WitnessArgumentOwnership?
@@ -120,24 +111,12 @@ extension Stub {
 
             /// Describes an optional containing the named associated type.
             public static func optionalAssociatedType(named name: String) -> Self {
-                Self(
-                    source: .associatedTypeContainer(
-                        name: name,
-                        container: .optional
-                    ),
-                    ownership: nil
-                )
+                optional(wrapping: associatedType(named: name))
             }
 
             /// Describes an array whose element is the named associated type.
             public static func arrayOfAssociatedType(named name: String) -> Self {
-                Self(
-                    source: .associatedTypeContainer(
-                        name: name,
-                        container: .array
-                    ),
-                    ownership: nil
-                )
+                array(of: associatedType(named: name))
             }
 
             /// Describes a set whose element is the named associated type.
@@ -145,10 +124,41 @@ extension Stub {
             /// The associated type's concrete binding must conform to
             /// `Hashable`, as required by `Set`.
             public static func setOfAssociatedType(named name: String) -> Self {
+                set(of: associatedType(named: name))
+            }
+
+            /// Describes an optional wrapping another requirement value schema.
+            ///
+            /// Compose this factory with ``array(of:)``, ``set(of:)``, or
+            /// ``dictionary(key:value:)`` to describe recursively nested
+            /// standard-library containers.
+            public static func optional(wrapping value: Self) -> Self {
                 Self(
-                    source: .associatedTypeContainer(
-                        name: name,
-                        container: .set
+                    source: .optional(value.source),
+                    ownership: nil
+                )
+            }
+
+            /// Describes an array whose element uses another requirement value schema.
+            public static func array(of element: Self) -> Self {
+                Self(source: .array(element.source), ownership: nil)
+            }
+
+            /// Describes a set whose element uses another requirement value schema.
+            ///
+            /// The resolved element type must conform to `Hashable`.
+            public static func set(of element: Self) -> Self {
+                Self(source: .set(element.source), ownership: nil)
+            }
+
+            /// Describes a Dictionary whose key and value use requirement value schemas.
+            ///
+            /// The resolved key type must conform to `Hashable`.
+            public static func dictionary(key: Self, value: Self) -> Self {
+                Self(
+                    source: .dictionary(
+                        key: key.source,
+                        value: value.source
                     ),
                     ownership: nil
                 )
@@ -160,7 +170,7 @@ extension Stub {
                 valueAssociatedTypeNamed valueName: String
             ) -> Self {
                 Self(
-                    source: .associatedTypeDictionary(
+                    source: .dictionary(
                         key: .concrete(key),
                         value: .associatedType(valueName)
                     ),
@@ -176,7 +186,7 @@ extension Stub {
                 value: Value.Type
             ) -> Self {
                 Self(
-                    source: .associatedTypeDictionary(
+                    source: .dictionary(
                         key: .associatedType(keyName),
                         value: .concrete(value)
                     ),
@@ -192,7 +202,7 @@ extension Stub {
                 valueAssociatedTypeNamed valueName: String
             ) -> Self {
                 Self(
-                    source: .associatedTypeDictionary(
+                    source: .dictionary(
                         key: .associatedType(keyName),
                         value: .associatedType(valueName)
                     ),

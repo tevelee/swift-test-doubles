@@ -5,74 +5,73 @@ extension Stub.Requirement.Value {
         protocolDescriptor: ProtocolDescriptor,
         bindings: AssociatedTypeBindings
     ) throws -> ResolvedWitnessValue {
-        switch source {
+        if case .selfType(let isOptional) = source {
+            return .selfValue(isOptional: isOptional, ownership: ownership)
+        }
+        return .resolved(
+            try source.resolveDependentType(
+                protocolDescriptor: protocolDescriptor,
+                bindings: bindings
+            ),
+            ownership: ownership
+        )
+    }
+}
+
+extension Stub.Requirement.Value.Source {
+    func resolveDependentType(
+        protocolDescriptor: ProtocolDescriptor,
+        bindings: AssociatedTypeBindings
+    ) throws -> ResolvedDependentType {
+        switch self {
             case .concrete(let type):
-                return ResolvedWitnessValue(
+                return ResolvedDependentType(
                     type: type,
-                    convention: .concrete,
-                    dependency: .independent,
-                    ownership: ownership
+                    dependency: .independent
                 )
             case .associatedType(let name):
                 return .associatedType(
-                    binding: try bindings.binding(named: name, declaredBy: protocolDescriptor),
-                    ownership: ownership
+                    binding: try bindings.binding(
+                        named: name,
+                        declaredBy: protocolDescriptor
+                    )
                 )
-            case .associatedTypeContainer(let name, let container):
-                return try .associatedType(
-                    binding: try bindings.binding(named: name, declaredBy: protocolDescriptor),
-                    container: container,
-                    ownership: ownership
-                )
-            case .associatedTypeDictionary(let key, let value):
-                let resolvedKey = try key.resolve(
+            case .optional(let wrapped):
+                return try wrapped.resolveDependentType(
+                    protocolDescriptor: protocolDescriptor,
+                    bindings: bindings
+                ).optional()
+            case .array(let element):
+                return try element.resolveDependentType(
+                    protocolDescriptor: protocolDescriptor,
+                    bindings: bindings
+                ).array()
+            case .set(let element):
+                let resolved = try element.resolveDependentType(
                     protocolDescriptor: protocolDescriptor,
                     bindings: bindings
                 )
-                let resolvedValue = try value.resolve(
-                    protocolDescriptor: protocolDescriptor,
-                    bindings: bindings
-                )
-                return try .associatedTypeDictionary(
-                    keyType: resolvedKey.type,
-                    keyDependency: resolvedKey.dependency,
-                    valueType: resolvedValue.type,
-                    valueDependency: resolvedValue.dependency,
+                return try resolved.set(
                     protocolName: protocolDescriptor.name,
-                    ownership: ownership
+                    sourceDescription: runtimeTypeName(resolved.type)
                 )
-            case .selfType(let isOptional):
-                return .selfValue(isOptional: isOptional, ownership: ownership)
-        }
-    }
-}
-
-extension Stub.Requirement.Value.DictionaryComponent {
-    func resolve(
-        protocolDescriptor: ProtocolDescriptor,
-        bindings: AssociatedTypeBindings
-    ) throws -> (type: Any.Type, dependency: WitnessValueDependency) {
-        switch self {
-            case .concrete(let type):
-                (type, .independent)
-            case .associatedType(let name):
-                try resolvedAssociatedType(
-                    named: name,
-                    protocolDescriptor: protocolDescriptor,
-                    bindings: bindings
+            case .dictionary(let key, let value):
+                return try .dictionary(
+                    key: key.resolveDependentType(
+                        protocolDescriptor: protocolDescriptor,
+                        bindings: bindings
+                    ),
+                    value: value.resolveDependentType(
+                        protocolDescriptor: protocolDescriptor,
+                        bindings: bindings
+                    ),
+                    protocolName: protocolDescriptor.name
+                )
+            case .selfType:
+                throw StubError.unsupportedProtocolShape(
+                    protocolName: protocolDescriptor.name,
+                    reason: "Dynamic Self is supported only as a direct result, not inside a container value schema."
                 )
         }
     }
-}
-
-private func resolvedAssociatedType(
-    named name: String,
-    protocolDescriptor: ProtocolDescriptor,
-    bindings: AssociatedTypeBindings
-) throws -> (type: Any.Type, dependency: WitnessValueDependency) {
-    let binding = try bindings.binding(
-        named: name,
-        declaredBy: protocolDescriptor
-    )
-    return (binding.type, .associatedType(id: binding.id))
 }

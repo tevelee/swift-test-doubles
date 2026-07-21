@@ -63,6 +63,39 @@ indirect enum WitnessValueDependency: Equatable, Sendable {
         }
     }
 
+    /// Whether Swift's formal generic witness convention transports the
+    /// complete value indirectly.
+    ///
+    /// The decision follows the source-level generic shape, not the value
+    /// witnesses of a concrete substitution. Standard-library collection
+    /// shells have fixed reference-backed layouts, while Optional preserves
+    /// whether its wrapped value is formally opaque.
+    var usesOpaqueValueWitnessConvention: Bool {
+        switch self {
+            case .independent:
+                false
+            case .associatedType:
+                true
+            case .optional(let wrapped):
+                wrapped.usesOpaqueValueWitnessConvention
+            case .array, .set, .dictionary:
+                false
+        }
+    }
+
+    var firstAssociatedTypeName: String? {
+        switch self {
+            case .independent:
+                nil
+            case .associatedType(let reference):
+                reference.name
+            case .optional(let wrapped), .array(let wrapped), .set(let wrapped):
+                wrapped.firstAssociatedTypeName
+            case .dictionary(let key, let value):
+                key.firstAssociatedTypeName ?? value.firstAssociatedTypeName
+        }
+    }
+
     var directAssociatedTypeName: String? {
         guard case .associatedType(let reference) = self else { return nil }
         return reference.name

@@ -82,12 +82,80 @@ extension WitnessArgumentDescriptor {
     }
 }
 
-/// A supported container position for an associated type occurring in a
-/// requirement signature.
-enum AssociatedTypeContainer: Sendable {
-    case optional
-    case array
-    case set
+/// Concrete metadata paired with the source-level associated-type positions
+/// that produced it.
+struct ResolvedDependentType: Sendable {
+    let type: Any.Type
+    let dependency: WitnessValueDependency
+
+    static func associatedType(
+        binding: StubProtocolMetadata.AssociatedTypeBinding
+    ) -> Self {
+        return Self(
+            type: binding.type,
+            dependency: .associatedType(id: binding.id)
+        )
+    }
+
+    func optional() -> Self {
+        Self(
+            type: _openExistential(type, do: optionalType),
+            dependency: .optional(dependency)
+        )
+    }
+
+    func array() -> Self {
+        Self(
+            type: _openExistential(type, do: arrayType),
+            dependency: .array(dependency)
+        )
+    }
+
+    func set(
+        protocolName: String,
+        sourceDescription: String
+    ) throws -> Self {
+        guard let type = setType(of: type) else {
+            let reason: String
+            if let name = dependency.directAssociatedTypeName {
+                reason =
+                    "Associated type '\(name)' is used as a Set element, but "
+                    + "its concrete binding '\(runtimeTypeName(self.type))' does "
+                    + "not conform to Hashable. Bind '\(name)' to a Hashable "
+                    + "concrete type."
+            } else {
+                reason =
+                    "Set element '\(sourceDescription)' resolves to "
+                    + "'\(runtimeTypeName(self.type))', which does not conform "
+                    + "to Hashable."
+            }
+            throw StubError.unsupportedProtocolShape(
+                protocolName: protocolName,
+                reason: reason
+            )
+        }
+        return Self(type: type, dependency: .set(dependency))
+    }
+
+    static func dictionary(
+        key: Self,
+        value: Self,
+        protocolName: String
+    ) throws -> Self {
+        guard let type = dictionaryType(key: key.type, value: value.type) else {
+            throw StubError.unsupportedProtocolShape(
+                protocolName: protocolName,
+                reason: "Dictionary key '\(runtimeTypeName(key.type))' does not conform to Hashable. Bind its associated type to a Hashable concrete type."
+            )
+        }
+        return Self(
+            type: type,
+            dependency: .dictionary(
+                key: key.dependency,
+                value: value.dependency
+            )
+        )
+    }
 }
 
 /// A value resolved from either an explicit requirement or an automatically
@@ -105,92 +173,22 @@ struct ResolvedWitnessValue: Sendable {
         ownership ?? kind.defaultArgumentOwnership(at: offset)
     }
 
-    /// A direct occurrence of a concretely bound associated type.
-    static func associatedType(
-        binding: StubProtocolMetadata.AssociatedTypeBinding,
+    static func resolved(
+        _ value: ResolvedDependentType,
         ownership: WitnessArgumentOwnership? = nil
     ) -> Self {
-        Self(
-            type: binding.type,
-            convention: .associatedType(name: binding.name),
-            dependency: .associatedType(id: binding.id),
-            ownership: ownership
-        )
-    }
-
-    /// A Dictionary whose key, value, or both depend directly on concretely
-    /// bound associated types. Dictionary retains its ordinary direct
-    /// reference transport while its generic-argument positions remain part
-    /// of strict signature validation.
-    static func associatedTypeDictionary(
-        keyType: Any.Type,
-        keyDependency: WitnessValueDependency,
-        valueType: Any.Type,
-        valueDependency: WitnessValueDependency,
-        protocolName: String,
-        ownership: WitnessArgumentOwnership? = nil
-    ) throws -> Self {
-        precondition(
-            keyDependency.isAssociatedTypeDependent
-                || valueDependency.isAssociatedTypeDependent,
-            "[TestDoubles] A dependent Dictionary needs an associated key or value."
-        )
-        guard let type = dictionaryType(key: keyType, value: valueType) else {
-            throw StubError.unsupportedProtocolShape(
-                protocolName: protocolName,
-                reason: "Dictionary key '\(runtimeTypeName(keyType))' does not conform to Hashable. Bind its associated type to a Hashable concrete type."
-            )
+        let convention: WitnessValueConvention
+        if value.dependency.usesOpaqueValueWitnessConvention,
+            let name = value.dependency.firstAssociatedTypeName
+        {
+            convention = .associatedType(name: name)
+        } else {
+            convention = .concrete
         }
         return Self(
-            type: type,
-            convention: .concrete,
-            dependency: .dictionary(
-                key: keyDependency,
-                value: valueDependency
-            ),
-            ownership: ownership
-        )
-    }
-
-    /// A supported container whose value depends on a concretely bound
-    /// associated type. Optionals keep the dependent-value witness
-    /// convention; arrays and sets are transported as ordinary concrete values.
-    static func associatedType(
-        binding: StubProtocolMetadata.AssociatedTypeBinding,
-        container: AssociatedTypeContainer,
-        ownership: WitnessArgumentOwnership? = nil
-    ) throws -> Self {
-        let (type, convention): (Any.Type, WitnessValueConvention)
-        switch container {
-            case .optional:
-                type = _openExistential(binding.type, do: optionalType)
-                convention = .associatedType(name: binding.name)
-            case .array:
-                type = _openExistential(binding.type, do: arrayType)
-                convention = .concrete
-            case .set:
-                guard let resolvedSetType = setType(of: binding.type) else {
-                    throw StubError.unsupportedProtocolShape(
-                        protocolName: binding.protocolDescriptor.name,
-                        reason: "Associated type '\(binding.name)' is used as a Set element, but its concrete binding '\(String(reflecting: binding.type))' does not conform to Hashable. Bind '\(binding.name)' to a Hashable concrete type."
-                    )
-                }
-                type = resolvedSetType
-                convention = .concrete
-        }
-        let nestedDependency = WitnessValueDependency.associatedType(
-            id: binding.id
-        )
-        let dependency: WitnessValueDependency =
-            switch container {
-                case .optional: .optional(nestedDependency)
-                case .array: .array(nestedDependency)
-                case .set: .set(nestedDependency)
-            }
-        return Self(
-            type: type,
+            type: value.type,
             convention: convention,
-            dependency: dependency,
+            dependency: value.dependency,
             ownership: ownership
         )
     }
@@ -334,7 +332,11 @@ struct MethodDescriptor: Sendable {
                     type: type,
                     convention: convention,
                     dependency: dependencies[offset],
-                    layout: Self.argumentLayout(for: type, convention: convention)
+                    layout: Self.argumentLayout(
+                        for: type,
+                        convention: convention,
+                        dependency: dependencies[offset]
+                    )
                 ),
                 ownership: ownerships[offset]
             )
@@ -345,6 +347,7 @@ struct MethodDescriptor: Sendable {
         let resultLayout = Self.resultLayout(
             for: returnType,
             convention: returnConvention,
+            dependency: resultDependency,
             selfIsClassConstrained: selfIsClassConstrained
         )
         result = WitnessValueDescriptor(
@@ -547,9 +550,13 @@ struct MethodDescriptor: Sendable {
 
     private static func argumentLayout(
         for type: Any.Type,
-        convention: WitnessValueConvention
+        convention: WitnessValueConvention,
+        dependency: WitnessValueDependency
     ) -> ABIClass {
-        switch convention {
+        if dependency.usesOpaqueValueWitnessConvention {
+            return .indirect
+        }
+        return switch convention {
             case .concrete: abiClass(for: type)
             case .associatedType, .selfType, .optionalSelf: .indirect
         }
@@ -558,9 +565,13 @@ struct MethodDescriptor: Sendable {
     private static func resultLayout(
         for type: Any.Type,
         convention: WitnessValueConvention,
+        dependency: WitnessValueDependency,
         selfIsClassConstrained: Bool
     ) -> ABIClass {
-        switch convention {
+        if dependency.usesOpaqueValueWitnessConvention {
+            return .indirect
+        }
+        return switch convention {
             case .concrete: abiClass(for: type, isReturn: true)
             case .associatedType: .indirect
             case .selfType, .optionalSelf:

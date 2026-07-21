@@ -78,6 +78,32 @@ private protocol ExplicitNonHashableAssociatedTypeProbe<Element> {
 
 private final class NonHashableAssociatedTypeValue {}
 
+protocol RecursiveNestedAssociatedTypeProbe<Element> {
+    associatedtype Element: Hashable
+
+    func transform(opaque value: Element??) -> Element??
+    func transform(optionalArray value: [Element]?) -> [Element]?
+    func transform(arrayOptionals value: [Element?]) -> [Element?]
+    func transform(set value: Set<Element?>) -> Set<Element?>
+    func transform(
+        dictionary value: [Set<Element?>?: [String: [Element?]]]
+    ) -> [Set<Element?>?: [String: [Element?]]]
+}
+
+struct RealRecursiveNestedAssociatedTypeProbe:
+    RecursiveNestedAssociatedTypeProbe
+{
+    func transform(opaque value: Int??) -> Int?? { value }
+    func transform(optionalArray value: [Int]?) -> [Int]? { value }
+    func transform(arrayOptionals value: [Int?]) -> [Int?] { value }
+    func transform(set value: Set<Int?>) -> Set<Int?> { value }
+    func transform(
+        dictionary value: [Set<Int?>?: [String: [Int?]]]
+    ) -> [Set<Int?>?: [String: [Int?]]] {
+        value
+    }
+}
+
 protocol ConsumingNestedAssociatedTypeProbe<Element> {
     associatedtype Element
 
@@ -137,6 +163,13 @@ private func useLinkedNestedAssociatedInitializerProbe(
     _ value: any NestedAssociatedInitializerProbe<Int>
 ) -> Bool {
     type(of: value).init(values: [1]) is RealNestedAssociatedInitializerProbe
+}
+
+@inline(never)
+private func useLinkedRecursiveNestedAssociatedTypeProbe(
+    _ value: any RecursiveNestedAssociatedTypeProbe<Int>
+) -> [Int]? {
+    value.transform(optionalArray: [1])
 }
 
 struct NestedAssociatedTypeTests {
@@ -429,6 +462,118 @@ struct NestedAssociatedTypeTests {
         }
     }
 
+    @Test func automaticDiscoverySupportsRecursiveStandardLibraryContainers() throws {
+        #expect(
+            useLinkedRecursiveNestedAssociatedTypeProbe(
+                RealRecursiveNestedAssociatedTypeProbe()
+            ) == [1]
+        )
+        typealias NestedDictionary = [Set<Int?>?: [String: [Int?]]]
+        let stub = try Stub<any RecursiveNestedAssociatedTypeProbe<Int>>()
+
+        try assertRecursiveDescriptor(
+            #require(stub.recorder.runtimeMethod(for: 0)),
+            type: Optional<Int?>.self,
+            dependency: .optional(.optional(.associatedType("Element"))),
+            usesIndirectLayout: true
+        )
+        try assertRecursiveDescriptor(
+            #require(stub.recorder.runtimeMethod(for: 1)),
+            type: Optional<[Int]>.self,
+            dependency: .optional(.array(.associatedType("Element"))),
+            usesIndirectLayout: false
+        )
+        try assertRecursiveDescriptor(
+            #require(stub.recorder.runtimeMethod(for: 2)),
+            type: Array<Int?>.self,
+            dependency: .array(.optional(.associatedType("Element"))),
+            usesIndirectLayout: false
+        )
+        try assertRecursiveDescriptor(
+            #require(stub.recorder.runtimeMethod(for: 3)),
+            type: Set<Int?>.self,
+            dependency: .set(.optional(.associatedType("Element"))),
+            usesIndirectLayout: false
+        )
+        try assertRecursiveDescriptor(
+            #require(stub.recorder.runtimeMethod(for: 4)),
+            type: NestedDictionary.self,
+            dependency: .dictionary(
+                key: .optional(.set(.optional(.associatedType("Element")))),
+                value: .dictionary(
+                    key: .independent,
+                    value: .array(.optional(.associatedType("Element")))
+                )
+            ),
+            usesIndirectLayout: false
+        )
+    }
+
+    @Test func explicitRecursiveSchemasMatchAutomaticDiscovery() throws {
+        _ = RealRecursiveNestedAssociatedTypeProbe()
+        typealias ProbeStub = Stub<any RecursiveNestedAssociatedTypeProbe<Int>>
+        let value = ProbeStub.Requirement.Value.self
+        let element = value.associatedType(named: "Element")
+        let optionalElement = value.optional(wrapping: element)
+        let opaque = value.optional(wrapping: optionalElement)
+        let optionalArray = value.optional(wrapping: value.array(of: element))
+        let arrayOptionals = value.array(of: optionalElement)
+        let set = value.set(of: optionalElement)
+        let dictionary = value.dictionary(
+            key: value.optional(wrapping: set),
+            value: value.dictionary(
+                key: value.concrete(String.self),
+                value: arrayOptionals
+            )
+        )
+        let stub = try ProbeStub(
+            .method(opaque, returning: opaque),
+            .method(optionalArray, returning: optionalArray),
+            .method(arrayOptionals, returning: arrayOptionals),
+            .method(set, returning: set),
+            .method(dictionary, returning: dictionary)
+        )
+
+        let opaqueDescriptor = try #require(
+            stub.recorder.runtimeMethod(for: 0)
+        )
+        let optionalArrayDescriptor = try #require(
+            stub.recorder.runtimeMethod(for: 1)
+        )
+        #expect(isIndirect(opaqueDescriptor.returnLayout))
+        #expect(isSingleWordInteger(optionalArrayDescriptor.returnLayout))
+
+        stub.when { $0.transform(optionalArray: any()) }
+            .thenReturn([42])
+        let probe: any RecursiveNestedAssociatedTypeProbe<Int> = stub()
+        #expect(probe.transform(optionalArray: nil) == [42])
+    }
+
+    @Test func recursiveSetAndDictionaryKeysRequireHashableMetadata() {
+        typealias ProbeStub = Stub<
+            any ExplicitNonHashableAssociatedTypeProbe<NonHashableAssociatedTypeValue>
+        >
+        let value = ProbeStub.Requirement.Value.self
+        let element = value.associatedType(named: "Element")
+        let nestedSet = value.set(of: value.optional(wrapping: element))
+        let nestedDictionary = value.dictionary(
+            key: value.array(of: element),
+            value: value.concrete(Int.self)
+        )
+
+        for schema in [nestedSet, nestedDictionary] {
+            expectStubError {
+                _ = try ProbeStub(.method(schema, returning: schema))
+            } matching: { error in
+                guard case .unsupportedProtocolShape(_, let reason) = error else {
+                    return false
+                }
+                return reason.contains("does not conform to Hashable")
+                    && reason.contains("NonHashableAssociatedTypeValue")
+            }
+        }
+    }
+
     @Test(arguments: NestedAssociatedRequirementSource.allCases)
     func consumingOptionalAndArrayPreserveOwnedStorage(
         source: NestedAssociatedRequirementSource
@@ -669,6 +814,77 @@ private func makeArrayNestedAssociatedTypeBox() -> (
         [value],
         NestedAssociatedLifetime(reference: reference, counter: counter)
     )
+}
+
+private indirect enum ExpectedDependency: Equatable {
+    case independent
+    case associatedType(String)
+    case optional(Self)
+    case array(Self)
+    case set(Self)
+    case dictionary(key: Self, value: Self)
+}
+
+private func expectedDependency(
+    _ dependency: WitnessValueDependency
+) -> ExpectedDependency {
+    switch dependency {
+        case .independent:
+            .independent
+        case .associatedType(let reference):
+            .associatedType(reference.name)
+        case .optional(let wrapped):
+            .optional(expectedDependency(wrapped))
+        case .array(let element):
+            .array(expectedDependency(element))
+        case .set(let element):
+            .set(expectedDependency(element))
+        case .dictionary(let key, let value):
+            .dictionary(
+                key: expectedDependency(key),
+                value: expectedDependency(value)
+            )
+    }
+}
+
+private func assertRecursiveDescriptor<Value>(
+    _ method: MethodDescriptor,
+    type: Value.Type,
+    dependency: ExpectedDependency,
+    usesIndirectLayout: Bool,
+    sourceLocation: SourceLocation = #_sourceLocation
+) throws {
+    let argument = try #require(
+        method.arguments.first,
+        sourceLocation: sourceLocation
+    )
+    #expect(method.arguments.count == 1, sourceLocation: sourceLocation)
+    #expect(
+        ObjectIdentifier(argument.value.type) == ObjectIdentifier(type),
+        sourceLocation: sourceLocation
+    )
+    #expect(
+        ObjectIdentifier(method.result.type) == ObjectIdentifier(type),
+        sourceLocation: sourceLocation
+    )
+    #expect(
+        expectedDependency(argument.value.dependency) == dependency,
+        sourceLocation: sourceLocation
+    )
+    #expect(
+        expectedDependency(method.result.dependency) == dependency,
+        sourceLocation: sourceLocation
+    )
+    if usesIndirectLayout {
+        #expect(isIndirect(argument.value.layout), sourceLocation: sourceLocation)
+        #expect(isIndirect(method.result.layout), sourceLocation: sourceLocation)
+    } else {
+        #expect(
+            isSingleWordInteger(argument.value.layout),
+            sourceLocation: sourceLocation
+        )
+        #expect(isSingleWordInteger(method.result.layout), sourceLocation: sourceLocation)
+    }
 }
 
 private func assertDependentIndirect<Argument, Result>(

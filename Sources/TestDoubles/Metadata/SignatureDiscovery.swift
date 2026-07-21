@@ -269,31 +269,6 @@ private func resolveWitnessValue(
     }
     for binding in bindings {
         let spellings = ["A.\(binding.name)", "Self.\(binding.name)"]
-        if spellings.contains(valueName) {
-            return .associatedType(binding: binding, ownership: ownership)
-        }
-        if let container = associatedTypeContainer(in: valueName, spellings: spellings) {
-            return try .associatedType(
-                binding: binding,
-                container: container,
-                ownership: ownership
-            )
-        }
-    }
-
-    if let dictionary = try associatedTypeDictionary(
-        in: valueName,
-        protocolDescriptor: protocolDescriptor,
-        requirementIndex: requirementIndex,
-        associatedTypeBindings: associatedTypeBindings,
-        mangledSignature: mangledSignature,
-        ownership: ownership
-    ) {
-        return dictionary
-    }
-
-    for binding in bindings {
-        let spellings = ["A.\(binding.name)", "Self.\(binding.name)"]
         if let spelling = spellings.first(where: { name.hasSuffix(" \($0)") }) {
             let ownership = name.dropLast(spelling.count).trimmingCharacters(in: .whitespaces)
             throw StubError.unsupportedProtocolShape(
@@ -301,12 +276,26 @@ private func resolveWitnessValue(
                 reason: "Requirement \(requirementIndex) uses unsupported ownership spelling '\(ownership)' for associated type '\(binding.name)'. Only borrowed and __owned associated-type arguments are supported."
             )
         }
+    }
+
+    if let dependentType = try resolveSupportedDependentType(
+        valueName,
+        protocolDescriptor: protocolDescriptor,
+        requirementIndex: requirementIndex,
+        associatedTypeBindings: associatedTypeBindings,
+        mangledSignature: mangledSignature
+    ) {
+        return .resolved(dependentType, ownership: ownership)
+    }
+
+    for binding in bindings {
+        let spellings = ["A.\(binding.name)", "Self.\(binding.name)"]
         if spellings.contains(where: name.contains) {
             throw StubError.unsupportedProtocolShape(
                 protocolName: protocolDescriptor.name,
                 reason:
                     "Requirement \(requirementIndex) embeds associated type '\(binding.name)' inside unsupported type '\(name)'. "
-                    + "Bound associated-type support accepts direct, Optional, Array, Set, and direct Dictionary key or value occurrences."
+                    + "Bound associated-type support accepts recursive combinations of Optional, Array, Set, and Dictionary."
             )
         }
     }
@@ -403,72 +392,35 @@ private func resolveTypedError(
     return (type, .independent)
 }
 
-private func associatedTypeContainer(
-    in name: String,
-    spellings: [String]
-) -> AssociatedTypeContainer? {
-    for spelling in spellings {
-        if [
-            "\(spelling)?",
-            "Optional<\(spelling)>",
-            "Swift.Optional<\(spelling)>"
-        ].contains(name) {
-            return .optional
-        }
-        if [
-            "[\(spelling)]",
-            "Array<\(spelling)>",
-            "Swift.Array<\(spelling)>"
-        ].contains(name) {
-            return .array
-        }
-        if [
-            "Set<\(spelling)>",
-            "Swift.Set<\(spelling)>"
-        ].contains(name) {
-            return .set
-        }
-    }
-    return nil
-}
-
-private func associatedTypeDictionary(
-    in name: String,
+private func resolveSupportedDependentType(
+    _ spelling: String,
     protocolDescriptor: ProtocolDescriptor,
     requirementIndex: Int,
     associatedTypeBindings: AssociatedTypeBindings,
-    mangledSignature: String,
-    ownership: WitnessArgumentOwnership?
-) throws -> ResolvedWitnessValue? {
-    guard let components = dictionaryComponents(in: name) else { return nil }
-    let key = try resolveDictionaryComponent(
-        components.key,
-        protocolDescriptor: protocolDescriptor,
-        requirementIndex: requirementIndex,
-        associatedTypeBindings: associatedTypeBindings,
-        mangledSignature: mangledSignature
-    )
-    let value = try resolveDictionaryComponent(
-        components.value,
-        protocolDescriptor: protocolDescriptor,
-        requirementIndex: requirementIndex,
-        associatedTypeBindings: associatedTypeBindings,
-        mangledSignature: mangledSignature
-    )
+    mangledSignature: String
+) throws -> ResolvedDependentType? {
     guard
-        key.dependency.isAssociatedTypeDependent
-            || value.dependency.isAssociatedTypeDependent
+        referencesAssociatedType(
+            in: spelling,
+            protocolDescriptor: protocolDescriptor,
+            associatedTypeBindings: associatedTypeBindings
+        ),
+        directAssociatedTypeName(
+            in: spelling,
+            protocolDescriptor: protocolDescriptor,
+            associatedTypeBindings: associatedTypeBindings
+        ) != nil || standardLibraryDependentShape(in: spelling) != nil
     else {
         return nil
     }
-    return try .associatedTypeDictionary(
-        keyType: key.type,
-        keyDependency: key.dependency,
-        valueType: value.type,
-        valueDependency: value.dependency,
-        protocolName: protocolDescriptor.name,
-        ownership: ownership
+    let resolved = try resolveSupportedTypeComponent(
+        spelling,
+        protocolDescriptor: protocolDescriptor,
+        requirementIndex: requirementIndex,
+        associatedTypeBindings: associatedTypeBindings,
+        mangledSignature: mangledSignature
     )
+    return resolved.dependency.isAssociatedTypeDependent ? resolved : nil
 }
 
 private func dictionaryComponents(in name: String) -> (key: String, value: String)? {
@@ -494,13 +446,13 @@ private func dictionaryComponents(in name: String) -> (key: String, value: Strin
     return nil
 }
 
-private func resolveDictionaryComponent(
+private func resolveSupportedTypeComponent(
     _ spelling: String,
     protocolDescriptor: ProtocolDescriptor,
     requirementIndex: Int,
     associatedTypeBindings: AssociatedTypeBindings,
     mangledSignature: String
-) throws -> (type: Any.Type, dependency: WitnessValueDependency) {
+) throws -> ResolvedDependentType {
     if let name = directAssociatedTypeName(
         in: spelling,
         protocolDescriptor: protocolDescriptor,
@@ -510,7 +462,56 @@ private func resolveDictionaryComponent(
             named: name,
             declaredBy: protocolDescriptor
         )
-        return (binding.type, .associatedType(id: binding.id))
+        return .associatedType(binding: binding)
+    }
+    if let shape = standardLibraryDependentShape(in: spelling) {
+        switch shape {
+            case .optional(let wrapped):
+                return try resolveSupportedTypeComponent(
+                    wrapped,
+                    protocolDescriptor: protocolDescriptor,
+                    requirementIndex: requirementIndex,
+                    associatedTypeBindings: associatedTypeBindings,
+                    mangledSignature: mangledSignature
+                ).optional()
+            case .array(let element):
+                return try resolveSupportedTypeComponent(
+                    element,
+                    protocolDescriptor: protocolDescriptor,
+                    requirementIndex: requirementIndex,
+                    associatedTypeBindings: associatedTypeBindings,
+                    mangledSignature: mangledSignature
+                ).array()
+            case .set(let element):
+                return try resolveSupportedTypeComponent(
+                    element,
+                    protocolDescriptor: protocolDescriptor,
+                    requirementIndex: requirementIndex,
+                    associatedTypeBindings: associatedTypeBindings,
+                    mangledSignature: mangledSignature
+                ).set(
+                    protocolName: protocolDescriptor.name,
+                    sourceDescription: element
+                )
+            case .dictionary(let key, let value):
+                return try .dictionary(
+                    key: resolveSupportedTypeComponent(
+                        key,
+                        protocolDescriptor: protocolDescriptor,
+                        requirementIndex: requirementIndex,
+                        associatedTypeBindings: associatedTypeBindings,
+                        mangledSignature: mangledSignature
+                    ),
+                    value: resolveSupportedTypeComponent(
+                        value,
+                        protocolDescriptor: protocolDescriptor,
+                        requirementIndex: requirementIndex,
+                        associatedTypeBindings: associatedTypeBindings,
+                        mangledSignature: mangledSignature
+                    ),
+                    protocolName: protocolDescriptor.name
+                )
+        }
     }
     if referencesAssociatedType(
         in: spelling,
@@ -519,7 +520,7 @@ private func resolveDictionaryComponent(
     ) {
         throw StubError.unsupportedProtocolShape(
             protocolName: protocolDescriptor.name,
-            reason: "Requirement \(requirementIndex) embeds an associated type inside Dictionary generic argument '\(spelling)'. Only a direct associated key or value is supported."
+            reason: "Requirement \(requirementIndex) embeds an associated type inside unsupported type '\(spelling)'. Bound associated-type support accepts recursive combinations of Optional, Array, Set, and Dictionary."
         )
     }
     guard let syntax = DemangledTypeSyntax(spelling),
@@ -531,10 +532,68 @@ private func resolveDictionaryComponent(
         throw StubError.signatureDiscoveryFailed(
             protocolName: protocolDescriptor.name,
             requirementIndex: requirementIndex,
-            details: "Could not resolve runtime metadata for Dictionary generic argument '\(spelling)'. Supply explicit Requirement values."
+            details: "Could not resolve runtime metadata for nested generic argument '\(spelling)'. Supply explicit Requirement values."
         )
     }
-    return (type, .independent)
+    return ResolvedDependentType(type: type, dependency: .independent)
+}
+
+private enum StandardLibraryDependentShape {
+    case optional(String)
+    case array(String)
+    case set(String)
+    case dictionary(key: String, value: String)
+}
+
+private func standardLibraryDependentShape(
+    in spelling: String
+) -> StandardLibraryDependentShape? {
+    if spelling.hasSuffix("?") {
+        return .optional(String(spelling.dropLast()))
+    }
+    if let wrapped = unaryGenericArgument(
+        in: spelling,
+        constructors: ["Optional", "Swift.Optional"]
+    ) {
+        return .optional(wrapped)
+    }
+    if let components = dictionaryComponents(in: spelling) {
+        return .dictionary(key: components.key, value: components.value)
+    }
+    if spelling.first == "[", spelling.last == "]" {
+        return .array(String(spelling.dropFirst().dropLast()))
+    }
+    if let element = unaryGenericArgument(
+        in: spelling,
+        constructors: ["Array", "Swift.Array"]
+    ) {
+        return .array(element)
+    }
+    if let element = unaryGenericArgument(
+        in: spelling,
+        constructors: ["Set", "Swift.Set"]
+    ) {
+        return .set(element)
+    }
+    return nil
+}
+
+private func unaryGenericArgument(
+    in spelling: String,
+    constructors: [String]
+) -> String? {
+    for constructor in constructors {
+        let prefix = "\(constructor)<"
+        guard spelling.hasPrefix(prefix), spelling.last == ">" else { continue }
+        let arguments = String(spelling.dropFirst(prefix.count).dropLast())
+        guard let components = topLevelComponents(in: arguments),
+            components.count == 1
+        else {
+            return nil
+        }
+        return components[0]
+    }
+    return nil
 }
 
 private func directAssociatedTypeName(

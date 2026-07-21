@@ -52,5 +52,22 @@ private protocol SecondDependencyScope {
                 )
         )
         #expect(first.legacyProjection == .associatedType(name: "Value"))
+        #expect(first.usesOpaqueValueWitnessConvention)
+        #expect(
+            WitnessValueDependency.optional(first)
+                .usesOpaqueValueWitnessConvention
+        )
+        #expect(
+            WitnessValueDependency.optional(.array(first))
+                .usesOpaqueValueWitnessConvention == false
+        )
+        #expect(
+            WitnessValueDependency.array(.optional(first))
+                .usesOpaqueValueWitnessConvention == false
+        )
+        #expect(
+            WitnessValueDependency.dictionary(key: first, value: second)
+                .usesOpaqueValueWitnessConvention == false
+        )
     }
 }
