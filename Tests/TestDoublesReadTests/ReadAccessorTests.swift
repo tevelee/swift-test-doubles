@@ -108,19 +108,51 @@ private struct ReadAbortFailure: Error {}
         let layout = try Stub<any ConcreteReadAccessorProbe>.extractProtocolLayout()
         let node = try #require(layout.nodes.first)
 
-        #expect(node.callableRequirements.map(\.witnessIndex) == [0, 1, 2, 3])
+        #if compiler(>=6.4)
+            #expect(
+                node.callableRequirements.map(\.witnessIndex) == [1, 3, 5, 7]
+            )
+        #else
+            #expect(
+                node.callableRequirements.map(\.witnessIndex) == [0, 1, 2, 3]
+            )
+        #endif
         #expect(
             node.callableRequirements.map(\.kind)
                 == [.getter, .getter, .getter, .getter]
         )
-        #expect(
-            node.readCoroutineRequirements.map(\.witnessIndex)
-                == [0, 1, 2, 3]
-        )
-        #expect(
-            node.readCoroutineRequirements.map(\.recorderDispatchIndex)
-                == [0, 1, 2, 3]
-        )
+        #if compiler(>=6.4)
+            #expect(
+                node.readCoroutineRequirements.map(\.witnessIndex)
+                    == [0, 1, 2, 3, 4, 5, 6, 7]
+            )
+            #expect(
+                node.readCoroutineRequirements.map(\.recorderDispatchIndex)
+                    == [0, 0, 1, 1, 2, 2, 3, 3]
+            )
+            #expect(
+                node.readCoroutineRequirements.map(\.abi)
+                    == [
+                        .yieldOnce, .yieldOnce2,
+                        .yieldOnce, .yieldOnce2,
+                        .yieldOnce, .yieldOnce2,
+                        .yieldOnce, .yieldOnce2
+                    ]
+            )
+        #else
+            #expect(
+                node.readCoroutineRequirements.map(\.witnessIndex)
+                    == [0, 1, 2, 3]
+            )
+            #expect(
+                node.readCoroutineRequirements.map(\.recorderDispatchIndex)
+                    == [0, 1, 2, 3]
+            )
+            #expect(
+                node.readCoroutineRequirements.map(\.abi)
+                    == [.yieldOnce2, .yieldOnce2, .yieldOnce2, .yieldOnce2]
+            )
+        #endif
         #expect(node.modifyCoroutineRequirements.isEmpty)
     }
 
@@ -139,7 +171,13 @@ private struct ReadAbortFailure: Error {}
         let witnessTable = try #require(
             UnsafeRawPointer(bitPattern: witnessAddress)
         )
-        let descriptor = (witnessTable + wordSize).load(
+        #if compiler(>=6.4)
+            #expect((witnessTable + wordSize).load(as: UInt.self) == 0)
+            let readWitnessIndex = 1
+        #else
+            let readWitnessIndex = 0
+        #endif
+        let descriptor = (witnessTable + (1 + readWitnessIndex) * wordSize).load(
             as: UnsafeRawPointer.self
         )
         let relativeEntry = descriptor.load(as: Int32.self)
@@ -153,101 +191,118 @@ private struct ReadAbortFailure: Error {}
         #expect(entry != descriptor)
     }
 
-    @Test func spyForwardsConcreteReadPropertiesAndSubscripts() throws {
-        let trace = ReadForwardingTrace()
-        let spy = try Spy<any ConcreteReadAccessorProbe>(
-            forwardingTo: ForwardingConcreteReadAccessorProbe(trace: trace)
-        )
-        let probe: any ConcreteReadAccessorProbe = spy()
+    #if compiler(>=6.4)
+        @Test func spyFailsClosedForPairedReadWitnesses() {
+            let trace = ReadForwardingTrace()
 
-        #expect(probe.integer == 7)
-        #expect(probe.text == "forwarded")
-        #expect(probe.dictionary == ["forwarded": 42])
-        #expect(probe[21] == 42)
-        #expect(
-            trace.events
-                == [
-                    "integer.begin", "integer.end",
-                    "text.begin", "text.end",
-                    "dictionary.begin", "dictionary.end",
-                    "subscript.21.begin", "subscript.21.end"
-                ]
-        )
-        spy.verify { $0.integer }
-        spy.verify { $0.text }
-        spy.verify(returning: ["placeholder": -1]) { $0.dictionary }
-        spy.verify { $0[equal(21)] }
-    }
-
-    @Test func configuredSpyReadOverrideWinsWithoutEnteringTarget() throws {
-        let trace = ReadForwardingTrace()
-        let spy = try Spy<any ConcreteReadAccessorProbe>(
-            forwardingTo: ForwardingConcreteReadAccessorProbe(trace: trace)
-        )
-        spy.when { $0.integer }.thenReturn(42)
-        let probe: any ConcreteReadAccessorProbe = spy()
-
-        #expect(probe.integer == 42)
-        #expect(trace.events.isEmpty)
-        spy.verify { $0.integer }
-    }
-
-    @Test func spyForwardsFormallyIndirectAssociatedReadResults() throws {
-        let trace = ReadForwardingTrace()
-        let spy = try Spy<any AssociatedReadAccessorProbe<Int>>(
-            forwardingTo: ForwardingAssociatedReadAccessorProbe(trace: trace)
-        )
-        let probe: any AssociatedReadAccessorProbe<Int> = spy()
-
-        #expect(probe.value == 41)
-        #expect(probe[41] == 42)
-        #expect(
-            trace.events
-                == [
-                    "associated.value.begin", "associated.value.end",
-                    "associated.subscript.41.begin",
-                    "associated.subscript.41.end"
-                ]
-        )
-        spy.verify { $0.value }
-        spy.verify { $0[equal(41)] }
-    }
-
-    @Test func forwardedReadRetainsYieldedValueUntilNormalResume() throws {
-        let trace = ReadForwardingTrace()
-        let spy = try Spy<any ReadLifetimeProbe>(
-            forwardingTo: ForwardingReadLifetimeProbe(trace: trace)
-        )
-        let probe: any ReadLifetimeProbe = spy()
-
-        #expect(consumeReadLifetimeValue(probe) == 42)
-        #expect(trace.events == ["lifetime.begin", "lifetime.end"])
-        #expect(trace.borrowedReference == nil)
-        spy.verify(
-            returning: ReadLifetimeValue(
-                reference: ReadLifetimeReference(value: -1)
-            )
-        ) { $0.value }
-    }
-
-    @Test func forwardedReadResumesTargetExactlyOnceAfterAbort() throws {
-        let trace = ReadForwardingTrace()
-        let spy = try Spy<any ReadLifetimeProbe>(
-            forwardingTo: ForwardingReadLifetimeProbe(trace: trace)
-        )
-        let probe: any ReadLifetimeProbe = spy()
-
-        #expect(throws: ReadForwardingAbortError.self) {
-            try probe.value.reference.abortBorrow()
+            do {
+                _ = try Spy<any ConcreteReadAccessorProbe>(
+                    forwardingTo: ForwardingConcreteReadAccessorProbe(trace: trace)
+                )
+                Issue.record("Expected paired Swift 6.4 read witnesses to fail closed")
+            } catch StubError.unsupportedProtocolShape(_, let reason) {
+                #expect(reason.contains("paired legacy read and yielding-borrow"))
+            } catch {
+                Issue.record("Unexpected construction error: \(error)")
+            }
         }
-        #expect(trace.events == ["lifetime.begin", "lifetime.end"])
-        #expect(trace.borrowedReference == nil)
-        spy.verify(
-            returning: ReadLifetimeValue(
-                reference: ReadLifetimeReference(value: -1)
+    #else
+        @Test func spyForwardsConcreteReadPropertiesAndSubscripts() throws {
+            let trace = ReadForwardingTrace()
+            let spy = try Spy<any ConcreteReadAccessorProbe>(
+                forwardingTo: ForwardingConcreteReadAccessorProbe(trace: trace)
             )
-        ) { $0.value }
-    }
+            let probe: any ConcreteReadAccessorProbe = spy()
+
+            #expect(probe.integer == 7)
+            #expect(probe.text == "forwarded")
+            #expect(probe.dictionary == ["forwarded": 42])
+            #expect(probe[21] == 42)
+            #expect(
+                trace.events
+                    == [
+                        "integer.begin", "integer.end",
+                        "text.begin", "text.end",
+                        "dictionary.begin", "dictionary.end",
+                        "subscript.21.begin", "subscript.21.end"
+                    ]
+            )
+            spy.verify { $0.integer }
+            spy.verify { $0.text }
+            spy.verify(returning: ["placeholder": -1]) { $0.dictionary }
+            spy.verify { $0[equal(21)] }
+        }
+
+        @Test func configuredSpyReadOverrideWinsWithoutEnteringTarget() throws {
+            let trace = ReadForwardingTrace()
+            let spy = try Spy<any ConcreteReadAccessorProbe>(
+                forwardingTo: ForwardingConcreteReadAccessorProbe(trace: trace)
+            )
+            spy.when { $0.integer }.thenReturn(42)
+            let probe: any ConcreteReadAccessorProbe = spy()
+
+            #expect(probe.integer == 42)
+            #expect(trace.events.isEmpty)
+            spy.verify { $0.integer }
+        }
+
+        @Test func spyForwardsFormallyIndirectAssociatedReadResults() throws {
+            let trace = ReadForwardingTrace()
+            let spy = try Spy<any AssociatedReadAccessorProbe<Int>>(
+                forwardingTo: ForwardingAssociatedReadAccessorProbe(trace: trace)
+            )
+            let probe: any AssociatedReadAccessorProbe<Int> = spy()
+
+            #expect(probe.value == 41)
+            #expect(probe[41] == 42)
+            #expect(
+                trace.events
+                    == [
+                        "associated.value.begin", "associated.value.end",
+                        "associated.subscript.41.begin",
+                        "associated.subscript.41.end"
+                    ]
+            )
+            spy.verify { $0.value }
+            spy.verify { $0[equal(41)] }
+        }
+
+        @Test func forwardedReadRetainsYieldedValueUntilNormalResume() throws {
+            let trace = ReadForwardingTrace()
+            let spy = try Spy<any ReadLifetimeProbe>(
+                forwardingTo: ForwardingReadLifetimeProbe(trace: trace)
+            )
+            let probe: any ReadLifetimeProbe = spy()
+
+            #expect(consumeReadLifetimeValue(probe) == 42)
+            #expect(trace.events == ["lifetime.begin", "lifetime.end"])
+            #expect(trace.borrowedReference == nil)
+            spy.verify(
+                returning: ReadLifetimeValue(
+                    reference: ReadLifetimeReference(value: -1)
+                )
+            ) { $0.value }
+        }
+
+        @Test func forwardedReadResumesTargetExactlyOnceAfterAbort() throws {
+            let trace = ReadForwardingTrace()
+            let spy = try Spy<any ReadLifetimeProbe>(
+                forwardingTo: ForwardingReadLifetimeProbe(trace: trace)
+            )
+            let probe: any ReadLifetimeProbe = spy()
+
+            #expect(throws: ReadForwardingAbortError.self) {
+                try probe.value.reference.abortBorrow()
+            }
+            #expect(trace.events == ["lifetime.begin", "lifetime.end"])
+            #expect(trace.borrowedReference == nil)
+            spy.verify(
+                returning: ReadLifetimeValue(
+                    reference: ReadLifetimeReference(value: -1)
+                )
+            ) { $0.value }
+        }
+    #endif
 }
 
 @inline(never)

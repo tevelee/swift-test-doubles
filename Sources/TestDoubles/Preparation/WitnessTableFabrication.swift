@@ -84,6 +84,7 @@ private enum FabricatedWitnessDispatch {
         for requirement: ProtocolLayout.ReadCoroutineRequirement,
         in node: ProtocolLayout.Node
     ) throws -> ReadWitnessPlan {
+        precondition(requirement.abi == .yieldOnce2)
         switch self {
             case .stub(_, let methodsByIndex, _):
                 guard let method = methodsByIndex[requirement.recorderDispatchIndex]
@@ -252,7 +253,12 @@ extension Stub {
                 )
             }
 
-            for requirement in node.readCoroutineRequirements {
+            // Swift 6.4 retains a legacy yield_once slot before each supported
+            // yielding-borrow slot. The table is zero-initialized, so leave
+            // that unsupported compatibility slot unavailable instead of
+            // installing a yield_once_2 descriptor with the wrong ABI.
+            for requirement in node.readCoroutineRequirements
+            where requirement.abi == .yieldOnce2 {
                 let plan = try dispatch.readPlan(
                     for: requirement,
                     in: node

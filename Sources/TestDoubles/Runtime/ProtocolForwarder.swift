@@ -288,6 +288,21 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
             )
         }
 
+        guard
+            layout.nodes.allSatisfy({
+                $0.readCoroutineRequirements.allSatisfy { $0.abi == .yieldOnce2 }
+            })
+        else {
+            let protocolName =
+                layout.nodes.first(where: {
+                    $0.readCoroutineRequirements.contains { $0.abi == .yieldOnce }
+                })?.descriptor.name ?? String(reflecting: P.self)
+            throw StubError.unsupportedProtocolShape(
+                protocolName: protocolName,
+                reason: "Forwarding Spy does not yet support Swift 6.4's paired legacy read and yielding-borrow witnesses. Use a Stub or a hand-written spy."
+            )
+        }
+
         var readRequirements: [Int: ProtocolLayout.ReadCoroutineRequirement] = [:]
         for node in layout.nodes {
             for requirement in node.readCoroutineRequirements {

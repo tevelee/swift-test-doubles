@@ -63,12 +63,23 @@ struct ProtocolLayout {
         let receiver: StubRequirementReceiver
     }
 
-    /// A Swift 6.3 `read` witness and the getter-shaped recorder dispatch that
-    /// supplies the value borrowed for the duration of the coroutine.
+    enum ReadCoroutineABI: Equatable {
+        /// Swift 6.4's source-compatibility witness for the deprecated `read`
+        /// spelling. Its `yield_once` ABI is not fabricated by TestDoubles.
+        case yieldOnce
+        /// Swift 6.3 `read2` and Swift 6.4 `yielding borrow` use the same
+        /// `yield_once_2` descriptor ABI supported by the runtime trampoline.
+        case yieldOnce2
+    }
+
+    /// A physical read witness and the getter-shaped recorder dispatch that
+    /// supplies the value borrowed for the duration of the coroutine. Swift
+    /// 6.4 maps its paired physical witnesses to one recorder dispatch.
     struct ReadCoroutineRequirement {
         let witnessIndex: Int
         let recorderDispatchIndex: Int
         let receiver: StubRequirementReceiver
+        let abi: ReadCoroutineABI
     }
 
     struct Node {
@@ -134,6 +145,12 @@ extension ProtocolLayout {
         typealias LocalReadRequirement = (
             witnessIndex: Int,
             recorderWitnessIndex: Int,
+            receiver: StubRequirementReceiver,
+            abi: ReadCoroutineABI
+        )
+        typealias LocalCallableRequirement = (
+            witnessIndex: Int,
+            kind: StubRequirementKind,
             receiver: StubRequirementReceiver
         )
 
@@ -206,7 +223,8 @@ extension ProtocolLayout {
                         return ReadCoroutineRequirement(
                             witnessIndex: readRequirement.witnessIndex,
                             recorderDispatchIndex: dispatch.dispatchIndex,
-                            receiver: readRequirement.receiver
+                            receiver: readRequirement.receiver,
+                            abi: readRequirement.abi
                         )
                     },
                     modifyCoroutineRequirements: try local.modifyCoroutineRequirements.map {
@@ -245,11 +263,7 @@ extension ProtocolLayout {
                 associatedTypeName: String,
                 constraint: ProtocolDescriptor
             )],
-            callableRequirements: [(
-                witnessIndex: Int,
-                kind: StubRequirementKind,
-                receiver: StubRequirementReceiver
-            )],
+            callableRequirements: [LocalCallableRequirement],
             readCoroutineRequirements: [LocalReadRequirement],
             modifyCoroutineRequirements: [LocalModifyRequirement]
         ) {
@@ -378,12 +392,7 @@ extension ProtocolLayout {
                 associatedTypeNames
             ).map { (witnessIndex: $0.0, name: $0.1) }
 
-            var callableRequirements:
-                [(
-                    witnessIndex: Int,
-                    kind: StubRequirementKind,
-                    receiver: StubRequirementReceiver
-                )] = []
+            var callableRequirements: [LocalCallableRequirement] = []
             var readCoroutineRequirements: [LocalReadRequirement] = []
             var modifyCoroutineRequirements: [LocalModifyRequirement] = []
             for (index, requirement) in localRequirements.enumerated() {
@@ -472,17 +481,13 @@ extension ProtocolLayout {
                             ))
 
                     case .readCoroutine:
-                        // A `read` requirement has no separate ordinary getter
-                        // slot. Expose one getter-shaped dispatch descriptor to
-                        // the recorder, then replace this witness slot with the
-                        // 16-byte yield_once_2 descriptor during fabrication.
-                        callableRequirements.append((index, .getter, requirement.flags.isInstance ? .instance : .metatype))
-                        readCoroutineRequirements.append(
-                            (
-                                witnessIndex: index,
-                                recorderWitnessIndex: index,
-                                receiver: requirement.flags.isInstance ? .instance : .metatype
-                            ))
+                        try appendReadCoroutineRequirement(
+                            at: index,
+                            from: localRequirements,
+                            for: descriptor,
+                            callableRequirements: &callableRequirements,
+                            readCoroutineRequirements: &readCoroutineRequirements
+                        )
 
                     @unknown default:
                         throw StubError.unsupportedProtocolShape(
@@ -500,6 +505,74 @@ extension ProtocolLayout {
                 readCoroutineRequirements,
                 modifyCoroutineRequirements
             )
+        }
+
+        private func appendReadCoroutineRequirement(
+            at index: Int,
+            from localRequirements: [ProtocolRequirement],
+            for descriptor: ProtocolDescriptor,
+            callableRequirements: inout [LocalCallableRequirement],
+            readCoroutineRequirements: inout [LocalReadRequirement]
+        ) throws {
+            let requirement = localRequirements[index]
+            let receiver: StubRequirementReceiver =
+                requirement.flags.isInstance ? .instance : .metatype
+            let usesYieldOnce2 = requirement.flags.bits & 0x20 != 0
+            if usesYieldOnce2,
+                index > localRequirements.startIndex,
+                localRequirements[index - 1].flags.kind == .readCoroutine,
+                localRequirements[index - 1].flags.bits & 0x20 == 0
+            {
+                // Swift 6.4's paired `yielding borrow` witness was already
+                // recorded with its legacy `read` slot.
+                return
+            }
+
+            if usesYieldOnce2 {
+                // Swift 6.3 emits one physical `read2` witness.
+                callableRequirements.append((index, .getter, receiver))
+                readCoroutineRequirements.append(
+                    (
+                        witnessIndex: index,
+                        recorderWitnessIndex: index,
+                        receiver: receiver,
+                        abi: .yieldOnce2
+                    ))
+                return
+            }
+
+            let pairedIndex = index + 1
+            guard pairedIndex < localRequirements.endIndex,
+                localRequirements[pairedIndex].flags.kind == .readCoroutine,
+                localRequirements[pairedIndex].flags.bits & 0x20 != 0,
+                localRequirements[pairedIndex].flags.isInstance
+                    == requirement.flags.isInstance
+            else {
+                throw StubError.unsupportedProtocolShape(
+                    protocolName: descriptor.name,
+                    reason: "The legacy read witness at index \(index) is missing its adjacent Swift 6.4 yielding-borrow witness."
+                )
+            }
+
+            // Swift 6.4 emits a legacy yield_once slot followed by a
+            // yield_once_2 slot for one logical accessor. Expose only the
+            // supported second slot to discovery and APIs, while retaining
+            // both physical coordinates for witness-table fabrication.
+            callableRequirements.append((pairedIndex, .getter, receiver))
+            readCoroutineRequirements.append(
+                (
+                    witnessIndex: index,
+                    recorderWitnessIndex: pairedIndex,
+                    receiver: receiver,
+                    abi: .yieldOnce
+                ))
+            readCoroutineRequirements.append(
+                (
+                    witnessIndex: pairedIndex,
+                    recorderWitnessIndex: pairedIndex,
+                    receiver: receiver,
+                    abi: .yieldOnce2
+                ))
         }
 
         private func validateClassLayoutRequirements(

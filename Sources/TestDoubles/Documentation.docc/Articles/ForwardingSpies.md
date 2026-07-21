@@ -99,6 +99,11 @@ synchronous, nonthrowing, borrowed-value ABI used by ``Stub``. A matching
 registration still wins without entering the target. Otherwise the spy enters
 the target's coroutine, relays its yielded value and borrow lifetime, and
 resumes the target exactly once when the caller ends or unwinds the borrow.
+Swift 6.4 protocols add a paired legacy `read` witness beside the
+yielding-borrow witness. ``Spy`` construction currently rejects that pair
+because forwarding the legacy `yield_once` target coroutine has not been
+validated. A ``Stub`` can configure and verify the logical accessor through the
+supported yielding-borrow witness.
 
 Construction fails with ``StubError/unsupportedProtocolShape(protocolName:reason:)``
 when the protocol requires any of these forwarding shapes:
@@ -109,7 +114,8 @@ when the protocol requires any of these forwarding shapes:
 - Arguments that spill to the stack or leave no registers for target metadata
 - `_modify` coroutines used by compound assignment and `inout` access
 - `read` coroutine descriptors outside the supported Swift 6.3 `yield_once_2`
-  shape, including the Swift 6.4 yielding-borrow runtime
+  shape, including Swift 6.4's paired legacy `read` and yielding-borrow
+  witnesses
 
 Use a small hand-written spy when the protocol needs one of the other shapes;
 construction fails before a generated value can be invoked.

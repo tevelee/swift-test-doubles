@@ -55,7 +55,7 @@ func parseWitnessSignature(
             case .setter:
                 markers = [".setter : "]
             case .readCoroutine:
-                markers = [".read2 : ", ".read : "]
+                markers = [".yielding_borrow : ", ".read2 : ", ".read : "]
             default:
                 preconditionFailure("Accessor kind was validated before parsing.")
         }

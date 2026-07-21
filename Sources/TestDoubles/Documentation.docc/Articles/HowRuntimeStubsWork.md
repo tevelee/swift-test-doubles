@@ -81,9 +81,12 @@ state and completes the witness call.
 Async requirements follow the same model while also preserving the caller's
 continuation across suspension. Read-write properties and subscripts use a
 specialized `_modify` path that yields temporary storage and writes the final
-value back through the configured setter. Swift 6.3 `read` accessors use a
-separate borrowed coroutine path: the configured getter result stays alive until
-the caller resumes or aborts the borrow, without a setter writeback.
+value back through the configured setter. Swift 6.3 `read` and Swift 6.4
+`yielding borrow` accessors use a separate borrowed coroutine path: the
+configured getter result stays alive until the caller resumes or aborts the
+borrow, without a setter writeback. Swift 6.4 exposes a legacy `read` witness
+beside the supported yielding-borrow witness; discovery maps both physical
+slots to one logical getter-shaped recorder requirement.
 Function-valued arguments and results may need an additional reabstraction step
 because a concrete Swift closure and an `Any`-based recorder do not necessarily
 use the same calling convention. These are adaptations around the same central

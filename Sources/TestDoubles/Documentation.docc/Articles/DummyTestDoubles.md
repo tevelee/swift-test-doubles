@@ -33,9 +33,10 @@ with a diagnostic identifying the declaring protocol and witness index. If the
 dependency is expected to respond or if the test needs to verify an
 interaction, use ``Stub`` instead.
 
-Swift 6.3 `read` accessors are result-dependent borrowed coroutines and are not
-fabricated for Dummy. Construction rejects a protocol containing one; use a
-Stub with configured getter behavior or a hand-written dummy.
+Swift 6.3 `read` and Swift 6.4 `yielding borrow` accessors are result-dependent
+borrowed coroutines and are not fabricated for Dummy. Construction rejects a
+protocol containing one; use a Stub with configured getter behavior or a
+hand-written dummy.
 
 The generated protocol value owns its fabricated witness tables and page-backed
 executable trampoline arena. It remains valid after the `Dummy` instance is
