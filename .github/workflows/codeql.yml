@@ -3,18 +3,36 @@ name: CodeQL
 on:
   push:
     branches: [main]
+    paths:
+      - .github/actions/**
+      - .github/workflows/**
+      - .swift-version
+      - Package.resolved
+      - Package.swift
+      - Sources/**
+      - "!Sources/TestDoubles/Documentation.docc/**"
+      - Tests/**
   pull_request:
     branches: [main]
+    paths:
+      - .github/actions/**
+      - .github/workflows/**
+      - .swift-version
+      - Package.resolved
+      - Package.swift
+      - Sources/**
+      - "!Sources/TestDoubles/Documentation.docc/**"
+      - Tests/**
   schedule:
     - cron: "0 0 * * 1"
   workflow_dispatch:
 
-concurrency:
-  group: codeql-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
-
 permissions:
   contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   analyze-actions:

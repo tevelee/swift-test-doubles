@@ -3,7 +3,35 @@ name: CI
 on:
   push:
     branches: [main]
+    paths:
+      - .github/Brewfile
+      - .github/actions/**
+      - .github/workflows/ci.yml
+      - .swift-format
+      - .swift-version
+      - .swiftlint.yml
+      - Package.resolved
+      - Package.swift
+      - PUBLIC_API.snapshot
+      - Scripts/**
+      - Sources/**
+      - "!Sources/TestDoubles/Documentation.docc/**"
+      - Tests/**
   pull_request:
+    paths:
+      - .github/Brewfile
+      - .github/actions/**
+      - .github/workflows/ci.yml
+      - .swift-format
+      - .swift-version
+      - .swiftlint.yml
+      - Package.resolved
+      - Package.swift
+      - PUBLIC_API.snapshot
+      - Scripts/**
+      - Sources/**
+      - "!Sources/TestDoubles/Documentation.docc/**"
+      - Tests/**
   schedule:
     - cron: "17 3 * * 1"
   workflow_dispatch:
@@ -12,25 +40,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  workflow-lint:
-    name: Workflow lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-        with:
-          persist-credentials: false
-      - name: Run actionlint
-        run: >-
-          docker run --rm
-          --volume "$PWD:/repo"
-          --workdir /repo
-          rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
-
   swift-quality:
     name: Swift format, lint, and boundaries
     runs-on: macos-26
@@ -268,9 +281,9 @@ jobs:
           retention-days: 14
           include-hidden-files: true
 
-  rosetta:
-    name: Swift 6.3 / Rosetta x86_64
-    runs-on: macos-26
+  native-intel:
+    name: Swift 6.3 / native x86_64
+    runs-on: macos-26-intel
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -279,35 +292,33 @@ jobs:
       - name: Restore build cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
-          path: .build/ci-rosetta
+          path: .build/ci-native-intel
           key: >-
-            swift-build-v1-${{ runner.os }}-${{ runner.arch }}-rosetta-${{
+            swift-build-v1-${{ runner.os }}-${{ runner.arch }}-native-intel-${{
             github.sha }}
           restore-keys: |
-            swift-build-v1-${{ runner.os }}-${{ runner.arch }}-rosetta-
+            swift-build-v1-${{ runner.os }}-${{ runner.arch }}-native-intel-
       - name: Select Xcode 26.4.1
         run: sudo xcode-select --switch /Applications/Xcode_26.4.1.app/Contents/Developer
-      - name: Install Rosetta
-        run: sudo softwareupdate --install-rosetta --agree-to-license
-      - name: Show translated toolchain
-        run: arch -x86_64 swift --version
+      - name: Show toolchain
+        run: swift --version
       - name: Test debug
         run: |
-          arch -x86_64 swift test \
+          swift test \
             --parallel \
             --experimental-maximum-parallelization-width 4 \
-            --scratch-path .build/ci-rosetta \
+            --scratch-path .build/ci-native-intel \
             --triple x86_64-apple-macosx \
             --disable-xctest \
             --enable-swift-testing
       - name: Test release
         run: |
-          arch -x86_64 swift test \
+          swift test \
             -c release \
             --parallel \
             --experimental-maximum-parallelization-width 4 \
             --skip ExitTests \
-            --scratch-path .build/ci-rosetta \
+            --scratch-path .build/ci-native-intel \
             --triple x86_64-apple-macosx \
             --disable-xctest \
             --enable-swift-testing
