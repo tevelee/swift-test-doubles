@@ -31,6 +31,7 @@
 #define TD_ASYNC_COMPLETION_STATE_OFFSET 552
 
 #define TD_MODIFY_CONTEXT_STATE_OFFSET 0
+#define TD_MODIFY_CONTEXT_SIZE 32
 // Swift 6.3.3's arm64e discriminator for a yield-once resume function
 // authenticated against the caller-provided coroutine context. Keep this in
 // sync with Scripts/check-swift-abi-constants.sh.
@@ -138,11 +139,11 @@ typedef struct TDAsyncWitnessStackArguments {
 /// `entry` is the raw relative entry address from the authenticated descriptor.
 /// The assembly caller signs it with the descriptor slot and declaration
 /// discriminator immediately before invocation.
-typedef struct TDReadWitnessTarget {
+typedef struct TDCoroWitnessTarget {
   const void *entry;
   uint32_t callerFrameSize;
   uint32_t reserved;
-} TDReadWitnessTarget;
+} TDCoroWitnessTarget;
 
 typedef struct TDWitnessVeneerArena TDWitnessVeneerArena;
 
@@ -156,6 +157,11 @@ void *td_witness_veneer_arena_make_async(TDWitnessVeneerArena *arena,
 void *td_witness_veneer_arena_make_modify(TDWitnessVeneerArena *arena,
                                           uintptr_t slot,
                                           uintptr_t context);
+void *td_witness_veneer_arena_make_modify_descriptor(
+    TDWitnessVeneerArena *arena,
+    uintptr_t slot,
+    uintptr_t context,
+    uint16_t resumeDiscriminator);
 void *td_witness_veneer_arena_make_read(TDWitnessVeneerArena *arena,
                                         uintptr_t slot,
                                         uintptr_t context,
@@ -181,10 +187,10 @@ const void *td_sign_coro_witness_pointer(const void *pointer,
 const void *td_sign_modify_witness_pointer(const void *pointer,
                                            const void *slot,
                                            uint16_t discriminator);
-bool td_prepare_read_witness_target(const void *signedDescriptor,
+bool td_prepare_coro_witness_target(const void *signedDescriptor,
                                     const void *slot,
                                     uint16_t declarationDiscriminator,
-                                    TDReadWitnessTarget *result);
+                                    TDCoroWitnessTarget *result);
 const void *td_strip_witness_function_pointer(const void *pointer);
 const void *td_strip_async_witness_pointer(const void *pointer);
 uint16_t td_generic_function_discriminator(uint16_t parameterCount,
@@ -230,6 +236,8 @@ void td_swift_dynamic_async_function_entry(void);
 void td_swift_async_trampoline_entry(void);
 void td_swift_modify_trampoline_entry(void);
 void td_swift_modify_trampoline_resume(void);
+void td_swift_modify_descriptor_trampoline_entry(void);
+void td_swift_modify_descriptor_trampoline_resume(void);
 void td_swift_read_trampoline_entry(void);
 void td_swift_read_trampoline_resume(void);
 void td_swift_trampoline_handler(TDCallFrame *frame);

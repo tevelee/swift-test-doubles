@@ -76,9 +76,9 @@ _Static_assert(sizeof(TDModifyCoroutineResult) == 2 * sizeof(void *),
                "TDModifyCoroutineResult size changed");
 _Static_assert(sizeof(TDReadCoroutineResult) == 2 * sizeof(void *),
                "TDReadCoroutineResult size changed");
-_Static_assert(sizeof(TDReadWitnessTarget) ==
+_Static_assert(sizeof(TDCoroWitnessTarget) ==
                    sizeof(void *) + 2 * sizeof(uint32_t),
-               "TDReadWitnessTarget size changed");
+               "TDCoroWitnessTarget size changed");
 
 #if __has_attribute(weak)
 #define TD_WEAK __attribute__((weak))
@@ -147,10 +147,10 @@ const void *td_sign_modify_witness_pointer(const void *pointer,
 #endif
 }
 
-bool td_prepare_read_witness_target(const void *signedDescriptor,
+bool td_prepare_coro_witness_target(const void *signedDescriptor,
                                     const void *slot,
                                     uint16_t declarationDiscriminator,
-                                    TDReadWitnessTarget *result) {
+                                    TDCoroWitnessTarget *result) {
   if (!signedDescriptor || !slot || !result) {
     return false;
   }

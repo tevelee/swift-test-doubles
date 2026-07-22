@@ -130,22 +130,30 @@ A direct setter is an ordinary synchronous witness with one `@owned` value and
 a `Void` result. Each argument descriptor records borrowed or owned convention
 independently, so consuming method arguments and setter inputs move ownership
 into the recorder's type erasure exactly once while borrowed arguments are only
-copied, including indirect and reference-containing values. Swift
-also emits a mandatory `_modify` coroutine for a read-write property or
-subscript. Its dedicated veneer captures the caller's coroutine context before
-the ordinary arguments, dispatches the paired getter, and yields aligned
-metadata-backed storage. The resume function boxes and destroys that storage
-exactly once, then writes it back through the paired setter. Both normal and
-abort resumes perform writeback because Swift preserves mutations made before
-a thrown unwind. Indexed access retains the borrowed indices across the yield
-and restores the setter's `[value, indices...]` ABI order.
+copied, including indirect and reference-containing values. Swift also emits a
+mandatory `_modify` coroutine for a read-write property or subscript. Internal
+protocols use the legacy direct `yield_once` witness. A public Swift 6.3
+protocol built with coroutine accessors instead uses a `yield_once_2` descriptor
+whose requirement flags carry the `0x20` descriptor bit and whose caller frame
+is 32 bytes. The runtime classifies these forms from the protocol metadata and
+installs either a direct entry point or a descriptor with the
+compiler-compatible frame size and resume discriminator.
 
-For an unmatched Spy call, the same outer veneer authenticates and enters the
-target's direct `_modify` witness with a retained 32-byte caller frame. It
-relays the target's yielded storage directly, then authenticates the target
-continuation against that frame and forwards Swift's normal-or-abort flag
-exactly once. A matching getter registration stays on the configured storage
-path and never enters the target coroutine.
+Both veneers dispatch the paired getter and yield aligned metadata-backed
+storage. The resume function boxes and destroys that storage exactly once,
+then writes it back through the paired setter. Both normal and abort resumes
+perform writeback because Swift preserves mutations made before a thrown
+unwind. Indexed access retains the borrowed indices across the yield and
+restores the setter's `[value, indices...]` ABI order.
+
+For an unmatched Spy call, the outer veneer authenticates and enters either the
+target's direct `_modify` witness or the entry point in its coroutine
+descriptor. Descriptor forwarding supplies the target with the coroutine
+allocator and retains its advertised caller frame. Both paths relay the
+target's yielded storage directly, authenticate the target continuation, and
+forward Swift's normal-or-abort flag exactly once. A matching getter
+registration stays on the configured storage path and never enters the target
+coroutine.
 
 A Swift 6.3 `read` property or subscript instead has one `yield_once_2`
 coroutine descriptor and no separate getter slot. Fabrication maps that witness

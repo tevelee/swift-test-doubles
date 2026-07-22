@@ -246,6 +246,7 @@ _Static_assert(TD_TYPED_WITNESS_VENEER_CODE_CAPACITY >= 24,
 typedef enum TDVeneerLayout {
   TD_VENEER_LAYOUT_DIRECT,
   TD_VENEER_LAYOUT_ASYNC,
+  TD_VENEER_LAYOUT_MODIFY,
   TD_VENEER_LAYOUT_READ,
 } TDVeneerLayout;
 
@@ -268,18 +269,21 @@ static void *td_witness_veneer_arena_make(
     code = entry + TD_ASYNC_VENEER_DESCRIPTOR_CAPACITY;
     descriptor->relativeFunction = (int32_t)(code - entry);
     descriptor->expectedContextSize = TD_ASYNC_CONTEXT_SIZE;
-  } else if (layout == TD_VENEER_LAYOUT_READ) {
+  } else if (layout == TD_VENEER_LAYOUT_MODIFY ||
+             layout == TD_VENEER_LAYOUT_READ) {
     TDCoroFunctionPointer *descriptor = (TDCoroFunctionPointer *)entry;
     code = entry + TD_ASYNC_VENEER_DESCRIPTOR_CAPACITY;
     descriptor->relativeFunction = (int32_t)(code - entry);
-    descriptor->callerFrameSize = TD_READ_CONTEXT_SIZE;
+    descriptor->callerFrameSize = layout == TD_VENEER_LAYOUT_MODIFY
+                                      ? TD_MODIFY_CONTEXT_SIZE
+                                      : TD_READ_CONTEXT_SIZE;
     // Swift IRGen deliberately uses zero when typed coroutine-frame malloc is
     // disabled. This veneer never requests an auxiliary allocation.
     descriptor->mallocTypeID = 0;
   }
 
   bool emitted =
-      layout == TD_VENEER_LAYOUT_READ
+      layout == TD_VENEER_LAYOUT_MODIFY || layout == TD_VENEER_LAYOUT_READ
           ? td_emit_read_witness_veneer(code, slot, context,
                                         resumeDiscriminator, entryTarget)
           : td_emit_witness_veneer(code, slot, context, entryTarget);
@@ -326,6 +330,15 @@ void *td_witness_veneer_arena_make_modify(TDWitnessVeneerArena *arena,
   return td_witness_veneer_arena_make(
       arena, slot, context, 0, (const void *)&td_swift_modify_trampoline_entry,
       TD_VENEER_LAYOUT_DIRECT);
+}
+
+void *td_witness_veneer_arena_make_modify_descriptor(
+    TDWitnessVeneerArena *arena, uintptr_t slot, uintptr_t context,
+    uint16_t resumeDiscriminator) {
+  return td_witness_veneer_arena_make(
+      arena, slot, context, resumeDiscriminator,
+      (const void *)&td_swift_modify_descriptor_trampoline_entry,
+      TD_VENEER_LAYOUT_MODIFY);
 }
 
 void *td_witness_veneer_arena_make_read(TDWitnessVeneerArena *arena,

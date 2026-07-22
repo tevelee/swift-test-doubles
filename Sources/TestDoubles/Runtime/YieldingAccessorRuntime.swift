@@ -1,3 +1,5 @@
+import CTestDoublesTrampoline
+
 /// Distinguishes retained coroutine states that otherwise share one lifecycle.
 enum YieldingAccessorKind: Equatable {
     case read
@@ -35,6 +37,26 @@ enum YieldingAccessorRuntime {
             preconditionFailure(invalidTypeMessage())
         }
         state.finish(isAborting: isAborting)
+    }
+
+    /// Derives the arm64e resume discriminator shared by `yield_once_2`
+    /// read and modify witnesses.
+    static func resumeDiscriminator(for method: MethodDescriptor) -> UInt16? {
+        let yieldSpelling: String
+        switch method.result.layout {
+            case .indirect:
+                yieldSpelling = "indirect"
+            case .void, .integer, .floatingPoint, .aggregate:
+                guard let spelling = pointerAuthTypeSpelling(method.returnType) else {
+                    return nil
+                }
+                yieldSpelling = spelling
+        }
+        let spelling = "yield_once_2:1:\(yieldSpelling):"
+        let bytes = Array(spelling.utf8)
+        return bytes.withUnsafeBufferPointer {
+            td_function_discriminator($0.baseAddress, $0.count)
+        }
     }
 }
 

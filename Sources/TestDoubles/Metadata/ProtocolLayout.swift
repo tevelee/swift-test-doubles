@@ -55,6 +55,14 @@ struct ProtocolLayout {
         let constraint: ProtocolDescriptor
     }
 
+    enum ModifyCoroutineABI: Equatable {
+        /// The legacy `yield_once` witness is stored as a direct function.
+        case yieldOnce
+        /// `CoroutineAccessors` stores `modify2` as a `yield_once_2`
+        /// descriptor with a caller-allocated frame.
+        case yieldOnce2
+    }
+
     /// A `_modify` witness and the ordinary getter/setter dispatch pair that
     /// provides its read and writeback behavior.
     struct ModifyCoroutineRequirement {
@@ -62,6 +70,7 @@ struct ProtocolLayout {
         let getterDispatchIndex: Int
         let setterDispatchIndex: Int
         let receiver: StubRequirementReceiver
+        let abi: ModifyCoroutineABI
     }
 
     enum ReadCoroutineABI: Equatable {
@@ -141,7 +150,8 @@ extension ProtocolLayout {
             witnessIndex: Int,
             getterWitnessIndex: Int,
             setterWitnessIndex: Int,
-            receiver: StubRequirementReceiver
+            receiver: StubRequirementReceiver,
+            abi: ModifyCoroutineABI
         )
         typealias LocalReadRequirement = (
             witnessIndex: Int,
@@ -253,7 +263,8 @@ extension ProtocolLayout {
                             witnessIndex: modifyRequirement.witnessIndex,
                             getterDispatchIndex: getter.dispatchIndex,
                             setterDispatchIndex: setter.dispatchIndex,
-                            receiver: modifyRequirement.receiver
+                            receiver: modifyRequirement.receiver,
+                            abi: modifyRequirement.abi
                         )
                     }
                 ))
@@ -475,7 +486,10 @@ extension ProtocolLayout {
                                 witnessIndex: index,
                                 getterWitnessIndex: index - 2,
                                 setterWitnessIndex: index - 1,
-                                receiver: requirement.flags.isInstance ? .instance : .metatype
+                                receiver: requirement.flags.isInstance ? .instance : .metatype,
+                                abi:
+                                    requirement.flags.bits & 0x20 == 0
+                                    ? .yieldOnce : .yieldOnce2
                             ))
 
                     case .readCoroutine:

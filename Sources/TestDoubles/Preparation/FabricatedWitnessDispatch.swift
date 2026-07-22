@@ -1,6 +1,6 @@
 import Echo
 
-struct ReadWitnessPlan {
+struct YieldOnce2WitnessPlan {
     let resumeDiscriminator: UInt16
 }
 
@@ -83,7 +83,7 @@ enum FabricatedWitnessDispatch {
     func readPlan(
         for requirement: ProtocolLayout.ReadCoroutineRequirement,
         in node: ProtocolLayout.Node
-    ) throws -> ReadWitnessPlan {
+    ) throws -> YieldOnce2WitnessPlan {
         precondition(requirement.abi == .yieldOnce2)
         switch self {
             case .stub(_, let methodsByIndex, _):
@@ -105,7 +105,7 @@ enum FabricatedWitnessDispatch {
                     method.returnConvention != .optionalSelf,
                     reflect(method.returnType).kind != .function,
                     let resumeDiscriminator =
-                        ReadCoroutineRuntime.resumeDiscriminator(for: method)
+                        YieldingAccessorRuntime.resumeDiscriminator(for: method)
                 else {
                     throw StubError.unsupportedProtocolShape(
                         protocolName: node.descriptor.name,
@@ -114,7 +114,7 @@ enum FabricatedWitnessDispatch {
                             + "Function, dynamic Self, typed-adapter, and result layouts whose resume discriminator cannot be derived require a hand-written test double."
                     )
                 }
-                return ReadWitnessPlan(
+                return YieldOnce2WitnessPlan(
                     resumeDiscriminator: resumeDiscriminator
                 )
 
@@ -122,6 +122,51 @@ enum FabricatedWitnessDispatch {
                 throw StubError.unsupportedProtocolShape(
                     protocolName: node.descriptor.name,
                     reason: "Dummy cannot fabricate the result-dependent resume ABI for the read requirement at witness index \(requirement.witnessIndex). Use a Stub or a hand-written dummy."
+                )
+        }
+    }
+
+    func modifyPlan(
+        for requirement: ProtocolLayout.ModifyCoroutineRequirement,
+        in node: ProtocolLayout.Node
+    ) throws -> YieldOnce2WitnessPlan {
+        precondition(requirement.abi == .yieldOnce2)
+        switch self {
+            case .stub(_, let methodsByIndex, _):
+                guard let method = methodsByIndex[requirement.getterDispatchIndex]
+                else {
+                    throw StubError.requirementCountMismatch(
+                        protocolName: node.descriptor.name,
+                        expected: node.callableRequirements.count,
+                        actual: 0
+                    )
+                }
+                guard method.kind == .getter,
+                    method.receiver == requirement.receiver,
+                    method.isAsync == false,
+                    method.isThrowing == false,
+                    method.typedWitnessAdapterFactory == nil,
+                    method.arguments.allSatisfy({ $0.ownership == .borrowed }),
+                    method.returnConvention != .selfType,
+                    method.returnConvention != .optionalSelf,
+                    reflect(method.returnType).kind != .function,
+                    let resumeDiscriminator =
+                        YieldingAccessorRuntime.resumeDiscriminator(for: method)
+                else {
+                    throw StubError.unsupportedProtocolShape(
+                        protocolName: node.descriptor.name,
+                        reason:
+                            "The _modify requirement at witness index \(requirement.witnessIndex) is outside the supported synchronous, nonthrowing yield_once_2 ABI."
+                    )
+                }
+                return YieldOnce2WitnessPlan(
+                    resumeDiscriminator: resumeDiscriminator
+                )
+
+            case .dummy:
+                throw StubError.unsupportedProtocolShape(
+                    protocolName: node.descriptor.name,
+                    reason: "Dummy cannot fabricate the result-dependent resume ABI for the _modify requirement at witness index \(requirement.witnessIndex). Use a Stub or a hand-written dummy."
                 )
         }
     }

@@ -96,11 +96,12 @@ values. Getter effects cover ordinary untyped `throws`; typed-throwing getters
 remain unsupported.
 
 Compound assignment and `inout` access use the target's `_modify` coroutine.
-A matching getter registration keeps the configured writable-storage path and
-does not enter the target. Otherwise the spy relays the storage yielded by the
-target, keeps the target alive for the entire access, and resumes or aborts the
-target exactly once. Mutations and target writeback therefore persist on both
-normal completion and unwind.
+Both legacy direct witnesses and descriptor-based public Swift 6.3 witnesses
+are supported. A matching getter registration keeps the configured
+writable-storage path and does not enter the target. Otherwise the spy relays
+the storage yielded by the target, keeps the target alive for the entire
+access, and resumes or aborts the target exactly once. Mutations and target
+writeback therefore persist on both normal completion and unwind.
 
 Swift 6.3 `read` property and subscript accessors are supported within the
 synchronous, nonthrowing, borrowed-value ABI used by ``Stub``. A matching

@@ -11,6 +11,7 @@ private final class WeakReadReference: @unchecked Sendable {
 }
 
 private struct ReadAbortFailure: Error {}
+private struct Modify2AbortFailure: Error {}
 
 @Suite struct ReadAccessorTests {
     @Test func concretePropertyAndSubscriptDispatchThroughReadDescriptors() throws {
@@ -66,6 +67,62 @@ private struct ReadAbortFailure: Error {}
         let probe: any ExplicitReadAccessorProbe = stub()
         #expect(probe.value == 42)
         stub.verify { $0.value }
+    }
+
+    @Test func modify2StubDispatchesGetterAndSetter() throws {
+        _ = LinkedModify2AccessorProbe()
+        let stub = try Stub<any Modify2AccessorProbe>()
+        stub.when { $0.value }.thenReturn(40)
+        stub.when { $0.value = equal(42) }.thenDoNothing()
+        var probe: any Modify2AccessorProbe = stub()
+
+        probe.value += 2
+
+        stub.verify(.exactly(1)) { $0.value }
+        stub.verify(.exactly(1)) { $0.value = equal(42) }
+    }
+
+    @Test func modify2SpyForwardsRepeatedMutation() throws {
+        let spy = try Spy<any Modify2AccessorProbe>(
+            forwardingTo: LinkedModify2AccessorProbe(value: 39)
+        )
+        var probe: any Modify2AccessorProbe = spy()
+
+        for _ in 0 ..< 3 {
+            probe.value += 1
+        }
+
+        #expect(probe.value == 42)
+        spy.verify(.exactly(4)) { $0.value }
+    }
+
+    @Test func modify2StubWritesBackBeforeUnwind() throws {
+        _ = LinkedModify2AccessorProbe()
+        let stub = try Stub<any Modify2AccessorProbe>()
+        stub.when { $0.value }.thenReturn(40)
+        stub.when { $0.value = equal(42) }.thenDoNothing()
+        var probe: any Modify2AccessorProbe = stub()
+
+        #expect(throws: Modify2AbortFailure.self) {
+            try mutateModify2ThenAbort(&probe.value)
+        }
+
+        stub.verify(.exactly(1)) { $0.value }
+        stub.verify(.exactly(1)) { $0.value = equal(42) }
+    }
+
+    @Test func modify2SpyWritesTargetBackBeforeUnwind() throws {
+        let spy = try Spy<any Modify2AccessorProbe>(
+            forwardingTo: LinkedModify2AccessorProbe(value: 40)
+        )
+        var probe: any Modify2AccessorProbe = spy()
+
+        #expect(throws: Modify2AbortFailure.self) {
+            try mutateModify2ThenAbort(&probe.value)
+        }
+
+        #expect(probe.value == 42)
+        spy.verify(.exactly(2)) { $0.value }
     }
 
     @Test func readResultRemainsAliveForBorrowAndReleasesAfterUse() throws {
@@ -189,6 +246,39 @@ private struct ReadAbortFailure: Error {}
         #expect(frameSize == 16)
         #expect(mallocTypeID == 0)
         #expect(entry != descriptor)
+    }
+
+    @Test func fabricatedModify2WitnessContainsDescriptor() throws {
+        let layout = try Stub<any Modify2AccessorProbe>.extractProtocolLayout()
+        let node = try #require(layout.nodes.first)
+        let modify = try #require(node.modifyCoroutineRequirements.first)
+        #expect(modify.abi == .yieldOnce2)
+
+        let stub = try Stub<any Modify2AccessorProbe>(
+            .getter(Int.self),
+            .setter(Int.self)
+        )
+        var probe: any Modify2AccessorProbe = stub()
+        let wordSize = MemoryLayout<UInt>.size
+        let witnessAddress = withUnsafePointer(to: &probe) { pointer in
+            UnsafeRawPointer(pointer).load(
+                fromByteOffset: 4 * wordSize,
+                as: UInt.self
+            )
+        }
+        let witnessTable = try #require(
+            UnsafeRawPointer(bitPattern: witnessAddress)
+        )
+        let descriptor = (witnessTable + (1 + modify.witnessIndex) * wordSize)
+            .load(as: UnsafeRawPointer.self)
+        let relativeEntry = descriptor.load(as: Int32.self)
+        let frameSize = descriptor.load(fromByteOffset: 4, as: UInt32.self)
+        let mallocTypeID = descriptor.load(fromByteOffset: 8, as: UInt64.self)
+
+        #expect(relativeEntry != 0)
+        #expect(frameSize == 32)
+        #expect(mallocTypeID == 0)
+        #expect(descriptor + Int(relativeEntry) != descriptor)
     }
 
     #if compiler(>=6.4)
@@ -318,4 +408,11 @@ private func abortReadLifetimeValue(
 ) throws(ReadAbortFailure) -> Never {
     #expect(value.reference.value == 42)
     throw ReadAbortFailure()
+}
+
+private func mutateModify2ThenAbort(
+    _ value: inout Int
+) throws(Modify2AbortFailure) {
+    value += 2
+    throw Modify2AbortFailure()
 }

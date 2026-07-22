@@ -34,6 +34,24 @@ public struct LinkedAssociatedReadAccessorProbe: AssociatedReadAccessorProbe {
     public subscript(_ index: Int) -> Int { read { yield index } }
 }
 
+public protocol Modify2AccessorProbe {
+    var value: Int { get set }
+}
+
+public struct LinkedModify2AccessorProbe: Modify2AccessorProbe {
+    private var storage: Int
+
+    public init(value: Int = 0) {
+        storage = value
+    }
+
+    public var value: Int {
+        get { storage }
+        set { storage = newValue }
+        _modify { yield &storage }
+    }
+}
+
 public protocol ExplicitReadAccessorProbe {
     var value: Int { read }
 }

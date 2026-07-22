@@ -153,24 +153,6 @@ enum ReadCoroutineRuntime {
         )
     }
 
-    static func resumeDiscriminator(for method: MethodDescriptor) -> UInt16? {
-        let yieldSpelling: String
-        switch method.result.layout {
-            case .indirect:
-                yieldSpelling = "indirect"
-            case .void, .integer, .floatingPoint, .aggregate:
-                guard let spelling = pointerAuthTypeSpelling(method.returnType) else {
-                    return nil
-                }
-                yieldSpelling = spelling
-        }
-        let spelling = "yield_once_2:1:\(yieldSpelling):"
-        let bytes = Array(spelling.utf8)
-        return bytes.withUnsafeBufferPointer {
-            td_function_discriminator($0.baseAddress, $0.count)
-        }
-    }
-
     private static func placeholderResult(
         for method: MethodDescriptor
     ) -> Any {

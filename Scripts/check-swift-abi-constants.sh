@@ -15,8 +15,32 @@ public struct TestDoublesModifyDiscriminatorProbe {
     self.storage = storage
   }
 
+public var value: Int {
+    get { storage }
+    _modify { yield &storage }
+  }
+}
+SWIFT
+}
+
+compile_swift_63_modify_descriptor_probe() {
+  xcrun swiftc "$@" - <<'SWIFT'
+public protocol TestDoublesModifyDescriptorProbe {
+  var value: Int { get set }
+}
+
+public struct TestDoublesModifyDescriptorConformer:
+  TestDoublesModifyDescriptorProbe
+{
+  private var storage: Int
+
+  public init(storage: Int) {
+    self.storage = storage
+  }
+
   public var value: Int {
     get { storage }
+    set { storage = newValue }
     _modify { yield &storage }
   }
 }
@@ -84,6 +108,12 @@ read_context_size="$({
     "$header"
 } | sort -u)"
 
+modify_context_size="$({
+  sed -nE \
+    's/^#define TD_MODIFY_CONTEXT_SIZE ([0-9]+)$/\1/p' \
+    "$header"
+} | sort -u)"
+
 if [[ -z "$expected" || "$expected" == *$'\n'* ]]; then
   echo "Could not read one TD_MODIFY_RESUME_DISCRIMINATOR from $header." >&2
   exit 1
@@ -92,6 +122,12 @@ fi
 if [[ "$read_context_size" != "16" ]]; then
   echo "TD_READ_CONTEXT_SIZE must remain the runtime's 16-byte read context." >&2
   echo "Header: ${read_context_size:-missing}" >&2
+  exit 1
+fi
+
+if [[ "$modify_context_size" != "32" ]]; then
+  echo "TD_MODIFY_CONTEXT_SIZE must remain the runtime's 32-byte modify2 context." >&2
+  echo "Header: ${modify_context_size:-missing}" >&2
   exit 1
 fi
 
@@ -159,6 +195,108 @@ if [[ "$derived" != "$expected" ]]; then
   echo "Swift compiler arm64e modify-resume discriminator changed." >&2
   echo "Header: $expected" >&2
   echo "Compiler: $derived" >&2
+  exit 1
+fi
+
+modify_descriptor_assembly="$({
+  compile_swift_63_modify_descriptor_probe \
+    -emit-assembly \
+    -parse-as-library \
+    -enable-experimental-feature CoroutineAccessors \
+    -module-name TestDoublesAccessorABIProbe \
+    -target arm64e-apple-macosx13.0 \
+    -o -
+})"
+
+modify_descriptor_sil="$({
+  compile_swift_63_modify_descriptor_probe \
+    -emit-silgen \
+    -parse-as-library \
+    -enable-experimental-feature CoroutineAccessors \
+    -module-name TestDoublesAccessorABIProbe \
+    -o -
+})"
+
+modify_descriptor_witness_count="$({
+  printf '%s\n' "$modify_descriptor_sil" |
+    awk '
+      /sil_witness_table .*TestDoublesModifyDescriptorConformer: TestDoublesModifyDescriptorProbe/ {
+        inWitnessTable = 1
+        next
+      }
+      inWitnessTable && /^}/ { inWitnessTable = 0 }
+      inWitnessTable && /method #TestDoublesModifyDescriptorProbe.value!modify2:/ { count += 1 }
+      END { print count + 0 }
+    '
+})"
+
+modify_descriptor_convention_count="$({
+  printf '%s\n' "$modify_descriptor_sil" |
+    awk '
+      /^\/\/ protocol witness for TestDoublesModifyDescriptorProbe.value.modify2 in conformance/ {
+        pending = 1
+        next
+      }
+      pending && /^sil / {
+        if ($0 ~ /\$@yield_once_2 @convention\(witness_method:/) count += 1
+        pending = 0
+      }
+      END { print count + 0 }
+    '
+})"
+
+if [[ "$modify_descriptor_witness_count" != "1" || "$modify_descriptor_convention_count" != "1" ]]; then
+  echo "Swift 6.3 modify2 witness contract changed." >&2
+  echo "modify2 witness-table entries: $modify_descriptor_witness_count" >&2
+  echo "yield_once_2 modify witnesses: $modify_descriptor_convention_count" >&2
+  exit 1
+fi
+
+modify_descriptor_frame_size="$({
+  printf '%s\n' "$modify_descriptor_assembly" |
+    awk '
+      /TWTwc:$/ {
+        getline
+        if ($1 != ".long") next
+        getline
+        if ($1 != ".long") next
+        frameSize = $2
+        getline
+        if ($1 != ".quad") next
+        print frameSize
+      }
+    ' |
+    sort -u
+})"
+
+if [[ "$modify_descriptor_frame_size" != "32" ]]; then
+  echo "Swift compiler modify2 descriptor layout changed." >&2
+  echo "Expected relative entry, 32-byte caller frame, and malloc type ID." >&2
+  echo "Compiler caller frame: ${modify_descriptor_frame_size:-missing}" >&2
+  exit 1
+fi
+
+modify_descriptor_requirement_flags="$({
+  printf '%s\n' "$modify_descriptor_assembly" |
+    awk '
+      /ModifyDescriptorProbeMp:$/ { inDescriptor = 1; next }
+      inDescriptor && $1 == ".long" {
+        longCount += 1
+        if (longCount == 5 && $2 != "3") exit
+        if (longCount == 11) {
+          value = $2
+          sub(/;.*/, "", value)
+          print value
+          exit
+        }
+      }
+    '
+})"
+
+if [[ -z "$modify_descriptor_requirement_flags" ]] || (( (modify_descriptor_requirement_flags & 0xffff) != 0x36 )); then
+  echo "Swift 6.3 modify2 requirement flags changed." >&2
+  echo "Expected low flags: 0x0036" >&2
+  echo "Compiler flags word: ${modify_descriptor_requirement_flags:-missing}" >&2
   exit 1
 fi
 
@@ -293,11 +431,15 @@ fi
 echo "Swift 6.3 compiler selected for the required accessor ABI baseline."
 echo "Swift 6.3 _modify convention matches: yield_once"
 echo "Swift arm64e modify-resume discriminator matches header: $derived"
+echo "Swift 6.3 modify2 witness contract matches: one yield_once_2 descriptor"
+echo "Swift 6.3 modify2 requirement low flags match: 0x0036"
+echo "Swift 6.3 modify2 descriptor shape and caller frame match: 32 bytes"
 echo "Swift 6.3 read witness contract matches: one read2 yield_once_2 witness"
 echo "Swift 6.3 read requirement low flags match: 0x0035"
 echo "Swift 6.3 yield_once_2 descriptor shape and caller frame match: 32 bytes"
 echo "Swift 6.3 compiler emitted one Int read-resume discriminator: $read_resume_discriminator"
 echo "Runtime read context size matches header contract: $read_context_size bytes"
+echo "Runtime modify2 context size matches header contract: $modify_context_size bytes"
 
 if [[ -z "${SWIFT_6_4_DEVELOPER_DIR:-}" ]]; then
   echo "Swift 6.4 yielding-borrow compatibility probe skipped; set SWIFT_6_4_DEVELOPER_DIR to enable it."

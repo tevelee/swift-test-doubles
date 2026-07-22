@@ -337,6 +337,7 @@ private func useLinkedAssociatedReadWriteSubscript(
         #expect(node.callableRequirements.map(\.witnessIndex) == [0, 1])
         #expect(node.callableRequirements.map(\.kind) == [.getter, .setter])
         #expect(node.modifyCoroutineRequirements.map(\.witnessIndex) == [2])
+        #expect(node.modifyCoroutineRequirements.map(\.abi) == [.yieldOnce])
         #expect(node.modifyCoroutineRequirements.first?.getterDispatchIndex == 0)
         #expect(node.modifyCoroutineRequirements.first?.setterDispatchIndex == 1)
     }

@@ -5,6 +5,7 @@ enum TrampolineFactory {
         case synchronous
         case asynchronous
         case modify
+        case modifyDescriptor(resumeDiscriminator: UInt16)
         case read(resumeDiscriminator: UInt16)
     }
 
@@ -77,6 +78,13 @@ enum TrampolineFactory {
                         rawArena,
                         UInt(slot),
                         UInt(bitPattern: context)
+                    )
+                case .modifyDescriptor(let resumeDiscriminator):
+                    pointer = td_witness_veneer_arena_make_modify_descriptor(
+                        rawArena,
+                        UInt(slot),
+                        UInt(bitPattern: context),
+                        resumeDiscriminator
                     )
                 case .read(let resumeDiscriminator):
                     pointer = td_witness_veneer_arena_make_read(

@@ -97,9 +97,22 @@ struct WitnessEntryInstaller {
         in witnessTable: UnsafeMutableRawPointer
     ) throws {
         for requirement in node.modifyCoroutineRequirements {
+            let kind: TrampolineFactory.Kind
+            switch requirement.abi {
+                case .yieldOnce:
+                    kind = .modify
+                case .yieldOnce2:
+                    let plan = try dispatch.modifyPlan(
+                        for: requirement,
+                        in: node
+                    )
+                    kind = .modifyDescriptor(
+                        resumeDiscriminator: plan.resumeDiscriminator
+                    )
+            }
             guard
                 let trampoline = resources.makeTrampoline(
-                    kind: .modify,
+                    kind: kind,
                     slot: requirement.getterDispatchIndex,
                     context: UnsafeRawPointer(witnessTable)
                 )
@@ -112,15 +125,25 @@ struct WitnessEntryInstaller {
                 at: requirement.witnessIndex,
                 in: witnessTable
             )
+            let discriminator = declarationDiscriminator(
+                for: requirement.witnessIndex,
+                in: node
+            )
             let signedTrampoline =
-                td_sign_modify_witness_pointer(
-                    trampoline,
-                    UnsafeRawPointer(slot),
-                    declarationDiscriminator(
-                        for: requirement.witnessIndex,
-                        in: node
-                    )
-                ) ?? trampoline
+                switch requirement.abi {
+                    case .yieldOnce:
+                        td_sign_modify_witness_pointer(
+                            trampoline,
+                            UnsafeRawPointer(slot),
+                            discriminator
+                        ) ?? trampoline
+                    case .yieldOnce2:
+                        td_sign_coro_witness_pointer(
+                            trampoline,
+                            UnsafeRawPointer(slot),
+                            discriminator
+                        ) ?? trampoline
+                }
             slot.storeBytes(
                 of: signedTrampoline,
                 as: UnsafeRawPointer.self

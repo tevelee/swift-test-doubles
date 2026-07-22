@@ -8,7 +8,9 @@ final class ForwardedModifyState:
     let yieldedStorage: UnsafeMutableRawPointer?
 
     private let owner: AnyObject
+    private let abi: ProtocolLayout.ModifyCoroutineABI
     private let resume: UnsafeRawPointer
+    private let resumeDiscriminator: UInt16?
     private let callerFrame: UnsafeMutableRawPointer
     private let storedFrame: UnsafeMutablePointer<TDCallFrame>
     private var didFinish = false
@@ -20,11 +22,16 @@ final class ForwardedModifyState:
         frame: TrampolineCallFrame
     ) {
         self.owner = owner
-        callerFrame = .allocate(byteCount: 32, alignment: 16)
+        abi = plan.abi
+        resumeDiscriminator = plan.resumeDiscriminator
+        callerFrame = .allocate(
+            byteCount: plan.callerFrameSize,
+            alignment: 16
+        )
         callerFrame.initializeMemory(
             as: UInt8.self,
             repeating: 0,
-            count: 32
+            count: plan.callerFrameSize
         )
         storedFrame = .allocate(capacity: 1)
         storedFrame.initialize(to: frame.snapshot)
@@ -38,14 +45,31 @@ final class ForwardedModifyState:
             at: plan.hiddenArgumentIndex + 1
         )
 
-        let result = td_swift_invoke_modify_witness(
-            plan.entry,
-            plan.entrySlot,
-            plan.declarationDiscriminator,
-            plan.selfValue,
-            storedFrame,
-            callerFrame
-        )
+        let result: TDModifyCoroutineResult
+        switch plan.abi {
+            case .yieldOnce:
+                result = td_swift_invoke_modify_witness(
+                    plan.entry,
+                    plan.entrySlot,
+                    plan.declarationDiscriminator,
+                    plan.selfValue,
+                    storedFrame,
+                    callerFrame
+                )
+            case .yieldOnce2:
+                let descriptorResult = td_swift_invoke_read_witness(
+                    plan.entry,
+                    plan.entrySlot,
+                    plan.declarationDiscriminator,
+                    plan.selfValue,
+                    storedFrame,
+                    callerFrame
+                )
+                result = TDModifyCoroutineResult(
+                    state: descriptorResult.state,
+                    yieldedStorage: descriptorResult.yieldedStorage
+                )
+        }
         guard let rawResume = result.state else {
             preconditionFailure(
                 "[TestDoubles] A forwarded _modify witness returned a null continuation."
@@ -76,11 +100,25 @@ final class ForwardedModifyState:
             "[TestDoubles] A forwarded _modify coroutine resumed more than once."
         )
         didFinish = true
-        td_swift_resume_modify_witness(
-            resume,
-            callerFrame,
-            isAborting
-        )
+        switch abi {
+            case .yieldOnce:
+                td_swift_resume_modify_witness(
+                    resume,
+                    callerFrame,
+                    isAborting
+                )
+            case .yieldOnce2:
+                guard let resumeDiscriminator else {
+                    preconditionFailure(
+                        "[TestDoubles] A yield_once_2 _modify continuation has no resume discriminator."
+                    )
+                }
+                td_swift_resume_read_witness(
+                    resume,
+                    callerFrame,
+                    resumeDiscriminator
+                )
+        }
         withExtendedLifetime(owner) {}
     }
 }

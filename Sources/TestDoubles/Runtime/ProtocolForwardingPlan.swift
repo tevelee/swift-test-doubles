@@ -26,9 +26,12 @@ struct ForwardedModifyPlan: @unchecked Sendable {
     let entry: UnsafeRawPointer
     let entrySlot: UnsafeRawPointer
     let declarationDiscriminator: UInt16
+    let resumeDiscriminator: UInt16?
     let selfValue: UnsafeRawPointer
     let witnessTable: UnsafeRawPointer
     let hiddenArgumentIndex: Int
+    let callerFrameSize: Int
+    let abi: ProtocolLayout.ModifyCoroutineABI
 }
 
 struct ProtocolForwardingPlans: @unchecked Sendable {
@@ -190,17 +193,60 @@ struct ProtocolForwardingPlanBuilder<P> {
         let declarationDiscriminator = UInt16(
             truncatingIfNeeded: flags.bits >> 16
         )
+        let entry: UnsafeRawPointer
+        let resumeDiscriminator: UInt16?
+        let callerFrameSize: Int
+        switch modifyRequirement.abi {
+            case .yieldOnce:
+                entry = signedEntry
+                resumeDiscriminator = nil
+                callerFrameSize = 32
+
+            case .yieldOnce2:
+                var descriptorTarget = TDCoroWitnessTarget()
+                guard
+                    td_prepare_coro_witness_target(
+                        signedEntry,
+                        UnsafeRawPointer(modifyWitnessSlot),
+                        declarationDiscriminator,
+                        &descriptorTarget
+                    ),
+                    let descriptorEntry = descriptorTarget.entry,
+                    descriptorTarget.callerFrameSize == 32,
+                    let discriminator =
+                        YieldingAccessorRuntime.resumeDiscriminator(for: method)
+                else {
+                    throw StubError.unsupportedProtocolShape(
+                        protocolName: protocolName,
+                        reason:
+                            "The forwarding target's _modify witness at index \(modifyRequirement.witnessIndex) is not a supported yield_once_2 descriptor with a 32-byte caller frame."
+                    )
+                }
+                entry = descriptorEntry
+                resumeDiscriminator = discriminator
+                callerFrameSize = Int(descriptorTarget.callerFrameSize)
+        }
+        #if arch(x86_64)
+            let descriptorArgumentOffset = 2
+        #else
+            let descriptorArgumentOffset = 1
+        #endif
         return try ForwardedModifyPlan(
-            entry: signedEntry,
+            entry: entry,
             entrySlot: UnsafeRawPointer(modifyWitnessSlot),
             declarationDiscriminator: declarationDiscriminator,
+            resumeDiscriminator: resumeDiscriminator,
             selfValue: target.selfValue,
             witnessTable: witnessTable.ptr,
             hiddenArgumentIndex: hiddenArgumentIndex(
                 for: method,
                 protocolName: protocolName,
-                initialGeneralPurposeOffset: 1
-            )
+                initialGeneralPurposeOffset:
+                    modifyRequirement.abi == .yieldOnce2
+                    ? descriptorArgumentOffset : 1
+            ),
+            callerFrameSize: callerFrameSize,
+            abi: modifyRequirement.abi
         )
     }
 
@@ -219,7 +265,7 @@ struct ProtocolForwardingPlanBuilder<P> {
             method.isThrowing == false,
             method.arguments.allSatisfy({ $0.ownership == .borrowed }),
             let resumeDiscriminator =
-                ReadCoroutineRuntime.resumeDiscriminator(for: method)
+                YieldingAccessorRuntime.resumeDiscriminator(for: method)
         else {
             throw StubError.unsupportedProtocolShape(
                 protocolName: protocolName,
@@ -233,9 +279,9 @@ struct ProtocolForwardingPlanBuilder<P> {
         let declarationDiscriminator = UInt16(
             truncatingIfNeeded: flags.bits >> 16
         )
-        var descriptorTarget = TDReadWitnessTarget()
+        var descriptorTarget = TDCoroWitnessTarget()
         guard
-            td_prepare_read_witness_target(
+            td_prepare_coro_witness_target(
                 signedFunction,
                 UnsafeRawPointer(witnessSlot),
                 declarationDiscriminator,
