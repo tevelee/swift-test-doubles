@@ -1,5 +1,4 @@
 import CTestDoublesTrampoline
-import Echo
 
 protocol ProtocolForwarding: AnyObject, Sendable {
     func forward(_ method: MethodDescriptor, frame: TrampolineCallFrame)
@@ -17,384 +16,9 @@ protocol ProtocolForwarding: AnyObject, Sendable {
     ) -> any AsyncTrampolineDispatchState
 }
 
-/// Owns a concrete protocol existential at a stable address so its projected
-/// value and witness tables remain valid for every forwarded call.
-final class ForwardingTarget<P>: @unchecked Sendable {
-    let witnessTables: [ProtocolLayout.DescriptorID: WitnessTable]
-
-    private let storage: UnsafeMutableRawPointer
-    private let representation: StubExistentialRepresentation
-    private let valuePointer: UnsafeRawPointer
-    private let objectPointer: UnsafeRawPointer?
-    private let dynamicMetadata: UnsafeRawPointer
-
-    init(
-        _ target: P,
-        layout: ProtocolLayout,
-        representation: StubExistentialRepresentation
-    ) throws {
-        self.representation = representation
-        storage = .allocate(
-            byteCount: max(MemoryLayout<P>.size, 1),
-            alignment: max(MemoryLayout<P>.alignment, 1)
-        )
-        storage.assumingMemoryBound(to: P.self).initialize(to: target)
-
-        let witnessTableOffset: Int
-        switch representation {
-            case .opaque:
-                let container = storage.assumingMemoryBound(
-                    to: AnyExistentialContainer.self
-                )
-                valuePointer = container.pointee.projectValue()
-                objectPointer = nil
-                dynamicMetadata = (storage + 3 * MemoryLayout<UInt>.size)
-                    .load(as: UnsafeRawPointer.self)
-                witnessTableOffset = 4
-
-            case .classConstrained, .superclassConstrained:
-                let object = storage.load(as: UnsafeRawPointer.self)
-                objectPointer = object
-                valuePointer = UnsafeRawPointer(storage)
-                let instance = Unmanaged<AnyObject>.fromOpaque(object)
-                    .takeUnretainedValue()
-                dynamicMetadata = unsafeBitCast(
-                    Swift.type(of: instance),
-                    to: UnsafeRawPointer.self
-                )
-                witnessTableOffset = 1
-        }
-
-        let expectedWordCount = witnessTableOffset + layout.roots.count
-        guard MemoryLayout<P>.size >= expectedWordCount * MemoryLayout<UInt>.size else {
-            storage.assumingMemoryBound(to: P.self).deinitialize(count: 1)
-            storage.deallocate()
-            throw StubError.unsupportedProtocolShape(
-                protocolName: String(reflecting: P.self),
-                reason: "The forwarding target's existential storage does not contain the expected root witness tables."
-            )
-        }
-
-        do {
-            var tables: [ProtocolLayout.DescriptorID: WitnessTable] = [:]
-            for (rootIndex, root) in layout.roots.enumerated() {
-                let pointer =
-                    (storage
-                    + (witnessTableOffset + rootIndex) * MemoryLayout<UInt>.size)
-                    .load(as: UnsafeRawPointer.self)
-                try Stub<P>.collectLinkedWitnessTables(
-                    descriptor: root,
-                    witnessTable: WitnessTable(ptr: pointer),
-                    layout: layout,
-                    into: &tables
-                )
-            }
-            witnessTables = tables
-        } catch {
-            storage.assumingMemoryBound(to: P.self).deinitialize(count: 1)
-            storage.deallocate()
-            throw error
-        }
-    }
-
-    deinit {
-        storage.assumingMemoryBound(to: P.self).deinitialize(count: 1)
-        storage.deallocate()
-    }
-
-    var selfValue: UnsafeRawPointer {
-        switch representation {
-            case .opaque:
-                return valuePointer
-            case .classConstrained, .superclassConstrained:
-                guard let objectPointer else {
-                    preconditionFailure(
-                        "[TestDoubles] A class-constrained Spy target has no object pointer."
-                    )
-                }
-                return objectPointer
-        }
-    }
-
-    var metadata: UnsafeRawPointer { dynamicMetadata }
-}
-
 final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
-    private struct CallPlan: @unchecked Sendable {
-        let function: UnsafeRawPointer
-        let selfValue: UnsafeRawPointer
-        let witnessTable: UnsafeRawPointer
-        let hiddenArgumentIndex: Int?
-        let asyncStackPlan: AsyncForwardingStackPlan?
-        let isAsync: Bool
-    }
-
-    private struct ReadPlan: @unchecked Sendable {
-        let entry: UnsafeRawPointer
-        let descriptorSlot: UnsafeRawPointer
-        let declarationDiscriminator: UInt16
-        let resumeDiscriminator: UInt16
-        let selfValue: UnsafeRawPointer
-        let witnessTable: UnsafeRawPointer
-        let hiddenArgumentIndex: Int
-        let callerFrameSize: Int
-        let resultIsIndirect: Bool
-    }
-
-    private struct ModifyPlan: @unchecked Sendable {
-        let entry: UnsafeRawPointer
-        let entrySlot: UnsafeRawPointer
-        let declarationDiscriminator: UInt16
-        let selfValue: UnsafeRawPointer
-        let witnessTable: UnsafeRawPointer
-        let hiddenArgumentIndex: Int
-    }
-
-    private final class ModifyState:
-        ModifyCoroutineForwardingState,
-        @unchecked Sendable
-    {
-        let yieldedStorage: UnsafeMutableRawPointer
-
-        private let owner: AnyObject
-        private let resume: UnsafeRawPointer
-        private let callerFrame: UnsafeMutableRawPointer
-        private let storedFrame: UnsafeMutablePointer<TDCallFrame>
-        private var didFinish = false
-
-        init(
-            owner: AnyObject,
-            plan: ModifyPlan,
-            metadata: UnsafeRawPointer,
-            frame: TrampolineCallFrame
-        ) {
-            self.owner = owner
-            callerFrame = .allocate(byteCount: 32, alignment: 16)
-            callerFrame.initializeMemory(
-                as: UInt8.self,
-                repeating: 0,
-                count: 32
-            )
-            storedFrame = .allocate(capacity: 1)
-            storedFrame.initialize(to: frame.snapshot)
-            let targetFrame = TrampolineCallFrame(storedFrame)
-            targetFrame.storeGeneralPurposeArgument(
-                UInt(bitPattern: metadata),
-                at: plan.hiddenArgumentIndex
-            )
-            targetFrame.storeGeneralPurposeArgument(
-                UInt(bitPattern: plan.witnessTable),
-                at: plan.hiddenArgumentIndex + 1
-            )
-
-            let result = td_swift_invoke_modify_witness(
-                plan.entry,
-                plan.entrySlot,
-                plan.declarationDiscriminator,
-                plan.selfValue,
-                storedFrame,
-                callerFrame
-            )
-            guard let rawResume = result.state else {
-                preconditionFailure(
-                    "[TestDoubles] A forwarded _modify witness returned a null continuation."
-                )
-            }
-            guard let rawYieldedStorage = result.yieldedStorage else {
-                preconditionFailure(
-                    "[TestDoubles] A forwarded _modify witness returned null yielded storage."
-                )
-            }
-            resume = UnsafeRawPointer(rawResume)
-            yieldedStorage = rawYieldedStorage
-        }
-
-        deinit {
-            precondition(
-                didFinish,
-                "[TestDoubles] A forwarded _modify coroutine was released before resumption."
-            )
-            storedFrame.deinitialize(count: 1)
-            storedFrame.deallocate()
-            callerFrame.deallocate()
-        }
-
-        func finish(isAborting: Bool) {
-            precondition(
-                didFinish == false,
-                "[TestDoubles] A forwarded _modify coroutine resumed more than once."
-            )
-            didFinish = true
-            td_swift_resume_modify_witness(
-                resume,
-                callerFrame,
-                isAborting
-            )
-            withExtendedLifetime(owner) {}
-        }
-    }
-
-    private final class ReadState:
-        ReadCoroutineForwardingState,
-        @unchecked Sendable
-    {
-        let yieldedStorage: UnsafeMutableRawPointer?
-
-        private let owner: AnyObject
-        private let resume: UnsafeRawPointer
-        private let resumeDiscriminator: UInt16
-        private let callerFrame: UnsafeMutableRawPointer
-        private let storedFrame: UnsafeMutablePointer<TDCallFrame>
-        private var didFinish = false
-
-        init(
-            owner: AnyObject,
-            plan: ReadPlan,
-            metadata: UnsafeRawPointer,
-            frame: TrampolineCallFrame
-        ) {
-            self.owner = owner
-            resumeDiscriminator = plan.resumeDiscriminator
-            callerFrame = .allocate(
-                byteCount: plan.callerFrameSize,
-                alignment: 16
-            )
-            callerFrame.initializeMemory(
-                as: UInt8.self,
-                repeating: 0,
-                count: plan.callerFrameSize
-            )
-            storedFrame = .allocate(capacity: 1)
-            storedFrame.initialize(to: frame.snapshot)
-            let targetFrame = TrampolineCallFrame(storedFrame)
-            targetFrame.storeGeneralPurposeArgument(
-                UInt(bitPattern: metadata),
-                at: plan.hiddenArgumentIndex
-            )
-            targetFrame.storeGeneralPurposeArgument(
-                UInt(bitPattern: plan.witnessTable),
-                at: plan.hiddenArgumentIndex + 1
-            )
-
-            let result = td_swift_invoke_read_witness(
-                plan.entry,
-                plan.descriptorSlot,
-                plan.declarationDiscriminator,
-                plan.selfValue,
-                storedFrame,
-                callerFrame
-            )
-            guard let rawResume = result.state else {
-                preconditionFailure(
-                    "[TestDoubles] A forwarded read witness returned a null continuation."
-                )
-            }
-            resume = UnsafeRawPointer(rawResume)
-            yieldedStorage =
-                plan.resultIsIndirect ? result.yieldedStorage : nil
-            frame.restore(storedFrame.pointee)
-        }
-
-        deinit {
-            precondition(
-                didFinish,
-                "[TestDoubles] A forwarded read coroutine was released before resumption."
-            )
-            storedFrame.deinitialize(count: 1)
-            storedFrame.deallocate()
-            callerFrame.deallocate()
-        }
-
-        func finish() {
-            precondition(
-                didFinish == false,
-                "[TestDoubles] A forwarded read coroutine resumed more than once."
-            )
-            didFinish = true
-            td_swift_resume_read_witness(
-                resume,
-                callerFrame,
-                resumeDiscriminator
-            )
-            withExtendedLifetime(owner) {}
-        }
-    }
-
-    private final class AsyncState:
-        AsyncTrampolineDispatchState,
-        @unchecked Sendable
-    {
-        private let owner: AnyObject
-        private let function: UnsafeRawPointer
-        private let selfValue: UnsafeRawPointer
-        private let isThrowing: Bool
-        private let storedFrame: UnsafeMutablePointer<TDCallFrame>
-        private let stackArguments:
-            UnsafeMutablePointer<
-                TDAsyncWitnessStackArguments
-            >?
-
-        init(
-            owner: AnyObject,
-            plan: CallPlan,
-            metadata: UnsafeRawPointer,
-            isThrowing: Bool,
-            frame: TrampolineCallFrame
-        ) {
-            self.owner = owner
-            function = plan.function
-            selfValue = plan.selfValue
-            self.isThrowing = isThrowing
-            storedFrame = .allocate(capacity: 1)
-            storedFrame.initialize(to: frame.snapshot)
-            if let stackPlan = plan.asyncStackPlan {
-                let storage = UnsafeMutablePointer<
-                    TDAsyncWitnessStackArguments
-                >.allocate(capacity: 1)
-                storage.initialize(
-                    to: TDAsyncWitnessStackArguments(
-                        visible: frame.scalarBits(
-                            at: stackPlan.visibleArgumentLocation
-                        ),
-                        metadata: UInt64(UInt(bitPattern: metadata)),
-                        witnessTable: UInt64(
-                            UInt(bitPattern: plan.witnessTable)
-                        )
-                    )
-                )
-                stackArguments = storage
-            } else {
-                stackArguments = nil
-            }
-        }
-
-        deinit {
-            stackArguments?.deinitialize(count: 1)
-            stackArguments?.deallocate()
-            storedFrame.deinitialize(count: 1)
-            storedFrame.deallocate()
-        }
-
-        func run() async {
-            await tdSwiftInvokeAsyncWitness(
-                function,
-                selfValue,
-                storedFrame,
-                isThrowing,
-                stackArguments
-            )
-            withExtendedLifetime(owner) {}
-        }
-
-        func finish(into frame: TrampolineCallFrame) {
-            frame.restore(storedFrame.pointee)
-        }
-    }
-
     private let target: ForwardingTarget<P>
-    private let plans: [Int: CallPlan]
-    private let modifyPlans: [Int: ModifyPlan]
-    private let readPlans: [Int: ReadPlan]
+    private let plans: ProtocolForwardingPlans
 
     init(
         target: ForwardingTarget<P>,
@@ -402,230 +26,15 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
         layout: ProtocolLayout
     ) throws {
         self.target = target
-
-        guard
-            layout.nodes.allSatisfy({
-                $0.readCoroutineRequirements.allSatisfy { $0.abi == .yieldOnce2 }
-            })
-        else {
-            let protocolName =
-                layout.nodes.first(where: {
-                    $0.readCoroutineRequirements.contains { $0.abi == .yieldOnce }
-                })?.descriptor.name ?? String(reflecting: P.self)
-            throw StubError.unsupportedProtocolShape(
-                protocolName: protocolName,
-                reason: "Forwarding Spy does not yet support Swift 6.4's paired legacy read and yielding-borrow witnesses. Use a Stub or a hand-written spy."
-            )
-        }
-
-        var readRequirements: [Int: ProtocolLayout.ReadCoroutineRequirement] = [:]
-        var modifyRequirements: [Int: ProtocolLayout.ModifyCoroutineRequirement] = [:]
-        for node in layout.nodes {
-            for requirement in node.readCoroutineRequirements {
-                readRequirements[requirement.recorderDispatchIndex] = requirement
-            }
-            for requirement in node.modifyCoroutineRequirements {
-                modifyRequirements[requirement.getterDispatchIndex] = requirement
-            }
-        }
-
-        var plans: [Int: CallPlan] = [:]
-        var modifyPlans: [Int: ModifyPlan] = [:]
-        var readPlans: [Int: ReadPlan] = [:]
-        for method in methods {
-            let requirement = layout.callableRequirements[method.index]
-            let protocolName = requirement.protocolDescriptor.name
-            guard method.receiver == .instance, method.kind != .initializer else {
-                throw StubError.unsupportedProtocolShape(
-                    protocolName: protocolName,
-                    reason: "Forwarding Spy supports instance requirements only; requirement \(method.index) uses a metatype receiver."
-                )
-            }
-            try Self.validateDynamicSelfBoundary(
-                method,
-                protocolName: protocolName
-            )
-            let concreteTypes = method.argumentTypes + [method.returnType]
-            guard concreteTypes.allSatisfy({ !($0 is any SIMD.Type) }) else {
-                throw StubError.unsupportedProtocolShape(
-                    protocolName: protocolName,
-                    reason: "Forwarding Spy does not yet support SIMD arguments or results in requirement \(method.index)."
-                )
-            }
-            guard method.typedWitnessAdapterFactory == nil,
-                concreteTypes.allSatisfy({ reflect($0).kind != .function })
-            else {
-                throw StubError.unsupportedProtocolShape(
-                    protocolName: protocolName,
-                    reason: "Forwarding Spy does not yet support function-valued arguments or results in requirement \(method.index)."
-                )
-            }
-
-            let identifier = ProtocolLayout.DescriptorID(
-                requirement.protocolDescriptor
-            )
-            guard let witnessTable = target.witnessTables[identifier] else {
-                throw StubError.unsupportedProtocolShape(
-                    protocolName: protocolName,
-                    reason: "The forwarding target is missing a witness table for requirement \(method.index)."
-                )
-            }
-            let witnessSlot =
-                witnessTable.ptr
-                + (1 + method.witnessIndex) * MemoryLayout<UInt>.size
-            let signedFunction = witnessSlot.load(as: UnsafeRawPointer.self)
-
-            if let modifyRequirement = modifyRequirements[method.index] {
-                guard method.kind == .getter,
-                    method.receiver == modifyRequirement.receiver,
-                    method.isAsync == false,
-                    method.isThrowing == false,
-                    method.typedWitnessAdapterFactory == nil,
-                    method.arguments.allSatisfy({ $0.ownership == .borrowed })
-                else {
-                    throw StubError.unsupportedProtocolShape(
-                        protocolName: protocolName,
-                        reason:
-                            "The _modify requirement at witness index \(modifyRequirement.witnessIndex) is outside the supported synchronous, nonthrowing borrowed-value forwarding ABI."
-                    )
-                }
-                let modifyWitnessSlot =
-                    witnessTable.ptr
-                    + (1 + modifyRequirement.witnessIndex)
-                    * MemoryLayout<UInt>.size
-                let signedEntry = modifyWitnessSlot.load(
-                    as: UnsafeRawPointer.self
-                )
-                let flags = requirement.protocolDescriptor.requirements[
-                    modifyRequirement.witnessIndex
-                ].flags
-                let declarationDiscriminator = UInt16(
-                    truncatingIfNeeded: flags.bits >> 16
-                )
-                let hiddenArgumentIndex = try Self.hiddenArgumentIndex(
-                    for: method,
-                    protocolName: protocolName,
-                    initialGeneralPurposeOffset: 1
-                )
-                modifyPlans[method.index] = ModifyPlan(
-                    entry: signedEntry,
-                    entrySlot: UnsafeRawPointer(modifyWitnessSlot),
-                    declarationDiscriminator: declarationDiscriminator,
-                    selfValue: target.selfValue,
-                    witnessTable: witnessTable.ptr,
-                    hiddenArgumentIndex: hiddenArgumentIndex
-                )
-            }
-
-            if let readRequirement = readRequirements[method.index] {
-                guard method.kind == .getter,
-                    method.receiver == readRequirement.receiver,
-                    method.isAsync == false,
-                    method.isThrowing == false,
-                    method.arguments.allSatisfy({ $0.ownership == .borrowed }),
-                    let resumeDiscriminator =
-                        ReadCoroutineRuntime.resumeDiscriminator(for: method)
-                else {
-                    throw StubError.unsupportedProtocolShape(
-                        protocolName: protocolName,
-                        reason:
-                            "The read requirement at witness index \(readRequirement.witnessIndex) is outside the supported synchronous, nonthrowing borrowed-value forwarding ABI."
-                    )
-                }
-                let flags = requirement.protocolDescriptor.requirements[
-                    method.witnessIndex
-                ].flags
-                let declarationDiscriminator = UInt16(
-                    truncatingIfNeeded: flags.bits >> 16
-                )
-                var descriptorTarget = TDReadWitnessTarget()
-                guard
-                    td_prepare_read_witness_target(
-                        signedFunction,
-                        UnsafeRawPointer(witnessSlot),
-                        declarationDiscriminator,
-                        &descriptorTarget
-                    ),
-                    let entry = descriptorTarget.entry,
-                    descriptorTarget.callerFrameSize == 32
-                else {
-                    throw StubError.unsupportedProtocolShape(
-                        protocolName: protocolName,
-                        reason:
-                            "The forwarding target's read witness at index \(readRequirement.witnessIndex) is not a supported Swift 6.3 yield_once_2 descriptor with a 32-byte caller frame."
-                    )
-                }
-                #if arch(x86_64)
-                    let initialGeneralPurposeOffset = 2
-                #else
-                    let initialGeneralPurposeOffset = 1
-                #endif
-                let hiddenArgumentIndex = try Self.hiddenArgumentIndex(
-                    for: method,
-                    protocolName: protocolName,
-                    initialGeneralPurposeOffset: initialGeneralPurposeOffset
-                )
-                readPlans[method.index] = ReadPlan(
-                    entry: entry,
-                    descriptorSlot: UnsafeRawPointer(witnessSlot),
-                    declarationDiscriminator: declarationDiscriminator,
-                    resumeDiscriminator: resumeDiscriminator,
-                    selfValue: target.selfValue,
-                    witnessTable: witnessTable.ptr,
-                    hiddenArgumentIndex: hiddenArgumentIndex,
-                    callerFrameSize: Int(descriptorTarget.callerFrameSize),
-                    resultIsIndirect: {
-                        if case .indirect = method.result.layout { return true }
-                        return false
-                    }()
-                )
-                continue
-            }
-
-            let asyncStackPlan =
-                method.isAsync
-                ? asyncForwardingStackPlan(
-                    for: method,
-                    architecture: .current
-                )
-                : nil
-            let hiddenArgumentIndex: Int? =
-                if asyncStackPlan == nil {
-                    try Self.hiddenArgumentIndex(
-                        for: method,
-                        protocolName: protocolName
-                    )
-                } else {
-                    nil
-                }
-            let function =
-                if method.isAsync {
-                    td_strip_async_witness_pointer(signedFunction)
-                } else {
-                    td_strip_witness_function_pointer(signedFunction)
-                }
-            guard let function else {
-                throw StubError.unsupportedProtocolShape(
-                    protocolName: protocolName,
-                    reason: "The forwarding target has a null witness for requirement \(method.index)."
-                )
-            }
-            plans[method.index] = CallPlan(
-                function: function,
-                selfValue: target.selfValue,
-                witnessTable: witnessTable.ptr,
-                hiddenArgumentIndex: hiddenArgumentIndex,
-                asyncStackPlan: asyncStackPlan,
-                isAsync: method.isAsync
-            )
-        }
-        self.plans = plans
-        self.modifyPlans = modifyPlans
-        self.readPlans = readPlans
+        plans = try ProtocolForwardingPlanBuilder(
+            target: target,
+            methods: methods,
+            layout: layout
+        ).build()
     }
 
     func forward(_ method: MethodDescriptor, frame: TrampolineCallFrame) {
-        let plan = prepare(method, frame: frame)
+        let plan = prepareCall(method, frame: frame)
         precondition(
             plan.isAsync == false,
             "[TestDoubles] An async Spy requirement entered synchronous forwarding."
@@ -637,12 +46,12 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
         for method: MethodDescriptor,
         frame: TrampolineCallFrame
     ) -> any ReadCoroutineForwardingState {
-        guard let plan = readPlans[method.index] else {
+        guard let plan = plans.reads[method.index] else {
             preconditionFailure(
                 "[TestDoubles] No read forwarding plan exists for Spy requirement \(method.index)."
             )
         }
-        return ReadState(
+        return ForwardedReadState(
             owner: self,
             plan: plan,
             metadata: target.metadata,
@@ -654,12 +63,12 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
         for method: MethodDescriptor,
         frame: TrampolineCallFrame
     ) -> any ModifyCoroutineForwardingState {
-        guard let plan = modifyPlans[method.index] else {
+        guard let plan = plans.modifications[method.index] else {
             preconditionFailure(
                 "[TestDoubles] No _modify forwarding plan exists for Spy requirement \(method.index)."
             )
         }
-        return ModifyState(
+        return ForwardedModifyState(
             owner: self,
             plan: plan,
             metadata: target.metadata,
@@ -671,12 +80,12 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
         for method: MethodDescriptor,
         frame: TrampolineCallFrame
     ) -> any AsyncTrampolineDispatchState {
-        let plan = prepare(method, frame: frame)
+        let plan = prepareCall(method, frame: frame)
         precondition(
             plan.isAsync,
             "[TestDoubles] A synchronous Spy requirement entered async forwarding."
         )
-        return AsyncState(
+        return ForwardedAsyncState(
             owner: self,
             plan: plan,
             metadata: target.metadata,
@@ -685,11 +94,11 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
         )
     }
 
-    private func prepare(
+    private func prepareCall(
         _ method: MethodDescriptor,
         frame: TrampolineCallFrame
-    ) -> CallPlan {
-        guard let plan = plans[method.index] else {
+    ) -> ForwardedCallPlan {
+        guard let plan = plans.calls[method.index] else {
             preconditionFailure(
                 "[TestDoubles] No forwarding plan exists for Spy requirement \(method.index)."
             )
@@ -710,52 +119,5 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
             )
         }
         return plan
-    }
-
-    private static func validateDynamicSelfBoundary(
-        _ method: MethodDescriptor,
-        protocolName: String
-    ) throws {
-        guard method.returnConvention != .selfType,
-            method.returnConvention != .optionalSelf
-        else {
-            throw StubError.unsupportedProtocolShape(
-                protocolName: protocolName,
-                reason: "Forwarding Spy does not yet support dynamic Self results in requirement \(method.index)."
-            )
-        }
-        guard
-            method.arguments.allSatisfy({
-                $0.value.convention != .selfType
-                    && $0.value.convention != .optionalSelf
-            })
-        else {
-            throw StubError.unsupportedProtocolShape(
-                protocolName: protocolName,
-                reason: "Forwarding Spy does not support direct or Optional Self arguments in requirement \(method.index). Use an automatic Stub or a hand-written spy."
-            )
-        }
-    }
-
-    private static func hiddenArgumentIndex(
-        for method: MethodDescriptor,
-        protocolName: String,
-        initialGeneralPurposeOffset: Int = 0
-    ) throws -> Int {
-        let transport = WitnessCallTransportPlan(
-            method: method,
-            initialGeneralPurposeOffset: initialGeneralPurposeOffset,
-            trailingPayload: .dynamicSelf
-        )
-        guard
-            let hiddenArgumentIndex =
-                transport.directForwardingHiddenArgumentIndex
-        else {
-            throw StubError.unsupportedProtocolShape(
-                protocolName: protocolName,
-                reason: "Forwarding Spy requirement \(method.index) uses stack arguments or leaves no registers for its target metadata and witness table. Use fewer arguments or a hand-written spy."
-            )
-        }
-        return hiddenArgumentIndex
     }
 }
