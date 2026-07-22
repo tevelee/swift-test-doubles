@@ -45,10 +45,10 @@ enum RuntimeTrampolineHandler {
         let target: FabricatedInvocationTarget
         let recorder: StubRecorder
         let runtimeMethod: PreparedRuntimeMethod
-        let method: MethodDescriptor
         let decodedArguments: DecodedArguments
 
         var forwarder: (any ProtocolForwarding)? { target.forwarder }
+        var method: MethodDescriptor { runtimeMethod.descriptor }
     }
 
     /// Retained by the assembly bridge while the handler is suspended. A state
@@ -59,7 +59,7 @@ enum RuntimeTrampolineHandler {
         @unchecked Sendable
     {
         var frame: TDCallFrame
-        let method: MethodDescriptor
+        let runtimeMethod: PreparedRuntimeMethod
         let recorder: StubRecorder
         let args: [Any]
         let typedErrorDestination: UnsafeMutableRawPointer?
@@ -67,13 +67,13 @@ enum RuntimeTrampolineHandler {
 
         init(
             frame: TDCallFrame,
-            method: MethodDescriptor,
+            runtimeMethod: PreparedRuntimeMethod,
             recorder: StubRecorder,
             decodedArguments: DecodedArguments,
             handler: @escaping ([Any]) async throws -> Any
         ) {
             self.frame = frame
-            self.method = method
+            self.runtimeMethod = runtimeMethod
             self.recorder = recorder
             self.args = decodedArguments.values
             self.typedErrorDestination =
@@ -89,7 +89,7 @@ enum RuntimeTrampolineHandler {
                     frame.storeReturnError(0)
                     RuntimeResultEncoder.encodeDispatchResult(
                         result,
-                        for: method,
+                        for: runtimeMethod,
                         recorder: recorder,
                         into: frame
                     )
@@ -98,7 +98,7 @@ enum RuntimeTrampolineHandler {
                 withUnsafeMutablePointer(to: &frame) { pointer in
                     RuntimeTrampolineHandler.encodeThrown(
                         error,
-                        from: method,
+                        from: runtimeMethod.descriptor,
                         typedErrorDestination: typedErrorDestination,
                         into: TrampolineCallFrame(pointer)
                     )
@@ -117,7 +117,7 @@ enum RuntimeTrampolineHandler {
             frame,
             forwarder: invocation.forwarder,
             recorder: invocation.recorder,
-            method: invocation.method,
+            runtimeMethod: invocation.runtimeMethod,
             decodedArguments: invocation.decodedArguments
         )
     }
@@ -126,9 +126,10 @@ enum RuntimeTrampolineHandler {
         _ frame: TrampolineCallFrame,
         forwarder: (any ProtocolForwarding)?,
         recorder: StubRecorder,
-        method: MethodDescriptor,
+        runtimeMethod: PreparedRuntimeMethod,
         decodedArguments: DecodedArguments
     ) {
+        let method = runtimeMethod.descriptor
         let result: Any
         switch recorder.prepareDispatch(
             method: method,
@@ -199,7 +200,7 @@ enum RuntimeTrampolineHandler {
 
         RuntimeResultEncoder.encodeDispatchResult(
             result,
-            for: method,
+            for: runtimeMethod,
             recorder: recorder,
             into: frame
         )
@@ -250,7 +251,7 @@ enum RuntimeTrampolineHandler {
                 frame.storeReturnError(0)
                 RuntimeResultEncoder.encodeDispatchResult(
                     result,
-                    for: invocation.method,
+                    for: invocation.runtimeMethod,
                     recorder: invocation.recorder,
                     into: frame
                 )
@@ -271,7 +272,7 @@ enum RuntimeTrampolineHandler {
                 consumeOwnedArgumentsForOverride(invocation, from: frame)
                 let state = AsyncDispatchState(
                     frame: frame.snapshot,
-                    method: invocation.method,
+                    runtimeMethod: invocation.runtimeMethod,
                     recorder: invocation.recorder,
                     decodedArguments: invocation.decodedArguments,
                     handler: handler
@@ -351,12 +352,10 @@ enum RuntimeTrampolineHandler {
             failureMessage:
                 "[TestDoubles] No method descriptor registered for witness slot \(slot)."
         )
-        let method = runtimeMethod.descriptor
         return Invocation(
             target: resolved.target,
             recorder: resolved.recorder,
             runtimeMethod: runtimeMethod,
-            method: method,
             decodedArguments: RuntimeArgumentDecoder.decode(
                 for: runtimeMethod,
                 from: frame,

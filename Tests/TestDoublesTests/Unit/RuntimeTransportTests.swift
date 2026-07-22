@@ -18,6 +18,24 @@ private struct WideTransportError: Error, Equatable {
 }
 
 @Suite struct RuntimeValueTransportTests {
+    @Test func resultPlansPrecomputeFunctionReabstraction() {
+        typealias Closure = (Int) -> Int
+        typealias NestedClosure = (Int, Closure?)
+
+        #expect(
+            RuntimeResultTransportPlan(resultType: Int.self)
+                .requiresFunctionReabstraction == false
+        )
+        #expect(
+            RuntimeResultTransportPlan(resultType: Closure.self)
+                .requiresFunctionReabstraction
+        )
+        #expect(
+            RuntimeResultTransportPlan(resultType: NestedClosure.self)
+                .requiresFunctionReabstraction
+        )
+    }
+
     @Test func directIntegerAndFloatingPointResultsRoundTripThroughTheFrame() {
         #expect(roundTrip(42) == 42)
         #expect(roundTrip(3.25) == 3.25)

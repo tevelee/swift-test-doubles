@@ -90,4 +90,21 @@ enum DependentResultEncoder {
             into: frame
         )
     }
+
+    static func encode(
+        _ result: Any,
+        for method: MethodDescriptor,
+        transport: RuntimeResultTransportPlan,
+        into frame: TrampolineCallFrame
+    ) {
+        RuntimeValueTransport.encodeReturn(
+            result,
+            expectedType: method.returnType,
+            layout: method.returnLayout,
+            transport: transport,
+            context: method.name,
+            isAsync: method.isAsync,
+            into: frame
+        )
+    }
 }

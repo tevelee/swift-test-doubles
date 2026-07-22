@@ -39,19 +39,56 @@ enum RuntimeValueTransport {
         expectedType: Any.Type,
         to destination: UnsafeMutableRawPointer
     ) {
-        if FunctionReabstraction.initializeDirectReturn(
+        initializeDirectValue(
             value,
             expectedType: expectedType,
+            transport: RuntimeResultTransportPlan(resultType: expectedType),
             at: destination
-        ) == false {
-            copyValue(value, expectedType: expectedType, to: destination)
+        )
+    }
+
+    static func initializeDirectValue(
+        _ value: Any,
+        expectedType: Any.Type,
+        transport: RuntimeResultTransportPlan,
+        at destination: UnsafeMutableRawPointer
+    ) {
+        if transport.requiresFunctionReabstraction,
+            FunctionReabstraction.initializeDirectReturn(
+                value,
+                expectedType: expectedType,
+                at: destination
+            )
+        {
+            return
         }
+        copyValue(value, expectedType: expectedType, to: destination)
     }
 
     static func encodeReturn(
         _ value: Any,
         expectedType: Any.Type,
         layout: ABIClass,
+        context: String,
+        isAsync: Bool,
+        into frame: TrampolineCallFrame
+    ) {
+        encodeReturn(
+            value,
+            expectedType: expectedType,
+            layout: layout,
+            transport: RuntimeResultTransportPlan(resultType: expectedType),
+            context: context,
+            isAsync: isAsync,
+            into: frame
+        )
+    }
+
+    static func encodeReturn(
+        _ value: Any,
+        expectedType: Any.Type,
+        layout: ABIClass,
+        transport: RuntimeResultTransportPlan,
         context: String,
         isAsync: Bool,
         into frame: TrampolineCallFrame
@@ -63,7 +100,11 @@ enum RuntimeValueTransport {
                 return
 
             case .floatingPoint, .integer, .aggregate:
-                withCopiedValue(value, expectedType: expectedType) { source in
+                withCopiedValue(
+                    value,
+                    expectedType: expectedType,
+                    transport: transport
+                ) { source in
                     encodeBorrowedDirectValue(
                         from: source,
                         layout: layout,
@@ -85,7 +126,8 @@ enum RuntimeValueTransport {
                 initializeDirectValue(
                     value,
                     expectedType: expectedType,
-                    to: destination
+                    transport: transport,
+                    at: destination
                 )
                 #if arch(x86_64)
                     if isAsync == false {
@@ -185,6 +227,7 @@ enum RuntimeValueTransport {
     private static func withCopiedValue(
         _ result: Any,
         expectedType: Any.Type?,
+        transport: RuntimeResultTransportPlan,
         _ body: (UnsafeMutableRawPointer) -> Void
     ) {
         let type = expectedType ?? Echo.container(for: result).metadata.type
@@ -197,7 +240,8 @@ enum RuntimeValueTransport {
             initializeDirectValue(
                 result,
                 expectedType: expectedType,
-                to: temporary.storage
+                transport: transport,
+                at: temporary.storage
             )
         } else {
             copyValue(result, expectedType: nil, to: temporary.storage)

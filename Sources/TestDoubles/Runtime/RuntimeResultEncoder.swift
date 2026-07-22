@@ -3,10 +3,15 @@
 enum RuntimeResultEncoder {
     static func encodeDispatchResult(
         _ result: Any,
-        for method: MethodDescriptor,
+        for runtimeMethod: PreparedRuntimeMethod,
         recorder: StubRecorder,
         into frame: TrampolineCallFrame
     ) {
+        let method = runtimeMethod.descriptor
+        if case .void = method.returnLayout {
+            frame.zeroReturn()
+            return
+        }
         if method.kind == .initializer {
             guard let outcome = result as? InitializerDispatchOutcome else {
                 preconditionFailure(
@@ -49,7 +54,12 @@ enum RuntimeResultEncoder {
                 into: frame
             )
         } else {
-            DependentResultEncoder.encode(result, for: method, into: frame)
+            DependentResultEncoder.encode(
+                result,
+                for: method,
+                transport: runtimeMethod.resultTransport,
+                into: frame
+            )
         }
     }
 
