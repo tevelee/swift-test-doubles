@@ -110,10 +110,7 @@ public final class InvocationOrder: @unchecked Sendable {
         line: UInt,
         column: UInt
     ) {
-        lock.lock()
-        let currentCursor = cursor
-        lock.unlock()
-
+        let currentCursor = lock.withLock { cursor }
         guard
             let match = recorder.earliestOrderedMatch(
                 recording: recording,
@@ -132,12 +129,9 @@ public final class InvocationOrder: @unchecked Sendable {
             return
         }
 
-        recorder.commitSuccessfulVerification(
-            of: [match],
-            against: recording.resolvedMatchers
-        )
-        lock.lock()
-        cursor = Swift.max(cursor, match.sequence ?? cursor)
-        lock.unlock()
+        recorder.commitSuccessfulVerification(of: [match])
+        lock.withLock {
+            cursor = Swift.max(cursor, match.call.sequence ?? cursor)
+        }
     }
 }

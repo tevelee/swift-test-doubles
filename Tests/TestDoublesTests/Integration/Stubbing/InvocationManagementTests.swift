@@ -1,3 +1,4 @@
+import Foundation
 import IssueReporting
 import TestDoubles
 import Testing
@@ -26,6 +27,40 @@ private struct ManualInvocationManagementServiceStub: ManualInvocationManagement
 
     func value(for id: Int) -> String { stub.value(for: id) }
     func reset() { stub.reset() }
+}
+
+private final class BlockedBehaviorMatcherGate: @unchecked Sendable {
+    private let condition = NSCondition()
+    private var matcherEntered = false
+    private var matcherReleased = false
+
+    func matchAfterRelease(_ value: Int) -> Bool {
+        condition.lock()
+        matcherEntered = true
+        condition.broadcast()
+        while matcherReleased == false {
+            condition.wait()
+        }
+        condition.unlock()
+        return value == 7
+    }
+
+    func waitUntilMatcherEntered(within timeout: TimeInterval) -> Bool {
+        condition.lock()
+        defer { condition.unlock() }
+        let deadline = Date().addingTimeInterval(timeout)
+        while matcherEntered == false {
+            guard condition.wait(until: deadline) else { return false }
+        }
+        return true
+    }
+
+    func releaseMatcher() {
+        condition.lock()
+        matcherReleased = true
+        condition.broadcast()
+        condition.unlock()
+    }
 }
 
 @Suite struct InvocationManagementTests {
@@ -70,6 +105,38 @@ private struct ManualInvocationManagementServiceStub: ManualInvocationManagement
         spy.clearConfiguredBehaviors()
 
         #expect(service.value(for: 7) == "7")
+    }
+
+    @Test(.timeLimit(.minutes(2)))
+    func clearingWhileMatcherIsBlockedCannotDispatchRemovedBehavior() async throws {
+        let spy: Spy<any InvocationManagementService> = makeSpy(
+            forwardingTo: RealInvocationManagementService()
+        )
+        let gate = BlockedBehaviorMatcherGate()
+        spy.when {
+            $0.value(
+                for: matching(
+                    description: "blocked",
+                    where: gate.matchAfterRelease
+                )
+            )
+        }.thenReturn("stale")
+        let service: any InvocationManagementService = spy()
+
+        let invocation = Task.detached {
+            service.value(for: 7)
+        }
+        guard gate.waitUntilMatcherEntered(within: 60) else {
+            gate.releaseMatcher()
+            invocation.cancel()
+            _ = await invocation.value
+            Issue.record("The blocking matcher did not start within 60 seconds.")
+            return
+        }
+        spy.clearConfiguredBehaviors()
+        gate.releaseMatcher()
+
+        #expect(await invocation.value == "7")
     }
 
     @Test func manualStubClearingBehaviorsRemovesShadowingRegistrations() {

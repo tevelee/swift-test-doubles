@@ -117,16 +117,35 @@ struct StubBehaviorRegistry {
         let behavior: Behavior
     }
 
+    /// An immutable registration view used while matcher predicates execute
+    /// outside the recorder lock. `revision` makes the later dispatch commit
+    /// conditional on the same registry still being current.
+    struct Snapshot {
+        let revision: UInt64
+        let entries: [Entry]?
+    }
+
+    struct PreparedEntryMatch {
+        let entryIndex: Int
+        let matcherTransaction: PreparedMatcherTransaction
+    }
+
     private var entriesByMethod: [Int: [Entry]] = [:]
     private var consumedEntryIndicesByMethod: [Int: Set<Int>] = [:]
+    private var revision: UInt64 = 0
 
-    func entries(for method: Int) -> [Entry]? {
-        entriesByMethod[method]
+    func snapshot(for method: Int) -> Snapshot {
+        Snapshot(revision: revision, entries: entriesByMethod[method])
+    }
+
+    func isCurrent(_ snapshot: Snapshot) -> Bool {
+        revision == snapshot.revision
     }
 
     mutating func removeAll() {
         entriesByMethod.removeAll()
         consumedEntryIndicesByMethod.removeAll()
+        revision &+= 1
     }
 
     /// Marks a registration as having answered at least one call. Entries are
@@ -160,18 +179,28 @@ struct StubBehaviorRegistry {
                 diagnosticSignature: diagnosticSignature,
                 behavior: behavior
             ))
+        revision &+= 1
     }
 
-    /// Returns the first registered matching entry's index, like the first
-    /// matching case of a `switch`: register specific matchers before broad
-    /// fallbacks.
-    static func firstMatchingEntryIndex(
+    /// Prepares the first registered matching entry, like the first matching
+    /// case of a `switch`: register specific matchers before broad fallbacks.
+    /// User predicates and projections are evaluated exactly once here.
+    static func firstPreparedEntryMatch(
         for args: [Any],
         in entries: [Entry]
-    ) -> Int? {
-        entries.firstIndex { entry in
-            entry.matchers.isEmpty || argumentsMatch(args, against: entry.matchers)
+    ) -> PreparedEntryMatch? {
+        for (entryIndex, entry) in entries.enumerated() {
+            if let matcherTransaction = prepareArgumentsMatch(
+                args,
+                against: entry.matchers
+            ) {
+                return PreparedEntryMatch(
+                    entryIndex: entryIndex,
+                    matcherTransaction: matcherTransaction
+                )
+            }
         }
+        return nil
     }
 
     /// Reports the diagnostic signature of an already-registered entry for
@@ -214,17 +243,23 @@ struct StubBehaviorRegistry {
         _ args: [Any],
         against matchers: [ParameterMatcher]
     ) -> Bool {
-        guard args.count == matchers.count else { return matchers.isEmpty }
-        return zip(args, matchers).allSatisfy { $0.1.matches(value: $0.0) }
+        prepareArgumentsMatch(args, against: matchers) != nil
     }
 
-    static func commitCaptures(
-        in args: [Any],
+    static func prepareArgumentsMatch(
+        _ args: [Any],
         against matchers: [ParameterMatcher]
-    ) {
-        zip(args, matchers).forEach { value, matcher in
-            matcher.commit(value: value)
+    ) -> PreparedMatcherTransaction? {
+        guard args.count == matchers.count else {
+            return matchers.isEmpty ? .matched : nil
         }
+        var transactions: [PreparedMatcherTransaction] = []
+        transactions.reserveCapacity(matchers.count)
+        for (value, matcher) in zip(args, matchers) {
+            guard let transaction = matcher.prepareMatch(value: value) else { return nil }
+            transactions.append(transaction)
+        }
+        return .combining(transactions)
     }
 }
 

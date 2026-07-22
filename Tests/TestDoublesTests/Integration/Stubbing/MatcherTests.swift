@@ -140,6 +140,44 @@ protocol MatcherPlaceholderService {
         #expect(queries.values == ["accepted"])
     }
 
+    @Test func dispatchCaptorsPreserveArgumentAndCallOrder() throws {
+        let stub = try Stub<any MatcherService>()
+        let queries = ArgumentCaptor<String>()
+        let limits = ArgumentCaptor<Int>()
+        stub.when {
+            $0.search(query: queries.capture(), limit: limits.capture())
+        }.thenReturn([])
+
+        _ = stub().search(query: "first", limit: 1)
+        _ = stub().search(query: "second", limit: 2)
+
+        #expect(queries.values == ["first", "second"])
+        #expect(limits.values == [1, 2])
+    }
+
+    @Test func preparedProjectionDoesNotRepeatProjectionToCommitCapture() throws {
+        let projections = LockedCounter()
+        let counts = ArgumentCaptor<Int>()
+        let matcher = ProjectionMatcher(
+            label: "count",
+            matchers: [CaptureMatcher(captor: counts)]
+        ) { value in
+            projections.increment()
+            return (value as? [Int])?.count
+        }
+
+        let transaction = try #require(
+            StubBehaviorRegistry.prepareArgumentsMatch(
+                [[1, 2, 3]],
+                against: [matcher]
+            )
+        )
+        transaction.commitCaptures()
+
+        #expect(projections.value == 1)
+        #expect(counts.values == [3])
+    }
+
     @Test func explicitReferencePlaceholdersSupportAnyAndMatching() throws {
         let stub = try Stub<any MatcherPlaceholderService>(
             .method(MatcherReferenceBox.self, returning: String.self),

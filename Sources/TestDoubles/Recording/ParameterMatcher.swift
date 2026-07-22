@@ -1,6 +1,7 @@
 protocol ParameterMatcher {
-    func matches(value: Any) -> Bool
-    func commit(value: Any)
+    /// Evaluates this matcher once and returns the capture mutations that may
+    /// be committed if the whole matcher transaction succeeds.
+    func prepareMatch(value: Any) -> PreparedMatcherTransaction?
     var diagnosticDescription: String { get }
 
     /// `true` when this matcher accepts every value at its argument position.
@@ -17,15 +18,47 @@ protocol ParameterMatcher {
     var acceptanceIdentity: String? { get }
 }
 
+/// The side effects prepared by a successful matcher evaluation.
+///
+/// Predicates and projections run while this value is built. Committing it
+/// only appends already-type-checked values to captors, so a recorder may make
+/// matching decisions outside its policy lock and apply their effects at the
+/// invocation's linearization point without re-running user code.
+struct PreparedMatcherTransaction {
+    private let captureMutations: [() -> Void]
+
+    static var matched: PreparedMatcherTransaction {
+        PreparedMatcherTransaction(captureMutations: [])
+    }
+
+    init(captureMutation: @escaping () -> Void) {
+        captureMutations = [captureMutation]
+    }
+
+    private init(captureMutations: [() -> Void]) {
+        self.captureMutations = captureMutations
+    }
+
+    static func combining(_ transactions: [PreparedMatcherTransaction]) -> Self {
+        PreparedMatcherTransaction(
+            captureMutations: transactions.flatMap(\.captureMutations)
+        )
+    }
+
+    func commitCaptures() {
+        captureMutations.forEach { $0() }
+    }
+}
+
 extension ParameterMatcher {
-    func commit(value: Any) {}
+    func matches(value: Any) -> Bool { prepareMatch(value: value) != nil }
     var diagnosticDescription: String { String(describing: Self.self) }
     var acceptsAnyValue: Bool { false }
     var acceptanceIdentity: String? { nil }
 }
 
 struct AnyMatcher: ParameterMatcher {
-    func matches(value: Any) -> Bool { true }
+    func prepareMatch(value: Any) -> PreparedMatcherTransaction? { .matched }
     var diagnosticDescription: String { "any()" }
     var acceptsAnyValue: Bool { true }
 }
@@ -33,13 +66,11 @@ struct AnyMatcher: ParameterMatcher {
 struct CaptureMatcher<T>: ParameterMatcher {
     let captor: ArgumentCaptor<T>
 
-    func matches(value: Any) -> Bool {
-        value is T
-    }
-
-    func commit(value: Any) {
-        guard let value = value as? T else { return }
-        captor.append(value)
+    func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
+        guard let value = value as? T else { return nil }
+        return PreparedMatcherTransaction {
+            captor.append(value)
+        }
     }
 
     var diagnosticDescription: String { "capture(\(T.self))" }
@@ -53,9 +84,9 @@ struct PredicateMatcher<Value>: ParameterMatcher {
     let description: String
     let predicate: @Sendable (Value) -> Bool
 
-    func matches(value: Any) -> Bool {
-        guard let value = value as? Value else { return false }
-        return predicate(value)
+    func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
+        guard let value = value as? Value else { return nil }
+        return predicate(value) ? .matched : nil
     }
 
     var diagnosticDescription: String { "matching(\(description))" }
@@ -68,8 +99,8 @@ struct DescriptionMatcher: ParameterMatcher {
         description = String(describing: value)
     }
 
-    func matches(value: Any) -> Bool {
-        String(describing: value) == description
+    func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
+        String(describing: value) == description ? .matched : nil
     }
 
     var diagnosticDescription: String { "literal(\(description))" }
@@ -79,7 +110,9 @@ struct DescriptionMatcher: ParameterMatcher {
 struct EqualMatcher<Value: Equatable>: ParameterMatcher {
     let expected: Value
 
-    func matches(value: Any) -> Bool { (value as? Value) == expected }
+    func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
+        (value as? Value) == expected ? .matched : nil
+    }
     var diagnosticDescription: String { "equal(\(String(describing: expected)))" }
     var acceptanceIdentity: String? { diagnosticDescription }
 }
@@ -87,7 +120,9 @@ struct EqualMatcher<Value: Equatable>: ParameterMatcher {
 struct NotEqualMatcher<Value: Equatable>: ParameterMatcher {
     let expected: Value
 
-    func matches(value: Any) -> Bool { (value as? Value) != expected }
+    func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
+        (value as? Value) != expected ? .matched : nil
+    }
     var diagnosticDescription: String { "notEqual(\(String(describing: expected)))" }
     var acceptanceIdentity: String? { diagnosticDescription }
 }
@@ -95,7 +130,9 @@ struct NotEqualMatcher<Value: Equatable>: ParameterMatcher {
 struct IdenticalMatcher: ParameterMatcher {
     let expected: AnyObject
 
-    func matches(value: Any) -> Bool { (value as AnyObject) === expected }
+    func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
+        (value as AnyObject) === expected ? .matched : nil
+    }
     var diagnosticDescription: String { "identical(to: \(expected))" }
 }
 
@@ -110,14 +147,16 @@ struct ComparisonMatcher<Value: Comparable>: ParameterMatcher {
     let relation: Relation
     let bound: Value
 
-    func matches(value: Any) -> Bool {
-        guard let value = value as? Value else { return false }
+    func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
+        guard let value = value as? Value else { return nil }
+        let matches: Bool
         switch relation {
-            case .greaterThan: return value > bound
-            case .atLeast: return value >= bound
-            case .lessThan: return value < bound
-            case .atMost: return value <= bound
+            case .greaterThan: matches = value > bound
+            case .atLeast: matches = value >= bound
+            case .lessThan: matches = value < bound
+            case .atMost: matches = value <= bound
         }
+        return matches ? .matched : nil
     }
 
     var diagnosticDescription: String { "\(relation.rawValue)(\(String(describing: bound)))" }
@@ -128,9 +167,9 @@ struct RangeMatcher<Bound: Comparable>: ParameterMatcher {
     let contains: @Sendable (Bound) -> Bool
     let boundsDescription: String
 
-    func matches(value: Any) -> Bool {
-        guard let value = value as? Bound else { return false }
-        return contains(value)
+    func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
+        guard let value = value as? Bound else { return nil }
+        return contains(value) ? .matched : nil
     }
 
     var diagnosticDescription: String { "inRange(\(boundsDescription))" }
@@ -140,7 +179,9 @@ struct RangeMatcher<Bound: Comparable>: ParameterMatcher {
 struct NilMatcher: ParameterMatcher {
     let expectsNil: Bool
 
-    func matches(value: Any) -> Bool { valueIsNil(value) == expectsNil }
+    func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
+        valueIsNil(value) == expectsNil ? .matched : nil
+    }
     var diagnosticDescription: String { expectsNil ? "isNil()" : "notNil()" }
     var acceptanceIdentity: String? { diagnosticDescription }
 }
@@ -149,14 +190,9 @@ struct NilMatcher: ParameterMatcher {
 struct SomeMatcher: ParameterMatcher {
     let wrapped: [ParameterMatcher]
 
-    func matches(value: Any) -> Bool {
-        guard let unwrapped = unwrapOptional(value) else { return false }
-        return wrapped.allSatisfy { $0.matches(value: unwrapped) }
-    }
-
-    func commit(value: Any) {
-        guard let unwrapped = unwrapOptional(value) else { return }
-        wrapped.forEach { $0.commit(value: unwrapped) }
+    func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
+        guard let unwrapped = unwrapOptional(value) else { return nil }
+        return prepareAll(wrapped, value: unwrapped)
     }
 
     var diagnosticDescription: String {
@@ -176,26 +212,19 @@ struct CompositeMatcher: ParameterMatcher {
     let mode: Mode
     let matchers: [ParameterMatcher]
 
-    func matches(value: Any) -> Bool {
-        switch mode {
-            case .all: return matchers.allSatisfy { $0.matches(value: value) }
-            case .any: return matchers.contains { $0.matches(value: value) }
-            case .not: return matchers.allSatisfy { $0.matches(value: value) } == false
-        }
-    }
-
-    func commit(value: Any) {
+    func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
         switch mode {
             case .all:
-                matchers.forEach { $0.commit(value: value) }
+                return prepareAll(matchers, value: value)
             case .any:
-                // Commit captures only for the first satisfied branch, mirroring
-                // the first-match-wins selection used everywhere else.
-                if let matched = matchers.first(where: { $0.matches(value: value) }) {
-                    matched.commit(value: value)
+                for matcher in matchers {
+                    if let transaction = matcher.prepareMatch(value: value) {
+                        return transaction
+                    }
                 }
+                return nil
             case .not:
-                break
+                return prepareAll(matchers, value: value) == nil ? .matched : nil
         }
     }
 
@@ -215,9 +244,9 @@ struct TypedPredicateMatcher<Value>: ParameterMatcher {
     let diagnosticDescription: String
     let predicate: (Value) -> Bool
 
-    func matches(value: Any) -> Bool {
-        guard let value = value as? Value else { return false }
-        return predicate(value)
+    func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
+        guard let value = value as? Value else { return nil }
+        return predicate(value) ? .matched : nil
     }
 }
 
@@ -228,19 +257,29 @@ struct ProjectionMatcher: ParameterMatcher {
     let matchers: [ParameterMatcher]
     let project: (Any) -> Any?
 
-    func matches(value: Any) -> Bool {
-        guard let projected = project(value) else { return false }
-        return matchers.allSatisfy { $0.matches(value: projected) }
-    }
-
-    func commit(value: Any) {
-        guard let projected = project(value) else { return }
-        matchers.forEach { $0.commit(value: projected) }
+    func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
+        guard let projected = project(value) else { return nil }
+        return prepareAll(matchers, value: projected)
     }
 
     var diagnosticDescription: String {
         "\(label)(\(matchers.map(\.diagnosticDescription).joined(separator: ", ")))"
     }
+}
+
+/// Evaluates a conjunction once, discarding every prepared capture if any
+/// matcher rejects the value.
+private func prepareAll(
+    _ matchers: [ParameterMatcher],
+    value: Any
+) -> PreparedMatcherTransaction? {
+    var transactions: [PreparedMatcherTransaction] = []
+    transactions.reserveCapacity(matchers.count)
+    for matcher in matchers {
+        guard let transaction = matcher.prepareMatch(value: value) else { return nil }
+        transactions.append(transaction)
+    }
+    return .combining(transactions)
 }
 
 /// Reports whether a type-erased value is an optional carrying no value.

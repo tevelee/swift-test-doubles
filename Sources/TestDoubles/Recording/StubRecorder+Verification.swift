@@ -1,5 +1,10 @@
 import Foundation
 
+struct PreparedRecordedCallMatch {
+    let call: RecordedCall
+    let matcherTransaction: PreparedMatcherTransaction
+}
+
 extension StubRecorder {
     func clearRecordedInvocations() {
         let waiters = withLockedPolicy { $0.invocationLedger.clear() }
@@ -13,22 +18,26 @@ extension StubRecorder {
         // every matcher after releasing it.
         let calls = withLockedPolicy { $0.invocationLedger.allCalls }
         var searchStart = calls.startIndex
-        var matches: [(expectation: RecordedCall, actual: RecordedCall)] = []
+        var matches: [PreparedRecordedCallMatch] = []
 
         for (expectationIndex, expectation) in expectations.enumerated() {
             let matchers = expectation.resolvedMatchers
-            var matchedIndex: Int?
+            var preparedMatch: (index: Int, transaction: PreparedMatcherTransaction)?
             if searchStart < calls.endIndex {
-                matchedIndex = calls[searchStart...].firstIndex { call in
-                    call.methodIndex == expectation.methodIndex
-                        && StubBehaviorRegistry.argumentsMatch(
-                            call.args,
-                            against: matchers
-                        )
+                for index in calls[searchStart...].indices {
+                    let call = calls[index]
+                    guard call.methodIndex == expectation.methodIndex else { continue }
+                    if let transaction = StubBehaviorRegistry.prepareArgumentsMatch(
+                        call.args,
+                        against: matchers
+                    ) {
+                        preparedMatch = (index, transaction)
+                        break
+                    }
                 }
             }
 
-            guard let matchedIndex else {
+            guard let preparedMatch else {
                 return StubRecorderDiagnostics.orderedVerificationFailure(
                     expectationIndex: expectationIndex,
                     expectation: expectation,
@@ -36,19 +45,20 @@ extension StubRecorder {
                 )
             }
 
-            matches.append((expectation, calls[matchedIndex]))
-            searchStart = calls.index(after: matchedIndex)
+            matches.append(
+                PreparedRecordedCallMatch(
+                    call: calls[preparedMatch.index],
+                    matcherTransaction: preparedMatch.transaction
+                ))
+            searchStart = calls.index(after: preparedMatch.index)
         }
 
         // Captors are transactional for an ordered sequence: a later missing
         // expectation must not leave values committed by earlier matches.
         for match in matches {
-            StubBehaviorRegistry.commitCaptures(
-                in: match.actual.args,
-                against: match.expectation.resolvedMatchers
-            )
+            match.matcherTransaction.commitCaptures()
         }
-        markVerified(matches.map(\.actual))
+        markVerified(matches.map(\.call))
         return nil
     }
 
@@ -56,6 +66,13 @@ extension StubRecorder {
         method: Int,
         matchers: [ParameterMatcher] = []
     ) -> [RecordedCall] {
+        preparedVerificationMatches(method: method, matchers: matchers).map(\.call)
+    }
+
+    func preparedVerificationMatches(
+        method: Int,
+        matchers: [ParameterMatcher] = []
+    ) -> [PreparedRecordedCallMatch] {
         matchingCalls(method: method, matchers: matchers)
     }
 
@@ -66,28 +83,34 @@ extension StubRecorder {
     func earliestOrderedMatch(
         recording: RecordedCall,
         after cursor: UInt64
-    ) -> RecordedCall? {
+    ) -> PreparedRecordedCallMatch? {
         let calls = withLockedPolicy { $0.invocationLedger.allCalls }
         let matchers = recording.resolvedMatchers
-        return calls.first { call in
-            guard let sequence = call.sequence, sequence > cursor else { return false }
-            return call.methodIndex == recording.methodIndex
-                && (matchers.isEmpty
-                    || StubBehaviorRegistry.argumentsMatch(
-                        call.args,
-                        against: matchers
-                    ))
+        for call in calls {
+            guard
+                let sequence = call.sequence,
+                sequence > cursor,
+                call.methodIndex == recording.methodIndex,
+                let transaction = StubBehaviorRegistry.prepareArgumentsMatch(
+                    call.args,
+                    against: matchers
+                )
+            else {
+                continue
+            }
+            return PreparedRecordedCallMatch(
+                call: call,
+                matcherTransaction: transaction
+            )
         }
+        return nil
     }
 
-    func commitSuccessfulVerification(
-        of calls: [RecordedCall],
-        against matchers: [ParameterMatcher]
-    ) {
-        for call in calls {
-            StubBehaviorRegistry.commitCaptures(in: call.args, against: matchers)
+    func commitSuccessfulVerification(of matches: [PreparedRecordedCallMatch]) {
+        for match in matches {
+            match.matcherTransaction.commitCaptures()
         }
-        markVerified(calls)
+        markVerified(matches.map(\.call))
     }
 
     func unverifiedInteractionsDiagnostic() -> String? {
@@ -127,7 +150,7 @@ extension StubRecorder {
                 in: snapshot.calls
             )
             if matches.count >= minimumCount {
-                commitSuccessfulVerification(of: matches, against: matchers)
+                commitSuccessfulVerification(of: matches)
                 return .satisfied
             }
             if Task.isCancelled {
@@ -149,10 +172,7 @@ extension StubRecorder {
                         matchers: matchers
                     )
                     if finalMatches.count >= minimumCount {
-                        commitSuccessfulVerification(
-                            of: finalMatches,
-                            against: matchers
-                        )
+                        commitSuccessfulVerification(of: finalMatches)
                         return .satisfied
                     }
                     return .timedOut(actualCount: finalMatches.count)
@@ -169,7 +189,7 @@ extension StubRecorder {
     private func matchingCalls(
         method: Int,
         matchers: [ParameterMatcher]
-    ) -> [RecordedCall] {
+    ) -> [PreparedRecordedCallMatch] {
         matchingCalls(
             method: method,
             matchers: matchers,
@@ -181,14 +201,21 @@ extension StubRecorder {
         method: Int,
         matchers: [ParameterMatcher],
         in calls: [RecordedCall]
-    ) -> [RecordedCall] {
-        calls.filter { call in
-            call.methodIndex == method
-                && (matchers.isEmpty
-                    || StubBehaviorRegistry.argumentsMatch(
-                        call.args,
-                        against: matchers
-                    ))
+    ) -> [PreparedRecordedCallMatch] {
+        calls.compactMap { call in
+            guard
+                call.methodIndex == method,
+                let transaction = StubBehaviorRegistry.prepareArgumentsMatch(
+                    call.args,
+                    against: matchers
+                )
+            else {
+                return nil
+            }
+            return PreparedRecordedCallMatch(
+                call: call,
+                matcherTransaction: transaction
+            )
         }
     }
 

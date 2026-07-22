@@ -93,70 +93,78 @@ extension StubRecorder {
             return .placeholder
         }
 
-        guard
-            let entries = withLockedPolicy({
-                $0.behaviorRegistry.entries(for: methodIndex)
-            })
-        else {
-            if allowsForwardingFallback {
-                recordForwardedInvocation(method: method, args: args)
-                return .forwarding
+        while true {
+            let snapshot = withLockedPolicy {
+                $0.behaviorRegistry.snapshot(for: methodIndex)
             }
-            fatalError(
-                diagnosticMessage(
-                    title: "No stub configured",
-                    method: method,
-                    args: args,
-                    entries: []
-                ))
-        }
-        guard
-            let entryIndex = StubBehaviorRegistry.firstMatchingEntryIndex(
-                for: args,
-                in: entries
-            )
-        else {
-            if allowsForwardingFallback {
-                recordForwardedInvocation(method: method, args: args)
-                return .forwarding
+            guard let entries = snapshot.entries else {
+                guard behaviorRegistryIsCurrent(snapshot) else { continue }
+                if allowsForwardingFallback {
+                    recordForwardedInvocation(method: method, args: args)
+                    return .forwarding
+                }
+                fatalError(
+                    diagnosticMessage(
+                        title: "No stub configured",
+                        method: method,
+                        args: args,
+                        entries: []
+                    ))
             }
-            fatalError(
-                diagnosticMessage(
-                    title: "No matching stub",
-                    method: method,
-                    args: args,
-                    entries: entries
-                ))
-        }
-        let entry = entries[entryIndex]
+            guard
+                let preparedMatch = StubBehaviorRegistry.firstPreparedEntryMatch(
+                    for: args,
+                    in: entries
+                )
+            else {
+                guard behaviorRegistryIsCurrent(snapshot) else { continue }
+                if allowsForwardingFallback {
+                    recordForwardedInvocation(method: method, args: args)
+                    return .forwarding
+                }
+                fatalError(
+                    diagnosticMessage(
+                        title: "No matching stub",
+                        method: method,
+                        args: args,
+                        entries: entries
+                    ))
+            }
+            let entry = entries[preparedMatch.entryIndex]
 
-        let (dispatch, waiters): (PreparedDispatch, [InvocationLedgerWaiter]) =
-            withLockedPolicy { policy in
-                policy.behaviorRegistry.markConsumed(
-                    method: methodIndex,
-                    entryIndex: entryIndex
-                )
-                StubBehaviorRegistry.commitCaptures(
-                    in: args,
-                    against: entry.matchers
-                )
-                let waiters = policy.invocationLedger.append(
-                    method: methodIndex,
-                    name: method.name,
-                    args: args,
-                    argumentConventions: recordingArgumentConventions(for: method),
-                    runtimePayloadRecorder: self
-                )
-                let dispatch = preparedBehavior(
-                    entry.behavior,
-                    method: method,
-                    args: args,
-                    entries: entries
-                )
-                return (dispatch, waiters)
-            }
-        resumeWaiters(waiters, returning: .changed)
-        return dispatch
+            let committed: (PreparedDispatch, [InvocationLedgerWaiter])? =
+                withLockedPolicy { policy in
+                    guard policy.behaviorRegistry.isCurrent(snapshot) else { return nil }
+                    policy.behaviorRegistry.markConsumed(
+                        method: methodIndex,
+                        entryIndex: preparedMatch.entryIndex
+                    )
+                    let dispatch = preparedBehavior(
+                        entry.behavior,
+                        method: method,
+                        args: args,
+                        entries: entries
+                    )
+                    let waiters = policy.invocationLedger.append(
+                        method: methodIndex,
+                        name: method.name,
+                        args: args,
+                        argumentConventions: recordingArgumentConventions(for: method),
+                        runtimePayloadRecorder: self
+                    )
+                    preparedMatch.matcherTransaction.commitCaptures()
+                    return (dispatch, waiters)
+                }
+            guard let (dispatch, waiters) = committed else { continue }
+            resumeWaiters(waiters, returning: .changed)
+            return dispatch
+        }
+    }
+
+    private func behaviorRegistryIsCurrent(
+        _ snapshot: StubBehaviorRegistry.Snapshot
+    ) -> Bool {
+        withLockedPolicy { $0.behaviorRegistry.isCurrent(snapshot) }
     }
 
     private func preparedBehavior(
@@ -210,14 +218,17 @@ extension StubRecorder {
                 }
                 return .forwarding
             case .fatal(let message):
-                fatalError(
-                    diagnosticMessage(
-                        title: message.map { "Explicit stub failure: \($0)" }
-                            ?? "Explicit stub failure",
-                        method: method,
-                        args: args,
-                        entries: entries
-                    ))
+                let diagnostic = diagnosticMessage(
+                    title: message.map { "Explicit stub failure: \($0)" }
+                        ?? "Explicit stub failure",
+                    method: method,
+                    args: args,
+                    entries: entries
+                )
+                return .behavior(
+                    .immediate { _ in
+                        fatalError(diagnostic)
+                    })
         }
     }
 

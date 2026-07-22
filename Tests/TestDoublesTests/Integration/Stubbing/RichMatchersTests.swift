@@ -111,6 +111,50 @@ final class LedgerNode {}
         #expect(positives.values == [3, 8])
     }
 
+    @Test func anyOfPredicateIsEvaluatedOnceWhenDispatchCommits() throws {
+        let stub = try Stub<any Ledger>()
+        let evaluations = LockedCounter()
+        stub.when {
+            $0.classify(
+                amount: anyOf(
+                    matching(
+                        description: "positive",
+                        where: { value in
+                            evaluations.increment()
+                            return value > 0
+                        }),
+                    equal(0)
+                )
+            )
+        }.thenReturn("matched")
+
+        #expect(stub().classify(amount: 7) == "matched")
+        #expect(evaluations.value == 1)
+    }
+
+    @Test func anyOfPredicateIsEvaluatedOnceWhenVerificationCommits() throws {
+        let stub = try Stub<any Ledger>()
+        stub.when { $0.classify(amount: any()) }.thenReturn("matched")
+        _ = stub().classify(amount: 7)
+        let evaluations = LockedCounter()
+
+        stub.verify {
+            $0.classify(
+                amount: anyOf(
+                    matching(
+                        description: "positive",
+                        where: { value in
+                            evaluations.increment()
+                            return value > 0
+                        }),
+                    equal(0)
+                )
+            )
+        }
+
+        #expect(evaluations.value == 1)
+    }
+
     @Test func verificationUsesRichMatchers() throws {
         let stub = try Stub<any Ledger>()
         stub.when { $0.classify(amount: any()) }.thenReturn("x")

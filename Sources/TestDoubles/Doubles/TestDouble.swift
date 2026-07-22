@@ -181,7 +181,7 @@ extension TestDouble {
             )
         }
 
-        let matches = recorder.verificationMatches(
+        let matches = recorder.preparedVerificationMatches(
             method: recording.methodIndex,
             matchers: recording.resolvedMatchers
         )
@@ -193,10 +193,7 @@ extension TestDouble {
             )
             return
         }
-        recorder.commitSuccessfulVerification(
-            of: matches,
-            against: recording.resolvedMatchers
-        )
+        recorder.commitSuccessfulVerification(of: matches)
     }
 
     func verifyCallCount(
