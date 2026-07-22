@@ -194,3 +194,19 @@ public struct LinkedReadBenchmarkService: ReadBenchmarkService {
         read { yield 0 }
     }
 }
+
+public protocol ModifyBenchmarkService {
+    var value: Int { get set }
+}
+
+public struct LinkedModifyBenchmarkService: ModifyBenchmarkService {
+    private var storage = 0
+
+    public init() {}
+
+    public var value: Int {
+        get { storage }
+        set { storage = newValue }
+        _modify { yield &storage }
+    }
+}

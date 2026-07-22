@@ -130,6 +130,12 @@ func invokeRead(_ service: any ReadBenchmarkService) -> Int {
     service.value
 }
 
+@inline(never)
+func invokeModify(_ service: inout any ModifyBenchmarkService) -> Int {
+    service.value &+= 1
+    return service.value
+}
+
 func timedSync(
     iterations: Int,
     operation: (Int) throws -> Int
@@ -514,6 +520,20 @@ func benchmarkDefinitions() -> [BenchmarkDefinition] {
             stub.when { $0.value }.thenReturn(42)
             let service: any ReadBenchmarkService = stub()
             return timedSync(iterations: iterations) { _ in invokeRead(service) }
+        },
+        BenchmarkDefinition(
+            name: "accessor.modify.forward",
+            preExpansionComparable: false,
+            pilotIterations: 100,
+            maximumIterations: 25_000
+        ) { iterations in
+            let spy = try Spy<any ModifyBenchmarkService>(
+                forwardingTo: LinkedModifyBenchmarkService()
+            )
+            var service: any ModifyBenchmarkService = spy()
+            return timedSync(iterations: iterations) { _ in
+                invokeModify(&service)
+            }
         },
         BenchmarkDefinition(
             name: "stub.invoke.vector128",

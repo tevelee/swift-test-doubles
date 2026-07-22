@@ -44,6 +44,8 @@ changes once merged.
 The complete suite covers ordinary and stack-spilled async calls, scalar and
 128-bit SIMD transport, `Self` and closure arguments, `Void` and reference
 values, forwarding spies, matcher capture and lookup, verification, bounded
-associated dictionaries, associated typed errors, and `_read` accessors.
+associated dictionaries, associated typed errors, and `_read` accessors. The
+accessor workloads cover both borrowed `_read` dispatch and forwarding through
+descriptor-based `_modify`.
 Construction cases measure warmed steady-state construction and run last because
 generated witness identities intentionally remain alive for the process.
