@@ -86,18 +86,17 @@ enum ReadCoroutineRuntime {
     ) -> TDReadCoroutineResult {
         let frame = TrampolineCallFrame(rawFrame)
         let dispatchIndex = frame.slot
-        guard let key = UnsafeRawPointer(bitPattern: frame.context),
-            let target = FabricatedInvocationRegistry.resolveOptional(key)
-        else {
+        guard let invocation = ResolvedFabricatedInvocation.resolve(in: frame) else {
             fatalError(
                 "[TestDoubles] read trampoline could not resolve recorder dispatch \(dispatchIndex)."
             )
         }
-        let recorder = target.recorderOrReject(slot: dispatchIndex)
-        guard
-            let method = recorder.runtimeMethod(for: dispatchIndex),
-            method.kind == .getter
-        else {
+        let recorder = invocation.recorder
+        let method = invocation.requireMethod(
+            failureMessage:
+                "[TestDoubles] read trampoline could not resolve recorder dispatch \(dispatchIndex)."
+        )
+        guard method.kind == .getter else {
             fatalError(
                 "[TestDoubles] read trampoline could not resolve recorder dispatch \(dispatchIndex)."
             )
@@ -114,7 +113,7 @@ enum ReadCoroutineRuntime {
             initialGeneralPurposeOffset: argumentOffset
         ).values
         let state: DispatchState
-        if let forwarder = target.forwarder {
+        if let forwarder = invocation.forwarder {
             switch recorder.prepareDispatch(method: method, args: arguments) {
                 case .forwarding:
                     state = DispatchState(
@@ -155,7 +154,7 @@ enum ReadCoroutineRuntime {
         }
 
         return TDReadCoroutineResult(
-            state: Unmanaged.passRetained(state).toOpaque(),
+            state: RetainedRuntimeState.retain(state),
             yieldedStorage: state.yieldedStorage
         )
     }
@@ -168,8 +167,12 @@ enum ReadCoroutineRuntime {
         // through the same continuation. The outer abort bit is therefore not
         // forwarded as a distinct target argument.
         _ = isAborting
-        let state = Unmanaged<DispatchState>.fromOpaque(rawState)
-            .takeRetainedValue()
+        let state = RetainedRuntimeState.consume(
+            DispatchState.self,
+            from: rawState,
+            invalidTypeMessage:
+                "[TestDoubles] read coroutine state has an invalid type."
+        )
         state.finish()
     }
 

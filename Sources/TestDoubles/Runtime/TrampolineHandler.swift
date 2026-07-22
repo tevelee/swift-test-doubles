@@ -271,7 +271,7 @@ enum RuntimeTrampolineHandler {
                     decodedArguments: invocation.decodedArguments,
                     handler: handler
                 )
-                return Unmanaged.passRetained(state).toOpaque()
+                return RetainedRuntimeState.retain(state)
 
             case .forwarding:
                 guard let forwarder = invocation.forwarder else {
@@ -283,18 +283,17 @@ enum RuntimeTrampolineHandler {
                     for: invocation.method,
                     frame: frame
                 )
-                return Unmanaged.passRetained(state as AnyObject).toOpaque()
+                return RetainedRuntimeState.retain(state)
         }
     }
 
     static func dispatchAsync(_ rawState: UnsafeMutableRawPointer) async {
-        let object = Unmanaged<AnyObject>.fromOpaque(rawState)
-            .takeUnretainedValue()
-        guard let state = object as? any AsyncTrampolineDispatchState else {
-            preconditionFailure(
+        let state = RetainedRuntimeState.borrow(
+            (any AsyncTrampolineDispatchState).self,
+            from: rawState,
+            invalidTypeMessage:
                 "[TestDoubles] Async trampoline state has an invalid type."
-            )
-        }
+        )
         await state.run()
     }
 
@@ -302,13 +301,12 @@ enum RuntimeTrampolineHandler {
         _ rawState: UnsafeMutableRawPointer,
         into frame: TrampolineCallFrame
     ) {
-        let object = Unmanaged<AnyObject>.fromOpaque(rawState)
-            .takeRetainedValue()
-        guard let state = object as? any AsyncTrampolineDispatchState else {
-            preconditionFailure(
+        let state = RetainedRuntimeState.consume(
+            (any AsyncTrampolineDispatchState).self,
+            from: rawState,
+            invalidTypeMessage:
                 "[TestDoubles] Async trampoline state has an invalid type."
-            )
-        }
+        )
         state.finish(into: frame)
     }
 
@@ -334,38 +332,30 @@ enum RuntimeTrampolineHandler {
     }
 
     static func findRecorder(in frame: TrampolineCallFrame) -> StubRecorder? {
-        guard let key = UnsafeRawPointer(bitPattern: frame.context),
-            let target = FabricatedInvocationRegistry.resolveOptional(key)
-        else {
-            return nil
-        }
-        return target.recorderOrReject(slot: frame.slot)
+        ResolvedFabricatedInvocation.resolve(in: frame)?.recorder
     }
 
     private static func invocation(for frame: TrampolineCallFrame) -> Invocation {
         let slot = frame.slot
-        guard let key = UnsafeRawPointer(bitPattern: frame.context),
-            let target = FabricatedInvocationRegistry.resolveOptional(key)
-        else {
+        guard let resolved = ResolvedFabricatedInvocation.resolve(in: frame) else {
             fatalError(
                 "[TestDoubles] Trampoline could not resolve recorder for witness call at slot \(slot)."
             )
         }
-        let recorder = target.recorderOrReject(slot: slot)
-        guard let method = recorder.runtimeMethod(for: slot) else {
-            fatalError(
+        let method = resolved.requireMethod(
+            failureMessage:
                 "[TestDoubles] No method descriptor registered for witness slot \(slot)."
-            )
-        }
+        )
         return Invocation(
-            target: target,
-            recorder: recorder,
+            target: resolved.target,
+            recorder: resolved.recorder,
             method: method,
             decodedArguments: RuntimeArgumentDecoder.decode(
                 for: method,
                 from: frame,
                 consumeOwnedArguments:
-                    target.forwarder == nil || recorder.mode == .capturing
+                    resolved.forwarder == nil
+                    || resolved.recorder.mode == .capturing
             )
         )
     }

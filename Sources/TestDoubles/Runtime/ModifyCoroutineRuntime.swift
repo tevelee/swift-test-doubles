@@ -150,14 +150,12 @@ private enum ModifyCoroutineRuntime {
     ) -> TDModifyCoroutineResult {
         let frame = TrampolineCallFrame(rawFrame)
         let getterIndex = frame.slot
-        guard let key = UnsafeRawPointer(bitPattern: frame.context),
-            let target = FabricatedInvocationRegistry.resolveOptional(key)
-        else {
+        guard let invocation = ResolvedFabricatedInvocation.resolve(in: frame) else {
             fatalError(
                 "[TestDoubles] _modify trampoline could not resolve recorder for getter slot \(getterIndex)."
             )
         }
-        let recorder = target.recorderOrReject(slot: getterIndex)
+        let recorder = invocation.recorder
         switch recorder.mode {
             case .normal:
                 break
@@ -182,7 +180,7 @@ private enum ModifyCoroutineRuntime {
             initialGeneralPurposeOffset: 1
         ).values
         let state: DispatchState
-        if let forwarder = target.forwarder {
+        if let forwarder = invocation.forwarder {
             switch recorder.prepareDispatch(method: getter, args: indices) {
                 case .forwarding:
                     state = DispatchState(
@@ -226,7 +224,7 @@ private enum ModifyCoroutineRuntime {
             )
         }
         return TDModifyCoroutineResult(
-            state: Unmanaged.passRetained(state).toOpaque(),
+            state: RetainedRuntimeState.retain(state),
             yieldedStorage: state.yieldedStorage
         )
     }
@@ -235,7 +233,12 @@ private enum ModifyCoroutineRuntime {
         _ rawState: UnsafeMutableRawPointer,
         isAborting: Bool
     ) {
-        let state = Unmanaged<DispatchState>.fromOpaque(rawState).takeRetainedValue()
+        let state = RetainedRuntimeState.consume(
+            DispatchState.self,
+            from: rawState,
+            invalidTypeMessage:
+                "[TestDoubles] _modify coroutine state has an invalid type."
+        )
         state.finish(isAborting: isAborting)
     }
 
