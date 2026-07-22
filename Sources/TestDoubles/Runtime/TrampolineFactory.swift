@@ -11,22 +11,44 @@ enum TrampolineFactory {
     /// Builds one fabricated witness graph's veneers before publishing all of
     /// its executable pages together.
     final class Arena {
-        private var rawArena: OpaquePointer?
-        private(set) var isPublished = false
+        private enum State {
+            case building(OpaquePointer)
+            case published(OpaquePointer)
+            case failed(OpaquePointer)
+            case destroyed
+
+            var rawArena: OpaquePointer? {
+                switch self {
+                    case .building(let rawArena),
+                        .published(let rawArena),
+                        .failed(let rawArena):
+                        return rawArena
+                    case .destroyed:
+                        return nil
+                }
+            }
+        }
+
+        private var state: State
 
         init?() {
             guard let rawArena = td_witness_veneer_arena_create() else {
                 return nil
             }
-            self.rawArena = rawArena
+            state = .building(rawArena)
         }
 
         deinit {
             destroy()
         }
 
+        var isPublished: Bool {
+            guard case .published = state else { return false }
+            return true
+        }
+
         var pageCount: Int {
-            guard let rawArena else { return 0 }
+            guard let rawArena = state.rawArena else { return 0 }
             return Int(td_witness_veneer_arena_page_count(rawArena))
         }
 
@@ -35,7 +57,7 @@ enum TrampolineFactory {
             slot: Int,
             context: UnsafeRawPointer
         ) -> UnsafeRawPointer? {
-            guard let rawArena, isPublished == false else { return nil }
+            guard case .building(let rawArena) = state else { return nil }
             let pointer: UnsafeMutableRawPointer?
             switch kind {
                 case .synchronous:
@@ -72,7 +94,14 @@ enum TrampolineFactory {
             invocation: UnsafeRawPointer,
             invocationArgumentIndex: Int
         ) -> UnsafeRawPointer? {
-            guard let rawArena, isPublished == false else { return nil }
+            guard case .building(let rawArena) = state,
+                invocationArgumentIndex >= 0,
+                invocationArgumentIndex
+                    < RuntimeArchitecture.current
+                    .generalPurposeArgumentRegisterCount
+            else {
+                return nil
+            }
             return td_witness_veneer_arena_make_typed(
                 rawArena,
                 target,
@@ -82,19 +111,21 @@ enum TrampolineFactory {
         }
 
         func publish() -> Bool {
-            guard let rawArena, isPublished == false,
-                td_witness_veneer_arena_publish(rawArena)
-            else {
+            guard case .building(let rawArena) = state else {
                 return false
             }
-            isPublished = true
+            guard td_witness_veneer_arena_publish(rawArena) else {
+                state = .failed(rawArena)
+                return false
+            }
+            state = .published(rawArena)
             return true
         }
 
         func destroy() {
-            guard let rawArena else { return }
+            guard let rawArena = state.rawArena else { return }
+            state = .destroyed
             td_witness_veneer_arena_destroy(rawArena)
-            self.rawArena = nil
         }
     }
 }

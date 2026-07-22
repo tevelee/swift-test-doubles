@@ -47,6 +47,8 @@ struct TrampolineArenaTests {
         #expect(entries.allSatisfy { UInt(bitPattern: $0).isMultiple(of: 16) })
         #expect(arena.pageCount == 1)
         #expect(arena.publish())
+        #expect(arena.isPublished)
+        #expect(arena.publish() == false)
         #expect(
             arena.make(
                 kind: .modify,
@@ -79,5 +81,68 @@ struct TrampolineArenaTests {
         #expect(entries.count == 1_024)
         #expect(arena.pageCount > 1)
         #expect(arena.publish())
+    }
+
+    @Test func `rejects invalid typed register indexes without poisoning arena`() throws {
+        let context = UnsafeMutableRawPointer.allocate(
+            byteCount: 32,
+            alignment: MemoryLayout<UInt>.alignment,
+        )
+        defer { context.deallocate() }
+        let arena = try #require(TrampolineFactory.Arena())
+        let target = try #require(
+            arena.make(
+                kind: .synchronous,
+                slot: 0,
+                context: UnsafeRawPointer(context)
+            )
+        )
+
+        #expect(
+            arena.makeTyped(
+                target: target,
+                invocation: UnsafeRawPointer(context),
+                invocationArgumentIndex: -1
+            ) == nil
+        )
+        #expect(
+            arena.makeTyped(
+                target: target,
+                invocation: UnsafeRawPointer(context),
+                invocationArgumentIndex: RuntimeArchitecture.current
+                    .generalPurposeArgumentRegisterCount
+            ) == nil
+        )
+        #expect(arena.publish())
+    }
+
+    @Test func `destroy is idempotent and terminal`() throws {
+        let context = UnsafeMutableRawPointer.allocate(
+            byteCount: 32,
+            alignment: MemoryLayout<UInt>.alignment,
+        )
+        defer { context.deallocate() }
+        let arena = try #require(TrampolineFactory.Arena())
+        _ = try #require(
+            arena.make(
+                kind: .synchronous,
+                slot: 0,
+                context: UnsafeRawPointer(context)
+            )
+        )
+
+        arena.destroy()
+        arena.destroy()
+
+        #expect(arena.pageCount == 0)
+        #expect(arena.isPublished == false)
+        #expect(arena.publish() == false)
+        #expect(
+            arena.make(
+                kind: .synchronous,
+                slot: 1,
+                context: UnsafeRawPointer(context)
+            ) == nil
+        )
     }
 }
