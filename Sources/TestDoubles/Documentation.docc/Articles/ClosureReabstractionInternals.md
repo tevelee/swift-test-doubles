@@ -58,7 +58,8 @@ witnesses and need no native Swift reabstraction.
 The dynamic path validates the complete shape before retaining a closure or
 publishing an entry point. Unknown extended bits, noncopyable values, parameter
 flags whose invocation semantics are not reproduced, unresolved nested
-functions, and register overflow all fail during stub construction.
+functions, and overflow beyond the bounded one-word stack slice all fail during
+stub construction.
 
 ### Adapt a direct argument into generic storage
 
@@ -78,7 +79,8 @@ direct closure pair. The direct-to-generic bridge performs these steps:
    to their direct representation.
 5. Classify each prepared value with the native ABI classifier, populate a
    `TDCallFrame`, and call the original function/context pair through the fixed
-   assembly invoker.
+   assembly invoker. If the plan has one GP spill, stage its complete eight-byte
+   word from that owned frame immediately before the call or async tail branch.
 6. For async closures, allocate a child async context from the source
    descriptor, preserve the caller continuation, and resume only after the
    source closure completes.
@@ -114,7 +116,8 @@ When compiled code invokes this returned closure, the dynamic entry captures
 the direct call in a `TDCallFrame` and enters the metadata-aware Swift handler.
 The handler:
 
-1. Decodes direct parameters in their GP, FP, aggregate, or indirect layouts.
+1. Decodes direct parameters in their GP, FP, aggregate, indirect, or bounded
+   one-word stack layouts.
 2. Boxes the values into recorder-owned generic storage, recursively
    reabstracting nested function values where required.
 3. Projects each generic value container and passes its address in one generic
@@ -123,13 +126,20 @@ The handler:
    `@error @out` address.
 5. Calls the generic source function through the matching synchronous or async
    assembly invoker. The async path keeps the frame and prepared values alive
-   across suspension.
+   across suspension. A compiler-typed helper creates the outgoing stack slot
+   before tail branching to a stack-bearing async source.
 6. Boxes and destroys the initialized generic result, then initializes the
    direct result registers or caller-owned buffer expected by the original
    closure caller.
 
 The returned closure context retains the generic source context until the last
 copy of the returned direct closure is released.
+
+Async entry decoding copies or boxes the incoming stack word while the direct
+caller's frame is still live. Only then may dispatch suspend. The arm64 callee
+advances the continuation stack by 16 bytes for this word; x86-64 keeps a zero
+net adjustment because its live async return/job slot already accounts for the
+same physical area.
 
 ### Keep typed-error transports distinct
 
@@ -204,10 +214,19 @@ appropriate.
 ### Bounded dynamic ABI
 
 The dynamic direct-to-generic bridge supports zero through six formal
-parameters. The generic-to-direct bridge has eight generic argument registers
-on arm64 and six on x86-64. Both sides also validate the actual GP and FP
-consumption, including hidden typed-error slots, and currently reject layouts
-that would spill closure parameters to the stack.
+parameters. Both directions support the architecture's GP register bank plus
+one complete eight-byte GP word at stack offset zero. The generic-to-direct
+bridge therefore has nine total GP words on arm64 and seven on x86-64.
+
+Hidden generic arguments reduce the formal-parameter maximum. Synchronous and
+untyped-throwing closures admit 9/7 formals on arm64/x86-64. An indirect typed
+error admits 8/6. An async non-`Void` result admits 8/6, and combining that
+result with an indirect typed error admits 7/5. The six-formal cap still applies
+in the direct-to-generic direction even when the physical layout would fit.
+
+The stack word must be one complete GP argument. FP or vector spills, padded or
+split values, multiple spills, dependent values, parameter packs, and
+noncopyable values fail closed before an entry point is published.
 
 Global actors, `@isolated(any)`, `nonisolated(nonsending)`, sending
 parameters/results, ownership-qualified or variadic parameters, differentiable

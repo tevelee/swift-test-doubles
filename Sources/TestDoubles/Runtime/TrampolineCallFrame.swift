@@ -17,6 +17,7 @@ struct TrampolineCallFrame {
         static let indirectResult = Int(TD_FRAME_INDIRECT_RESULT_OFFSET)
         static let swiftSelf = Int(TD_FRAME_SWIFT_SELF_OFFSET)
         static let swiftError = Int(TD_FRAME_SWIFT_ERROR_OFFSET)
+        static let outgoingStackWord = Int(TD_FRAME_RESERVED_OFFSET)
         static let returnGeneralPurpose = Int(TD_FRAME_RETURN_GP_OFFSET)
         static let returnFloatingPoint = Int(TD_FRAME_RETURN_FP_OFFSET)
         static let returnError = Int(TD_FRAME_RETURN_ERROR_OFFSET)
@@ -49,6 +50,8 @@ struct TrampolineCallFrame {
     var swiftSelfAddress: UInt { loadWord(at: Offset.swiftSelf) }
 
     var returnedError: UInt { loadWord(at: Offset.returnError) }
+
+    var outgoingStackWord: UInt { loadWord(at: Offset.outgoingStackWord) }
 
     func restore(_ snapshot: TDCallFrame) {
         pointer.pointee = snapshot
@@ -97,6 +100,24 @@ struct TrampolineCallFrame {
     func storeGeneralPurposeArgument(_ value: UInt, at index: Int) {
         precondition(index < Self.generalPurposeArgumentLimit)
         storeWord(value, at: Offset.generalPurpose + index * 8)
+    }
+
+    /// Stores one dynamic-closure GP argument in its physical register slot or
+    /// in the sole bounded outgoing stack slot immediately after the bank.
+    func storeDynamicGeneralPurposeArgument(_ value: UInt, at index: Int) {
+        if index < Self.generalPurposeArgumentLimit {
+            storeGeneralPurposeArgument(value, at: index)
+        } else {
+            precondition(
+                index == Self.generalPurposeArgumentLimit,
+                "[TestDoubles] Dynamic closure invocation exceeded its one-word stack budget."
+            )
+            storeOutgoingStackWord(value)
+        }
+    }
+
+    func storeOutgoingStackWord(_ value: UInt) {
+        storeWord(value, at: Offset.outgoingStackWord)
     }
 
     func storeFloatingPointArgument(_ value: UInt64, at index: Int) {

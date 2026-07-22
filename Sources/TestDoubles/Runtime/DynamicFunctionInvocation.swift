@@ -216,7 +216,7 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
             call.result.zeroBytes()
         }
         if let error = call.error, typedErrorUsesIndirectResultSlot {
-            frame.storeGeneralPurposeArgument(
+            frame.storeDynamicGeneralPurposeArgument(
                 UInt(bitPattern: error.storage),
                 at: nextGeneralPurpose
             )
@@ -277,7 +277,7 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
         if case .indirect = resultLayout {
             let resultAddress = UInt(bitPattern: call.result.storage)
             frame.storeIndirectResultAddress(resultAddress)
-            frame.storeGeneralPurposeArgument(resultAddress, at: 0)
+            frame.storeDynamicGeneralPurposeArgument(resultAddress, at: 0)
             initialGeneralPurposeOffset = 1
         } else {
             call.result.zeroBytes()
@@ -290,7 +290,7 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
             into: frame
         )
         if let error = call.error, typedErrorUsesIndirectResultSlot {
-            frame.storeGeneralPurposeArgument(
+            frame.storeDynamicGeneralPurposeArgument(
                 UInt(bitPattern: error.storage),
                 at: nextGeneralPurpose
             )
@@ -300,7 +300,8 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
             context,
             discriminator,
             call.rawFrame,
-            isThrowing
+            isThrowing,
+            plan.directArgumentPlan!.usesStackArgument
         )
         if frame.returnedError == 0 {
             decodeDirectResult(
@@ -355,50 +356,6 @@ private final class PreparedDirectArgument: @unchecked Sendable {
     }
 }
 
-func dynamicArgumentLayouts(
-    _ types: [Any.Type],
-    additionalGeneralPurpose: Int = 0
-) -> [ABIClass]? {
-    let layouts = types.map { abiClass(for: $0) }
-    var generalPurpose = 0
-    var floatingPoint = 0
-    for layout in layouts {
-        switch layout {
-            case .void:
-                break
-            case .floatingPoint:
-                floatingPoint += 1
-            case .integer(let words):
-                generalPurpose += words
-            case .aggregate(let parts):
-                generalPurpose += parts.filter { $0.register == .gp }.count
-                floatingPoint += parts.filter { $0.register == .fp }.count
-            case .indirect:
-                generalPurpose += 1
-        }
-    }
-    #if arch(x86_64)
-        let generalPurposeLimit = 6
-    #else
-        let generalPurposeLimit = 8
-    #endif
-    guard
-        generalPurpose + additionalGeneralPurpose <= generalPurposeLimit,
-        floatingPoint <= 8
-    else {
-        return nil
-    }
-    return layouts
-}
-
-func dynamicGenericArgumentLimit() -> Int {
-    #if arch(x86_64)
-        6
-    #else
-        8
-    #endif
-}
-
 private func encodeDynamicArguments(
     _ arguments: [PreparedDirectArgument],
     layouts: [ABIClass],
@@ -421,14 +378,17 @@ private func encodeDynamicArguments(
                         fromByteOffset: word * MemoryLayout<UInt>.size,
                         as: UInt.self
                     )
-                    frame.storeGeneralPurposeArgument(value, at: generalPurpose)
+                    frame.storeDynamicGeneralPurposeArgument(
+                        value,
+                        at: generalPurpose
+                    )
                     generalPurpose += 1
                 }
             case .aggregate(let parts):
                 for part in parts {
                     switch part.register {
                         case .gp:
-                            frame.storeGeneralPurposeArgument(
+                            frame.storeDynamicGeneralPurposeArgument(
                                 UInt(part.load(from: argument.storage)),
                                 at: generalPurpose
                             )
@@ -442,7 +402,7 @@ private func encodeDynamicArguments(
                     }
                 }
             case .indirect:
-                frame.storeGeneralPurposeArgument(
+                frame.storeDynamicGeneralPurposeArgument(
                     UInt(bitPattern: argument.storage),
                     at: generalPurpose
                 )

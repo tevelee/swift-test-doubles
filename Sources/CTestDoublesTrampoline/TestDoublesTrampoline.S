@@ -151,11 +151,15 @@ SYMBOL(td_swift_invoke_function):
     ldp x4, x5, [x19, #48]
     ldp x6, x7, [x19, #64]
     mov x21, #0
+    sub sp, sp, #16
+    ldr x9, [x19, #TD_FRAME_RESERVED_OFFSET]
+    str x9, [sp]
 #if defined(__arm64e__)
     blraa x16, x17
 #else
     blr x16
 #endif
+    add sp, sp, #16
     stp x0, x1, [x19, #TD_FRAME_RETURN_GP_OFFSET]
     stp x2, x3, [x19, #456]
     str d0, [x19, #TD_FRAME_RETURN_FP_OFFSET]
@@ -326,7 +330,9 @@ SYMBOL(td_swift_resume_modify_witness):
     ret
 
 .p2align 2
+.globl SYMBOL(td_swift_invoke_async_function_with_stack)
 .globl SYMBOL(td_swift_invoke_async_function)
+SYMBOL(td_swift_invoke_async_function_with_stack):
 SYMBOL(td_swift_invoke_async_function):
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -982,6 +988,8 @@ SYMBOL(td_swift_invoke_function):
     movq 48(%rbx), %r8
     movq 56(%rbx), %r9
     xorq %r12, %r12
+    movq TD_FRAME_RESERVED_OFFSET(%rbx), %r10
+    movq %r10, (%rsp)
     callq *%r11
     movq %rax, TD_FRAME_RETURN_GP_OFFSET(%rbx)
     movq %rdx, 448(%rbx)
@@ -1145,7 +1153,9 @@ SYMBOL(td_swift_resume_modify_witness):
     popq %rbp
     retq
 
+.globl SYMBOL(td_swift_invoke_async_function_with_stack)
 .globl SYMBOL(td_swift_invoke_async_function)
+SYMBOL(td_swift_invoke_async_function_with_stack):
 SYMBOL(td_swift_invoke_async_function):
     pushq %rbp
     movq %rsp, %rbp
@@ -1629,6 +1639,12 @@ SYMBOL(td_swift_read_coro_free):
 .globl SYMBOL(td_swift_invoke_async_functionTu)
 SYMBOL(td_swift_invoke_async_functionTu):
     .long SYMBOL(td_swift_invoke_async_function) - SYMBOL(td_swift_invoke_async_functionTu)
+    .long 64
+
+.p2align 3
+.globl SYMBOL(td_swift_invoke_async_function_with_stackTu)
+SYMBOL(td_swift_invoke_async_function_with_stackTu):
+    .long SYMBOL(td_swift_invoke_async_function_with_stack) - SYMBOL(td_swift_invoke_async_function_with_stackTu)
     .long 64
 
 .p2align 3

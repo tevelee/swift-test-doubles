@@ -74,12 +74,24 @@ iOS 18, Mac Catalyst 18, tvOS 18, or visionOS 2. Construction fails closed on
 earlier Apple runtimes; ordinary closures and typed-throwing protocol methods
 continue to use the package's lower deployment targets.
 Direct-to-generic argument transport supports zero through six formal
-parameters. Generic-to-direct result transport supports up to eight parameters
-on arm64 and six on x86-64. Both directions must also fit the architecture's
-actual general-purpose and floating-point register budgets, including any
-hidden typed-error address; the dynamic bridge does not spill closure
-parameters to the stack. See <doc:ClosureReabstractionInternals> for the two
-lowered function representations and their ownership rules.
+parameters. Within that formal limit, and in the reverse bridge, transport may
+use every general-purpose argument register plus one complete eight-byte stack
+word. This gives the generic-to-direct bridge nine total GP words on arm64 and
+seven on x86-64. The corresponding formal-parameter maxima are:
+
+| Closure shape | arm64 | x86-64 |
+| --- | ---: | ---: |
+| Synchronous, including untyped `throws` | 9 | 7 |
+| Typed `throws` with an indirect error destination | 8 | 6 |
+| Async with a non-`Void` result | 8 | 6 |
+| Async with both a non-`Void` result and indirect typed error | 7 | 5 |
+
+Hidden success and typed-error addresses consume entries in that same GP
+sequence. The stack slice accepts exactly one complete GP word at stack offset
+zero. Floating-point or vector spills, padded or split values, multiple spills,
+dependent values, parameter packs, and noncopyable values continue to fail
+closed. See <doc:ClosureReabstractionInternals> for the two lowered function
+representations and their ownership rules.
 
 Tuple and `Optional` payloads are recursively reabstracted. `Result`, arrays,
 dictionaries, user enums, and public generic nominal wrappers keep their opaque
@@ -186,7 +198,7 @@ native shapes without an exact linked reabstraction pair or an eligible dynamic
 bridge. The dynamic path specifically excludes global-actor or extended
 isolation and sending flags, noncopyable values,
 parameter flags, and layouts that exceed its formal-parameter or register
-budgets.
+and one-word stack budgets.
 
 Swift's public demangler erases the escaping distinction. To avoid illegally
 retaining a stack closure, automatic discovery checks every raw `XE` noescape

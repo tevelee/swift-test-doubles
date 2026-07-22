@@ -503,6 +503,266 @@ public struct RealExternalDynamicArityClosureService:
     ) -> ExternalOptionalHigherOrderClosure { closure }
 }
 
+public struct ExternalClosureStackPair: Sendable {
+    public let first: Int
+    public let second: Int
+
+    public init(first: Int, second: Int) {
+        self.first = first
+        self.second = second
+    }
+}
+
+#if arch(x86_64)
+    public typealias ExternalStackSyncClosure =
+        @Sendable (Int, Int, Int, Int, Int, Int, Int) -> Int
+    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
+    public typealias ExternalStackTypedClosure =
+        @Sendable (Int, Int, Int, Int, Int, Int)
+        throws(ExternalLargeClosureError) -> Int
+    public typealias ExternalStackAsyncClosure =
+        @Sendable (Int, Int, Int, Int, Int, Int) async -> ExternalNullaryLargeResult
+    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
+    public typealias ExternalStackAsyncTypedClosure =
+        @Sendable (Int, Int, Int, Int, Int)
+        async throws(ExternalLargeClosureError) -> ExternalNullaryLargeResult
+    public typealias ExternalDirectStackInputClosure =
+        @Sendable (ExternalClosureStackPair, Int, Int, Int, Int, Int) -> Int
+    public typealias ExternalDirectAsyncStackInputClosure =
+        @Sendable (Int, Int, Int, Int, Int, Int) async -> ExternalNullaryLargeResult
+#else
+    public typealias ExternalStackSyncClosure =
+        @Sendable (Int, Int, Int, Int, Int, Int, Int, Int, Int) -> Int
+    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
+    public typealias ExternalStackTypedClosure =
+        @Sendable (Int, Int, Int, Int, Int, Int, Int, Int)
+        throws(ExternalLargeClosureError) -> Int
+    public typealias ExternalStackAsyncClosure =
+        @Sendable (Int, Int, Int, Int, Int, Int, Int, Int) async -> ExternalNullaryLargeResult
+    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
+    public typealias ExternalStackAsyncTypedClosure =
+        @Sendable (Int, Int, Int, Int, Int, Int, Int)
+        async throws(ExternalLargeClosureError) -> ExternalNullaryLargeResult
+    public typealias ExternalDirectStackInputClosure =
+        @Sendable (
+            ExternalClosureStackPair,
+            ExternalClosureStackPair,
+            ExternalClosureStackPair,
+            Int,
+            Int,
+            Int
+        ) -> Int
+    public typealias ExternalDirectAsyncStackInputClosure =
+        @Sendable (
+            ExternalClosureStackPair,
+            ExternalClosureStackPair,
+            Int,
+            Int,
+            Int,
+            Int
+        ) async -> ExternalNullaryLargeResult
+#endif
+
+#if !arch(x86_64)
+    public func externalStackSyncClosure(offset: Int) -> ExternalStackSyncClosure {
+        { $0 + $1 + $2 + $3 + $4 + $5 + $6 + $7 + $8 + offset }
+    }
+
+    public func externalInvokeStackSync(_ closure: ExternalStackSyncClosure) -> Int {
+        closure(1, 2, 3, 4, 5, 6, 7, 8, 9)
+    }
+
+    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
+    public func externalStackTypedClosure(
+        offset: Int,
+        failure: ExternalLargeClosureError
+    ) -> ExternalStackTypedClosure {
+        {
+            (
+                first: Int,
+                second: Int,
+                third: Int,
+                fourth: Int,
+                fifth: Int,
+                sixth: Int,
+                seventh: Int,
+                eighth: Int
+            ) throws(ExternalLargeClosureError) -> Int in
+            guard first != 0 else { throw failure }
+            return first + second + third + fourth + fifth + sixth + seventh + eighth
+                + offset
+        }
+    }
+
+    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
+    public func externalInvokeStackTyped(
+        _ closure: ExternalStackTypedClosure,
+        first: Int
+    ) throws(ExternalLargeClosureError) -> Int {
+        try closure(first, 2, 3, 4, 5, 6, 7, 8)
+    }
+
+    public func externalStackAsyncClosure(offset: Int) -> ExternalStackAsyncClosure {
+        { first, second, third, fourth, fifth, sixth, seventh, eighth in
+            await Task.yield()
+            return ExternalNullaryLargeResult(
+                first: first + second + third + fourth + fifth + sixth + seventh + eighth
+                    + offset,
+                second: 2,
+                third: 3,
+                fourth: 4,
+                fifth: 5
+            )
+        }
+    }
+
+    public func externalInvokeStackAsync(
+        _ closure: ExternalStackAsyncClosure
+    ) async -> ExternalNullaryLargeResult {
+        await closure(1, 2, 3, 4, 5, 6, 7, 8)
+    }
+
+    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
+    public func externalStackAsyncTypedClosure(
+        offset: Int,
+        failure: ExternalLargeClosureError
+    ) -> ExternalStackAsyncTypedClosure {
+        {
+            (
+                first: Int,
+                second: Int,
+                third: Int,
+                fourth: Int,
+                fifth: Int,
+                sixth: Int,
+                seventh: Int
+            ) async throws(ExternalLargeClosureError) -> ExternalNullaryLargeResult in
+            await Task.yield()
+            guard first != 0 else { throw failure }
+            return ExternalNullaryLargeResult(
+                first: first + second + third + fourth + fifth + sixth + seventh + offset,
+                second: 2,
+                third: 3,
+                fourth: 4,
+                fifth: 5
+            )
+        }
+    }
+
+    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
+    public func externalInvokeStackAsyncTyped(
+        _ closure: ExternalStackAsyncTypedClosure,
+        first: Int
+    ) async throws(ExternalLargeClosureError) -> ExternalNullaryLargeResult {
+        try await closure(first, 2, 3, 4, 5, 6, 7)
+    }
+
+    public func externalDirectStackInputClosure(
+        offset: Int
+    ) -> ExternalDirectStackInputClosure {
+        { first, second, third, fourth, fifth, sixth in
+            first.first + first.second
+                + second.first + second.second
+                + third.first + third.second
+                + fourth + fifth + sixth + offset
+        }
+    }
+
+    public func externalInvokeDirectStackInput(
+        _ closure: ExternalDirectStackInputClosure
+    ) -> Int {
+        closure(
+            .init(first: 1, second: 2),
+            .init(first: 3, second: 4),
+            .init(first: 5, second: 6),
+            7,
+            8,
+            9
+        )
+    }
+
+    public func externalDirectAsyncStackInputClosure(
+        offset: Int
+    ) -> ExternalDirectAsyncStackInputClosure {
+        { first, second, third, fourth, fifth, sixth in
+            await Task.yield()
+            return ExternalNullaryLargeResult(
+                first: first.first + first.second
+                    + second.first + second.second
+                    + third + fourth + fifth + sixth + offset,
+                second: 2,
+                third: 3,
+                fourth: 4,
+                fifth: 5
+            )
+        }
+    }
+
+    public func externalInvokeDirectAsyncStackInput(
+        _ closure: ExternalDirectAsyncStackInputClosure
+    ) async -> Int {
+        await closure(
+            .init(first: 1, second: 2),
+            .init(first: 3, second: 4),
+            5,
+            6,
+            7,
+            8
+        ).first
+    }
+#endif
+
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
+public protocol ExternalClosureStackBridgeService {
+    func synchronous() -> ExternalStackSyncClosure
+    func typedThrowing() -> ExternalStackTypedClosure
+    func asynchronous() -> ExternalStackAsyncClosure
+    func asyncTypedThrowing() -> ExternalStackAsyncTypedClosure
+    func consume(_ closure: @escaping ExternalDirectStackInputClosure) -> Int
+    func consumeAsync(
+        _ closure: @escaping ExternalDirectAsyncStackInputClosure
+    ) async -> Int
+}
+
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
+public struct RealExternalClosureStackBridgeService:
+    ExternalClosureStackBridgeService
+{
+    public init() {}
+
+    public func synchronous() -> ExternalStackSyncClosure {
+        externalStackSyncClosure(offset: 0)
+    }
+
+    public func typedThrowing() -> ExternalStackTypedClosure {
+        externalStackTypedClosure(
+            offset: 0,
+            failure: ExternalLargeClosureError(first: 1, second: 2, third: 3, fourth: 4)
+        )
+    }
+
+    public func asynchronous() -> ExternalStackAsyncClosure {
+        externalStackAsyncClosure(offset: 0)
+    }
+
+    public func asyncTypedThrowing() -> ExternalStackAsyncTypedClosure {
+        externalStackAsyncTypedClosure(
+            offset: 0,
+            failure: ExternalLargeClosureError(first: 1, second: 2, third: 3, fourth: 4)
+        )
+    }
+
+    public func consume(_ closure: @escaping ExternalDirectStackInputClosure) -> Int {
+        externalInvokeDirectStackInput(closure)
+    }
+
+    public func consumeAsync(
+        _ closure: @escaping ExternalDirectAsyncStackInputClosure
+    ) async -> Int {
+        await externalInvokeDirectAsyncStackInput(closure)
+    }
+}
+
 @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 public protocol ExternalDynamicTypedClosureService {
     func nullary(

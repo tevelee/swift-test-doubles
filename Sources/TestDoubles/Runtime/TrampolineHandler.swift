@@ -208,10 +208,7 @@ enum RuntimeTrampolineHandler {
         _ frame: TrampolineCallFrame
     ) -> TDAsyncTrampolineResult {
         if frame.slot == Int.max {
-            return TDAsyncTrampolineResult(
-                state: prepareDynamicAsyncFunctionReturn(frame),
-                stackAdjustment: 0
-            )
+            return prepareDynamicAsyncFunctionReturn(frame)
         }
         let invocation = invocation(for: frame)
         let state = prepareAsync(frame, invocation: invocation)

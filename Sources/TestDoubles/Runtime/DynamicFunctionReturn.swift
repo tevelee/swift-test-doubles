@@ -54,7 +54,7 @@ func initializeDynamicFunctionResult(
 
 func prepareDynamicAsyncFunctionReturn(
     _ frame: TrampolineCallFrame
-) -> UnsafeMutableRawPointer {
+) -> TDAsyncTrampolineResult {
     guard
         let contextAddress = UnsafeRawPointer(
             bitPattern: frame.swiftSelfAddress
@@ -71,7 +71,10 @@ func prepareDynamicAsyncFunctionReturn(
         context: context,
         frame: frame
     )
-    return Unmanaged.passRetained(state).toOpaque()
+    return TDAsyncTrampolineResult(
+        state: Unmanaged.passRetained(state).toOpaque(),
+        stackAdjustment: context.directStackAdjustment
+    )
 }
 
 @_cdecl("td_swift_dynamic_function_handler")
@@ -112,6 +115,14 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
     private var isAsync: Bool { plan.isAsync }
     private var asyncDirectResultUsesGeneralPurposeSlot: Bool {
         plan.asyncDirectResultUsesGeneralPurposeSlot
+    }
+    fileprivate var directStackAdjustment: UInt64 {
+        UInt64(
+            dynamicAsyncStackAdjustmentByteCount(
+                usesStackArgument:
+                    plan.directArgumentPlan?.usesStackArgument == true
+            )
+        )
     }
 
     init(source: UnsafeMutableRawPointer, metadata: FunctionMetadata) {
@@ -216,7 +227,7 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
 
         let frame = call.frame
         for index in argumentContainers.indices {
-            frame.storeGeneralPurposeArgument(
+            frame.storeDynamicGeneralPurposeArgument(
                 UInt(bitPattern: argumentContainers[index].projectValue()),
                 at: index
             )
@@ -226,7 +237,7 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
             frame.storeIndirectResultAddress(UInt(bitPattern: call.result.storage))
         }
         if let error = call.error, genericTypedErrorUsesIndirectResultSlot {
-            frame.storeGeneralPurposeArgument(
+            frame.storeDynamicGeneralPurposeArgument(
                 UInt(bitPattern: error.storage),
                 at: parameterTypes.count
             )
@@ -261,19 +272,19 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
         if hasResult {
             let resultAddress = UInt(bitPattern: call.result.storage)
             frame.storeIndirectResultAddress(resultAddress)
-            frame.storeGeneralPurposeArgument(resultAddress, at: 0)
+            frame.storeDynamicGeneralPurposeArgument(resultAddress, at: 0)
             initialGeneralPurposeOffset = 1
         } else {
             initialGeneralPurposeOffset = 0
         }
         for index in argumentContainers.indices {
-            frame.storeGeneralPurposeArgument(
+            frame.storeDynamicGeneralPurposeArgument(
                 UInt(bitPattern: argumentContainers[index].projectValue()),
                 at: initialGeneralPurposeOffset + index
             )
         }
         if let error = call.error, genericTypedErrorUsesIndirectResultSlot {
-            frame.storeGeneralPurposeArgument(
+            frame.storeDynamicGeneralPurposeArgument(
                 UInt(bitPattern: error.storage),
                 at: initialGeneralPurposeOffset + parameterTypes.count
             )
@@ -287,7 +298,8 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
             functionContext,
             discriminator,
             call.rawFrame,
-            metadata.flags.throws
+            metadata.flags.throws,
+            plan.genericUsesStackArgument
         )
         return outcome(from: call, hasResult: hasResult)
     }

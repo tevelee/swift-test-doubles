@@ -3,13 +3,84 @@ import Echo
 import Foundation
 
 @_silgen_name("td_swift_invoke_async_function")
-func tdSwiftInvokeAsyncFunction(
+private func tdSwiftInvokeAsyncFunctionWithoutStack(
     _ function: UnsafeRawPointer,
     _ context: UnsafeRawPointer?,
     _ discriminator: UInt16,
     _ frame: UnsafeMutablePointer<TDCallFrame>,
     _ isThrowing: Bool
 ) async
+
+#if arch(x86_64)
+    @_silgen_name("td_swift_invoke_async_function_with_stack")
+    private func tdSwiftInvokeAsyncFunctionWithStack(
+        _ function: UnsafeRawPointer,
+        _ context: UnsafeRawPointer?,
+        _ discriminator: UInt16,
+        _ frame: UnsafeMutablePointer<TDCallFrame>,
+        _ isThrowing: Bool,
+        _ registerPadding: UInt,
+        _ stackWord: UInt
+    ) async
+#else
+    @_silgen_name("td_swift_invoke_async_function_with_stack")
+    private func tdSwiftInvokeAsyncFunctionWithStack(
+        _ function: UnsafeRawPointer,
+        _ context: UnsafeRawPointer?,
+        _ discriminator: UInt16,
+        _ frame: UnsafeMutablePointer<TDCallFrame>,
+        _ isThrowing: Bool,
+        _ firstRegisterPadding: UInt,
+        _ secondRegisterPadding: UInt,
+        _ thirdRegisterPadding: UInt,
+        _ stackWord: UInt
+    ) async
+#endif
+
+func tdSwiftInvokeAsyncFunction(
+    _ function: UnsafeRawPointer,
+    _ context: UnsafeRawPointer?,
+    _ discriminator: UInt16,
+    _ frame: UnsafeMutablePointer<TDCallFrame>,
+    _ isThrowing: Bool,
+    _ hasStackArgument: Bool
+) async {
+    guard hasStackArgument else {
+        await tdSwiftInvokeAsyncFunctionWithoutStack(
+            function,
+            context,
+            discriminator,
+            frame,
+            isThrowing
+        )
+        return
+    }
+
+    let stackWord = TrampolineCallFrame(frame).outgoingStackWord
+    #if arch(x86_64)
+        await tdSwiftInvokeAsyncFunctionWithStack(
+            function,
+            context,
+            discriminator,
+            frame,
+            isThrowing,
+            0,
+            stackWord
+        )
+    #else
+        await tdSwiftInvokeAsyncFunctionWithStack(
+            function,
+            context,
+            discriminator,
+            frame,
+            isThrowing,
+            0,
+            0,
+            0,
+            stackWord
+        )
+    #endif
+}
 
 @_silgen_name("td_swift_invoke_async_witness")
 func tdSwiftInvokeAsyncWitness(

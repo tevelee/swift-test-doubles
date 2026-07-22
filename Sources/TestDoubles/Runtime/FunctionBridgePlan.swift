@@ -13,7 +13,7 @@ enum FunctionBridgeDirection: Sendable {
 struct FunctionBridgePlan: @unchecked Sendable {
     let metadata: FunctionMetadata
     let parameterTypes: [Any.Type]
-    let directArgumentLayouts: [ABIClass]?
+    let directArgumentPlan: DynamicFunctionArgumentPlan?
     let resultType: Any.Type
     let resultLayout: ABIClass
     let typedErrorType: Any.Type?
@@ -24,6 +24,9 @@ struct FunctionBridgePlan: @unchecked Sendable {
     let genericTypedErrorUsesIndirectResultSlot: Bool
     let asyncDirectResultUsesGeneralPurposeSlot: Bool
     let genericArgumentCount: Int
+    let genericUsesStackArgument: Bool
+
+    var directArgumentLayouts: [ABIClass]? { directArgumentPlan?.layouts }
 
     init(_ metadata: FunctionMetadata) {
         self.metadata = metadata
@@ -46,10 +49,15 @@ struct FunctionBridgePlan: @unchecked Sendable {
             metadata.flags.numParams
             + (genericTypedErrorUsesIndirectResultSlot ? 1 : 0)
             + (isAsync && metadata.resultType != Void.self ? 1 : 0)
-        directArgumentLayouts = dynamicArgumentLayouts(
+        genericUsesStackArgument =
+            genericArgumentCount
+            > RuntimeArchitecture.current.generalPurposeArgumentRegisterCount
+        directArgumentPlan = dynamicFunctionArgumentPlan(
             parameterTypes,
-            additionalGeneralPurpose: (directTypedErrorUsesIndirectResultSlot ? 1 : 0)
-                + (asyncDirectResultUsesGeneralPurposeSlot ? 1 : 0)
+            initialGeneralPurposeOffset:
+                asyncDirectResultUsesGeneralPurposeSlot ? 1 : 0,
+            trailingGeneralPurposeWordCount:
+                directTypedErrorUsesIndirectResultSlot ? 1 : 0
         )
     }
 
@@ -63,7 +71,7 @@ struct FunctionBridgePlan: @unchecked Sendable {
         if direction == .genericToDirect,
             genericArgumentCount > dynamicGenericArgumentLimit()
         {
-            return "The dynamic return bridge exceeds the architecture's generic argument register budget."
+            return "The dynamic return bridge exceeds its bounded generic argument register and stack budget."
         }
         guard metadata.flags.bits & 0x0800_0000 == 0 else {
             return "Differentiable functions require derivative metadata."
@@ -127,8 +135,8 @@ struct FunctionBridgePlan: @unchecked Sendable {
         {
             return "Ownership, variadic, autoclosure, derivative, isolated, or sending parameter flags require compiler reabstraction."
         }
-        guard directArgumentLayouts != nil else {
-            return "The parameters exceed the architecture's direct register budget."
+        guard directArgumentPlan != nil else {
+            return "The parameters exceed the architecture's bounded direct register and stack budget."
         }
         switch direction {
             case .directToGeneric:
