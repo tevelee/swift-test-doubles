@@ -21,13 +21,18 @@ struct AssociatedTypeBindings {
 
     private let byID: [AssociatedTypeID: StubProtocolMetadata.AssociatedTypeBinding]
     private let byProtocolID: [ProtocolLayout.DescriptorID: [StubProtocolMetadata.AssociatedTypeBinding]]
+    private let referenceAssociatedTypeIDs: Set<AssociatedTypeID>
 
     init() {
         self.init([])
     }
 
-    init(_ bindings: [StubProtocolMetadata.AssociatedTypeBinding]) {
+    init(
+        _ bindings: [StubProtocolMetadata.AssociatedTypeBinding],
+        referenceAssociatedTypeIDs: Set<AssociatedTypeID> = []
+    ) {
         ordered = bindings
+        self.referenceAssociatedTypeIDs = referenceAssociatedTypeIDs
 
         var byID: [AssociatedTypeID: StubProtocolMetadata.AssociatedTypeBinding] = [:]
         var byProtocolID: [ProtocolLayout.DescriptorID: [StubProtocolMetadata.AssociatedTypeBinding]] = [:]
@@ -68,6 +73,42 @@ struct AssociatedTypeBindings {
             )
         }
         return binding
+    }
+
+    func dependency(
+        for binding: StubProtocolMetadata.AssociatedTypeBinding
+    ) -> WitnessValueDependency {
+        if referenceAssociatedTypeIDs.contains(binding.id) {
+            return .referenceAssociatedType(id: binding.id)
+        }
+        return .associatedType(id: binding.id)
+    }
+
+    func resolvedAssociatedType(
+        named name: String,
+        declaredBy protocolDescriptor: ProtocolDescriptor
+    ) throws -> ResolvedDependentType {
+        let binding = try binding(
+            named: name,
+            declaredBy: protocolDescriptor
+        )
+        return ResolvedDependentType(
+            type: binding.type,
+            dependency: dependency(for: binding)
+        )
+    }
+
+    func validateReferenceBindings() throws {
+        for binding in ordered where referenceAssociatedTypeIDs.contains(binding.id) {
+            guard binding.type is AnyObject.Type else {
+                throw StubError.unsupportedProtocolShape(
+                    protocolName: binding.protocolDescriptor.name,
+                    reason:
+                        "AnyObject-constrained associated type '\(binding.name)' must be bound to a concrete class type. "
+                        + "'\(runtimeTypeName(binding.type))' is a value type or class existential."
+                )
+            }
+        }
     }
 }
 

@@ -30,11 +30,9 @@ extension Stub.Requirement.Value.Source {
                     dependency: .independent
                 )
             case .associatedType(let name):
-                return .associatedType(
-                    binding: try bindings.binding(
-                        named: name,
-                        declaredBy: protocolDescriptor
-                    )
+                return try bindings.resolvedAssociatedType(
+                    named: name,
+                    declaredBy: protocolDescriptor
                 )
             case .optional(let wrapped):
                 return try wrapped.resolveDependentType(

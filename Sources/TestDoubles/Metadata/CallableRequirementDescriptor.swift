@@ -88,15 +88,6 @@ struct ResolvedDependentType: Sendable {
     let type: Any.Type
     let dependency: WitnessValueDependency
 
-    static func associatedType(
-        binding: StubProtocolMetadata.AssociatedTypeBinding
-    ) -> Self {
-        return Self(
-            type: binding.type,
-            dependency: .associatedType(id: binding.id)
-        )
-    }
-
     func optional() -> Self {
         Self(
             type: _openExistential(type, do: optionalType),
@@ -442,6 +433,20 @@ struct MethodDescriptor: Sendable {
             throw StubError.unsupportedProtocolShape(
                 protocolName: protocolName,
                 reason: "Requirement \(index) marks a result as consuming. Ownership applies only to arguments."
+            )
+        }
+        let unsupportedReferenceDependencies =
+            arguments.map(\.dependency) + [result.dependency]
+        guard
+            unsupportedReferenceDependencies.allSatisfy(
+                \.usesSupportedReferenceAssociatedTransport
+            )
+        else {
+            throw StubError.unsupportedProtocolShape(
+                protocolName: protocolName,
+                reason:
+                    "Requirement \(index) embeds an AnyObject-constrained associated type in an unsupported value shape. "
+                    + "Only direct values and one Optional layer have a proven dependent reference ABI."
             )
         }
         self.init(

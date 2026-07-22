@@ -532,22 +532,32 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
         #expect(stub().value() == 42)
     }
 
-    @Test func associatedTypeClassLayoutFailsClosed() {
+    @Test func associatedTypeClassLayoutUsesReferenceTransport() throws {
         _ = RealReferenceElementAssociatedTypeProbe()
+        let stub = try Stub<any ReferenceElementAssociatedTypeProbe>(
+            associatedTypes: [
+                .binding(
+                    declaredBy: (any ReferenceElementAssociatedTypeProbe).self,
+                    named: "Element",
+                    to: BoundAssociatedTypeBox.self
+                )
+            ]
+        )
+        let method = try #require(stub.recorder.runtimeMethod(for: 0))
 
-        expectUnsupportedProtocolShape(
-            containing: "AnyObject-constrained associated types use a dependent reference ABI"
-        ) {
-            _ = try Stub<any ReferenceElementAssociatedTypeProbe>(
-                associatedTypes: [
-                    .binding(
-                        declaredBy: (any ReferenceElementAssociatedTypeProbe).self,
-                        named: "Element",
-                        to: BoundAssociatedTypeBox.self
-                    )
-                ]
-            )
+        #expect(method.argumentLayouts.count == 1)
+        guard case .integer(words: 1) = method.argumentLayouts[0] else {
+            Issue.record("Expected a direct reference argument.")
+            return
         }
+        guard case .integer(words: 1) = method.returnLayout else {
+            Issue.record("Expected a direct reference result.")
+            return
+        }
+        #expect(
+            method.arguments[0].value.dependency
+                .usesOpaqueValueWitnessConvention == false
+        )
     }
 
     @Test func superclassConstrainedAssociatedTypeFailsClosed() {

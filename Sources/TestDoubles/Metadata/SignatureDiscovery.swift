@@ -382,7 +382,7 @@ private func resolveTypedError(
         }
         return (
             binding.type,
-            .associatedType(id: binding.id)
+            associatedTypeBindings.dependency(for: binding)
         )
     }
     if let resolved = try resolveSupportedAssociatedTypedErrorClass(
@@ -461,11 +461,10 @@ private func resolveAssociatedTypedErrorClassComponent(
         protocolDescriptor: protocolDescriptor,
         associatedTypeBindings: associatedTypeBindings
     ) {
-        let binding = try associatedTypeBindings.binding(
+        return try associatedTypeBindings.resolvedAssociatedType(
             named: name,
             declaredBy: protocolDescriptor
         )
-        return .associatedType(binding: binding)
     }
     if let application = genericApplication(spelling),
         let argumentSpellings = topLevelComponents(in: application.arguments)
@@ -590,11 +589,10 @@ private func resolveSupportedTypeComponent(
         protocolDescriptor: protocolDescriptor,
         associatedTypeBindings: associatedTypeBindings
     ) {
-        let binding = try associatedTypeBindings.binding(
+        return try associatedTypeBindings.resolvedAssociatedType(
             named: name,
             declaredBy: protocolDescriptor
         )
-        return .associatedType(binding: binding)
     }
     if let shape = standardLibraryDependentShape(in: spelling) {
         switch shape {

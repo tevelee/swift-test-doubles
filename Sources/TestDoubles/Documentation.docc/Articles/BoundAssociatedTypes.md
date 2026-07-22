@@ -201,14 +201,19 @@ it must evolve alongside the repository's Swift runtime support matrix.
   `Element: Equatable`.
 - Direct associated-type method arguments and results, including consuming
   direct arguments.
+- An `AnyObject`-constrained associated type bound to a concrete class. Direct
+  values and one `Optional` layer use the formal one-word reference ABI in
+  borrowed, default, or consuming arguments and results, including synchronous,
+  async, and fixed typed-throwing methods. Class existentials are not concrete
+  class bindings.
 - Direct associated-type property getters, Swift 6.3 `read` accessors, Swift
   6.4 `yielding borrow` accessors through their supported witness, and setters.
 - Arbitrarily recursive combinations of `Optional`, `Array`, `Set`,
   `Dictionary`, and `Result` containing associated and concrete leaves, in
-  method arguments, results, and getter results. Every resolved `Set` element
-  and `Dictionary` key must prove `Hashable`, and every resolved `Result`
-  failure must prove `Error`. Method arguments in all supported container forms
-  may be consuming.
+  method arguments, results, and getter results for ordinary opaque associated
+  values. Every resolved `Set` element and `Dictionary` key must prove
+  `Hashable`, and every resolved `Result` failure must prove `Error`. Method
+  arguments in all supported container forms may be consuming.
 - Automatically discovered linked, public, top-level generic Swift classes
   with one or two unconstrained type parameters. Every argument may recursively
   contain concrete types, associated types, and supported standard-library or
@@ -223,9 +228,11 @@ it must evolve alongside the repository's Swift runtime support matrix.
   result reuses the async indirect-result slot. Effectful dependent getters
   must be described explicitly because witness symbols never encode getter
   throwing.
-- Direct associated typed errors are supported in synchronous and async methods.
-  Their substituted concrete metadata always drives an indirect error-result
-  slot, even when that concrete type would ordinarily fit in registers.
+- Direct opaque associated typed errors are supported in synchronous and async
+  methods. Their substituted concrete metadata always drives an indirect
+  error-result slot, even when that concrete type would ordinarily fit in
+  registers. An associated error constrained to both `Error` and `AnyObject`
+  instead uses its proven direct reference channel.
 - Automatic discovery also supports an associated-dependent typed error whose
   outer type is a linked, public, top-level generic class with one or two
   unconstrained type parameters. Direct associated arguments and recursively
@@ -233,10 +240,12 @@ it must evolve alongside the repository's Swift runtime support matrix.
   reconstruction proves the class reference layout before construction, so
   synchronous and async failures use the direct typed-error channel.
 - Automatic discovery and explicit requirement descriptions.
-- Complete caller-supplied bindings for unbound associated types used only in
-  covariant method or getter results or as a direct typed error. Both flat and
-  recursively nested supported-container requirements are supported; result
-  values remain statically erased to their upper bounds at the call site.
+- Complete caller-supplied bindings for unbound associated types used in
+  covariant method or getter results, as a direct typed error, or as a direct or
+  single-`Optional` input when the declaration is constrained to `AnyObject`.
+  Both flat and recursively nested supported-container result requirements are
+  supported; result values remain statically erased to their upper bounds at
+  the call site.
 
 The implementation has tests that pass fabricated existentials to generic code,
 use multiple associated-type conformances, bind stubs to different concrete
@@ -257,13 +266,15 @@ signature validation possible:
 - An unbound existential such as `any Source` without a complete caller-supplied
   binding set.
 - Caller-bound associated types used in method arguments, setters, or other
-  non-covariant positions.
+  non-covariant positions, except direct and single-`Optional`
+  `AnyObject`-constrained inputs with concrete class bindings.
 - A missing, duplicate, or unknown concrete binding for any associated-type
   declaration in the flattened layout.
 - Dependent values outside recursive `Optional`, `Array`, `Set`, `Dictionary`,
   `Result`, and the bounded automatic generic-class slice, such as tuples,
   generic structs or enums, metatypes, existentials, or function types
-  containing `Element`.
+  containing `Element`. An `AnyObject`-constrained associated type has a
+  separately bounded slice: direct values and one `Optional` layer only.
 - Generic classes with constraints, more than two type parameters, nested or
   unlinked constructors, constructors whose metadata accessor needs non-type
   arguments, and source-less explicit generic-class schemas.
@@ -273,13 +284,14 @@ signature validation possible:
   associated-error schemas cannot describe the supported generic-class source
   dependency and are rejected when linked validation is available.
 - Same-type constraints other than concrete primary bindings, superclass
-  constraints, `AnyObject`-constrained associated types, and other generic
-  constraints outside the directly witnessed protocol-conformance form.
+  constraints, and other generic constraints outside the directly witnessed
+  protocol-conformance or supported `AnyObject` layout forms.
 - Function values involving an associated type.
 
-Borrowed and consuming direct or optional arguments use the supported indirect
-call-frame shape; arrays, sets, and dictionaries keep their one-word direct
-representation.
+Borrowed and consuming ordinary opaque direct or optional arguments use the
+supported indirect call-frame shape; arrays, sets, and dictionaries keep their
+one-word direct representation. A direct or single-`Optional`
+`AnyObject`-constrained associated value uses one direct reference word.
 Per-argument ownership ensures the trampoline destroys only owned input storage
 after first copying it into recorder-owned type erasure. Noncopyable and
 nonescapable dependent values remain outside the boundary.
@@ -314,18 +326,21 @@ the explicit path continues to fail closed rather than publish either contract.
 Consuming `Optional`, `Array`, `Set`, `Dictionary`, and `Result` values reuse the
 implemented value-witness and per-argument ownership path. Other nested,
 noncopyable, and nonescapable associated types still require additional
-lowering and lifetime models. An `AnyObject` associated-type constraint is also
-a separate dependent reference ABI; recognizing its metadata is not enough to
-transport its values safely, so construction rejects it explicitly.
+lowering and lifetime models. The separate dependent-reference ABI is
+implemented only for a concrete class bound directly or through one `Optional`;
+collections, deeper optionals, and other wrappers containing an
+`AnyObject`-constrained associated value still fail closed.
 
 Typed throws is a separate ABI case. Concrete typed errors share direct result
 registers or use the caller's indirect typed-error slot as required. A direct
-associated error substitutes its binding metadata and always uses the indirect
-slot so the generic witness convention remains stable. Swift 6.3 and 6.4 lower
-`BoxError<Element>` differently: once the exact outer generic class descriptor
-is reconstructed, its reference layout fixes the formal error transport and no
-opaque error slot is needed. The same rule holds for proven one- and
-two-parameter class errors and recursively nested class applications.
+opaque associated error substitutes its binding metadata and uses the indirect
+slot so the generic witness convention remains stable. An associated error
+constrained to `Error & AnyObject` has a formally direct reference channel.
+Swift 6.3 and 6.4 lower `BoxError<Element>` differently: once the exact outer
+generic class descriptor is reconstructed, its reference layout fixes the
+formal error transport and no opaque error slot is needed. The same rule holds
+for proven one- and two-parameter class errors and recursively nested class
+applications.
 
 Optional and other value wrappers, generic structs or enums, and unsupported
 generic classes remain fail-closed. Supporting `Result` as an ordinary argument

@@ -45,6 +45,7 @@ struct ProtocolLayout {
         let protocolDescriptor: ProtocolDescriptor
         let witnessIndex: Int
         let name: String
+        let usesReferenceABI: Bool
     }
 
     struct AssociatedConformanceRequirement {
@@ -153,6 +154,11 @@ extension ProtocolLayout {
             kind: StubRequirementKind,
             receiver: StubRequirementReceiver
         )
+        typealias LocalAssociatedType = (
+            witnessIndex: Int,
+            name: String,
+            usesReferenceABI: Bool
+        )
 
         let contextName: String
         let allowsClassConstraint: Bool
@@ -196,7 +202,8 @@ extension ProtocolLayout {
                         AssociatedTypeRequirement(
                             protocolDescriptor: descriptor,
                             witnessIndex: $0.witnessIndex,
-                            name: $0.name
+                            name: $0.name,
+                            usesReferenceABI: $0.usesReferenceABI
                         )
                     },
                     associatedConformances: local.associatedConformances.map {
@@ -257,7 +264,7 @@ extension ProtocolLayout {
             for descriptor: ProtocolDescriptor
         ) throws -> (
             baseProtocols: [BaseProtocol],
-            associatedTypes: [(witnessIndex: Int, name: String)],
+            associatedTypes: [LocalAssociatedType],
             associatedConformances: [(
                 witnessIndex: Int,
                 associatedTypeName: String,
@@ -297,11 +304,12 @@ extension ProtocolLayout {
                     reason: "Only inherited-protocol, associated-type conformance, and class-layout constraints are supported."
                 )
             }
-            try validateClassLayoutRequirements(
-                classLayoutRequirements,
-                for: descriptor,
-                associatedTypeNames: associatedTypeNames
-            )
+            let referenceAssociatedTypeNames =
+                try validateClassLayoutRequirements(
+                    classLayoutRequirements,
+                    for: descriptor,
+                    associatedTypeNames: associatedTypeNames
+                )
             let associatedTypeWitnessIndices = localRequirements.enumerated().compactMap {
                 index, requirement in
                 requirement.flags.kind == .associatedTypeAccessFunction ? index : nil
@@ -387,10 +395,10 @@ extension ProtocolLayout {
                     )
                 }
             }
-            let associatedTypes = zip(
+            let associatedTypes: [LocalAssociatedType] = zip(
                 associatedTypeWitnessIndices,
                 associatedTypeNames
-            ).map { (witnessIndex: $0.0, name: $0.1) }
+            ).map { ($0.0, $0.1, referenceAssociatedTypeNames.contains($0.1)) }
 
             var callableRequirements: [LocalCallableRequirement] = []
             var readCoroutineRequirements: [LocalReadRequirement] = []
@@ -579,7 +587,7 @@ extension ProtocolLayout {
             _ requirements: [GenericRequirementDescriptor],
             for descriptor: ProtocolDescriptor,
             associatedTypeNames: [String]
-        ) throws {
+        ) throws -> Set<String> {
             guard
                 requirements.allSatisfy({
                     genericRequirementLayoutKindCode($0) == 0
@@ -623,12 +631,7 @@ extension ProtocolLayout {
                     reason: "An associated type has duplicate class-layout constraints."
                 )
             }
-            guard constrainedAssociatedTypeNames.isEmpty else {
-                throw StubError.unsupportedProtocolShape(
-                    protocolName: descriptor.name,
-                    reason: "AnyObject-constrained associated types use a dependent reference ABI that runtime test doubles do not yet support."
-                )
-            }
+            return Set(constrainedAssociatedTypeNames)
         }
     }
 }

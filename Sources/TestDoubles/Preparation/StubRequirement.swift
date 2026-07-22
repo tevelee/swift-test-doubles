@@ -800,7 +800,7 @@ extension Stub {
                 }
                 resolvedTypedError = (
                     binding.type,
-                    .associatedType(id: binding.id)
+                    bindings.dependency(for: binding)
                 )
             } else {
                 resolvedTypedError = (typedErrorType, .independent)

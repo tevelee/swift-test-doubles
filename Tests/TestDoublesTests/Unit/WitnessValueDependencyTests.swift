@@ -35,8 +35,37 @@ private protocol SecondDependencyScope {
                 name: "Value"
             )
         )
+        let reference = WitnessValueDependency.referenceAssociatedType(
+            id: AssociatedTypeID(
+                protocolDescriptor: firstProtocol,
+                name: "Value"
+            )
+        )
+        let secondReference = WitnessValueDependency.referenceAssociatedType(
+            id: AssociatedTypeID(
+                protocolDescriptor: secondProtocol,
+                name: "Value"
+            )
+        )
 
         #expect(first != second)
+        #expect(first != reference)
+        #expect(reference != secondReference)
+        #expect(reference.legacyProjection == .associatedType(name: "Value"))
+        #expect(reference.usesOpaqueValueWitnessConvention == false)
+        #expect(reference.usesSupportedReferenceAssociatedTransport)
+        #expect(
+            WitnessValueDependency.optional(reference)
+                .usesSupportedReferenceAssociatedTransport
+        )
+        #expect(
+            WitnessValueDependency.optional(.optional(reference))
+                .usesSupportedReferenceAssociatedTransport == false
+        )
+        #expect(
+            WitnessValueDependency.array(reference)
+                .usesSupportedReferenceAssociatedTransport == false
+        )
         #expect(
             WitnessValueDependency.optional(first)
                 != WitnessValueDependency.array(first)

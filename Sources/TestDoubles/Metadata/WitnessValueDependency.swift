@@ -5,13 +5,21 @@
 /// descriptors that have no declaring protocol context.
 enum AssociatedTypeReference: Equatable, Sendable {
     case declaration(AssociatedTypeID)
+    /// An exact associated-type declaration whose `AnyObject` constraint
+    /// fixes its formal witness transport to one reference word.
+    case referenceDeclaration(AssociatedTypeID)
     case name(String)
 
     var name: String {
         switch self {
-            case .declaration(let id): id.name
+            case .declaration(let id), .referenceDeclaration(let id): id.name
             case .name(let name): name
         }
+    }
+
+    var usesReferenceABI: Bool {
+        if case .referenceDeclaration = self { return true }
+        return false
     }
 }
 
@@ -48,6 +56,10 @@ indirect enum WitnessValueDependency: Equatable, Sendable {
 
     static func associatedType(id: AssociatedTypeID) -> Self {
         .associatedType(.declaration(id))
+    }
+
+    static func referenceAssociatedType(id: AssociatedTypeID) -> Self {
+        .associatedType(.referenceDeclaration(id))
     }
 
     /// Compatibility construction for the previously flat Dictionary marker.
@@ -87,8 +99,8 @@ indirect enum WitnessValueDependency: Equatable, Sendable {
         switch self {
             case .independent:
                 false
-            case .associatedType:
-                true
+            case .associatedType(let reference):
+                reference.usesReferenceABI == false
             case .optional(let wrapped):
                 wrapped.usesOpaqueValueWitnessConvention
             case .array, .set, .dictionary:
@@ -122,6 +134,41 @@ indirect enum WitnessValueDependency: Equatable, Sendable {
     var directAssociatedTypeName: String? {
         guard case .associatedType(let reference) = self else { return nil }
         return reference.name
+    }
+
+    var containsReferenceAssociatedType: Bool {
+        switch self {
+            case .independent:
+                false
+            case .associatedType(let reference):
+                reference.usesReferenceABI
+            case .optional(let wrapped), .array(let wrapped), .set(let wrapped):
+                wrapped.containsReferenceAssociatedType
+            case .dictionary(let key, let value):
+                key.containsReferenceAssociatedType
+                    || value.containsReferenceAssociatedType
+            case .result(let success, let failure):
+                success.containsReferenceAssociatedType
+                    || failure.containsReferenceAssociatedType
+            case .genericClass(_, let arguments):
+                arguments.contains(where: \.containsReferenceAssociatedType)
+        }
+    }
+
+    /// The new reference-associated slice accepts only the direct occurrence
+    /// and exactly one Optional shell. Other dependent outer shapes keep their
+    /// existing fail-closed boundary until their constrained formal ABI is
+    /// probed independently.
+    var usesSupportedReferenceAssociatedTransport: Bool {
+        guard containsReferenceAssociatedType else { return true }
+        switch self {
+            case .associatedType(let reference):
+                return reference.usesReferenceABI
+            case .optional(.associatedType(let reference)):
+                return reference.usesReferenceABI
+            default:
+                return false
+        }
     }
 
     /// Preserves the existing name-based descriptor projections while exact

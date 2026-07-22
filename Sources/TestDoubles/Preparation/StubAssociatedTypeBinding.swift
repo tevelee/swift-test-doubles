@@ -75,10 +75,16 @@ extension Stub {
             allowsClassConstraint: representation.isClassConstrained
         )
         let associatedTypeRequirements = layout.associatedTypeRequirements
+        let referenceAssociatedTypeIDs = Set(
+            associatedTypeRequirements
+                .filter(\.usesReferenceABI)
+                .map(\.id)
+        )
         let associatedTypeBindings: AssociatedTypeBindings
         if callerAssociatedTypeBindings.isEmpty {
             associatedTypeBindings = AssociatedTypeBindings(
-                metadata.associatedTypeBindings
+                metadata.associatedTypeBindings,
+                referenceAssociatedTypeIDs: referenceAssociatedTypeIDs
             )
         } else {
             guard metadata.associatedTypeBindings.isEmpty else {
@@ -93,6 +99,7 @@ extension Stub {
                 typeDescription: typeDescription
             )
         }
+        try associatedTypeBindings.validateReferenceBindings()
         if associatedTypeRequirements.isEmpty == false,
             associatedTypeBindings.isEmpty
         {
@@ -187,7 +194,14 @@ extension Stub {
                     type: supplied.type
                 ))
         }
-        return AssociatedTypeBindings(bindings)
+        return AssociatedTypeBindings(
+            bindings,
+            referenceAssociatedTypeIDs: Set(
+                layout.associatedTypeRequirements
+                    .filter(\.usesReferenceABI)
+                    .map(\.id)
+            )
+        )
     }
 
     private static func validateCallerBoundAssociatedTypeUse(
@@ -196,17 +210,24 @@ extension Stub {
     ) throws {
         for method in methods {
             guard
-                method.arguments.allSatisfy({ argument in
-                    argument.value.dependency.isAssociatedTypeDependent == false
-                })
-            else {
-                let protocolName = layout.callableRequirements[method.index]
-                    .protocolDescriptor.name
-                throw StubError.unsupportedProtocolShape(
-                    protocolName: protocolName,
-                    reason: "Requirement \(method.index) uses a caller-bound associated type in an argument. This initializer currently supports associated types only in covariant result positions."
-                )
-            }
+                let dependency = method.arguments.lazy.map(\.value.dependency)
+                    .first(where: {
+                        $0.isAssociatedTypeDependent
+                            && ($0.containsReferenceAssociatedType == false
+                                || $0.usesSupportedReferenceAssociatedTransport
+                                    == false)
+                    })
+            else { continue }
+            let protocolName = layout.callableRequirements[method.index]
+                .protocolDescriptor.name
+            let reason =
+                dependency.containsReferenceAssociatedType
+                ? "Requirement \(method.index) uses a caller-bound AnyObject-constrained associated type in an unsupported argument shape. Only direct values and one Optional layer have a proven dependent reference ABI."
+                : "Requirement \(method.index) uses a caller-bound associated type in an argument. This initializer currently supports opaque associated types only in covariant result positions."
+            throw StubError.unsupportedProtocolShape(
+                protocolName: protocolName,
+                reason: reason
+            )
         }
     }
 }
