@@ -271,7 +271,7 @@ extension Stub {
             guard let conformance = Echo.findConformance(to: root) else { continue }
             var collected = witnessTables
             do {
-                try collectLinkedWitnessTables(
+                try LinkedWitnessTableGraph.collect(
                     descriptor: root,
                     witnessTable: conformance.witnessTablePattern,
                     layout: layout,

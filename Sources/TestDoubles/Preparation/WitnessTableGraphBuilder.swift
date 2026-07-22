@@ -72,7 +72,7 @@ struct WitnessTableGraphBuilder {
                     reason: "A fabricated base-protocol witness table is missing."
                 )
             }
-            witnessEntry(
+            ProtocolWitnessTableLayout.entry(
                 at: baseProtocol.witnessIndex,
                 in: witnessTable
             ).storeBytes(
@@ -92,7 +92,7 @@ struct WitnessTableGraphBuilder {
                 declaredBy: requirement.protocolDescriptor
             )
             let metadata = unsafeBitCast(binding.type, to: UnsafeRawPointer.self)
-            witnessEntry(
+            ProtocolWitnessTableLayout.entry(
                 at: requirement.witnessIndex,
                 in: witnessTable
             ).storeBytes(
@@ -123,7 +123,7 @@ struct WitnessTableGraphBuilder {
                     reason: "Bound associated type '\(runtimeTypeName(binding.type))' does not conform to '\(requirement.constraint.name)'."
                 )
             }
-            witnessEntry(
+            ProtocolWitnessTableLayout.entry(
                 at: requirement.witnessIndex,
                 in: witnessTable
             ).storeBytes(
@@ -195,12 +195,5 @@ struct WitnessTableGraphBuilder {
             as: UnsafeRawPointer.self
         )
         return witnessTable
-    }
-
-    private func witnessEntry(
-        at index: Int,
-        in witnessTable: UnsafeMutableRawPointer
-    ) -> UnsafeMutableRawPointer {
-        witnessTable + (1 + index) * MemoryLayout<UnsafeRawPointer>.size
     }
 }

@@ -274,7 +274,7 @@ extension ProtocolLayout {
             readCoroutineRequirements: [LocalReadRequirement],
             modifyCoroutineRequirements: [LocalModifyRequirement]
         ) {
-            // Echo 0.0.4 constructs these arrays with
+            // Echo 0.0.5 constructs these arrays with
             // `unsafeUninitializedCapacity`. Its zero-capacity path mutates
             // Swift's shared empty-array storage, which ThreadSanitizer reports
             // when independent stubs are constructed in parallel. Bypass that
@@ -668,7 +668,7 @@ private func constrainsProtocolSelf(_ requirement: GenericRequirementDescriptor)
 private func genericRequirementKindCode(
     _ requirement: GenericRequirementDescriptor
 ) -> UInt8 {
-    // Echo 0.0.4 force-unwraps its enum. Read the stable flags word first so a
+    // Echo 0.0.5 force-unwraps its enum. Read the stable flags word first so a
     // newer requirement kind is rejected rather than trapping in the library.
     let pointer = unsafeBitCast(requirement, to: UnsafeRawPointer.self)
     return UInt8(pointer.load(as: UInt32.self) & 0x1f)

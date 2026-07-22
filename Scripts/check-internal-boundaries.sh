@@ -27,6 +27,39 @@ check_absent() {
   fi
 }
 
+check_single_declaration() {
+  local type_name="$1"
+  local expected_file="$2"
+  local pattern
+  pattern="^[[:space:]]*((public|package|internal|fileprivate|private|final|indirect)[[:space:]]+)*(class|struct|enum|actor|protocol|typealias)[[:space:]]+${type_name}\\b"
+
+  local declarations
+  if declarations="$(
+    grep --recursive --extended-regexp --files-with-matches \
+      --include='*.swift' \
+      "$pattern" \
+      Sources/TestDoubles
+  )"; then
+    :
+  else
+    local status=$?
+    if [[ "$status" -eq 1 ]]; then
+      declarations=''
+    else
+      echo "Boundary scan failed while locating $type_name." >&2
+      exit "$status"
+    fi
+  fi
+
+  if [[ "$declarations" != "$expected_file" ]]; then
+    echo "$type_name must have exactly one declaration at $expected_file." >&2
+    if [[ -n "$declarations" ]]; then
+      printf '%s\n' "$declarations" >&2
+    fi
+    failure=1
+  fi
+}
+
 check_absent \
   '^[[:space:]]*(public[[:space:]]+)?extension[[:space:]]+Stub\.Requirement\b' \
   'Runtime must not extend Stub.Requirement:' \
@@ -48,31 +81,26 @@ check_absent \
   'StubPayload must be declared outside Runtime:' \
   Sources/TestDoubles/Runtime
 
-expected_payload='Sources/TestDoubles/Metadata/StubPayload.swift'
-payload_pattern='^[[:space:]]*((public|package|internal|fileprivate|private|final|indirect)[[:space:]]+)*(class|struct|enum|actor|protocol|typealias)[[:space:]]+StubPayload\b'
-if payload_declarations="$(
-  grep --recursive --extended-regexp --files-with-matches \
-    --include='*.swift' \
-    "$payload_pattern" \
-    Sources/TestDoubles
-)"; then
-  :
-else
-  status=$?
-  if [[ "$status" -eq 1 ]]; then
-    payload_declarations=''
-  else
-    echo 'Boundary scan failed while locating StubPayload.' >&2
-    exit "$status"
-  fi
-fi
-if [[ "$payload_declarations" != "$expected_payload" ]]; then
-  echo "StubPayload must have exactly one declaration at $expected_payload." >&2
-  if [[ -n "$payload_declarations" ]]; then
-    printf '%s\n' "$payload_declarations" >&2
-  fi
-  failure=1
-fi
+check_absent \
+  '\bStub<' \
+  'Runtime must not depend on the generic Stub preparation coordinator:' \
+  Sources/TestDoubles/Runtime
+
+check_single_declaration \
+  'StubPayload' \
+  'Sources/TestDoubles/Metadata/StubPayload.swift'
+
+check_single_declaration \
+  'StubExistentialRepresentation' \
+  'Sources/TestDoubles/Metadata/StubExistentialRepresentation.swift'
+
+check_single_declaration \
+  'LinkedWitnessTableGraph' \
+  'Sources/TestDoubles/Metadata/LinkedWitnessTableGraph.swift'
+
+check_single_declaration \
+  'ProtocolWitnessTableLayout' \
+  'Sources/TestDoubles/Metadata/ProtocolWitnessTableLayout.swift'
 
 if [[ "$failure" -ne 0 ]]; then
   exit 1

@@ -35,7 +35,7 @@ struct WitnessEntryInstaller {
                 witnessTable: witnessTable,
                 resources: resources
             )
-            witnessEntry(
+            ProtocolWitnessTableLayout.entry(
                 at: requirement.witnessIndex,
                 in: witnessTable
             ).storeBytes(
@@ -72,7 +72,7 @@ struct WitnessEntryInstaller {
                     requirementIndex: requirement.witnessIndex
                 )
             }
-            let slot = witnessEntry(
+            let slot = ProtocolWitnessTableLayout.entry(
                 at: requirement.witnessIndex,
                 in: witnessTable
             )
@@ -108,7 +108,7 @@ struct WitnessEntryInstaller {
                     requirementIndex: requirement.witnessIndex
                 )
             }
-            let slot = witnessEntry(
+            let slot = ProtocolWitnessTableLayout.entry(
                 at: requirement.witnessIndex,
                 in: witnessTable
             )
@@ -136,12 +136,5 @@ struct WitnessEntryInstaller {
             truncatingIfNeeded: node.descriptor
                 .requirements[witnessIndex].flags.bits >> 16
         )
-    }
-
-    private func witnessEntry(
-        at index: Int,
-        in witnessTable: UnsafeMutableRawPointer
-    ) -> UnsafeMutableRawPointer {
-        witnessTable + (1 + index) * MemoryLayout<UnsafeRawPointer>.size
     }
 }

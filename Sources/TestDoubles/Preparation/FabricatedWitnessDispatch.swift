@@ -1,7 +1,6 @@
 import Echo
 
 struct ReadWitnessPlan {
-    let method: MethodDescriptor
     let resumeDiscriminator: UInt16
 }
 
@@ -114,7 +113,6 @@ enum FabricatedWitnessDispatch {
                     )
                 }
                 return ReadWitnessPlan(
-                    method: method,
                     resumeDiscriminator: resumeDiscriminator
                 )
 

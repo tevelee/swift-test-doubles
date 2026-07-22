@@ -69,8 +69,11 @@ dispatch facade between those components.
 `Scripts/check-internal-boundaries.sh` enforces several narrow ownership rules:
 
 - Runtime cannot extend `Stub.Requirement` or define public `Stub.Invocation`.
+- Runtime cannot depend on the generic `Stub` preparation coordinator.
 - Metadata and Recording cannot name concrete `StubResources`.
-- The neutral `StubPayload` declaration remains in Metadata rather than Runtime.
+- Neutral `StubPayload`, existential-representation, linked-witness graph, and
+  witness-entry layout declarations remain in Metadata rather than Preparation
+  or Runtime.
 
 Some model dependencies still span these ownership zones. Metadata uses the
 runtime ABI model and symbol lookup, while `MethodDescriptor` refers to the

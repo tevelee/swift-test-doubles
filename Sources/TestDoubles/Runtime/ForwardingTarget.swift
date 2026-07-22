@@ -65,7 +65,7 @@ final class ForwardingTarget<P>: @unchecked Sendable {
                     (storage
                     + (witnessTableOffset + rootIndex) * MemoryLayout<UInt>.size)
                     .load(as: UnsafeRawPointer.self)
-                try Stub<P>.collectLinkedWitnessTables(
+                try LinkedWitnessTableGraph.collect(
                     descriptor: root,
                     witnessTable: WitnessTable(ptr: pointer),
                     layout: layout,

@@ -6,19 +6,6 @@ enum SpyGetterEffectInput<P> {
     case grouped([Stub<P>.ProtocolGetterEffects])
 }
 
-enum StubExistentialRepresentation {
-    case opaque
-    case classConstrained
-    case superclassConstrained(Any.Type)
-
-    var isClassConstrained: Bool {
-        switch self {
-            case .opaque: false
-            case .classConstrained, .superclassConstrained: true
-        }
-    }
-}
-
 struct StubProtocolShape {
     let layout: ProtocolLayout
     let associatedTypeBindings: AssociatedTypeBindings
@@ -107,9 +94,7 @@ extension Stub {
         func discoverMethods(
             using getterEffectPolicy: GetterEffectDiscoveryPolicy
         ) throws -> [MethodDescriptor] {
-            let witnessTables = try Stub.linkedWitnessTablesForAutomaticDiscovery(
-                layout: layout
-            )
+            let witnessTables = try LinkedWitnessTableGraph.discover(in: layout)
             return try TestDoubles.discoverMethods(
                 witnessTables: witnessTables,
                 layout: layout,
@@ -384,57 +369,6 @@ extension Stub {
             return nil
         }
         return existential.protocols[0]
-    }
-
-    static func linkedWitnessTablesForAutomaticDiscovery(
-        layout: ProtocolLayout
-    ) throws -> [ProtocolLayout.DescriptorID: WitnessTable] {
-        var witnessTables: [ProtocolLayout.DescriptorID: WitnessTable] = [:]
-        for root in layout.roots {
-            guard let conformance = Echo.findConformance(to: root) else { continue }
-            try collectLinkedWitnessTables(
-                descriptor: root,
-                witnessTable: conformance.witnessTablePattern,
-                layout: layout,
-                into: &witnessTables
-            )
-        }
-        return witnessTables
-    }
-
-    static func collectLinkedWitnessTables(
-        descriptor: ProtocolDescriptor,
-        witnessTable: WitnessTable,
-        layout: ProtocolLayout,
-        into witnessTables: inout [ProtocolLayout.DescriptorID: WitnessTable]
-    ) throws {
-        let identifier = ProtocolLayout.DescriptorID(descriptor)
-        if witnessTables[identifier] != nil { return }
-        guard let node = layout.node(for: descriptor) else {
-            throw StubError.unsupportedProtocolShape(
-                protocolName: descriptor.name,
-                reason: "Inherited-protocol metadata changed while resolving linked witnesses."
-            )
-        }
-        witnessTables[identifier] = witnessTable
-        let wordSize = MemoryLayout<UnsafeRawPointer>.size
-        for baseProtocol in node.baseProtocols {
-            let pointer = (witnessTable.ptr + (1 + baseProtocol.witnessIndex) * wordSize)
-                .load(as: UnsafeRawPointer?.self)
-            guard let pointer else {
-                throw StubError.signatureDiscoveryFailed(
-                    protocolName: descriptor.name,
-                    requirementIndex: baseProtocol.witnessIndex,
-                    details: "The linked base-protocol witness table is null. Supply explicit Requirement values."
-                )
-            }
-            try collectLinkedWitnessTables(
-                descriptor: baseProtocol.descriptor,
-                witnessTable: WitnessTable(ptr: pointer),
-                layout: layout,
-                into: &witnessTables
-            )
-        }
     }
 
 }
