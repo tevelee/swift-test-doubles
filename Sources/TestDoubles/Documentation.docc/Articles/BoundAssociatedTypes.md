@@ -326,11 +326,15 @@ than inference from ordering.
 Direct concrete function values use the automatic runtime slice or explicit
 compiler adapter described in <doc:FunctionValues>. A closure containing
 `Element` is different: it has a dependent generic lowered signature even when
-its substituted surface type looks concrete, so it remains unsupported.
-Treating either closure shape as raw concrete words is not ABI-correct.
+its substituted surface type looks concrete. The closure's fixed two-word outer
+layout does not describe that inner calling convention.
 
-Until those pieces exist, automatic discovery continues to fail closed for
-dependent function shapes. The explicit path remains limited to accurately
-describing the supported bounded slice and carries the same unverified-
-signature boundary as other explicit requirements when no linked conformance
-is available.
+A debug build may retain the exact compiler-emitted partial-apply thunk needed
+to cross that boundary, but optimized builds may eliminate it. Linked-symbol
+discovery therefore cannot provide a durable construction-time proof.
+Automatic and explicit construction both reject associated-dependent function
+values before transport rather than treating their concrete surface types as
+ABI-complete schemas.
+
+Broader support needs stable runtime generation of the required reabstraction
+or a compiler contract that guarantees the thunk remains available.

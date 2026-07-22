@@ -96,6 +96,21 @@ extended async isolation and sending flags remain on the exact-thunk path.
 Construction fails closed if neither that pair nor the bounded dynamic bridge
 is available.
 
+### Associated-dependent function values
+
+A function value that contains a bound associated type remains unsupported,
+including an escaping, synchronous, nonthrowing unary function. Its outer value
+still uses Swift's fixed two-word function layout, but that layout does not
+describe the inner generic calling convention.
+
+Debug builds may retain the exact compiler-emitted partial-apply thunk needed
+to cross the dependent boundary, while optimized builds may eliminate it.
+Linked-symbol discovery is therefore not a durable construction-time proof.
+Automatic and explicit construction reject these values before transport.
+Supplying the substituted concrete function type through
+``Stub/Requirement/Value`` does not erase the dependency recorded by the
+protocol requirement.
+
 Function values cannot be synthesized as recording placeholders. Use
 ``any(using:)``, `matching(using:description:where:)``, or
 ``ArgumentCaptor/capture(using:)`` for a function argument. Use
@@ -165,14 +180,13 @@ error buffer remains outside this adapter slice.
 
 Automatic transport remains fail-closed for top-level nonescaping closure
 arguments, `@convention(thin)` values, declaration-level consuming or `inout`
-closure arguments, closure types containing unresolved associated types or
+closure arguments, all associated-dependent closures, closure types containing
 parameter packs, differentiable or lifetime-dependent function metadata, and
 native shapes without an exact linked reabstraction pair or an eligible dynamic
 bridge. The dynamic path specifically excludes global-actor or extended
 isolation and sending flags, noncopyable values,
 parameter flags, and layouts that exceed its formal-parameter or register
-budgets. Dependent associated-type closure shapes also remain outside the
-documented slice.
+budgets.
 
 Swift's public demangler erases the escaping distinction. To avoid illegally
 retaining a stack closure, automatic discovery checks every raw `XE` noescape

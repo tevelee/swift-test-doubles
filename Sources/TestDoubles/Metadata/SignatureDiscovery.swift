@@ -267,8 +267,26 @@ private func resolveWitnessValue(
         valueName = name
         ownership = nil
     }
+    if case .function(let function)? = DemangledTypeSyntax(valueName),
+        referencesAssociatedType(
+            in: function.canonicalSpelling,
+            protocolDescriptor: protocolDescriptor,
+            associatedTypeBindings: associatedTypeBindings
+        )
+    {
+        throw StubError.unsupportedProtocolShape(
+            protocolName: protocolDescriptor.name,
+            reason:
+                "Requirement \(requirementIndex) uses an associated-dependent function value. "
+                + "Its fixed two-word outer layout does not determine the inner generic calling convention. "
+                + "Automatic and explicit construction fail closed before transport."
+        )
+    }
     for binding in bindings {
         let spellings = ["A.\(binding.name)", "Self.\(binding.name)"]
+        if spellings.contains(valueName) {
+            continue
+        }
         if let spelling = spellings.first(where: { name.hasSuffix(" \($0)") }) {
             let ownership = name.dropLast(spelling.count).trimmingCharacters(in: .whitespaces)
             throw StubError.unsupportedProtocolShape(
