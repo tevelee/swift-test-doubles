@@ -69,7 +69,7 @@ struct StubBehaviorRegistry {
         /// sensible value here" situation in this library.
         private func requireNotSealed() {
             guard case .unbounded = runs.last?.repeatCount else { return }
-            preconditionFailure(
+            fatalError(
                 "[TestDoubles] Cannot append another behavior after an unbounded one; "
                     + "it already answers every matching call from here on, so anything "
                     + "appended after it could never run."

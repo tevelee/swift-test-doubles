@@ -546,20 +546,22 @@ extension StubBuilder where Result == Void {
 /// `times:` always counts a behavior's own matching calls starting at 1, not
 /// a position in the chain — so a flat default is correct at every position.
 private func validatedRepeatCount(_ times: ClosedRange<Int>) -> Int {
-    precondition(
-        times.lowerBound == 1,
-        "[TestDoubles] times: must start at 1; it counts this behavior's own "
-            + "matching calls, not a position in the chain."
-    )
+    guard times.lowerBound == 1 else {
+        fatalError(
+            "[TestDoubles] times: must start at 1; it counts this behavior's own "
+                + "matching calls, not a position in the chain."
+        )
+    }
     return times.upperBound
 }
 
 private func validateUnboundedRepeatCount(_ times: PartialRangeFrom<Int>) {
-    precondition(
-        times.lowerBound == 1,
-        "[TestDoubles] times: must start at 1; it counts this behavior's own "
-            + "matching calls, not a position in the chain."
-    )
+    guard times.lowerBound == 1 else {
+        fatalError(
+            "[TestDoubles] times: must start at 1; it counts this behavior's own "
+                + "matching calls, not a position in the chain."
+        )
+    }
 }
 
 /// Validates a plain `times: Int` shorthand count and expands it to the
@@ -567,11 +569,12 @@ private func validateUnboundedRepeatCount(_ times: PartialRangeFrom<Int>) {
 /// range directly would trap inside `ClosedRange` itself for `times < 1`,
 /// bypassing this library's own diagnostic — so the count is checked first.
 private func validatedRepeatRange(times: Int) -> ClosedRange<Int> {
-    precondition(
-        times >= 1,
-        "[TestDoubles] times: must be at least 1; it counts this behavior's own "
-            + "matching calls, not a position in the chain."
-    )
+    guard times >= 1 else {
+        fatalError(
+            "[TestDoubles] times: must be at least 1; it counts this behavior's own "
+                + "matching calls, not a position in the chain."
+        )
+    }
     return 1 ... times
 }
 
