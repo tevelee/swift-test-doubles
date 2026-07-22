@@ -395,7 +395,7 @@ struct MethodDescriptor: Sendable {
                     default: false
                 }
             let usesIndirectResultSlot =
-                typedErrorDependency.isAssociatedTypeDependent
+                typedErrorDependency.usesOpaqueValueWitnessConvention
                 || concreteLayoutUsesIndirectResultSlot
             throwing = .typed(
                 TypedErrorTransport(
@@ -650,6 +650,9 @@ private func typedErrorDescription(_ error: TypedErrorTransport) -> String {
     let typeName = runtimeTypeName(error.type)
     if let name = error.dependency.directAssociatedTypeName {
         return "\(typeName) [associated \(name)]"
+    }
+    if case .genericClass = error.dependency {
+        return "\(typeName) [associated-dependent generic class]"
     }
     return typeName
 }

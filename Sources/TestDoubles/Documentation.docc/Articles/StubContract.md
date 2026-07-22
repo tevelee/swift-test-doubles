@@ -299,10 +299,12 @@ public, top-level generic Swift classes with one or two unconstrained type
 parameters when every argument recursively resolves and reconstructed metadata
 proves the exact class descriptor. No source-less explicit generic-class schema
 is available. Direct and supported container method arguments may be consuming.
-Methods may combine
-these values with `async`, untyped `throws`, and a direct associated typed error;
-effectful getters must be
-described explicitly. Both automatic discovery and explicit
+Methods may combine these values with `async`, untyped `throws`, and a direct
+associated typed error. Automatic discovery also accepts a typed error whose
+outer shape is one of those proven generic classes and whose arguments are
+direct associated, concrete, or recursively nested proven class types. This
+generic-class error shape has no explicit source-less schema. Effectful getters
+must be described explicitly. Both automatic discovery and explicit
 ``Stub/Requirement`` construction are supported. See
 <doc:BoundAssociatedTypes> for its ABI findings and intentionally narrow limits.
 An unbound existential may instead receive a complete set of caller-supplied
@@ -364,7 +366,9 @@ error channel.
   complete caller bindings, caller-bound dependent inputs, nested dependent
   types other than `Optional`, `Array`, `Set`, and direct `Dictionary` key or
   value occurrences, broader same-type constraints, `AnyObject`-constrained
-  associated types, and typed errors that wrap an associated type.
+  associated types, and associated-dependent typed errors whose outer shape is
+  optional, another value wrapper, a generic struct or enum, or an unsupported
+  generic class.
 - Superclass-constrained existentials with a native Swift-only base class, a
   bound-associated-type extended layout, no usable `NSObject` default
   initializer, an initializer requirement, or a dynamic `Self` result.

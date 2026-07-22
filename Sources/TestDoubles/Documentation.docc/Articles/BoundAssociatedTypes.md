@@ -225,8 +225,13 @@ it must evolve alongside the repository's Swift runtime support matrix.
   throwing.
 - Direct associated typed errors are supported in synchronous and async methods.
   Their substituted concrete metadata always drives an indirect error-result
-  slot, even when that concrete type would ordinarily fit in registers. A typed
-  error that wraps an associated type remains unsupported.
+  slot, even when that concrete type would ordinarily fit in registers.
+- Automatic discovery also supports an associated-dependent typed error whose
+  outer type is a linked, public, top-level generic class with one or two
+  unconstrained type parameters. Direct associated arguments and recursively
+  nested class applications are supported. Exact descriptor-based metadata
+  reconstruction proves the class reference layout before construction, so
+  synchronous and async failures use the direct typed-error channel.
 - Automatic discovery and explicit requirement descriptions.
 - Complete caller-supplied bindings for unbound associated types used only in
   covariant method or getter results or as a direct typed error. Both flat and
@@ -262,7 +267,11 @@ signature validation possible:
 - Generic classes with constraints, more than two type parameters, nested or
   unlinked constructors, constructors whose metadata accessor needs non-type
   arguments, and source-less explicit generic-class schemas.
-- Typed errors that wrap an associated type rather than naming it directly.
+- Associated-dependent typed errors whose outer shape is `Optional` or another
+  value wrapper, a generic struct or enum, a constrained or unlinked class, or
+  a class with more than two type parameters. Explicit concrete and string-named
+  associated-error schemas cannot describe the supported generic-class source
+  dependency and are rejected when linked validation is available.
 - Same-type constraints other than concrete primary bindings, superclass
   constraints, `AnyObject`-constrained associated types, and other generic
   constraints outside the directly witnessed protocol-conformance form.
@@ -312,10 +321,15 @@ transport its values safely, so construction rejects it explicitly.
 Typed throws is a separate ABI case. Concrete typed errors share direct result
 registers or use the caller's indirect typed-error slot as required. A direct
 associated error substitutes its binding metadata and always uses the indirect
-slot so the generic witness convention remains stable. Wrappers containing an
-associated type still require recursive dependent-type lowering. Supporting
-`Result` as an ordinary argument or result does not widen that typed-error
-boundary.
+slot so the generic witness convention remains stable. Swift 6.3 and 6.4 lower
+`BoxError<Element>` differently: once the exact outer generic class descriptor
+is reconstructed, its reference layout fixes the formal error transport and no
+opaque error slot is needed. The same rule holds for proven one- and
+two-parameter class errors and recursively nested class applications.
+
+Optional and other value wrappers, generic structs or enums, and unsupported
+generic classes remain fail-closed. Supporting `Result` as an ordinary argument
+or result does not widen that typed-error boundary.
 
 The implemented multiple-binding path maps every constrained-existential
 metadata argument to its same-type relationship and declaring protocol's
