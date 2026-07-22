@@ -376,8 +376,7 @@ private func resolveWitnessValue(
 }
 
 private enum DynamicSelfValueShape {
-    case direct
-    case optional
+    case direct, optional
 }
 
 private func dynamicSelfValueShape(
@@ -395,10 +394,30 @@ private func dynamicSelfValueShape(
 }
 
 private func containsDynamicSelfReference(_ spelling: String) -> Bool {
-    spelling.range(
-        of: #"(?<![A-Za-z0-9_.])(A|Self)(?![A-Za-z0-9_.])"#,
-        options: .regularExpression
-    ) != nil
+    let bytes = Array(spelling.utf8)
+    func isIdentifierByte(_ byte: UInt8) -> Bool {
+        (byte >= 0x41 && byte <= 0x5a)
+            || (byte >= 0x61 && byte <= 0x7a)
+            || (byte >= 0x30 && byte <= 0x39)
+            || byte == 0x5f
+            || byte == 0x2e
+    }
+    func endsToken(at index: Int) -> Bool {
+        index == bytes.count || isIdentifierByte(bytes[index]) == false
+    }
+    for index in bytes.indices {
+        if index > 0 && isIdentifierByte(bytes[index - 1]) { continue }
+        if bytes[index] == 0x41 && endsToken(at: index + 1) {
+            return true
+        }
+        if index + 4 <= bytes.count,
+            bytes[index ..< index + 4].elementsEqual([0x53, 0x65, 0x6c, 0x66]),
+            endsToken(at: index + 4)
+        {
+            return true
+        }
+    }
+    return false
 }
 
 private func resolveTypedError(
