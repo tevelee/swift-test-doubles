@@ -1,5 +1,14 @@
 import Echo
 
+/// Swift encodes `ProtocolClassConstraint.class` as zero and `.any` as one.
+/// Echo 0.0.5's `hasClassConstraint` projection exposes the raw bit instead of
+/// the semantic answer, so classify the declaring protocol from the ABI bit.
+func protocolUsesClassSelfConvention(
+    _ descriptor: ProtocolDescriptor
+) -> Bool {
+    descriptor.protocolFlags.bits & 0x1 == 0
+}
+
 enum StubRequirementKind: String, Hashable, Sendable {
     case method
     case initializer
@@ -351,7 +360,8 @@ struct MethodDescriptor: Sendable {
                     layout: Self.argumentLayout(
                         for: type,
                         convention: convention,
-                        dependency: dependencies[offset]
+                        dependency: dependencies[offset],
+                        selfIsClassConstrained: selfIsClassConstrained
                     )
                 ),
                 ownership: ownerships[offset]
@@ -581,14 +591,17 @@ struct MethodDescriptor: Sendable {
     private static func argumentLayout(
         for type: Any.Type,
         convention: WitnessValueConvention,
-        dependency: WitnessValueDependency
+        dependency: WitnessValueDependency,
+        selfIsClassConstrained: Bool
     ) -> ABIClass {
         if dependency.usesOpaqueValueWitnessConvention {
             return .indirect
         }
         return switch convention {
             case .concrete: abiClass(for: type)
-            case .associatedType, .selfType, .optionalSelf: .indirect
+            case .associatedType: .indirect
+            case .selfType, .optionalSelf:
+                selfIsClassConstrained ? .integer(words: 1) : .indirect
         }
     }
 

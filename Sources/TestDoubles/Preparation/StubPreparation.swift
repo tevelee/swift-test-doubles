@@ -77,7 +77,6 @@ extension Stub {
             witnessTables: forwardingTarget.witnessTables,
             layout: shape.layout,
             associatedTypeBindings: shape.associatedTypeBindings,
-            selfIsClassConstrained: shape.representation.isClassConstrained,
             getterEffectPolicy: resolvedGetterEffectPolicy
         )
         let forwarder = try ProtocolForwarder(
@@ -115,7 +114,6 @@ extension Stub {
                 witnessTables: witnessTables,
                 layout: layout,
                 associatedTypeBindings: bindings,
-                selfIsClassConstrained: representation.isClassConstrained,
                 getterEffectPolicy: getterEffectPolicy
             )
         }
@@ -132,8 +130,7 @@ extension Stub {
                     receiver: protocolRequirement.receiver,
                     protocolDescriptor: protocolRequirement.protocolDescriptor,
                     bindings: bindings,
-                    containsAssociatedTypes: layout.associatedTypeRequirements.isEmpty == false,
-                    selfIsClassConstrained: representation.isClassConstrained
+                    containsAssociatedTypes: layout.associatedTypeRequirements.isEmpty == false
                 )
             }
             for (method, protocolRequirement) in zip(methods, protocolRequirements) {
@@ -155,8 +152,7 @@ extension Stub {
             try Stub.validateAgainstLinkedConformances(
                 methods,
                 layout: layout,
-                associatedTypeBindings: bindings,
-                selfIsClassConstrained: representation.isClassConstrained
+                associatedTypeBindings: bindings
             )
         }
 

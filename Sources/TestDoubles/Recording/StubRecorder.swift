@@ -346,7 +346,9 @@ final class StubRecorder: @unchecked Sendable {
             let waiters = invocationLedger.append(
                 method: methodIndex,
                 name: method.name,
-                args: args
+                args: args,
+                argumentConventions: recordingArgumentConventions(for: method),
+                runtimePayloadRecorder: self
             )
             let dispatch: PreparedDispatch
             switch entry.behavior {
@@ -491,7 +493,9 @@ final class StubRecorder: @unchecked Sendable {
             invocationLedger.append(
                 method: method.index,
                 name: method.name,
-                args: args
+                args: args,
+                argumentConventions: recordingArgumentConventions(for: method),
+                runtimePayloadRecorder: self
             )
         }
         resume(waiters, returning: .changed)
@@ -659,6 +663,14 @@ final class StubRecorder: @unchecked Sendable {
             ),
             to: self
         )
+    }
+
+    private func recordingArgumentConventions(
+        for method: MethodDescriptor
+    ) -> [WitnessValueConvention]? {
+        method.argumentConventions.contains {
+            $0 == .selfType || $0 == .optionalSelf
+        } ? method.argumentConventions : nil
     }
 
     // Sentinel value for capture mode returns.

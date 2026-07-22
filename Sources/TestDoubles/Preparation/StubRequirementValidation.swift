@@ -9,12 +9,24 @@ extension Stub {
         for method in methods {
             let protocolName = layout.callableRequirements[method.index]
                 .protocolDescriptor.name
-            let selfArguments = method.arguments.contains {
+            let selfArguments = method.arguments.filter {
                 switch $0.value.convention {
                     case .selfType, .optionalSelf: true
                     case .concrete, .associatedType: false
                 }
             }
+            let allowsAutomaticSelfArguments =
+                selfArguments.isEmpty == false
+                && method.origin == .automatic
+                && method.kind == .method
+                && method.receiver == .instance
+                && method.isThrowing == false
+                && {
+                    if case .superclassConstrained = representation {
+                        return false
+                    }
+                    return true
+                }()
             if case .superclassConstrained = representation,
                 method.returnConvention == .selfType
                     || method.returnConvention == .optionalSelf
@@ -33,12 +45,48 @@ extension Stub {
                     reason: "Requirement \(method.index) has borrowed storage where its witness convention requires owned arguments."
                 )
             }
+            if selfArguments.isEmpty == false {
+                if case .superclassConstrained = representation {
+                    throw StubError.unsupportedProtocolShape(
+                        protocolName: protocolName,
+                        reason: "Requirement \(method.index) contains a Self argument in a superclass-constrained existential. This requires subclass-specific argument metadata and remains unsupported."
+                    )
+                }
+                guard method.origin == .automatic else {
+                    throw StubError.unsupportedProtocolShape(
+                        protocolName: protocolName,
+                        reason:
+                            "Requirement \(method.index) contains a Self argument described by an explicit schema. "
+                            + "Direct and Optional Self arguments require automatic witness discovery so their semantic identity cannot be erased by function conversion."
+                    )
+                }
+                guard method.kind == .method,
+                    method.receiver == .instance
+                else {
+                    throw StubError.unsupportedProtocolShape(
+                        protocolName: protocolName,
+                        reason: "Requirement \(method.index) contains a Self argument outside an automatic instance method. Initializers, accessors, and static Self arguments remain unsupported."
+                    )
+                }
+                guard method.isThrowing == false else {
+                    throw StubError.unsupportedProtocolShape(
+                        protocolName: protocolName,
+                        reason: "Requirement \(method.index) combines a Self argument with throwing effects. This bounded slice supports only nonthrowing synchronous or async methods."
+                    )
+                }
+            }
             for argument in method.arguments where argument.ownership == .owned {
                 switch method.kind {
                     case .setter, .initializer:
                         break
                     case .method:
-                        guard argument.value.dependency.isAssociatedTypeDependent else {
+                        let isSelfArgument =
+                            argument.value.convention == .selfType
+                            || argument.value.convention == .optionalSelf
+                        guard
+                            (isSelfArgument && allowsAutomaticSelfArguments)
+                                || argument.value.dependency.isAssociatedTypeDependent
+                        else {
                             throw StubError.unsupportedProtocolShape(
                                 protocolName: protocolName,
                                 reason: "Requirement \(method.index) consumes a non-dependent method argument. Consuming method support accepts values that depend on an associated type."
@@ -50,12 +98,6 @@ extension Stub {
                             reason: "Requirement \(method.index) has an owned getter argument."
                         )
                 }
-            }
-            if selfArguments {
-                throw StubError.unsupportedProtocolShape(
-                    protocolName: protocolName,
-                    reason: "Requirement \(method.index) contains a direct Self argument. Dynamic Self support accepts Self only in result position."
-                )
             }
             if method.typedErrorType != nil,
                 method.returnConvention == .selfType
@@ -221,8 +263,7 @@ extension Stub {
     static func validateAgainstLinkedConformances(
         _ supplied: [MethodDescriptor],
         layout: ProtocolLayout,
-        associatedTypeBindings: AssociatedTypeBindings,
-        selfIsClassConstrained: Bool
+        associatedTypeBindings: AssociatedTypeBindings
     ) throws {
         let requiresStrictDiscovery = associatedTypeBindings.isEmpty == false
         var witnessTables: [ProtocolLayout.DescriptorID: WitnessTable] = [:]
@@ -255,7 +296,6 @@ extension Stub {
                         layout: layout,
                         requirements: [requirement],
                         associatedTypeBindings: associatedTypeBindings,
-                        selfIsClassConstrained: selfIsClassConstrained,
                         getterEffectPolicy: .explicitRequirementValidation
                     ).first
                 else {

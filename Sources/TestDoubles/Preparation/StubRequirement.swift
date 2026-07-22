@@ -774,8 +774,7 @@ extension Stub {
             receiver: StubRequirementReceiver,
             protocolDescriptor: ProtocolDescriptor,
             bindings: AssociatedTypeBindings,
-            containsAssociatedTypes: Bool,
-            selfIsClassConstrained: Bool
+            containsAssociatedTypes: Bool
         ) throws -> MethodDescriptor {
             try validateInferredSignature(
                 index: index,
@@ -822,7 +821,9 @@ extension Stub {
                 protocolName: protocolDescriptor.name,
                 typedErrorType: resolvedTypedError.type,
                 typedErrorDependency: resolvedTypedError.dependency,
-                selfIsClassConstrained: selfIsClassConstrained,
+                selfIsClassConstrained: protocolUsesClassSelfConvention(
+                    protocolDescriptor
+                ),
                 isThrowing: isThrowing,
                 isAsync: isAsync,
                 typedWitnessAdapterFactory: typedWitnessAdapterFactory

@@ -23,7 +23,6 @@ func discoverMethods(
     layout: ProtocolLayout,
     requirements: [ProtocolLayout.CallableRequirement]? = nil,
     associatedTypeBindings: AssociatedTypeBindings = AssociatedTypeBindings(),
-    selfIsClassConstrained: Bool = false,
     getterEffectPolicy: GetterEffectDiscoveryPolicy = .automatic
 ) throws -> [MethodDescriptor] {
     var results = [MethodDescriptor]()
@@ -135,7 +134,7 @@ func discoverMethods(
                 protocolName: proto.name,
                 typedErrorType: typedError?.type,
                 typedErrorDependency: typedError?.dependency ?? .independent,
-                selfIsClassConstrained: selfIsClassConstrained,
+                selfIsClassConstrained: protocolUsesClassSelfConvention(proto),
                 isThrowing: getterEffect?.isThrowing ?? parsed.isThrowing,
                 isAsync: isAsync,
                 hasReliableThrowing: getterEffect?.isReliable ?? true
@@ -246,27 +245,66 @@ private func resolveWitnessValue(
     associatedTypeBindings: AssociatedTypeBindings,
     mangledSignature: String
 ) throws -> ResolvedWitnessValue {
-    let name = syntax.canonicalSpelling
-    switch name {
-        case "A", "Self":
-            return .selfValue(isOptional: false)
-        case "A?", "Self?", "Optional<A>", "Swift.Optional<A>",
-            "Optional<Self>", "Swift.Optional<Self>":
-            return .selfValue(isOptional: true)
-        default:
-            break
+    let rawName = syntax.canonicalSpelling
+    if rawName.hasPrefix("inout ") {
+        let valueName = String(rawName.dropFirst("inout ".count))
+        if dynamicSelfValueShape(valueName) != nil
+            || containsDynamicSelfReference(valueName)
+        {
+            throw StubError.unsupportedProtocolShape(
+                protocolName: protocolDescriptor.name,
+                reason:
+                    "Requirement \(requirementIndex) uses an inout Self argument. "
+                    + "Automatic Stub supports only borrowed/default and consuming direct or single-Optional Self arguments."
+            )
+        }
+    }
+
+    var valueName = rawName
+    let isAutoclosure = valueName.hasPrefix("@autoclosure ")
+    if isAutoclosure {
+        valueName.removeFirst("@autoclosure ".count)
+    }
+    let ownership: WitnessArgumentOwnership?
+    if valueName.hasPrefix("__owned ") {
+        valueName.removeFirst("__owned ".count)
+        ownership = .owned
+    } else if valueName.hasPrefix("consuming ") {
+        valueName.removeFirst("consuming ".count)
+        ownership = .owned
+    } else if valueName.hasPrefix("borrowing ") {
+        valueName.removeFirst("borrowing ".count)
+        ownership = .borrowed
+    } else if valueName.hasPrefix("__shared ") {
+        valueName.removeFirst("__shared ".count)
+        ownership = .borrowed
+    } else {
+        ownership = nil
+    }
+    if let selfShape = dynamicSelfValueShape(valueName) {
+        guard isAutoclosure == false else {
+            throw StubError.unsupportedProtocolShape(
+                protocolName: protocolDescriptor.name,
+                reason:
+                    "Requirement \(requirementIndex) uses Self through an autoclosure argument. "
+                    + "Automatic Stub supports only direct Self and one Optional layer."
+            )
+        }
+        return .selfValue(
+            isOptional: selfShape == .optional,
+            ownership: ownership
+        )
+    }
+    if containsDynamicSelfReference(valueName) {
+        throw StubError.unsupportedProtocolShape(
+            protocolName: protocolDescriptor.name,
+            reason:
+                "Requirement \(requirementIndex) embeds Self inside unsupported type '\(valueName)'. "
+                + "Automatic Stub supports only direct Self and one Optional layer."
+        )
     }
 
     let bindings = associatedTypeBindings.declared(by: protocolDescriptor)
-    let valueName: String
-    let ownership: WitnessArgumentOwnership?
-    if name.hasPrefix("__owned ") {
-        valueName = String(name.dropFirst("__owned ".count))
-        ownership = .owned
-    } else {
-        valueName = name
-        ownership = nil
-    }
     if case .function(let function)? = DemangledTypeSyntax(valueName),
         referencesAssociatedType(
             in: function.canonicalSpelling,
@@ -287,8 +325,8 @@ private func resolveWitnessValue(
         if spellings.contains(valueName) {
             continue
         }
-        if let spelling = spellings.first(where: { name.hasSuffix(" \($0)") }) {
-            let ownership = name.dropLast(spelling.count).trimmingCharacters(in: .whitespaces)
+        if let spelling = spellings.first(where: { rawName.hasSuffix(" \($0)") }) {
+            let ownership = rawName.dropLast(spelling.count).trimmingCharacters(in: .whitespaces)
             throw StubError.unsupportedProtocolShape(
                 protocolName: protocolDescriptor.name,
                 reason: "Requirement \(requirementIndex) uses unsupported ownership spelling '\(ownership)' for associated type '\(binding.name)'. Only borrowed and __owned associated-type arguments are supported."
@@ -308,36 +346,16 @@ private func resolveWitnessValue(
 
     for binding in bindings {
         let spellings = ["A.\(binding.name)", "Self.\(binding.name)"]
-        if spellings.contains(where: name.contains) {
+        if spellings.contains(where: valueName.contains) {
             throw StubError.unsupportedProtocolShape(
                 protocolName: protocolDescriptor.name,
                 reason:
-                    "Requirement \(requirementIndex) embeds associated type '\(binding.name)' inside unsupported type '\(name)'. "
+                    "Requirement \(requirementIndex) embeds associated type '\(binding.name)' inside unsupported type '\(valueName)'. "
                     + "Bound associated-type support accepts recursive combinations of Optional, Array, Set, Dictionary, Result, and linked generic classes with one or two unconstrained type parameters."
             )
         }
     }
-    var concreteName = name
-    let concreteOwnership: WitnessArgumentOwnership?
-    if concreteName.hasPrefix("@autoclosure ") {
-        concreteName.removeFirst("@autoclosure ".count)
-    }
-    if concreteName.hasPrefix("__owned ") {
-        concreteName.removeFirst("__owned ".count)
-        concreteOwnership = .owned
-    } else if concreteName.hasPrefix("consuming ") {
-        concreteName.removeFirst("consuming ".count)
-        concreteOwnership = .owned
-    } else if concreteName.hasPrefix("borrowing ") {
-        concreteName.removeFirst("borrowing ".count)
-        concreteOwnership = .borrowed
-    } else if concreteName.hasPrefix("__shared ") {
-        concreteName.removeFirst("__shared ".count)
-        concreteOwnership = .borrowed
-    } else {
-        concreteOwnership = nil
-    }
-    guard let concreteSyntax = DemangledTypeSyntax(concreteName),
+    guard let concreteSyntax = DemangledTypeSyntax(valueName),
         let type = resolveRuntimeType(
             concreteSyntax,
             containedInMangledSymbol: mangledSignature
@@ -346,15 +364,41 @@ private func resolveWitnessValue(
         throw StubError.signatureDiscoveryFailed(
             protocolName: protocolDescriptor.name,
             requirementIndex: requirementIndex,
-            details: "Could not resolve runtime metadata for type '\(name)'. Supply explicit Requirement values."
+            details: "Could not resolve runtime metadata for type '\(rawName)'. Supply explicit Requirement values."
         )
     }
     return ResolvedWitnessValue(
         type: type,
         convention: .concrete,
         dependency: .independent,
-        ownership: concreteOwnership
+        ownership: ownership
     )
+}
+
+private enum DynamicSelfValueShape {
+    case direct
+    case optional
+}
+
+private func dynamicSelfValueShape(
+    _ spelling: String
+) -> DynamicSelfValueShape? {
+    switch spelling {
+        case "A", "Self":
+            .direct
+        case "A?", "Self?", "Optional<A>", "Swift.Optional<A>",
+            "Optional<Self>", "Swift.Optional<Self>":
+            .optional
+        default:
+            nil
+    }
+}
+
+private func containsDynamicSelfReference(_ spelling: String) -> Bool {
+    spelling.range(
+        of: #"(?<![A-Za-z0-9_.])(A|Self)(?![A-Za-z0-9_.])"#,
+        options: .regularExpression
+    ) != nil
 }
 
 private func resolveTypedError(

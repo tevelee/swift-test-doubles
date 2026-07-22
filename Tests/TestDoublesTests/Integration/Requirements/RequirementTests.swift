@@ -413,7 +413,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
         }
     }
 
-    @Test func directSelfArgumentsAreRejected() {
+    @Test func directSelfArgumentsAreDiscoveredAutomatically() throws {
         #expect(
             useLinkedSelfResult(RealSelfResultRequirementProbe())
                 is RealSelfResultRequirementProbe
@@ -423,8 +423,9 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
                 RealSelfArgumentRequirementProbe(marker: 42)
             ).marker == 42
         )
-        expectUnsupportedProtocolShape {
-            _ = try Stub<any SelfArgumentRequirementProbe>()
-        }
+        let stub = try Stub<any SelfArgumentRequirementProbe>()
+        let method = try #require(stub.recorder.runtimeMethod(for: 0))
+        #expect(method.argumentConventions == [.selfType])
+        #expect(method.returnConvention == .selfType)
     }
 }

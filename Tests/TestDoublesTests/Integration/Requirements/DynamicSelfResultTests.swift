@@ -386,9 +386,11 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
         stub.verify(returning: peer) { try type(of: $0).failingPeer() }
     }
 
-    @Test func directSelfArgumentsRemainUnsupportedWithAnActionableError() {
-        expectUnsupportedProtocolShape(containing: "direct Self argument") {
-            _ = try Stub<any SelfArgumentRequirementProbe>()
+    @Test func explicitSelfArgumentsRemainUnsupportedWithAnActionableError() {
+        expectUnsupportedProtocolShape(containing: "automatic witness discovery") {
+            _ = try Stub<any SelfArgumentRequirementProbe>(
+                .method(.dynamicSelf, returning: .dynamicSelf)
+            )
         }
     }
 }

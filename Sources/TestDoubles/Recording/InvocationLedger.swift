@@ -26,13 +26,113 @@ struct StubSourceLocation: Sendable {
 
 /// A recorded playback invocation or a capture-mode expectation.
 struct RecordedCall: @unchecked Sendable {
+    private final class WeakPayload {
+        weak var value: StubPayload?
+
+        init(_ value: StubPayload) {
+            self.value = value
+        }
+    }
+
+    private final class RuntimePayloadMaterializer {
+        private weak var recorder: StubRecorder?
+
+        init(_ recorder: StubRecorder) {
+            self.recorder = recorder
+        }
+
+        func makePayload() -> StubPayload? {
+            recorder?.makeRuntimePayload()
+        }
+
+        func requirePayload() -> StubPayload {
+            guard let payload = makePayload() else {
+                preconditionFailure(
+                    "[TestDoubles] Recorded Self argument is no longer available because its runtime resources were released."
+                )
+            }
+            return payload
+        }
+    }
+
+    private enum ArgumentStorage {
+        case strong(Any)
+        case selfPayload(WeakPayload, RuntimePayloadMaterializer)
+        case optionalSelfPayload(WeakPayload, RuntimePayloadMaterializer)
+
+        init(
+            _ value: Any,
+            convention: WitnessValueConvention?,
+            materializer: RuntimePayloadMaterializer?
+        ) {
+            switch convention {
+                case .selfType:
+                    guard let materializer else {
+                        preconditionFailure(
+                            "[TestDoubles] Recorded Self argument requires a runtime payload materializer."
+                        )
+                    }
+                    guard let payload = value as? StubPayload else {
+                        preconditionFailure(
+                            "[TestDoubles] Runtime decoded Self argument as \(type(of: value)); expected StubPayload."
+                        )
+                    }
+                    self = .selfPayload(WeakPayload(payload), materializer)
+
+                case .optionalSelf:
+                    guard let materializer else {
+                        preconditionFailure(
+                            "[TestDoubles] Recorded Optional Self argument requires a runtime payload materializer."
+                        )
+                    }
+                    guard let optional = value as? StubPayload? else {
+                        preconditionFailure(
+                            "[TestDoubles] Runtime decoded Optional Self argument as \(type(of: value)); expected Optional<StubPayload>."
+                        )
+                    }
+                    guard let payload = optional else {
+                        self = .strong(value)
+                        return
+                    }
+                    self = .optionalSelfPayload(WeakPayload(payload), materializer)
+
+                case .concrete, .associatedType, nil:
+                    self = .strong(value)
+            }
+        }
+
+        var value: Any {
+            switch self {
+                case .strong(let value): value
+                case .selfPayload(let weak, let materializer):
+                    weak.value ?? materializer.requirePayload()
+                case .optionalSelfPayload(let weak, let materializer):
+                    Optional(weak.value ?? materializer.requirePayload()) as Any
+            }
+        }
+    }
+
+    private enum ArgumentsStorage {
+        case strong([Any])
+        case selfAware([ArgumentStorage])
+
+        var values: [Any] {
+            switch self {
+                case .strong(let values): values
+                case .selfAware(let values): values.map(\.value)
+            }
+        }
+    }
+
     let id: UInt64?
     let sequence: UInt64?
     let methodIndex: Int
     let name: String
-    let args: [Any]
+    private let argumentsStorage: ArgumentsStorage
     let matchers: [ParameterMatcher]
     let registrationLocation: StubSourceLocation?
+
+    var args: [Any] { argumentsStorage.values }
 
     init(
         id: UInt64? = nil,
@@ -40,6 +140,8 @@ struct RecordedCall: @unchecked Sendable {
         methodIndex: Int,
         name: String,
         args: [Any],
+        argumentConventions: [WitnessValueConvention]? = nil,
+        runtimePayloadRecorder: StubRecorder? = nil,
         matchers: [ParameterMatcher],
         registrationLocation: StubSourceLocation? = nil
     ) {
@@ -47,7 +149,38 @@ struct RecordedCall: @unchecked Sendable {
         self.sequence = sequence
         self.methodIndex = methodIndex
         self.name = name
-        self.args = args
+        if let argumentConventions {
+            precondition(
+                argumentConventions.count == args.count,
+                "[TestDoubles] Recorded argument conventions must match the decoded argument count."
+            )
+            let materializer = runtimePayloadRecorder.map(RuntimePayloadMaterializer.init)
+            argumentsStorage = .selfAware(
+                zip(args, argumentConventions).map {
+                    ArgumentStorage($0, convention: $1, materializer: materializer)
+                }
+            )
+        } else {
+            argumentsStorage = .strong(args)
+        }
+        self.matchers = matchers
+        self.registrationLocation = registrationLocation
+    }
+
+    private init(
+        id: UInt64?,
+        sequence: UInt64?,
+        methodIndex: Int,
+        name: String,
+        argumentsStorage: ArgumentsStorage,
+        matchers: [ParameterMatcher],
+        registrationLocation: StubSourceLocation?
+    ) {
+        self.id = id
+        self.sequence = sequence
+        self.methodIndex = methodIndex
+        self.name = name
+        self.argumentsStorage = argumentsStorage
         self.matchers = matchers
         self.registrationLocation = registrationLocation
     }
@@ -59,7 +192,7 @@ struct RecordedCall: @unchecked Sendable {
             sequence: sequence,
             methodIndex: methodIndex,
             name: name,
-            args: args,
+            argumentsStorage: argumentsStorage,
             matchers: matchers,
             registrationLocation: location
         )
@@ -126,7 +259,9 @@ struct InvocationLedger {
     mutating func append(
         method: Int,
         name: String,
-        args: [Any]
+        args: [Any],
+        argumentConventions: [WitnessValueConvention]? = nil,
+        runtimePayloadRecorder: StubRecorder? = nil
     ) -> [InvocationLedgerWaiter] {
         let callID = nextRecordedCallID
         nextRecordedCallID &+= 1
@@ -137,6 +272,8 @@ struct InvocationLedger {
                 methodIndex: method,
                 name: name,
                 args: args,
+                argumentConventions: argumentConventions,
+                runtimePayloadRecorder: runtimePayloadRecorder,
                 matchers: []
             ))
         methodGenerations[method, default: 0] &+= 1

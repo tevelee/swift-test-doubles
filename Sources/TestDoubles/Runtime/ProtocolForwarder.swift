@@ -441,14 +441,10 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
                     reason: "Forwarding Spy supports instance requirements only; requirement \(method.index) uses a metatype receiver."
                 )
             }
-            guard method.returnConvention != .selfType,
-                method.returnConvention != .optionalSelf
-            else {
-                throw StubError.unsupportedProtocolShape(
-                    protocolName: protocolName,
-                    reason: "Forwarding Spy does not yet support dynamic Self results in requirement \(method.index)."
-                )
-            }
+            try Self.validateDynamicSelfBoundary(
+                method,
+                protocolName: protocolName
+            )
             let concreteTypes = method.argumentTypes + [method.returnType]
             guard concreteTypes.allSatisfy({ !($0 is any SIMD.Type) }) else {
                 throw StubError.unsupportedProtocolShape(
@@ -714,6 +710,31 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
             )
         }
         return plan
+    }
+
+    private static func validateDynamicSelfBoundary(
+        _ method: MethodDescriptor,
+        protocolName: String
+    ) throws {
+        guard method.returnConvention != .selfType,
+            method.returnConvention != .optionalSelf
+        else {
+            throw StubError.unsupportedProtocolShape(
+                protocolName: protocolName,
+                reason: "Forwarding Spy does not yet support dynamic Self results in requirement \(method.index)."
+            )
+        }
+        guard
+            method.arguments.allSatisfy({
+                $0.value.convention != .selfType
+                    && $0.value.convention != .optionalSelf
+            })
+        else {
+            throw StubError.unsupportedProtocolShape(
+                protocolName: protocolName,
+                reason: "Forwarding Spy does not support direct or Optional Self arguments in requirement \(method.index). Use an automatic Stub or a hand-written spy."
+            )
+        }
     }
 
     private static func hiddenArgumentIndex(
