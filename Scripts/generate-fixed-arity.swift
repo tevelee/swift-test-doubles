@@ -453,132 +453,167 @@ private func matrixExpectedResult(arity: Int) -> Int {
     arity == 0 ? 40 : (1 ... arity).reduce(0, +)
 }
 
-private func untypedBridgeMatrixFunction(arity: Int) -> String {
-    let variants = bridgeMatrixEffectVariants.map { variant in
-        let type = matrixFunctionType(
-            arity: arity,
-            sendable: variant.sendable,
-            effects: variant.effects
-        )
-        let body = matrixClosureBody(
-            arity: arity,
-            isAsync: variant.effects.contains("async")
-        )
-        let arguments = matrixInvocationArguments(arity: arity)
-        return """
-            let \(variant.name): \(type) = \(body)
+private func capitalizingFirst(_ value: String) -> String {
+    value.prefix(1).uppercased() + value.dropFirst()
+}
+
+private func untypedBridgeMatrixTest(
+    arity: Int,
+    variant: (
+        name: String,
+        sendable: Bool,
+        effects: String,
+        invocationPrefix: String
+    )
+) -> String {
+    let type = matrixFunctionType(
+        arity: arity,
+        sendable: variant.sendable,
+        effects: variant.effects
+    )
+    let body = matrixClosureBody(
+        arity: arity,
+        isAsync: variant.effects.contains("async")
+    ).replacingOccurrences(of: "\n", with: "\n    ")
+    let arguments = matrixInvocationArguments(arity: arity)
+    return """
+        @Test
+        func untypedArity\(arity)\(capitalizingFirst(variant.name))() async throws {
+            let function: \(type) = \(body)
             #expect(
-                \(variant.invocationPrefix)roundTripGeneratedBridge(\(variant.name))(\(arguments))
+                \(variant.invocationPrefix)roundTripGeneratedBridge(function)(\(arguments))
                     == \(matrixExpectedResult(arity: arity))
             )
-            """
-    }.joined(separator: "\n")
-    return """
-        private func coverUntypedBridgeArity\(arity)() async throws {
-        \(variants.indented(by: 4))
         }
         """
 }
 
-private func typedBridgeMatrixFunction(arity: Int) -> String {
-    let variants = typedBridgeMatrixEffectVariants.map { variant in
-        let effects =
-            variant.isAsync
-            ? "async throws(GeneratedBridgeMatrixError)"
-            : "throws(GeneratedBridgeMatrixError)"
-        let type = matrixFunctionType(
-            arity: arity,
-            sendable: variant.sendable,
-            effects: effects
-        )
-        let body = matrixClosureBody(arity: arity, isAsync: variant.isAsync)
-        let arguments = matrixInvocationArguments(arity: arity)
-        let invocationPrefix = variant.isAsync ? "try await " : "try "
-        return """
-            let \(variant.name): \(type) = \(body)
+private func typedBridgeMatrixTest(
+    arity: Int,
+    variant: (
+        name: String,
+        sendable: Bool,
+        isAsync: Bool
+    )
+) -> String {
+    let effects =
+        variant.isAsync
+        ? "async throws(GeneratedBridgeMatrixError)"
+        : "throws(GeneratedBridgeMatrixError)"
+    let type = matrixFunctionType(
+        arity: arity,
+        sendable: variant.sendable,
+        effects: effects
+    )
+    let body = matrixClosureBody(arity: arity, isAsync: variant.isAsync)
+        .replacingOccurrences(of: "\n", with: "\n    ")
+    let arguments = matrixInvocationArguments(arity: arity)
+    let invocationPrefix = variant.isAsync ? "try await " : "try "
+    let binding: String
+    let assertion: String
+    if arity == maximumArity, variant.isAsync {
+        binding = "let function: \(type) = \(body)"
+        assertion = """
+            #if arch(x86_64)
+                let functionType = type(of: function)
+                #expect(
+                    FunctionReabstraction.automaticResultUnsupportedReason(
+                        for: functionType
+                    )?.contains("x86_64 async typed-error return bridge") == true
+                )
+            #else
+                #expect(
+                    \(invocationPrefix)roundTripGeneratedBridge(function)(\(arguments))
+                        == \(matrixExpectedResult(arity: arity))
+                )
+            #endif
+            """
+    } else {
+        binding = "let function: \(type) = \(body)"
+        assertion = """
             #expect(
-                \(invocationPrefix)roundTripGeneratedBridge(\(variant.name))(\(arguments))
+                \(invocationPrefix)roundTripGeneratedBridge(function)(\(arguments))
                     == \(matrixExpectedResult(arity: arity))
             )
             """
-    }.joined(separator: "\n")
+    }
     return """
         @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
-        private func coverTypedBridgeArity\(arity)() async throws {
-        \(variants.indented(by: 4))
+        @Test
+        func typedArity\(arity)\(capitalizingFirst(variant.name))() async throws {
+            \(binding)
+        \(assertion.indented(by: 4))
         }
         """
 }
 
-private func dynamicBridgeMatrixTestSource() -> String {
-    let untypedFunctions = (0 ... maximumArity)
-        .map(untypedBridgeMatrixFunction)
+private func dynamicBridgeMatrixTestSource(arity: Int) -> String {
+    let untypedTests =
+        bridgeMatrixEffectVariants
+        .map { variant in
+            untypedBridgeMatrixTest(arity: arity, variant: variant)
+        }
         .joined(separator: "\n\n")
-    let typedFunctions = (0 ... maximumArity)
-        .map(typedBridgeMatrixFunction)
+    let typedTests =
+        typedBridgeMatrixEffectVariants
+        .map { variant in
+            typedBridgeMatrixTest(arity: arity, variant: variant)
+        }
         .joined(separator: "\n\n")
-    let untypedCalls = (0 ... maximumArity)
-        .map { "try await coverUntypedBridgeArity\($0)()" }
-        .joined(separator: "\n")
-    let typedCalls = (0 ... maximumArity)
-        .map { "try await coverTypedBridgeArity\($0)()" }
-        .joined(separator: "\n")
     return """
         // Generated by \(scriptName); do not edit by hand.
-        // Every fixed arity executes every supported effect and sendability branch.
+        // Arity \(arity) executes every supported effect and sendability branch.
 
         import Testing
 
         @testable import TestDoubles
 
-        private enum GeneratedBridgeMatrixError: Error {
-            case failure
-        }
-
         @Suite
-        struct DynamicFunctionBridgeMatrixTests {
-            @Test
-            func untypedAritiesCoverEveryEffectAndSendability() async throws {
-        \(untypedCalls.indented(by: 8))
-            }
+        struct DynamicFunctionBridgeArity\(arity)Tests {
+        \(untypedTests.indented(by: 4))
 
-            @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
-            @Test
-            func typedAritiesCoverEveryEffectAndSendability() async throws {
-        \(typedCalls.indented(by: 8))
-            }
+        \(typedTests.indented(by: 4))
         }
-
-        private func roundTripGeneratedBridge<Function>(
-            _ function: Function
-        ) -> Function {
-            let source = ManagedValueBuffer(
-                type: Function.self,
-                minimumByteCount: 16
-            )
-            RuntimeValueTransport.initializeDirectValue(
-                function,
-                expectedType: Function.self,
-                to: source.storage
-            )
-            source.markInitialized()
-            let boxed = FunctionReabstraction.boxDirectArgument(
-                type: Function.self,
-                source: source.storage
-            )
-            source.destroyInitializedValue()
-            guard let result = boxed as? Function else {
-                preconditionFailure(
-                    "[TestDoublesTests] Generated bridge changed the function type."
-                )
-            }
-            return result
-        }
-
-        \(untypedFunctions)
-
-        \(typedFunctions)
         """ + "\n"
+}
+
+private func dynamicBridgeMatrixSupportSource() -> String {
+    """
+    // Generated by \(scriptName); do not edit by hand.
+    // Shared support for the independently diagnosable fixed-arity suites.
+
+    @testable import TestDoubles
+
+    enum GeneratedBridgeMatrixError: Error {
+        case failure
+    }
+
+    func roundTripGeneratedBridge<Function>(
+        _ function: Function
+    ) -> Function {
+        let source = ManagedValueBuffer(
+            type: Function.self,
+            minimumByteCount: 16
+        )
+        RuntimeValueTransport.initializeDirectValue(
+            function,
+            expectedType: Function.self,
+            to: source.storage
+        )
+        source.markInitialized()
+        let boxed = FunctionReabstraction.boxDirectArgument(
+            type: Function.self,
+            source: source.storage
+        )
+        source.destroyInitializedValue()
+        guard let result = boxed as? Function else {
+            preconditionFailure(
+                "[TestDoublesTests] Generated bridge changed the function type."
+            )
+        }
+        return result
+    }
+    """ + "\n"
 }
 
 private enum MethodEffectVariant {
@@ -700,20 +735,27 @@ private let mode: GenerationMode = {
 private let root = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()
     .deletingLastPathComponent()
-private let generatedFiles = [
-    GeneratedFile(
-        path: "Sources/TestDoubles/Runtime/DynamicFunctionBoxing+Generated.swift",
-        contents: dynamicBoxingSource()
-    ),
-    GeneratedFile(
-        path: "Sources/TestDoubles/Preparation/StubRequirement+SignatureOf.swift",
-        contents: signatureOfSource()
-    ),
-    GeneratedFile(
-        path: "Tests/TestDoublesTests/EndToEnd/DynamicFunctionBridgeMatrixTests+Generated.swift",
-        contents: dynamicBridgeMatrixTestSource()
-    )
-]
+private let generatedFiles =
+    [
+        GeneratedFile(
+            path: "Sources/TestDoubles/Runtime/DynamicFunctionBoxing+Generated.swift",
+            contents: dynamicBoxingSource()
+        ),
+        GeneratedFile(
+            path: "Sources/TestDoubles/Preparation/StubRequirement+SignatureOf.swift",
+            contents: signatureOfSource()
+        ),
+        GeneratedFile(
+            path: "Tests/TestDoublesTests/EndToEnd/DynamicFunctionBridgeMatrixTests+Generated.swift",
+            contents: dynamicBridgeMatrixSupportSource()
+        )
+    ]
+    + (0 ... maximumArity).map { arity in
+        GeneratedFile(
+            path: "Tests/TestDoublesTests/EndToEnd/DynamicFunctionBridgeArity\(arity)Tests+Generated.swift",
+            contents: dynamicBridgeMatrixTestSource(arity: arity)
+        )
+    }
 
 var staleFiles: [String] = []
 for file in generatedFiles {
