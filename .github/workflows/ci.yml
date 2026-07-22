@@ -234,7 +234,7 @@ jobs:
             hashFiles('Package.swift', 'Package.resolved') }}
           restore-keys: |
             swift-build-v1-${{ runner.os }}-${{ runner.arch }}-android-6.3.3-
-      - name: Cross-build Android tests
+      - name: Cross-build Android package
         run: Scripts/validate-android.sh
 
   apple-platforms:

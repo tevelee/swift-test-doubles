@@ -92,15 +92,13 @@ readonly configurations=(debug release)
 
 for target_triple in "${target_triples[@]}"; do
   for configuration in "${configurations[@]}"; do
-    echo "Building tests for $target_triple ($configuration)"
+    echo "Building package for $target_triple ($configuration)"
     swift build \
       --package-path "$repository_root" \
       --scratch-path "$repository_root/.build/android/$target_triple" \
       --configuration "$configuration" \
       --swift-sdk "$target_triple" \
       "${swift_sdk_path_arguments[@]}" \
-      --static-swift-stdlib \
-      --build-tests \
-      --enable-swift-testing
+      --static-swift-stdlib
   done
 done
