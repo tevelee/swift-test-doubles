@@ -450,8 +450,3 @@ func takeSwiftError(_ address: UInt) -> any Error {
     }
     return error
 }
-
-func safeFunctionParameterTypes(_ metadata: FunctionMetadata) -> [Any.Type] {
-    guard metadata.flags.numParams > 0 else { return [] }
-    return metadata.paramTypes
-}

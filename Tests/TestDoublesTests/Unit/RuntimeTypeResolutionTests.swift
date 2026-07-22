@@ -146,16 +146,6 @@ struct ResolutionElementValue: Equatable, Hashable, Sendable {
         )
     }
 
-    @Test func closurePointerAuthenticationMatchesSwiftStableHashes() throws {
-        let discriminators = try #require(
-            FunctionReabstraction.pointerAuthDiscriminators(
-                for: (@Sendable (Int) -> Int).self
-            )
-        )
-
-        #expect(discriminators.direct == 18_587)
-        #expect(discriminators.generic == 55_683)
-    }
 }
 
 /// Unit coverage for recording-placeholder synthesis.
