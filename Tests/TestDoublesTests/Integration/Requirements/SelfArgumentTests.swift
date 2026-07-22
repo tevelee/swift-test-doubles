@@ -5,7 +5,7 @@ import Testing
     import Foundation
 #endif
 
-#if canImport(Foundation)
+#if canImport(ObjectiveC)
     private final class SuperclassSelfArgumentProbe:
         NSObject, ExternalArgumentOnlySelfProbe
     {
@@ -253,7 +253,7 @@ private final class ConsumingClassAsyncInvocation<
         }
     }
 
-    #if canImport(Foundation)
+    #if canImport(ObjectiveC)
         @Test func superclassConstrainedSelfArgumentFailsClosed() {
             _ = SuperclassSelfArgumentProbe()
 
