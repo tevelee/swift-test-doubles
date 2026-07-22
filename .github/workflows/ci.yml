@@ -102,6 +102,12 @@ jobs:
           --experimental-maximum-parallelization-width 4
           --skip ExitTests
           --scratch-path .build/ci
+      - name: Test release exit diagnostics
+        run: >-
+          swift test
+          -c release
+          --filter ExitTests
+          --scratch-path .build/ci
       - name: Validate documentation
         run: Scripts/validate-documentation.sh
 
