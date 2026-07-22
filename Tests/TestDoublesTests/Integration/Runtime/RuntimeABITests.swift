@@ -173,7 +173,8 @@ protocol ExtendedAsyncABIProbe: Sendable {
     func existential(_ value: any ABIExistentialValue) async -> any ABIExistentialValue
 }
 
-@Suite struct RuntimeABITests {
+/// Pure plan coverage for physical register, stack, and hidden-word placement.
+@Suite struct CallFrameTransportPlanTests {
     @Test func witnessTransportPlanNamesEveryHiddenLocation() {
         let indirectResult = MethodDescriptor(
             kind: .method,
@@ -634,6 +635,11 @@ protocol ExtendedAsyncABIProbe: Sendable {
         #expect(functionParts?.count == 3)
         #expect(functionParts?.allSatisfy { $0.register == .gp } == true)
     }
+
+}
+
+/// End-to-end coverage that executes requirements through fabricated witnesses.
+@Suite struct RuntimeABITests {
 
     @Test func mixedFloatingPointArguments() throws {
         let stub = try Stub<any FloatingABIProbe>()
