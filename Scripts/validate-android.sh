@@ -11,6 +11,14 @@ script_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly script_directory
 repository_root="$(cd "$script_directory/.." && pwd)"
 readonly repository_root
+swift_sdk_path_arguments=()
+swift_sdk_install_path_hint=""
+if [[ -n "${ANDROID_SWIFT_SDKS_PATH:-}" ]]; then
+  swift_sdk_path_arguments=(--swift-sdks-path "$ANDROID_SWIFT_SDKS_PATH")
+  swift_sdk_install_path_hint=" --swift-sdks-path '$ANDROID_SWIFT_SDKS_PATH'"
+fi
+readonly swift_sdk_path_arguments
+readonly swift_sdk_install_path_hint
 
 fail() {
   echo "error: $*" >&2
@@ -24,13 +32,14 @@ if [[ "$swift_version_output" != *"Swift version $expected_swift_version"* ]]; t
   fail "the official Android SDK requires a matching Swift $expected_swift_version host toolchain; found: ${swift_version_output//$'\n'/ }"
 fi
 
-installed_sdks="$(swift sdk list 2>&1)" || fail "unable to list installed Swift SDKs: $installed_sdks"
+installed_sdks="$(swift sdk list "${swift_sdk_path_arguments[@]}" 2>&1)" \
+  || fail "unable to list installed Swift SDKs: $installed_sdks"
 prerequisites_available=true
 if ! grep -Fqx "$android_sdk_id" <<<"$installed_sdks"; then
   cat >&2 <<EOF
 error: Swift SDK '$android_sdk_id' is not installed.
 Install it with the official checksum-verified command, then configure it with Android NDK r27d or later:
-  swift sdk install '$android_sdk_url' --checksum '$android_sdk_checksum'
+  swift sdk install '$android_sdk_url' --checksum '$android_sdk_checksum'$swift_sdk_install_path_hint
 EOF
   prerequisites_available=false
 fi
@@ -89,6 +98,7 @@ for target_triple in "${target_triples[@]}"; do
       --scratch-path "$repository_root/.build/android/$target_triple" \
       --configuration "$configuration" \
       --swift-sdk "$target_triple" \
+      "${swift_sdk_path_arguments[@]}" \
       --static-swift-stdlib \
       --build-tests \
       --enable-swift-testing

@@ -198,6 +198,8 @@ jobs:
     name: Swift 6.3 / Android SDK / arm64 + x86_64
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    env:
+      ANDROID_SWIFT_SDKS_PATH: ${{ github.workspace }}/.build/android-swift-sdks
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
@@ -210,7 +212,7 @@ jobs:
         id: android-sdk-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
-          path: ~/.swiftpm/swift-sdks/swift-6.3.3-RELEASE_android.artifactbundle
+          path: ${{ env.ANDROID_SWIFT_SDKS_PATH }}/swift-6.3.3-RELEASE_android.artifactbundle
           key: swift-android-sdk-${{ runner.os }}-6.3.3-d160cc3206dd1886dae3fef2337af5e25ec034692cd0ec225721c56cc69da7f5
       - name: Install Swift Android SDK
         if: steps.android-sdk-cache.outputs.cache-hit != 'true'
@@ -218,9 +220,10 @@ jobs:
           swift sdk install
           https://download.swift.org/swift-6.3.3-release/android-sdk/swift-6.3.3-RELEASE/swift-6.3.3-RELEASE_android.artifactbundle.tar.gz
           --checksum d160cc3206dd1886dae3fef2337af5e25ec034692cd0ec225721c56cc69da7f5
+          --swift-sdks-path "$ANDROID_SWIFT_SDKS_PATH"
       - name: Configure Swift Android SDK
         run: |
-          cd "$HOME/.swiftpm/swift-sdks/swift-6.3.3-RELEASE_android.artifactbundle/swift-android"
+          cd "$ANDROID_SWIFT_SDKS_PATH/swift-6.3.3-RELEASE_android.artifactbundle/swift-android"
           ./scripts/setup-android-sdk.sh
       - name: Restore Android build cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
