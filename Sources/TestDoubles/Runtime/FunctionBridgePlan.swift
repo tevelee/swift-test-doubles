@@ -10,6 +10,7 @@ enum FunctionBridgeDirection: Sendable, Equatable {
 /// Immutable ABI and effect facts shared by dynamic function validation in
 /// both bridge directions.
 struct FunctionBridgeAnalysis: @unchecked Sendable {
+    let architecture: RuntimeArchitecture
     let metadata: FunctionMetadata
     let parameterTypes: [Any.Type]
     let directArgumentPlan: DynamicFunctionArgumentPlan?
@@ -25,7 +26,11 @@ struct FunctionBridgeAnalysis: @unchecked Sendable {
     let genericArgumentCount: Int
     let genericUsesStackArgument: Bool
 
-    init(_ metadata: FunctionMetadata) {
+    init(
+        _ metadata: FunctionMetadata,
+        architecture: RuntimeArchitecture = .current
+    ) {
+        self.architecture = architecture
         self.metadata = metadata
         parameterTypes = safeFunctionParameterTypes(metadata)
         resultType = metadata.resultType
@@ -48,13 +53,14 @@ struct FunctionBridgeAnalysis: @unchecked Sendable {
             + (isAsync && metadata.resultType != Void.self ? 1 : 0)
         genericUsesStackArgument =
             genericArgumentCount
-            > RuntimeArchitecture.current.generalPurposeArgumentRegisterCount
+            > architecture.generalPurposeArgumentRegisterCount
         directArgumentPlan = dynamicFunctionArgumentPlan(
             parameterTypes,
             initialGeneralPurposeOffset:
                 asyncDirectResultUsesGeneralPurposeSlot ? 1 : 0,
             trailingGeneralPurposeWordCount:
-                directTypedErrorUsesIndirectResultSlot ? 1 : 0
+                directTypedErrorUsesIndirectResultSlot ? 1 : 0,
+            architecture: architecture
         )
     }
 
@@ -66,9 +72,19 @@ struct FunctionBridgeAnalysis: @unchecked Sendable {
             return "The dynamic bridge currently supports at most six parameters."
         }
         if direction == .genericToDirect,
-            genericArgumentCount > dynamicGenericArgumentLimit()
+            genericArgumentCount
+                > dynamicGenericArgumentLimit(architecture: architecture)
         {
             return "The dynamic return bridge exceeds its bounded generic argument register and stack budget."
+        }
+        if direction == .genericToDirect,
+            architecture == .x86_64,
+            isAsync,
+            typedErrorType != nil,
+            genericUsesStackArgument,
+            directArgumentPlan?.usesStackArgument == false
+        {
+            return "The x86_64 async typed-error return bridge cannot mix a full direct register bank with generic stack transport."
         }
         guard metadata.flags.bits & 0x0800_0000 == 0 else {
             return "Differentiable functions require derivative metadata."
