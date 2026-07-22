@@ -539,7 +539,6 @@ enum RuntimeResultEncoder {
         var generalPurpose = 0
         var floatingPoint = 0
         for part in parts {
-            let value = part.load(from: source)
             switch part.register {
                 case .gp:
                     guard
@@ -551,7 +550,7 @@ enum RuntimeResultEncoder {
                         )
                     }
                     frame.storeGeneralPurposeReturn(
-                        UInt(truncatingIfNeeded: value),
+                        UInt(truncatingIfNeeded: part.load(from: source)),
                         at: generalPurpose
                     )
                     generalPurpose += 1
@@ -564,8 +563,9 @@ enum RuntimeResultEncoder {
                             "[TestDoubles] Direct aggregate return uses too many floating-point registers."
                         )
                     }
-                    frame.storeFloatingPointReturn(
-                        UInt(truncatingIfNeeded: value),
+                    frame.storeVectorReturn(
+                        from: source + part.offset,
+                        byteCount: part.byteCount,
                         at: floatingPoint
                     )
                     floatingPoint += 1

@@ -228,7 +228,11 @@ enum RuntimeArgumentDecoder {
             count: metadata.valueBufferByteCount()
         )
         for (part, location) in zip(parts, locations) {
-            part.store(frame.scalarBits(at: location), into: temporary)
+            precondition(part.offset == location.valueOffset)
+            frame.copyArgumentBytes(
+                at: location,
+                into: temporary + part.offset
+            )
         }
         let boxed = copyArgument(
             type: type,

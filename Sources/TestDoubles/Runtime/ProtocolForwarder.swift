@@ -423,6 +423,12 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
                 )
             }
             let concreteTypes = method.argumentTypes + [method.returnType]
+            guard concreteTypes.allSatisfy({ !($0 is any SIMD.Type) }) else {
+                throw StubError.unsupportedProtocolShape(
+                    protocolName: protocolName,
+                    reason: "Forwarding Spy does not yet support SIMD arguments or results in requirement \(method.index)."
+                )
+            }
             guard method.typedWitnessAdapterFactory == nil,
                 concreteTypes.allSatisfy({ reflect($0).kind != .function })
             else {

@@ -4,7 +4,7 @@
 #define TD_GP_REGISTER_COUNT 16
 #define TD_FP_REGISTER_COUNT 16
 
-#define TD_FRAME_SIZE 512
+#define TD_FRAME_SIZE 544
 #define TD_FRAME_SLOT_OFFSET 0
 #define TD_FRAME_CONTEXT_OFFSET 8
 #define TD_FRAME_GP_OFFSET 16
@@ -17,14 +17,15 @@
 #define TD_FRAME_RETURN_GP_OFFSET 440
 #define TD_FRAME_RETURN_FP_OFFSET 472
 #define TD_FRAME_RETURN_ERROR_OFFSET 504
+#define TD_FRAME_RETURN_FP_HIGH_OFFSET 512
 
 #define TD_ASYNC_CONTEXT_CALLEE_OFFSET 16
 #define TD_ASYNC_CONTEXT_STATE_OFFSET 24
 #define TD_ASYNC_CONTEXT_SIZE 32
 
-#define TD_ASYNC_COMPLETION_FRAME_SIZE 528
-#define TD_ASYNC_COMPLETION_PARENT_OFFSET 512
-#define TD_ASYNC_COMPLETION_STATE_OFFSET 520
+#define TD_ASYNC_COMPLETION_FRAME_SIZE 560
+#define TD_ASYNC_COMPLETION_PARENT_OFFSET 544
+#define TD_ASYNC_COMPLETION_STATE_OFFSET 552
 
 #define TD_MODIFY_CONTEXT_STATE_OFFSET 0
 // Swift 6.3.3's arm64e discriminator for a yield-once resume function
@@ -65,6 +66,7 @@ typedef struct TDCallFrame {
   uint64_t returnGP[4];
   uint64_t returnFP[4];
   uint64_t returnError;
+  uint64_t returnFPHigh[4];
 } TDCallFrame;
 
 typedef struct TDSwiftErrorAllocation {

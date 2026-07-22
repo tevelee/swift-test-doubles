@@ -56,10 +56,6 @@ import Testing
     }
 #endif
 
-private protocol SIMDABIProbe {
-    func consume(_ vector: SIMD4<Float>)
-}
-
 private protocol WrappedSIMDABIProbe {
     func measure() -> SIMDWrappingValue
 }
@@ -69,14 +65,6 @@ private struct SIMDWrappingValue {
 }
 
 @Suite struct SIMDRejectionTests {
-    @Test func directSIMDRequirementsFailClosed() {
-        expectUnsupportedProtocolShape(containing: "SIMD") {
-            _ = try Stub<any SIMDABIProbe>(
-                .method(SIMD4<Float>.self, returning: Void.self)
-            )
-        }
-    }
-
     @Test func simdStorageNestedInStructsFailsClosed() {
         expectUnsupportedProtocolShape(containing: "SIMD") {
             _ = try Stub<any WrappedSIMDABIProbe>(

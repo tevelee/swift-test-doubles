@@ -44,6 +44,10 @@ struct DirectValuePart: Sendable {
 
     /// Loads this part's bytes from in-memory value storage into a register word.
     func load(from source: UnsafeRawPointer) -> UInt64 {
+        precondition(
+            byteCount <= MemoryLayout<UInt64>.size,
+            "[TestDoubles] A scalar register word cannot load a wider vector value."
+        )
         let field = source + offset
         switch byteCount {
             case 1:
@@ -67,6 +71,10 @@ struct DirectValuePart: Sendable {
 
     /// Stores a register word into this part's bytes of in-memory value storage.
     func store(_ value: UInt64, into destination: UnsafeMutableRawPointer) {
+        precondition(
+            byteCount <= MemoryLayout<UInt64>.size,
+            "[TestDoubles] A scalar register word cannot store a wider vector value."
+        )
         let field = destination + offset
         switch byteCount {
             case 1:
@@ -140,6 +148,30 @@ func abiClass(for type: Any.Type, isReturn: Bool = false) -> ABIClass {
         return .indirect
     }
     return .integer(words: size > 8 ? 2 : 1)
+}
+
+/// The concrete SIMD shapes proven to use one complete 128-bit vector register
+/// for both arguments and results on arm64 and x86_64.
+///
+/// Smaller vectors are intentionally absent: Swift can scalarize them or use
+/// different register layouts across the two architectures. Padded three-lane
+/// vectors are absent as well so this boundary transports only complete lane
+/// payloads with no unspecified bytes.
+func concreteSIMDRegisterByteCount(for type: Any.Type) -> Int? {
+    let isSupported =
+        type == SIMD4<Float>.self
+        || type == SIMD2<Double>.self
+        || type == SIMD2<Int>.self
+        || type == SIMD2<UInt>.self
+        || type == SIMD2<Int64>.self
+        || type == SIMD2<UInt64>.self
+        || type == SIMD4<Int32>.self
+        || type == SIMD4<UInt32>.self
+        || type == SIMD8<Int16>.self
+        || type == SIMD8<UInt16>.self
+        || type == SIMD16<Int8>.self
+        || type == SIMD16<UInt8>.self
+    return isSupported ? 16 : nil
 }
 
 func unsupportedRuntimeReason(
@@ -331,6 +363,15 @@ private func containsFunctionStorage(_ type: Any.Type) -> Bool {
 }
 
 func directReturnParts(for type: Any.Type) -> [DirectValuePart]? {
+    if let byteCount = concreteSIMDRegisterByteCount(for: type) {
+        return [
+            DirectValuePart(
+                register: .fp,
+                offset: 0,
+                byteCount: byteCount
+            )
+        ]
+    }
     var visited: Set<UInt> = []
     var parts: [DirectValuePart] = []
     guard appendDirectValueParts(for: type, baseOffset: 0, parts: &parts, visited: &visited),
@@ -350,6 +391,12 @@ private func appendDirectValueParts(
     parts: inout [DirectValuePart],
     visited: inout Set<UInt>
 ) -> Bool {
+    // Direct concrete SIMD is classified before recursive aggregate
+    // decomposition. A SIMD nested in another value is not ABI-equivalent to
+    // that top-level vector and remains unsupported.
+    if type is any SIMD.Type {
+        return false
+    }
     let metadata = reflect(type)
     let size = metadata.vwt.size
     if size == 0 {

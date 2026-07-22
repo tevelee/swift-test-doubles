@@ -61,6 +61,14 @@ SYMBOL(td_swift_trampoline_entry):
     ldr d1, [x9, #480]
     ldr d2, [x9, #488]
     ldr d3, [x9, #496]
+    ldr x10, [x9, #TD_FRAME_RETURN_FP_HIGH_OFFSET]
+    ins v0.d[1], x10
+    ldr x10, [x9, #520]
+    ins v1.d[1], x10
+    ldr x10, [x9, #528]
+    ins v2.d[1], x10
+    ldr x10, [x9, #536]
+    ins v3.d[1], x10
     ldr x21, [x9, #TD_FRAME_RETURN_ERROR_OFFSET]
     ldr x20, [x9, #TD_FRAME_SWIFT_SELF_OFFSET]
 
@@ -859,6 +867,10 @@ SYMBOL(td_swift_trampoline_entry):
     movsd 480(%r10), %xmm1
     movsd 488(%r10), %xmm2
     movsd 496(%r10), %xmm3
+    movhps TD_FRAME_RETURN_FP_HIGH_OFFSET(%r10), %xmm0
+    movhps 520(%r10), %xmm1
+    movhps 528(%r10), %xmm2
+    movhps 536(%r10), %xmm3
     movq TD_FRAME_RETURN_ERROR_OFFSET(%r10), %r12
     movq TD_FRAME_SWIFT_SELF_OFFSET(%r10), %r13
 

@@ -65,6 +65,8 @@ _Static_assert(offsetof(TDCallFrame, reserved) == TD_FRAME_RESERVED_OFFSET, "res
 _Static_assert(offsetof(TDCallFrame, returnGP) == TD_FRAME_RETURN_GP_OFFSET, "returnGP offset changed");
 _Static_assert(offsetof(TDCallFrame, returnFP) == TD_FRAME_RETURN_FP_OFFSET, "returnFP offset changed");
 _Static_assert(offsetof(TDCallFrame, returnError) == TD_FRAME_RETURN_ERROR_OFFSET, "returnError offset changed");
+_Static_assert(offsetof(TDCallFrame, returnFPHigh) == TD_FRAME_RETURN_FP_HIGH_OFFSET,
+               "returnFPHigh offset changed");
 _Static_assert(sizeof(TDModifyCoroutineResult) == 2 * sizeof(void *),
                "TDModifyCoroutineResult size changed");
 _Static_assert(sizeof(TDReadCoroutineResult) == 2 * sizeof(void *),

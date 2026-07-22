@@ -132,10 +132,10 @@ extension Stub {
                     reason: "Requirement \(method.index) supplies a typed adapter but has no direct function argument or result."
                 )
             }
-            if concreteTypes.contains(where: containsSIMDStorage) {
+            if let reason = simdUnsupportedReason(for: method) {
                 throw StubError.unsupportedProtocolShape(
                     protocolName: protocolName,
-                    reason: "Requirement \(method.index) contains a SIMD value. SIMD register transport is unsupported; use a small hand-written test double."
+                    reason: "Requirement \(method.index) contains an unsupported SIMD value. \(reason)"
                 )
             }
             if method.kind == .setter {
@@ -288,10 +288,66 @@ extension Stub {
 
 }
 
-/// Whether a value of `type` stores SIMD vector data anywhere the register
-/// codecs would transport directly. The trampoline does not model vector
-/// registers, so these types are rejected at construction rather than
-/// exchanged incorrectly at invocation.
+/// Returns the fail-closed reason for a SIMD-bearing requirement, or `nil` for
+/// the bounded concrete synchronous method shapes proven on both runtimes.
+private func simdUnsupportedReason(for method: MethodDescriptor) -> String? {
+    let values = method.arguments.map(\.value) + [method.result]
+    let simdValues = values.filter { containsSIMDStorage($0.type) }
+    guard simdValues.isEmpty == false else { return nil }
+
+    guard method.kind == .method, method.receiver == .instance else {
+        return "The bounded vector-register path supports ordinary instance methods only."
+    }
+    guard method.isAsync == false else {
+        return "Async continuation transport has not been proven for SIMD registers."
+    }
+
+    for value in simdValues {
+        guard value.type is any SIMD.Type else {
+            return "SIMD nested in an aggregate does not share the direct vector ABI."
+        }
+        guard value.dependency.isAssociatedTypeDependent == false else {
+            return "Associated-dependent SIMD needs metadata-directed vector substitution."
+        }
+        guard concreteSIMDRegisterByteCount(for: value.type) == 16 else {
+            return "Only complete 128-bit lane payloads with one identical arm64/x86_64 vector-register shape are supported."
+        }
+        guard case .aggregate(let parts) = value.layout,
+            parts.count == 1,
+            parts[0].register == .fp,
+            parts[0].offset == 0,
+            parts[0].byteCount == 16
+        else {
+            return "Its runtime ABI classification is not one 128-bit vector register."
+        }
+    }
+
+    for architecture in [RuntimeArchitecture.arm64, .x86_64] {
+        let locationPlan = CallFrameArgumentLocationPlan(
+            arguments: method.arguments.map {
+                CallFrameArgumentShape(
+                    type: $0.value.type,
+                    layout: $0.value.layout
+                )
+            },
+            architecture: architecture
+        )
+        for (argument, locations) in zip(
+            method.arguments,
+            locationPlan.arguments
+        ) where argument.value.type is any SIMD.Type {
+            guard locations.count == 1,
+                case .vectorRegister = locations[0].storage
+            else {
+                return "Its vector argument spills outside the captured register bank on \(architecture)."
+            }
+        }
+    }
+    return nil
+}
+
+/// Whether a value of `type` stores SIMD vector data anywhere direct register
+/// classification might otherwise mistake for an ordinary aggregate.
 private func containsSIMDStorage(_ type: Any.Type) -> Bool {
     var visited: Set<UInt> = []
     return containsSIMDStorage(type, visited: &visited)

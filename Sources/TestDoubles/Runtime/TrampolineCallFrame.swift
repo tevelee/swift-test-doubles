@@ -20,6 +20,7 @@ struct TrampolineCallFrame {
         static let returnGeneralPurpose = Int(TD_FRAME_RETURN_GP_OFFSET)
         static let returnFloatingPoint = Int(TD_FRAME_RETURN_FP_OFFSET)
         static let returnError = Int(TD_FRAME_RETURN_ERROR_OFFSET)
+        static let returnFloatingPointHigh = Int(TD_FRAME_RETURN_FP_HIGH_OFFSET)
     }
 
     #if arch(x86_64)
@@ -68,6 +69,27 @@ struct TrampolineCallFrame {
         }
     }
 
+    /// Copies one argument fragment with its declared width from the captured
+    /// register bank or caller stack. Register slots remain the source of
+    /// truth, including all 16 bytes of a supported SIMD value.
+    func copyArgumentBytes(
+        at location: CallFrameArgumentLocation,
+        into destination: UnsafeMutableRawPointer
+    ) {
+        let source: UnsafeRawPointer
+        switch location.storage {
+            case .generalPurposeRegister(let index):
+                precondition(location.byteCount <= MemoryLayout<UInt64>.size)
+                source = UnsafeRawPointer(raw + Offset.generalPurpose + index * 8)
+            case .vectorRegister(let index):
+                precondition(location.byteCount <= 16)
+                source = UnsafeRawPointer(raw + Offset.floatingPoint + index * 16)
+            case .stack(let byteOffset):
+                source = stackAddress + byteOffset
+        }
+        destination.copyMemory(from: source, byteCount: location.byteCount)
+    }
+
     func storeGeneralPurposeReturn(_ value: UInt, at index: Int = 0) {
         storeWord(value, at: Offset.returnGeneralPurpose + index * 8)
     }
@@ -88,6 +110,28 @@ struct TrampolineCallFrame {
 
     func storeFloatingPointReturn(_ value: UInt, at index: Int = 0) {
         storeWord(value, at: Offset.returnFloatingPoint + index * 8)
+        storeWord(0, at: Offset.returnFloatingPointHigh + index * 8)
+    }
+
+    func storeVectorReturn(
+        from source: UnsafeRawPointer,
+        byteCount: Int,
+        at index: Int = 0
+    ) {
+        precondition(index < Self.floatingPointReturnCount)
+        precondition(byteCount > 0 && byteCount <= 16)
+        storeFloatingPointReturn(0, at: index)
+        let lowByteCount = min(byteCount, MemoryLayout<UInt64>.size)
+        (raw + Offset.returnFloatingPoint + index * 8).copyMemory(
+            from: source,
+            byteCount: lowByteCount
+        )
+        if byteCount > lowByteCount {
+            (raw + Offset.returnFloatingPointHigh + index * 8).copyMemory(
+                from: source + lowByteCount,
+                byteCount: byteCount - lowByteCount
+            )
+        }
     }
 
     func storeReturnError(_ value: UInt) {
@@ -125,12 +169,16 @@ struct TrampolineCallFrame {
     }
 
     private func stackWord(byteOffset: Int) -> UInt {
+        stackAddress.loadUnaligned(fromByteOffset: byteOffset, as: UInt.self)
+    }
+
+    private var stackAddress: UnsafeRawPointer {
         let address = loadWord(at: Offset.stackPointer)
         guard let stack = UnsafeRawPointer(bitPattern: address) else {
             preconditionFailure(
                 "[TestDoubles] Trampoline captured an invalid stack pointer."
             )
         }
-        return stack.loadUnaligned(fromByteOffset: byteOffset, as: UInt.self)
+        return stack
     }
 }

@@ -424,18 +424,10 @@ protocol ExtendedAsyncABIProbe: Sendable {
         #expect(plan.stackByteCount == 16)
     }
 
-    @Test func argumentLocationPlanRetainsVectorWidthWithoutEnablingSIMD() {
+    @Test func argumentLocationPlanRetainsSingleRegisterSIMDWidth() {
         let vector = CallFrameArgumentShape(
             type: SIMD4<Float>.self,
-            layout: .aggregate(
-                parts: [
-                    DirectValuePart(
-                        register: .fp,
-                        offset: 0,
-                        byteCount: 16
-                    )
-                ]
-            )
+            layout: abiClass(for: SIMD4<Float>.self)
         )
         let plan = CallFrameArgumentLocationPlan(
             arguments: [vector],
