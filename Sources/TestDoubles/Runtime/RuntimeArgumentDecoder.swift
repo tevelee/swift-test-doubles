@@ -110,6 +110,10 @@ enum RuntimeArgumentDecoder {
         _ plan: RuntimeArgumentDecodingPlan,
         from frame: TrampolineCallFrame
     ) -> DecodedArguments {
+        precondition(
+            plan.arguments.count == plan.argumentLocations.count,
+            "[TestDoubles] Runtime argument metadata and call-frame locations diverged."
+        )
         var values: [Any] = []
         values.reserveCapacity(plan.arguments.count)
 
@@ -215,27 +219,20 @@ enum RuntimeArgumentDecoder {
         consuming: Bool
     ) -> Any {
         precondition(parts.count == locations.count)
-        let metadata = reflect(type)
-        let temporary = metadata.allocateValueBuffer()
-        temporary.initializeMemory(
-            as: UInt8.self,
-            repeating: 0,
-            count: metadata.valueBufferByteCount()
-        )
+        let temporary = ManagedValueBuffer(type: type)
+        temporary.zeroBorrowedBytes()
         for (part, location) in zip(parts, locations) {
             precondition(part.offset == location.valueOffset)
             frame.copyArgumentBytes(
                 at: location,
-                into: temporary + part.offset
+                into: temporary.storage + part.offset
             )
         }
-        let boxed = copyArgument(
+        return copyArgument(
             type: type,
             source: temporary,
             consuming: consuming
         )
-        temporary.deallocate()
-        return boxed
     }
 
     /// Copies an ABI argument into recorder-owned `Any` storage, then consumes
@@ -246,10 +243,36 @@ enum RuntimeArgumentDecoder {
         source: UnsafeMutableRawPointer,
         consuming: Bool
     ) -> Any {
-        let value: Any
-        value = FunctionReabstraction.boxDirectValue(type: type, source: source)
+        let managedSource =
+            consuming
+            ? ManagedValueBuffer(owningValueOf: type, at: source)
+            : ManagedValueBuffer(borrowingBitsOf: type, at: source)
+        return copyArgument(
+            type: type,
+            source: managedSource,
+            consuming: consuming
+        )
+    }
+
+    private static func copyArgument(
+        type: Any.Type,
+        source: ManagedValueBuffer,
+        consuming: Bool
+    ) -> Any {
         if consuming {
-            reflect(type).vwt.destroy(source)
+            if source.state == .borrowedBits {
+                source.markInitialized()
+            }
+            precondition(source.state == .initialized)
+        } else {
+            precondition(source.state == .borrowedBits)
+        }
+        let value = FunctionReabstraction.boxDirectValue(
+            type: type,
+            source: source.storage
+        )
+        if consuming {
+            source.destroyInitializedValue()
         }
         return value
     }

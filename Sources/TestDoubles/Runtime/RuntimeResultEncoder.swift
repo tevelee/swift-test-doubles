@@ -500,15 +500,13 @@ enum RuntimeResultEncoder {
         for method: MethodDescriptor,
         into frame: TrampolineCallFrame
     ) -> Bool {
-        let metadata = reflect(type)
-        let storage = metadata.allocateValueBuffer()
-        guard PlaceholderValue.initialize(type: type, at: storage) else {
-            storage.deallocate()
+        let storage = ManagedValueBuffer(type: type)
+        guard PlaceholderValue.initialize(type: type, at: storage.storage) else {
             return false
         }
-        let value = boxValue(type: type, source: storage)
-        metadata.vwt.destroy(storage)
-        storage.deallocate()
+        storage.markInitialized()
+        let value = boxValue(type: type, source: storage.storage)
+        storage.destroyInitializedValue()
         encodeReturn(value, for: method, into: frame)
         return true
     }
@@ -518,17 +516,22 @@ enum RuntimeResultEncoder {
         parts: [DirectValuePart],
         into frame: TrampolineCallFrame
     ) {
-        let metadata = reflect(type)
-        let temporary = metadata.allocateValueBuffer(minimumByteCount: 16)
-        guard PlaceholderValue.initialize(type: type, at: temporary) else {
-            temporary.deallocate()
+        let temporary = ManagedValueBuffer(
+            type: type,
+            minimumByteCount: 16
+        )
+        guard PlaceholderValue.initialize(type: type, at: temporary.storage) else {
             fatalError(
                 "[TestDoubles] Stub cannot synthesize a recording placeholder for \(type)."
             )
         }
-        encodeAggregateReturn(parts: parts, from: temporary, into: frame)
-        // The encoded return registers take ownership of the initialized value.
-        temporary.deallocate()
+        temporary.markInitialized()
+        encodeAggregateReturn(
+            parts: parts,
+            from: temporary.storage,
+            into: frame
+        )
+        temporary.markTransferred()
     }
 
     private static func encodeAggregateReturn(
@@ -578,25 +581,24 @@ enum RuntimeResultEncoder {
         expectedType: Any.Type?,
         _ body: (UnsafeMutableRawPointer) -> Void
     ) {
-        let metadata = expectedType.map(reflect) ?? Echo.container(for: result).metadata
-        let temporary = metadata.allocateValueBuffer(minimumByteCount: 16)
-        temporary.initializeMemory(
-            as: UInt8.self,
-            repeating: 0,
-            count: metadata.valueBufferByteCount(minimum: 16)
+        let type = expectedType ?? Echo.container(for: result).metadata.type
+        let temporary = ManagedValueBuffer(
+            type: type,
+            minimumByteCount: 16
         )
+        temporary.zeroBorrowedBytes()
         if let expectedType {
             initializeDirectValue(
                 result,
                 expectedType: expectedType,
-                to: temporary
+                to: temporary.storage
             )
         } else if expectedType == nil {
-            copyReturn(result, expectedType: nil, to: temporary)
+            copyReturn(result, expectedType: nil, to: temporary.storage)
         }
-        body(temporary)
-        // The caller receives the copied value through ABI return storage.
-        temporary.deallocate()
+        temporary.markInitialized()
+        body(temporary.storage)
+        temporary.markTransferred()
     }
 
     private static func swiftErrorPointer(_ error: any Error) -> UInt {

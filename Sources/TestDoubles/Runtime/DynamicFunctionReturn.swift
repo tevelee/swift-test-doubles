@@ -326,8 +326,7 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
                 type: typedErrorType,
                 source: errorBuffer.storage
             )
-            errorBuffer.metadata.vwt.destroy(errorBuffer.storage)
-            errorBuffer.markConsumed()
+            errorBuffer.destroyInitializedValue()
             return .failure(boxedError)
         }
         guard hasResult else { return .success(()) }
@@ -337,8 +336,7 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
             type: metadata.resultType,
             source: call.result.storage
         )
-        call.result.metadata.vwt.destroy(call.result.storage)
-        call.result.markConsumed()
+        call.result.destroyInitializedValue()
         return .success(result)
     }
 }

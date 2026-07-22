@@ -36,25 +36,24 @@ private enum ModifyCoroutineRuntime {
         let setter: MethodDescriptor
         let recorder: StubRecorder
         let indices: [Any]
-        let storage: UnsafeMutableRawPointer
-        let metadata: Metadata
+        let buffer: ManagedValueBuffer
         let skipsForwardingSetter: Bool
+
+        var storage: UnsafeMutableRawPointer { buffer.storage }
 
         init(
             getter: MethodDescriptor,
             setter: MethodDescriptor,
             recorder: StubRecorder,
             indices: [Any],
-            storage: UnsafeMutableRawPointer,
-            metadata: Metadata,
+            buffer: ManagedValueBuffer,
             skipsForwardingSetter: Bool
         ) {
             self.getter = getter
             self.setter = setter
             self.recorder = recorder
             self.indices = indices
-            self.storage = storage
-            self.metadata = metadata
+            self.buffer = buffer
             self.skipsForwardingSetter = skipsForwardingSetter
         }
 
@@ -71,8 +70,7 @@ private enum ModifyCoroutineRuntime {
                     source: storage
                 )
             }
-            metadata.vwt.destroy(storage)
-            storage.deallocate()
+            buffer.destroyInitializedValue()
 
             // Swift's yield-once unwind is non-transactional: writes made
             // before a thrown error remain visible, so abort requires the
@@ -249,21 +247,20 @@ private enum ModifyCoroutineRuntime {
         indices: [Any],
         skipsForwardingSetter: Bool
     ) -> DispatchState {
-        let metadata = reflect(getter.returnType)
-        let storage = metadata.allocateValueBuffer()
+        let buffer = ManagedValueBuffer(type: getter.returnType)
         RuntimeResultEncoder.initializeDirectValue(
             result,
             expectedType: getter.returnType,
-            to: storage
+            to: buffer.storage
         )
+        buffer.markInitialized()
         return DispatchState(
             configured: ConfiguredState(
                 getter: getter,
                 setter: setter,
                 recorder: recorder,
                 indices: indices,
-                storage: storage,
-                metadata: metadata,
+                buffer: buffer,
                 skipsForwardingSetter: skipsForwardingSetter
             )
         )

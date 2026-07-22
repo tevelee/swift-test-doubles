@@ -106,7 +106,7 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
                         )
                     }
                     return .failure(
-                        error.assumingMemoryBound(to: Failure.self).move()
+                        error.moveInitializedValue(as: Failure.self)
                     )
                 }
                 return .success(
@@ -169,7 +169,7 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
                         )
                     }
                     return .failure(
-                        error.assumingMemoryBound(to: Failure.self).move()
+                        error.moveInitializedValue(as: Failure.self)
                     )
                 }
                 return .success(
@@ -187,8 +187,8 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
         returning _: Result.Type,
         typedErrorType: Any.Type? = nil,
         body: (
-            UnsafeMutableRawPointer,
-            UnsafeMutableRawPointer?,
+            ManagedValueBuffer,
+            ManagedValueBuffer?,
             TrampolineCallFrame
         ) throws -> Output
     ) rethrows -> Output {
@@ -213,7 +213,7 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
         if case .indirect = resultLayout {
             frame.storeIndirectResultAddress(UInt(bitPattern: call.result.storage))
         } else {
-            call.result.zeroBytes()
+            call.result.zeroBorrowedBytes()
         }
         if let error = call.error, typedErrorUsesIndirectResultSlot {
             frame.storeDynamicGeneralPurposeArgument(
@@ -240,13 +240,7 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
         } else if let error = call.error {
             error.markInitialized()
         }
-        let output = try body(call.result.storage, call.error?.storage, frame)
-        if frame.returnedError == 0 {
-            call.result.markConsumed()
-        } else {
-            call.error?.markConsumed()
-        }
-        return output
+        return try body(call.result, call.error, frame)
     }
 
     private func withAsyncInvocation<Result, Output>(
@@ -255,8 +249,8 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
         typedErrorType: Any.Type? = nil,
         isThrowing: Bool = false,
         body: (
-            UnsafeMutableRawPointer,
-            UnsafeMutableRawPointer?,
+            ManagedValueBuffer,
+            ManagedValueBuffer?,
             TrampolineCallFrame
         ) throws -> Output
     ) async rethrows -> Output {
@@ -280,7 +274,7 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
             frame.storeDynamicGeneralPurposeArgument(resultAddress, at: 0)
             initialGeneralPurposeOffset = 1
         } else {
-            call.result.zeroBytes()
+            call.result.zeroBorrowedBytes()
             initialGeneralPurposeOffset = 0
         }
         let nextGeneralPurpose = encodeDynamicArguments(
@@ -321,38 +315,27 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
         } else if let error = call.error {
             error.markInitialized()
         }
-        let output = try body(call.result.storage, call.error?.storage, frame)
-        if frame.returnedError == 0 {
-            call.result.markConsumed()
-        } else {
-            call.error?.markConsumed()
-        }
-        return output
+        return try body(call.result, call.error, frame)
     }
 }
 
 private final class PreparedDirectArgument: @unchecked Sendable {
-    let metadata: Metadata
-    let storage: UnsafeMutableRawPointer
+    let buffer: ManagedValueBuffer
+
+    var storage: UnsafeMutableRawPointer { buffer.storage }
 
     init(value: Any, type: Any.Type) {
-        metadata = reflect(type)
-        storage = metadata.allocateValueBuffer(minimumByteCount: 16)
-        storage.initializeMemory(
-            as: UInt8.self,
-            repeating: 0,
-            count: metadata.valueBufferByteCount(minimum: 16)
+        buffer = ManagedValueBuffer(
+            type: type,
+            minimumByteCount: 16
         )
+        buffer.zeroBorrowedBytes()
         RuntimeResultEncoder.initializeDirectValue(
             value,
             expectedType: type,
-            to: storage
+            to: buffer.storage
         )
-    }
-
-    deinit {
-        metadata.vwt.destroy(storage)
-        storage.deallocate()
+        buffer.markInitialized()
     }
 }
 
@@ -413,7 +396,7 @@ private func encodeDynamicArguments(
 }
 
 private func moveDirectResult<Result>(
-    from storage: UnsafeMutableRawPointer,
+    from buffer: ManagedValueBuffer,
     as _: Result.Type
 ) -> Result {
     let metadata = reflect(Result.self)
@@ -421,13 +404,13 @@ private func moveDirectResult<Result>(
         metadata is FunctionMetadata
             || FunctionReabstraction.requiresStructuralReabstraction(Result.self)
     else {
-        return storage.assumingMemoryBound(to: Result.self).move()
+        return buffer.moveInitializedValue(as: Result.self)
     }
     let value = FunctionReabstraction.boxDirectValue(
         type: Result.self,
-        source: storage
+        source: buffer.storage
     )
-    metadata.vwt.destroy(storage)
+    buffer.destroyInitializedValue()
     guard let result = value as? Result else {
         preconditionFailure(
             "[TestDoubles] Dynamic closure result did not preserve \(Result.self)."

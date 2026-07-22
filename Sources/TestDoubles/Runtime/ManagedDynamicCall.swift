@@ -19,52 +19,10 @@ final class ManagedDynamicCall: @unchecked Sendable {
             count: MemoryLayout<TDCallFrame>.size
         )
         result = ManagedValueBuffer(type: resultType)
-        error = errorType.map(ManagedValueBuffer.init(type:))
+        error = errorType.map { ManagedValueBuffer(type: $0) }
     }
 
     deinit {
         rawFrame.deallocate()
-    }
-}
-
-final class ManagedValueBuffer: @unchecked Sendable {
-    private enum State {
-        case uninitialized
-        case initialized
-        case consumed
-    }
-
-    let metadata: Metadata
-    let storage: UnsafeMutableRawPointer
-    private var state = State.uninitialized
-
-    init(type: Any.Type) {
-        metadata = reflect(type)
-        storage = metadata.allocateValueBuffer()
-    }
-
-    func zeroBytes() {
-        storage.initializeMemory(
-            as: UInt8.self,
-            repeating: 0,
-            count: metadata.valueBufferByteCount()
-        )
-    }
-
-    func markInitialized() {
-        precondition(state == .uninitialized)
-        state = .initialized
-    }
-
-    func markConsumed() {
-        precondition(state == .initialized)
-        state = .consumed
-    }
-
-    deinit {
-        if state == .initialized {
-            metadata.vwt.destroy(storage)
-        }
-        storage.deallocate()
     }
 }

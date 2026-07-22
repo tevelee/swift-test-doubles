@@ -32,29 +32,22 @@ enum ReadCoroutineRuntime {
     /// yield_once_2 coroutine. Formally indirect results additionally own an
     /// initialized value buffer whose address is yielded to the caller.
     private final class ConfiguredState {
-        let storage: UnsafeMutableRawPointer
-        let metadata: Metadata
+        let buffer: ManagedValueBuffer
+
+        var storage: UnsafeMutableRawPointer { buffer.storage }
 
         init(result: Any, method: MethodDescriptor) {
-            let metadata = reflect(method.returnType)
-            let storage = metadata.allocateValueBuffer(minimumByteCount: 32)
-            storage.initializeMemory(
-                as: UInt8.self,
-                repeating: 0,
-                count: metadata.valueBufferByteCount(minimum: 32)
+            buffer = ManagedValueBuffer(
+                type: method.returnType,
+                minimumByteCount: 32
             )
+            buffer.zeroBorrowedBytes()
             RuntimeResultEncoder.initializeDirectValue(
                 result,
                 expectedType: method.returnType,
-                to: storage
+                to: buffer.storage
             )
-            self.storage = storage
-            self.metadata = metadata
-        }
-
-        deinit {
-            metadata.vwt.destroy(storage)
-            storage.deallocate()
+            buffer.markInitialized()
         }
     }
 
