@@ -38,8 +38,8 @@ struct RuntimeArgumentDecodingPlan: Sendable {
     }
 
     let arguments: [RuntimeArgumentSpec]
-    let initialGeneralPurposeOffset: Int
-    let hasTypedErrorDestination: Bool
+    let argumentLocations: [[CallFrameArgumentLocation]]
+    let typedErrorDestinationLocation: CallFrameArgumentLocation?
     let diagnosticContext: DiagnosticContext
 }
 
@@ -50,17 +50,27 @@ enum RuntimeArgumentDecoder {
         initialGeneralPurposeOffset: Int = 0,
         from frame: TrampolineCallFrame
     ) -> DecodedArguments {
-        decode(
+        let arguments = types.map {
+            RuntimeArgumentSpec(
+                type: $0,
+                layout: abiClass(for: $0),
+                ownership: .borrowed
+            )
+        }
+        let locationPlan = CallFrameArgumentLocationPlan(
+            arguments: arguments.map {
+                CallFrameArgumentShape(type: $0.type, layout: $0.layout)
+            },
+            initialGeneralPurposeOffset: initialGeneralPurposeOffset,
+            trailingGeneralPurposeWordCount:
+                typedErrorUsesIndirectResultSlot ? 1 : 0
+        )
+        return decode(
             RuntimeArgumentDecodingPlan(
-                arguments: types.map {
-                    RuntimeArgumentSpec(
-                        type: $0,
-                        layout: abiClass(for: $0),
-                        ownership: .borrowed
-                    )
-                },
-                initialGeneralPurposeOffset: initialGeneralPurposeOffset,
-                hasTypedErrorDestination: typedErrorUsesIndirectResultSlot,
+                arguments: arguments,
+                argumentLocations: locationPlan.arguments,
+                typedErrorDestinationLocation:
+                    locationPlan.trailingGeneralPurpose.first,
                 diagnosticContext: .dynamicFunction
             ),
             from: frame
@@ -73,12 +83,10 @@ enum RuntimeArgumentDecoder {
         initialGeneralPurposeOffset: Int = 0,
         consumeOwnedArguments: Bool = true
     ) -> DecodedArguments {
-        let hasAsyncIndirectResult: Bool
-        if method.isAsync, case .indirect = method.result.layout {
-            hasAsyncIndirectResult = true
-        } else {
-            hasAsyncIndirectResult = false
-        }
+        let transport = WitnessCallTransportPlan(
+            method: method,
+            initialGeneralPurposeOffset: initialGeneralPurposeOffset
+        )
         return decode(
             RuntimeArgumentDecodingPlan(
                 arguments: method.arguments.map {
@@ -89,9 +97,9 @@ enum RuntimeArgumentDecoder {
                             consumeOwnedArguments ? $0.ownership : .borrowed
                     )
                 },
-                initialGeneralPurposeOffset: initialGeneralPurposeOffset
-                    + (hasAsyncIndirectResult ? 1 : 0),
-                hasTypedErrorDestination: method.typedErrorUsesIndirectResultSlot,
+                argumentLocations: transport.argumentLocations,
+                typedErrorDestinationLocation:
+                    transport.typedErrorDestinationLocation,
                 diagnosticContext: .witness(method.name)
             ),
             from: frame
@@ -102,20 +110,12 @@ enum RuntimeArgumentDecoder {
         _ plan: RuntimeArgumentDecodingPlan,
         from frame: TrampolineCallFrame
     ) -> DecodedArguments {
-        let locationPlan = CallFrameArgumentLocationPlan(
-            arguments: plan.arguments.map {
-                CallFrameArgumentShape(type: $0.type, layout: $0.layout)
-            },
-            initialGeneralPurposeOffset: plan.initialGeneralPurposeOffset,
-            trailingGeneralPurposeWordCount:
-                plan.hasTypedErrorDestination ? 1 : 0
-        )
         var values: [Any] = []
         values.reserveCapacity(plan.arguments.count)
 
         for (argument, locations) in zip(
             plan.arguments,
-            locationPlan.arguments
+            plan.argumentLocations
         ) {
             let consumesArgument = argument.ownership == .owned
             switch argument.layout {
@@ -191,12 +191,7 @@ enum RuntimeArgumentDecoder {
         }
 
         let typedErrorDestination: UnsafeMutableRawPointer?
-        if plan.hasTypedErrorDestination {
-            guard let location = locationPlan.trailingGeneralPurpose.first else {
-                preconditionFailure(
-                    "[TestDoubles] Typed-error storage has no call-frame location."
-                )
-            }
+        if let location = plan.typedErrorDestinationLocation {
             let address = UInt(frame.scalarBits(at: location))
             guard let destination = UnsafeMutableRawPointer(bitPattern: address) else {
                 fatalError(plan.diagnosticContext.missingTypedErrorDestination)

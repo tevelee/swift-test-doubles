@@ -53,52 +53,23 @@ func asyncWitnessStackPlan(
 ) -> AsyncWitnessStackPlan {
     precondition(method.isAsync)
 
-    let hasIndirectResult: Bool
-    if case .indirect = method.result.layout {
-        hasIndirectResult = true
-    } else {
-        hasIndirectResult = false
-    }
-    let locationPlan = CallFrameArgumentLocationPlan(
-        arguments: method.arguments.map {
-            CallFrameArgumentShape(
-                type: $0.value.type,
-                layout: $0.value.layout
-            )
-        },
-        initialGeneralPurposeOffset: hasIndirectResult ? 1 : 0,
-        trailingGeneralPurposeWordCount:
-            method.typedErrorUsesIndirectResultSlot ? 1 : 0,
+    let transport = WitnessCallTransportPlan(
+        method: method,
+        trailingPayload: .dynamicSelf,
         architecture: architecture
     )
-    let occupiedGeneralPurposeRegisters = min(
-        locationPlan.generalPurposeWordCount,
-        architecture.generalPurposeArgumentRegisterCount
+    return asyncWitnessStackPlan(
+        transport: transport,
+        architecture: architecture
     )
-    let availableGeneralPurposeRegisters =
-        architecture.generalPurposeArgumentRegisterCount
-        - occupiedGeneralPurposeRegisters
-    // Generic protocol witnesses append dynamic-Self metadata and the witness
-    // table after formal arguments and hidden result/error storage.
-    let hiddenStackWordCount = max(
-        2 - availableGeneralPurposeRegisters,
-        0
-    )
+}
+
+private func asyncWitnessStackPlan(
+    transport: WitnessCallTransportPlan,
+    architecture: RuntimeArchitecture
+) -> AsyncWitnessStackPlan {
     let wordByteCount = MemoryLayout<UInt>.size
-    let (hiddenStackByteCount, hiddenOverflow) =
-        hiddenStackWordCount.multipliedReportingOverflow(by: wordByteCount)
-    precondition(
-        hiddenOverflow == false,
-        "[TestDoubles] Async witness hidden stack-byte count overflowed."
-    )
-    let (unalignedStackByteCount, totalOverflow) =
-        locationPlan.stackByteCount.addingReportingOverflow(
-            hiddenStackByteCount
-        )
-    precondition(
-        totalOverflow == false,
-        "[TestDoubles] Async witness stack-byte count overflowed."
-    )
+    let unalignedStackByteCount = transport.stackByteCount
     let stackAlignment = 2 * wordByteCount
     let stackAdjustmentByteCount: Int
     switch architecture {
@@ -140,8 +111,8 @@ func asyncWitnessStackPlan(
         "[TestDoubles] Async witness stack adjustment is not ABI-aligned."
     )
     return AsyncWitnessStackPlan(
-        decodedStackByteCount: locationPlan.stackByteCount,
-        hiddenStackByteCount: hiddenStackByteCount,
+        decodedStackByteCount: transport.decodedStackByteCount,
+        hiddenStackByteCount: transport.hiddenStackByteCount,
         stackAdjustmentByteCount: stackAdjustmentByteCount
     )
 }
@@ -165,26 +136,15 @@ func asyncForwardingStackPlan(
         return nil
     }
 
-    let hasIndirectResult: Bool
-    if case .indirect = method.result.layout {
-        hasIndirectResult = true
-    } else {
-        hasIndirectResult = false
-    }
-    let locationPlan = CallFrameArgumentLocationPlan(
-        arguments: method.arguments.map {
-            CallFrameArgumentShape(
-                type: $0.value.type,
-                layout: $0.value.layout
-            )
-        },
-        initialGeneralPurposeOffset: hasIndirectResult ? 1 : 0,
+    let transport = WitnessCallTransportPlan(
+        method: method,
+        trailingPayload: .dynamicSelf,
         architecture: architecture
     )
 
     var spilledArgumentIndex: Int?
     var visibleArgumentLocation: CallFrameArgumentLocation?
-    for (argumentIndex, locations) in locationPlan.arguments.enumerated() {
+    for (argumentIndex, locations) in transport.argumentLocations.enumerated() {
         for location in locations {
             guard case .stack = location.storage else { continue }
             guard visibleArgumentLocation == nil else { return nil }
@@ -194,8 +154,8 @@ func asyncForwardingStackPlan(
     }
     guard let spilledArgumentIndex,
         let visibleArgumentLocation,
-        locationPlan.stackByteCount == MemoryLayout<UInt>.size,
-        locationPlan.arguments[spilledArgumentIndex].count == 1,
+        transport.decodedStackByteCount == MemoryLayout<UInt>.size,
+        transport.argumentLocations[spilledArgumentIndex].count == 1,
         visibleArgumentLocation.storage == .stack(byteOffset: 0),
         visibleArgumentLocation.valueOffset == 0,
         visibleArgumentLocation.byteCount == MemoryLayout<UInt>.size,
@@ -210,7 +170,7 @@ func asyncForwardingStackPlan(
     }
 
     let witnessPlan = asyncWitnessStackPlan(
-        for: method,
+        transport: transport,
         architecture: architecture
     )
     guard witnessPlan.decodedStackByteCount == MemoryLayout<UInt>.size,

@@ -363,18 +363,13 @@ private func simdUnsupportedReason(for method: MethodDescriptor) -> String? {
     }
 
     for architecture in [RuntimeArchitecture.arm64, .x86_64] {
-        let locationPlan = CallFrameArgumentLocationPlan(
-            arguments: method.arguments.map {
-                CallFrameArgumentShape(
-                    type: $0.value.type,
-                    layout: $0.value.layout
-                )
-            },
+        let transport = WitnessCallTransportPlan(
+            method: method,
             architecture: architecture
         )
         for (argument, locations) in zip(
             method.arguments,
-            locationPlan.arguments
+            transport.argumentLocations
         ) where argument.value.type is any SIMD.Type {
             guard locations.count == 1,
                 case .vectorRegister = locations[0].storage

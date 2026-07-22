@@ -81,6 +81,7 @@ struct CallFrameArgumentLocation: Equatable, Sendable {
 struct CallFrameArgumentLocationPlan: Sendable {
     let arguments: [[CallFrameArgumentLocation]]
     let trailingGeneralPurpose: [CallFrameArgumentLocation]
+    let argumentStackByteCount: Int
     let generalPurposeWordCount: Int
     let stackByteCount: Int
 
@@ -98,6 +99,7 @@ struct CallFrameArgumentLocationPlan: Sendable {
         self.arguments = arguments.map { shape in
             shape.pieces.map { cursor.location(for: $0) }
         }
+        argumentStackByteCount = cursor.stackByteCount
         trailingGeneralPurpose = (0 ..< trailingGeneralPurposeWordCount).map {
             _ in
             cursor.location(

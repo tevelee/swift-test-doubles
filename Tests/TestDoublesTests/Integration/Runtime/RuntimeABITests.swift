@@ -174,6 +174,97 @@ protocol ExtendedAsyncABIProbe: Sendable {
 }
 
 @Suite struct RuntimeABITests {
+    @Test func witnessTransportPlanNamesEveryHiddenLocation() {
+        let indirectResult = MethodDescriptor(
+            kind: .method,
+            name: "load",
+            index: 0,
+            argumentTypes: Array(repeating: Int.self, count: 4),
+            returnType: LargeABIResult.self,
+            isAsync: true
+        )
+        let indirectPlan = WitnessCallTransportPlan(
+            method: indirectResult,
+            trailingPayload: .dynamicSelf,
+            architecture: .x86_64
+        )
+
+        #expect(
+            indirectPlan.asyncIndirectResultLocation?.storage
+                == .generalPurposeRegister(0)
+        )
+        #expect(
+            indirectPlan.argumentLocations.map { $0[0].storage }
+                == (1 ... 4).map {
+                    .generalPurposeRegister($0)
+                }
+        )
+        #expect(
+            indirectPlan.dynamicSelfLocations?.metadata.storage
+                == .generalPurposeRegister(5)
+        )
+        #expect(
+            indirectPlan.dynamicSelfLocations?.witnessTable.storage
+                == .stack(byteOffset: 0)
+        )
+        #expect(indirectPlan.decodedStackByteCount == 0)
+        #expect(indirectPlan.hiddenStackByteCount == 8)
+        #expect(indirectPlan.stackByteCount == 8)
+        #expect(indirectPlan.directForwardingHiddenArgumentIndex == nil)
+
+        let typedError = MethodDescriptor(
+            kind: .method,
+            name: "load",
+            index: 0,
+            argumentTypes: Array(repeating: Int.self, count: 6),
+            returnType: Int.self,
+            typedErrorType: AsyncStackLargeError.self,
+            isThrowing: true,
+            isAsync: true
+        )
+        let typedErrorPlan = WitnessCallTransportPlan(
+            method: typedError,
+            trailingPayload: .dynamicSelf,
+            architecture: .x86_64
+        )
+
+        #expect(
+            typedErrorPlan.typedErrorDestinationLocation?.storage
+                == .stack(byteOffset: 0)
+        )
+        #expect(typedErrorPlan.decodedStackByteCount == 8)
+        #expect(typedErrorPlan.hiddenStackByteCount == 16)
+        #expect(typedErrorPlan.stackByteCount == 24)
+        #expect(
+            typedErrorPlan.dynamicSelfLocations?.metadata.storage
+                == .stack(byteOffset: 8)
+        )
+        #expect(
+            typedErrorPlan.dynamicSelfLocations?.witnessTable.storage
+                == .stack(byteOffset: 16)
+        )
+
+        let adapterMethod = MethodDescriptor(
+            kind: .method,
+            name: "apply",
+            index: 0,
+            argumentTypes: [Double.self, Int.self, Int.self],
+            returnType: Int.self
+        )
+        let forwarding = WitnessCallTransportPlan(
+            method: adapterMethod,
+            trailingPayload: .dynamicSelf,
+            architecture: .x86_64
+        )
+        let adapter = WitnessCallTransportPlan(
+            method: adapterMethod,
+            trailingPayload: .typedAdapterInvocation,
+            architecture: .x86_64
+        )
+        #expect(forwarding.directForwardingHiddenArgumentIndex == 2)
+        #expect(adapter.typedAdapterInvocationArgumentIndex == 2)
+    }
+
     @Test func asyncStackBoundaryUsesPlannedPhysicalLocations() {
         func method(
             argumentCount: Int,

@@ -43,22 +43,17 @@ struct TypedWitnessAdapterFactory: @unchecked Sendable {
         guard ObjectIdentifier(metadata.resultType) == ObjectIdentifier(method.returnType) else {
             return "The typed adapter returns \(runtimeTypeName(metadata.resultType)), expected \(runtimeTypeName(method.returnType))."
         }
-        guard invocationArgumentIndex(for: method) < generalPurposeArgumentLimit else {
+        guard invocationArgumentIndex(for: method) != nil else {
             return "The requirement's explicit arguments leave no general-purpose argument register for its Stub.Invocation adapter parameter on this architecture."
         }
         return nil
     }
 
-    func invocationArgumentIndex(for method: MethodDescriptor) -> Int {
-        typedAdapterArgumentIndex(for: method)
-    }
-
-    private var generalPurposeArgumentLimit: Int {
-        #if arch(x86_64)
-            6
-        #else
-            8
-        #endif
+    func invocationArgumentIndex(for method: MethodDescriptor) -> Int? {
+        WitnessCallTransportPlan(
+            method: method,
+            trailingPayload: .typedAdapterInvocation
+        ).typedAdapterInvocationArgumentIndex
     }
 }
 
@@ -88,16 +83,14 @@ final class TypedWitnessAdapter: @unchecked Sendable {
 }
 
 func typedAdapterArgumentIndex(for method: MethodDescriptor) -> Int {
-    method.argumentLayouts.reduce(into: 0) { count, layout in
-        switch layout {
-            case .void, .floatingPoint:
-                break
-            case .integer(let words):
-                count += words
-            case .aggregate(let parts):
-                count += parts.count { $0.register == .gp }
-            case .indirect:
-                count += 1
-        }
+    let transport = WitnessCallTransportPlan(
+        method: method,
+        trailingPayload: .typedAdapterInvocation
+    )
+    guard let index = transport.typedAdapterInvocationArgumentIndex else {
+        preconditionFailure(
+            "[TestDoubles] A validated typed witness adapter has no general-purpose register for its invocation."
+        )
     }
+    return index
 }

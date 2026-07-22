@@ -742,63 +742,20 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
         protocolName: String,
         initialGeneralPurposeOffset: Int = 0
     ) throws -> Int {
-        var generalPurpose = initialGeneralPurposeOffset
-        var floatingPoint = 0
-        var stack = 0
-
-        if method.isAsync, case .indirect = method.result.layout {
-            generalPurpose += 1
-        }
-
-        func consumeGeneralPurpose(_ count: Int) {
-            for _ in 0 ..< count {
-                if generalPurpose < TrampolineCallFrame.generalPurposeArgumentLimit {
-                    generalPurpose += 1
-                } else {
-                    stack += 1
-                }
-            }
-        }
-
-        func consumeFloatingPoint() {
-            if floatingPoint < TrampolineCallFrame.floatingPointArgumentLimit {
-                floatingPoint += 1
-            } else {
-                stack += 1
-            }
-        }
-
-        for argument in method.arguments {
-            switch argument.value.layout {
-                case .void:
-                    break
-                case .integer(let words):
-                    consumeGeneralPurpose(words)
-                case .floatingPoint:
-                    consumeFloatingPoint()
-                case .aggregate(let parts):
-                    for part in parts {
-                        switch part.register {
-                            case .gp: consumeGeneralPurpose(1)
-                            case .fp: consumeFloatingPoint()
-                        }
-                    }
-                case .indirect:
-                    consumeGeneralPurpose(1)
-            }
-        }
-        if method.typedErrorUsesIndirectResultSlot {
-            consumeGeneralPurpose(1)
-        }
-
-        guard stack == 0,
-            generalPurpose + 2 <= TrampolineCallFrame.generalPurposeArgumentLimit
+        let transport = WitnessCallTransportPlan(
+            method: method,
+            initialGeneralPurposeOffset: initialGeneralPurposeOffset,
+            trailingPayload: .dynamicSelf
+        )
+        guard
+            let hiddenArgumentIndex =
+                transport.directForwardingHiddenArgumentIndex
         else {
             throw StubError.unsupportedProtocolShape(
                 protocolName: protocolName,
                 reason: "Forwarding Spy requirement \(method.index) uses stack arguments or leaves no registers for its target metadata and witness table. Use fewer arguments or a hand-written spy."
             )
         }
-        return generalPurpose
+        return hiddenArgumentIndex
     }
 }
