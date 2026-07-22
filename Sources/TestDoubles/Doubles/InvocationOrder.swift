@@ -110,28 +110,35 @@ public final class InvocationOrder: @unchecked Sendable {
         line: UInt,
         column: UInt
     ) {
-        let currentCursor = lock.withLock { cursor }
-        guard
-            let match = recorder.earliestOrderedMatch(
-                recording: recording,
-                after: currentCursor
-            )
-        else {
-            reportIssue(
-                "Ordered verification failed: no call to \(recording.name) matching "
-                    + "the expectation was recorded after the previously verified "
-                    + "interaction.",
-                fileID: fileID,
-                filePath: filePath,
-                line: line,
-                column: column
-            )
-            return
-        }
+        while true {
+            let currentCursor = lock.withLock { cursor }
+            guard
+                let match = recorder.earliestOrderedMatch(
+                    recording: recording,
+                    after: currentCursor
+                )
+            else {
+                reportIssue(
+                    "Ordered verification failed: no call to \(recording.name) matching "
+                        + "the expectation was recorded after the previously verified "
+                        + "interaction.",
+                    fileID: fileID,
+                    filePath: filePath,
+                    line: line,
+                    column: column
+                )
+                return
+            }
 
-        recorder.commitSuccessfulVerification(of: [match])
-        lock.withLock {
-            cursor = Swift.max(cursor, match.call.sequence ?? cursor)
+            let advanced = lock.withLock {
+                guard cursor == currentCursor else { return false }
+                cursor = Swift.max(cursor, match.call.sequence ?? cursor)
+                return true
+            }
+            guard advanced else { continue }
+
+            recorder.commitSuccessfulVerification(of: [match])
+            return
         }
     }
 }
