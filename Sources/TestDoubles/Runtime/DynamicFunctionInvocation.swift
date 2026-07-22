@@ -226,24 +226,12 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
             )
         }
         td_swift_invoke_function(function, context, discriminator, call.rawFrame)
-        if frame.returnedError == 0 {
-            decodeDirectResult(
-                resultLayout,
-                frame: call.rawFrame,
-                into: call.result.storage
-            )
-            call.result.markInitialized()
-        } else if let error = call.error, typedErrorUsesIndirectResultSlot == false {
-            let errorLayout = plan.typedErrorLayout!
-            decodeDirectResult(
-                errorLayout,
-                frame: call.rawFrame,
-                into: error.storage
-            )
-            error.markInitialized()
-        } else if let error = call.error {
-            error.markInitialized()
-        }
+        call.finish(
+            resultLayout: resultLayout,
+            typedErrorLayout: plan.typedErrorLayout,
+            typedErrorUsesIndirectResultSlot:
+                typedErrorUsesIndirectResultSlot
+        )
         return try body(call.result, call.error, frame)
     }
 
@@ -301,24 +289,12 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
             isThrowing,
             plan.directArgumentPlan.usesStackArgument
         )
-        if frame.returnedError == 0 {
-            decodeDirectResult(
-                resultLayout,
-                frame: call.rawFrame,
-                into: call.result.storage
-            )
-            call.result.markInitialized()
-        } else if let error = call.error, typedErrorUsesIndirectResultSlot == false {
-            let errorLayout = plan.typedErrorLayout!
-            decodeDirectResult(
-                errorLayout,
-                frame: call.rawFrame,
-                into: error.storage
-            )
-            error.markInitialized()
-        } else if let error = call.error {
-            error.markInitialized()
-        }
+        call.finish(
+            resultLayout: resultLayout,
+            typedErrorLayout: plan.typedErrorLayout,
+            typedErrorUsesIndirectResultSlot:
+                typedErrorUsesIndirectResultSlot
+        )
         return try body(call.result, call.error, frame)
     }
 }

@@ -22,6 +22,40 @@ final class ManagedDynamicCall: @unchecked Sendable {
         error = errorType.map { ManagedValueBuffer(type: $0) }
     }
 
+    /// Completes the ownership transition for values returned through the
+    /// captured frame. Direct values are copied out of return registers;
+    /// indirect values already occupy their caller-provided buffers.
+    func finish(
+        resultLayout: ABIClass,
+        typedErrorLayout: ABIClass?,
+        typedErrorUsesIndirectResultSlot: Bool
+    ) {
+        if frame.returnedError == 0 {
+            decodeDirectResult(
+                resultLayout,
+                frame: rawFrame,
+                into: result.storage
+            )
+            result.markInitialized()
+            return
+        }
+
+        guard let error else { return }
+        if typedErrorUsesIndirectResultSlot == false {
+            guard let typedErrorLayout else {
+                preconditionFailure(
+                    "[TestDoubles] A typed closure returned no error layout."
+                )
+            }
+            decodeDirectResult(
+                typedErrorLayout,
+                frame: rawFrame,
+                into: error.storage
+            )
+        }
+        error.markInitialized()
+    }
+
     deinit {
         rawFrame.deallocate()
     }

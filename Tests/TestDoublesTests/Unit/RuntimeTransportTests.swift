@@ -53,16 +53,11 @@ private struct WideTransportError: Error, Equatable {
             isAsync: false,
             into: call.frame
         )
-        if case .indirect = layout {
-            call.result.markInitialized()
-        } else {
-            decodeDirectResult(
-                layout,
-                frame: call.rawFrame,
-                into: call.result.storage
-            )
-            call.result.markInitialized()
-        }
+        call.finish(
+            resultLayout: layout,
+            typedErrorLayout: nil,
+            typedErrorUsesIndirectResultSlot: false
+        )
         return call.result.moveInitializedValue(as: Value.self)
     }
 }
@@ -112,14 +107,11 @@ private struct WideTransportError: Error, Equatable {
             isAsync: false,
             into: call.frame
         )
-        if usesIndirectResultSlot == false {
-            decodeDirectResult(
-                layout,
-                frame: call.rawFrame,
-                into: call.error!.storage
-            )
-        }
-        call.error!.markInitialized()
+        call.finish(
+            resultLayout: .void,
+            typedErrorLayout: layout,
+            typedErrorUsesIndirectResultSlot: usesIndirectResultSlot
+        )
         return call.error!.moveInitializedValue(as: Failure.self)
     }
 }
