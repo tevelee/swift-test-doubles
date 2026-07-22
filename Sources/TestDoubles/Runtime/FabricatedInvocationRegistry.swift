@@ -35,13 +35,24 @@ final class DummyInvocation: Sendable {
 
 final class PreparedRuntimeMethod: Sendable {
     let descriptor: MethodDescriptor
-    let decodingTransport: WitnessCallTransportPlan
+    let consumingDecodingPlan: RuntimeArgumentDecodingPlan
+    let borrowedDecodingPlan: RuntimeArgumentDecodingPlan
     let resultTransport: RuntimeResultTransportPlan
     let asyncStackAdjustmentByteCount: Int?
 
     init(_ descriptor: MethodDescriptor) {
         self.descriptor = descriptor
-        decodingTransport = WitnessCallTransportPlan(method: descriptor)
+        let decodingTransport = WitnessCallTransportPlan(method: descriptor)
+        consumingDecodingPlan = RuntimeArgumentDecodingPlan.witness(
+            method: descriptor,
+            transport: decodingTransport,
+            consumeOwnedArguments: true
+        )
+        borrowedDecodingPlan = RuntimeArgumentDecodingPlan.witness(
+            method: descriptor,
+            transport: decodingTransport,
+            consumeOwnedArguments: false
+        )
         resultTransport = RuntimeResultTransportPlan(
             resultType: descriptor.returnType
         )

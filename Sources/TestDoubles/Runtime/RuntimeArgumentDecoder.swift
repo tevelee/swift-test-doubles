@@ -41,6 +41,27 @@ struct RuntimeArgumentDecodingPlan: Sendable {
     let argumentLocations: [[CallFrameArgumentLocation]]
     let typedErrorDestinationLocation: CallFrameArgumentLocation?
     let diagnosticContext: DiagnosticContext
+
+    static func witness(
+        method: MethodDescriptor,
+        transport: WitnessCallTransportPlan,
+        consumeOwnedArguments: Bool
+    ) -> Self {
+        Self(
+            arguments: method.arguments.map {
+                RuntimeArgumentSpec(
+                    type: $0.value.type,
+                    layout: $0.value.layout,
+                    ownership:
+                        consumeOwnedArguments ? $0.ownership : .borrowed
+                )
+            },
+            argumentLocations: transport.argumentLocations,
+            typedErrorDestinationLocation:
+                transport.typedErrorDestinationLocation,
+            diagnosticContext: .witness(method.name)
+        )
+    }
 }
 
 enum RuntimeArgumentDecoder {
@@ -82,12 +103,10 @@ enum RuntimeArgumentDecoder {
         from frame: TrampolineCallFrame,
         consumeOwnedArguments: Bool = true
     ) -> DecodedArguments {
-        decode(
-            method: runtimeMethod.descriptor,
-            transport: runtimeMethod.decodingTransport,
-            from: frame,
-            consumeOwnedArguments: consumeOwnedArguments
-        )
+        if consumeOwnedArguments {
+            return decode(runtimeMethod.consumingDecodingPlan, from: frame)
+        }
+        return decode(runtimeMethod.borrowedDecodingPlan, from: frame)
     }
 
     static func decode(
@@ -101,40 +120,17 @@ enum RuntimeArgumentDecoder {
             initialGeneralPurposeOffset: initialGeneralPurposeOffset
         )
         return decode(
-            method: method,
-            transport: transport,
-            from: frame,
-            consumeOwnedArguments: consumeOwnedArguments
-        )
-    }
-
-    private static func decode(
-        method: MethodDescriptor,
-        transport: WitnessCallTransportPlan,
-        from frame: TrampolineCallFrame,
-        consumeOwnedArguments: Bool
-    ) -> DecodedArguments {
-        decode(
-            RuntimeArgumentDecodingPlan(
-                arguments: method.arguments.map {
-                    RuntimeArgumentSpec(
-                        type: $0.value.type,
-                        layout: $0.value.layout,
-                        ownership:
-                            consumeOwnedArguments ? $0.ownership : .borrowed
-                    )
-                },
-                argumentLocations: transport.argumentLocations,
-                typedErrorDestinationLocation:
-                    transport.typedErrorDestinationLocation,
-                diagnosticContext: .witness(method.name)
+            RuntimeArgumentDecodingPlan.witness(
+                method: method,
+                transport: transport,
+                consumeOwnedArguments: consumeOwnedArguments
             ),
             from: frame
         )
     }
 
     private static func decode(
-        _ plan: RuntimeArgumentDecodingPlan,
+        _ plan: borrowing RuntimeArgumentDecodingPlan,
         from frame: TrampolineCallFrame
     ) -> DecodedArguments {
         precondition(
