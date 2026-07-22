@@ -1,11 +1,6 @@
 import CTestDoublesTrampoline
 import Echo
 
-protocol ModifyCoroutineForwardingState: AnyObject, Sendable {
-    var yieldedStorage: UnsafeMutableRawPointer { get }
-    func finish(isAborting: Bool)
-}
-
 @_cdecl("td_swift_modify_trampoline_handler")
 func td_swift_modify_trampoline_handler(
     _ rawFrame: UnsafeMutablePointer<TDCallFrame>?
@@ -31,7 +26,8 @@ private enum ModifyCoroutineRuntime {
     /// Owns the configured value yielded by one `_modify` invocation until
     /// Swift resumes the coroutine, then writes the final value through the
     /// paired setter on both normal and abort/unwind paths.
-    private final class ConfiguredState {
+    private final class ConfiguredState: YieldingAccessorState, @unchecked Sendable {
+        let kind = YieldingAccessorKind.modify
         let getter: MethodDescriptor
         let setter: MethodDescriptor
         let recorder: StubRecorder
@@ -39,7 +35,8 @@ private enum ModifyCoroutineRuntime {
         let buffer: ManagedValueBuffer
         let skipsForwardingSetter: Bool
 
-        var storage: UnsafeMutableRawPointer { buffer.storage }
+        var yieldedStorage: UnsafeMutableRawPointer? { buffer.storage }
+        private var storage: UnsafeMutableRawPointer { buffer.storage }
 
         init(
             getter: MethodDescriptor,
@@ -92,10 +89,11 @@ private enum ModifyCoroutineRuntime {
                         // target after the target `_modify` was skipped.
                         return
                     case .behavior(let behavior):
-                        _ = ModifyCoroutineRuntime.behaviorResult(
+                        _ = SynchronousAccessorDispatch.evaluate(
                             behavior,
                             method: setter,
-                            arguments: arguments
+                            arguments: arguments,
+                            role: .modify
                         )
                         return
                 }
@@ -110,37 +108,6 @@ private enum ModifyCoroutineRuntime {
                 fatalError(
                     "[TestDoubles] A nonthrowing _modify setter handler threw \(error)."
                 )
-            }
-        }
-    }
-
-    /// Retains either configured storage or the real target coroutine until
-    /// Swift resumes the fabricated outer coroutine exactly once.
-    private final class DispatchState {
-        private enum Storage {
-            case configured(ConfiguredState)
-            case forwarded(any ModifyCoroutineForwardingState)
-        }
-
-        let yieldedStorage: UnsafeMutableRawPointer
-        private let storage: Storage
-
-        init(configured: ConfiguredState) {
-            storage = .configured(configured)
-            yieldedStorage = configured.storage
-        }
-
-        init(forwarded: any ModifyCoroutineForwardingState) {
-            storage = .forwarded(forwarded)
-            yieldedStorage = forwarded.yieldedStorage
-        }
-
-        func finish(isAborting: Bool) {
-            switch storage {
-                case .configured(let configured):
-                    configured.finish(isAborting: isAborting)
-                case .forwarded(let forwarded):
-                    forwarded.finish(isAborting: isAborting)
             }
         }
     }
@@ -179,15 +146,13 @@ private enum ModifyCoroutineRuntime {
             from: frame,
             initialGeneralPurposeOffset: 1
         ).values
-        let state: DispatchState
+        let state: any YieldingAccessorState
         if let forwarder = invocation.forwarder {
             switch recorder.prepareDispatch(method: getter, args: indices) {
                 case .forwarding:
-                    state = DispatchState(
-                        forwarded: forwarder.makeModifyState(
-                            for: getter,
-                            frame: frame
-                        )
+                    state = forwarder.makeModifyState(
+                        for: getter,
+                        frame: frame
                     )
 
                 case .placeholder:
@@ -197,10 +162,11 @@ private enum ModifyCoroutineRuntime {
 
                 case .behavior(let behavior):
                     state = makeConfiguredState(
-                        result: behaviorResult(
+                        result: SynchronousAccessorDispatch.evaluate(
                             behavior,
                             method: getter,
-                            arguments: indices
+                            arguments: indices,
+                            role: .modify
                         ),
                         getter: getter,
                         setter: setter,
@@ -211,10 +177,11 @@ private enum ModifyCoroutineRuntime {
             }
         } else {
             state = makeConfiguredState(
-                result: dispatch(
+                result: SynchronousAccessorDispatch.dispatch(
                     method: getter,
                     arguments: indices,
-                    recorder: recorder
+                    recorder: recorder,
+                    role: .modify
                 ),
                 getter: getter,
                 setter: setter,
@@ -223,9 +190,14 @@ private enum ModifyCoroutineRuntime {
                 skipsForwardingSetter: false
             )
         }
+        guard let yieldedStorage = state.yieldedStorage else {
+            preconditionFailure(
+                "[TestDoubles] _modify coroutine produced null yielded storage."
+            )
+        }
         return TDModifyCoroutineResult(
-            state: RetainedRuntimeState.retain(state),
-            yieldedStorage: state.yieldedStorage
+            state: YieldingAccessorRuntime.retain(state),
+            yieldedStorage: yieldedStorage
         )
     }
 
@@ -233,13 +205,13 @@ private enum ModifyCoroutineRuntime {
         _ rawState: UnsafeMutableRawPointer,
         isAborting: Bool
     ) {
-        let state = RetainedRuntimeState.consume(
-            DispatchState.self,
-            from: rawState,
+        YieldingAccessorRuntime.finish(
+            rawState,
+            as: .modify,
+            isAborting: isAborting,
             invalidTypeMessage:
                 "[TestDoubles] _modify coroutine state has an invalid type."
         )
-        state.finish(isAborting: isAborting)
     }
 
     private static func makeConfiguredState(
@@ -249,7 +221,7 @@ private enum ModifyCoroutineRuntime {
         recorder: StubRecorder,
         indices: [Any],
         skipsForwardingSetter: Bool
-    ) -> DispatchState {
+    ) -> any YieldingAccessorState {
         let buffer = ManagedValueBuffer(type: getter.returnType)
         RuntimeValueTransport.initializeDirectValue(
             result,
@@ -257,69 +229,13 @@ private enum ModifyCoroutineRuntime {
             to: buffer.storage
         )
         buffer.markInitialized()
-        return DispatchState(
-            configured: ConfiguredState(
-                getter: getter,
-                setter: setter,
-                recorder: recorder,
-                indices: indices,
-                buffer: buffer,
-                skipsForwardingSetter: skipsForwardingSetter
-            )
+        return ConfiguredState(
+            getter: getter,
+            setter: setter,
+            recorder: recorder,
+            indices: indices,
+            buffer: buffer,
+            skipsForwardingSetter: skipsForwardingSetter
         )
-    }
-
-    private static func dispatch(
-        method: MethodDescriptor,
-        arguments: [Any],
-        recorder: StubRecorder
-    ) -> Any {
-        func opened<Result>(_ type: Result.Type) -> Any {
-            do {
-                return try recorder.dispatchTyped(
-                    method: method,
-                    args: arguments,
-                    as: type
-                )
-            } catch {
-                fatalError(
-                    "[TestDoubles] A nonthrowing _modify getter handler threw \(error)."
-                )
-            }
-        }
-        return _openExistential(method.returnType, do: opened)
-    }
-
-    private static func behaviorResult(
-        _ behavior: StubRecorder.StubEntry.Behavior,
-        method: MethodDescriptor,
-        arguments: [Any]
-    ) -> Any {
-        let result: Any
-        do {
-            switch behavior {
-                case .fixed(let fixedResult):
-                    result = try fixedResult.get()
-                case .fixedSequence:
-                    preconditionFailure(
-                        "[TestDoubles] A queued _modify result was not reserved during dispatch."
-                    )
-                case .immediate(let handler):
-                    result = try handler(arguments)
-                case .suspending:
-                    fatalError(
-                        "[TestDoubles] A suspending handler was selected for synchronous _modify dispatch of \(method.name)."
-                    )
-            }
-        } catch {
-            fatalError(
-                "[TestDoubles] A nonthrowing _modify accessor handler threw \(error)."
-            )
-        }
-
-        func opened<Result>(_ type: Result.Type) -> Any {
-            requireStubbedResult(result, as: type, method: method.name)
-        }
-        return _openExistential(method.returnType, do: opened)
     }
 }

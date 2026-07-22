@@ -1,10 +1,11 @@
 import CTestDoublesTrampoline
 
 final class ForwardedModifyState:
-    ModifyCoroutineForwardingState,
+    YieldingAccessorState,
     @unchecked Sendable
 {
-    let yieldedStorage: UnsafeMutableRawPointer
+    let kind = YieldingAccessorKind.modify
+    let yieldedStorage: UnsafeMutableRawPointer?
 
     private let owner: AnyObject
     private let resume: UnsafeRawPointer
@@ -85,9 +86,10 @@ final class ForwardedModifyState:
 }
 
 final class ForwardedReadState:
-    ReadCoroutineForwardingState,
+    YieldingAccessorState,
     @unchecked Sendable
 {
+    let kind = YieldingAccessorKind.read
     let yieldedStorage: UnsafeMutableRawPointer?
 
     private let owner: AnyObject
@@ -155,7 +157,10 @@ final class ForwardedReadState:
         callerFrame.deallocate()
     }
 
-    func finish() {
+    func finish(isAborting: Bool) {
+        // Swift 6.3 lowers both normal completion and unwind of yield_once_2
+        // through the same continuation. Read resumption has no abort variant.
+        _ = isAborting
         precondition(
             didFinish == false,
             "[TestDoubles] A forwarded read coroutine resumed more than once."

@@ -5,11 +5,11 @@ protocol ProtocolForwarding: AnyObject, Sendable {
     func makeModifyState(
         for method: MethodDescriptor,
         frame: TrampolineCallFrame
-    ) -> any ModifyCoroutineForwardingState
+    ) -> any YieldingAccessorState
     func makeReadState(
         for method: MethodDescriptor,
         frame: TrampolineCallFrame
-    ) -> any ReadCoroutineForwardingState
+    ) -> any YieldingAccessorState
     func makeAsyncState(
         for method: MethodDescriptor,
         frame: TrampolineCallFrame
@@ -45,7 +45,7 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
     func makeReadState(
         for method: MethodDescriptor,
         frame: TrampolineCallFrame
-    ) -> any ReadCoroutineForwardingState {
+    ) -> any YieldingAccessorState {
         guard let plan = plans.reads[method.index] else {
             preconditionFailure(
                 "[TestDoubles] No read forwarding plan exists for Spy requirement \(method.index)."
@@ -62,7 +62,7 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
     func makeModifyState(
         for method: MethodDescriptor,
         frame: TrampolineCallFrame
-    ) -> any ModifyCoroutineForwardingState {
+    ) -> any YieldingAccessorState {
         guard let plan = plans.modifications[method.index] else {
             preconditionFailure(
                 "[TestDoubles] No _modify forwarding plan exists for Spy requirement \(method.index)."
