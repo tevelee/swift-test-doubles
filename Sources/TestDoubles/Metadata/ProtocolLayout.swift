@@ -292,18 +292,8 @@ extension ProtocolLayout {
             let associatedTypeNames = descriptor.associatedTypeNames
                 .split(separator: " ")
                 .map(String.init)
-            let conformanceSignature = signature.filter {
-                genericRequirementKindCode($0) == 0
-            }
-            let classLayoutRequirements = signature.filter {
-                genericRequirementKindCode($0) == 0x1f
-            }
-            guard conformanceSignature.count + classLayoutRequirements.count == signature.count else {
-                throw StubError.unsupportedProtocolShape(
-                    protocolName: descriptor.name,
-                    reason: "Only inherited-protocol, associated-type conformance, and class-layout constraints are supported."
-                )
-            }
+            let (conformanceSignature, classLayoutRequirements) =
+                try validatedSignatureConstraints(signature, for: descriptor)
             let referenceAssociatedTypeNames =
                 try validateClassLayoutRequirements(
                     classLayoutRequirements,
@@ -515,6 +505,40 @@ extension ProtocolLayout {
             )
         }
 
+        private func validatedSignatureConstraints(
+            _ signature: [GenericRequirementDescriptor],
+            for descriptor: ProtocolDescriptor
+        ) throws -> (
+            conformances: [GenericRequirementDescriptor],
+            classLayouts: [GenericRequirementDescriptor]
+        ) {
+            let conformances = signature.filter {
+                genericRequirementKindCode($0) == 0
+            }
+            let classLayouts = signature.filter {
+                genericRequirementKindCode($0) == 0x1f
+            }
+            let invertedProtocols = signature.filter {
+                genericRequirementKindCode($0) == 5
+            }
+            guard
+                conformances.count + classLayouts.count
+                    + invertedProtocols.count == signature.count
+            else {
+                throw StubError.unsupportedProtocolShape(
+                    protocolName: descriptor.name,
+                    reason: "Only inherited-protocol, associated-type conformance, and class-layout constraints are supported."
+                )
+            }
+            if let requirement = invertedProtocols.first {
+                throw StubError.unsupportedProtocolShape(
+                    protocolName: descriptor.name,
+                    reason: invertedProtocolDiagnostic(for: requirement)
+                )
+            }
+            return (conformances, classLayouts)
+        }
+
         private func appendReadCoroutineRequirement(
             at index: Int,
             from localRequirements: [ProtocolRequirement],
@@ -658,4 +682,25 @@ private func genericRequirementLayoutKindCode(
     // newer layout-kind enum before this parser can reject it.
     let pointer = unsafeBitCast(requirement, to: UnsafeRawPointer.self)
     return pointer.load(fromByteOffset: 8, as: UInt32.self)
+}
+
+private func invertedProtocolDiagnostic(
+    for requirement: GenericRequirementDescriptor
+) -> String {
+    let pointer = unsafeBitCast(requirement, to: UnsafeRawPointer.self)
+    // The InvertedProtocols payload stores a UInt16 generic-parameter index,
+    // followed by Swift's ABI-defined Copyable/Escapable bitset.
+    let protocols = pointer.load(fromByteOffset: 10, as: UInt16.self)
+    let copyable = protocols & 0x1 != 0
+    let escapable = protocols & 0x2 != 0
+    if copyable, escapable {
+        return "The protocol relaxes Copyable and Escapable with `~Copyable` and `~Escapable`. Runtime test doubles record escaping `Any` values, which require copyable, escapable payloads."
+    }
+    if copyable {
+        return "The protocol relaxes Copyable with `~Copyable`. Runtime test doubles record values as escaping `Any`, which requires Copyable payloads."
+    }
+    if escapable {
+        return "The protocol relaxes Escapable with `~Escapable`. Runtime test doubles retain recorded values beyond the call, which requires Escapable payloads."
+    }
+    return "The protocol uses an unknown inverted-protocol constraint. Runtime test doubles require Copyable and Escapable payloads."
 }

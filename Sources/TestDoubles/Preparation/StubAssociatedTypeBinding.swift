@@ -37,12 +37,20 @@ extension Stub {
             throw StubError.typeIsNotProtocol(typeDescription: typeDescription)
         }
         let roots = metadata.protocols
-        guard metadata.specialProtocol == .none,
-            metadata.numberOfWitnessTables == roots.count
-        else {
+        guard metadata.specialProtocol == .none else {
             throw StubError.unsupportedProtocolShape(
                 protocolName: typeDescription,
-                reason: "Only ordinary Swift opaque or class-constrained protocol existentials are supported."
+                reason: "Special runtime protocols require dedicated representation and dispatch support."
+            )
+        }
+        guard metadata.numberOfWitnessTables == roots.count else {
+            let reason =
+                metadata.numberOfWitnessTables < roots.count
+                ? "The existential includes a protocol without a Swift witness table. Objective-C-only protocols use selector/IMP dispatch, which requires a separate runtime backend."
+                : "The existential exposes more witness tables than protocol descriptors."
+            throw StubError.unsupportedProtocolShape(
+                protocolName: typeDescription,
+                reason: reason
             )
         }
         let representation: StubExistentialRepresentation

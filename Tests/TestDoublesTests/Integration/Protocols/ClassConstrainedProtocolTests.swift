@@ -397,14 +397,11 @@ private func exerciseSuperclassPayloadLifetime() throws -> (
 
     #if canImport(ObjectiveC)
         @Test func objectiveCOnlyProtocolFailsClosed() {
-            // Objective-C existentials do not expose an ordinary Swift witness
-            // table, so either metadata extraction or shape validation rejects
-            // them before allocation.
-            expectStubError({
+            expectUnsupportedProtocolShape(containing: "selector/IMP dispatch") {
                 _ = try Stub<any ObjectiveCClassProbe>(
                     .method(returning: Void.self)
                 )
-            }) { _ in true }
+            }
         }
     #endif
 }
