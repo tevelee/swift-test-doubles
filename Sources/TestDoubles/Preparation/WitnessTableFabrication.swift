@@ -307,8 +307,23 @@ extension Stub {
                         requirementIndex: requirement.witnessIndex
                     )
                 }
-                (witnessTable + (1 + requirement.witnessIndex) * wordSize).storeBytes(
-                    of: trampoline,
+                let slot =
+                    witnessTable
+                    + (1 + requirement.witnessIndex) * wordSize
+                let flags = node.descriptor.requirements[
+                    requirement.witnessIndex
+                ].flags
+                let declarationDiscriminator = UInt16(
+                    truncatingIfNeeded: flags.bits >> 16
+                )
+                let signedTrampoline =
+                    td_sign_modify_witness_pointer(
+                        trampoline,
+                        UnsafeRawPointer(slot),
+                        declarationDiscriminator
+                    ) ?? trampoline
+                slot.storeBytes(
+                    of: signedTrampoline,
                     as: UnsafeRawPointer.self
                 )
             }

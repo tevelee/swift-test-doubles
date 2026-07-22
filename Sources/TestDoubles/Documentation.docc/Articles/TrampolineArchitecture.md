@@ -124,6 +124,13 @@ abort resumes perform writeback because Swift preserves mutations made before
 a thrown unwind. Indexed access retains the borrowed indices across the yield
 and restores the setter's `[value, indices...]` ABI order.
 
+For an unmatched Spy call, the same outer veneer authenticates and enters the
+target's direct `_modify` witness with a retained 32-byte caller frame. It
+relays the target's yielded storage directly, then authenticates the target
+continuation against that frame and forwards Swift's normal-or-abort flag
+exactly once. A matching getter registration stays on the configured storage
+path and never enters the target coroutine.
+
 A Swift 6.3 `read` property or subscript instead has one `yield_once_2`
 coroutine descriptor and no separate getter slot. Fabrication maps that witness
 to a getter-shaped recorder entry, emits the compiler's 16-byte descriptor, and

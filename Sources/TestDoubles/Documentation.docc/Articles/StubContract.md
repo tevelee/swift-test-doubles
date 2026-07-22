@@ -144,6 +144,13 @@ value. Swift unwind is non-transactional, so a value changed before a thrown
 error is written back on the abort path too. Subscript indices are retained
 across the yield and passed after the final value in setter ABI order.
 
+For a forwarding ``Spy``, a matching getter registration keeps that configured
+getter-and-setter path and does not enter the target. An unmatched mutation
+enters the target's `_modify` witness, relays its yielded storage without a
+copy, retains the target across the access, and forwards normal resume or abort
+exactly once. The target therefore owns its ordinary mutation and writeback
+semantics.
+
 A Swift 6.3 `read` accessor uses its one coroutine witness as a getter-shaped
 recorder dispatch. Configure and verify a property or subscript with the normal
 getter APIs. The runtime initializes result storage, yields a borrowed direct or

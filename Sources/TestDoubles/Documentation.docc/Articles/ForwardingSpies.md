@@ -89,10 +89,18 @@ Typed-throwing getters cannot be represented by the forwarding trampoline; use
 
 Forwarding uses the same runtime-generated existential and platform boundary as
 ``Stub``. It currently accepts synchronous, throwing, async, and
-async-throwing instance methods and read-only getters when their
-arguments fit the supported register transport. This includes inherited
-requirements and concretely bound associated-type values. Getter effects cover
-ordinary untyped `throws`; typed-throwing getters remain unsupported.
+async-throwing instance methods, getters, setters, and read-write property and
+subscript mutation when their arguments fit the supported register transport.
+This includes inherited requirements and concretely bound associated-type
+values. Getter effects cover ordinary untyped `throws`; typed-throwing getters
+remain unsupported.
+
+Compound assignment and `inout` access use the target's `_modify` coroutine.
+A matching getter registration keeps the configured writable-storage path and
+does not enter the target. Otherwise the spy relays the storage yielded by the
+target, keeps the target alive for the entire access, and resumes or aborts the
+target exactly once. Mutations and target writeback therefore persist on both
+normal completion and unwind.
 
 Swift 6.3 `read` property and subscript accessors are supported within the
 synchronous, nonthrowing, borrowed-value ABI used by ``Stub``. A matching
@@ -112,7 +120,6 @@ when the protocol requires any of these forwarding shapes:
 - Direct or optional dynamic `Self` results
 - Function-valued arguments or results
 - Arguments that spill to the stack or leave no registers for target metadata
-- `_modify` coroutines used by compound assignment and `inout` access
 - `read` coroutine descriptors outside the supported Swift 6.3 `yield_once_2`
   shape, including Swift 6.4's paired legacy `read` and yielding-borrow
   witnesses

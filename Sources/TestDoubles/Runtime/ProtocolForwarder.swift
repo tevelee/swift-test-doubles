@@ -3,6 +3,10 @@ import Echo
 
 protocol ProtocolForwarding: AnyObject, Sendable {
     func forward(_ method: MethodDescriptor, frame: TrampolineCallFrame)
+    func makeModifyState(
+        for method: MethodDescriptor,
+        frame: TrampolineCallFrame
+    ) -> any ModifyCoroutineForwardingState
     func makeReadState(
         for method: MethodDescriptor,
         frame: TrampolineCallFrame
@@ -134,6 +138,99 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
         let hiddenArgumentIndex: Int
         let callerFrameSize: Int
         let resultIsIndirect: Bool
+    }
+
+    private struct ModifyPlan: @unchecked Sendable {
+        let entry: UnsafeRawPointer
+        let entrySlot: UnsafeRawPointer
+        let declarationDiscriminator: UInt16
+        let selfValue: UnsafeRawPointer
+        let witnessTable: UnsafeRawPointer
+        let hiddenArgumentIndex: Int
+    }
+
+    private final class ModifyState:
+        ModifyCoroutineForwardingState,
+        @unchecked Sendable
+    {
+        let yieldedStorage: UnsafeMutableRawPointer
+
+        private let owner: AnyObject
+        private let resume: UnsafeRawPointer
+        private let callerFrame: UnsafeMutableRawPointer
+        private let storedFrame: UnsafeMutablePointer<TDCallFrame>
+        private var didFinish = false
+
+        init(
+            owner: AnyObject,
+            plan: ModifyPlan,
+            metadata: UnsafeRawPointer,
+            frame: TrampolineCallFrame
+        ) {
+            self.owner = owner
+            callerFrame = .allocate(byteCount: 32, alignment: 16)
+            callerFrame.initializeMemory(
+                as: UInt8.self,
+                repeating: 0,
+                count: 32
+            )
+            storedFrame = .allocate(capacity: 1)
+            storedFrame.initialize(to: frame.snapshot)
+            let targetFrame = TrampolineCallFrame(storedFrame)
+            targetFrame.storeGeneralPurposeArgument(
+                UInt(bitPattern: metadata),
+                at: plan.hiddenArgumentIndex
+            )
+            targetFrame.storeGeneralPurposeArgument(
+                UInt(bitPattern: plan.witnessTable),
+                at: plan.hiddenArgumentIndex + 1
+            )
+
+            let result = td_swift_invoke_modify_witness(
+                plan.entry,
+                plan.entrySlot,
+                plan.declarationDiscriminator,
+                plan.selfValue,
+                storedFrame,
+                callerFrame
+            )
+            guard let rawResume = result.state else {
+                preconditionFailure(
+                    "[TestDoubles] A forwarded _modify witness returned a null continuation."
+                )
+            }
+            guard let rawYieldedStorage = result.yieldedStorage else {
+                preconditionFailure(
+                    "[TestDoubles] A forwarded _modify witness returned null yielded storage."
+                )
+            }
+            resume = UnsafeRawPointer(rawResume)
+            yieldedStorage = rawYieldedStorage
+        }
+
+        deinit {
+            precondition(
+                didFinish,
+                "[TestDoubles] A forwarded _modify coroutine was released before resumption."
+            )
+            storedFrame.deinitialize(count: 1)
+            storedFrame.deallocate()
+            callerFrame.deallocate()
+        }
+
+        func finish(isAborting: Bool) {
+            precondition(
+                didFinish == false,
+                "[TestDoubles] A forwarded _modify coroutine resumed more than once."
+            )
+            didFinish = true
+            td_swift_resume_modify_witness(
+                resume,
+                callerFrame,
+                isAborting
+            )
+            withExtendedLifetime(owner) {}
+        }
     }
 
     private final class ReadState:
@@ -269,6 +366,7 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
 
     private let target: ForwardingTarget<P>
     private let plans: [Int: CallPlan]
+    private let modifyPlans: [Int: ModifyPlan]
     private let readPlans: [Int: ReadPlan]
 
     init(
@@ -277,16 +375,6 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
         layout: ProtocolLayout
     ) throws {
         self.target = target
-
-        guard layout.nodes.allSatisfy({ $0.modifyCoroutineRequirements.isEmpty }) else {
-            let protocolName =
-                layout.nodes.first(where: { !$0.modifyCoroutineRequirements.isEmpty })?
-                .descriptor.name ?? String(reflecting: P.self)
-            throw StubError.unsupportedProtocolShape(
-                protocolName: protocolName,
-                reason: "Forwarding Spy does not yet support _modify coroutine requirements. Use a hand-written spy for mutable properties and subscripts."
-            )
-        }
 
         guard
             layout.nodes.allSatisfy({
@@ -304,13 +392,18 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
         }
 
         var readRequirements: [Int: ProtocolLayout.ReadCoroutineRequirement] = [:]
+        var modifyRequirements: [Int: ProtocolLayout.ModifyCoroutineRequirement] = [:]
         for node in layout.nodes {
             for requirement in node.readCoroutineRequirements {
                 readRequirements[requirement.recorderDispatchIndex] = requirement
             }
+            for requirement in node.modifyCoroutineRequirements {
+                modifyRequirements[requirement.getterDispatchIndex] = requirement
+            }
         }
 
         var plans: [Int: CallPlan] = [:]
+        var modifyPlans: [Int: ModifyPlan] = [:]
         var readPlans: [Int: ReadPlan] = [:]
         for method in methods {
             let requirement = layout.callableRequirements[method.index]
@@ -352,6 +445,48 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
                 witnessTable.ptr
                 + (1 + method.witnessIndex) * MemoryLayout<UInt>.size
             let signedFunction = witnessSlot.load(as: UnsafeRawPointer.self)
+
+            if let modifyRequirement = modifyRequirements[method.index] {
+                guard method.kind == .getter,
+                    method.receiver == modifyRequirement.receiver,
+                    method.isAsync == false,
+                    method.isThrowing == false,
+                    method.typedWitnessAdapterFactory == nil,
+                    method.arguments.allSatisfy({ $0.ownership == .borrowed })
+                else {
+                    throw StubError.unsupportedProtocolShape(
+                        protocolName: protocolName,
+                        reason:
+                            "The _modify requirement at witness index \(modifyRequirement.witnessIndex) is outside the supported synchronous, nonthrowing borrowed-value forwarding ABI."
+                    )
+                }
+                let modifyWitnessSlot =
+                    witnessTable.ptr
+                    + (1 + modifyRequirement.witnessIndex)
+                    * MemoryLayout<UInt>.size
+                let signedEntry = modifyWitnessSlot.load(
+                    as: UnsafeRawPointer.self
+                )
+                let flags = requirement.protocolDescriptor.requirements[
+                    modifyRequirement.witnessIndex
+                ].flags
+                let declarationDiscriminator = UInt16(
+                    truncatingIfNeeded: flags.bits >> 16
+                )
+                let hiddenArgumentIndex = try Self.hiddenArgumentIndex(
+                    for: method,
+                    protocolName: protocolName,
+                    initialGeneralPurposeOffset: 1
+                )
+                modifyPlans[method.index] = ModifyPlan(
+                    entry: signedEntry,
+                    entrySlot: UnsafeRawPointer(modifyWitnessSlot),
+                    declarationDiscriminator: declarationDiscriminator,
+                    selfValue: target.selfValue,
+                    witnessTable: witnessTable.ptr,
+                    hiddenArgumentIndex: hiddenArgumentIndex
+                )
+            }
 
             if let readRequirement = readRequirements[method.index] {
                 guard method.kind == .getter,
@@ -443,6 +578,7 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
             )
         }
         self.plans = plans
+        self.modifyPlans = modifyPlans
         self.readPlans = readPlans
     }
 
@@ -465,6 +601,23 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
             )
         }
         return ReadState(
+            owner: self,
+            plan: plan,
+            metadata: target.metadata,
+            frame: frame
+        )
+    }
+
+    func makeModifyState(
+        for method: MethodDescriptor,
+        frame: TrampolineCallFrame
+    ) -> any ModifyCoroutineForwardingState {
+        guard let plan = modifyPlans[method.index] else {
+            preconditionFailure(
+                "[TestDoubles] No _modify forwarding plan exists for Spy requirement \(method.index)."
+            )
+        }
+        return ModifyState(
             owner: self,
             plan: plan,
             metadata: target.metadata,

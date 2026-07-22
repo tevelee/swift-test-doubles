@@ -267,6 +267,57 @@ SYMBOL(td_swift_resume_read_witness):
     ret
 
 .p2align 2
+.globl SYMBOL(td_swift_invoke_modify_witness)
+SYMBOL(td_swift_invoke_modify_witness):
+    stp x29, x30, [sp, #-64]!
+    mov x29, sp
+    stp x19, x20, [sp, #16]
+    stp x24, x25, [sp, #32]
+    mov x16, x0
+    mov x17, x1
+    bfi x17, x2, #48, #16
+    mov x20, x3
+    mov x19, x4
+    mov x24, x5
+    ldr x8, [x19, #TD_FRAME_INDIRECT_RESULT_OFFSET]
+    ldp q0, q1, [x19, #TD_FRAME_FP_OFFSET]
+    ldp q2, q3, [x19, #176]
+    ldp q4, q5, [x19, #208]
+    ldp q6, q7, [x19, #240]
+    mov x0, x24
+    ldp x1, x2, [x19, #24]
+    ldp x3, x4, [x19, #40]
+    ldp x5, x6, [x19, #56]
+    ldr x7, [x19, #72]
+#if defined(__arm64e__)
+    blraa x16, x17
+#else
+    blr x16
+#endif
+    ldp x24, x25, [sp, #32]
+    ldp x19, x20, [sp, #16]
+    ldp x29, x30, [sp], #64
+    ret
+
+.p2align 2
+.globl SYMBOL(td_swift_resume_modify_witness)
+SYMBOL(td_swift_resume_modify_witness):
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    mov x16, x0
+    mov x0, x1
+    mov x17, x1
+    mov w1, w2
+    movk x17, #TD_MODIFY_RESUME_DISCRIMINATOR, lsl #48
+#if defined(__arm64e__)
+    blraa x16, x17
+#else
+    blr x16
+#endif
+    ldp x29, x30, [sp], #16
+    ret
+
+.p2align 2
 .globl SYMBOL(td_swift_invoke_async_function)
 SYMBOL(td_swift_invoke_async_function):
     stp x29, x30, [sp, #-16]!
@@ -1021,6 +1072,53 @@ SYMBOL(td_swift_resume_read_witness):
     movq %rdi, %r11
     movq %rsi, %rdi
     leaq SYMBOL(td_swift_read_coro_allocator)(%rip), %rsi
+    callq *%r11
+    popq %rbp
+    retq
+
+.p2align 4, 0x90
+.globl SYMBOL(td_swift_invoke_modify_witness)
+SYMBOL(td_swift_invoke_modify_witness):
+    pushq %rbp
+    movq %rsp, %rbp
+    pushq %rbx
+    pushq %r13
+    pushq %r12
+    subq $8, %rsp
+    movq %rdi, %r11
+    movq %rcx, %r13
+    movq %r8, %rbx
+    movq %r9, %rdi
+    movq TD_FRAME_INDIRECT_RESULT_OFFSET(%rbx), %rax
+    movsd TD_FRAME_FP_OFFSET(%rbx), %xmm0
+    movsd 160(%rbx), %xmm1
+    movsd 176(%rbx), %xmm2
+    movsd 192(%rbx), %xmm3
+    movsd 208(%rbx), %xmm4
+    movsd 224(%rbx), %xmm5
+    movsd 240(%rbx), %xmm6
+    movsd 256(%rbx), %xmm7
+    movq 24(%rbx), %rsi
+    movq 32(%rbx), %rdx
+    movq 40(%rbx), %rcx
+    movq 48(%rbx), %r8
+    movq 56(%rbx), %r9
+    callq *%r11
+    addq $8, %rsp
+    popq %r12
+    popq %r13
+    popq %rbx
+    popq %rbp
+    retq
+
+.p2align 4, 0x90
+.globl SYMBOL(td_swift_resume_modify_witness)
+SYMBOL(td_swift_resume_modify_witness):
+    pushq %rbp
+    movq %rsp, %rbp
+    movq %rdi, %r11
+    movq %rsi, %rdi
+    movq %rdx, %rsi
     callq *%r11
     popq %rbp
     retq

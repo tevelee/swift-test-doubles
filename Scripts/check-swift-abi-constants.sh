@@ -313,6 +313,70 @@ if [[ "$swift_64_version" != *"Apple Swift version 6.4"* ]]; then
   exit 1
 fi
 
+swift_64_modify_sil="$({
+  DEVELOPER_DIR="$SWIFT_6_4_DEVELOPER_DIR" \
+    compile_swift_63_modify_probe \
+      -emit-silgen \
+      -parse-as-library \
+      -module-name TestDoublesAccessorABIProbe \
+      -o -
+})"
+
+swift_64_modify_convention_count="$({
+  printf '%s\n' "$swift_64_modify_sil" |
+    awk '
+      /^\/\/ TestDoublesModifyDiscriminatorProbe.value.modify$/ {
+        pending = 1
+        next
+      }
+      pending && /^sil / {
+        if ($0 ~ /\$@yield_once @convention\(method\)/) count += 1
+        pending = 0
+      }
+      END { print count + 0 }
+    '
+})"
+
+swift_64_modify_assembly="$({
+  DEVELOPER_DIR="$SWIFT_6_4_DEVELOPER_DIR" \
+    compile_swift_63_modify_probe \
+      -emit-assembly \
+      -parse-as-library \
+      -module-name TestDoublesAccessorABIProbe \
+      -target arm64e-apple-macosx13.0 \
+      -o -
+})"
+
+swift_64_modify_discriminator="$({
+  printf '%s\n' "$swift_64_modify_assembly" |
+    awk '
+      /movk[[:space:]]+x17, #[0-9]+, lsl #48/ {
+        candidate = $0
+        sub(/^.*movk[[:space:]]+x17, #/, "", candidate)
+        sub(/,.*/, "", candidate)
+        candidateLine = NR
+        next
+      }
+      /pacia[[:space:]]+x16,[[:space:]]*x17/ && candidateLine == NR - 1 {
+        print candidate
+      }
+    ' |
+    sort -u
+})"
+
+if [[ "$swift_64_modify_convention_count" != "1" ]]; then
+  echo "Swift 6.4 _modify coroutine convention changed." >&2
+  echo "yield_once modify accessors: $swift_64_modify_convention_count" >&2
+  exit 1
+fi
+
+if [[ "$swift_64_modify_discriminator" != "$expected" ]]; then
+  echo "Swift 6.4 arm64e modify-resume discriminator changed." >&2
+  echo "Header: $expected" >&2
+  echo "Compiler: ${swift_64_modify_discriminator:-missing}" >&2
+  exit 1
+fi
+
 swift_64_sil="$({
   compile_swift_64_yielding_borrow_probe \
     "$SWIFT_6_4_DEVELOPER_DIR" \
@@ -356,4 +420,5 @@ if [[ "$swift_64_legacy_witnesses" != "1" || "$swift_64_yielding_witnesses" != "
   exit 1
 fi
 
+echo "Swift 6.4 _modify convention and arm64e resume discriminator match Swift 6.3."
 echo "Swift 6.4 yielding borrow has one legacy read and one yielding-borrow witness."

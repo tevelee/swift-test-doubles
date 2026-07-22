@@ -122,6 +122,20 @@ const void *td_sign_coro_witness_pointer(const void *pointer,
 #endif
 }
 
+const void *td_sign_modify_witness_pointer(const void *pointer,
+                                           const void *slot,
+                                           uint16_t discriminator) {
+#if defined(__APPLE__) && __has_feature(ptrauth_calls)
+  uintptr_t blended = ptrauth_blend_discriminator(slot, discriminator);
+  return ptrauth_sign_unauthenticated(
+      pointer, ptrauth_key_function_pointer, blended);
+#else
+  (void)slot;
+  (void)discriminator;
+  return pointer;
+#endif
+}
+
 static size_t td_page_size(void) {
   long pageSize = sysconf(_SC_PAGESIZE);
   return pageSize > 0 ? (size_t)pageSize : (size_t)16384;

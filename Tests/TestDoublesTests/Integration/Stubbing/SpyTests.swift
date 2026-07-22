@@ -114,14 +114,6 @@ struct RealWideSpyService: WideSpyService {
     }
 }
 
-protocol MutableSpyService {
-    var value: Int { get set }
-}
-
-struct RealMutableSpyService: MutableSpyService {
-    var value = 0
-}
-
 protocol DynamicSelfSpyService {
     func duplicate() -> Self
 }
@@ -248,17 +240,6 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
         #expect(
             error?.description.contains(
                 "uses stack arguments or leaves no registers"
-            ) == true
-        )
-    }
-
-    @Test func rejectsModifyCoroutinesAtConstruction() {
-        let error = #expect(throws: StubError.self) {
-            _ = try Spy<any MutableSpyService>(forwardingTo: RealMutableSpyService())
-        }
-        #expect(
-            error?.description.contains(
-                "does not yet support _modify coroutine requirements"
             ) == true
         )
     }

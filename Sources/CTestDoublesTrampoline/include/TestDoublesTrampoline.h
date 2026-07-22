@@ -162,6 +162,9 @@ const void *td_sign_async_function_pointer(const void *pointer,
 const void *td_sign_coro_witness_pointer(const void *pointer,
                                          const void *slot,
                                          uint16_t discriminator);
+const void *td_sign_modify_witness_pointer(const void *pointer,
+                                           const void *slot,
+                                           uint16_t discriminator);
 bool td_prepare_read_witness_target(const void *signedDescriptor,
                                     const void *slot,
                                     uint16_t declarationDiscriminator,
@@ -190,6 +193,16 @@ TDReadCoroutineResult td_swift_invoke_read_witness(
 void td_swift_resume_read_witness(const void *resume,
                                   void *callerFrame,
                                   uint16_t resumeDiscriminator);
+TDModifyCoroutineResult td_swift_invoke_modify_witness(
+    const void *entry,
+    const void *slot,
+    uint16_t declarationDiscriminator,
+    const void *self,
+    TDCallFrame *frame,
+    void *callerFrame);
+void td_swift_resume_modify_witness(const void *resume,
+                                    void *callerFrame,
+                                    bool isAborting);
 const void *td_swift_dynamic_async_function_descriptor(void);
 void td_swift_get_error_value(const void *error,
                               void **scratch,
