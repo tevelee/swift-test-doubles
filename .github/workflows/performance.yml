@@ -1,0 +1,86 @@
+name: Performance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/performance.yml
+      - Benchmarks/**
+      - Package.resolved
+      - Package.swift
+      - Scripts/run-benchmarks.sh
+      - Sources/**
+  pull_request:
+    paths:
+      - .github/workflows/performance.yml
+      - Benchmarks/**
+      - Package.resolved
+      - Package.swift
+      - Scripts/run-benchmarks.sh
+      - Sources/**
+  workflow_dispatch:
+    inputs:
+      baseline_ref:
+        description: Git ref to benchmark as the baseline
+        required: true
+        default: main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: performance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  runtime-benchmarks:
+    name: Runtime regression check
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - name: Check out baseline
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          path: baseline
+          persist-credentials: false
+          ref: >-
+            ${{ github.event.pull_request.base.sha || github.event.before ||
+            inputs.baseline_ref }}
+      - name: Check out candidate
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          path: candidate
+          persist-credentials: false
+      - name: Select Xcode 26.4.1
+        run: sudo xcode-select --switch /Applications/Xcode_26.4.1.app/Contents/Developer
+      - name: Show toolchain
+        run: swift --version
+      - name: Install the candidate benchmark driver on the baseline
+        run: |
+          mkdir -p baseline/Benchmarks baseline/Scripts
+          rsync -a --delete candidate/Benchmarks/ baseline/Benchmarks/
+          cp candidate/Scripts/run-benchmarks.sh baseline/Scripts/run-benchmarks.sh
+      - name: Benchmark baseline
+        run: >-
+          baseline/Scripts/run-benchmarks.sh
+          --suite comparable
+          --output "$RUNNER_TEMP/baseline.json"
+          --quiet
+      - name: Benchmark candidate
+        run: >-
+          candidate/Scripts/run-benchmarks.sh
+          --suite all
+          --output "$RUNNER_TEMP/candidate.json"
+      - name: Compare performance
+        run: >-
+          candidate/Scripts/run-benchmarks.sh compare
+          "$RUNNER_TEMP/baseline.json"
+          "$RUNNER_TEMP/candidate.json"
+          --max-regression-percent 20
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: runtime-benchmarks
+          path: ${{ runner.temp }}/*.json
+          if-no-files-found: error
