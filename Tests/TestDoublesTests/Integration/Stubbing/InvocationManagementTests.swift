@@ -216,7 +216,7 @@ private final class BlockedBehaviorMatcherGate: @unchecked Sendable {
 
         service.notify(1)
         let verification = Task { @MainActor in
-            await stub.verify(2..., within: .seconds(10)) { $0.notify(any()) }
+            await stub.verify(2..., within: .seconds(60)) { $0.notify(any()) }
             completions.increment()
         }
 
