@@ -82,7 +82,6 @@ struct CallFrameArgumentLocationPlan: Sendable {
     let arguments: [[CallFrameArgumentLocation]]
     let trailingGeneralPurpose: [CallFrameArgumentLocation]
     let argumentStackByteCount: Int
-    let generalPurposeWordCount: Int
     let stackByteCount: Int
 
     init(
@@ -109,7 +108,6 @@ struct CallFrameArgumentLocationPlan: Sendable {
                     byteCount: MemoryLayout<UInt>.size
                 ))
         }
-        generalPurposeWordCount = cursor.generalPurpose
         stackByteCount = cursor.stackByteCount
     }
 

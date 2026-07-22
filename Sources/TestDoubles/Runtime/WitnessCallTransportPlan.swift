@@ -47,7 +47,6 @@ struct WitnessCallTransportPlan: Sendable {
     /// Stack bytes occupied only by the selected trailing payload.
     let hiddenStackByteCount: Int
     let stackByteCount: Int
-    let generalPurposeWordCount: Int
 
     init(
         method: MethodDescriptor,
@@ -129,7 +128,6 @@ struct WitnessCallTransportPlan: Sendable {
 
         stackByteCount = locationPlan.stackByteCount
         hiddenStackByteCount = stackByteCount - decodedStackByteCount
-        generalPurposeWordCount = locationPlan.generalPurposeWordCount
     }
 
     /// The first register available for target metadata and its witness table
