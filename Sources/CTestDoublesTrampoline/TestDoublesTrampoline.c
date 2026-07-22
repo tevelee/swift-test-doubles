@@ -67,6 +67,14 @@ _Static_assert(offsetof(TDCallFrame, returnFP) == TD_FRAME_RETURN_FP_OFFSET, "re
 _Static_assert(offsetof(TDCallFrame, returnError) == TD_FRAME_RETURN_ERROR_OFFSET, "returnError offset changed");
 _Static_assert(offsetof(TDCallFrame, returnFPHigh) == TD_FRAME_RETURN_FP_HIGH_OFFSET,
                "returnFPHigh offset changed");
+_Static_assert(sizeof(TDAsyncWitnessStackArguments) == 3 * sizeof(uint64_t),
+               "async witness stack arguments size changed");
+_Static_assert(offsetof(TDAsyncWitnessStackArguments, visible) == 0,
+               "async witness visible stack word offset changed");
+_Static_assert(offsetof(TDAsyncWitnessStackArguments, metadata) == 8,
+               "async witness metadata stack word offset changed");
+_Static_assert(offsetof(TDAsyncWitnessStackArguments, witnessTable) == 16,
+               "async witness table stack word offset changed");
 _Static_assert(sizeof(TDModifyCoroutineResult) == 2 * sizeof(void *),
                "TDModifyCoroutineResult size changed");
 _Static_assert(sizeof(TDReadCoroutineResult) == 2 * sizeof(void *),

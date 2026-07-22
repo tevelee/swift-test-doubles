@@ -423,10 +423,18 @@ dispatch state; indirect result and typed-error destination pointers already
 refer to caller-owned async storage and are retained separately. Construction
 still rejects a second spilled word. Before either an immediate return or a
 genuine suspension, the entry bridge removes the compiler-planned, ABI-aligned
-outgoing stack reservation exactly once. This is not general async stack transport:
-forwarding spies and typed closure adapters keep their independent boundaries,
-and signatures that would need outgoing stack assembly or stack access after
-suspension remain unsupported.
+outgoing stack reservation exactly once.
+
+A forwarding ``Spy`` supports the corresponding narrow outgoing path for an
+ordinary nonthrowing instance method when exactly one complete concrete
+eight-byte value spills from the general-purpose argument bank. Preparation
+copies that word before the outer entry frame disappears. The forwarding state
+then creates Swift 6.3's target witness stack area from the copied value, target
+metadata, and witness table, including x86_64's live implicit slot. The target
+witness transfers that area to its continuation boundary exactly once.
+Untyped and typed throws, a second spill, split or padded values, indirect or
+associated-dependent spilled arguments, vector spills, and async accessors
+remain fail-closed. Typed closure adapters keep their independent boundary.
 
 ### Ownership and concurrency
 

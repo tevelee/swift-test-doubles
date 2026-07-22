@@ -186,9 +186,21 @@ captured first-stack-argument address follows an implicit eight-byte async ABI
 slot. Before x86_64 advances the stack pointer, it carries that live slot to the
 resumed continuation stack pointer just as a compiler-generated witness thunk
 does. Assembly applies the adjustment once on both immediate and suspending
-entry exits, never from the completion trampoline. A second spilled word,
-outgoing forwarding call, or other requirement for continuation-owned stack
-transport still fails closed.
+entry exits, never from the completion trampoline. A second spilled word still
+fails closed.
+
+The bounded forwarding counterpart accepts one complete concrete eight-byte
+general-purpose spill for a nonthrowing instance method. Synchronous
+preparation copies that word into retained forwarding state before the outer
+entry removes its caller stack. The async invoke helper then reproduces the
+compiler's outgoing generic-witness layout. arm64 reserves 32 bytes containing
+the visible word, target metadata, witness table, and alignment padding.
+x86_64 moves its live implicit slot down by 16 bytes, then writes those three
+words at offsets 8, 16, and 24. The target's compiler-generated witness thunk
+performs the only transition to the direct-method continuation stack; the
+forwarding completion does not adjust it again. Throwing calls, typed-error
+destinations, a second spill, split or padded values, SIMD, dependent values,
+and async accessors remain outside this slice.
 
 After matcher evaluation, dispatch enters one recorder linearization point that
 atomically commits matcher captures, appends the call, and reserves the next
@@ -241,7 +253,8 @@ result is, but configuration must finish before matching invocations begin.
 The implementation has focused arm64 and x86_64 coverage for integer and
 floating-point registers, synchronous stack arguments, mixed aggregates,
 indirect results, throwing calls, bounded one-register 128-bit SIMD values,
-async continuations, one-word async Stub ingress, and owned setter inputs. Direct concrete
+async continuations, one-word async Stub ingress, bounded one-word async Spy
+forwarding, and owned setter inputs. Direct concrete
 native function values use canonical function metadata plus compiler-emitted
 partial-apply reabstraction thunks found in the linked client or a bounded
 runtime-built arm64/x86_64 bridge. Arguments are wrapped from direct witness ABI

@@ -389,6 +389,7 @@ SYMBOL(td_swift_invoke_async_witness):
     str x2, [x22, #16]
     str x1, [x22, #32]
     strb w3, [x22, #48]
+    str x4, [x22, #TD_ASYNC_INVOKE_STACK_ARGUMENTS_OFFSET]
 
     mov x16, x0
     ldrsw x17, [x16]
@@ -410,6 +411,7 @@ SYMBOL(td_swift_invoke_async_witness):
     ldr x9, [x11, #16]
     ldr x17, [x11, #24]
     ldr x20, [x11, #32]
+    ldr x12, [x11, #TD_ASYNC_INVOKE_STACK_ARGUMENTS_OFFSET]
 
     ldp q0, q1, [x9, #TD_FRAME_FP_OFFSET]
     ldp q2, q3, [x9, #176]
@@ -422,6 +424,14 @@ SYMBOL(td_swift_invoke_async_witness):
     mov x22, x10
 
     ldp x29, x30, [sp], #16
+    cbz x12, .Ltd_async_witness_no_stack_arm64
+    sub sp, sp, #32
+    ldp x9, x10, [x12]
+    stp x9, x10, [sp]
+    ldr x9, [x12, #16]
+    str x9, [sp, #16]
+    str xzr, [sp, #24]
+.Ltd_async_witness_no_stack_arm64:
     br x17
 
 .p2align 2
@@ -1183,6 +1193,7 @@ SYMBOL(td_swift_invoke_async_witness):
     movq %rdx, 16(%r14)
     movq %rsi, 32(%r14)
     movb %cl, 48(%r14)
+    movq %r8, TD_ASYNC_INVOKE_STACK_ARGUMENTS_OFFSET(%r14)
 
     movslq (%rdi), %rax
     addq %rdi, %rax
@@ -1212,8 +1223,22 @@ SYMBOL(td_swift_invoke_async_witness):
     movq 40(%r10), %rcx
     movq 48(%r10), %r8
     movq 56(%r10), %r9
+    movq (%r14), %r10
+    movq TD_ASYNC_INVOKE_STACK_ARGUMENTS_OFFSET(%r10), %r10
 
     popq %rbp
+    testq %r10, %r10
+    je .Ltd_async_witness_no_stack_x86_64
+    movq (%rsp), %rax
+    subq $16, %rsp
+    movq %rax, (%rsp)
+    movq (%r10), %rax
+    movq %rax, 8(%rsp)
+    movq 8(%r10), %rax
+    movq %rax, 16(%rsp)
+    movq 16(%r10), %rax
+    movq %rax, 24(%rsp)
+.Ltd_async_witness_no_stack_x86_64:
     jmpq *%r11
 
 #if defined(__APPLE__)
@@ -1610,7 +1635,7 @@ SYMBOL(td_swift_invoke_async_functionTu):
 .globl SYMBOL(td_swift_invoke_async_witnessTu)
 SYMBOL(td_swift_invoke_async_witnessTu):
     .long SYMBOL(td_swift_invoke_async_witness) - SYMBOL(td_swift_invoke_async_witnessTu)
-    .long 64
+    .long TD_ASYNC_INVOKE_CONTEXT_SIZE
 
 .p2align 3
 .globl SYMBOL(td_swift_dynamic_async_function_entryTu)

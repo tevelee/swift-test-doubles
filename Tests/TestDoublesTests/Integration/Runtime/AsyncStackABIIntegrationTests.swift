@@ -386,7 +386,7 @@ struct AsyncStackABIIntegrationTests {
         }
     }
 
-    @Test func forwardingDoesNotInheritAsyncStackSupport() {
+    @Test func forwardingWithTypedErrorStackIngressStillFailsClosed() {
         let target: any FirstSpilledAsyncStubProbe =
             RealFirstSpilledAsyncStubProbe()
         #expect(throws: StubError.self) {

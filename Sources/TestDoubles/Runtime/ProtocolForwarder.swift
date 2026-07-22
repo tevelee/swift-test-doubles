@@ -124,7 +124,8 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
         let function: UnsafeRawPointer
         let selfValue: UnsafeRawPointer
         let witnessTable: UnsafeRawPointer
-        let hiddenArgumentIndex: Int
+        let hiddenArgumentIndex: Int?
+        let asyncStackPlan: AsyncForwardingStackPlan?
         let isAsync: Bool
     }
 
@@ -328,23 +329,48 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
         private let selfValue: UnsafeRawPointer
         private let isThrowing: Bool
         private let storedFrame: UnsafeMutablePointer<TDCallFrame>
+        private let stackArguments:
+            UnsafeMutablePointer<
+                TDAsyncWitnessStackArguments
+            >?
 
         init(
             owner: AnyObject,
-            function: UnsafeRawPointer,
-            selfValue: UnsafeRawPointer,
+            plan: CallPlan,
+            metadata: UnsafeRawPointer,
             isThrowing: Bool,
-            frame: TDCallFrame
+            frame: TrampolineCallFrame
         ) {
             self.owner = owner
-            self.function = function
-            self.selfValue = selfValue
+            function = plan.function
+            selfValue = plan.selfValue
             self.isThrowing = isThrowing
             storedFrame = .allocate(capacity: 1)
-            storedFrame.initialize(to: frame)
+            storedFrame.initialize(to: frame.snapshot)
+            if let stackPlan = plan.asyncStackPlan {
+                let storage = UnsafeMutablePointer<
+                    TDAsyncWitnessStackArguments
+                >.allocate(capacity: 1)
+                storage.initialize(
+                    to: TDAsyncWitnessStackArguments(
+                        visible: frame.scalarBits(
+                            at: stackPlan.visibleArgumentLocation
+                        ),
+                        metadata: UInt64(UInt(bitPattern: metadata)),
+                        witnessTable: UInt64(
+                            UInt(bitPattern: plan.witnessTable)
+                        )
+                    )
+                )
+                stackArguments = storage
+            } else {
+                stackArguments = nil
+            }
         }
 
         deinit {
+            stackArguments?.deinitialize(count: 1)
+            stackArguments?.deallocate()
             storedFrame.deinitialize(count: 1)
             storedFrame.deallocate()
         }
@@ -354,7 +380,8 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
                 function,
                 selfValue,
                 storedFrame,
-                isThrowing
+                isThrowing,
+                stackArguments
             )
             withExtendedLifetime(owner) {}
         }
@@ -559,10 +586,22 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
                 continue
             }
 
-            let hiddenArgumentIndex = try Self.hiddenArgumentIndex(
-                for: method,
-                protocolName: protocolName
-            )
+            let asyncStackPlan =
+                method.isAsync
+                ? asyncForwardingStackPlan(
+                    for: method,
+                    architecture: .current
+                )
+                : nil
+            let hiddenArgumentIndex: Int? =
+                if asyncStackPlan == nil {
+                    try Self.hiddenArgumentIndex(
+                        for: method,
+                        protocolName: protocolName
+                    )
+                } else {
+                    nil
+                }
             let function =
                 if method.isAsync {
                     td_strip_async_witness_pointer(signedFunction)
@@ -580,6 +619,7 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
                 selfValue: target.selfValue,
                 witnessTable: witnessTable.ptr,
                 hiddenArgumentIndex: hiddenArgumentIndex,
+                asyncStackPlan: asyncStackPlan,
                 isAsync: method.isAsync
             )
         }
@@ -642,10 +682,10 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
         )
         return AsyncState(
             owner: self,
-            function: plan.function,
-            selfValue: plan.selfValue,
+            plan: plan,
+            metadata: target.metadata,
             isThrowing: method.isThrowing,
-            frame: frame.snapshot
+            frame: frame
         )
     }
 
@@ -658,14 +698,21 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
                 "[TestDoubles] No forwarding plan exists for Spy requirement \(method.index)."
             )
         }
-        frame.storeGeneralPurposeArgument(
-            UInt(bitPattern: target.metadata),
-            at: plan.hiddenArgumentIndex
-        )
-        frame.storeGeneralPurposeArgument(
-            UInt(bitPattern: plan.witnessTable),
-            at: plan.hiddenArgumentIndex + 1
-        )
+        if let hiddenArgumentIndex = plan.hiddenArgumentIndex {
+            frame.storeGeneralPurposeArgument(
+                UInt(bitPattern: target.metadata),
+                at: hiddenArgumentIndex
+            )
+            frame.storeGeneralPurposeArgument(
+                UInt(bitPattern: plan.witnessTable),
+                at: hiddenArgumentIndex + 1
+            )
+        } else {
+            precondition(
+                method.isAsync && plan.asyncStackPlan != nil,
+                "[TestDoubles] A forwarding target has no hidden-argument transport plan."
+            )
+        }
         return plan
     }
 

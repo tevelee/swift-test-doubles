@@ -16,7 +16,8 @@ func tdSwiftInvokeAsyncWitness(
     _ function: UnsafeRawPointer,
     _ selfValue: UnsafeRawPointer,
     _ frame: UnsafeMutablePointer<TDCallFrame>,
-    _ isThrowing: Bool
+    _ isThrowing: Bool,
+    _ stackArguments: UnsafePointer<TDAsyncWitnessStackArguments>?
 ) async
 
 func decodeDirectResult(

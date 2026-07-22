@@ -272,7 +272,6 @@ protocol ExtendedAsyncABIProbe: Sendable {
                     stackAdjustmentByteCount: 32
                 )
         )
-
         #expect(
             unsupportedRuntimeReason(
                 for: method(argumentCount: 7),
@@ -357,6 +356,85 @@ protocol ExtendedAsyncABIProbe: Sendable {
         #expect(
             unsupportedRuntimeReason(
                 for: typedErrorArm,
+                architecture: .arm64
+            ) == nil
+        )
+    }
+
+    @Test func asyncForwardingStackBoundaryAllowsExactlyOneVisibleWord() {
+        func method(
+            argumentCount: Int,
+            typedError: (any Error.Type)? = nil
+        ) -> MethodDescriptor {
+            MethodDescriptor(
+                kind: .method,
+                name: "load",
+                index: 0,
+                argumentTypes: Array(repeating: Int.self, count: argumentCount),
+                returnType: Int.self,
+                typedErrorType: typedError,
+                isThrowing: typedError != nil,
+                isAsync: true
+            )
+        }
+
+        #expect(
+            asyncForwardingStackPlan(
+                for: method(argumentCount: 7),
+                architecture: .x86_64
+            )
+                == AsyncForwardingStackPlan(
+                    visibleArgumentLocation: CallFrameArgumentLocation(
+                        storage: .stack(byteOffset: 0),
+                        valueOffset: 0,
+                        byteCount: 8
+                    ),
+                    outgoingStackByteCount: 16,
+                    completionStackAdjustmentByteCount: 0
+                )
+        )
+        #expect(
+            asyncForwardingStackPlan(
+                for: method(argumentCount: 9),
+                architecture: .arm64
+            )
+                == AsyncForwardingStackPlan(
+                    visibleArgumentLocation: CallFrameArgumentLocation(
+                        storage: .stack(byteOffset: 0),
+                        valueOffset: 0,
+                        byteCount: 8
+                    ),
+                    outgoingStackByteCount: 32,
+                    completionStackAdjustmentByteCount: 0
+                )
+        )
+        #expect(
+            asyncForwardingStackPlan(
+                for: method(argumentCount: 8),
+                architecture: .x86_64
+            ) == nil
+        )
+        #expect(
+            asyncForwardingStackPlan(
+                for: method(argumentCount: 10),
+                architecture: .arm64
+            ) == nil
+        )
+        #expect(
+            asyncForwardingStackPlan(
+                for: method(
+                    argumentCount: 6,
+                    typedError: AsyncStackLargeError.self
+                ),
+                architecture: .x86_64
+            ) == nil
+        )
+        #expect(
+            asyncForwardingStackPlan(
+                for: method(
+                    argumentCount: 8,
+                    typedError: AsyncStackLargeError.self
+                ),
                 architecture: .arm64
             ) == nil
         )

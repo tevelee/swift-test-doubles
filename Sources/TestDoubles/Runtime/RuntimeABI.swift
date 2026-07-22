@@ -111,6 +111,21 @@ struct AsyncWitnessStackPlan: Equatable, Sendable {
     let stackAdjustmentByteCount: Int
 }
 
+/// The one outgoing async Spy stack shape proven against Swift 6.3.
+///
+/// `visibleArgumentLocation` identifies the word that must be copied while the
+/// outer witness-entry frame is still live. `outgoingStackByteCount` is the
+/// area the forwarding helper creates before entering the real target witness.
+/// The target witness transfers that area to its compiler-selected
+/// continuation stack before resuming the helper. The completion adjustment is
+/// therefore zero for every supported architecture and records that the helper
+/// must not remove the area a second time.
+struct AsyncForwardingStackPlan: Equatable, Sendable {
+    let visibleArgumentLocation: CallFrameArgumentLocation
+    let outgoingStackByteCount: Int
+    let completionStackAdjustmentByteCount: Int
+}
+
 extension Metadata {
     /// The byte count of temporary storage for one value of this type, padded
     /// to `minimum` bytes so register-word codecs may address whole words.
@@ -296,6 +311,92 @@ func asyncWitnessStackPlan(
         decodedStackByteCount: locationPlan.stackByteCount,
         hiddenStackByteCount: hiddenStackByteCount,
         stackAdjustmentByteCount: stackAdjustmentByteCount
+    )
+}
+
+/// Returns the bounded outgoing async forwarding stack plan, or `nil` when a
+/// requirement needs a different physical shape.
+///
+/// This deliberately accepts only one complete concrete eight-byte value that
+/// spills from the general-purpose bank. Split, padded, indirect, dependent,
+/// vector, accessor, and typed-error shapes remain fail-closed.
+func asyncForwardingStackPlan(
+    for method: MethodDescriptor,
+    architecture: RuntimeArchitecture
+) -> AsyncForwardingStackPlan? {
+    guard method.isAsync,
+        method.kind == .method,
+        method.receiver == .instance,
+        method.isThrowing == false,
+        method.typedErrorType == nil
+    else {
+        return nil
+    }
+
+    let hasIndirectResult: Bool
+    if case .indirect = method.result.layout {
+        hasIndirectResult = true
+    } else {
+        hasIndirectResult = false
+    }
+    let locationPlan = CallFrameArgumentLocationPlan(
+        arguments: method.arguments.map {
+            CallFrameArgumentShape(
+                type: $0.value.type,
+                layout: $0.value.layout
+            )
+        },
+        initialGeneralPurposeOffset: hasIndirectResult ? 1 : 0,
+        architecture: architecture
+    )
+
+    var spilledArgumentIndex: Int?
+    var visibleArgumentLocation: CallFrameArgumentLocation?
+    for (argumentIndex, locations) in locationPlan.arguments.enumerated() {
+        for location in locations {
+            guard case .stack = location.storage else { continue }
+            guard visibleArgumentLocation == nil else { return nil }
+            spilledArgumentIndex = argumentIndex
+            visibleArgumentLocation = location
+        }
+    }
+    guard let spilledArgumentIndex,
+        let visibleArgumentLocation,
+        locationPlan.stackByteCount == MemoryLayout<UInt>.size,
+        locationPlan.arguments[spilledArgumentIndex].count == 1,
+        visibleArgumentLocation.storage == .stack(byteOffset: 0),
+        visibleArgumentLocation.valueOffset == 0,
+        visibleArgumentLocation.byteCount == MemoryLayout<UInt>.size,
+        method.arguments[spilledArgumentIndex].value.dependency
+            .isAssociatedTypeDependent == false,
+        reflect(method.arguments[spilledArgumentIndex].value.type).vwt.size
+            == MemoryLayout<UInt>.size,
+        case .integer(words: 1) =
+            method.arguments[spilledArgumentIndex].value.layout
+    else {
+        return nil
+    }
+
+    let witnessPlan = asyncWitnessStackPlan(
+        for: method,
+        architecture: architecture
+    )
+    guard witnessPlan.decodedStackByteCount == MemoryLayout<UInt>.size,
+        witnessPlan.hiddenStackByteCount == 2 * MemoryLayout<UInt>.size
+    else {
+        return nil
+    }
+
+    switch architecture {
+        case .arm64:
+            guard witnessPlan.stackAdjustmentByteCount == 32 else { return nil }
+        case .x86_64:
+            guard witnessPlan.stackAdjustmentByteCount == 16 else { return nil }
+    }
+    return AsyncForwardingStackPlan(
+        visibleArgumentLocation: visibleArgumentLocation,
+        outgoingStackByteCount: witnessPlan.stackAdjustmentByteCount,
+        completionStackAdjustmentByteCount: 0
     )
 }
 
