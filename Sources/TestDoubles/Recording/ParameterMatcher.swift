@@ -25,28 +25,54 @@ protocol ParameterMatcher {
 /// matching decisions outside its policy lock and apply their effects at the
 /// invocation's linearization point without re-running user code.
 struct PreparedMatcherTransaction {
-    private let captureMutations: [() -> Void]
+    private enum Captures {
+        case none
+        case one(() -> Void)
+        case many([() -> Void])
+    }
+
+    private var captures: Captures
 
     static var matched: PreparedMatcherTransaction {
-        PreparedMatcherTransaction(captureMutations: [])
+        PreparedMatcherTransaction(captures: .none)
     }
 
     init(captureMutation: @escaping () -> Void) {
-        captureMutations = [captureMutation]
+        captures = .one(captureMutation)
     }
 
-    private init(captureMutations: [() -> Void]) {
-        self.captureMutations = captureMutations
+    private init(captures: Captures) {
+        self.captures = captures
     }
 
-    static func combining(_ transactions: [PreparedMatcherTransaction]) -> Self {
-        PreparedMatcherTransaction(
-            captureMutations: transactions.flatMap(\.captureMutations)
-        )
+    mutating func append(_ transaction: PreparedMatcherTransaction) {
+        switch (captures, transaction.captures) {
+            case (_, .none):
+                break
+            case (.none, let captures):
+                self.captures = captures
+            case (.one(let first), .one(let second)):
+                captures = .many([first, second])
+            case (.one(let first), .many(let additional)):
+                captures = .many([first] + additional)
+            case (.many(var existing), .one(let mutation)):
+                existing.append(mutation)
+                captures = .many(existing)
+            case (.many(var existing), .many(let additional)):
+                existing.append(contentsOf: additional)
+                captures = .many(existing)
+        }
     }
 
     func commitCaptures() {
-        captureMutations.forEach { $0() }
+        switch captures {
+            case .none:
+                break
+            case .one(let mutation):
+                mutation()
+            case .many(let mutations):
+                mutations.forEach { $0() }
+        }
     }
 }
 
@@ -273,13 +299,12 @@ private func prepareAll(
     _ matchers: [ParameterMatcher],
     value: Any
 ) -> PreparedMatcherTransaction? {
-    var transactions: [PreparedMatcherTransaction] = []
-    transactions.reserveCapacity(matchers.count)
+    var combined = PreparedMatcherTransaction.matched
     for matcher in matchers {
         guard let transaction = matcher.prepareMatch(value: value) else { return nil }
-        transactions.append(transaction)
+        combined.append(transaction)
     }
-    return .combining(transactions)
+    return combined
 }
 
 /// Reports whether a type-erased value is an optional carrying no value.

@@ -253,13 +253,12 @@ struct StubBehaviorRegistry {
         guard args.count == matchers.count else {
             return matchers.isEmpty ? .matched : nil
         }
-        var transactions: [PreparedMatcherTransaction] = []
-        transactions.reserveCapacity(matchers.count)
+        var combined = PreparedMatcherTransaction.matched
         for (value, matcher) in zip(args, matchers) {
             guard let transaction = matcher.prepareMatch(value: value) else { return nil }
-            transactions.append(transaction)
+            combined.append(transaction)
         }
-        return .combining(transactions)
+        return combined
     }
 }
 
