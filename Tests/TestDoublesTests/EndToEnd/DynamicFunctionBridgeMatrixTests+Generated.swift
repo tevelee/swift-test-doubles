@@ -42,7 +42,7 @@ private func roundTripGeneratedBridge<Function>(
         type: Function.self,
         minimumByteCount: 16
     )
-    RuntimeResultEncoder.initializeDirectValue(
+    RuntimeValueTransport.initializeDirectValue(
         function,
         expectedType: Function.self,
         to: source.storage

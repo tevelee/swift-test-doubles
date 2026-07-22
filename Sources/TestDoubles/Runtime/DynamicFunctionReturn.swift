@@ -191,9 +191,11 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
     ) {
         switch outcome {
             case .success(let result):
-                RuntimeResultEncoder.encodeDynamicFunctionReturn(
+                RuntimeValueTransport.encodeReturn(
                     result,
                     expectedType: metadata.resultType,
+                    layout: abiClass(for: metadata.resultType, isReturn: true),
+                    context: "dynamic function return",
                     isAsync: isAsync,
                     into: frame
                 )
@@ -202,13 +204,17 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
                 }
             case .failure(let error):
                 if let typedErrorType, let typedErrorLayout {
-                    RuntimeResultEncoder.encodeDynamicTypedFunctionFailure(
+                    SwiftErrorTransport.encodeTyped(
                         error,
                         expectedType: typedErrorType,
                         layout: typedErrorLayout,
                         destination: decoded.typedErrorDestination,
                         usesIndirectResultSlot:
                             directTypedErrorUsesIndirectResultSlot,
+                        context: "dynamic function typed error",
+                        missingDestinationMessage:
+                            "[TestDoubles] Missing dynamic function typed-error result buffer.",
+                        isAsync: false,
                         into: frame
                     )
                 } else {
@@ -217,10 +223,7 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
                             "[TestDoubles] Dynamic function failure does not conform to Error."
                         )
                     }
-                    RuntimeResultEncoder.encodeDynamicFunctionFailure(
-                        error,
-                        into: frame
-                    )
+                    SwiftErrorTransport.encode(error, into: frame)
                 }
         }
     }
@@ -323,7 +326,7 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
         if frame.returnedError != 0 {
             guard let typedErrorType, let typedErrorLayout, let errorBuffer = call.error
             else {
-                return .failure(takeSwiftError(frame.returnedError))
+                return .failure(SwiftErrorTransport.take(frame.returnedError))
             }
             if genericTypedErrorUsesIndirectResultSlot == false {
                 decodeDirectResult(

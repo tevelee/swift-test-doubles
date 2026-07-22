@@ -251,7 +251,7 @@ private enum ModifyCoroutineRuntime {
         skipsForwardingSetter: Bool
     ) -> DispatchState {
         let buffer = ManagedValueBuffer(type: getter.returnType)
-        RuntimeResultEncoder.initializeDirectValue(
+        RuntimeValueTransport.initializeDirectValue(
             result,
             expectedType: getter.returnType,
             to: buffer.storage

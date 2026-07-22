@@ -86,7 +86,7 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
         try withInvocation(arguments, returning: resultType) {
             result, _, frame in
             if frame.returnedError != 0 {
-                throw takeSwiftError(frame.returnedError)
+                throw SwiftErrorTransport.take(frame.returnedError)
             }
             return moveDirectResult(from: result, as: resultType)
         }
@@ -148,7 +148,7 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
         ) {
             result, _, frame in
             if frame.returnedError != 0 {
-                throw takeSwiftError(frame.returnedError)
+                throw SwiftErrorTransport.take(frame.returnedError)
             }
             return moveDirectResult(from: result, as: resultType)
         }
@@ -334,7 +334,7 @@ private final class PreparedDirectArgument: @unchecked Sendable {
             minimumByteCount: 16
         )
         buffer.zeroBorrowedBytes()
-        RuntimeResultEncoder.initializeDirectValue(
+        RuntimeValueTransport.initializeDirectValue(
             value,
             expectedType: type,
             to: buffer.storage
@@ -421,32 +421,4 @@ private func moveDirectResult<Result>(
         )
     }
     return result
-}
-
-func takeSwiftError(_ address: UInt) -> any Error {
-    guard let errorObject = UnsafeRawPointer(bitPattern: address) else {
-        preconditionFailure("[TestDoubles] Dynamic closure returned an invalid error.")
-    }
-    var scratch: UnsafeMutableRawPointer?
-    var extracted = TDSwiftErrorValue(
-        value: nil,
-        type: nil,
-        witnessTable: nil
-    )
-    td_swift_get_error_value(errorObject, &scratch, &extracted)
-    defer { td_swift_error_release(errorObject) }
-    guard let value = extracted.value, let type = extracted.type else {
-        preconditionFailure("[TestDoubles] Swift returned an empty error object.")
-    }
-    let runtimeType = unsafeBitCast(type, to: Any.Type.self)
-    let boxed = boxValue(
-        type: runtimeType,
-        source: UnsafeMutableRawPointer(mutating: value)
-    )
-    guard let error = boxed as? any Error else {
-        preconditionFailure(
-            "[TestDoubles] Dynamic closure error \(runtimeType) does not conform to Error."
-        )
-    }
-    return error
 }

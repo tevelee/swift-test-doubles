@@ -42,7 +42,7 @@ enum ReadCoroutineRuntime {
                 minimumByteCount: 32
             )
             buffer.zeroBorrowedBytes()
-            RuntimeResultEncoder.initializeDirectValue(
+            RuntimeValueTransport.initializeDirectValue(
                 result,
                 expectedType: method.returnType,
                 to: buffer.storage
@@ -226,7 +226,7 @@ enum ReadCoroutineRuntime {
             resultIsIndirect = true
         } else {
             resultIsIndirect = false
-            RuntimeResultEncoder.encodeBorrowedDirectValue(
+            RuntimeValueTransport.encodeBorrowedDirectValue(
                 from: configured.storage,
                 layout: method.result.layout,
                 into: frame

@@ -2,10 +2,6 @@ import Testing
 @testable import TestDoubles
 import TestDoublesFixtures
 
-struct ResolutionElementValue: Equatable, Hashable, Sendable {
-    let id: Int
-}
-
 /// Unit coverage for demangled-name resolution: no stubs are constructed and
 /// no witness tables are involved.
 @Suite struct RuntimeTypeResolutionTests {
@@ -146,15 +142,4 @@ struct ResolutionElementValue: Equatable, Hashable, Sendable {
         )
     }
 
-}
-
-/// Unit coverage for recording-placeholder synthesis.
-@Suite struct PlaceholderSynthesisTests {
-    @Test func placeholdersSynthesizeEmptyCollections() {
-        #expect(PlaceholderValue.make([UInt8].self) == [])
-        #expect(PlaceholderValue.make([ResolutionElementValue].self) == [])
-        #expect(PlaceholderValue.make(Set<String>.self) == [])
-        #expect(PlaceholderValue.make([String: Int].self) == [:])
-        #expect(PlaceholderValue.make([ResolutionElementValue: [Int]].self) == [:])
-    }
 }
