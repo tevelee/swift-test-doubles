@@ -2,15 +2,14 @@ import Echo
 
 private let unsupportedDynamicValueFlags = UInt32(0x0080_0000)
 
-enum FunctionBridgeDirection: Sendable {
+enum FunctionBridgeDirection: Sendable, Equatable {
     case directToGeneric
     case genericToDirect
 }
 
-/// Immutable ABI and effect facts shared by dynamic function validation and
-/// execution. A bridge is analyzed once, then both directions consume the
-/// same layouts, error transport, and register offsets.
-struct FunctionBridgePlan: @unchecked Sendable {
+/// Immutable ABI and effect facts shared by dynamic function validation in
+/// both bridge directions.
+struct FunctionBridgeAnalysis: @unchecked Sendable {
     let metadata: FunctionMetadata
     let parameterTypes: [Any.Type]
     let directArgumentPlan: DynamicFunctionArgumentPlan?
@@ -25,8 +24,6 @@ struct FunctionBridgePlan: @unchecked Sendable {
     let asyncDirectResultUsesGeneralPurposeSlot: Bool
     let genericArgumentCount: Int
     let genericUsesStackArgument: Bool
-
-    var directArgumentLayouts: [ABIClass]? { directArgumentPlan?.layouts }
 
     init(_ metadata: FunctionMetadata) {
         self.metadata = metadata
@@ -150,4 +147,62 @@ struct FunctionBridgePlan: @unchecked Sendable {
         }
         return nil
     }
+
+    func validated(
+        for direction: FunctionBridgeDirection
+    ) -> FunctionBridgePlan? {
+        guard unsupportedReason(for: direction) == nil,
+            let directArgumentPlan
+        else {
+            return nil
+        }
+        return FunctionBridgePlan(
+            analysis: self,
+            directArgumentPlan: directArgumentPlan,
+            direction: direction
+        )
+    }
+}
+
+/// A bridge analysis whose support boundary has been checked for one runtime
+/// direction. Execution consumes this type so it cannot observe a missing
+/// direct argument transport plan after validation has succeeded.
+struct FunctionBridgePlan: @unchecked Sendable {
+    private let analysis: FunctionBridgeAnalysis
+
+    let directArgumentPlan: DynamicFunctionArgumentPlan
+    let direction: FunctionBridgeDirection
+
+    fileprivate init(
+        analysis: FunctionBridgeAnalysis,
+        directArgumentPlan: DynamicFunctionArgumentPlan,
+        direction: FunctionBridgeDirection
+    ) {
+        self.analysis = analysis
+        self.directArgumentPlan = directArgumentPlan
+        self.direction = direction
+    }
+
+    var metadata: FunctionMetadata { analysis.metadata }
+    var parameterTypes: [Any.Type] { analysis.parameterTypes }
+    var resultType: Any.Type { analysis.resultType }
+    var resultLayout: ABIClass { analysis.resultLayout }
+    var typedErrorType: Any.Type? { analysis.typedErrorType }
+    var typedErrorLayout: ABIClass? { analysis.typedErrorLayout }
+    var isAsync: Bool { analysis.isAsync }
+    var isThrowing: Bool { analysis.isThrowing }
+    var directTypedErrorUsesIndirectResultSlot: Bool {
+        analysis.directTypedErrorUsesIndirectResultSlot
+    }
+    var genericTypedErrorUsesIndirectResultSlot: Bool {
+        analysis.genericTypedErrorUsesIndirectResultSlot
+    }
+    var asyncDirectResultUsesGeneralPurposeSlot: Bool {
+        analysis.asyncDirectResultUsesGeneralPurposeSlot
+    }
+    var genericUsesStackArgument: Bool {
+        analysis.genericUsesStackArgument
+    }
+
+    var directArgumentLayouts: [ABIClass] { directArgumentPlan.layouts }
 }

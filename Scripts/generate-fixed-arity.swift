@@ -103,20 +103,20 @@ private func dynamicDispatcher() -> String {
         func dynamicallyBoxFunctionArgument(
             function: UnsafeRawPointer,
             context: UnsafeRawPointer?,
-            metadata: FunctionMetadata,
+            plan: FunctionBridgePlan,
             discriminator: UInt16
         ) -> Any {
             // Opening six independently discovered parameter types requires one local
             // generic function per level. The nesting mirrors Swift's existential-open
             // operation and is bounded by the documented arity limit.
             // swiftlint:disable nesting
-            let plan = FunctionBridgePlan(metadata)
             let invocation = DynamicFunctionInvocation(
                 function: function,
                 context: context,
                 discriminator: discriminator,
                 plan: plan
             )
+            let metadata = plan.metadata
             let isSendable = metadata.flags.bits & 0x4000_0000 != 0
             let isThrowing = plan.isThrowing
             let isAsync = plan.isAsync

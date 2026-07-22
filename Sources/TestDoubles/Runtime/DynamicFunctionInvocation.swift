@@ -4,13 +4,13 @@ import Echo
 func canDynamicallyBoxFunctionArgument(
     _ metadata: FunctionMetadata
 ) -> Bool {
-    dynamicFunctionBridgeUnsupportedReason(metadata) == nil
+    FunctionBridgeAnalysis(metadata).validated(for: .directToGeneric) != nil
 }
 
 func dynamicFunctionBridgeUnsupportedReason(
     _ metadata: FunctionMetadata
 ) -> String? {
-    FunctionBridgePlan(metadata).unsupportedReason(for: .directToGeneric)
+    FunctionBridgeAnalysis(metadata).unsupportedReason(for: .directToGeneric)
 }
 
 private enum DynamicTypedInvocationOutcome<Result, Failure: Error> {
@@ -36,6 +36,10 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
         discriminator: UInt16,
         plan: FunctionBridgePlan
     ) {
+        precondition(
+            plan.direction == .directToGeneric,
+            "[TestDoubles] Dynamic function invocation requires a direct-to-generic bridge plan."
+        )
         self.function = function
         self.context = context
         self.discriminator = discriminator
@@ -193,7 +197,7 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
         ) throws -> Output
     ) rethrows -> Output {
         precondition(arguments.count == parameterTypes.count)
-        let layouts = plan.directArgumentLayouts!
+        let layouts = plan.directArgumentLayouts
         let prepared = zip(arguments, parameterTypes).map {
             PreparedDirectArgument(value: $0.0, type: $0.1)
         }
@@ -255,7 +259,7 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
         ) throws -> Output
     ) async rethrows -> Output {
         precondition(arguments.count == parameterTypes.count)
-        let layouts = plan.directArgumentLayouts!
+        let layouts = plan.directArgumentLayouts
         let prepared = zip(arguments, parameterTypes).map {
             PreparedDirectArgument(value: $0.0, type: $0.1)
         }
@@ -295,7 +299,7 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
             discriminator,
             call.rawFrame,
             isThrowing,
-            plan.directArgumentPlan!.usesStackArgument
+            plan.directArgumentPlan.usesStackArgument
         )
         if frame.returnedError == 0 {
             decodeDirectResult(

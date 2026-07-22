@@ -124,13 +124,15 @@ enum FunctionReabstraction {
         }
         let context = (source + MemoryLayout<UInt>.size)
             .load(as: UnsafeRawPointer?.self)
-        if canDynamicallyBoxFunctionArgument(function),
+        if let plan = FunctionBridgeAnalysis(function).validated(
+            for: .directToGeneric
+        ),
             let discriminator = directFunctionDiscriminator(for: function)
         {
             return dynamicallyBoxFunctionArgument(
                 function: code,
                 context: context,
-                metadata: function,
+                plan: plan,
                 discriminator: discriminator
             )
         }
@@ -160,7 +162,7 @@ enum FunctionReabstraction {
             let raw = UnsafeMutableRawPointer(storage)
             raw.storeBytes(of: signedThunk, as: UnsafeRawPointer.self)
             (raw + MemoryLayout<UInt>.size).storeBytes(
-                of: UnsafeRawPointer(Unmanaged.passRetained(state).toOpaque()),
+                of: UnsafeRawPointer(RetainedRuntimeState.retain(state)),
                 as: UnsafeRawPointer.self
             )
             return storage.move()
@@ -187,10 +189,12 @@ enum FunctionReabstraction {
                 "[TestDoubles] No compiler-emitted generic-to-direct reabstraction thunk is linked for function result \(type)."
             )
         }
-        if canDynamicallyInitializeFunctionResult(function) {
+        if let plan = FunctionBridgeAnalysis(function).validated(
+            for: .genericToDirect
+        ) {
             initializeDynamicFunctionResult(
                 source,
-                metadata: function,
+                plan: plan,
                 discriminator: discriminator,
                 at: destination
             )
@@ -214,7 +218,7 @@ enum FunctionReabstraction {
         let signedThunk = td_sign_function_pointer(thunk, discriminator) ?? thunk
         destination.storeBytes(of: signedThunk, as: UnsafeRawPointer.self)
         (destination + MemoryLayout<UInt>.size).storeBytes(
-            of: UnsafeRawPointer(Unmanaged.passRetained(state).toOpaque()),
+            of: UnsafeRawPointer(RetainedRuntimeState.retain(state)),
             as: UnsafeRawPointer.self
         )
     }

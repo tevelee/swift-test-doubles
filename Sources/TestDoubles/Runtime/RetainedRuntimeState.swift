@@ -7,7 +7,7 @@ enum RetainedRuntimeState {
 
     static func borrow<State>(
         _ type: State.Type,
-        from pointer: UnsafeMutableRawPointer,
+        from pointer: UnsafeRawPointer,
         invalidTypeMessage: @autoclosure () -> String
     ) -> State {
         let object = Unmanaged<AnyObject>.fromOpaque(pointer)
@@ -20,7 +20,7 @@ enum RetainedRuntimeState {
 
     static func consume<State>(
         _ type: State.Type,
-        from pointer: UnsafeMutableRawPointer,
+        from pointer: UnsafeRawPointer,
         invalidTypeMessage: @autoclosure () -> String
     ) -> State {
         let object = Unmanaged<AnyObject>.fromOpaque(pointer)

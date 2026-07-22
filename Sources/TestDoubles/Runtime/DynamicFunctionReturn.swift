@@ -4,28 +4,32 @@ import Echo
 func canDynamicallyInitializeFunctionResult(
     _ metadata: FunctionMetadata
 ) -> Bool {
-    dynamicFunctionReturnBridgeUnsupportedReason(metadata) == nil
+    FunctionBridgeAnalysis(metadata).validated(for: .genericToDirect) != nil
 }
 
 func dynamicFunctionReturnBridgeUnsupportedReason(
     _ metadata: FunctionMetadata
 ) -> String? {
-    FunctionBridgePlan(metadata).unsupportedReason(for: .genericToDirect)
+    FunctionBridgeAnalysis(metadata).unsupportedReason(for: .genericToDirect)
 }
 
 func initializeDynamicFunctionResult(
     _ source: UnsafeMutableRawPointer,
-    metadata: FunctionMetadata,
+    plan: FunctionBridgePlan,
     discriminator: UInt16,
     at destination: UnsafeMutableRawPointer
 ) {
+    precondition(
+        plan.direction == .genericToDirect,
+        "[TestDoubles] Dynamic function return requires a generic-to-direct bridge plan."
+    )
     let context = DynamicFunctionReturnContext(
         source: source,
-        metadata: metadata
+        plan: plan
     )
     let entry: UnsafeRawPointer
     let signedEntry: UnsafeRawPointer
-    if isDynamicFunctionAsync(metadata) {
+    if plan.isAsync {
         guard let descriptor = td_swift_dynamic_async_function_descriptor()
         else {
             preconditionFailure(
@@ -47,7 +51,7 @@ func initializeDynamicFunctionResult(
     }
     destination.storeBytes(of: signedEntry, as: UnsafeRawPointer.self)
     (destination + MemoryLayout<UInt>.size).storeBytes(
-        of: UnsafeRawPointer(Unmanaged.passRetained(context).toOpaque()),
+        of: UnsafeRawPointer(RetainedRuntimeState.retain(context)),
         as: UnsafeRawPointer.self
     )
 }
@@ -64,15 +68,18 @@ func prepareDynamicAsyncFunctionReturn(
             "[TestDoubles] Dynamic async function call has no context."
         )
     }
-    let context = Unmanaged<DynamicFunctionReturnContext>
-        .fromOpaque(contextAddress)
-        .takeUnretainedValue()
+    let context = RetainedRuntimeState.borrow(
+        DynamicFunctionReturnContext.self,
+        from: contextAddress,
+        invalidTypeMessage:
+            "[TestDoubles] Dynamic function return context has an invalid type."
+    )
     let state = DynamicAsyncFunctionReturnState(
         context: context,
         frame: frame
     )
     return TDAsyncTrampolineResult(
-        state: Unmanaged.passRetained(state).toOpaque(),
+        state: RetainedRuntimeState.retain(state),
         stackAdjustment: context.directStackAdjustment
     )
 }
@@ -92,9 +99,12 @@ func tdSwiftDynamicFunctionHandler(
     else {
         preconditionFailure("[TestDoubles] Dynamic function call has no context.")
     }
-    let context = Unmanaged<DynamicFunctionReturnContext>
-        .fromOpaque(contextAddress)
-        .takeUnretainedValue()
+    let context = RetainedRuntimeState.borrow(
+        DynamicFunctionReturnContext.self,
+        from: contextAddress,
+        invalidTypeMessage:
+            "[TestDoubles] Dynamic function return context has an invalid type."
+    )
     context.invoke(into: frame)
 }
 
@@ -120,12 +130,13 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
         UInt64(
             dynamicAsyncStackAdjustmentByteCount(
                 usesStackArgument:
-                    plan.directArgumentPlan?.usesStackArgument == true
+                    plan.directArgumentPlan.usesStackArgument
             )
         )
     }
 
-    init(source: UnsafeMutableRawPointer, metadata: FunctionMetadata) {
+    init(source: UnsafeMutableRawPointer, plan: FunctionBridgePlan) {
+        let metadata = plan.metadata
         guard let function = source.load(as: UnsafeRawPointer?.self) else {
             preconditionFailure(
                 "[TestDoubles] Generic function value \(metadata.type) has no entry point."
@@ -135,7 +146,7 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
         functionContext = (source + MemoryLayout<UInt>.size)
             .load(as: UnsafeRawPointer?.self)
         self.metadata = metadata
-        plan = FunctionBridgePlan(metadata)
+        self.plan = plan
         if let functionContext {
             td_swift_retain(functionContext)
         }
