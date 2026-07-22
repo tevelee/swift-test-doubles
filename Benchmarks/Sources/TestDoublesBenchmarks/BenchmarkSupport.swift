@@ -46,6 +46,7 @@ struct RunOptions {
     var suite = BenchmarkSuite.all
     var sampleCount = 7
     var targetMilliseconds = 100.0
+    var filter: String?
     var outputPath: String?
     var quiet = false
 
@@ -78,6 +79,9 @@ struct RunOptions {
                     index += 2
                 case "--output":
                     options.outputPath = try argumentValue(after: index, in: arguments)
+                    index += 2
+                case "--filter":
+                    options.filter = try argumentValue(after: index, in: arguments)
                     index += 2
                 case "--quiet":
                     options.quiet = true
@@ -154,9 +158,17 @@ func runBenchmarks(
         case .comparable:
             suiteDefinitions = definitions.filter(\.preExpansionComparable)
     }
+    let filteredDefinitions: [BenchmarkDefinition]
+    if let filter = options.filter {
+        filteredDefinitions = suiteDefinitions.filter {
+            $0.name == benchmarkControlName || $0.name.contains(filter)
+        }
+    } else {
+        filteredDefinitions = suiteDefinitions
+    }
     let selected =
-        suiteDefinitions.filter { !$0.name.contains(".construct.") }
-        + suiteDefinitions.filter { $0.name.contains(".construct.") }
+        filteredDefinitions.filter { !$0.name.contains(".construct.") }
+        + filteredDefinitions.filter { $0.name.contains(".construct.") }
     guard selected.contains(where: { $0.name == benchmarkControlName }) else {
         throw BenchmarkCommandError("The benchmark control is missing.")
     }

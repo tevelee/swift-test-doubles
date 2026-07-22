@@ -17,6 +17,12 @@ Write machine-readable results:
 Scripts/run-benchmarks.sh --output candidate.json
 ```
 
+Run only matching workloads (plus the normalization control):
+
+```sh
+Scripts/run-benchmarks.sh --filter construct
+```
+
 Compare two result files, normalizing against direct protocol dispatch and
 failing when a benchmark regresses by more than 20 percent:
 
