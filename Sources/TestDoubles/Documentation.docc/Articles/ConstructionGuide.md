@@ -272,7 +272,15 @@ a different fabricated witness graph from being returned accidentally.
 Without a linked conformer or resilient requirement symbol, describe the result
 as `.method(returning: .dynamicSelf)`. Optional `Self?` uses
 `.optionalDynamicSelf` with `when(returningOptionalSelf:)`, which can return a
-fresh generated value or `nil`. Direct `Self` inputs remain unsupported.
+fresh generated value or `nil`.
+
+Automatically discovered nonthrowing instance methods may also accept direct
+`Self` or one `Optional<Self>` layer with borrowed/default or consuming
+ownership, in synchronous or async form. Open the existential through a generic
+helper when configuring, verifying, or invoking the requirement. Explicit
+schemas cannot preserve a `Self` input through function conversion, and Spies,
+superclass-constrained existentials, throwing methods, `inout`, accessors,
+static methods, and wider wrappers remain unsupported.
 
 ### Construction failures
 

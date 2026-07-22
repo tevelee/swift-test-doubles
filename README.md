@@ -328,15 +328,16 @@ targets: [
 <details>
 <summary><strong>Requirements and platforms</strong></summary>
 
-TestDoubles requires Swift 6.3. The supported runtime matrix is macOS 13+ on
-arm64 and x86_64, Linux on arm64 and x86_64, Android on arm64 and x86_64, Mac
-Catalyst 16+ on arm64, and arm64 simulators for iOS 16+, tvOS 16+, visionOS 1+,
-and watchOS 9+.
+TestDoubles requires Swift 6.3. The CI-executed runtime matrix is macOS 13+ on
+arm64 and x86_64, Linux on arm64 and x86_64, Mac Catalyst 16+ on arm64, and
+arm64 simulators for iOS 16+, tvOS 16+, visionOS 1+, and watchOS 9+. Android
+arm64 and x86_64 are provisional cross-build targets.
 
 Android support is cross-build validated in CI for debug and release test
-targets with the official Swift 6.3.3 Android SDK, NDK r27d or later, and Echo
-0.0.5's Android ELF image discovery. CI does not currently execute the tests on
-an Android emulator or device.
+targets with the official Swift 6.3.3 Android SDK and NDK r27d or later. The
+dependency graph must resolve Echo 0.0.5 or newer for Android ELF image
+discovery; this repository pins 0.0.5. CI does not currently execute the tests
+on an Android emulator or device, so Android is not yet runtime-validated.
 
 Physical iOS, tvOS, visionOS, and watchOS devices are unsupported because the
 runtime generates executable trampoline code and CI cannot exercise device
@@ -418,22 +419,30 @@ What's supported:
 - Protocol inheritance, diamond bases, and multi-protocol compositions;
   class-constrained protocols, and `NSObject`-backed superclass existentials
   on Apple platforms.
-- Dynamic `Self` results, bound primary associated types (direct values plus
-  `Optional`, `Array`, `Set`, and direct `Dictionary` key, value, or both
-  occurrences), and native Swift closures as arguments and results.
-- Borrowing property and subscript access through Swift 6.3 `read` accessors,
-  compound assignment and `inout` access through `_modify`, concurrent
-  invocation of generated values, behavior chains, argument captors, ordered
-  and event-driven verification.
+- Dynamic `Self` results and automatically discovered direct or single-optional
+  `Self` arguments for nonthrowing instance methods. Bound primary associated
+  types cover recursive `Optional`, `Array`, `Set`, `Dictionary`, and `Result`
+  values, proven linked generic classes, and the documented concrete-reference
+  slice. Native Swift closures work as arguments and results.
+- Borrowing property and subscript access through Swift 6.3 `read` accessors
+  and Stub-side Swift 6.4 `yielding borrow`, compound assignment and `inout`
+  access through `_modify`, concurrent invocation of generated values, behavior
+  chains, argument captors, ordered and event-driven verification.
 
 Key limitations:
 
-- Unbound associated types (beyond covariant caller-supplied bindings) and
-  direct `Self` arguments are rejected.
-- Async requirements must leave one general-purpose argument register free;
-  extremely wide signatures fail at construction.
+- Unbound associated types beyond the documented caller-bound slice are
+  rejected. `Self` arguments remain unsupported in explicit schemas, Spies,
+  superclass-constrained existentials, throwing methods, `inout`, and wider or
+  nested wrappers.
+- Async Stub requirements may fill the general-purpose register bank and use up
+  to eight decoded stack bytes. Async Spy forwarding and dynamic closure
+  bridging narrow that allowance to one complete eight-byte general-purpose
+  word; split, padded, vector, dependent, and additional spills fail closed.
 - Typed-throwing getters, Objective-C-only protocols, and native-Swift-only
   superclass constraints are outside the boundary.
+- Protocols that relax `Copyable` or `Escapable` are rejected because recorder
+  values are retained as escaping `Any` payloads.
 - Physical device targets don't run the executable trampoline; use
   `ManualStub` there.
 

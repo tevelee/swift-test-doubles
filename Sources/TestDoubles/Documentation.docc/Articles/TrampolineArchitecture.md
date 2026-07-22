@@ -78,9 +78,12 @@ dependent `Array`, `Set`, and `Dictionary` values retain their ordinary direct
 reference layout while remaining dependent for signature validation. Dictionary
 dependencies preserve whether the key, value, or both came from an associated
 type. Opaque and class-constrained extended existentials use their respective
-container layouts. An associated
-type constrained to `AnyObject` has a different dependent reference ABI and is
-rejected before witness fabrication.
+container layouts. An associated type constrained to `AnyObject` has a distinct
+dependent reference ABI. A concrete class binding is supported directly or
+through one `Optional` layer: borrowed/default and consuming values use one
+reference word, and `Error & AnyObject` uses the direct typed-error channel.
+Class existentials, deeper optionals, collections, and other wrappers remain
+fail-closed.
 
 An ordinary unbound `any Protocol` existential does not carry concrete
 associated metadata. Caller-bound construction validates an explicit mapping
@@ -172,6 +175,18 @@ specialized outcome that chooses a fresh payload or `nil`. These builders never
 accept a payload from user code, so result transport cannot receive a value from
 a different fabricated graph.
 
+For an automatically discovered nonthrowing instance method, direct `Self` and
+one `Optional<Self>` argument layer reuse those opaque-indirect or class-direct
+layouts. Default and explicit borrows copy into dispatch type erasure without
+consuming the caller's storage; consuming arguments are copied first and then
+destroyed through the matching value witness. Playback storage holds generated
+`Self` payloads weakly to avoid a recorder-to-runtime-graph ownership cycle. It
+uses the live payload while available, or materializes a fresh resource-owning
+payload from the receiving recorder for later verification, capture, and typed
+invocation access. The class decision is local to the protocol descriptor that
+declares the requirement. A class-bound child therefore does not reinterpret an
+inherited unconstrained base witness.
+
 For an async call, the entry trampoline preserves the caller continuation,
 creates a Swift task continuation around recorder dispatch, and resumes through
 an architecture-specific continuation trampoline after recorder dispatch
@@ -260,13 +275,14 @@ partial-apply reabstraction thunks found in the linked client or a bounded
 runtime-built arm64/x86_64 bridge. Arguments are wrapped from direct witness ABI
 to generic `Any` ABI before typed handlers receive them; results are wrapped in
 the reverse direction before the witness returns. The runtime bridge handles
-ordinary synchronous and async closures with zero through six formal arguments, mixed
+ordinary synchronous and async closures with zero through six direct-to-generic
+formal arguments, mixed
 general-purpose and floating-point registers, direct and indirect aggregates,
 untyped errors, concrete typed errors, and recursively bridgeable higher-order
 values. Typed closures distinguish the direct caller's typed-error layout from
 the generic `@error @out` layout and reserve separate hidden buffers when
-required. The reverse direction may use eight generic argument registers on
-arm64 and six on x86-64.
+required. The reverse direction may use all eight generic argument registers on
+arm64 or six on x86-64 plus one complete eight-byte general-purpose stack word.
 It preserves the Swift self and error registers independently, including the
 callee-saved error register of a nonthrowing synchronous closure, and carries
 async descriptors and child task contexts across genuine suspension. Tuple and `Optional`
@@ -287,18 +303,24 @@ explicit-adapter or fail-closed paths described in <doc:FunctionValues>.
 
 Ordinary class constraints and exact concrete primary-associated-type bindings
 across inheritance, composition, and opaque or class storage are supported.
-That dependent slice includes direct values, `Optional`, `Array`, `Set`, direct
-Dictionary key or value occurrences, direct setters, initializer arguments, and
-consuming direct or supported-container method arguments. Static requirements,
+That dependent slice includes direct values, recursive `Optional`, `Array`,
+`Set`, `Dictionary`, and `Result` values, proven linked generic classes,
+concrete-class reference bindings directly or through one `Optional`, direct
+setters, initializer arguments, and consuming direct or supported-container
+method arguments. Static requirements,
 initializers, direct or optional dynamic
 `Self` results, and `_modify` getter/setter materialization are supported across
 opaque and class storage. Ordinary `NSObject`-backed superclass constraints
 support Swift protocol calls, compositions, static concrete results, and real superclass
 members, but not initializer requirements or dynamic `Self` results. Native
 Swift-only superclasses, superclass-constrained extended existentials, broader
-dependent-value lowering, `AnyObject`-constrained associated types, direct
-`Self` arguments, and `read` forwarding or Dummy requirements remain outside
-the supported layout.
+dependent-value lowering, and `read` requirements in Dummy remain outside the
+supported layout. Automatic nonthrowing instance methods may take direct or
+single-optional `Self` arguments with borrowed/default or consuming ownership;
+explicit schemas, Spies, superclass constraints, throwing effects, `inout`,
+accessors, static methods, and wider wrappers remain unsupported. Swift 6.3
+read forwarding is supported, while Swift 6.4's paired legacy and
+yielding-borrow Spy path remains fail-closed.
 Ordinary unbound existentials may receive complete caller-supplied bindings for
 covariant associated results; this is an injection into the existing dependent
 result path, not a new trampoline convention.

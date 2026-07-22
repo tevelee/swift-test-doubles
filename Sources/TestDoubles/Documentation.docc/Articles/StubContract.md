@@ -16,8 +16,8 @@ For construction examples and requirement-order recipes, see
 | Ordinary protocol methods, getters, setters, subscripts, inheritance, and compositions | Automatic discovery from linked conformers or resilient requirement symbols; explicit requirements otherwise | Compositions use one group per declaring protocol. |
 | Effectful getters | Automatic discovery plus complete ``Stub/GetterEffect`` hints, or explicit requirements | Swift metadata omits getter throwing behavior. |
 | Swift 6.3 `read` accessors | Configure and verify them like synchronous nonthrowing getters | Stub yields the configured result; Spy forwards the target coroutine when no registration matches; Dummy remains fail-closed. |
-| Static requirements, initializers, and dynamic `Self` results | Supported with the dedicated configuration builders | Use `Stub.withValue(_:)` when passing a generated metatype to code under test. |
-| Bounded primary associated types | Supported for the documented direct, `Optional`, `Array`, `Set`, `Dictionary`, setter, initializer, and direct associated-error slice | See <doc:BoundAssociatedTypes> for exact supported and rejected shapes. |
+| Static requirements, initializers, and dynamic `Self` | Dedicated builders support `Self` results; automatic discovery supports direct and single-`Optional` arguments for bounded nonthrowing instance methods | Use `Stub.withValue(_:)` when passing a generated metatype to code under test. |
+| Bounded primary associated types | Supported for the documented direct, recursive standard-library container, linked generic-class, concrete-reference, setter, initializer, and associated-error slices | See <doc:BoundAssociatedTypes> for exact supported and rejected shapes. |
 | Function arguments and results | Automatic for concrete native Swift closures, C function pointers, blocks, and documented structural containers; explicit compiler-typed adapter otherwise | See <doc:FunctionValues>; top-level nonescaping, thin, declaration-level consuming or `inout`, dependent, and parameter-pack closure shapes remain fail-closed. |
 | Unsupported dependent shapes, native Swift-only superclasses, and device-only execution policy | Use ``ManualStub`` or a hand-written fake | These stay fail-closed instead of guessing at ABI behavior. |
 
@@ -120,6 +120,26 @@ convention, so an ordinary requirement returning the same protocol existential
 continues to use `thenReturn` or `then`. The handler returns `Void` so a payload
 associated with another fabricated witness graph cannot be installed
 accidentally.
+
+Automatic discovery also accepts direct `Self` and one `Optional<Self>` layer
+as arguments to nonthrowing instance methods, including borrowed/default,
+consuming, synchronous, and async forms. The declaring protocol determines the
+ABI: an ordinary protocol uses opaque indirect storage, while a protocol that
+itself requires `AnyObject` uses one direct reference word. A class-constrained
+child does not change an inherited unconstrained base requirement's ABI.
+Configuration and invocation use generic-opening helper functions because an
+existential cannot call a `Self`-taking requirement directly. Explicit schemas,
+Spies, superclass-constrained existentials, throwing methods, accessors,
+initializers, static methods, `inout`, nested optionals, and other wrappers
+remain fail-closed.
+
+Playback recording keeps a weak reference to a generated `Self` argument so a
+recorder cannot retain its own runtime graph. The original identity is preserved
+while that value is alive. If it has been released before verification, capture,
+or typed invocation access, the recorder materializes a fresh value from the
+receiving Stub's graph; a recorded optional `nil` remains `nil`. Returned
+captured and invocation-access values own that graph and remain usable after the
+Stub itself is released.
 
 ### Configuration and selection
 
@@ -293,12 +313,14 @@ associated types across the complete layout, including direct protocol
 constraints on each type. Declarations may belong to inherited bases, appear
 alongside inheritance, or span multiple composed roots. Direct dependent
 arguments and results, dependent setters and initializer arguments, and
-dependent `Optional`, `Array`, `Set`, and direct `Dictionary` key or value
-occurrences are supported. Automatic discovery additionally accepts linked,
+recursive `Optional`, `Array`, `Set`, `Dictionary`, and `Result` values are
+supported. Automatic discovery additionally accepts linked,
 public, top-level generic Swift classes with one or two unconstrained type
 parameters when every argument recursively resolves and reconstructed metadata
 proves the exact class descriptor. No source-less explicit generic-class schema
-is available. Direct and supported container method arguments may be consuming.
+is available. An `AnyObject`-constrained associated type bound to a concrete
+class uses the documented direct or single-`Optional` reference slice. Direct
+and supported container method arguments may be consuming.
 Methods may combine these values with `async`, untyped `throws`, and a direct
 associated typed error. Automatic discovery also accepts a typed error whose
 outer shape is one of those proven generic classes and whose arguments are
@@ -350,9 +372,12 @@ error channel.
   consuming or `inout` closure arguments, differentiable or lifetime-dependent
   metadata, or no matching linked reabstraction thunk or eligible bounded dynamic
   bridge. The dynamic bridge covers ordinary synchronous and async closures,
-  including untyped and typed throws, through six formal parameters when their
-  complete register layout fits. Typed-throwing closure values require macOS 15,
-  iOS 18, Mac Catalyst 18, tvOS 18, or visionOS 2; isolation, sending,
+  including untyped and typed throws, through six direct-to-generic formal
+  parameters. Its reverse generic-to-direct layout may use the complete
+  general-purpose register bank plus one complete eight-byte general-purpose
+  stack word; split, padded, floating-point, vector, dependent, and additional
+  spills remain fail-closed. Typed-throwing closure values require macOS 15, iOS
+  18, Mac Catalyst 18, tvOS 18, or visionOS 2; isolation, sending,
   ownership-qualified, and parameter-flagged closures require exact linked
   thunks. C function pointers and block values are supported without native
   reabstraction thunks. The
@@ -364,19 +389,27 @@ error channel.
 - Associated-type protocols outside the bounded slice documented in
   <doc:BoundAssociatedTypes>, including unbound associated types without
   complete caller bindings, caller-bound dependent inputs, nested dependent
-  types other than `Optional`, `Array`, `Set`, and direct `Dictionary` key or
-  value occurrences, broader same-type constraints, `AnyObject`-constrained
-  associated types, and associated-dependent typed errors whose outer shape is
-  optional, another value wrapper, a generic struct or enum, or an unsupported
-  generic class.
+  types outside the supported recursive containers and proven linked generic
+  classes, broader same-type constraints, reference-associated values beyond a
+  direct value or one `Optional` layer, and associated-dependent typed errors
+  whose outer shape is optional, another value wrapper, a generic struct or
+  enum, or an unsupported generic class.
 - Superclass-constrained existentials with a native Swift-only base class, a
   bound-associated-type extended layout, no usable `NSObject` default
   initializer, an initializer requirement, or a dynamic `Self` result.
   Objective-C-only protocol existentials are also unsupported.
-- `read` accessors in dummies, Swift 6.4 yielding-borrow coroutine descriptors,
-  and `read` results containing a function or dynamic `Self`. Use a Stub or Spy
-  with an ordinary supported result, or a hand-written test double.
-- Direct `Self` arguments.
+- `read` accessors in dummies, forwarding Swift 6.4's paired legacy and
+  yielding-borrow witnesses through a Spy, and read results containing a
+  function or dynamic `Self`. A Stub supports Swift 6.4 `yielding borrow`
+  through its `yield_once_2` witness; use a hand-written double for the other
+  shapes.
+- `Self` arguments outside automatic nonthrowing instance methods with a direct
+  value or one `Optional` layer. Explicit schemas, Spies, superclass
+  constraints, accessors, initializers, static methods, throwing effects,
+  `inout`, and wider wrappers remain unsupported.
+- Protocols that relax `Copyable` or `Escapable`. Recorder arguments, matchers,
+  captors, and results escape into `Any`-backed storage, so move-only or
+  lifetime-dependent values need a different recorder model.
 - Async getters discovered automatically without ``Stub/GetterEffect`` hints,
   because their throwing behavior cannot be determined safely. Supply complete
   hints or describe effectful getters explicitly.
@@ -396,17 +429,18 @@ even if it cannot be diagnosed during construction.
 
 ### Runtime and platform boundary
 
-CI-backed release support covers macOS 13+ on arm64 and x86_64, Linux on arm64
-and x86_64 with Swift 6.3+, Android arm64 and x86_64 cross-builds, Mac Catalyst
-16+ on arm64, and arm64 simulators for iOS 16+, tvOS 16+, visionOS 1+, and
-watchOS 9+. Deployment targets are compiled at their declared minimum and
-executed on CI's available runner or simulator OS. macOS x86_64 coverage runs
-under Rosetta.
+CI-executed release support covers macOS 13+ on arm64 and x86_64, Linux on
+arm64 and x86_64 with Swift 6.3+, Mac Catalyst 16+ on arm64, and arm64
+simulators for iOS 16+, tvOS 16+, visionOS 1+, and watchOS 9+. Deployment
+targets are compiled at their declared minimum and executed on CI's available
+runner or simulator OS. macOS x86_64 coverage runs under Rosetta. Android arm64
+and x86_64 are provisional cross-build targets.
 
 Android CI cross-builds debug and release test targets with the official Swift
-6.3.3 Android SDK, NDK r27d or later, and Echo 0.0.5's Android ELF image
-discovery. It does not currently execute the tests on an Android emulator or
-device.
+6.3.3 Android SDK and NDK r27d or later. The dependency graph must resolve Echo
+0.0.5 or newer for Android ELF image discovery; this repository pins 0.0.5. CI
+does not currently execute the tests on an Android emulator or device, so
+Android is not yet runtime-validated.
 
 Physical iOS, tvOS, visionOS, and watchOS devices are unsupported because the
 runtime generates executable trampoline code and CI cannot exercise device
