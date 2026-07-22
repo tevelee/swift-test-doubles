@@ -66,64 +66,6 @@ private actor ClosureIsolationActor {
 }
 
 @Suite struct AdvancedRuntimeClosureTests {
-    @Test func generatedBridgeCoversNullaryAndPairEffectCombinations() async throws {
-        _ = RealExternalGeneratedBridgeCoverageService()
-        let stub = try Stub<any ExternalGeneratedBridgeCoverageService>()
-
-        let nullary: ExternalNullaryClosure = { 1 }
-        let nullaryThrowing: ExternalNullaryThrowingClosure = { 2 }
-        let nullaryAsync: ExternalNullaryAsyncClosure = { 3 }
-        let nullaryAsyncThrowing: ExternalNullaryAsyncThrowingClosure = { 4 }
-        let sendableNullaryThrowing: ExternalSendableNullaryThrowingClosure = { 5 }
-        let sendableNullaryAsync: ExternalSendableNullaryAsyncClosure = { 6 }
-        let sendableNullaryAsyncThrowing: ExternalSendableNullaryAsyncThrowingClosure = { 7 }
-        let pairThrowing: ExternalPairThrowingClosure = (+)
-        let pairAsync: ExternalPairAsyncClosure = (+)
-        let pairAsyncThrowing: ExternalPairAsyncThrowingClosure = (+)
-
-        stub.when(returning: nullary) {
-            $0.nullary(any(using: nullary))
-        }.thenReturn(nullary)
-        stub.when(returning: nullaryThrowing) {
-            $0.nullaryThrowing(any(using: nullaryThrowing))
-        }.thenReturn(nullaryThrowing)
-        stub.when(returning: nullaryAsync) {
-            $0.nullaryAsync(any(using: nullaryAsync))
-        }.thenReturn(nullaryAsync)
-        stub.when(returning: nullaryAsyncThrowing) {
-            $0.nullaryAsyncThrowing(any(using: nullaryAsyncThrowing))
-        }.thenReturn(nullaryAsyncThrowing)
-        stub.when(returning: sendableNullaryThrowing) {
-            $0.sendableNullaryThrowing(any(using: sendableNullaryThrowing))
-        }.thenReturn(sendableNullaryThrowing)
-        stub.when(returning: sendableNullaryAsync) {
-            $0.sendableNullaryAsync(any(using: sendableNullaryAsync))
-        }.thenReturn(sendableNullaryAsync)
-        stub.when(returning: sendableNullaryAsyncThrowing) {
-            $0.sendableNullaryAsyncThrowing(any(using: sendableNullaryAsyncThrowing))
-        }.thenReturn(sendableNullaryAsyncThrowing)
-        stub.when(returning: pairThrowing) {
-            $0.pairThrowing(any(using: pairThrowing))
-        }.thenReturn(pairThrowing)
-        stub.when(returning: pairAsync) {
-            $0.pairAsync(any(using: pairAsync))
-        }.thenReturn(pairAsync)
-        stub.when(returning: pairAsyncThrowing) {
-            $0.pairAsyncThrowing(any(using: pairAsyncThrowing))
-        }.thenReturn(pairAsyncThrowing)
-
-        #expect(stub().nullary({ 11 })() == 1)
-        #expect(try stub().nullaryThrowing({ 12 })() == 2)
-        #expect(await stub().nullaryAsync({ 13 })() == 3)
-        #expect(try await stub().nullaryAsyncThrowing({ 14 })() == 4)
-        #expect(try stub().sendableNullaryThrowing({ 15 })() == 5)
-        #expect(await stub().sendableNullaryAsync({ 16 })() == 6)
-        #expect(try await stub().sendableNullaryAsyncThrowing({ 17 })() == 7)
-        #expect(try stub().pairThrowing(+)(20, 1) == 21)
-        #expect(await stub().pairAsync(+)(20, 2) == 22)
-        #expect(try await stub().pairAsyncThrowing(+)(20, 3) == 23)
-    }
-
     @Test func managedClosuresPreserveCapturedValuesAndLifetimes() throws {
         _ = RealExternalAdvancedClosureService()
         let identity: ExternalManagedClosure = { $0 }
