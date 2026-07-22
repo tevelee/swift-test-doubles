@@ -197,43 +197,105 @@ jobs:
   android:
     name: Swift 6.3 / Android SDK / arm64 + x86_64
     runs-on: ubuntu-24.04
+    container:
+      image: swift:6.3.3-noble@sha256:66520bcba471018a34fd54ba09be97ba4abebd950a96ff5cb8c2bf50a2d33259
     timeout-minutes: 60
-    env:
-      ANDROID_SWIFT_SDKS_PATH: ${{ github.workspace }}/.build/android-swift-sdks
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           persist-credentials: false
-      - name: Install Swift 6.3.3
-        uses: swift-actions/setup-swift@364295d9c23900ce04d4e5cc708387921b4e50f9 # v3
-        with:
-          swift-version: 6.3.3
-      - name: Restore Swift Android SDK
-        id: android-sdk-cache
+      - name: Load Android toolchain configuration
+        id: android-toolchain
+        run: |
+          . Scripts/android-toolchain.sh
+          swift_sdks_path="$HOME/.swiftpm/swift-sdks"
+          swift_sdk_cache_path="$swift_sdks_path/${ANDROID_SWIFT_SDK_ID}.artifactbundle"
+          android_ndk_home="$RUNNER_TEMP/$ANDROID_NDK_DIRECTORY_NAME"
+          {
+            echo "ANDROID_NDK_DIRECTORY_NAME=$ANDROID_NDK_DIRECTORY_NAME"
+            echo "ANDROID_NDK_HOME=$android_ndk_home"
+            echo "ANDROID_NDK_URL=$ANDROID_NDK_URL"
+            echo "ANDROID_NDK_SHA1=$ANDROID_NDK_SHA1"
+            echo "ANDROID_SWIFT_SDK_URL=$ANDROID_SWIFT_SDK_URL"
+            echo "ANDROID_SWIFT_SDK_CHECKSUM=$ANDROID_SWIFT_SDK_CHECKSUM"
+            echo "ANDROID_SWIFT_SDKS_PATH=$swift_sdks_path"
+            echo "ANDROID_SWIFT_SDK_DIRECTORY=$swift_sdk_cache_path/swift-android"
+          } >> "$GITHUB_ENV"
+          {
+            echo "apt_cache_epoch=$(date -u +%G-%V)"
+            echo "ndk_cache_path=$android_ndk_home"
+            echo "ndk_release=$ANDROID_NDK_RELEASE"
+            echo "ndk_sha1=$ANDROID_NDK_SHA1"
+            echo "swift_sdk_cache_path=$swift_sdk_cache_path"
+            echo "swift_sdk_checksum=$ANDROID_SWIFT_SDK_CHECKSUM"
+            echo "swift_version=$ANDROID_SWIFT_VERSION"
+          } >> "$GITHUB_OUTPUT"
+      - name: Restore apt package cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
-          path: ${{ env.ANDROID_SWIFT_SDKS_PATH }}/swift-6.3.3-RELEASE_android.artifactbundle
-          key: swift-android-sdk-${{ runner.os }}-6.3.3-d160cc3206dd1886dae3fef2337af5e25ec034692cd0ec225721c56cc69da7f5
+          path: .build/apt-cache
+          key: >-
+            apt-v3-${{ runner.os }}-swift-6.3.3-noble-curl-unzip-${{
+            steps.android-toolchain.outputs.apt_cache_epoch }}
+          restore-keys: |
+            apt-v3-${{ runner.os }}-swift-6.3.3-noble-curl-unzip-
+      - name: Install archive tools
+        run: |
+          apt_cache_directory="$GITHUB_WORKSPACE/.build/apt-cache"
+          mkdir -p "$apt_cache_directory/partial"
+          apt-get update
+          apt-get \
+            -o Dir::Cache::archives="$apt_cache_directory" \
+            install --yes --no-install-recommends curl unzip
+      - name: Restore Swift Android SDK cache
+        id: swift-android-sdk-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ steps.android-toolchain.outputs.swift_sdk_cache_path }}
+          key: >-
+            swift-android-sdk-v1-${{ runner.os }}-${{
+            steps.android-toolchain.outputs.swift_version }}-${{
+            steps.android-toolchain.outputs.swift_sdk_checksum }}
       - name: Install Swift Android SDK
-        if: steps.android-sdk-cache.outputs.cache-hit != 'true'
+        if: steps.swift-android-sdk-cache.outputs.cache-hit != 'true'
         run: >-
-          swift sdk install
-          https://download.swift.org/swift-6.3.3-release/android-sdk/swift-6.3.3-RELEASE/swift-6.3.3-RELEASE_android.artifactbundle.tar.gz
-          --checksum d160cc3206dd1886dae3fef2337af5e25ec034692cd0ec225721c56cc69da7f5
-          --swift-sdks-path "$ANDROID_SWIFT_SDKS_PATH"
+          swift sdk install --swift-sdks-path "$ANDROID_SWIFT_SDKS_PATH"
+          "$ANDROID_SWIFT_SDK_URL"
+          --checksum "$ANDROID_SWIFT_SDK_CHECKSUM"
+      - name: Restore Android NDK cache
+        id: android-ndk-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ steps.android-toolchain.outputs.ndk_cache_path }}
+          key: >-
+            android-ndk-v1-${{ runner.os }}-${{
+            steps.android-toolchain.outputs.ndk_release }}-${{
+            steps.android-toolchain.outputs.ndk_sha1 }}
+      - name: Install Android NDK
+        if: steps.android-ndk-cache.outputs.cache-hit != 'true'
+        run: |
+          ndk_archive="${RUNNER_TEMP}/${ANDROID_NDK_DIRECTORY_NAME}-linux.zip"
+          curl --fail --location --retry 3 \
+            --output "$ndk_archive" \
+            "$ANDROID_NDK_URL"
+          echo "$ANDROID_NDK_SHA1  $ndk_archive" | sha1sum --check --strict
+          unzip -q "$ndk_archive" -d "$RUNNER_TEMP"
+      - name: Verify Android NDK
+        run: |
+          test -d "$ANDROID_NDK_HOME"
       - name: Configure Swift Android SDK
         run: |
-          cd "$ANDROID_SWIFT_SDKS_PATH/swift-6.3.3-RELEASE_android.artifactbundle/swift-android"
+          cd "$ANDROID_SWIFT_SDK_DIRECTORY"
           ./scripts/setup-android-sdk.sh
       - name: Restore Android build cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: .build/android
           key: >-
-            swift-build-v1-${{ runner.os }}-${{ runner.arch }}-android-6.3.3-${{
+            swift-build-v2-${{ runner.os }}-${{ runner.arch }}-android-6.3.3-${{
             hashFiles('Package.swift', 'Package.resolved') }}
           restore-keys: |
-            swift-build-v1-${{ runner.os }}-${{ runner.arch }}-android-6.3.3-
+            swift-build-v2-${{ runner.os }}-${{ runner.arch }}-android-6.3.3-
       - name: Cross-build Android package
         run: Scripts/validate-android.sh
 

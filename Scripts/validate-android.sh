@@ -2,13 +2,11 @@
 
 set -euo pipefail
 
-readonly expected_swift_version="6.3.3"
-readonly android_sdk_id="swift-6.3.3-RELEASE_android"
-readonly android_sdk_url="https://download.swift.org/swift-6.3.3-release/android-sdk/swift-6.3.3-RELEASE/swift-6.3.3-RELEASE_android.artifactbundle.tar.gz"
-readonly android_sdk_checksum="d160cc3206dd1886dae3fef2337af5e25ec034692cd0ec225721c56cc69da7f5"
-readonly android_api_level="28"
 script_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly script_directory
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=android-toolchain.sh
+source "$script_directory/android-toolchain.sh"
 repository_root="$(cd "$script_directory/.." && pwd)"
 readonly repository_root
 swift_sdk_path_arguments=()
@@ -25,21 +23,21 @@ fail() {
   exit 1
 }
 
-command -v swift >/dev/null 2>&1 || fail "Swift 6.3.3 is required but 'swift' is not on PATH."
+command -v swift >/dev/null 2>&1 || fail "Swift $ANDROID_SWIFT_VERSION is required but 'swift' is not on PATH."
 
 swift_version_output="$(swift --version 2>&1)"
-if [[ "$swift_version_output" != *"Swift version $expected_swift_version"* ]]; then
-  fail "the official Android SDK requires a matching Swift $expected_swift_version host toolchain; found: ${swift_version_output//$'\n'/ }"
+if [[ "$swift_version_output" != *"Swift version $ANDROID_SWIFT_VERSION"* ]]; then
+  fail "the official Android SDK requires a matching Swift $ANDROID_SWIFT_VERSION host toolchain; found: ${swift_version_output//$'\n'/ }"
 fi
 
 installed_sdks="$(swift sdk list "${swift_sdk_path_arguments[@]}" 2>&1)" \
   || fail "unable to list installed Swift SDKs: $installed_sdks"
 prerequisites_available=true
-if ! grep -Fqx "$android_sdk_id" <<<"$installed_sdks"; then
+if ! grep -Fqx "$ANDROID_SWIFT_SDK_ID" <<<"$installed_sdks"; then
   cat >&2 <<EOF
-error: Swift SDK '$android_sdk_id' is not installed.
+error: Swift SDK '$ANDROID_SWIFT_SDK_ID' is not installed.
 Install it with the official checksum-verified command, then configure it with Android NDK r27d or later:
-  swift sdk install '$android_sdk_url' --checksum '$android_sdk_checksum'$swift_sdk_install_path_hint
+  swift sdk install '$ANDROID_SWIFT_SDK_URL' --checksum '$ANDROID_SWIFT_SDK_CHECKSUM'$swift_sdk_install_path_hint
 EOF
   prerequisites_available=false
 fi
@@ -70,8 +68,11 @@ if [[ -n "$android_ndk_directory" ]]; then
   if [[ ! "$ndk_major" =~ ^[0-9]+$ || ! "$ndk_minor" =~ ^[0-9]+$ ]]; then
     fail "cannot compare Android NDK revision '$ndk_revision'; expected a numeric Pkg.Revision."
   fi
-  if ((ndk_major < 27 || (ndk_major == 27 && ndk_minor < 3))); then
-    fail "Android NDK r27d or later is required; found Pkg.Revision $ndk_revision."
+  if ((
+    ndk_major < ANDROID_NDK_MINIMUM_MAJOR
+    || (ndk_major == ANDROID_NDK_MINIMUM_MAJOR && ndk_minor < ANDROID_NDK_MINIMUM_MINOR)
+  )); then
+    fail "Android NDK $ANDROID_NDK_RELEASE or later is required; found Pkg.Revision $ndk_revision."
   fi
 fi
 
@@ -79,14 +80,14 @@ if [[ "$prerequisites_available" != true ]]; then
   exit 1
 fi
 
-echo "Swift host toolchain: $expected_swift_version"
-echo "Swift Android SDK: $android_sdk_id"
+echo "Swift host toolchain: $ANDROID_SWIFT_VERSION"
+echo "Swift Android SDK: $ANDROID_SWIFT_SDK_ID"
 echo "Android NDK: $ndk_revision"
 echo "Dependency prerequisite: Echo 0.0.5 or newer with Android ELF metadata support."
 
 readonly target_triples=(
-  "x86_64-unknown-linux-android${android_api_level}"
-  "aarch64-unknown-linux-android${android_api_level}"
+  "x86_64-unknown-linux-android${ANDROID_API_LEVEL}"
+  "aarch64-unknown-linux-android${ANDROID_API_LEVEL}"
 )
 readonly configurations=(debug release)
 
