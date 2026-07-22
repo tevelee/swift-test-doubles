@@ -22,29 +22,48 @@ private final class WitnessAllocationLifetimeSpy: @unchecked Sendable {
 }
 
 struct StubRuntimeResourcesTests {
-    @Test func failedConstructionDeallocatesWitnessIdentities() {
+    @Test func failedConstructionDeallocatesWitnessIdentities() throws {
         let spy = WitnessAllocationLifetimeSpy()
 
-        releaseResources(committed: false, observer: spy.observer)
+        try releaseResources(phase: .building, observer: spy.observer)
 
         #expect(spy.dispositions == [.deallocatedAfterFailedConstruction])
     }
 
-    @Test func successfulConstructionRetainsWitnessIdentitiesForTheProcess() {
+    @Test func publishedConstructionStillDeallocatesWitnessIdentities() throws {
         let spy = WitnessAllocationLifetimeSpy()
 
-        releaseResources(committed: true, observer: spy.observer)
+        try releaseResources(phase: .published, observer: spy.observer)
+
+        #expect(spy.dispositions == [.deallocatedAfterFailedConstruction])
+    }
+
+    @Test func successfulConstructionRetainsWitnessIdentitiesForTheProcess() throws {
+        let spy = WitnessAllocationLifetimeSpy()
+
+        try releaseResources(phase: .committed, observer: spy.observer)
 
         #expect(spy.dispositions == [.retainedForProcessLifetime])
     }
 
-    @Test func resourceDestructionRemovesInvocationRegistrations() {
+    @Test func constructionPhasesAdvanceOnlyAtPublicationAndCommit() throws {
+        let resources = StubResources()
+
+        #expect(resources.constructionPhase == .building)
+        try resources.publishTrampolines()
+        #expect(resources.constructionPhase == .published)
+        resources.commitWitnessIdentityLifetime()
+        #expect(resources.constructionPhase == .committed)
+    }
+
+    @Test func resourceDestructionRemovesInvocationRegistrations() throws {
         let key = UnsafeMutableRawPointer.allocate(byteCount: 1, alignment: 1)
         defer { key.deallocate() }
         let recorder = StubRecorder(methods: [])
 
         do {
             let resources = StubResources()
+            try resources.publishTrampolines()
             resources.register(.stub(recorder), for: UnsafeRawPointer(key))
             #expect(FabricatedInvocationRegistry.resolveOptional(key) != nil)
         }
@@ -52,14 +71,37 @@ struct StubRuntimeResourcesTests {
         #expect(FabricatedInvocationRegistry.resolveOptional(key) == nil)
     }
 
+    @Test func registrationScopeOwnsRegistryCleanup() {
+        let key = UnsafeMutableRawPointer.allocate(byteCount: 1, alignment: 1)
+        defer { key.deallocate() }
+        let recorder = StubRecorder(methods: [])
+
+        do {
+            let registration = FabricatedInvocationRegistry.register(
+                .stub(recorder),
+                for: UnsafeRawPointer(key)
+            )
+            #expect(FabricatedInvocationRegistry.resolveOptional(key) != nil)
+            withExtendedLifetime(registration) {}
+        }
+
+        #expect(FabricatedInvocationRegistry.resolveOptional(key) == nil)
+    }
+
     private func releaseResources(
-        committed: Bool,
+        phase: FabricatedResourceConstructionPhase,
         observer: @escaping @Sendable (FabricatedWitnessAllocationDisposition) -> Void
-    ) {
+    ) throws {
         let resources = StubResources(witnessLifetimeObserver: observer)
         resources.own(.allocate(byteCount: 1, alignment: 1))
-        if committed {
-            resources.commitWitnessIdentityLifetime()
+        switch phase {
+            case .building:
+                break
+            case .published:
+                try resources.publishTrampolines()
+            case .committed:
+                try resources.publishTrampolines()
+                resources.commitWitnessIdentityLifetime()
         }
     }
 }

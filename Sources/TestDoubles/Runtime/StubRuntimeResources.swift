@@ -20,20 +20,21 @@ enum FabricatedWitnessAllocationDisposition: Equatable, Sendable {
     case retainedForProcessLifetime
 }
 
+enum FabricatedResourceConstructionPhase: Equatable, Sendable {
+    case building
+    case published
+    case committed
+}
+
 /// Owns every runtime object used by fabricated protocol-conformance graphs.
 final class StubResources: @unchecked Sendable {
-    private enum ConstructionState {
-        case constructing
-        case committed
-    }
-
-    private var registryKeys: [UnsafeRawPointer] = []
+    private var invocationRegistrations: [FabricatedInvocationRegistration] = []
     private var allocations: [UnsafeMutableRawPointer] = []
     private let trampolineArena: TrampolineFactory.Arena? = .init()
     private var lastTrampolineRequirementIndex: Int?
     private var typedWitnessAdapters: [TypedWitnessAdapter] = []
     private let witnessLifetimeObserver: (@Sendable (FabricatedWitnessAllocationDisposition) -> Void)?
-    private var constructionState = ConstructionState.constructing
+    private(set) var constructionPhase = FabricatedResourceConstructionPhase.building
 
     init(
         witnessLifetimeObserver: (
@@ -44,7 +45,7 @@ final class StubResources: @unchecked Sendable {
     }
 
     func own(_ allocation: UnsafeMutableRawPointer) {
-        requireConstructionInProgress()
+        requireBuilding()
         allocations.append(allocation)
     }
 
@@ -52,9 +53,13 @@ final class StubResources: @unchecked Sendable {
         _ target: FabricatedInvocationTarget,
         for registryKey: UnsafeRawPointer
     ) {
-        requireConstructionInProgress()
-        FabricatedInvocationRegistry.register(target, for: registryKey)
-        registryKeys.append(registryKey)
+        requirePublished()
+        invocationRegistrations.append(
+            FabricatedInvocationRegistry.register(
+                target,
+                for: registryKey
+            )
+        )
     }
 
     func makeTrampoline(
@@ -62,7 +67,7 @@ final class StubResources: @unchecked Sendable {
         slot: Int,
         context: UnsafeRawPointer
     ) -> UnsafeRawPointer? {
-        requireConstructionInProgress()
+        requireBuilding()
         guard
             let trampoline = trampolineArena?.make(
                 kind: kind,
@@ -81,7 +86,7 @@ final class StubResources: @unchecked Sendable {
         recorder: StubRecorder,
         method: MethodDescriptor
     ) -> UnsafeRawPointer? {
-        requireConstructionInProgress()
+        requireBuilding()
         let adapter = factory.make(recorder, method)
         guard
             let trampoline = trampolineArena?.makeTyped(
@@ -98,29 +103,31 @@ final class StubResources: @unchecked Sendable {
     }
 
     func publishTrampolines() throws {
-        requireConstructionInProgress()
+        requireBuilding()
         guard trampolineArena?.publish() == true else {
             throw StubError.trampolineAllocationFailed(
                 requirementIndex: lastTrampolineRequirementIndex ?? 0
             )
         }
+        constructionPhase = .published
     }
 
     /// Marks the fabricated witness identities as observable by generated
     /// existentials. Their addresses must remain stable for the rest of the
     /// process because Swift's generic-metadata caches may retain those keys.
     func commitWitnessIdentityLifetime() {
-        requireConstructionInProgress()
-        constructionState = .committed
+        requirePublished()
+        constructionPhase = .committed
     }
 
     deinit {
-        for registryKey in registryKeys {
-            FabricatedInvocationRegistry.remove(for: registryKey)
-        }
+        // Stop new calls from resolving these targets before their executable
+        // trampoline pages and retained typed-adapter state are released.
+        invocationRegistrations.forEach { $0.cancel() }
+        invocationRegistrations.removeAll()
         trampolineArena?.destroy()
-        switch constructionState {
-            case .constructing:
+        switch constructionPhase {
+            case .building, .published:
                 // No fabricated existential escaped, so these identities could
                 // not have entered a generic-metadata cache.
                 allocations.forEach { $0.deallocate() }
@@ -134,10 +141,17 @@ final class StubResources: @unchecked Sendable {
         }
     }
 
-    private func requireConstructionInProgress() {
+    private func requireBuilding() {
         precondition(
-            constructionState == .constructing,
-            "[TestDoubles] Fabricated runtime resources cannot change after construction commits."
+            constructionPhase == .building,
+            "[TestDoubles] Fabricated runtime resources can only allocate and build trampolines before publication."
+        )
+    }
+
+    private func requirePublished() {
+        precondition(
+            constructionPhase == .published,
+            "[TestDoubles] Fabricated runtime resources must publish trampolines exactly once before registration or commit."
         )
     }
 }

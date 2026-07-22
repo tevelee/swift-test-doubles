@@ -55,28 +55,81 @@ enum FabricatedInvocationTarget: Sendable {
     }
 }
 
+/// Owns one process-global invocation-registry entry.
+///
+/// Explicit cancellation lets ``StubResources`` remove callable registry
+/// entries before destroying their executable trampoline arena. The fallback
+/// `deinit` cleanup keeps a registration scoped even when construction exits
+/// through a new failure path.
+final class FabricatedInvocationRegistration: @unchecked Sendable {
+    private let key: UnsafeRawPointer
+    private let identifier: UInt64
+    private let lock = NSLock()
+    private var isActive = true
+
+    fileprivate init(
+        key: UnsafeRawPointer,
+        identifier: UInt64
+    ) {
+        self.key = key
+        self.identifier = identifier
+    }
+
+    func cancel() {
+        let shouldRemove = lock.withLock {
+            guard isActive else { return false }
+            isActive = false
+            return true
+        }
+        guard shouldRemove else { return }
+        FabricatedInvocationRegistry.remove(
+            for: key,
+            identifier: identifier
+        )
+    }
+
+    deinit {
+        cancel()
+    }
+}
+
 /// Maps each fabricated witness table's stable context key to its invocation target.
 enum FabricatedInvocationRegistry {
-    nonisolated(unsafe) private static var storage: [UnsafeRawPointer: FabricatedInvocationTarget] = [:]
+    private struct Entry {
+        let identifier: UInt64
+        let target: FabricatedInvocationTarget
+    }
+
+    nonisolated(unsafe) private static var storage: [UnsafeRawPointer: Entry] = [:]
+    nonisolated(unsafe) private static var nextIdentifier: UInt64 = 0
     private static let lock = NSLock()
 
     static func register(
         _ target: FabricatedInvocationTarget,
         for key: UnsafeRawPointer
-    ) {
-        lock.lock()
-        defer { lock.unlock() }
-        precondition(
-            storage[key] == nil,
-            "[TestDoubles] A fabricated witness table was registered more than once."
+    ) -> FabricatedInvocationRegistration {
+        let identifier = lock.withLock {
+            precondition(
+                storage[key] == nil,
+                "[TestDoubles] A fabricated witness table was registered more than once."
+            )
+            let identifier = nextIdentifier
+            let (successor, overflow) = nextIdentifier.addingReportingOverflow(1)
+            precondition(
+                overflow == false,
+                "[TestDoubles] Fabricated invocation registration identity overflowed."
+            )
+            nextIdentifier = successor
+            storage[key] = Entry(
+                identifier: identifier,
+                target: target
+            )
+            return identifier
+        }
+        return FabricatedInvocationRegistration(
+            key: key,
+            identifier: identifier
         )
-        storage[key] = target
-    }
-
-    static func remove(for key: UnsafeRawPointer) {
-        lock.lock()
-        defer { lock.unlock() }
-        storage.removeValue(forKey: key)
     }
 
     @inline(__always)
@@ -85,6 +138,16 @@ enum FabricatedInvocationRegistry {
     ) -> FabricatedInvocationTarget? {
         lock.lock()
         defer { lock.unlock() }
-        return storage[key]
+        return storage[key]?.target
+    }
+
+    fileprivate static func remove(
+        for key: UnsafeRawPointer,
+        identifier: UInt64
+    ) {
+        lock.withLock {
+            guard storage[key]?.identifier == identifier else { return }
+            storage.removeValue(forKey: key)
+        }
     }
 }
