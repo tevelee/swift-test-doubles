@@ -78,6 +78,19 @@ enum RuntimeArgumentDecoder {
     }
 
     static func decode(
+        for runtimeMethod: PreparedRuntimeMethod,
+        from frame: TrampolineCallFrame,
+        consumeOwnedArguments: Bool = true
+    ) -> DecodedArguments {
+        decode(
+            method: runtimeMethod.descriptor,
+            transport: runtimeMethod.decodingTransport,
+            from: frame,
+            consumeOwnedArguments: consumeOwnedArguments
+        )
+    }
+
+    static func decode(
         for method: MethodDescriptor,
         from frame: TrampolineCallFrame,
         initialGeneralPurposeOffset: Int = 0,
@@ -88,6 +101,20 @@ enum RuntimeArgumentDecoder {
             initialGeneralPurposeOffset: initialGeneralPurposeOffset
         )
         return decode(
+            method: method,
+            transport: transport,
+            from: frame,
+            consumeOwnedArguments: consumeOwnedArguments
+        )
+    }
+
+    private static func decode(
+        method: MethodDescriptor,
+        transport: WitnessCallTransportPlan,
+        from frame: TrampolineCallFrame,
+        consumeOwnedArguments: Bool
+    ) -> DecodedArguments {
+        decode(
             RuntimeArgumentDecodingPlan(
                 arguments: method.arguments.map {
                     RuntimeArgumentSpec(
@@ -219,13 +246,19 @@ enum RuntimeArgumentDecoder {
         consuming: Bool
     ) -> Any {
         precondition(parts.count == locations.count)
-        let temporary = ManagedValueBuffer(type: type)
-        temporary.zeroBorrowedBytes()
+        let metadata = reflect(type)
+        let temporary = metadata.allocateValueBuffer()
+        defer { temporary.deallocate() }
+        temporary.initializeMemory(
+            as: UInt8.self,
+            repeating: 0,
+            count: metadata.valueBufferByteCount()
+        )
         for (part, location) in zip(parts, locations) {
             precondition(part.offset == location.valueOffset)
             frame.copyArgumentBytes(
                 at: location,
-                into: temporary.storage + part.offset
+                into: temporary + part.offset
             )
         }
         return copyArgument(
@@ -243,36 +276,12 @@ enum RuntimeArgumentDecoder {
         source: UnsafeMutableRawPointer,
         consuming: Bool
     ) -> Any {
-        let managedSource =
-            consuming
-            ? ManagedValueBuffer(owningValueOf: type, at: source)
-            : ManagedValueBuffer(borrowingBitsOf: type, at: source)
-        return copyArgument(
-            type: type,
-            source: managedSource,
-            consuming: consuming
-        )
-    }
-
-    private static func copyArgument(
-        type: Any.Type,
-        source: ManagedValueBuffer,
-        consuming: Bool
-    ) -> Any {
-        if consuming {
-            if source.state == .borrowedBits {
-                source.markInitialized()
-            }
-            precondition(source.state == .initialized)
-        } else {
-            precondition(source.state == .borrowedBits)
-        }
         let value = FunctionReabstraction.boxDirectValue(
             type: type,
-            source: source.storage
+            source: source
         )
         if consuming {
-            source.destroyInitializedValue()
+            reflect(type).vwt.destroy(source)
         }
         return value
     }

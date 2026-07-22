@@ -104,9 +104,10 @@ extension Stub {
         ).install(in: graph)
 
         try resources.publishTrampolines()
+        let invocationTarget = dispatch.invocationTarget
         for witnessTable in graph.tables.values {
             resources.register(
-                dispatch.invocationTarget,
+                invocationTarget,
                 for: UnsafeRawPointer(witnessTable)
             )
         }

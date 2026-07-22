@@ -2,6 +2,7 @@ struct ResolvedFabricatedInvocation {
     let slot: Int
     let target: FabricatedInvocationTarget
     let recorder: StubRecorder
+    let runtimeMethod: PreparedRuntimeMethod?
 
     var forwarder: (any ProtocolForwarding)? { target.forwarder }
 
@@ -16,16 +17,23 @@ struct ResolvedFabricatedInvocation {
         return ResolvedFabricatedInvocation(
             slot: frame.slot,
             target: target,
-            recorder: target.recorderOrReject(slot: frame.slot)
+            recorder: target.recorderOrReject(slot: frame.slot),
+            runtimeMethod: target.method(at: frame.slot)
         )
+    }
+
+    func requireRuntimeMethod(
+        failureMessage: @autoclosure () -> String
+    ) -> PreparedRuntimeMethod {
+        guard let runtimeMethod else {
+            fatalError(failureMessage())
+        }
+        return runtimeMethod
     }
 
     func requireMethod(
         failureMessage: @autoclosure () -> String
     ) -> MethodDescriptor {
-        guard let method = recorder.runtimeMethod(for: slot) else {
-            fatalError(failureMessage())
-        }
-        return method
+        requireRuntimeMethod(failureMessage: failureMessage()).descriptor
     }
 }

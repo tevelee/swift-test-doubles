@@ -33,25 +33,73 @@ final class DummyInvocation: Sendable {
     }
 }
 
+final class PreparedRuntimeMethod: Sendable {
+    let descriptor: MethodDescriptor
+    let decodingTransport: WitnessCallTransportPlan
+    let asyncStackAdjustmentByteCount: Int?
+
+    init(_ descriptor: MethodDescriptor) {
+        self.descriptor = descriptor
+        decodingTransport = WitnessCallTransportPlan(method: descriptor)
+        asyncStackAdjustmentByteCount =
+            descriptor.isAsync
+            ? asyncWitnessStackPlan(
+                for: descriptor,
+                architecture: .current
+            ).stackAdjustmentByteCount
+            : nil
+    }
+}
+
+final class FabricatedStubInvocation: Sendable {
+    let recorder: StubRecorder
+    let forwarder: (any ProtocolForwarding)?
+    private let methods: [PreparedRuntimeMethod]
+
+    init(
+        recorder: StubRecorder,
+        methodsByIndex: [Int: MethodDescriptor],
+        forwarder: (any ProtocolForwarding)?
+    ) {
+        self.recorder = recorder
+        self.forwarder = forwarder
+        methods = (0 ..< methodsByIndex.count).map { index in
+            guard let method = methodsByIndex[index] else {
+                preconditionFailure(
+                    "[TestDoubles] Fabricated runtime method indices must be dense."
+                )
+            }
+            return PreparedRuntimeMethod(method)
+        }
+    }
+
+    func method(at index: Int) -> PreparedRuntimeMethod? {
+        guard methods.indices.contains(index) else { return nil }
+        return methods[index]
+    }
+}
+
 enum FabricatedInvocationTarget: Sendable {
-    case stub(StubRecorder)
-    case spy(StubRecorder, any ProtocolForwarding)
+    case stub(FabricatedStubInvocation)
     case dummy(DummyInvocation)
 
     func recorderOrReject(slot: Int) -> StubRecorder {
         switch self {
-            case .stub(let recorder):
-                return recorder
-            case .spy(let recorder, _):
-                return recorder
+            case .stub(let invocation):
+                return invocation.recorder
             case .dummy(let invocation):
                 invocation.reject(slot: slot)
         }
     }
 
     var forwarder: (any ProtocolForwarding)? {
-        guard case .spy(_, let forwarder) = self else { return nil }
-        return forwarder
+        guard case .stub(let invocation) = self else { return nil }
+        return invocation.forwarder
+    }
+
+    func method(at index: Int) -> PreparedRuntimeMethod? {
+        guard case .stub(let invocation) = self else { return nil }
+        return invocation.method(at: index)
     }
 }
 

@@ -14,11 +14,13 @@ enum FabricatedWitnessDispatch {
 
     var invocationTarget: FabricatedInvocationTarget {
         switch self {
-            case .stub(let recorder, _, let forwarder):
-                if let forwarder {
-                    return .spy(recorder, forwarder)
-                }
-                return .stub(recorder)
+            case .stub(let recorder, let methodsByIndex, let forwarder):
+                return .stub(
+                    FabricatedStubInvocation(
+                        recorder: recorder,
+                        methodsByIndex: methodsByIndex,
+                        forwarder: forwarder
+                    ))
             case .dummy(let invocation):
                 return .dummy(invocation)
         }

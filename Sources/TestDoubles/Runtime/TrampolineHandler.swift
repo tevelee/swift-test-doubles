@@ -44,6 +44,7 @@ enum RuntimeTrampolineHandler {
     private struct Invocation {
         let target: FabricatedInvocationTarget
         let recorder: StubRecorder
+        let runtimeMethod: PreparedRuntimeMethod
         let method: MethodDescriptor
         let decodedArguments: DecodedArguments
 
@@ -212,10 +213,14 @@ enum RuntimeTrampolineHandler {
         }
         let invocation = invocation(for: frame)
         let state = prepareAsync(frame, invocation: invocation)
-        let stackAdjustment = asyncWitnessStackPlan(
-            for: invocation.method,
-            architecture: .current
-        ).stackAdjustmentByteCount
+        guard
+            let stackAdjustment =
+                invocation.runtimeMethod.asyncStackAdjustmentByteCount
+        else {
+            preconditionFailure(
+                "[TestDoubles] Async trampoline method has no stack adjustment plan."
+            )
+        }
         return TDAsyncTrampolineResult(
             state: state,
             stackAdjustment: UInt64(stackAdjustment)
@@ -342,16 +347,18 @@ enum RuntimeTrampolineHandler {
                 "[TestDoubles] Trampoline could not resolve recorder for witness call at slot \(slot)."
             )
         }
-        let method = resolved.requireMethod(
+        let runtimeMethod = resolved.requireRuntimeMethod(
             failureMessage:
                 "[TestDoubles] No method descriptor registered for witness slot \(slot)."
         )
+        let method = runtimeMethod.descriptor
         return Invocation(
             target: resolved.target,
             recorder: resolved.recorder,
+            runtimeMethod: runtimeMethod,
             method: method,
             decodedArguments: RuntimeArgumentDecoder.decode(
-                for: method,
+                for: runtimeMethod,
                 from: frame,
                 consumeOwnedArguments:
                     resolved.forwarder == nil
@@ -366,7 +373,7 @@ enum RuntimeTrampolineHandler {
     ) {
         guard invocation.forwarder != nil else { return }
         _ = RuntimeArgumentDecoder.decode(
-            for: invocation.method,
+            for: invocation.runtimeMethod,
             from: frame,
             consumeOwnedArguments: true
         )

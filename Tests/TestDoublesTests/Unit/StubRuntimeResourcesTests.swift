@@ -64,7 +64,15 @@ struct StubRuntimeResourcesTests {
         do {
             let resources = StubResources()
             try resources.publishTrampolines()
-            resources.register(.stub(recorder), for: UnsafeRawPointer(key))
+            resources.register(
+                .stub(
+                    FabricatedStubInvocation(
+                        recorder: recorder,
+                        methodsByIndex: [:],
+                        forwarder: nil
+                    )),
+                for: UnsafeRawPointer(key)
+            )
             #expect(FabricatedInvocationRegistry.resolveOptional(key) != nil)
         }
 
@@ -78,7 +86,12 @@ struct StubRuntimeResourcesTests {
 
         do {
             let registration = FabricatedInvocationRegistry.register(
-                .stub(recorder),
+                .stub(
+                    FabricatedStubInvocation(
+                        recorder: recorder,
+                        methodsByIndex: [:],
+                        forwarder: nil
+                    )),
                 for: UnsafeRawPointer(key)
             )
             #expect(FabricatedInvocationRegistry.resolveOptional(key) != nil)
