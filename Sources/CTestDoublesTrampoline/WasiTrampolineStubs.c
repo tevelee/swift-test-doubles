@@ -29,7 +29,9 @@ void td_swift_invoke_function(
 void td_swift_invoke_witness(
     const void *function,
     const void *self,
-    TDCallFrame *frame
+    TDCallFrame *frame,
+    uint64_t outgoingStackWord1,
+    uint64_t outgoingStackWord2
 ) {
   __builtin_trap();
 }
