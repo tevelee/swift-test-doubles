@@ -16,6 +16,33 @@
 
 #if defined(__aarch64__) || defined(__arm64__)
 
+// Shared by td_swift_invoke_function and td_swift_invoke_witness: both call a
+// target function pointer using a frame the direct trampoline already filled
+// in, differing only in how they resolve the target and how many outgoing
+// stack words they carry, so the actual register-marshaling around the call
+// is written once here instead of twice.
+.macro td_load_frame_call_registers frame
+    ldr x8, [\frame, #TD_FRAME_INDIRECT_RESULT_OFFSET]
+    ldp q0, q1, [\frame, #TD_FRAME_FP_OFFSET]
+    ldp q2, q3, [\frame, #176]
+    ldp q4, q5, [\frame, #208]
+    ldp q6, q7, [\frame, #240]
+    ldp x0, x1, [\frame, #TD_FRAME_GP_OFFSET]
+    ldp x2, x3, [\frame, #32]
+    ldp x4, x5, [\frame, #48]
+    ldp x6, x7, [\frame, #64]
+.endm
+
+.macro td_store_call_return_registers frame
+    stp x0, x1, [\frame, #TD_FRAME_RETURN_GP_OFFSET]
+    stp x2, x3, [\frame, #456]
+    str d0, [\frame, #TD_FRAME_RETURN_FP_OFFSET]
+    str d1, [\frame, #480]
+    str d2, [\frame, #488]
+    str d3, [\frame, #496]
+    str x21, [\frame, #TD_FRAME_RETURN_ERROR_OFFSET]
+.endm
+
 .text
 .p2align 2
 .globl SYMBOL(td_swift_trampoline_entry)
@@ -149,15 +176,7 @@ SYMBOL(td_swift_invoke_function):
     mov x20, x1
     mov x17, x2
     mov x19, x3
-    ldr x8, [x19, #TD_FRAME_INDIRECT_RESULT_OFFSET]
-    ldp q0, q1, [x19, #TD_FRAME_FP_OFFSET]
-    ldp q2, q3, [x19, #176]
-    ldp q4, q5, [x19, #208]
-    ldp q6, q7, [x19, #240]
-    ldp x0, x1, [x19, #TD_FRAME_GP_OFFSET]
-    ldp x2, x3, [x19, #32]
-    ldp x4, x5, [x19, #48]
-    ldp x6, x7, [x19, #64]
+    td_load_frame_call_registers x19
     mov x21, #0
     sub sp, sp, #16
     ldr x9, [x19, #TD_FRAME_RESERVED_OFFSET]
@@ -168,13 +187,7 @@ SYMBOL(td_swift_invoke_function):
     blr x16
 #endif
     add sp, sp, #16
-    stp x0, x1, [x19, #TD_FRAME_RETURN_GP_OFFSET]
-    stp x2, x3, [x19, #456]
-    str d0, [x19, #TD_FRAME_RETURN_FP_OFFSET]
-    str d1, [x19, #480]
-    str d2, [x19, #488]
-    str d3, [x19, #496]
-    str x21, [x19, #TD_FRAME_RETURN_ERROR_OFFSET]
+    td_store_call_return_registers x19
     ldr x21, [sp, #32]
     ldp x19, x20, [sp, #16]
     ldp x29, x30, [sp], #48
@@ -194,27 +207,13 @@ SYMBOL(td_swift_invoke_witness):
     // frame-loading sequence below overwrites those registers.
     mov x9, x3
     mov x10, x4
-    ldr x8, [x19, #TD_FRAME_INDIRECT_RESULT_OFFSET]
-    ldp q0, q1, [x19, #TD_FRAME_FP_OFFSET]
-    ldp q2, q3, [x19, #176]
-    ldp q4, q5, [x19, #208]
-    ldp q6, q7, [x19, #240]
-    ldp x0, x1, [x19, #TD_FRAME_GP_OFFSET]
-    ldp x2, x3, [x19, #32]
-    ldp x4, x5, [x19, #48]
-    ldp x6, x7, [x19, #64]
+    td_load_frame_call_registers x19
     ldr x21, [x19, #TD_FRAME_SWIFT_ERROR_OFFSET]
     sub sp, sp, #16
     stp x9, x10, [sp]
     blr x16
     add sp, sp, #16
-    stp x0, x1, [x19, #TD_FRAME_RETURN_GP_OFFSET]
-    stp x2, x3, [x19, #456]
-    str d0, [x19, #TD_FRAME_RETURN_FP_OFFSET]
-    str d1, [x19, #480]
-    str d2, [x19, #488]
-    str d3, [x19, #496]
-    str x21, [x19, #TD_FRAME_RETURN_ERROR_OFFSET]
+    td_store_call_return_registers x19
     ldr x21, [sp, #32]
     ldp x19, x20, [sp, #16]
     ldp x29, x30, [sp], #48
