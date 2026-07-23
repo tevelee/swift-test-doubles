@@ -908,11 +908,12 @@ SYMBOL(td_swift_read_coro_free):
 
 #elif defined(__x86_64__)
 
-// Shared by td_swift_invoke_function and td_swift_invoke_witness -- see the
-// arm64 td_load_frame_call_registers/td_store_call_return_registers macros
-// above for why this marshaling is factored out instead of duplicated.
-.macro td_load_frame_call_registers frame
-    movq TD_FRAME_INDIRECT_RESULT_OFFSET(\frame), %rax
+// The argument-register restore below is identical everywhere this
+// trampoline hands control to a real function/witness with a frame already
+// filled in -- see the matching arm64 td_load_frame_argument_registers macro
+// above for the full rationale (shared by both the sync invoke_function/
+// invoke_witness pair below and the async pair further down).
+.macro td_load_frame_argument_registers frame
     movsd TD_FRAME_FP_OFFSET(\frame), %xmm0
     movsd 160(\frame), %xmm1
     movsd 176(\frame), %xmm2
@@ -927,6 +928,14 @@ SYMBOL(td_swift_read_coro_free):
     movq 40(\frame), %rcx
     movq 48(\frame), %r8
     movq 56(\frame), %r9
+.endm
+
+// Shared by td_swift_invoke_function and td_swift_invoke_witness -- see the
+// arm64 td_load_frame_call_registers/td_store_call_return_registers macros
+// above for why this marshaling is factored out instead of duplicated.
+.macro td_load_frame_call_registers frame
+    movq TD_FRAME_INDIRECT_RESULT_OFFSET(\frame), %rax
+    td_load_frame_argument_registers \frame
 .endm
 
 .macro td_store_call_return_registers frame
@@ -1267,20 +1276,7 @@ SYMBOL(td_swift_invoke_async_function):
     movq 32(%r14), %r13
     movq %rax, %r14
 
-    movsd TD_FRAME_FP_OFFSET(%r10), %xmm0
-    movsd 160(%r10), %xmm1
-    movsd 176(%r10), %xmm2
-    movsd 192(%r10), %xmm3
-    movsd 208(%r10), %xmm4
-    movsd 224(%r10), %xmm5
-    movsd 240(%r10), %xmm6
-    movsd 256(%r10), %xmm7
-    movq TD_FRAME_GP_OFFSET(%r10), %rdi
-    movq 24(%r10), %rsi
-    movq 32(%r10), %rdx
-    movq 40(%r10), %rcx
-    movq 48(%r10), %r8
-    movq 56(%r10), %r9
+    td_load_frame_argument_registers %r10
 
     popq %rbp
     jmpq *%r11
@@ -1309,20 +1305,7 @@ SYMBOL(td_swift_invoke_async_witness):
     movq 32(%r14), %r13
     movq %rax, %r14
 
-    movsd TD_FRAME_FP_OFFSET(%r10), %xmm0
-    movsd 160(%r10), %xmm1
-    movsd 176(%r10), %xmm2
-    movsd 192(%r10), %xmm3
-    movsd 208(%r10), %xmm4
-    movsd 224(%r10), %xmm5
-    movsd 240(%r10), %xmm6
-    movsd 256(%r10), %xmm7
-    movq TD_FRAME_GP_OFFSET(%r10), %rdi
-    movq 24(%r10), %rsi
-    movq 32(%r10), %rdx
-    movq 40(%r10), %rcx
-    movq 48(%r10), %r8
-    movq 56(%r10), %r9
+    td_load_frame_argument_registers %r10
     movq (%r14), %r10
     movq TD_ASYNC_INVOKE_STACK_ARGUMENTS_OFFSET(%r10), %r10
 
