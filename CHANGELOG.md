@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Forwarding `Spy` now supports up to two spilled general-purpose stack
+  words on its synchronous outgoing path, drawn from any mix of overflowing
+  visible arguments and the target's own metadata/witness-table pair.
+  Neither half of that pair is reserved a fixed register: each independently
+  lands wherever the target witness's own competitive register allocation
+  puts it, matching the real target's compiled calling convention exactly.
+  Untyped and typed throws compose freely with the spill. Async forwarding
+  also now supports untyped throws alongside its existing one-spill limit;
+  a typed throw there still requires its own additional hidden word and
+  remains fail-closed.
 - Cross-build validation and a real, running demonstration of
   `wasm32-unknown-wasip1` support: CI builds the `TestDoubles` library in
   debug and release with the official Swift 6.3.1 WASI SDK, then both runs a

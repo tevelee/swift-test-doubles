@@ -130,7 +130,6 @@ func asyncForwardingStackPlan(
     guard method.isAsync,
         method.kind == .method,
         method.receiver == .instance,
-        method.isThrowing == false,
         method.typedErrorType == nil
     else {
         return nil

@@ -462,15 +462,33 @@ genuine suspension, the entry bridge removes the compiler-planned, ABI-aligned
 outgoing stack reservation exactly once.
 
 A forwarding ``Spy`` supports the corresponding narrow outgoing path for an
-ordinary nonthrowing instance method when exactly one complete concrete
-eight-byte value spills from the general-purpose argument bank. Preparation
-copies that word before the outer entry frame disappears. The forwarding state
-then creates Swift 6.3's target witness stack area from the copied value, target
-metadata, and witness table, including x86_64's live implicit slot. The target
-witness transfers that area to its continuation boundary exactly once.
-Untyped and typed throws, a second spill, split or padded values, indirect or
-associated-dependent spilled arguments, vector spills, and async accessors
-remain fail-closed. Typed closure adapters keep their independent boundary.
+async instance method, untyped-throwing or not, when exactly one complete
+concrete eight-byte value spills from the general-purpose argument bank.
+Preparation copies that word before the outer entry frame disappears. The
+forwarding state then creates Swift 6.3's target witness stack area from the
+copied value, target metadata, and witness table, including x86_64's live
+implicit slot. The target witness transfers that area to its continuation
+boundary exactly once. A typed throw, a second spill, split or padded values,
+indirect or associated-dependent spilled arguments, vector spills, and async
+accessors remain fail-closed. Typed closure adapters keep their independent
+boundary.
+
+A forwarding ``Spy``'s **synchronous** outgoing path supports up to two
+spilled general-purpose words, sourced from any combination of overflowing
+visible arguments and the target's own metadata/witness-table pair. Neither
+half of that pair is reserved a fixed register: each independently lands
+wherever the target witness's own competitive register allocation puts it —
+a register, or a spill to the caller's outgoing stack — exactly matching the
+real target function's compiled calling convention, which places its hidden
+metadata and witness-table parameters immediately after its visible
+arguments, wherever that boundary falls. `td_swift_invoke_witness` copies up
+to two such words as explicit parameters, never through `TDCallFrame`, so
+this ceiling is a tested, self-imposed limit rather than an ABI constraint.
+Untyped and typed throws compose freely with this, since the swifterror
+register is orthogonal to stack transport. A third spilled word, split or
+padded values, indirect or associated-dependent spilled arguments, vector
+spills, and async accessors remain fail-closed. Typed closure adapters keep
+their independent boundary.
 
 ### Ownership and concurrency
 

@@ -334,14 +334,26 @@ struct AsyncForwardingPaddedValue: Sendable {
             )
         }
 
-        @Test func throwingVisibleSpillRemainsFailClosed() {
+        @Test func untypedThrowingVisibleSpillNowForwards() async throws {
             let target: any ThrowingSpilledAsyncForwardingProbe =
                 RealThrowingSpilledAsyncForwardingProbe()
-            #expect(throws: StubError.self) {
-                _ = try Spy<any ThrowingSpilledAsyncForwardingProbe>(
-                    forwardingTo: target
-                )
+            let spy = try Spy<any ThrowingSpilledAsyncForwardingProbe>(
+                forwardingTo: target
+            )
+            let service: any ThrowingSpilledAsyncForwardingProbe = spy()
+
+            let error = await #expect(throws: AsyncStackUntypedError.self) {
+                #if arch(x86_64)
+                    _ = try await service.throwing(1, 2, 3, 4, 5, 6, 7)
+                #else
+                    _ = try await service.throwing(1, 2, 3, 4, 5, 6, 7, 8, 9)
+                #endif
             }
+            #if arch(x86_64)
+                #expect(error == .failed(7))
+            #else
+                #expect(error == .failed(9))
+            #endif
         }
 
         @Test func secondVisibleSpillRemainsFailClosed() {

@@ -88,6 +88,12 @@ struct RealStaticSpyService: StaticSpyService {
     static func value() -> Int { 1 }
 }
 
+// Ten arguments overflows even the widest architecture's register budget
+// (arm64: 8 argument registers) by more than the outgoing-stack-spill
+// ceiling (2 words, shared with the target's own spilled metadata/witness
+// table -- see SyncStackSpySpillForwardingTests) can absorb, on every
+// supported architecture. Keep this comfortably over that boundary rather
+// than tuned to one architecture's exact register count.
 protocol WideSpyService {
     func combine(
         _ first: Int,
@@ -96,7 +102,10 @@ protocol WideSpyService {
         _ fourth: Int,
         _ fifth: Int,
         _ sixth: Int,
-        _ seventh: Int
+        _ seventh: Int,
+        _ eighth: Int,
+        _ ninth: Int,
+        _ tenth: Int
     ) -> Int
 }
 
@@ -108,9 +117,13 @@ struct RealWideSpyService: WideSpyService {
         _ fourth: Int,
         _ fifth: Int,
         _ sixth: Int,
-        _ seventh: Int
+        _ seventh: Int,
+        _ eighth: Int,
+        _ ninth: Int,
+        _ tenth: Int
     ) -> Int {
-        first + second + third + fourth + fifth + sixth + seventh
+        first + second + third + fourth + fifth + sixth + seventh + eighth
+            + ninth + tenth
     }
 }
 
@@ -239,7 +252,7 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
         }
         #expect(
             error?.description.contains(
-                "uses stack arguments or leaves no registers"
+                "needs more outgoing stack transport"
             ) == true
         )
     }

@@ -131,7 +131,10 @@ struct WitnessCallTransportPlan: Sendable {
     }
 
     /// The first register available for target metadata and its witness table
-    /// when the complete call stays inside the captured register banks.
+    /// when the complete call stays inside the captured register banks. Used
+    /// by `_read`/`_modify` forwarding, whose invoke routines have no outgoing
+    /// stack transport at all, so metadata and witness table must both land
+    /// in registers or the call is declined.
     var directForwardingHiddenArgumentIndex: Int? {
         guard decodedStackByteCount == 0,
             hiddenStackByteCount == 0
@@ -139,6 +142,59 @@ struct WitnessCallTransportPlan: Sendable {
             return nil
         }
         return dynamicSelfLocations?.consecutiveRegisterStart
+    }
+
+    /// One source for an outgoing stack word a forwarding call must copy to
+    /// the real target: either a spilled visible argument (read from the
+    /// captured incoming frame) or the target's own metadata/witness-table
+    /// pointer (computed at forwarding time, never read from the frame).
+    enum OutgoingStackSource: Equatable, Sendable {
+        case argument(CallFrameArgumentLocation)
+        case metadata
+        case witnessTable
+    }
+
+    /// The maximum number of caller-stack words `td_swift_invoke_witness`
+    /// will copy to the outgoing call, as explicit parameters — it never
+    /// touches `TDCallFrame`'s layout, so this ceiling is purely a
+    /// self-imposed, testable limit, not an ABI constraint.
+    static let maximumOutgoingStackWords = 2
+
+    /// The ordered outgoing-stack-word sources for a synchronous forwarding
+    /// call whose total (spilled visible arguments plus whichever of
+    /// metadata/witness-table the real target's own calling convention also
+    /// spills) fits within `maximumOutgoingStackWords`. `nil` when the call
+    /// needs more than that, or needs stack transport this method doesn't
+    /// model (an indirect typed-error destination that itself spilled).
+    ///
+    /// Metadata and witness table are **not** reserved a fixed register
+    /// pair: the real target witness function's own compiled code expects
+    /// them immediately following its visible arguments, in whichever
+    /// register or stack position that competitive allocation naturally
+    /// produces — exactly matching `argumentLocations`' own competitive
+    /// cursor. Forcing them into fixed registers regardless of argument
+    /// count is an ABI mismatch, not merely a missing feature.
+    var directForwardingOutgoingStackSources: [OutgoingStackSource]? {
+        guard let dynamicSelfLocations,
+            typedErrorDestinationLocation?.isStack != true
+        else {
+            return nil
+        }
+        var sources: [(offset: Int, source: OutgoingStackSource)] = []
+        for location in argumentLocations.flatMap({ $0 }) {
+            guard case .stack(let offset) = location.storage else { continue }
+            sources.append((offset, .argument(location)))
+        }
+        if case .stack(let offset) = dynamicSelfLocations.metadata.storage {
+            sources.append((offset, .metadata))
+        }
+        if case .stack(let offset) = dynamicSelfLocations.witnessTable.storage {
+            sources.append((offset, .witnessTable))
+        }
+        guard sources.count <= Self.maximumOutgoingStackWords else {
+            return nil
+        }
+        return sources.sorted { $0.offset < $1.offset }.map(\.source)
     }
 
     var typedAdapterInvocationArgumentIndex: Int? {

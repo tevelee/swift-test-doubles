@@ -5,7 +5,19 @@ struct ForwardedCallPlan: @unchecked Sendable {
     let function: UnsafeRawPointer
     let selfValue: UnsafeRawPointer
     let witnessTable: UnsafeRawPointer
-    let hiddenArgumentIndex: Int?
+    /// Where the target's metadata/witness-table pair each independently
+    /// land -- a register, or a spill to the outgoing stack -- mirroring
+    /// whatever the real target witness's own competitive register
+    /// allocation produced. `nil` only for an async call using
+    /// `asyncStackPlan` instead.
+    let dynamicSelfLocations: WitnessCallTransportPlan.DynamicSelfLocations?
+    /// Ordered outgoing-stack-word sources `td_swift_invoke_witness` must
+    /// copy to the real call: spilled visible arguments (read from the
+    /// incoming frame) interleaved with a spilled metadata or witness-table
+    /// pointer (computed fresh, never read from the frame), in the same
+    /// order the target's own incoming stack expects them. Always empty for
+    /// an async call.
+    let outgoingStackSources: [WitnessCallTransportPlan.OutgoingStackSource]
     let asyncStackPlan: AsyncForwardingStackPlan?
     let isAsync: Bool
 }
@@ -334,14 +346,16 @@ struct ProtocolForwardingPlanBuilder<P> {
                 architecture: .current
             )
             : nil
-        let hiddenArgumentIndex: Int? =
+        // Only a genuinely synchronous call goes through td_swift_invoke_witness,
+        // the routine able to carry outgoing stack words. An async call
+        // either fits asyncStackPlan's own one-spill model or, falling
+        // through here, must stay register-only: ForwardedAsyncState has no
+        // way to carry spilled words td_swift_invoke_witness never sees.
+        let (dynamicSelfLocations, outgoingStackSources): (WitnessCallTransportPlan.DynamicSelfLocations?, [WitnessCallTransportPlan.OutgoingStackSource]) =
             if asyncStackPlan == nil {
-                try hiddenArgumentIndex(
-                    for: method,
-                    protocolName: protocolName
-                )
+                try dynamicSelfTransport(for: method, protocolName: protocolName)
             } else {
-                nil
+                (nil, [])
             }
         let function =
             if method.isAsync {
@@ -359,10 +373,36 @@ struct ProtocolForwardingPlanBuilder<P> {
             function: function,
             selfValue: target.selfValue,
             witnessTable: witnessTable.ptr,
-            hiddenArgumentIndex: hiddenArgumentIndex,
+            dynamicSelfLocations: dynamicSelfLocations,
+            outgoingStackSources: outgoingStackSources,
             asyncStackPlan: asyncStackPlan,
             isAsync: method.isAsync
         )
+    }
+
+    /// - Note: metadata and witness table are **not** reserved a fixed
+    ///   register pair here. Each independently lands wherever the target's
+    ///   own competitive register allocation puts it -- a register, or a
+    ///   spill to the outgoing stack -- exactly matching the real target
+    ///   witness function's compiled calling convention. See
+    ///   `WitnessCallTransportPlan.directForwardingOutgoingStackSources`.
+    private func dynamicSelfTransport(
+        for method: MethodDescriptor,
+        protocolName: String
+    ) throws -> (WitnessCallTransportPlan.DynamicSelfLocations?, [WitnessCallTransportPlan.OutgoingStackSource]) {
+        let transport = WitnessCallTransportPlan(
+            method: method,
+            trailingPayload: .dynamicSelf
+        )
+        guard let sources = transport.directForwardingOutgoingStackSources else {
+            let limit = WitnessCallTransportPlan.maximumOutgoingStackWords
+            throw StubError.unsupportedProtocolShape(
+                protocolName: protocolName,
+                reason:
+                    "Forwarding Spy requirement \(method.index) needs more outgoing stack transport than \(limit) words support. Use fewer arguments or a hand-written spy."
+            )
+        }
+        return (transport.dynamicSelfLocations, sources)
     }
 
     private func validateDynamicSelfBoundary(

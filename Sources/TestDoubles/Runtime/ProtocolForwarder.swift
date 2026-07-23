@@ -39,7 +39,28 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
             plan.isAsync == false,
             "[TestDoubles] An async Spy requirement entered synchronous forwarding."
         )
-        td_swift_invoke_witness(plan.function, plan.selfValue, frame.pointer)
+        precondition(
+            plan.outgoingStackSources.count
+                <= WitnessCallTransportPlan.maximumOutgoingStackWords,
+            "[TestDoubles] A forwarding plan exceeded its outgoing stack word ceiling."
+        )
+        let words = plan.outgoingStackSources.map { source -> UInt64 in
+            switch source {
+                case .argument(let location):
+                    frame.scalarBits(at: location)
+                case .metadata:
+                    UInt64(UInt(bitPattern: target.metadata))
+                case .witnessTable:
+                    UInt64(UInt(bitPattern: plan.witnessTable))
+            }
+        }
+        td_swift_invoke_witness(
+            plan.function,
+            plan.selfValue,
+            frame.pointer,
+            words.count > 0 ? words[0] : 0,
+            words.count > 1 ? words[1] : 0
+        )
     }
 
     func makeReadState(
@@ -103,15 +124,24 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
                 "[TestDoubles] No forwarding plan exists for Spy requirement \(method.index)."
             )
         }
-        if let hiddenArgumentIndex = plan.hiddenArgumentIndex {
-            frame.storeGeneralPurposeArgument(
-                UInt(bitPattern: target.metadata),
-                at: hiddenArgumentIndex
-            )
-            frame.storeGeneralPurposeArgument(
-                UInt(bitPattern: plan.witnessTable),
-                at: hiddenArgumentIndex + 1
-            )
+        // Metadata and witness table each independently land in a register
+        // or spill to the outgoing stack -- whichever one the target's own
+        // competitive register allocation produced. Register-located values
+        // are written here; stack-located ones are carried by `forward()`'s
+        // outgoingStackSources instead.
+        if let locations = plan.dynamicSelfLocations {
+            if case .generalPurposeRegister(let index) = locations.metadata.storage {
+                frame.storeGeneralPurposeArgument(
+                    UInt(bitPattern: target.metadata),
+                    at: index
+                )
+            }
+            if case .generalPurposeRegister(let index) = locations.witnessTable.storage {
+                frame.storeGeneralPurposeArgument(
+                    UInt(bitPattern: plan.witnessTable),
+                    at: index
+                )
+            }
         } else {
             precondition(
                 method.isAsync && plan.asyncStackPlan != nil,

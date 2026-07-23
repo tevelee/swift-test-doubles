@@ -23,6 +23,18 @@ enum SpyTypedForwardingError: Error, Equatable {
     case rejected(code: Int, message: String)
 }
 
+/// Large enough that its error layout is `.indirect`, forcing
+/// `typedErrorUsesIndirectResultSlot` regardless of the result type's own
+/// layout — this exercises `typedErrorDestinationLocation` through
+/// forwarding, distinct from `SpyTypedForwardingError`'s register-sized case.
+struct SpyIndirectTypedForwardingError: Error, Equatable {
+    let first: Int
+    let second: Int
+    let third: Int
+    let fourth: Int
+    let fifth: Int
+}
+
 protocol SpyForwardingMatrixService {
     func mixed(
         floating: Double,
@@ -35,6 +47,14 @@ protocol SpyForwardingMatrixService {
     func throwingLater(_ value: Int) async throws -> SpyIndirectResult
     func typed(_ value: Int) throws(SpyTypedForwardingError) -> Int
     func typedLater(_ value: Int) async throws(SpyTypedForwardingError) -> Int
+    func indirectTyped(_ value: Int) throws(SpyIndirectTypedForwardingError) -> Int
+    func manyArguments(
+        _ first: Int,
+        _ second: Int,
+        _ third: Int,
+        _ fourth: Int,
+        _ fifth: Int
+    ) throws -> Int
 }
 
 struct RealSpyForwardingMatrixService: SpyForwardingMatrixService {
@@ -79,6 +99,31 @@ struct RealSpyForwardingMatrixService: SpyForwardingMatrixService {
             throw .rejected(code: value, message: "async")
         }
         return value * 3
+    }
+
+    func indirectTyped(_ value: Int) throws(SpyIndirectTypedForwardingError) -> Int {
+        guard value >= 0 else {
+            throw SpyIndirectTypedForwardingError(
+                first: value,
+                second: value + 1,
+                third: value + 2,
+                fourth: value + 3,
+                fifth: value + 4
+            )
+        }
+        return value * 4
+    }
+
+    func manyArguments(
+        _ first: Int,
+        _ second: Int,
+        _ third: Int,
+        _ fourth: Int,
+        _ fifth: Int
+    ) throws -> Int {
+        let sum = first + second + third + fourth + fifth
+        guard sum >= 0 else { throw SpyForwardingError.rejected(sum) }
+        return sum
     }
 
     private func makeIndirectResult(_ seed: Int) -> SpyIndirectResult {
@@ -143,6 +188,17 @@ final class RealClassLifetimeSpyService: ClassLifetimeSpyService {
 
     func nextValue() -> Int {
         state.next()
+    }
+}
+
+protocol ClassConstrainedThrowingSpyService: AnyObject {
+    func attempt(_ value: Int) throws -> Int
+}
+
+final class RealClassConstrainedThrowingSpyService: ClassConstrainedThrowingSpyService {
+    func attempt(_ value: Int) throws -> Int {
+        guard value >= 0 else { throw SpyForwardingError.rejected(value) }
+        return value * 5
     }
 }
 
@@ -280,6 +336,55 @@ struct RealSpyGetterService: SpyGetterService {
             _ = try await service.typedLater(-7)
         }
         #expect(asyncError == .rejected(code: -7, message: "async"))
+    }
+
+    @Test func forwardsIndirectTypedErrors() throws {
+        let spy = try Spy<any SpyForwardingMatrixService>(
+            forwardingTo: RealSpyForwardingMatrixService()
+        )
+        let service: any SpyForwardingMatrixService = spy()
+
+        #expect(try service.indirectTyped(8) == 32)
+        let error = #expect(throws: SpyIndirectTypedForwardingError.self) {
+            _ = try service.indirectTyped(-8)
+        }
+        #expect(
+            error
+                == SpyIndirectTypedForwardingError(
+                    first: -8,
+                    second: -7,
+                    third: -6,
+                    fourth: -5,
+                    fifth: -4
+                )
+        )
+    }
+
+    @Test func forwardsThrowingMethodsWithManyRegisterFillingArguments() throws {
+        let spy = try Spy<any SpyForwardingMatrixService>(
+            forwardingTo: RealSpyForwardingMatrixService()
+        )
+        let service: any SpyForwardingMatrixService = spy()
+
+        #expect(try service.manyArguments(1, 2, 3, 4, 5) == 15)
+        let error = #expect(throws: SpyForwardingError.self) {
+            _ = try service.manyArguments(-100, 2, 3, 4, 5)
+        }
+        #expect(error == .rejected(-86))
+    }
+
+    @Test func forwardsThrowingMethodsThroughAClassConstrainedProtocol() throws {
+        let spy = try Spy<any ClassConstrainedThrowingSpyService>(
+            forwardingTo: RealClassConstrainedThrowingSpyService()
+                as any ClassConstrainedThrowingSpyService
+        )
+        let service: any ClassConstrainedThrowingSpyService = spy()
+
+        #expect(try service.attempt(3) == 15)
+        let error = #expect(throws: SpyForwardingError.self) {
+            _ = try service.attempt(-3)
+        }
+        #expect(error == .rejected(-3))
     }
 
     @Test func overrideThenForwardPreservesInvocationOrder() throws {
