@@ -91,6 +91,19 @@ test issue at its own source location and leaves the cursor unchanged;
 successful steps commit their captors and count toward
 `verifyNoMoreInteractions()`.
 
+`InvocationOrder` has its own ``InvocationOrder/verifyNoMoreInteractions(fileID:filePath:line:column:)``,
+which closes out every double the session touched in one call instead of one
+per double:
+
+```swift
+order.verifyNoMoreInteractions()
+```
+
+It reports the same per-double diagnostic as `Stub.verifyNoMoreInteractions()`
+and `ManualStub.verifyNoMoreInteractions()`, for every double this session
+verified at least once. A double the session never touched is out of scope,
+even if it has recorded calls of its own — check that one directly.
+
 ### Catch stale and unreachable registrations
 
 `verifyNoUnusedStubs()` reports every `when` registration that no recorded call

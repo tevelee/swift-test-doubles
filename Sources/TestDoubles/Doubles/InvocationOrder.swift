@@ -17,10 +17,12 @@ import IssueReporting
 ///
 /// A failed step reports a test issue at its own call site and leaves the
 /// cursor unchanged. Successful steps commit captors and count as
-/// verification for `verifyNoMoreInteractions()`.
+/// verification for `verifyNoMoreInteractions()`, both the per-double method
+/// and this type's own ``verifyNoMoreInteractions(fileID:filePath:line:column:)``.
 public final class InvocationOrder: @unchecked Sendable {
     private let lock = NSLock()
     private var cursor: UInt64 = 0
+    private var touchedRecorders: [ObjectIdentifier: StubRecorder] = [:]
 
     public init() {}
 
@@ -102,6 +104,47 @@ public final class InvocationOrder: @unchecked Sendable {
         )
     }
 
+    /// Reports every recorded invocation, across every double this session has
+    /// verified at least once, that has not been covered by a successful
+    /// verification.
+    ///
+    /// This is the cross-double counterpart to `Stub.verifyNoMoreInteractions()`
+    /// and `ManualStub.verifyNoMoreInteractions()`: a test that checks several
+    /// doubles together through one `InvocationOrder` can close them out
+    /// together too, instead of calling each double's own method in turn.
+    ///
+    /// ```swift
+    /// let order = InvocationOrder()
+    /// order.verify(gateway) { $0.charge(amount: equal(42)) }
+    /// order.verify(analytics) { $0.track(event: equal("purchase")) }
+    /// order.verifyNoMoreInteractions()
+    /// ```
+    ///
+    /// A double this session never verified is not included, even if it has
+    /// recorded interactions of its own; call its own `verifyNoMoreInteractions()`
+    /// for that. Every reported diagnostic points at this call's own source
+    /// location, same as the per-double method.
+    public func verifyNoMoreInteractions(
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) {
+        let recorders = lock.withLock { Array(touchedRecorders.values) }
+        for recorder in recorders {
+            guard let diagnostic = recorder.unverifiedInteractionsDiagnostic() else {
+                continue
+            }
+            reportIssue(
+                diagnostic,
+                fileID: fileID,
+                filePath: filePath,
+                line: line,
+                column: column
+            )
+        }
+    }
+
     private func advance(
         recording: RecordedCall,
         recorder: StubRecorder,
@@ -110,6 +153,7 @@ public final class InvocationOrder: @unchecked Sendable {
         line: UInt,
         column: UInt
     ) {
+        lock.withLock { touchedRecorders[ObjectIdentifier(recorder)] = recorder }
         while true {
             let currentCursor = lock.withLock { cursor }
             guard

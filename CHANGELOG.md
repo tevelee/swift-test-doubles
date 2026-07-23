@@ -109,6 +109,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that remains available for stubbing and verification.
 - Typed-throws forwarding for `ManualStub` through the explicit
   `throwing:` overloads of `throwingCall` and `asyncThrowingCall`.
+- `InvocationOrder.verifyNoMoreInteractions()` reports unverified interactions
+  across every double a session has verified at least once, the cross-double
+  counterpart to `Stub.verifyNoMoreInteractions()` and
+  `ManualStub.verifyNoMoreInteractions()`, so a test using several doubles
+  together can close all of them out in one call instead of one per double.
+  A double the session never touched is out of scope, even if it recorded
+  calls of its own.
 
 ### Changed
 

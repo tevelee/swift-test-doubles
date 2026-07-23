@@ -186,4 +186,57 @@ private final class ConcurrentGatewayStub: @unchecked Sendable {
 
         #expect(captor.values == [42])
     }
+
+    @Test func verifyNoMoreInteractionsPassesWhenEveryTouchedDoublesCallsAreVerified() throws {
+        let gateway = try Stub<any CrossOrderGateway>()
+        let analytics = try Stub<any CrossOrderAnalytics>()
+        gateway.when { $0.charge(amount: any()) }.thenDoNothing()
+        analytics.when { $0.track(event: any()) }.thenDoNothing()
+
+        gateway().charge(amount: 42)
+        analytics().track(event: "purchase")
+
+        let order = InvocationOrder()
+        order.verify(gateway) { $0.charge(amount: equal(42)) }
+        order.verify(analytics) { $0.track(event: equal("purchase")) }
+        order.verifyNoMoreInteractions()
+    }
+
+    @Test func verifyNoMoreInteractionsReportsAnUnverifiedCallOnATouchedDouble() throws {
+        let gateway = try Stub<any CrossOrderGateway>()
+        let analytics = try Stub<any CrossOrderAnalytics>()
+        gateway.when { $0.charge(amount: any()) }.thenDoNothing()
+        analytics.when { $0.track(event: any()) }.thenDoNothing()
+
+        gateway().charge(amount: 42)
+        analytics().track(event: "purchase")
+        analytics().track(event: "extra")
+
+        let order = InvocationOrder()
+        order.verify(gateway) { $0.charge(amount: equal(42)) }
+        order.verify(analytics) { $0.track(event: equal("purchase")) }
+
+        expectReportsIssue {
+            order.verifyNoMoreInteractions()
+        } matching: {
+            $0.description.contains("extra")
+        }
+    }
+
+    @Test func verifyNoMoreInteractionsIgnoresDoublesNeverVerifiedThroughThisSession() throws {
+        let gateway = try Stub<any CrossOrderGateway>()
+        let analytics = try Stub<any CrossOrderAnalytics>()
+        gateway.when { $0.charge(amount: any()) }.thenDoNothing()
+        analytics.when { $0.track(event: any()) }.thenDoNothing()
+
+        gateway().charge(amount: 42)
+        analytics().track(event: "purchase")
+
+        let order = InvocationOrder()
+        order.verify(gateway) { $0.charge(amount: equal(42)) }
+
+        // `analytics` recorded a call but was never touched through `order`,
+        // so it is out of scope for this session's verifyNoMoreInteractions().
+        order.verifyNoMoreInteractions()
+    }
 }
