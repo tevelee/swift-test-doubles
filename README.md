@@ -153,6 +153,22 @@ repeats for every call after that. Each registration owns its own chain, so a
 call that matches a more specific registration does not advance a general
 fallback's chain. Retry logic like this is hard to test any other way.
 
+When the response depends on *which* attempt this is rather than a fixed list,
+`thenForEachCall` hands the computed handler a running call count as its first
+argument, ahead of the requirement's typed arguments:
+
+```swift
+loader.when { try await $0.loadFeed() }.thenForEachCall { attempt in
+    if attempt < 3 { throw URLError(.timedOut) }
+    return ["Hello, world"]
+}
+```
+
+The count starts at 1 and increments once per matching call, scoped to this
+registration just like a behavior chain. Trailing arguments may be omitted, so
+a handler can take the count alone or the count followed by a leading prefix of
+the requirement's arguments.
+
 ### Control async timing
 
 Testing async code often means asserting what happens *while* a call is in

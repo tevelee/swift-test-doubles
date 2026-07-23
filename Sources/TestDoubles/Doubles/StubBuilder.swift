@@ -470,7 +470,7 @@ public struct StubBuilder<Result> {
     }
 
     @discardableResult
-    private func requireOrdinaryResult() -> MethodDescriptor {
+    func requireOrdinaryResult() -> MethodDescriptor {
         let method = requireRuntimeMethod()
         guard method.kind != .initializer,
             method.returnConvention != .selfType
