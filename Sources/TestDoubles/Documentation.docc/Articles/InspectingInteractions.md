@@ -53,6 +53,29 @@ let large: [(String, Int)] = stub.invocations {
 #expect(large == [("purchase", 42)])
 ```
 
+### Dump the whole call log
+
+When a `verify` fails, the useful next question is what actually *did* get
+called. ``Stub/describeInteractions()`` answers it directly, returning a
+human-readable, ordered log of every recorded invocation — one call per line,
+with the recorded arguments woven back into the requirement's labels — so a
+call reads the way it was written at the call site:
+
+```swift
+analytics.track(event: "add_to_cart", value: 30)
+analytics.track(event: "purchase", value: 42)
+
+print(stub.describeInteractions())
+// [TestDoubles] Recorded 2 interactions in order:
+//   #1  track(event: "add_to_cart", value: 30)
+//   #2  track(event: "purchase", value: 42)
+```
+
+Like reading invocations, it is a pure query: it does not verify, consume
+behavior, or commit captors, and on a `Spy` it includes forwarded calls
+alongside overridden ones. Reach for it while debugging; keep `verify` for the
+assertion itself.
+
 Reading invocations is a pure query. Unlike `verify`, it does not report an
 issue on a mismatch, consume configured behavior, advance a chain, or commit
 captors, so it is safe to call as often as needed. It is the right tool for

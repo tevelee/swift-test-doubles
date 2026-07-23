@@ -113,6 +113,12 @@ extension StubRecorder {
         markVerified(matches.map(\.call))
     }
 
+    func interactionLog() -> String {
+        StubRecorderDiagnostics.interactionLog(
+            withLockedPolicy { $0.invocationLedger.allCalls }
+        )
+    }
+
     func unverifiedInteractionsDiagnostic() -> String? {
         StubRecorderDiagnostics.unverifiedInteractions(
             withLockedPolicy { $0.invocationLedger.unverifiedCalls() }

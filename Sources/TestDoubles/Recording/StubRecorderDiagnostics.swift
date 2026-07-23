@@ -104,6 +104,26 @@ enum StubRecorderDiagnostics {
         return lines.joined(separator: "\n")
     }
 
+    /// Renders every recorded invocation as an ordered, human-readable log,
+    /// one call per line, for debugging a failing verification. Arguments are
+    /// woven back into the requirement's labels, so a call reads the way it was
+    /// written at the call site.
+    static func interactionLog(_ calls: [RecordedCall]) -> String {
+        guard calls.isEmpty == false else {
+            return "[TestDoubles] No interactions recorded."
+        }
+        let numberWidth = String(calls.count).count
+        let lines = calls.enumerated().map { index, call -> String in
+            let number = String(index + 1)
+            let padding = String(repeating: " ", count: numberWidth - number.count)
+            let rendered = call.args.map { String(reflecting: $0) }
+            return "  \(padding)#\(number)  \(weaveArguments(rendered, intoName: call.name))"
+        }
+        let noun = calls.count == 1 ? "interaction" : "interactions"
+        return (["[TestDoubles] Recorded \(calls.count) \(noun) in order:"] + lines)
+            .joined(separator: "\n")
+    }
+
     static func unverifiedInteractions(_ calls: [RecordedCall]) -> String? {
         guard calls.isEmpty == false else { return nil }
 
@@ -169,11 +189,20 @@ enum StubRecorderDiagnostics {
     private static func suggestedInvocation(name: String, args: [Any]) -> String {
         guard args.isEmpty == false else { return name }
         let matchers = args.map { "equal(\(swiftLiteralDescription($0)))" }
+        return weaveArguments(matchers, intoName: name)
+    }
 
+    /// Weaves already-rendered argument expressions back into a selector-style
+    /// method name, producing `base(label: value, ...)`. Falls back to
+    /// positional `name(value, ...)` when the name is not a labeled selector or
+    /// its label count does not line up with the arguments, and returns the
+    /// bare name when there are no arguments (a getter or a nullary call).
+    static func weaveArguments(_ rendered: [String], intoName name: String) -> String {
+        guard rendered.isEmpty == false else { return name }
         guard let open = name.firstIndex(of: "("),
             name.last == ")"
         else {
-            return "\(name)(\(matchers.joined(separator: ", ")))"
+            return "\(name)(\(rendered.joined(separator: ", ")))"
         }
 
         let base = String(name[..<open])
@@ -183,12 +212,12 @@ enum StubRecorderDiagnostics {
             .split(separator: ":", omittingEmptySubsequences: false)
             .dropLast()
             .map(String.init)
-        guard labels.count == matchers.count else {
-            return "\(base)(\(matchers.joined(separator: ", ")))"
+        guard labels.count == rendered.count else {
+            return "\(base)(\(rendered.joined(separator: ", ")))"
         }
 
-        let arguments = zip(labels, matchers).map { label, matcher in
-            label == "_" ? matcher : "\(label): \(matcher)"
+        let arguments = zip(labels, rendered).map { label, value in
+            label == "_" ? value : "\(label): \(value)"
         }.joined(separator: ", ")
         return "\(base)(\(arguments))"
     }

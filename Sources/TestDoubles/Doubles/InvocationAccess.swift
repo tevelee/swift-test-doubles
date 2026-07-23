@@ -28,6 +28,30 @@ extension TestDouble {
 }
 
 extension Stub {
+    /// Returns a human-readable, ordered log of every recorded invocation,
+    /// one call per line, for debugging.
+    ///
+    /// When a `verify` fails the useful next question is what actually *did*
+    /// get called; printing this answers it without dropping down to
+    /// ``Stub/invocations(_:)`` and reconstructing the picture by hand. Each
+    /// line weaves the recorded arguments back into the requirement's labels,
+    /// so a call reads the way it was written at the call site:
+    ///
+    /// ```swift
+    /// print(analytics.describeInteractions())
+    /// // [TestDoubles] Recorded 3 interactions in order:
+    /// //   #1  track(event: "add_to_cart", value: 30)
+    /// //   #2  track(event: "add_to_cart", value: 12)
+    /// //   #3  track(event: "purchase", value: 42)
+    /// ```
+    ///
+    /// This is a query for diagnostics: it does not verify, consume configured
+    /// behavior, or commit captors. Forwarded calls on a `Spy` are included,
+    /// the same as any other recorded call.
+    public func describeInteractions() -> String {
+        recorder.interactionLog()
+    }
+
     /// Returns the recorded arguments of matching invocations as typed
     /// tuples, in call order.
     ///
@@ -96,6 +120,13 @@ extension Stub {
 }
 
 extension ManualStub {
+    /// Returns a human-readable, ordered log of every recorded invocation,
+    /// one call per line, for debugging. See
+    /// ``Stub/describeInteractions()`` for the format and contract.
+    public func describeInteractions() -> String {
+        recorder.interactionLog()
+    }
+
     /// Returns the recorded arguments of matching invocations as typed
     /// tuples, in call order. See ``Stub/invocations(_:)`` for the binding
     /// and filtering contract.

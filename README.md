@@ -232,8 +232,10 @@ line. There is also `verifyNoMoreInteractions()` to catch calls no successful
 verification has covered.
 
 For custom assertions, read recorded arguments as typed tuples with
-`invocations`; `InvocationOrder` checks call order across several doubles at
-once; `verifyNoUnusedStubs()` flags registrations no call matched; and
+`invocations`; `describeInteractions()` dumps the whole call log as a
+human-readable, ordered string when a failing `verify` leaves you asking what
+actually got called; `InvocationOrder` checks call order across several doubles
+at once; `verifyNoUnusedStubs()` flags registrations no call matched; and
 `reset()` restores a double between parameterized cases. See
 [Inspecting Interactions](Sources/TestDoubles/Documentation.docc/Articles/InspectingInteractions.md).
 
