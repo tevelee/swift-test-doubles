@@ -135,7 +135,7 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
 @Suite struct SpyTests {
     @Test func factoryForwardsUnmatchedCallsAndRecordsThem() {
         let target = RealSpyService()
-        let spy: Spy<any SpyService> = makeSpy(forwardingTo: target)
+        let spy: Spy<any SpyService> = Spy.make(forwardingTo: target)
         let service: any SpyService = spy()
 
         #expect(service.fetch(id: 7) == "real:7")
@@ -278,7 +278,7 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
                 processExitsWith: .failure,
                 observing: [\.standardErrorContent]
             ) {
-                _ = makeSpy(
+                _ = Spy.make(
                     StaticSpyService.self,
                     forwardingTo: RealStaticSpyService()
                 )
@@ -294,7 +294,7 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
                 processExitsWith: .failure,
                 observing: [\.standardErrorContent]
             ) {
-                _ = makeSpy(forwardingTo: RealSpyService())
+                _ = Spy.make(forwardingTo: RealSpyService())
             }
             let diagnostic = try requireStandardErrorDiagnostic(from: result)
             #expect(diagnostic.contains("Could not construct a spy"))

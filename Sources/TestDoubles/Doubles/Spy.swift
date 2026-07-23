@@ -6,7 +6,7 @@
 /// to the inherited verification API.
 ///
 /// ```swift
-/// let spy: Spy<any UserService> = makeSpy(forwardingTo: liveService)
+/// let spy: Spy<any UserService> = .make(forwardingTo: liveService)
 /// spy.when { $0.displayName(for: "guest") }.thenReturn("Test Guest")
 ///
 /// let service: any UserService = spy()
@@ -70,74 +70,76 @@ public final class Spy<P>: Stub<P> {
     }
 }
 
-/// Returns a forwarding spy for `protocolType` that records calls to `target`.
-///
-/// The protocol metatype defaults to the contextual type, so prefer stating
-/// the existential in the result annotation:
-///
-/// ```swift
-/// let spy: Spy<any UserService> = makeSpy(forwardingTo: liveService)
-/// ```
-///
-/// Without an annotation or an explicit metatype, `P` is inferred from the
-/// target's concrete implementation type, which fails fast with a
-/// protocol-existential diagnostic. Construction also terminates the process
-/// when the protocol cannot be forwarded safely. Use the throwing
-/// ``Spy/init(forwardingTo:)`` initializer when construction failure must be
-/// handled by the caller.
-///
-/// - Parameters:
-///   - protocolType: The protocol metatype implemented by the returned spy.
-///     Defaults to the contextual type.
-///   - target: The real protocol implementation that receives unmatched calls.
-/// - Returns: A forwarding spy that supports stubbing and verification.
-public func makeSpy<P>(
-    _ protocolType: P.Type = P.self,
-    forwardingTo target: P
-) -> Spy<P> {
-    constructSpyOrFail(for: protocolType) { () throws(StubError) -> Spy<P> in
-        try Spy<P>(forwardingTo: target)
+extension Spy {
+    /// Returns a forwarding spy for `protocolType` that records calls to `target`.
+    ///
+    /// The protocol metatype defaults to the contextual type, so prefer stating
+    /// the existential in the result annotation:
+    ///
+    /// ```swift
+    /// let spy: Spy<any UserService> = .make(forwardingTo: liveService)
+    /// ```
+    ///
+    /// Without an annotation or an explicit metatype, `P` is inferred from the
+    /// target's concrete implementation type, which fails fast with a
+    /// protocol-existential diagnostic. Construction also terminates the process
+    /// when the protocol cannot be forwarded safely. Use the throwing
+    /// ``Spy/init(forwardingTo:)`` initializer when construction failure must be
+    /// handled by the caller.
+    ///
+    /// - Parameters:
+    ///   - protocolType: The protocol metatype implemented by the returned spy.
+    ///     Defaults to the contextual type.
+    ///   - target: The real protocol implementation that receives unmatched calls.
+    /// - Returns: A forwarding spy that supports stubbing and verification.
+    public static func make(
+        _ protocolType: P.Type = P.self,
+        forwardingTo target: P
+    ) -> Spy<P> {
+        constructSpyOrFail(for: protocolType) { () throws(StubError) -> Spy<P> in
+            try Spy<P>(forwardingTo: target)
+        }
     }
-}
 
-/// Returns a forwarding spy using one throwing-effect hint for each getter.
-///
-/// The target still supplies every discoverable signature component. Effects
-/// only provide the getter throwing information omitted by runtime metadata.
-public func makeSpy<P>(
-    _ protocolType: P.Type = P.self,
-    forwardingTo target: P,
-    getterEffects firstEffect: Stub<P>.GetterEffect,
-    _ additionalEffects: Stub<P>.GetterEffect...
-) -> Spy<P> {
-    let effects = [firstEffect] + additionalEffects
-    return constructSpyOrFail(for: protocolType) { () throws(StubError) -> Spy<P> in
-        try Spy<P>(
-            forwardingTo: target,
-            getterEffectInput: .ordered(effects)
-        )
+    /// Returns a forwarding spy using one throwing-effect hint for each getter.
+    ///
+    /// The target still supplies every discoverable signature component. Effects
+    /// only provide the getter throwing information omitted by runtime metadata.
+    public static func make(
+        _ protocolType: P.Type = P.self,
+        forwardingTo target: P,
+        getterEffects firstEffect: Stub<P>.GetterEffect,
+        _ additionalEffects: Stub<P>.GetterEffect...
+    ) -> Spy<P> {
+        let effects = [firstEffect] + additionalEffects
+        return constructSpyOrFail(for: protocolType) { () throws(StubError) -> Spy<P> in
+            try Spy<P>(
+                forwardingTo: target,
+                getterEffectInput: .ordered(effects)
+            )
+        }
     }
-}
 
-/// Returns a forwarding spy using getter-effect hints grouped by their declaring protocols.
-public func makeSpy<P>(
-    _ protocolType: P.Type = P.self,
-    forwardingTo target: P,
-    getterEffectsByProtocol firstGroup: Stub<P>.ProtocolGetterEffects,
-    _ additionalGroups: Stub<P>.ProtocolGetterEffects...
-) -> Spy<P> {
-    let groups = [firstGroup] + additionalGroups
-    return constructSpyOrFail(for: protocolType) { () throws(StubError) -> Spy<P> in
-        try Spy<P>(
-            forwardingTo: target,
-            getterEffectInput: .grouped(groups)
-        )
+    /// Returns a forwarding spy using getter-effect hints grouped by their declaring protocols.
+    public static func make(
+        _ protocolType: P.Type = P.self,
+        forwardingTo target: P,
+        getterEffectsByProtocol firstGroup: Stub<P>.ProtocolGetterEffects,
+        _ additionalGroups: Stub<P>.ProtocolGetterEffects...
+    ) -> Spy<P> {
+        let groups = [firstGroup] + additionalGroups
+        return constructSpyOrFail(for: protocolType) { () throws(StubError) -> Spy<P> in
+            try Spy<P>(
+                forwardingTo: target,
+                getterEffectInput: .grouped(groups)
+            )
+        }
     }
-}
 
-private func constructSpyOrFail<P>(
-    for protocolType: P.Type,
-    _ operation: () throws(StubError) -> Spy<P>
-) -> Spy<P> {
-    constructTestDoubleOrFail(.spy, for: protocolType, operation)
+    private static func constructSpyOrFail(
+        for protocolType: P.Type,
+        _ operation: () throws(StubError) -> Spy<P>
+    ) -> Spy<P> {
+        constructTestDoubleOrFail(.spy, for: protocolType, operation)
+    }
 }

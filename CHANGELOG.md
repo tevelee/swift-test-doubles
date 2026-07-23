@@ -105,7 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   compiler warning and no longer installs an implicit `Void` fallback.
 - Chainable fixed returns, errors, and no-ops for consecutive matching
   invocations, with the final configured behavior repeating.
-- `makeSpy(_:forwardingTo:)` for fail-fast construction of a forwarding spy
+- `Spy.make(_:forwardingTo:)` for fail-fast construction of a forwarding spy
   that remains available for stubbing and verification.
 - Typed-throws forwarding for `ManualStub` through the explicit
   `throwing:` overloads of `throwingCall` and `asyncThrowingCall`.
@@ -122,17 +122,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a `switch`: register specific matchers first and broad fallbacks last,
   since an earlier registration shadows any later one it overlaps with.
 - Recoverable `Stub`, `Dummy`, and `Spy` constructors now declare
-  `throws(StubError)`; the corresponding `makeStub`, `makeDummy`, and `makeSpy`
+  `throws(StubError)`; the corresponding `Stub.make`, `Dummy.make`, and `Spy.make`
   factories remain fail-fast conveniences.
-- The `makeSpy` protocol metatype parameter defaults to the contextual type,
+- The `Spy.make` protocol metatype parameter defaults to the contextual type,
   so the existential can come from the result annotation:
-  `let spy: Spy<any P> = makeSpy(forwardingTo: live)`. Without an annotation
+  `let spy: Spy<any P> = .make(forwardingTo: live)`. Without an annotation
   or explicit metatype, the forwarding target's concrete type is inferred and
   construction fails fast with a protocol-existential diagnostic. Spy
   construction also accepts flat or declaration-grouped getter-effect hints.
 - Fabricated witness identities are retained for process-stable cache identity
   only after successful construction; failed construction releases its
   temporary witness allocations.
+- `makeStub`, `makeDummy`, and `makeSpy` are now `Stub.make`, `Dummy.make`, and
+  `Spy.make`: static factory methods on the type they construct instead of
+  top-level functions, so they surface in autocomplete and documentation
+  alongside each type's `init` and support leading-dot construction such as
+  `let spy: Spy<any P> = .make(forwardingTo: live)`. The free functions no
+  longer exist.
 
 ### Fixed
 

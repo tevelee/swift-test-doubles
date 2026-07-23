@@ -96,12 +96,12 @@ participate in matching and is not captured.
 
 ### Create a one-shot stub value
 
-Use ``makeStub(_:)-7h3si`` when the test only needs a configured protocol value and
+Use `Stub.make` when the test only needs a configured protocol value and
 does not need to verify its interactions afterward. The surrounding context
 determines the protocol existential type:
 
 ```swift
-let repository: any UserRepository = makeStub {
+let repository: any UserRepository = Stub.make {
     $0.when { $0.find(id: any()) }.then { (id: Int) in "user-\(id)" }
 }
 
@@ -117,7 +117,7 @@ Use ``Spy`` when a real implementation should handle most calls and the test
 needs to observe or replace only selected interactions:
 
 ```swift
-let spy: Spy<any UserRepository> = makeSpy(forwardingTo: liveRepository)
+let spy: Spy<any UserRepository> = Spy.make(forwardingTo: liveRepository)
 spy.when { $0.find(id: equal(42)) }.thenReturn("Fixture User")
 
 let repository: any UserRepository = spy()

@@ -260,7 +260,7 @@ struct LiveTranslator: Translator {
 ```
 
 ```swift
-let spy: Spy<any Translator> = makeSpy(forwardingTo: LiveTranslator())
+let spy: Spy<any Translator> = Spy.make(forwardingTo: LiveTranslator())
 spy.when { $0.translate(equal("greeting.new_user")) }.thenReturn("Howdy, partner")
 
 let translator: any Translator = spy()
@@ -286,7 +286,7 @@ requirement, which is a stronger guarantee than a silent no-op mock.
 ```swift
 let checkout = Checkout(
     gateway: gateway(),
-    analytics: makeDummy() // this path must never track anything
+    analytics: Dummy.make() // this path must never track anything
 )
 ```
 
@@ -296,7 +296,7 @@ When a test only needs a configured value and no verification afterward,
 there is a shorthand:
 
 ```swift
-let translator: any Translator = makeStub {
+let translator: any Translator = Stub.make {
     $0.when { $0.translate(any()) }.then { (key: String) in "«\(key)»" }
 }
 ```

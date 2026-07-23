@@ -95,7 +95,7 @@ private final class BlockedBehaviorMatcherGate: @unchecked Sendable {
     }
 
     @Test func spyClearingBehaviorsRestoresForwarding() throws {
-        let spy: Spy<any InvocationManagementService> = makeSpy(
+        let spy: Spy<any InvocationManagementService> = Spy.make(
             forwardingTo: RealInvocationManagementService()
         )
         spy.when { $0.value(for: any()) }.thenReturn("stubbed")
@@ -109,7 +109,7 @@ private final class BlockedBehaviorMatcherGate: @unchecked Sendable {
 
     @Test(.timeLimit(.minutes(2)))
     func clearingWhileMatcherIsBlockedCannotDispatchRemovedBehavior() async throws {
-        let spy: Spy<any InvocationManagementService> = makeSpy(
+        let spy: Spy<any InvocationManagementService> = Spy.make(
             forwardingTo: RealInvocationManagementService()
         )
         let gate = BlockedBehaviorMatcherGate()

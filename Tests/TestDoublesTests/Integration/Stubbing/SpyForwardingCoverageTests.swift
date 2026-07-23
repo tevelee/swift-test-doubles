@@ -384,7 +384,7 @@ struct RealSpyGetterService: SpyGetterService {
 
     @Test func getterHintFactoryForwardsAndOverridesAsyncGetters() async throws {
         let state = SpyGetterAccessState()
-        let spy: Spy<any SpyGetterService> = makeSpy(
+        let spy: Spy<any SpyGetterService> = Spy.make(
             forwardingTo: RealSpyGetterService(state: state),
             getterEffects: .throwing,
             .nonthrowing,

@@ -278,7 +278,7 @@ private struct UnexpectedTypedError: Error {}
                 processExitsWith: .failure,
                 observing: [\.standardErrorContent]
             ) {
-                let _: any MissingImplementationProbe = makeStub { _ in }
+                let _: any MissingImplementationProbe = Stub.make { _ in }
             }
 
             let diagnostic = try #require(

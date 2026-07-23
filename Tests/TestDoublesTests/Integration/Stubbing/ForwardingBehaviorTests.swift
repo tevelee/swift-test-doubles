@@ -19,7 +19,7 @@ struct RealForwardingProbeService: ForwardingProbeService {
 
 @Suite struct ForwardingBehaviorTests {
     @Test func chainEndsByForwardingToTheTarget() async throws {
-        let spy: Spy<any ForwardingProbeService> = makeSpy(
+        let spy: Spy<any ForwardingProbeService> = Spy.make(
             forwardingTo: RealForwardingProbeService()
         )
         await spy.when { try await $0.load(url: any()) }
@@ -38,7 +38,7 @@ struct RealForwardingProbeService: ForwardingProbeService {
     }
 
     @Test func standaloneForwardPunchesAHoleThroughABroaderOverride() throws {
-        let spy: Spy<any ForwardingProbeService> = makeSpy(
+        let spy: Spy<any ForwardingProbeService> = Spy.make(
             forwardingTo: RealForwardingProbeService()
         )
         spy.when { $0.name(for: equal(7)) }.thenForward()
@@ -50,7 +50,7 @@ struct RealForwardingProbeService: ForwardingProbeService {
     }
 
     @Test func syncChainEndsByForwardingToTheTarget() throws {
-        let spy: Spy<any ForwardingProbeService> = makeSpy(
+        let spy: Spy<any ForwardingProbeService> = Spy.make(
             forwardingTo: RealForwardingProbeService()
         )
         spy.when { $0.name(for: any()) }
@@ -63,7 +63,7 @@ struct RealForwardingProbeService: ForwardingProbeService {
     }
 
     @Test func forwardedAnswersAreRecordedForVerification() throws {
-        let spy: Spy<any ForwardingProbeService> = makeSpy(
+        let spy: Spy<any ForwardingProbeService> = Spy.make(
             forwardingTo: RealForwardingProbeService()
         )
         spy.when { $0.name(for: any()) }.thenForward()

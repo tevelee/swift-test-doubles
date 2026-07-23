@@ -8,7 +8,7 @@ for the interactions a test needs to control.
 Create a ``Spy`` from a protocol and its real implementation:
 
 ```swift
-let spy: Spy<any UserService> = makeSpy(forwardingTo: liveService)
+let spy: Spy<any UserService> = Spy.make(forwardingTo: liveService)
 let service: any UserService = spy()
 
 #expect(service.displayName(for: "admin") == "Admin")
@@ -17,7 +17,7 @@ spy.verify { $0.displayName(for: "admin") }
 
 The spy owns the target existential and uses its witness tables for signature
 discovery. It does not need explicit ``Stub/Requirement`` values or a separate
-linked conformer. ``makeSpy(_:forwardingTo:)`` terminates with an actionable
+linked conformer. ``Spy/make(_:forwardingTo:)`` terminates with an actionable
 diagnostic when construction is unsupported. Use the throwing
 ``Spy/init(forwardingTo:)`` initializer when the caller needs to recover and
 choose a hand-written spy.
@@ -55,7 +55,7 @@ discovery from the target's witness tables and supply that missing
 classification explicitly:
 
 ```swift
-let spy: Spy<any CachedProfile> = makeSpy(
+let spy: Spy<any CachedProfile> = Spy.make(
     forwardingTo: liveProfile,
     getterEffects: .nonthrowing, // var cachedName: String { get }
     .throwing                    // var freshName: String { get async throws }

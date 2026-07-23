@@ -68,7 +68,7 @@ private func invokeStaticRequirement<T: DummyStaticService>(
 @Suite("Dummy test doubles")
 struct DummyTests {
     @Test func factorySuppliesAnUnusedProtocolDependencyWithoutAConformer() {
-        let service: any DummyService = makeDummy()
+        let service: any DummyService = Dummy.make()
 
         #expect(fallbackValue(using: service) == 42)
     }
@@ -80,7 +80,7 @@ struct DummyTests {
     }
 
     @Test func supportsBoundAssociatedTypes() {
-        let source: any DummySource<Int> = makeDummy()
+        let source: any DummySource<Int> = Dummy.make()
         withExtendedLifetime(source) {}
     }
 
@@ -163,7 +163,7 @@ struct DummyTests {
                 processExitsWith: .failure,
                 observing: [\.standardErrorContent]
             ) {
-                let service: any DummyService = makeDummy()
+                let service: any DummyService = Dummy.make()
                 _ = service.value()
             }
             try expectDummyDiagnostic(result, containing: "method requirement")
@@ -174,7 +174,7 @@ struct DummyTests {
                 processExitsWith: .failure,
                 observing: [\.standardErrorContent]
             ) {
-                let service: any DummyService = makeDummy()
+                let service: any DummyService = Dummy.make()
                 _ = await service.load()
             }
             try expectDummyDiagnostic(result, containing: "method requirement")
@@ -185,7 +185,7 @@ struct DummyTests {
                 processExitsWith: .failure,
                 observing: [\.standardErrorContent]
             ) {
-                var service: any DummyService = makeDummy()
+                var service: any DummyService = Dummy.make()
                 service.count += 1
             }
             try expectDummyDiagnostic(result, containing: "getter requirement")
@@ -196,7 +196,7 @@ struct DummyTests {
                 processExitsWith: .failure,
                 observing: [\.standardErrorContent]
             ) {
-                let service: any DummyStaticService = makeDummy()
+                let service: any DummyStaticService = Dummy.make()
                 _ = invokeStaticRequirement(on: service)
             }
             try expectDummyDiagnostic(
@@ -211,7 +211,7 @@ struct DummyTests {
                 processExitsWith: .failure,
                 observing: [\.standardErrorContent]
             ) {
-                _ = makeDummy(Int.self)
+                _ = Dummy.make(Int.self)
             }
             let diagnostic = try #require(
                 String(bytes: result.standardErrorContent, encoding: .utf8)

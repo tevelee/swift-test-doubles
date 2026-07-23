@@ -290,6 +290,6 @@ supported. Automatic discovery resolves concrete runtime metadata for every
 argument and result before allocating a witness table. When a linked
 conformance is available, explicit construction also validates every signature
 component that can be discovered reliably. Getter throwing behavior remains
-caller-supplied. The fail-fast `makeStub`, `makeDummy`, and `makeSpy` factories
+caller-supplied. The fail-fast `Stub.make`, `Dummy.make`, and `Spy.make` factories
 terminate with the same actionable diagnostic. No construction path launches
 external tools.

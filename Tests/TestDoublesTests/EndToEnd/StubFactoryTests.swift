@@ -30,7 +30,7 @@ struct LiveFactorySendableService: FactorySendableService {
 @Suite("Stub factory")
 struct StubFactoryTests {
     @Test func returnsAConfiguredProtocolValue() {
-        let service: any FactoryCurrencyService = makeStub {
+        let service: any FactoryCurrencyService = Stub.make {
             $0.when { $0.currency }.then { "EUR" }
         }
 
@@ -38,7 +38,7 @@ struct StubFactoryTests {
     }
 
     @Test func configuresAsyncRequirements() async {
-        let service: any FactoryAsyncService = await makeStub {
+        let service: any FactoryAsyncService = await Stub.make {
             await $0.when { await $0.load() }.then { "loaded" }
         }
 
@@ -47,7 +47,7 @@ struct StubFactoryTests {
 
     @Test func sendableProtocolsRequireAnExplicitUncheckedBoundary() {
         _ = LiveFactorySendableService()
-        let service: any FactorySendableService = makeStub {
+        let service: any FactorySendableService = Stub.make {
             $0.when { $0.value }.thenReturn(42)
         }
 
@@ -56,7 +56,7 @@ struct StubFactoryTests {
 
     @Test func asyncFactoryPreservesTheExplicitUncheckedBoundary() async {
         _ = LiveFactorySendableService()
-        let service: any FactorySendableService = await makeStub {
+        let service: any FactorySendableService = await Stub.make {
             stub in
             await Task.yield()
             stub.when { $0.value }.thenReturn(42)

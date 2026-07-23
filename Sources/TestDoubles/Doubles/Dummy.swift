@@ -6,7 +6,7 @@
 /// or verification.
 ///
 /// ```swift
-/// let result = feature.run(analytics: makeDummy(AnalyticsClient.self))
+/// let result = feature.run(analytics: Dummy.make(AnalyticsClient.self))
 /// ```
 ///
 /// Invoking any protocol requirement on the generated value terminates the
@@ -44,16 +44,18 @@ public final class Dummy<P> {
 /// itself safe to transfer between concurrency domains.
 extension Dummy: @unchecked Sendable where P: Sendable {}
 
-/// Returns a runtime-generated dummy value for `protocolType`.
-///
-/// Use a dummy when an API requires a protocol value but the exercised code
-/// path must not invoke it. Construction terminates the process with a
-/// diagnostic if the protocol layout cannot be fabricated safely.
-///
-/// - Parameter protocolType: The protocol metatype that determines the returned existential.
-/// - Returns: A protocol value with no behavior, call recording, or verification.
-public func makeDummy<P>(_ protocolType: P.Type = P.self) -> P {
-    constructTestDoubleOrFail(.dummy, for: protocolType) { () throws(StubError) -> P in
-        try Dummy<P>()()
+extension Dummy {
+    /// Returns a runtime-generated dummy value for `protocolType`.
+    ///
+    /// Use a dummy when an API requires a protocol value but the exercised code
+    /// path must not invoke it. Construction terminates the process with a
+    /// diagnostic if the protocol layout cannot be fabricated safely.
+    ///
+    /// - Parameter protocolType: The protocol metatype that determines the returned existential.
+    /// - Returns: A protocol value with no behavior, call recording, or verification.
+    public static func make(_ protocolType: P.Type = P.self) -> P {
+        constructTestDoubleOrFail(.dummy, for: protocolType) { () throws(StubError) -> P in
+            try Dummy<P>()()
+        }
     }
 }

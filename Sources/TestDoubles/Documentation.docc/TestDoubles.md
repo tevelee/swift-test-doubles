@@ -62,8 +62,6 @@ isolation. See
 
 - ``Stub``
 - ``Spy``
-- ``makeSpy(_:forwardingTo:)``
-- ``makeStub(_:)-7h3si``
 - ``StubBuilder``
 - ``StubBehaviorChain``
 - ``StubSuspension``
@@ -79,7 +77,6 @@ isolation. See
 ### Dummy API
 
 - ``Dummy``
-- ``makeDummy(_:)``
 - <doc:DummyTestDoubles>
 
 ### Construction and Signatures

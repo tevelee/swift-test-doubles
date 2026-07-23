@@ -5,7 +5,7 @@ Pass a required dependency to a code path that must not use it.
 ## Overview
 
 A dummy satisfies an API's type requirements without supplying behavior. Use
-``makeDummy(_:)`` when the scenario under test requires a protocol argument but
+``Dummy/make(_:)`` when the scenario under test requires a protocol argument but
 should not invoke any of its requirements:
 
 ```swift
@@ -17,7 +17,7 @@ func title(analytics: any AnalyticsClient) -> String {
     "Welcome"
 }
 
-let result = title(analytics: makeDummy(AnalyticsClient.self))
+let result = title(analytics: Dummy.make(AnalyticsClient.self))
 ```
 
 `Dummy` uses runtime protocol metadata to fabricate the existential and the
@@ -45,7 +45,7 @@ released.
 
 ### Construction boundary
 
-``makeDummy(_:)`` and ``Dummy/init()`` accept ordinary opaque and
+``Dummy/make(_:)`` and ``Dummy/init()`` accept ordinary opaque and
 class-constrained Swift protocol existentials, compositions, inheritance, and
 concretely bound associated types within the protocol-layout boundary shared
 with ``Stub``. The initializer throws ``StubError`` for non-protocol types and
