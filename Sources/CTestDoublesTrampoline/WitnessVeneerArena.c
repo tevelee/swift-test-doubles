@@ -4,15 +4,18 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h>
 #include <unistd.h>
 
 #if __has_include(<ptrauth.h>)
 #include <ptrauth.h>
 #endif
 
+#if !defined(__wasi__)
+#include <sys/mman.h>
+
 #if !defined(MAP_ANON) && defined(MAP_ANONYMOUS)
 #define MAP_ANON MAP_ANONYMOUS
+#endif
 #endif
 
 static size_t td_page_size(void) {
@@ -20,6 +23,29 @@ static size_t td_page_size(void) {
   return pageSize > 0 ? (size_t)pageSize : (size_t)16384;
 }
 
+// WASI has no facility for executable memory: its own <sys/mman.h> rejects
+// even the mmap emulation shim for PROT_EXEC, because the WASM sandbox never
+// lets a running module treat data as code. Every allocation attempt fails
+// the same way a real mmap failure would, so construction fails closed
+// through the existing StubError.trampolineAllocationFailed diagnostic
+// instead of not compiling at all.
+#if defined(__wasi__)
+static void *td_allocate_code_page(size_t *size) {
+  *size = td_page_size();
+  return 0;
+}
+
+static bool td_publish_code(void *ptr, size_t size) {
+  (void)ptr;
+  (void)size;
+  return false;
+}
+
+static void td_unmap_code_page(void *mapping, size_t size) {
+  (void)mapping;
+  (void)size;
+}
+#else
 static void *td_allocate_code_page(size_t *size) {
   *size = td_page_size();
   int flags = MAP_PRIVATE | MAP_ANON;
@@ -37,6 +63,11 @@ static bool td_publish_code(void *ptr, size_t size) {
   __builtin___clear_cache((char *)ptr, (char *)ptr + size);
   return mprotect(ptr, size, PROT_READ | PROT_EXEC) == 0;
 }
+
+static void td_unmap_code_page(void *mapping, size_t size) {
+  munmap(mapping, size);
+}
+#endif
 
 #define TD_VENEER_ALIGNMENT 16
 #define TD_WITNESS_VENEER_CODE_CAPACITY 64
@@ -67,7 +98,7 @@ static TDWitnessVeneerPage *td_append_veneer_page(TDWitnessVeneerArena *arena) {
 
   TDWitnessVeneerPage *page = calloc(1, sizeof(TDWitnessVeneerPage));
   if (!page) {
-    munmap(mapping, mappedSize);
+    td_unmap_code_page(mapping, mappedSize);
     return 0;
   }
   page->mapping = mapping;
@@ -398,7 +429,7 @@ void td_witness_veneer_arena_destroy(TDWitnessVeneerArena *arena) {
   TDWitnessVeneerPage *page = arena->firstPage;
   while (page) {
     TDWitnessVeneerPage *next = page->next;
-    munmap(page->mapping, arena->pageSize);
+    td_unmap_code_page(page->mapping, arena->pageSize);
     free(page);
     page = next;
   }

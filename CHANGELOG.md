@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Cross-build validation and a real, running demonstration of
+  `wasm32-unknown-wasip1` support: CI builds the `TestDoubles` library in
+  debug and release with the official Swift 6.3.1 WASI SDK, then both runs a
+  small standalone executable and the `TestDoublesWasmTests` suite under
+  `wasmtime` (`swift-testing` itself runs there, not just plain code),
+  proving `ManualStub` works fully there (no runtime code generation needed)
+  while `Stub`/`Spy` construction fails closed with the usual `StubError`
+  diagnostic, the same story as physical Apple devices — except WASI can't
+  run the trampoline at all rather than merely disallowing it, since it has
+  no executable-memory facility. Requires Echo 0.0.6 or newer, whose C
+  declarations avoid a wasm32 compiler crash on unprototyped functions.
 - `thenRecord(as:into:calling:)` captures a `Spy` registration's result into a
   `RecordingSession`, keyed by a caller-chosen label, in addition to returning
   it as usual — typically wired to call straight through to the real

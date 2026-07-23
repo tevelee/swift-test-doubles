@@ -2,16 +2,54 @@ import CTestDoublesTrampoline
 import Echo
 import Foundation
 
-@_silgen_name("td_swift_invoke_async_function")
-private func tdSwiftInvokeAsyncFunctionWithoutStack(
-    _ function: UnsafeRawPointer,
-    _ context: UnsafeRawPointer?,
-    _ discriminator: UInt16,
-    _ frame: UnsafeMutablePointer<TDCallFrame>,
-    _ isThrowing: Bool
-) async
+// WASI has neither this trampoline's arm64/x86_64 assembly nor executable
+// memory to publish a fabricated veneer into (witness veneer allocation
+// always fails first there — see WitnessVeneerArena.c), so these three give
+// themselves real, unreachable-in-practice bodies on that platform instead of
+// only declaring an externally-linked entry point. A real Swift async
+// function body lets the compiler synthesize the matching async ABI thunk
+// itself, the same way td_swift_async_dispatch does in TrampolineHandler.swift,
+// rather than requiring one to be hand-assembled.
+#if os(WASI)
+    @_silgen_name("td_swift_invoke_async_function")
+    // swiftlint:disable:next unavailable_function
+    private func tdSwiftInvokeAsyncFunctionWithoutStack(
+        _ function: UnsafeRawPointer,
+        _ context: UnsafeRawPointer?,
+        _ discriminator: UInt16,
+        _ frame: UnsafeMutablePointer<TDCallFrame>,
+        _ isThrowing: Bool
+    ) async {
+        fatalError("unreachable on wasm32-wasi")
+    }
+#else
+    @_silgen_name("td_swift_invoke_async_function")
+    private func tdSwiftInvokeAsyncFunctionWithoutStack(
+        _ function: UnsafeRawPointer,
+        _ context: UnsafeRawPointer?,
+        _ discriminator: UInt16,
+        _ frame: UnsafeMutablePointer<TDCallFrame>,
+        _ isThrowing: Bool
+    ) async
+#endif
 
-#if arch(x86_64)
+#if os(WASI)
+    @_silgen_name("td_swift_invoke_async_function_with_stack")
+    // swiftlint:disable:next unavailable_function
+    private func tdSwiftInvokeAsyncFunctionWithStack(
+        _ function: UnsafeRawPointer,
+        _ context: UnsafeRawPointer?,
+        _ discriminator: UInt16,
+        _ frame: UnsafeMutablePointer<TDCallFrame>,
+        _ isThrowing: Bool,
+        _ firstRegisterPadding: UInt,
+        _ secondRegisterPadding: UInt,
+        _ thirdRegisterPadding: UInt,
+        _ stackWord: UInt
+    ) async {
+        fatalError("unreachable on wasm32-wasi")
+    }
+#elseif arch(x86_64)
     @_silgen_name("td_swift_invoke_async_function_with_stack")
     private func tdSwiftInvokeAsyncFunctionWithStack(
         _ function: UnsafeRawPointer,
@@ -82,14 +120,28 @@ func tdSwiftInvokeAsyncFunction(
     #endif
 }
 
-@_silgen_name("td_swift_invoke_async_witness")
-func tdSwiftInvokeAsyncWitness(
-    _ function: UnsafeRawPointer,
-    _ selfValue: UnsafeRawPointer,
-    _ frame: UnsafeMutablePointer<TDCallFrame>,
-    _ isThrowing: Bool,
-    _ stackArguments: UnsafePointer<TDAsyncWitnessStackArguments>?
-) async
+#if os(WASI)
+    @_silgen_name("td_swift_invoke_async_witness")
+    // swiftlint:disable:next unavailable_function
+    func tdSwiftInvokeAsyncWitness(
+        _ function: UnsafeRawPointer,
+        _ selfValue: UnsafeRawPointer,
+        _ frame: UnsafeMutablePointer<TDCallFrame>,
+        _ isThrowing: Bool,
+        _ stackArguments: UnsafePointer<TDAsyncWitnessStackArguments>?
+    ) async {
+        fatalError("unreachable on wasm32-wasi")
+    }
+#else
+    @_silgen_name("td_swift_invoke_async_witness")
+    func tdSwiftInvokeAsyncWitness(
+        _ function: UnsafeRawPointer,
+        _ selfValue: UnsafeRawPointer,
+        _ frame: UnsafeMutablePointer<TDCallFrame>,
+        _ isThrowing: Bool,
+        _ stackArguments: UnsafePointer<TDAsyncWitnessStackArguments>?
+    ) async
+#endif
 
 func decodeDirectResult(
     _ layout: ABIClass,

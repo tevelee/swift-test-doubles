@@ -4,7 +4,9 @@
 
 #include "TestDoublesTrampoline.h"
 
+#if !defined(__wasi__)
 #include <dlfcn.h>
+#endif
 #include <stdio.h>
 #include <string.h>
 
@@ -377,11 +379,16 @@ static const char *td_lookup_symbol_name(const void *address, int exactOnly) {
     return 0;
   }
 
+  // WASI exposes no dynamic-loader introspection: there is no <dlfcn.h>, so
+  // resilient symbol lookup always misses and callers fall back to the
+  // linked-conformer discovery path or fail closed with StubError.
+#if !defined(__wasi__)
   Dl_info info;
   if (dladdr(address, &info) != 0 && info.dli_sname &&
       (!exactOnly || info.dli_saddr == address)) {
     return info.dli_sname;
   }
+#endif
 
 #if defined(__linux__)
   static _Thread_local char name[4096];
@@ -411,10 +418,12 @@ const void *td_symbol_address(const char *name) {
   if (!name || name[0] == '\0') {
     return 0;
   }
+#if !defined(__wasi__)
   const void *address = dlsym(RTLD_DEFAULT, name);
   if (address) {
     return address;
   }
+#endif
 #if defined(__linux__)
   TDNamedSymbolLookup lookup = {
       .name = name,

@@ -349,12 +349,13 @@ targets: [
 TestDoubles requires Swift 6.3. The CI-executed runtime matrix is macOS 13+ on
 arm64 and x86_64, Linux on arm64 and x86_64, Mac Catalyst 16+ on arm64, and
 arm64 simulators for iOS 16+, tvOS 16+, visionOS 1+, and watchOS 9+. Android
-arm64 and x86_64 are provisional cross-build targets.
+arm64 and x86_64 are provisional cross-build targets, and wasm32-unknown-wasip1
+is a `ManualStub`-only target.
 
 Android support is cross-build validated in CI for debug and release test
 targets with the official Swift 6.3.3 Android SDK and NDK r27d or later. The
-dependency graph must resolve Echo 0.0.5 or newer for Android ELF image
-discovery; this repository pins 0.0.5. CI does not currently execute the tests
+dependency graph must resolve Echo 0.0.6 or newer for Android ELF image
+discovery; this repository pins 0.0.6. CI does not currently execute the tests
 on an Android emulator or device, so Android is not yet runtime-validated.
 
 Physical iOS, tvOS, visionOS, and watchOS devices are unsupported because the
@@ -362,6 +363,21 @@ runtime generates executable trampoline code and CI cannot exercise device
 execution policy. [`ManualStub`](Sources/TestDoubles/Documentation.docc/Articles/ManualStubbing.md)
 provides the same `when`/`then`/`verify` API on those targets with a small
 hand-written conformer.
+
+WebAssembly (`wasm32-unknown-wasip1`) has no facility for executable memory
+and no register-based calling convention to hand-assemble against, so the
+runtime trampoline cannot run there at all, the same limitation as physical
+Apple devices, but more fundamental: it isn't a policy restriction to route
+around, WASI's own `<sys/mman.h>` rejects even its mmap emulation shim for
+executable pages. `Stub`/`Spy` construction fails closed there with the usual
+actionable `StubError` diagnostic; use `ManualStub`. CI cross-builds the
+library for `wasm32-unknown-wasip1` in debug and release with the official
+Swift 6.3.1 WASI SDK, and actually runs both a small standalone executable and
+the `TestDoublesWasmTests` suite under `wasmtime`, demonstrating both halves
+of that story: `ManualStub` fully configured, invoked, and verified, and
+`Stub` construction failing closed. The dependency graph must resolve Echo
+0.0.6 or newer, whose C declarations avoid a wasm32 LLVM compiler crash on
+unprototyped functions.
 
 </details>
 

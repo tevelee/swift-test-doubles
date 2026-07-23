@@ -6,6 +6,14 @@
 #define SYMBOL(name) name
 #endif
 
+// WASM has no register-based calling convention to hand-assemble against and
+// no facility for executable memory (see WitnessVeneerArena.c), so this file
+// compiles to nothing there. WasmTrampolineStubs.c supplies trap bodies for
+// the handful of symbols this file would otherwise define that Swift code
+// still references directly; every one of them is unreachable in practice
+// because witness veneer allocation always fails first on that platform.
+#if !defined(__wasm32__) && !defined(__wasi__)
+
 #if defined(__aarch64__) || defined(__arm64__)
 
 .text
@@ -1860,3 +1868,5 @@ SYMBOL(td_swift_read_coro_allocator):
     .quad SYMBOL(td_swift_read_coro_malloc)
     .quad SYMBOL(td_swift_read_coro_free)
 #endif
+
+#endif // !defined(__wasm32__) && !defined(__wasi__)

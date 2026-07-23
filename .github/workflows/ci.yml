@@ -299,6 +299,111 @@ jobs:
       - name: Cross-build Android package
         run: Scripts/validate-android.sh
 
+  wasm:
+    name: Swift 6.3.1 / WASI SDK / wasm32
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Load WASM toolchain configuration
+        id: wasm-toolchain
+        run: |
+          . Scripts/wasm-toolchain.sh
+          # ~/.swiftpm/swift-sdks is a *symlink* to this real location,
+          # created lazily by the toolchain on first use. On a fresh runner
+          # that symlink doesn't exist yet, so restoring a cache keyed to
+          # the symlinked path makes actions/cache materialize it as a
+          # plain directory instead — `swift sdk list` reads the real path
+          # directly and never sees an SDK restored that way. Cache the
+          # real path so restore always lands where discovery looks.
+          swift_sdks_path="$HOME/Library/org.swift.swiftpm/swift-sdks"
+          swift_sdk_cache_path="$swift_sdks_path/${WASM_SWIFT_SDK_ID}.artifactbundle"
+          {
+            echo "WASM_SWIFT_SDK_URL=$WASM_SWIFT_SDK_URL"
+            echo "WASM_SWIFT_SDK_CHECKSUM=$WASM_SWIFT_SDK_CHECKSUM"
+          } >> "$GITHUB_ENV"
+          {
+            echo "swift_sdk_cache_path=$swift_sdk_cache_path"
+            echo "swift_sdk_checksum=$WASM_SWIFT_SDK_CHECKSUM"
+            echo "swift_version=$WASM_SWIFT_VERSION"
+            echo "host_toolchain_dir=$WASM_HOST_TOOLCHAIN_DIR"
+            echo "host_toolchain_bin=$WASM_HOST_TOOLCHAIN_BIN"
+            echo "host_toolchain_checksum=$WASM_HOST_TOOLCHAIN_CHECKSUM"
+            echo "brew_cache_epoch=$(date -u +%G-%V)"
+          } >> "$GITHUB_OUTPUT"
+      - name: Restore Swift host toolchain cache
+        id: host-toolchain-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ steps.wasm-toolchain.outputs.host_toolchain_dir }}
+          key: >-
+            swift-host-toolchain-v1-${{ runner.os }}-${{
+            steps.wasm-toolchain.outputs.swift_version }}-${{
+            steps.wasm-toolchain.outputs.host_toolchain_checksum }}
+      - name: Install Swift host toolchain
+        # Xcode's own bundled clang has no WebAssembly LLVM target compiled
+        # in (confirmed: only Xcode 27 betas add it), regardless of which
+        # Swift version it bundles, so a wasm build always needs this
+        # separately installed swift.org toolchain. The wasm SDK bundle is
+        # in turn pinned to this exact host Swift version.
+        if: steps.host-toolchain-cache.outputs.cache-hit != 'true'
+        run: |
+          . Scripts/wasm-toolchain.sh
+          toolchain_package="$RUNNER_TEMP/swift-toolchain.pkg"
+          curl --fail --location --retry 3 \
+            --output "$toolchain_package" \
+            "$WASM_HOST_TOOLCHAIN_URL"
+          echo "$WASM_HOST_TOOLCHAIN_CHECKSUM  $toolchain_package" | shasum -a 256 --check --strict
+          sudo installer -pkg "$toolchain_package" -target /
+      - name: Use Swift host toolchain
+        run: echo "${{ steps.wasm-toolchain.outputs.host_toolchain_bin }}" >> "$GITHUB_PATH"
+      - name: Show toolchain
+        run: swift --version
+      - name: Restore Swift WASI SDK cache
+        id: swift-wasm-sdk-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ steps.wasm-toolchain.outputs.swift_sdk_cache_path }}
+          key: >-
+            swift-wasm-sdk-v2-${{ runner.os }}-${{
+            steps.wasm-toolchain.outputs.swift_version }}-${{
+            steps.wasm-toolchain.outputs.swift_sdk_checksum }}
+      - name: Install Swift WASI SDK
+        if: steps.swift-wasm-sdk-cache.outputs.cache-hit != 'true'
+        run: >-
+          swift sdk install "$WASM_SWIFT_SDK_URL"
+          --checksum "$WASM_SWIFT_SDK_CHECKSUM"
+      - name: Restore Homebrew wasmtime cache
+        id: wasmtime-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            /opt/homebrew/Cellar/wasmtime
+            /opt/homebrew/bin/wasmtime
+          key: >-
+            wasmtime-v1-${{ runner.os }}-${{ runner.arch }}-${{
+            steps.wasm-toolchain.outputs.brew_cache_epoch }}
+      - name: Install wasmtime
+        if: steps.wasmtime-cache.outputs.cache-hit != 'true'
+        run: brew install wasmtime
+      - name: Link cached wasmtime
+        if: steps.wasmtime-cache.outputs.cache-hit == 'true'
+        run: brew link --overwrite wasmtime
+      - name: Restore WASM build cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: .build/wasm
+          key: >-
+            swift-build-v1-${{ runner.os }}-${{ runner.arch }}-wasm-${{
+            steps.wasm-toolchain.outputs.swift_version }}-${{
+            hashFiles('Package.swift', 'Package.resolved') }}
+          restore-keys: |
+            swift-build-v1-${{ runner.os }}-${{ runner.arch }}-wasm-${{ steps.wasm-toolchain.outputs.swift_version }}-
+      - name: Cross-build and run WasmDemo and TestDoublesWasmTests under wasmtime
+        run: Scripts/validate-wasm.sh
+
   apple-platforms:
     name: ${{ matrix.name }}
     strategy:
@@ -321,7 +426,7 @@ jobs:
             platform: watchOS
             cache_key: watchos
     runs-on: macos-26
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
@@ -374,7 +479,7 @@ jobs:
       - name: Test
         run: >-
           xcodebuild
-          -scheme swift-test-doubles
+          -scheme swift-test-doubles-Package
           -destination '${{ steps.destination.outputs.value }}'
           -derivedDataPath .build/ci-apple-platform
           -resultBundlePath .build/results/${{ matrix.cache_key }}.xcresult

@@ -22,7 +22,9 @@ enum RuntimeSymbols {
         let value: UnsafeMutableRawPointer?
     }
 
-    private static let handle = Handle(value: dlopen(nil, RTLD_NOW))
+    #if !os(WASI)
+        private static let handle = Handle(value: dlopen(nil, RTLD_NOW))
+    #endif
     private static let lock = NSLock()
     private nonisolated(unsafe) static var addresses: [String: Address] = [:]
     private nonisolated(unsafe) static var demangledNames: [String: String] = [:]
@@ -33,8 +35,12 @@ enum RuntimeSymbols {
             return cached.value
         }
         let address = name.withCString { symbol in
-            handle.value.flatMap { dlsym($0, symbol) }
-                ?? td_symbol_address(symbol).map(UnsafeMutableRawPointer.init(mutating:))
+            #if os(WASI)
+                td_symbol_address(symbol).map(UnsafeMutableRawPointer.init(mutating:))
+            #else
+                handle.value.flatMap { dlsym($0, symbol) }
+                    ?? td_symbol_address(symbol).map(UnsafeMutableRawPointer.init(mutating:))
+            #endif
         }
         guard let address else {
             return nil

@@ -74,6 +74,24 @@ let package = Package(
             swiftSettings: [
                 .enableExperimentalFeature("CoroutineAccessors")
             ]
+        ),
+        .testTarget(
+            name: "TestDoublesWasmTests",
+            dependencies: [
+                "TestDoubles"
+            ]
+        ),
+        // A standalone executable, not a test target: SwiftPM links every
+        // test target into one shared binary, and the rest of the test
+        // suite intentionally isn't wasm-safe (see AsyncStackSpyForwardingTests.swift
+        // and ConcurrencyTests.swift). This is what actually runs under a
+        // WASI runtime in CI to prove the ManualStub story end-to-end rather
+        // than only compile it. See Scripts/validate-wasm.sh.
+        .executableTarget(
+            name: "WasmDemo",
+            dependencies: [
+                "TestDoubles"
+            ]
         )
     ],
     // Tools version 6.3 already defaults to this; pinned explicitly so a
