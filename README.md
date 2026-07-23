@@ -481,6 +481,7 @@ The DocC catalog covers the rest of the surface, with examples:
 - [Getting Started](Sources/TestDoubles/Documentation.docc/Articles/GettingStarted.md): the guided tour.
 - [Async Behaviors](Sources/TestDoubles/Documentation.docc/Articles/AsyncBehaviors.md): delays, wedged dependencies, cancellation, and test-driven suspension.
 - [Inspecting Interactions](Sources/TestDoubles/Documentation.docc/Articles/InspectingInteractions.md): typed invocation access, cross-double ordering, unused-stub detection, placeholder registry, and reset.
+- [Recording and Replaying Interactions](Sources/TestDoubles/Documentation.docc/Articles/RecordAndReplay.md): capture a Spy's real calls into a fixture and replay them on a plain Stub later.
 - [Construction Guide](Sources/TestDoubles/Documentation.docc/Articles/ConstructionGuide.md): explicit requirements, getter effects, inheritance and composition ordering.
 - [Forwarding Spies](Sources/TestDoubles/Documentation.docc/Articles/ForwardingSpies.md): the forwarding boundary and diagnostics.
 - [Dummy Test Doubles](Sources/TestDoubles/Documentation.docc/Articles/DummyTestDoubles.md): fail-on-use placeholders.

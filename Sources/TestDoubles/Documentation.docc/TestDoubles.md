@@ -74,6 +74,12 @@ isolation. See
 - ``InvocationOrder``
 - ``RecordingPlaceholders``
 
+### Recording and Replaying Interactions
+
+- <doc:RecordAndReplay>
+- ``RecordingSession``
+- ``InteractionFixture``
+
 ### Dummy API
 
 - ``Dummy``

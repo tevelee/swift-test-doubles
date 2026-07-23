@@ -482,7 +482,7 @@ public struct StubBuilder<Result> {
         return method
     }
 
-    private func makeBehaviorChain(
+    func makeBehaviorChain(
         _ answers: [(StubRecorder.QueuedAnswer, StubRecorder.RepeatCount)]
     ) -> StubBehaviorChain<Result> {
         let sequence = recorder.addFixedResultSequence(

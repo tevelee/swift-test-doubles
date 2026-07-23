@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `thenRecord(as:into:calling:)` captures a `Spy` registration's result into a
+  `RecordingSession`, keyed by a caller-chosen label, in addition to returning
+  it as usual — typically wired to call straight through to the real
+  dependency being spied on. Freeze a session into an `InteractionFixture`
+  with `snapshot()` or persist it as JSON with `save(to:)`. Later,
+  `thenReplay(as:from:)` configures fixed responses on a plain `Stub` from a
+  fixture's recorded calls under that label, in recording order, exactly like
+  a `thenReturn(_:_:_:)` chain built from playback: the last recorded response
+  repeats for every call after that. This turns `Spy`'s forwarding boundary
+  into a record-once, replay-everywhere fixture for a real dependency, so
+  tests stop depending on it being reachable or deterministic. Only successful
+  results are recorded; a thrown error still propagates but is not captured.
+  Both sides require the requirement's `Result` to round-trip through
+  `JSONEncoder`/`JSONDecoder`.
 - Eager detection of unreachable stub registrations. When a new `when`
   registration is provably shadowed by an earlier one under first-match-wins,
   such as a specific matcher registered behind an earlier catch-all, an issue
