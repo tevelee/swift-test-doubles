@@ -83,6 +83,9 @@ private func resolveCompositeRuntimeType(_ syntax: DemangledTypeSyntax) -> Any.T
     if let type = twoArgumentGenericType(name) {
         return type
     }
+    if let type = simdGenericType(name) {
+        return type
+    }
     if let type = genericNominalType(named: name) {
         return type
     }
@@ -589,6 +592,72 @@ func optionalType<Wrapped>(of _: Wrapped.Type) -> Any.Type {
 
 func arrayType<Element>(of _: Element.Type) -> Any.Type {
     Array<Element>.self
+}
+
+/// Swift's fixed-width SIMD vectors (`SIMD2` through `SIMD64`) constrain
+/// their scalar parameter to `SIMDScalar`, so -- like `Set`'s and
+/// `Dictionary`'s `Hashable` constraint above -- resolving one requires a
+/// concrete opener the compiler can type-check, not the unconstrained
+/// generic-accessor path `genericNominalType` uses. One opener per width
+/// covers every scalar Swift ships without hand-enumerating combinations.
+private let simdWidths = [2, 3, 4, 8, 16, 32, 64]
+
+private func simdGenericType(_ name: String) -> Any.Type? {
+    for width in simdWidths {
+        guard
+            let argument = genericArgument(
+                in: name,
+                constructors: ["SIMD\(width)", "Swift.SIMD\(width)"]
+            ),
+            let scalar = resolveRuntimeType(argument),
+            let simdScalar = scalar as? any SIMDScalar.Type
+        else {
+            continue
+        }
+        return simdType(width: width, scalar: simdScalar)
+    }
+    return nil
+}
+
+private func simdType(width: Int, scalar: any SIMDScalar.Type) -> Any.Type? {
+    switch width {
+        case 2: return _openExistential(scalar, do: openedSIMD2Type)
+        case 3: return _openExistential(scalar, do: openedSIMD3Type)
+        case 4: return _openExistential(scalar, do: openedSIMD4Type)
+        case 8: return _openExistential(scalar, do: openedSIMD8Type)
+        case 16: return _openExistential(scalar, do: openedSIMD16Type)
+        case 32: return _openExistential(scalar, do: openedSIMD32Type)
+        case 64: return _openExistential(scalar, do: openedSIMD64Type)
+        default: return nil
+    }
+}
+
+private func openedSIMD2Type<Scalar: SIMDScalar>(of _: Scalar.Type) -> Any.Type {
+    SIMD2<Scalar>.self
+}
+
+private func openedSIMD3Type<Scalar: SIMDScalar>(of _: Scalar.Type) -> Any.Type {
+    SIMD3<Scalar>.self
+}
+
+private func openedSIMD4Type<Scalar: SIMDScalar>(of _: Scalar.Type) -> Any.Type {
+    SIMD4<Scalar>.self
+}
+
+private func openedSIMD8Type<Scalar: SIMDScalar>(of _: Scalar.Type) -> Any.Type {
+    SIMD8<Scalar>.self
+}
+
+private func openedSIMD16Type<Scalar: SIMDScalar>(of _: Scalar.Type) -> Any.Type {
+    SIMD16<Scalar>.self
+}
+
+private func openedSIMD32Type<Scalar: SIMDScalar>(of _: Scalar.Type) -> Any.Type {
+    SIMD32<Scalar>.self
+}
+
+private func openedSIMD64Type<Scalar: SIMDScalar>(of _: Scalar.Type) -> Any.Type {
+    SIMD64<Scalar>.self
 }
 
 private func metatypeType<Instance>(of _: Instance.Type) -> Any.Type {

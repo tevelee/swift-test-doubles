@@ -251,6 +251,32 @@ struct RealAssociatedSIMDABIProbe: AssociatedSIMDABIProbe {
         }
     }
 
+    @Test func automaticSignatureDiscoveryResolvesConcreteSIMDArguments() throws {
+        // Regression test: automatic discovery used to fail before metadata
+        // resolution could reconstruct a SIMD type from its demangled name --
+        // "Could not resolve runtime metadata for type 'Swift.SIMD2<Swift.Float>'"
+        // -- even though the ABI-classification and calling-convention support
+        // this suite proves above never had a problem with this exact shape.
+        // No explicit `.method(signatureOf:)` requirements here: this is the
+        // no-argument initializer that discovers everything from the
+        // conformer's own witness table.
+        let stub = try Stub<any ConcreteSIMDABIProbe>()
+        let service: any ConcreteSIMDABIProbe = stub()
+        let bits = SIMD2<UInt64>(1, 2)
+        stub.when(returning: SIMD2<UInt64>(repeating: 0)) {
+            $0.mix(
+                any(using: SIMD4<Float>(repeating: 0)),
+                tag: equal(1),
+                scale: equal(1),
+                bits: equal(bits)
+            )
+        }.thenReturn(bits)
+        #expect(
+            service.mix(SIMD4<Float>(repeating: 0), tag: 1, scale: 1, bits: bits)
+                == bits
+        )
+    }
+
     @Test func forwardingSIMDFailsClosed() {
         let target: any ConcreteSIMDABIProbe = RealConcreteSIMDABIProbe()
         #expect(throws: StubError.self) {

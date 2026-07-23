@@ -343,12 +343,14 @@ machinery; they do not each need a dedicated stubbing API.
 Synchronous instance methods also accept a bounded set of direct, unpadded
 128-bit SIMD values whose complete lane payload uses one vector register for
 both arguments and results on arm64 and x86_64: `SIMD4<Float>`,
-`SIMD2<Double>`, and full-width signed or unsigned integer vectors. SIMD values
-currently need compiler-typed explicit requirements such as
-`.method(signatureOf:)`; linked mangled-type discovery does not resolve their
-generic standard-library metadata. They also cannot be synthesized as matcher
-or result placeholders, so pass them through `any(using:)` and
-`when(returning:_:)` when recording needs a placeholder.
+`SIMD2<Double>`, and full-width signed or unsigned integer vectors. Automatic
+and linked mangled-type discovery both resolve SIMD generic metadata directly
+(`SIMD2` through `SIMD64`, over any concrete `SIMDScalar`), the same as any
+other supported shape; explicit `.method(signatureOf:)` requirements remain
+available but are no longer required just to name a SIMD type. SIMD values
+still cannot be synthesized as matcher or result placeholders, so pass them
+through `any(using:)` and `when(returning:_:)` when recording needs a
+placeholder.
 Smaller or padded vectors, vectors wider than 128 bits, a ninth vector-register
 argument, nested or associated-dependent SIMD, async methods, accessors,
 initializers, static requirements, and forwarding spies remain fail-closed.

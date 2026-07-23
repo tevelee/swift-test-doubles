@@ -29,6 +29,18 @@ import TestDoublesFixtures
         #expect(resolveRuntimeType("[(Swift.Int, Swift.Int) : Swift.Int]") == nil)
     }
 
+    @Test func constructorSpellingsResolveSIMDVectors() {
+        #expect(resolveRuntimeType("Swift.SIMD2<Swift.Float>") == SIMD2<Float>.self)
+        #expect(resolveRuntimeType("SIMD4<Swift.Int32>") == SIMD4<Int32>.self)
+        #expect(resolveRuntimeType("Swift.SIMD16<Swift.UInt8>") == SIMD16<UInt8>.self)
+        #expect(resolveRuntimeType("Swift.SIMD3<Swift.Float>") == SIMD3<Float>.self)
+        #expect(resolveRuntimeType("Swift.SIMD64<Swift.Int8>") == SIMD64<Int8>.self)
+    }
+
+    @Test func nonSIMDScalarElementsFailSIMDResolutionSafely() {
+        #expect(resolveRuntimeType("Swift.SIMD2<Swift.String>") == nil)
+    }
+
     @Test func demangledFunctionSpellingsResolveCanonicalMetadata() {
         #expect(
             resolveRuntimeType("(Swift.Int) -> Swift.Int")
