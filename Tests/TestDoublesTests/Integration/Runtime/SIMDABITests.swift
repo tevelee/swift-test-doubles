@@ -192,6 +192,17 @@ struct RealAssociatedSIMDABIProbe: AssociatedSIMDABIProbe {
         }
     }
 
+    #if !((os(macOS) || targetEnvironment(macCatalyst)) && arch(x86_64))
+        @Test func fullyPackedFloat16VectorNowClassifiesAsOneRegister() {
+            // SIMD8<Float16> (8 lanes * 2 bytes = 16 bytes, fully packed) was
+            // silently absent from the byte-count classifier's old hardcoded
+            // type list even though it fits the same rule every listed type
+            // does. The generic byte-size + packing computation covers it for
+            // free instead of needing its own explicit case.
+            #expect(concreteSIMDRegisterByteCount(for: SIMD8<Float16>.self) == 16)
+        }
+    #endif
+
     @Test func smallerArchitectureDivergentVectorFailsClosed() {
         _ = RealDivergentSIMDABIProbe()
         expectUnsupportedProtocolShape(containing: "identical arm64/x86_64") {

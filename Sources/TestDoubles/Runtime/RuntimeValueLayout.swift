@@ -104,28 +104,30 @@ func abiClass(for type: Any.Type, isReturn: Bool = false) -> ABIClass {
     return .integer(words: size > 8 ? 2 : 1)
 }
 
-/// The concrete SIMD shapes proven to use one complete 128-bit vector register
-/// for both arguments and results on arm64 and x86_64.
+/// Whether `type` is a concrete SIMD shape proven to use one complete 128-bit
+/// vector register for both arguments and results on arm64 and x86_64, and if
+/// so, the byte count of that register (always 16).
 ///
-/// Smaller vectors are intentionally absent: Swift can scalarize them or use
-/// different register layouts across the two architectures. Padded three-lane
-/// vectors are absent as well so this boundary transports only complete lane
-/// payloads with no unspecified bytes.
+/// Computed generically instead of enumerated: any concrete `SIMD` type whose
+/// total storage is exactly 16 bytes with every one of those bytes backing a
+/// real lane qualifies, regardless of width or scalar. Smaller vectors are
+/// intentionally excluded: Swift can scalarize them or use different register
+/// layouts across the two architectures. Padded three-lane vectors are
+/// excluded as well (`scalarCount * scalar stride` falls short of the 16-byte
+/// storage size) so this boundary transports only complete lane payloads with
+/// no unspecified bytes.
 func concreteSIMDRegisterByteCount(for type: Any.Type) -> Int? {
-    let isSupported =
-        type == SIMD4<Float>.self
-        || type == SIMD2<Double>.self
-        || type == SIMD2<Int>.self
-        || type == SIMD2<UInt>.self
-        || type == SIMD2<Int64>.self
-        || type == SIMD2<UInt64>.self
-        || type == SIMD4<Int32>.self
-        || type == SIMD4<UInt32>.self
-        || type == SIMD8<Int16>.self
-        || type == SIMD8<UInt16>.self
-        || type == SIMD16<Int8>.self
-        || type == SIMD16<UInt8>.self
-    return isSupported ? 16 : nil
+    guard let simdType = type as? any SIMD.Type else { return nil }
+    return _openExistential(simdType, do: openedConcreteSIMDRegisterByteCount)
+}
+
+private func openedConcreteSIMDRegisterByteCount<T: SIMD>(_: T.Type) -> Int? {
+    let size = MemoryLayout<T>.size
+    guard size == 16, T().scalarCount * MemoryLayout<T.Scalar>.stride == size
+    else {
+        return nil
+    }
+    return size
 }
 
 func directArgumentParts(for type: Any.Type) -> [DirectValuePart]? {
