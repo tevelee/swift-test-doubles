@@ -911,6 +911,39 @@ SYMBOL(td_swift_read_coro_free):
 
 #elif defined(__x86_64__)
 
+// Shared by td_swift_invoke_function and td_swift_invoke_witness -- see the
+// arm64 td_load_frame_call_registers/td_store_call_return_registers macros
+// above for why this marshaling is factored out instead of duplicated.
+.macro td_load_frame_call_registers frame
+    movq TD_FRAME_INDIRECT_RESULT_OFFSET(\frame), %rax
+    movsd TD_FRAME_FP_OFFSET(\frame), %xmm0
+    movsd 160(\frame), %xmm1
+    movsd 176(\frame), %xmm2
+    movsd 192(\frame), %xmm3
+    movsd 208(\frame), %xmm4
+    movsd 224(\frame), %xmm5
+    movsd 240(\frame), %xmm6
+    movsd 256(\frame), %xmm7
+    movq TD_FRAME_GP_OFFSET(\frame), %rdi
+    movq 24(\frame), %rsi
+    movq 32(\frame), %rdx
+    movq 40(\frame), %rcx
+    movq 48(\frame), %r8
+    movq 56(\frame), %r9
+.endm
+
+.macro td_store_call_return_registers frame
+    movq %rax, TD_FRAME_RETURN_GP_OFFSET(\frame)
+    movq %rdx, 448(\frame)
+    movq %rcx, 456(\frame)
+    movq %r8, 464(\frame)
+    movsd %xmm0, TD_FRAME_RETURN_FP_OFFSET(\frame)
+    movsd %xmm1, 480(\frame)
+    movsd %xmm2, 488(\frame)
+    movsd %xmm3, 496(\frame)
+    movq %r12, TD_FRAME_RETURN_ERROR_OFFSET(\frame)
+.endm
+
 .text
 .globl SYMBOL(td_swift_trampoline_entry)
 #if defined(__APPLE__)
@@ -1068,34 +1101,12 @@ SYMBOL(td_swift_invoke_function):
     movq %rcx, %rbx
     movq %rsi, %r13
     movq %rdi, %r11
-    movq TD_FRAME_INDIRECT_RESULT_OFFSET(%rbx), %rax
-    movsd TD_FRAME_FP_OFFSET(%rbx), %xmm0
-    movsd 160(%rbx), %xmm1
-    movsd 176(%rbx), %xmm2
-    movsd 192(%rbx), %xmm3
-    movsd 208(%rbx), %xmm4
-    movsd 224(%rbx), %xmm5
-    movsd 240(%rbx), %xmm6
-    movsd 256(%rbx), %xmm7
-    movq TD_FRAME_GP_OFFSET(%rbx), %rdi
-    movq 24(%rbx), %rsi
-    movq 32(%rbx), %rdx
-    movq 40(%rbx), %rcx
-    movq 48(%rbx), %r8
-    movq 56(%rbx), %r9
+    td_load_frame_call_registers %rbx
     xorq %r12, %r12
     movq TD_FRAME_RESERVED_OFFSET(%rbx), %r10
     movq %r10, (%rsp)
     callq *%r11
-    movq %rax, TD_FRAME_RETURN_GP_OFFSET(%rbx)
-    movq %rdx, 448(%rbx)
-    movq %rcx, 456(%rbx)
-    movq %r8, 464(%rbx)
-    movsd %xmm0, TD_FRAME_RETURN_FP_OFFSET(%rbx)
-    movsd %xmm1, 480(%rbx)
-    movsd %xmm2, 488(%rbx)
-    movsd %xmm3, 496(%rbx)
-    movq %r12, TD_FRAME_RETURN_ERROR_OFFSET(%rbx)
+    td_store_call_return_registers %rbx
     addq $8, %rsp
     popq %r12
     popq %r13
@@ -1122,32 +1133,10 @@ SYMBOL(td_swift_invoke_witness):
     movq %rdx, %rbx
     movq %rsi, %r13
     movq %rdi, %r11
-    movq TD_FRAME_INDIRECT_RESULT_OFFSET(%rbx), %rax
-    movsd TD_FRAME_FP_OFFSET(%rbx), %xmm0
-    movsd 160(%rbx), %xmm1
-    movsd 176(%rbx), %xmm2
-    movsd 192(%rbx), %xmm3
-    movsd 208(%rbx), %xmm4
-    movsd 224(%rbx), %xmm5
-    movsd 240(%rbx), %xmm6
-    movsd 256(%rbx), %xmm7
-    movq TD_FRAME_GP_OFFSET(%rbx), %rdi
-    movq 24(%rbx), %rsi
-    movq 32(%rbx), %rdx
-    movq 40(%rbx), %rcx
-    movq 48(%rbx), %r8
-    movq 56(%rbx), %r9
+    td_load_frame_call_registers %rbx
     movq TD_FRAME_SWIFT_ERROR_OFFSET(%rbx), %r12
     callq *%r11
-    movq %rax, TD_FRAME_RETURN_GP_OFFSET(%rbx)
-    movq %rdx, 448(%rbx)
-    movq %rcx, 456(%rbx)
-    movq %r8, 464(%rbx)
-    movsd %xmm0, TD_FRAME_RETURN_FP_OFFSET(%rbx)
-    movsd %xmm1, 480(%rbx)
-    movsd %xmm2, 488(%rbx)
-    movsd %xmm3, 496(%rbx)
-    movq %r12, TD_FRAME_RETURN_ERROR_OFFSET(%rbx)
+    td_store_call_return_registers %rbx
     addq $24, %rsp
     popq %r12
     popq %r13
