@@ -16,13 +16,14 @@
 
 #if defined(__aarch64__) || defined(__arm64__)
 
-// Shared by td_swift_invoke_function and td_swift_invoke_witness: both call a
-// target function pointer using a frame the direct trampoline already filled
-// in, differing only in how they resolve the target and how many outgoing
-// stack words they carry, so the actual register-marshaling around the call
-// is written once here instead of twice.
-.macro td_load_frame_call_registers frame
-    ldr x8, [\frame, #TD_FRAME_INDIRECT_RESULT_OFFSET]
+// The argument-register restore below is identical everywhere this
+// trampoline hands control to a real function/witness with a frame already
+// filled in: both the synchronous invoke_function/invoke_witness pair below
+// and the async invoke_async_function/invoke_async_witness pair further down
+// reload the same eight registers from the same frame offsets. Only the
+// pieces around it (target resolution, PAC discriminators, task allocation,
+// stack-word spill count) differ, so only this common core is shared.
+.macro td_load_frame_argument_registers frame
     ldp q0, q1, [\frame, #TD_FRAME_FP_OFFSET]
     ldp q2, q3, [\frame, #176]
     ldp q4, q5, [\frame, #208]
@@ -31,6 +32,16 @@
     ldp x2, x3, [\frame, #32]
     ldp x4, x5, [\frame, #48]
     ldp x6, x7, [\frame, #64]
+.endm
+
+// Shared by td_swift_invoke_function and td_swift_invoke_witness: both call a
+// target function pointer using a frame the direct trampoline already filled
+// in, differing only in how they resolve the target and how many outgoing
+// stack words they carry, so the actual register-marshaling around the call
+// is written once here instead of twice.
+.macro td_load_frame_call_registers frame
+    ldr x8, [\frame, #TD_FRAME_INDIRECT_RESULT_OFFSET]
+    td_load_frame_argument_registers \frame
 .endm
 
 .macro td_store_call_return_registers frame
@@ -384,14 +395,7 @@ SYMBOL(td_swift_invoke_async_function):
     ldr x20, [x11, #32]
     ldr x16, [x11, #40]
 
-    ldp q0, q1, [x9, #TD_FRAME_FP_OFFSET]
-    ldp q2, q3, [x9, #176]
-    ldp q4, q5, [x9, #208]
-    ldp q6, q7, [x9, #240]
-    ldp x0, x1, [x9, #TD_FRAME_GP_OFFSET]
-    ldp x2, x3, [x9, #32]
-    ldp x4, x5, [x9, #48]
-    ldp x6, x7, [x9, #64]
+    td_load_frame_argument_registers x9
     mov x22, x10
 
     ldp x29, x30, [sp], #16
@@ -433,14 +437,7 @@ SYMBOL(td_swift_invoke_async_witness):
     ldr x20, [x11, #32]
     ldr x12, [x11, #TD_ASYNC_INVOKE_STACK_ARGUMENTS_OFFSET]
 
-    ldp q0, q1, [x9, #TD_FRAME_FP_OFFSET]
-    ldp q2, q3, [x9, #176]
-    ldp q4, q5, [x9, #208]
-    ldp q6, q7, [x9, #240]
-    ldp x0, x1, [x9, #TD_FRAME_GP_OFFSET]
-    ldp x2, x3, [x9, #32]
-    ldp x4, x5, [x9, #48]
-    ldp x6, x7, [x9, #64]
+    td_load_frame_argument_registers x9
     mov x22, x10
 
     ldp x29, x30, [sp], #16
