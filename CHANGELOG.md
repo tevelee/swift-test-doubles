@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Tuple arguments and results of any arity now resolve through automatic and
+  linked mangled-type discovery, the same as any other supported shape.
+  Metadata reconstruction previously wrapped the runtime's fixed 2- and
+  3-element tuple entry points and silently failed closed past 3 elements;
+  it now calls the general entry point directly.
+- SIMD arguments and results (`SIMD2` through `SIMD64`, over any concrete
+  `SIMDScalar`) now resolve through automatic and linked mangled-type
+  discovery as well, for every already-ABI-supported concrete shape.
+  Explicit `.method(signatureOf:)` requirements remain available but are no
+  longer required just to name a SIMD type.
 - Forwarding `Spy` now supports up to two spilled general-purpose stack
   words on its synchronous outgoing path, drawn from any mix of overflowing
   visible arguments and the target's own metadata/witness-table pair.

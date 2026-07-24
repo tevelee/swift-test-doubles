@@ -285,14 +285,16 @@ TDSwiftErrorAllocation td_swift_alloc_error(const void *type,
                                             const void *witnessTable,
                                             const void *flags,
                                             bool isTake);
-TDMetadataResponse td_swift_get_tuple_type_metadata2(uintptr_t request,
-                                                     const void *first,
-                                                     const void *second,
-                                                     const char *labels);
-TDMetadataResponse td_swift_get_tuple_type_metadata3(uintptr_t request,
-                                                     const void *first,
-                                                     const void *second,
-                                                     const void *third,
+/// Reconstructs tuple type metadata for any element count. `elements` points
+/// to `count` element metadata pointers; `count` is folded into the real
+/// runtime entry point's flags word verbatim (`TupleTypeFlags`'s low 16 bits
+/// are the raw element count, confirmed against swiftlang/swift's
+/// include/swift/ABI/MetadataValues.h -- no shift, no other bits needed since
+/// this library's label pointers are always permanently retained, matching
+/// flags bit 16 left at 0).
+TDMetadataResponse td_swift_get_tuple_type_metadata(uintptr_t request,
+                                                     const void *const *elements,
+                                                     uintptr_t count,
                                                      const char *labels);
 
 #ifdef __cplusplus

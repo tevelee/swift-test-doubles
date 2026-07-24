@@ -26,11 +26,12 @@ extern const uint32_t td_swift_dynamic_async_function_entryTu[];
 #define TD_SWIFT_CC
 #endif
 
-extern TDMetadataResponse swift_getTupleTypeMetadata2(
-    uintptr_t request, const void *first, const void *second, const char *labels,
-    const void *proposedWitnesses) TD_SWIFT_CC;
-extern TDMetadataResponse swift_getTupleTypeMetadata3(
-    uintptr_t request, const void *first, const void *second, const void *third,
+// swift_getTupleTypeMetadata is the general entry point behind the fixed
+// -2/-3 convenience wrappers Swift's own compiler emits calls to; `flags`
+// carries the element count (TupleTypeFlags's low 16 bits, unshifted) so
+// this one function covers every arity, not just 2 and 3.
+extern TDMetadataResponse swift_getTupleTypeMetadata(
+    uintptr_t request, uintptr_t flags, const void *const *elements,
     const char *labels, const void *proposedWitnesses) TD_SWIFT_CC;
 
 _Static_assert(sizeof(TDCallFrame) == TD_FRAME_SIZE, "TDCallFrame size changed");
@@ -207,17 +208,9 @@ TDSwiftErrorAllocation td_swift_alloc_error(const void *type,
   return swift_allocError(type, witnessTable, flags, isTake);
 }
 
-TDMetadataResponse td_swift_get_tuple_type_metadata2(uintptr_t request,
-                                                     const void *first,
-                                                     const void *second,
+TDMetadataResponse td_swift_get_tuple_type_metadata(uintptr_t request,
+                                                     const void *const *elements,
+                                                     uintptr_t count,
                                                      const char *labels) {
-  return swift_getTupleTypeMetadata2(request, first, second, labels, 0);
-}
-
-TDMetadataResponse td_swift_get_tuple_type_metadata3(uintptr_t request,
-                                                     const void *first,
-                                                     const void *second,
-                                                     const void *third,
-                                                     const char *labels) {
-  return swift_getTupleTypeMetadata3(request, first, second, third, labels, 0);
+  return swift_getTupleTypeMetadata(request, count, elements, labels, 0);
 }

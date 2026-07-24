@@ -465,32 +465,21 @@ private func parsedTupleElements(_ name: String) -> [ParsedTupleElement]? {
 }
 
 private func tupleType(_ elements: [Any.Type], labels: [String?]) -> Any.Type? {
-    guard elements.count == 2 || elements.count == 3 else { return nil }
+    if elements.isEmpty { return Void.self }
+    // A single parenthesized type isn't a tuple in Swift's type system, so
+    // there's no one-element tuple metadata to reconstruct.
+    guard elements.count >= 2 else { return nil }
     let labelPointer = TupleLabelPool.shared.pointer(for: labels)
-    switch elements.count {
-        case 0:
-            return Void.self
-        case 2:
-            let response = td_swift_get_tuple_type_metadata2(
-                0,
-                reflect(elements[0]).ptr,
-                reflect(elements[1]).ptr,
-                labelPointer
-            )
-            guard let metadata = response.metadata else { return nil }
-            return unsafeBitCast(metadata, to: Any.Type.self)
-        case 3:
-            let response = td_swift_get_tuple_type_metadata3(
-                0,
-                reflect(elements[0]).ptr,
-                reflect(elements[1]).ptr,
-                reflect(elements[2]).ptr,
-                labelPointer
-            )
-            guard let metadata = response.metadata else { return nil }
-            return unsafeBitCast(metadata, to: Any.Type.self)
-        default:
-            preconditionFailure("Tuple arity was validated before metadata lookup.")
+    let elementPointers: [UnsafeRawPointer?] = elements.map { reflect($0).ptr }
+    return elementPointers.withUnsafeBufferPointer { buffer -> Any.Type? in
+        let response = td_swift_get_tuple_type_metadata(
+            0,
+            buffer.baseAddress,
+            UInt(buffer.count),
+            labelPointer
+        )
+        guard let metadata = response.metadata else { return nil }
+        return unsafeBitCast(metadata, to: Any.Type.self)
     }
 }
 

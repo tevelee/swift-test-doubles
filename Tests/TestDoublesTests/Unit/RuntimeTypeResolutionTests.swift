@@ -41,6 +41,45 @@ import TestDoublesFixtures
         #expect(resolveRuntimeType("Swift.SIMD2<Swift.String>") == nil)
     }
 
+    @Test func tupleMetadataResolvesPastTheOldTwoOrThreeElementCap() {
+        // td_swift_get_tuple_type_metadata used to wrap only
+        // swift_getTupleTypeMetadata2/3, capping resolvable tuples at exactly
+        // two or three elements. It now wraps the general
+        // swift_getTupleTypeMetadata entry point directly, so any arity
+        // resolves the same way.
+        #expect(resolveRuntimeType("(Swift.Int, Swift.String)") == (Int, String).self)
+        #expect(
+            resolveRuntimeType("(Swift.Int, Swift.String, Swift.Bool)")
+                == (Int, String, Bool).self
+        )
+        #expect(
+            resolveRuntimeType("(Swift.Int, Swift.String, Swift.Bool, Swift.Double)")
+                == (Int, String, Bool, Double).self
+        )
+        #expect(
+            resolveRuntimeType(
+                "(Swift.Int, Swift.String, Swift.Bool, Swift.Double, Swift.Float)"
+            ) == (Int, String, Bool, Double, Float).self
+        )
+        #expect(
+            resolveRuntimeType(
+                "(Swift.Int, Swift.String, Swift.Bool, Swift.Double, Swift.Float, Swift.Character)"
+            ) == (Int, String, Bool, Double, Float, Character).self
+        )
+    }
+
+    @Test func labeledTuplesResolveAtEveryArity() {
+        #expect(
+            resolveRuntimeType("(a: Swift.Int, b: Swift.String)")
+                == (a: Int, b: String).self
+        )
+        #expect(
+            resolveRuntimeType(
+                "(a: Swift.Int, b: Swift.String, c: Swift.Bool, d: Swift.Double)"
+            ) == (a: Int, b: String, c: Bool, d: Double).self
+        )
+    }
+
     @Test func demangledFunctionSpellingsResolveCanonicalMetadata() {
         #expect(
             resolveRuntimeType("(Swift.Int) -> Swift.Int")
