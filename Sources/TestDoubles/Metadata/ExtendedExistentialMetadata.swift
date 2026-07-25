@@ -172,6 +172,20 @@ private func inspectExtendedExistential(
                         to: ProtocolDescriptor.self
                     ))
             case 0x01:
+                // The same-type requirement's Type field (RHS) always mangles
+                // as "Qyd__" -- dependent member of generalization parameter
+                // depth 1 / index 0 -- for every bound associated type,
+                // regardless of how many bindings this existential has or
+                // which position this one occupies. This shape is shared and
+                // reused across different concrete bindings; the RHS mangling
+                // only confirms "this is a recognized primary-associated-type
+                // projection", while the actual bound type comes from the
+                // generalization argument vector at this requirement's
+                // *position* (matched via the LHS Param check just below, not
+                // by decoding a distinct depth/index per binding). Confirmed
+                // against a live two-binding existential in
+                // MultipleAssociatedTypeTests -- both requirements use this
+                // exact fixed suffix, not "Qyd__"/"Qyd0_" varying by index.
                 guard associatedTypeIdentities.count < numberOfBindings,
                     mangledGenericParameter(
                         at: resolveRelativeDirectPointer(at: requirement + 4)
