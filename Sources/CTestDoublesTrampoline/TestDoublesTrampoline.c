@@ -164,6 +164,23 @@ const void *td_auth_extended_existential_shape(const void *signedShape,
 #endif
 }
 
+// Signs a fabricated conformance descriptor's indirect type-descriptor cell
+// the same way the real ABI does: TargetContextDescriptor * is declared
+// __ptrauth_swift_type_descriptor (ptrauth_key_process_independent_data,
+// address-discriminated by the cell's own storage address).
+const void *td_sign_type_descriptor_pointer(const void *pointer,
+                                            const void *slot) {
+#if defined(__APPLE__) && __has_feature(ptrauth_calls)
+  uintptr_t blended =
+      ptrauth_blend_discriminator(slot, TD_PTRAUTH_TYPE_DESCRIPTOR);
+  return ptrauth_sign_unauthenticated(
+      pointer, ptrauth_key_process_independent_data, blended);
+#else
+  (void)slot;
+  return pointer;
+#endif
+}
+
 bool td_prepare_coro_witness_target(const void *signedDescriptor,
                                     const void *slot,
                                     uint16_t declarationDiscriminator,

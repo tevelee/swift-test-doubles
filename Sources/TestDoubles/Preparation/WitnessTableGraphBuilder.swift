@@ -1,3 +1,4 @@
+import CTestDoublesTrampoline
 import Echo
 
 struct FabricatedWitnessTableGraph {
@@ -177,8 +178,12 @@ struct WitnessTableGraphBuilder {
         switch conformanceTypeReference {
             case .indirectTypeDescriptor(let descriptorPointer):
                 (descriptor + 12).storeBytes(of: UInt32(0x1 << 3), as: UInt32.self)
-                (allocation + typeReferenceOffset).storeBytes(
-                    of: descriptorPointer,
+                let cell = allocation + typeReferenceOffset
+                let signedDescriptorPointer =
+                    td_sign_type_descriptor_pointer(descriptorPointer, cell)
+                    ?? descriptorPointer
+                cell.storeBytes(
+                    of: signedDescriptorPointer,
                     as: UnsafeRawPointer.self
                 )
             case .directObjectiveCClassName(let bytes):

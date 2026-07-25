@@ -80,6 +80,14 @@
 #define TD_PTRAUTH_ASYNC_CONTEXT_PARENT 0xbda2
 #define TD_PTRAUTH_ASYNC_CONTEXT_RESUME 0xd707
 
+// TypeDescriptor: the field Swift's ABI declares as
+// `TargetContextDescriptor * __ptrauth_swift_type_descriptor`. Signed with
+// ptrauth_key_process_independent_data and address diversity against the
+// field's own storage location. Authenticates a fabricated conformance
+// descriptor's indirect type-descriptor cell (ProtocolConformanceDescriptor
+// -> TypeRef -> IndirectTypeDescriptor, Metadata.h / MetadataRef.h).
+#define TD_PTRAUTH_TYPE_DESCRIPTOR 0xae86
+
 #ifndef __ASSEMBLER__
 #include <stdbool.h>
 #include <stddef.h>
@@ -227,6 +235,8 @@ const void *td_sign_coro_witness_pointer(const void *pointer,
 const void *td_sign_modify_witness_pointer(const void *pointer,
                                            const void *slot,
                                            uint16_t discriminator);
+const void *td_sign_type_descriptor_pointer(const void *pointer,
+                                            const void *slot);
 bool td_prepare_coro_witness_target(const void *signedDescriptor,
                                     const void *slot,
                                     uint16_t declarationDiscriminator,
