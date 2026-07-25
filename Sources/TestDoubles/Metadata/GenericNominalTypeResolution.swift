@@ -11,10 +11,10 @@ struct ResolvedGenericClassType: Sendable {
 }
 
 /// Instantiates a public generic nominal type without requiring its source or
-/// a macro-generated registry. When a parameter carries a protocol
-/// requirement, `numKeyArguments` exceeds the plain type-argument count by
-/// one witness table per constraint; `constrainedGenericNominalType` resolves
-/// those before falling back to failing closed.
+/// a macro-generated registry. `resolvedGenericAccessorType` supplies plain
+/// type-metadata key arguments when the context needs nothing else, or the
+/// witness-table-extended path when a parameter carries a protocol
+/// requirement, before falling back to failing closed.
 func genericNominalType(named name: String) -> Any.Type? {
     guard let application = genericApplication(name) else {
         return nil
@@ -31,26 +31,24 @@ func genericNominalType(named name: String) -> Any.Type? {
                 named: application.constructor,
                 kind: kind
             ),
-            let context = descriptor.genericContext
+            let context = descriptor.genericContext,
+            let type = resolvedGenericAccessorType(
+                descriptor: descriptor,
+                context: context,
+                arguments: arguments
+            )
         else { continue }
-        if context.numKeyArguments == arguments.count {
-            return callGenericAccessor(descriptor.accessor, arguments: arguments)
-        }
-        if let type = constrainedGenericNominalType(
-            descriptor: descriptor,
-            context: context,
-            arguments: arguments
-        ) {
-            return type
-        }
+        return type
     }
     return nil
 }
 
-/// Extends `genericNominalType` to parameters with one or more protocol
-/// conformance requirements (`Range<Bound: Comparable>`, a user's own
-/// `Box<T: Codable>`, and so on), which the unconstrained accessor call above
-/// always declines because it only ever supplies type-metadata arguments.
+/// Resolves a generic context's accessor with the plain type-metadata key
+/// arguments when that's all it needs, or with witness tables added for any
+/// protocol-constrained parameter (`Range<Bound: Comparable>`, a user's own
+/// `Box<T: Codable>`, and so on) otherwise. Shared by `genericNominalType`
+/// (any kind) and `genericClassType` (classes only, for dependent-type
+/// resolution's linked-class path).
 ///
 /// Key arguments are laid out per swiftlang/swift's
 /// docs/ABI/TypeMetadata.rst: every parameter's own type metadata first (one
@@ -69,11 +67,14 @@ func genericNominalType(named name: String) -> Any.Type? {
 /// layout constraint rather than a protocol conformance, whenever a
 /// requirement can't be attributed to a specific depth-0 parameter, or
 /// whenever the resolved argument doesn't actually conform.
-private func constrainedGenericNominalType(
+private func resolvedGenericAccessorType(
     descriptor: any TypeContextDescriptor,
     context: GenericContext,
     arguments: [Any.Type]
 ) -> Any.Type? {
+    if context.numKeyArguments == arguments.count {
+        return callGenericAccessor(descriptor.accessor, arguments: arguments)
+    }
     guard
         let keyArguments = constrainedGenericKeyArguments(
             context: context,
@@ -85,11 +86,10 @@ private func constrainedGenericNominalType(
     return callConstrainedGenericAccessor(descriptor.accessor, keyArguments: keyArguments)
 }
 
-/// Builds the (type, witness table) key-argument list a constrained
-/// generic context's accessor needs, shared by `constrainedGenericNominalType`
-/// (any kind) and `genericClassType` (classes only, for dependent-type
-/// resolution's linked-class path). See `constrainedGenericNominalType`'s
-/// documentation for the layout this reconstructs and what it declines.
+/// Builds the (type, witness table) key-argument list `resolvedGenericAccessorType`
+/// needs once a context has more key arguments than plain type metadata
+/// accounts for. See that function's documentation for the layout this
+/// reconstructs and what it declines.
 private func constrainedGenericKeyArguments(
     context: GenericContext,
     arguments: [Any.Type]
@@ -195,10 +195,10 @@ private func callConstrainedGenericAccessor(
 /// Reconstructs metadata only for a linked, top-level generic Swift class.
 ///
 /// A constrained parameter (`Box<Value: Hashable>`) resolves through the
-/// same witness-table key-argument path `constrainedGenericNominalType`
-/// uses; this only ever declines a class whose accessor needs more than
-/// one or two key arguments' worth of parameters, or a constructor whose
-/// accessor doesn't actually round-trip to a class.
+/// same witness-table key-argument path `resolvedGenericAccessorType` uses
+/// for any kind; this only ever declines a class whose accessor needs more
+/// than one or two key arguments' worth of parameters, or a constructor
+/// whose accessor doesn't actually round-trip to a class.
 func genericClassType(
     named constructorName: String,
     arguments: [Any.Type]
@@ -210,27 +210,12 @@ func genericClassType(
         ),
         let context = descriptor.genericContext,
         context.numParams == arguments.count,
-        context.numExtraArguments == 0
-    else {
-        return nil
-    }
-
-    let type: Any.Type?
-    if context.numKeyArguments == arguments.count {
-        type = callGenericAccessor(descriptor.accessor, arguments: arguments)
-    } else if let keyArguments = constrainedGenericKeyArguments(
-        context: context,
-        arguments: arguments
-    ) {
-        type = callConstrainedGenericAccessor(
-            descriptor.accessor,
-            keyArguments: keyArguments
-        )
-    } else {
-        type = nil
-    }
-
-    guard let type,
+        context.numExtraArguments == 0,
+        let type = resolvedGenericAccessorType(
+            descriptor: descriptor,
+            context: context,
+            arguments: arguments
+        ),
         reflect(type).kind == .class,
         let reconstructedDescriptor = reflectClass(type)?.descriptor,
         reconstructedDescriptor.ptr == descriptor.ptr
