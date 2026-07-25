@@ -6,15 +6,15 @@ import Foundation
 /// the recorder's generic `Any` boundary. Swift emits both directions of this
 /// reabstraction pair in the client that performs the erased conversion, so no
 /// protocol source annotation or generated forwarding body is required.
-enum FunctionReabstraction {
-    static func hasLinkedThunks(for type: Any.Type) -> Bool {
+package enum FunctionReabstraction {
+    package static func hasLinkedThunks(for type: Any.Type) -> Bool {
         guard let metadata = reflect(type) as? FunctionMetadata else {
             return false
         }
         return ReabstractionThunkRegistry.shared.hasBothDirections(for: metadata)
     }
 
-    static func hasDirectToGenericBridge(_ metadata: FunctionMetadata) -> Bool {
+    package static func hasDirectToGenericBridge(_ metadata: FunctionMetadata) -> Bool {
         guard typedThrowingFunctionRuntimeUnsupportedReason(metadata) == nil else {
             return false
         }
@@ -22,7 +22,7 @@ enum FunctionReabstraction {
             || ReabstractionThunkRegistry.shared.directToGeneric(for: metadata) != nil
     }
 
-    static func hasGenericToDirectBridge(_ metadata: FunctionMetadata) -> Bool {
+    package static func hasGenericToDirectBridge(_ metadata: FunctionMetadata) -> Bool {
         guard typedThrowingFunctionRuntimeUnsupportedReason(metadata) == nil else {
             return false
         }
@@ -30,7 +30,7 @@ enum FunctionReabstraction {
             || ReabstractionThunkRegistry.shared.genericToDirect(for: metadata) != nil
     }
 
-    static func pointerAuthDiscriminators(
+    package static func pointerAuthDiscriminators(
         for type: Any.Type
     ) -> (direct: UInt16, generic: UInt16)? {
         guard let function = reflect(type) as? FunctionMetadata,
@@ -45,7 +45,7 @@ enum FunctionReabstraction {
         )
     }
 
-    static func automaticArgumentUnsupportedReason(for type: Any.Type) -> String? {
+    package static func automaticArgumentUnsupportedReason(for type: Any.Type) -> String? {
         guard let metadata = reflect(type) as? FunctionMetadata else { return nil }
         switch metadata.flags.convention {
             case .c, .block:
@@ -71,7 +71,7 @@ enum FunctionReabstraction {
         return "No matching compiler-emitted closure reabstraction thunk is linked. \(reason)"
     }
 
-    static func automaticResultUnsupportedReason(for type: Any.Type) -> String? {
+    package static func automaticResultUnsupportedReason(for type: Any.Type) -> String? {
         guard let metadata = reflect(type) as? FunctionMetadata else { return nil }
         switch metadata.flags.convention {
             case .c, .block:
@@ -98,7 +98,7 @@ enum FunctionReabstraction {
         return "No matching compiler-emitted generic-to-direct closure reabstraction thunk is linked. \(reason)"
     }
 
-    static func boxDirectArgument(
+    package static func boxDirectArgument(
         type: Any.Type,
         source: UnsafeMutableRawPointer
     ) -> Any {
@@ -170,7 +170,7 @@ enum FunctionReabstraction {
         return _openExistential(type, do: boxOpened)
     }
 
-    static func initializeGenericSource(
+    package static func initializeGenericSource(
         _ source: UnsafeMutableRawPointer,
         type: Any.Type,
         at destination: UnsafeMutableRawPointer

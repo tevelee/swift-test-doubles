@@ -75,7 +75,7 @@ import Foundation
     ) async
 #endif
 
-func tdSwiftInvokeAsyncFunction(
+package func tdSwiftInvokeAsyncFunction(
     _ function: UnsafeRawPointer,
     _ context: UnsafeRawPointer?,
     _ discriminator: UInt16,
@@ -123,7 +123,7 @@ func tdSwiftInvokeAsyncFunction(
 #if os(WASI)
     @_silgen_name("td_swift_invoke_async_witness")
     // swiftlint:disable:next unavailable_function
-    func tdSwiftInvokeAsyncWitness(
+    package func tdSwiftInvokeAsyncWitness(
         _ function: UnsafeRawPointer,
         _ selfValue: UnsafeRawPointer,
         _ frame: UnsafeMutablePointer<TDCallFrame>,
@@ -134,7 +134,7 @@ func tdSwiftInvokeAsyncFunction(
     }
 #else
     @_silgen_name("td_swift_invoke_async_witness")
-    func tdSwiftInvokeAsyncWitness(
+    package func tdSwiftInvokeAsyncWitness(
         _ function: UnsafeRawPointer,
         _ selfValue: UnsafeRawPointer,
         _ frame: UnsafeMutablePointer<TDCallFrame>,
@@ -143,7 +143,7 @@ func tdSwiftInvokeAsyncFunction(
     ) async
 #endif
 
-func decodeDirectResult(
+package func decodeDirectResult(
     _ layout: ABIClass,
     frame: UnsafeMutablePointer<TDCallFrame>,
     into destination: UnsafeMutableRawPointer
@@ -202,18 +202,18 @@ func decodeDirectResult(
 /// error result. The dynamic bridge can reproduce that transport, but must
 /// continue to reject every other extended flag because those bits alter
 /// isolation, ownership, or invocation semantics.
-func hasOnlyDynamicallySupportedExtendedFlags(
+package func hasOnlyDynamicallySupportedExtendedFlags(
     _ metadata: FunctionMetadata
 ) -> Bool {
     let typedThrowsFlag = UInt32(0x1)
     return metadata.rawExtendedFlags.map { $0 & ~typedThrowsFlag == 0 } ?? true
 }
 
-func isDynamicFunctionAsync(_ metadata: FunctionMetadata) -> Bool {
+package func isDynamicFunctionAsync(_ metadata: FunctionMetadata) -> Bool {
     metadata.flags.bits & 0x2000_0000 != 0
 }
 
-func typedThrowingFunctionRuntimeUnsupportedReason(
+package func typedThrowingFunctionRuntimeUnsupportedReason(
     _ metadata: FunctionMetadata
 ) -> String? {
     guard metadata.typedThrownErrorType != nil else { return nil }
@@ -231,7 +231,7 @@ func typedThrowingFunctionRuntimeUnsupportedReason(
     return nil
 }
 
-func dynamicDirectTypedErrorUsesIndirectResultSlot(
+package func dynamicDirectTypedErrorUsesIndirectResultSlot(
     _ metadata: FunctionMetadata
 ) -> Bool {
     guard let errorType = metadata.typedThrownErrorType else { return false }
@@ -245,7 +245,7 @@ func dynamicDirectTypedErrorUsesIndirectResultSlot(
 /// A value may be directly returned in registers while still requiring this
 /// distinct buffer in the generic function convention. Zero-size errors omit
 /// the physical slot because there is no payload to initialize.
-func dynamicGenericTypedErrorUsesIndirectResultSlot(
+package func dynamicGenericTypedErrorUsesIndirectResultSlot(
     _ metadata: FunctionMetadata
 ) -> Bool {
     guard let errorType = metadata.typedThrownErrorType else { return false }
@@ -253,7 +253,7 @@ func dynamicGenericTypedErrorUsesIndirectResultSlot(
         || reflect(errorType).vwt.size > 0
 }
 
-func abiClassIsIndirect(_ abi: ABIClass) -> Bool {
+package func abiClassIsIndirect(_ abi: ABIClass) -> Bool {
     if case .indirect = abi { return true }
     return false
 }

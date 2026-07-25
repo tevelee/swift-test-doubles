@@ -6,16 +6,16 @@ import Echo
 /// The current supported boundary uses at most one scalar word per fragment;
 /// preserving the width here lets later ABI work reason about wider vector
 /// lanes without changing argument-location bookkeeping.
-struct CallFrameValuePiece: Equatable, Sendable {
-    let register: DirectValueRegister
-    let valueOffset: Int
-    let byteCount: Int
+package struct CallFrameValuePiece: Equatable, Sendable {
+    package let register: DirectValueRegister
+    package let valueOffset: Int
+    package let byteCount: Int
 }
 
-struct CallFrameArgumentShape: Sendable {
-    let pieces: [CallFrameValuePiece]
+package struct CallFrameArgumentShape: Sendable {
+    package let pieces: [CallFrameValuePiece]
 
-    init(type: Any.Type, layout: ABIClass) {
+    package init(type: Any.Type, layout: ABIClass) {
         let valueByteCount = reflect(type).vwt.size
         pieces =
             switch layout {
@@ -61,16 +61,22 @@ struct CallFrameArgumentShape: Sendable {
     }
 }
 
-struct CallFrameArgumentLocation: Equatable, Sendable {
-    enum Storage: Equatable, Sendable {
+package struct CallFrameArgumentLocation: Equatable, Sendable {
+    package enum Storage: Equatable, Sendable {
         case generalPurposeRegister(Int)
         case vectorRegister(Int)
         case stack(byteOffset: Int)
     }
 
-    let storage: Storage
-    let valueOffset: Int
-    let byteCount: Int
+    package let storage: Storage
+    package let valueOffset: Int
+    package let byteCount: Int
+
+    package init(storage: Storage, valueOffset: Int, byteCount: Int) {
+        self.storage = storage
+        self.valueOffset = valueOffset
+        self.byteCount = byteCount
+    }
 }
 
 /// Assigns argument fragments to the captured call frame without reading it.
@@ -78,13 +84,13 @@ struct CallFrameArgumentLocation: Equatable, Sendable {
 /// General-purpose and vector registers advance independently. Once either
 /// bank is exhausted, fragments from that bank share one declaration-order
 /// stack cursor, matching the decoder's existing arm64/x86_64 behavior.
-struct CallFrameArgumentLocationPlan: Sendable {
-    let arguments: [[CallFrameArgumentLocation]]
-    let trailingGeneralPurpose: [CallFrameArgumentLocation]
-    let argumentStackByteCount: Int
-    let stackByteCount: Int
+package struct CallFrameArgumentLocationPlan: Sendable {
+    package let arguments: [[CallFrameArgumentLocation]]
+    package let trailingGeneralPurpose: [CallFrameArgumentLocation]
+    package let argumentStackByteCount: Int
+    package let stackByteCount: Int
 
-    init(
+    package init(
         arguments: [CallFrameArgumentShape],
         initialGeneralPurposeOffset: Int = 0,
         trailingGeneralPurposeWordCount: Int = 0,

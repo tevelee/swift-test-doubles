@@ -94,3 +94,4 @@ func typedAdapterArgumentIndex(for method: MethodDescriptor) -> Int {
     }
     return index
 }
+import TestDoublesRuntime

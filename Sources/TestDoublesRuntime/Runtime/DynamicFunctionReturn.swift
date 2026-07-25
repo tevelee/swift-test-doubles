@@ -1,19 +1,19 @@
 import CTestDoublesTrampoline
 import Echo
 
-func canDynamicallyInitializeFunctionResult(
+package func canDynamicallyInitializeFunctionResult(
     _ metadata: FunctionMetadata
 ) -> Bool {
     FunctionBridgeAnalysis(metadata).validated(for: .genericToDirect) != nil
 }
 
-func dynamicFunctionReturnBridgeUnsupportedReason(
+package func dynamicFunctionReturnBridgeUnsupportedReason(
     _ metadata: FunctionMetadata
 ) -> String? {
     FunctionBridgeAnalysis(metadata).unsupportedReason(for: .genericToDirect)
 }
 
-func initializeDynamicFunctionResult(
+package func initializeDynamicFunctionResult(
     _ source: UnsafeMutableRawPointer,
     plan: FunctionBridgePlan,
     discriminator: UInt16,
@@ -56,7 +56,7 @@ func initializeDynamicFunctionResult(
     )
 }
 
-func prepareDynamicAsyncFunctionReturn(
+package func prepareDynamicAsyncFunctionReturn(
     _ frame: TrampolineCallFrame
 ) -> TDAsyncTrampolineResult {
     guard
@@ -113,6 +113,7 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
     private let functionContext: UnsafeRawPointer?
     private let metadata: FunctionMetadata
     private let plan: FunctionBridgePlan
+    private let argumentDecodingPlan: DynamicFunctionArgumentDecodingPlan
     private var parameterTypes: [Any.Type] { plan.parameterTypes }
     private var typedErrorType: Any.Type? { plan.typedErrorType }
     private var typedErrorLayout: ABIClass? { plan.typedErrorLayout }
@@ -147,6 +148,13 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
             .load(as: UnsafeRawPointer?.self)
         self.metadata = metadata
         self.plan = plan
+        argumentDecodingPlan = DynamicFunctionArgumentDecodingPlan(
+            parameterTypes: plan.parameterTypes,
+            typedErrorUsesIndirectResultSlot:
+                plan.directTypedErrorUsesIndirectResultSlot,
+            initialGeneralPurposeOffset:
+                plan.asyncDirectResultUsesGeneralPurposeSlot ? 1 : 0
+        )
         if let functionContext {
             td_swift_retain(functionContext)
         }
@@ -168,14 +176,7 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
     }
 
     func decodeArguments(from frame: TrampolineCallFrame) -> DecodedArguments {
-        RuntimeArgumentDecoder.decodeDynamicFunctionArguments(
-            parameterTypes,
-            typedErrorUsesIndirectResultSlot:
-                directTypedErrorUsesIndirectResultSlot,
-            initialGeneralPurposeOffset:
-                asyncDirectResultUsesGeneralPurposeSlot ? 1 : 0,
-            from: frame
-        )
+        argumentDecodingPlan.decode(from: frame)
     }
 
     func invokeAsync(

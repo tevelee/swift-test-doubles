@@ -1,7 +1,7 @@
 import CTestDoublesTrampoline
 import Echo
 
-func directFunctionDiscriminator(
+package func directFunctionDiscriminator(
     for metadata: FunctionMetadata
 ) -> UInt16? {
     guard let spelling = pointerAuthFunctionSpelling(metadata) else {
@@ -48,7 +48,7 @@ private func pointerAuthFunctionSpelling(
     return spelling
 }
 
-func pointerAuthTypeSpelling(_ type: Any.Type) -> String? {
+package func pointerAuthTypeSpelling(_ type: Any.Type) -> String? {
     let metadata = reflect(type)
     switch metadata.kind {
         case .class, .foreignClass, .objcClassWrapper:

@@ -2,8 +2,8 @@ import Echo
 
 /// Moves Swift values across the captured trampoline frame according to a
 /// previously validated ABI layout.
-enum RuntimeValueTransport {
-    static func copyValue(
+package enum RuntimeValueTransport {
+    package static func copyValue(
         _ result: Any,
         expectedType: Any.Type?,
         to destination: UnsafeMutableRawPointer
@@ -34,7 +34,7 @@ enum RuntimeValueTransport {
         )
     }
 
-    static func initializeDirectValue(
+    package static func initializeDirectValue(
         _ value: Any,
         expectedType: Any.Type,
         to destination: UnsafeMutableRawPointer
@@ -47,7 +47,7 @@ enum RuntimeValueTransport {
         )
     }
 
-    static func initializeDirectValue(
+    package static func initializeDirectValue(
         _ value: Any,
         expectedType: Any.Type,
         transport: RuntimeResultTransportPlan,
@@ -65,7 +65,7 @@ enum RuntimeValueTransport {
         copyValue(value, expectedType: expectedType, to: destination)
     }
 
-    static func encodeReturn(
+    package static func encodeReturn(
         _ value: Any,
         expectedType: Any.Type,
         layout: ABIClass,
@@ -84,7 +84,7 @@ enum RuntimeValueTransport {
         )
     }
 
-    static func encodeReturn(
+    package static func encodeReturn(
         _ value: Any,
         expectedType: Any.Type,
         layout: ABIClass,
@@ -141,7 +141,7 @@ enum RuntimeValueTransport {
     /// without retaining or destroying the source. The caller defines whether
     /// those bits transfer ownership or remain borrowed and keeps `source`
     /// alive for the required lifetime.
-    static func encodeBorrowedDirectValue(
+    package static func encodeBorrowedDirectValue(
         from source: UnsafeRawPointer,
         layout: ABIClass,
         into frame: TrampolineCallFrame
@@ -182,7 +182,7 @@ enum RuntimeValueTransport {
         }
     }
 
-    static func encodeAggregateReturn(
+    package static func encodeAggregateReturn(
         parts: [DirectValuePart],
         from source: UnsafeRawPointer,
         into frame: TrampolineCallFrame

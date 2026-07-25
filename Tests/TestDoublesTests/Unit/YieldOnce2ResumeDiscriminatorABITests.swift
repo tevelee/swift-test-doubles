@@ -378,3 +378,4 @@ import Testing
     }()
 
 #endif
+import TestDoublesRuntime

@@ -13,7 +13,7 @@ import Foundation
 /// Successful lookups are stable for the lifetime of the process and are
 /// cached. Misses are deliberately retried so images loaded later can supply
 /// metadata, runtime entry points, or compiler-emitted thunks.
-enum RuntimeSymbols {
+package enum RuntimeSymbols {
     private struct Address: @unchecked Sendable {
         let value: UnsafeMutableRawPointer
     }
@@ -30,7 +30,7 @@ enum RuntimeSymbols {
     private nonisolated(unsafe) static var demangledNames: [String: String] = [:]
     private nonisolated(unsafe) static var runtimeTypes: [String: Any.Type] = [:]
 
-    static func rawSymbol(named name: String) -> UnsafeMutableRawPointer? {
+    package static func rawSymbol(named name: String) -> UnsafeMutableRawPointer? {
         if let cached = withLock({ addresses[name] }) {
             return cached.value
         }
@@ -49,14 +49,14 @@ enum RuntimeSymbols {
         return address
     }
 
-    static func function<Function>(
+    package static func function<Function>(
         named name: String,
         as _: Function.Type = Function.self
     ) -> Function? {
         rawSymbol(named: name).map { unsafeBitCast($0, to: Function.self) }
     }
 
-    static func demangle(_ mangledName: String) -> String {
+    package static func demangle(_ mangledName: String) -> String {
         if let cached = withLock({ demangledNames[mangledName] }) {
             return cached
         }
@@ -80,7 +80,7 @@ enum RuntimeSymbols {
         return result
     }
 
-    static func cachedRuntimeType(
+    package static func cachedRuntimeType(
         named name: String,
         resolve: () -> Any.Type?
     ) -> Any.Type? {

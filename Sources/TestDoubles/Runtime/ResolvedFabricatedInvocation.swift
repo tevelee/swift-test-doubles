@@ -37,3 +37,4 @@ struct ResolvedFabricatedInvocation {
         requireRuntimeMethod(failureMessage: failureMessage()).descriptor
     }
 }
+import TestDoublesRuntime

@@ -636,3 +636,4 @@ where P: ExternalReferenceAssociatedProbe, Element: AnyObject {
     let argument = recordsMatcher ? any(using: boundValue) : boundValue
     await probe.consumeAsynchronously(argument)
 }
+import TestDoublesRuntime

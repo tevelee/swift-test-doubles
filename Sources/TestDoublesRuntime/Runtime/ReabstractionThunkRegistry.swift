@@ -152,10 +152,20 @@ private let collectReabstractionThunk:
         return true
     }
 
-struct ReabstractionPair {
-    let sourceIsGeneric: Bool
-    let source: LoweredFunctionSyntax
-    let target: LoweredFunctionSyntax
+package struct ReabstractionPair {
+    package let sourceIsGeneric: Bool
+    package let source: LoweredFunctionSyntax
+    package let target: LoweredFunctionSyntax
+
+    package init(
+        sourceIsGeneric: Bool,
+        source: LoweredFunctionSyntax,
+        target: LoweredFunctionSyntax
+    ) {
+        self.sourceIsGeneric = sourceIsGeneric
+        self.source = source
+        self.target = target
+    }
 }
 
 private let reabstractionPrefix =
@@ -164,7 +174,7 @@ private let reabstractionPrefix =
 /// When the thunk itself carries its own generic signature, NodePrinter.cpp
 /// inserts `"<...> "` between `"helper "` and `"from "`
 /// (e.g. `"...helper <A> from @callee_guaranteed (...) -> (...) to ..."`).
-func bodyAfterHelper(in demangled: Substring) -> Substring? {
+package func bodyAfterHelper(in demangled: Substring) -> Substring? {
     // Re-derive a String so DelimitedSyntaxScanner's indices line up with
     // `text`'s own storage -- `demangled`'s indices, taken from whatever
     // larger string it was sliced from, aren't valid offsets into a fresh
@@ -184,7 +194,7 @@ func bodyAfterHelper(in demangled: Substring) -> Substring? {
     return text[text.index(text.startIndex, offsetBy: "from ".count)...]
 }
 
-func reabstractionPair(in demangled: String) -> ReabstractionPair? {
+package func reabstractionPair(in demangled: String) -> ReabstractionPair? {
     guard demangled.hasPrefix(reabstractionPrefix),
         let body = bodyAfterHelper(
             in: demangled.dropFirst(reabstractionPrefix.count)

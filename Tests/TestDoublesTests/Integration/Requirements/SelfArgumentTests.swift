@@ -798,3 +798,4 @@ private func invokeClassOptionalRoundTrip<P: ExternalClassSelfArgumentProbe>(
 private func invokeClassMarker<P: ExternalClassSelfArgumentProbe>(_ value: P) -> Int {
     value.marker()
 }
+import TestDoublesRuntime

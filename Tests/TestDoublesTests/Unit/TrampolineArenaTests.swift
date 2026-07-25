@@ -146,3 +146,4 @@ struct TrampolineArenaTests {
         )
     }
 }
+import TestDoublesRuntime

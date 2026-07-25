@@ -64,3 +64,4 @@ private struct ValueBufferOwnedValue {
         #expect(buffer.state == .transferred)
     }
 }
+import TestDoublesRuntime

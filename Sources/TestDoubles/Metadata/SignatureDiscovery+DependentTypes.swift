@@ -300,3 +300,4 @@ func referencesAssociatedType(
             || spelling.contains("Self.\(binding.name)")
     }
 }
+import TestDoublesRuntime

@@ -98,3 +98,4 @@ func runtimeTypeName(_ type: Any.Type) -> String {
 private func sameType(_ lhs: Any.Type, _ rhs: Any.Type) -> Bool {
     ObjectIdentifier(lhs) == ObjectIdentifier(rhs)
 }
+import TestDoublesRuntime

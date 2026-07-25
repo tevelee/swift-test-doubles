@@ -1,11 +1,11 @@
-enum RetainedRuntimeState {
-    static func retain<State: AnyObject>(
+package enum RetainedRuntimeState {
+    package static func retain<State: AnyObject>(
         _ state: State
     ) -> UnsafeMutableRawPointer {
         Unmanaged.passRetained(state).toOpaque()
     }
 
-    static func borrow<State>(
+    package static func borrow<State>(
         _ type: State.Type,
         from pointer: UnsafeRawPointer,
         invalidTypeMessage: @autoclosure () -> String
@@ -18,7 +18,7 @@ enum RetainedRuntimeState {
         return state
     }
 
-    static func consume<State>(
+    package static func consume<State>(
         _ type: State.Type,
         from pointer: UnsafeRawPointer,
         invalidTypeMessage: @autoclosure () -> String

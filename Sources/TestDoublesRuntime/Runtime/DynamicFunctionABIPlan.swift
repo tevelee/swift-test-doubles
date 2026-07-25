@@ -5,12 +5,12 @@ import Echo
 /// A stack-bearing plan contains exactly one complete general-purpose word at
 /// stack offset zero. Wider, split, padded, and vector spills remain outside
 /// the source-less bridge because they require additional ABI-specific staging.
-struct DynamicFunctionArgumentPlan: Sendable {
-    let layouts: [ABIClass]
-    let usesStackArgument: Bool
+package struct DynamicFunctionArgumentPlan: Sendable {
+    package let layouts: [ABIClass]
+    package let usesStackArgument: Bool
 }
 
-func dynamicFunctionArgumentPlan(
+package func dynamicFunctionArgumentPlan(
     _ types: [Any.Type],
     initialGeneralPurposeOffset: Int = 0,
     trailingGeneralPurposeWordCount: Int = 0,
@@ -72,7 +72,7 @@ func dynamicFunctionArgumentPlan(
     )
 }
 
-func dynamicGenericArgumentLimit(
+package func dynamicGenericArgumentLimit(
     architecture: RuntimeArchitecture = .current
 ) -> Int {
     architecture.generalPurposeArgumentRegisterCount + 1
@@ -83,7 +83,7 @@ func dynamicGenericArgumentLimit(
 /// arm64 rounds one spilled word up to its 16-byte stack alignment. x86_64's
 /// live return/job slot already accounts for that word, so its net adjustment
 /// remains zero.
-func dynamicAsyncStackAdjustmentByteCount(
+package func dynamicAsyncStackAdjustmentByteCount(
     usesStackArgument: Bool,
     architecture: RuntimeArchitecture = .current
 ) -> Int {

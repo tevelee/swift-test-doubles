@@ -262,3 +262,4 @@ func topLevelComponents(in text: String) -> [String]? {
 func lastTopLevelColon(in text: String) -> String.Index? {
     DelimitedSyntaxScanner(text)?.lastTopLevelIndex(of: ":")
 }
+import TestDoublesRuntime

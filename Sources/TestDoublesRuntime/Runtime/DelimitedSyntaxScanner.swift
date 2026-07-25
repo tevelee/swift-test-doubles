@@ -3,10 +3,10 @@ import Foundation
 /// Delimiter-aware navigation for Swift's demangled type and lowered function
 /// spellings. The scanner validates the complete input before exposing ranges,
 /// so callers fail closed on mismatched or unterminated syntax.
-struct DelimitedSyntaxScanner {
-    struct DelimiterPair {
-        let opening: String.Index
-        let closing: String.Index
+package struct DelimitedSyntaxScanner {
+    package struct DelimiterPair {
+        package let opening: String.Index
+        package let closing: String.Index
     }
 
     private enum Delimiter: Character {
@@ -23,13 +23,13 @@ struct DelimitedSyntaxScanner {
         }
     }
 
-    let text: String
+    package let text: String
 
     private let depthBeforeIndex: [String.Index: Int]
     private let delimiterPairs: [Delimiter: [DelimiterPair]]
     private let matchingClosingIndices: [String.Index: String.Index]
 
-    init?(_ text: String) {
+    package init?(_ text: String) {
         var depthBeforeIndex: [String.Index: Int] = [:]
         var delimiterPairs: [Delimiter: [DelimiterPair]] = [:]
         var matchingClosingIndices: [String.Index: String.Index] = [:]
@@ -63,11 +63,11 @@ struct DelimitedSyntaxScanner {
         self.matchingClosingIndices = matchingClosingIndices
     }
 
-    func isTopLevel(_ index: String.Index) -> Bool {
+    package func isTopLevel(_ index: String.Index) -> Bool {
         depthBeforeIndex[index] == 0
     }
 
-    func topLevelRange(of token: String) -> Range<String.Index>? {
+    package func topLevelRange(of token: String) -> Range<String.Index>? {
         guard token.isEmpty == false else { return nil }
         var searchStart = text.startIndex
         while searchStart < text.endIndex,
@@ -84,11 +84,11 @@ struct DelimitedSyntaxScanner {
         return nil
     }
 
-    func lastTopLevelIndex(of character: Character) -> String.Index? {
+    package func lastTopLevelIndex(of character: Character) -> String.Index? {
         text.indices.last { text[$0] == character && isTopLevel($0) }
     }
 
-    func components(
+    package func components(
         separatedBy separator: Character,
         omittingEmptySubsequences: Bool = false
     ) -> [String] {
@@ -111,13 +111,13 @@ struct DelimitedSyntaxScanner {
         return result
     }
 
-    func matchingClosingDelimiter(
+    package func matchingClosingDelimiter(
         openingAt opening: String.Index
     ) -> String.Index? {
         matchingClosingIndices[opening]
     }
 
-    func pairs(openedBy character: Character) -> [DelimiterPair] {
+    package func pairs(openedBy character: Character) -> [DelimiterPair] {
         guard let delimiter = Delimiter(rawValue: character) else { return [] }
         return delimiterPairs[delimiter, default: []].sorted {
             $0.opening < $1.opening

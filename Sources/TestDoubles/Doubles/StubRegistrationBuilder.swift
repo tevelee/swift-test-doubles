@@ -155,3 +155,4 @@ extension StubInitializerBuilder: StubRegistrationBuilder {}
 extension StubFailableInitializerBuilder: StubRegistrationBuilder {}
 extension StubSelfResultBuilder: StubRegistrationBuilder {}
 extension StubOptionalSelfResultBuilder: StubRegistrationBuilder {}
+import TestDoublesRuntime

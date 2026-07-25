@@ -429,3 +429,4 @@ func runtimeConformance(
     else { return nil }
     return function(type, protocolDescriptor)
 }
+import TestDoublesRuntime

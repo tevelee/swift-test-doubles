@@ -164,3 +164,4 @@ private func resolveAssociatedTypedErrorClassComponent(
     }
     return ResolvedDependentType(type: type, dependency: .independent)
 }
+import TestDoublesRuntime

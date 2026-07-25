@@ -151,3 +151,4 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
         return plan
     }
 }
+import TestDoublesRuntime

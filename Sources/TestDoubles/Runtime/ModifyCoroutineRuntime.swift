@@ -239,3 +239,4 @@ private enum ModifyCoroutineRuntime {
         )
     }
 }
+import TestDoublesRuntime

@@ -138,3 +138,4 @@ struct ResolvedWitnessValue: Sendable {
         )
     }
 }
+import TestDoublesRuntime

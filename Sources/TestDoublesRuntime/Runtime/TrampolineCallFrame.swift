@@ -4,9 +4,9 @@ import CTestDoublesTrampoline
 ///
 /// The C layout remains the source of truth. Keeping every byte offset here
 /// prevents the Swift codecs from depending directly on frame representation.
-struct TrampolineCallFrame {
-    static let generalPurposeReturnCount = 4
-    static let floatingPointReturnCount = 4
+package struct TrampolineCallFrame {
+    package static let generalPurposeReturnCount = 4
+    package static let floatingPointReturnCount = 4
 
     private enum Offset {
         static let slot = Int(TD_FRAME_SLOT_OFFSET)
@@ -25,39 +25,39 @@ struct TrampolineCallFrame {
     }
 
     #if arch(x86_64)
-        static let generalPurposeArgumentLimit = 6
+        package static let generalPurposeArgumentLimit = 6
     #else
-        static let generalPurposeArgumentLimit = 8
+        package static let generalPurposeArgumentLimit = 8
     #endif
-    static let floatingPointArgumentLimit = 8
+    package static let floatingPointArgumentLimit = 8
 
-    let pointer: UnsafeMutablePointer<TDCallFrame>
+    package let pointer: UnsafeMutablePointer<TDCallFrame>
 
-    init(_ pointer: UnsafeMutablePointer<TDCallFrame>) {
+    package init(_ pointer: UnsafeMutablePointer<TDCallFrame>) {
         self.pointer = pointer
     }
 
-    var snapshot: TDCallFrame { pointer.pointee }
+    package var snapshot: TDCallFrame { pointer.pointee }
 
-    var slot: Int { Int(loadWord(at: Offset.slot)) }
+    package var slot: Int { Int(loadWord(at: Offset.slot)) }
 
-    var context: UInt { loadWord(at: Offset.context) }
+    package var context: UInt { loadWord(at: Offset.context) }
 
-    var incomingSwiftError: UInt { loadWord(at: Offset.swiftError) }
+    package var incomingSwiftError: UInt { loadWord(at: Offset.swiftError) }
 
-    var indirectResultAddress: UInt { loadWord(at: Offset.indirectResult) }
+    package var indirectResultAddress: UInt { loadWord(at: Offset.indirectResult) }
 
-    var swiftSelfAddress: UInt { loadWord(at: Offset.swiftSelf) }
+    package var swiftSelfAddress: UInt { loadWord(at: Offset.swiftSelf) }
 
-    var returnedError: UInt { loadWord(at: Offset.returnError) }
+    package var returnedError: UInt { loadWord(at: Offset.returnError) }
 
-    var outgoingStackWord: UInt { loadWord(at: Offset.outgoingStackWord) }
+    package var outgoingStackWord: UInt { loadWord(at: Offset.outgoingStackWord) }
 
-    func restore(_ snapshot: TDCallFrame) {
+    package func restore(_ snapshot: TDCallFrame) {
         pointer.pointee = snapshot
     }
 
-    func scalarBits(at location: CallFrameArgumentLocation) -> UInt64 {
+    package func scalarBits(at location: CallFrameArgumentLocation) -> UInt64 {
         precondition(
             location.byteCount <= MemoryLayout<UInt64>.size,
             "[TestDoubles] Scalar call-frame decoding cannot read a wider vector lane."
@@ -75,7 +75,7 @@ struct TrampolineCallFrame {
     /// Copies one argument fragment with its declared width from the captured
     /// register bank or caller stack. Register slots remain the source of
     /// truth, including all 16 bytes of a supported SIMD value.
-    func copyArgumentBytes(
+    package func copyArgumentBytes(
         at location: CallFrameArgumentLocation,
         into destination: UnsafeMutableRawPointer
     ) {
@@ -93,18 +93,18 @@ struct TrampolineCallFrame {
         destination.copyMemory(from: source, byteCount: location.byteCount)
     }
 
-    func storeGeneralPurposeReturn(_ value: UInt, at index: Int = 0) {
+    package func storeGeneralPurposeReturn(_ value: UInt, at index: Int = 0) {
         storeWord(value, at: Offset.returnGeneralPurpose + index * 8)
     }
 
-    func storeGeneralPurposeArgument(_ value: UInt, at index: Int) {
+    package func storeGeneralPurposeArgument(_ value: UInt, at index: Int) {
         precondition(index < Self.generalPurposeArgumentLimit)
         storeWord(value, at: Offset.generalPurpose + index * 8)
     }
 
     /// Stores one dynamic-closure GP argument in its physical register slot or
     /// in the sole bounded outgoing stack slot immediately after the bank.
-    func storeDynamicGeneralPurposeArgument(_ value: UInt, at index: Int) {
+    package func storeDynamicGeneralPurposeArgument(_ value: UInt, at index: Int) {
         if index < Self.generalPurposeArgumentLimit {
             storeGeneralPurposeArgument(value, at: index)
         } else {
@@ -116,25 +116,25 @@ struct TrampolineCallFrame {
         }
     }
 
-    func storeOutgoingStackWord(_ value: UInt) {
+    package func storeOutgoingStackWord(_ value: UInt) {
         storeWord(value, at: Offset.outgoingStackWord)
     }
 
-    func storeFloatingPointArgument(_ value: UInt64, at index: Int) {
+    package func storeFloatingPointArgument(_ value: UInt64, at index: Int) {
         precondition(index < Self.floatingPointArgumentLimit)
         storeWord(UInt(value), at: Offset.floatingPoint + index * 16)
     }
 
-    func storeIndirectResultAddress(_ value: UInt) {
+    package func storeIndirectResultAddress(_ value: UInt) {
         storeWord(value, at: Offset.indirectResult)
     }
 
-    func storeFloatingPointReturn(_ value: UInt, at index: Int = 0) {
+    package func storeFloatingPointReturn(_ value: UInt, at index: Int = 0) {
         storeWord(value, at: Offset.returnFloatingPoint + index * 8)
         storeWord(0, at: Offset.returnFloatingPointHigh + index * 8)
     }
 
-    func storeVectorReturn(
+    package func storeVectorReturn(
         from source: UnsafeRawPointer,
         byteCount: Int,
         at index: Int = 0
@@ -155,11 +155,11 @@ struct TrampolineCallFrame {
         }
     }
 
-    func storeReturnError(_ value: UInt) {
+    package func storeReturnError(_ value: UInt) {
         storeWord(value, at: Offset.returnError)
     }
 
-    func zeroReturn() {
+    package func zeroReturn() {
         for index in 0 ..< Self.generalPurposeReturnCount {
             storeGeneralPurposeReturn(0, at: index)
         }

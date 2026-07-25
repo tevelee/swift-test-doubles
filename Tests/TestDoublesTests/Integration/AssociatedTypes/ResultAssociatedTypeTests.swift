@@ -395,3 +395,4 @@ private func assertResultDescriptor<Value>(
 private func isIndirectLayout(_ layout: ABIClass) -> Bool {
     if case .indirect = layout { true } else { false }
 }
+import TestDoublesRuntime

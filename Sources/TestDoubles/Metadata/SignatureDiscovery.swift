@@ -451,3 +451,4 @@ extension ProtocolRequirement.Flags {
     /// `IsAsyncMask` bit, so this is not simply `hasAsyncBit`.
     var isAsync: Bool { !isCoroutine && hasAsyncBit }
 }
+import TestDoublesRuntime

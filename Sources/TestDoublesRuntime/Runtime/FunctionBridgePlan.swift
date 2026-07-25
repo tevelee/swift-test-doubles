@@ -2,14 +2,14 @@ import Echo
 
 private let unsupportedDynamicValueFlags = UInt32(0x0080_0000)
 
-enum FunctionBridgeDirection: Sendable, Equatable {
+package enum FunctionBridgeDirection: Sendable, Equatable {
     case directToGeneric
     case genericToDirect
 }
 
 /// Immutable ABI and effect facts shared by dynamic function validation in
 /// both bridge directions.
-struct FunctionBridgeAnalysis: @unchecked Sendable {
+package struct FunctionBridgeAnalysis: @unchecked Sendable {
     let architecture: RuntimeArchitecture
     let metadata: FunctionMetadata
     let parameterTypes: [Any.Type]
@@ -26,7 +26,7 @@ struct FunctionBridgeAnalysis: @unchecked Sendable {
     let genericArgumentCount: Int
     let genericUsesStackArgument: Bool
 
-    init(
+    package init(
         _ metadata: FunctionMetadata,
         architecture: RuntimeArchitecture = .current
     ) {
@@ -64,7 +64,7 @@ struct FunctionBridgeAnalysis: @unchecked Sendable {
         )
     }
 
-    func unsupportedReason(for direction: FunctionBridgeDirection) -> String? {
+    package func unsupportedReason(for direction: FunctionBridgeDirection) -> String? {
         guard metadata.flags.convention == .swift else {
             return "Only native Swift functions need this bridge."
         }
@@ -164,7 +164,7 @@ struct FunctionBridgeAnalysis: @unchecked Sendable {
         return nil
     }
 
-    func validated(
+    package func validated(
         for direction: FunctionBridgeDirection
     ) -> FunctionBridgePlan? {
         guard unsupportedReason(for: direction) == nil,
@@ -183,11 +183,11 @@ struct FunctionBridgeAnalysis: @unchecked Sendable {
 /// A bridge analysis whose support boundary has been checked for one runtime
 /// direction. Execution consumes this type so it cannot observe a missing
 /// direct argument transport plan after validation has succeeded.
-struct FunctionBridgePlan: @unchecked Sendable {
+package struct FunctionBridgePlan: @unchecked Sendable {
     private let analysis: FunctionBridgeAnalysis
 
-    let directArgumentPlan: DynamicFunctionArgumentPlan
-    let direction: FunctionBridgeDirection
+    package let directArgumentPlan: DynamicFunctionArgumentPlan
+    package let direction: FunctionBridgeDirection
 
     fileprivate init(
         analysis: FunctionBridgeAnalysis,
@@ -199,26 +199,26 @@ struct FunctionBridgePlan: @unchecked Sendable {
         self.direction = direction
     }
 
-    var metadata: FunctionMetadata { analysis.metadata }
-    var parameterTypes: [Any.Type] { analysis.parameterTypes }
-    var resultType: Any.Type { analysis.resultType }
-    var resultLayout: ABIClass { analysis.resultLayout }
-    var typedErrorType: Any.Type? { analysis.typedErrorType }
-    var typedErrorLayout: ABIClass? { analysis.typedErrorLayout }
-    var isAsync: Bool { analysis.isAsync }
-    var isThrowing: Bool { analysis.isThrowing }
-    var directTypedErrorUsesIndirectResultSlot: Bool {
+    package var metadata: FunctionMetadata { analysis.metadata }
+    package var parameterTypes: [Any.Type] { analysis.parameterTypes }
+    package var resultType: Any.Type { analysis.resultType }
+    package var resultLayout: ABIClass { analysis.resultLayout }
+    package var typedErrorType: Any.Type? { analysis.typedErrorType }
+    package var typedErrorLayout: ABIClass? { analysis.typedErrorLayout }
+    package var isAsync: Bool { analysis.isAsync }
+    package var isThrowing: Bool { analysis.isThrowing }
+    package var directTypedErrorUsesIndirectResultSlot: Bool {
         analysis.directTypedErrorUsesIndirectResultSlot
     }
-    var genericTypedErrorUsesIndirectResultSlot: Bool {
+    package var genericTypedErrorUsesIndirectResultSlot: Bool {
         analysis.genericTypedErrorUsesIndirectResultSlot
     }
-    var asyncDirectResultUsesGeneralPurposeSlot: Bool {
+    package var asyncDirectResultUsesGeneralPurposeSlot: Bool {
         analysis.asyncDirectResultUsesGeneralPurposeSlot
     }
-    var genericUsesStackArgument: Bool {
+    package var genericUsesStackArgument: Bool {
         analysis.genericUsesStackArgument
     }
 
-    var directArgumentLayouts: [ABIClass] { directArgumentPlan.layouts }
+    package var directArgumentLayouts: [ABIClass] { directArgumentPlan.layouts }
 }

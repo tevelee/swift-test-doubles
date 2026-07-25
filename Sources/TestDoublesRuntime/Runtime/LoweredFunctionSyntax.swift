@@ -3,14 +3,14 @@ import Foundation
 /// A SIL-level function spelling emitted for reabstraction thunks. Lowered
 /// ownership and result conventions are deliberately kept distinct from
 /// source-level function syntax because their attributes are not interchangeable.
-struct LoweredFunctionSyntax: Equatable {
-    let canonicalSpelling: String
-    let prefix: String
-    let parameters: [LoweredFunctionParameterSyntax]
-    let result: LoweredTypeSyntax
-    let thrownError: LoweredTypeSyntax?
+package struct LoweredFunctionSyntax: Equatable {
+    package let canonicalSpelling: String
+    package let prefix: String
+    package let parameters: [LoweredFunctionParameterSyntax]
+    package let result: LoweredTypeSyntax
+    package let thrownError: LoweredTypeSyntax?
 
-    init?(_ spelling: String) {
+    package init?(_ spelling: String) {
         let canonicalSpelling = spelling.trimmingCharacters(in: .whitespaces)
         guard let scanner = DelimitedSyntaxScanner(canonicalSpelling),
             let callee = canonicalSpelling.range(of: "@callee"),
@@ -106,17 +106,17 @@ struct LoweredFunctionSyntax: Equatable {
         self.thrownError = thrownError
     }
 
-    var isEscaping: Bool { prefix.contains("@escaping") }
-    var isSendable: Bool { prefix.contains("@Sendable") }
-    var isIsolated: Bool { prefix.contains("@isolated(any)") }
-    var isAsync: Bool { prefix.contains("@async") }
-    var isThrowing: Bool { thrownError != nil }
-    var isGeneric: Bool {
+    package var isEscaping: Bool { prefix.contains("@escaping") }
+    package var isSendable: Bool { prefix.contains("@Sendable") }
+    package var isIsolated: Bool { prefix.contains("@isolated(any)") }
+    package var isAsync: Bool { prefix.contains("@async") }
+    package var isThrowing: Bool { thrownError != nil }
+    package var isGeneric: Bool {
         canonicalSpelling.contains("@in_guaranteed")
             || canonicalSpelling.contains("@out ")
     }
 
-    var globalActor: DemangledTypeSyntax? {
+    package var globalActor: DemangledTypeSyntax? {
         let knownAttributes = [
             "@async", "@callee_guaranteed", "@callee_owned", "@callee_unowned",
             "@convention(thin)", "@escaping", "@isolated(any)", "@noescape",
@@ -134,13 +134,13 @@ struct LoweredFunctionSyntax: Equatable {
     }
 }
 
-struct LoweredFunctionParameterSyntax: Equatable {
-    let canonicalSpelling: String
-    let type: LoweredTypeSyntax
-    let ownership: UInt32
-    let isIsolated: Bool
+package struct LoweredFunctionParameterSyntax: Equatable {
+    package let canonicalSpelling: String
+    package let type: LoweredTypeSyntax
+    package let ownership: UInt32
+    package let isIsolated: Bool
 
-    init?(_ spelling: String) {
+    package init?(_ spelling: String) {
         let canonicalSpelling = spelling.trimmingCharacters(in: .whitespaces)
         let attributes = canonicalSpelling.split(separator: " ")
         let ownership: UInt32
@@ -162,13 +162,13 @@ struct LoweredFunctionParameterSyntax: Equatable {
     }
 }
 
-indirect enum LoweredTypeSyntax: Equatable {
+package indirect enum LoweredTypeSyntax: Equatable {
     case source(DemangledTypeSyntax)
     case function(LoweredFunctionSyntax)
     case implicitActor
     case substituted(String)
 
-    init?(_ component: String) {
+    package init?(_ component: String) {
         let canonicalSpelling = component.trimmingCharacters(in: .whitespaces)
         guard canonicalSpelling.isEmpty == false,
             DelimitedSyntaxScanner(canonicalSpelling) != nil

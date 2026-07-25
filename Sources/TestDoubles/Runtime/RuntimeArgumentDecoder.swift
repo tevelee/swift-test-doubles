@@ -1,12 +1,5 @@
 import Echo
 
-/// Recorder-owned values decoded from one witness call, plus any distinct
-/// caller-owned typed-error result storage required by the signature.
-struct DecodedArguments {
-    let values: [Any]
-    let typedErrorDestination: UnsafeMutableRawPointer?
-}
-
 struct RuntimeArgumentSpec: Sendable {
     let type: Any.Type
     let layout: ABIClass
@@ -65,39 +58,6 @@ struct RuntimeArgumentDecodingPlan: Sendable {
 }
 
 enum RuntimeArgumentDecoder {
-    static func decodeDynamicFunctionArguments(
-        _ types: [Any.Type],
-        typedErrorUsesIndirectResultSlot: Bool,
-        initialGeneralPurposeOffset: Int = 0,
-        from frame: TrampolineCallFrame
-    ) -> DecodedArguments {
-        let arguments = types.map {
-            RuntimeArgumentSpec(
-                type: $0,
-                layout: abiClass(for: $0),
-                ownership: .borrowed
-            )
-        }
-        let locationPlan = CallFrameArgumentLocationPlan(
-            arguments: arguments.map {
-                CallFrameArgumentShape(type: $0.type, layout: $0.layout)
-            },
-            initialGeneralPurposeOffset: initialGeneralPurposeOffset,
-            trailingGeneralPurposeWordCount:
-                typedErrorUsesIndirectResultSlot ? 1 : 0
-        )
-        return decode(
-            RuntimeArgumentDecodingPlan(
-                arguments: arguments,
-                argumentLocations: locationPlan.arguments,
-                typedErrorDestinationLocation:
-                    locationPlan.trailingGeneralPurpose.first,
-                diagnosticContext: .dynamicFunction
-            ),
-            from: frame
-        )
-    }
-
     static func decode(
         for runtimeMethod: PreparedRuntimeMethod,
         from frame: TrampolineCallFrame,
@@ -282,10 +242,4 @@ enum RuntimeArgumentDecoder {
         return value
     }
 }
-
-func boxValue(type: Any.Type, source: UnsafeMutableRawPointer) -> Any {
-    func boxOpenedValue<T>(_ type: T.Type) -> Any {
-        source.assumingMemoryBound(to: T.self).pointee
-    }
-    return _openExistential(type, do: boxOpenedValue)
-}
+import TestDoublesRuntime

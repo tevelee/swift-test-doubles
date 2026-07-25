@@ -51,3 +51,4 @@ final class RequirementEffects: Sendable {
         self.throwing = throwing
     }
 }
+import TestDoublesRuntime

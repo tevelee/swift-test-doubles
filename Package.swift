@@ -67,6 +67,7 @@ let package = Package(
             name: "TestDoublesTests",
             dependencies: [
                 "TestDoubles",
+                "TestDoublesRuntime",
                 "TestDoublesFixtures",
                 "TestDoublesResilientFixtures",
                 .product(name: "IssueReportingTestSupport", package: "swift-issue-reporting")

@@ -108,3 +108,4 @@ enum DependentResultEncoder {
         )
     }
 }
+import TestDoublesRuntime

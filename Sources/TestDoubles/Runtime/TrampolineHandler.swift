@@ -35,11 +35,6 @@ func td_swift_async_dispatch_finish(
     )
 }
 
-protocol AsyncTrampolineDispatchState: AnyObject, Sendable {
-    func run() async
-    func finish(into frame: TrampolineCallFrame)
-}
-
 enum RuntimeTrampolineHandler {
     private struct Invocation {
         let target: FabricatedInvocationTarget
@@ -378,3 +373,4 @@ enum RuntimeTrampolineHandler {
         )
     }
 }
+import TestDoublesRuntime

@@ -2,12 +2,12 @@ import CTestDoublesTrampoline
 import Echo
 import Foundation
 
-func resolveRuntimeType(_ name: String) -> Any.Type? {
+package func resolveRuntimeType(_ name: String) -> Any.Type? {
     guard let syntax = DemangledTypeSyntax(name) else { return nil }
     return resolveRuntimeType(syntax)
 }
 
-func resolveRuntimeType(_ syntax: DemangledTypeSyntax) -> Any.Type? {
+package func resolveRuntimeType(_ syntax: DemangledTypeSyntax) -> Any.Type? {
     RuntimeSymbols.cachedRuntimeType(named: syntax.canonicalSpelling) {
         resolveUncachedRuntimeType(syntax)
     }
@@ -139,7 +139,7 @@ private func twoArgumentGenericType(_ name: String) -> Any.Type? {
 /// Recovers nested function escaping from the raw symbol mangling. Swift's
 /// human-readable demangler omits this distinction, while the type mangling
 /// retains it (`XE` denotes a noescape function type).
-func resolveRuntimeType(
+package func resolveRuntimeType(
     _ syntax: DemangledTypeSyntax,
     containedInMangledSymbol mangledSymbol: String
 ) -> Any.Type? {
@@ -447,6 +447,14 @@ private struct ParsedTupleElement {
     let typeName: String
 }
 
+func topLevelComponents(in text: String) -> [String]? {
+    DelimitedSyntaxScanner(text)?.components(separatedBy: ",")
+}
+
+private func lastTopLevelColon(in text: String) -> String.Index? {
+    DelimitedSyntaxScanner(text)?.lastTopLevelIndex(of: ":")
+}
+
 private func parsedTupleElements(_ name: String) -> [ParsedTupleElement]? {
     guard name.first == "(", name.last == ")" else { return nil }
     let contents = String(name.dropFirst().dropLast())
@@ -536,7 +544,7 @@ private func bracketCollectionType(_ name: String) -> Any.Type? {
     return _openExistential(element, do: arrayType)
 }
 
-func setType(of element: Any.Type) -> Any.Type? {
+package func setType(of element: Any.Type) -> Any.Type? {
     guard let hashableElement = element as? any Hashable.Type else { return nil }
     return openedSetType(of: hashableElement)
 }
@@ -545,7 +553,7 @@ private func openedSetType<Element: Hashable>(of _: Element.Type) -> Any.Type {
     Set<Element>.self
 }
 
-func resultType(success: Any.Type, failure: Any.Type) -> Any.Type? {
+package func resultType(success: Any.Type, failure: Any.Type) -> Any.Type? {
     guard let errorType = failure as? any Error.Type else { return nil }
     return openedResultType(success: success, failure: errorType)
 }
@@ -560,7 +568,7 @@ private func openedResultType<Failure: Error>(
     return _openExistential(success, do: openSuccess)
 }
 
-func dictionaryType(key: Any.Type, value: Any.Type) -> Any.Type? {
+package func dictionaryType(key: Any.Type, value: Any.Type) -> Any.Type? {
     guard let hashableKey = key as? any Hashable.Type else { return nil }
     return openedDictionaryType(key: hashableKey, value: value)
 }
@@ -575,11 +583,11 @@ private func openedDictionaryType<Key: Hashable>(
     return _openExistential(value, do: openValue)
 }
 
-func optionalType<Wrapped>(of _: Wrapped.Type) -> Any.Type {
+package func optionalType<Wrapped>(of _: Wrapped.Type) -> Any.Type {
     Optional<Wrapped>.self
 }
 
-func arrayType<Element>(of _: Element.Type) -> Any.Type {
+package func arrayType<Element>(of _: Element.Type) -> Any.Type {
     Array<Element>.self
 }
 

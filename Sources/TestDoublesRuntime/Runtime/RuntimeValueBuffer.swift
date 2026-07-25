@@ -3,14 +3,14 @@ import Echo
 extension Metadata {
     /// The byte count of temporary storage for one value of this type, padded
     /// to `minimum` bytes so register-word codecs may address whole words.
-    func valueBufferByteCount(minimum: Int = 1) -> Int {
+    package func valueBufferByteCount(minimum: Int = 1) -> Int {
         max(vwt.size, minimum)
     }
 
     /// Allocates uninitialized temporary storage for one value of this type,
     /// word-aligned so register-word codecs may address whole words. The
     /// caller owns deinitialization and deallocation.
-    func allocateValueBuffer(minimumByteCount: Int = 1) -> UnsafeMutableRawPointer {
+    package func allocateValueBuffer(minimumByteCount: Int = 1) -> UnsafeMutableRawPointer {
         UnsafeMutableRawPointer.allocate(
             byteCount: valueBufferByteCount(minimum: minimumByteCount),
             alignment: max(vwt.flags.alignment, MemoryLayout<UInt>.alignment)
@@ -23,22 +23,22 @@ extension Metadata {
 ///
 /// Owned allocations are always deallocated. Only an initialized owned value
 /// is destroyed; borrowed and transferred bits are never destroyed here.
-final class ManagedValueBuffer: @unchecked Sendable {
-    enum State: Equatable, Sendable {
+package final class ManagedValueBuffer: @unchecked Sendable {
+    package enum State: Equatable, Sendable {
         case uninitialized
         case borrowedBits
         case initialized
         case transferred
     }
 
-    let metadata: Metadata
-    let storage: UnsafeMutableRawPointer
-    private(set) var state: State
+    package let metadata: Metadata
+    package let storage: UnsafeMutableRawPointer
+    package private(set) var state: State
 
     private let byteCount: Int
     private let deallocatesStorage: Bool
 
-    init(type: Any.Type, minimumByteCount: Int = 1) {
+    package init(type: Any.Type, minimumByteCount: Int = 1) {
         metadata = reflect(type)
         byteCount = metadata.valueBufferByteCount(minimum: minimumByteCount)
         storage = metadata.allocateValueBuffer(
@@ -50,7 +50,7 @@ final class ManagedValueBuffer: @unchecked Sendable {
 
     /// Creates a non-owning view of initialized ABI bits. The referenced value
     /// remains owned by the caller and is never destroyed by this view.
-    init(
+    package init(
         borrowingBitsOf type: Any.Type,
         at storage: UnsafeMutableRawPointer
     ) {
@@ -63,7 +63,7 @@ final class ManagedValueBuffer: @unchecked Sendable {
 
     /// Creates a non-allocating owner for a value whose initialized storage
     /// must be consumed exactly once without deallocating the caller's bytes.
-    init(
+    package init(
         owningValueOf type: Any.Type,
         at storage: UnsafeMutableRawPointer
     ) {
@@ -74,7 +74,7 @@ final class ManagedValueBuffer: @unchecked Sendable {
         deallocatesStorage = false
     }
 
-    func zeroBorrowedBytes() {
+    package func zeroBorrowedBytes() {
         precondition(state == .uninitialized)
         storage.initializeMemory(
             as: UInt8.self,
@@ -84,18 +84,18 @@ final class ManagedValueBuffer: @unchecked Sendable {
         state = .borrowedBits
     }
 
-    func markInitialized() {
+    package func markInitialized() {
         precondition(state == .uninitialized || state == .borrowedBits)
         state = .initialized
     }
 
-    func destroyInitializedValue() {
+    package func destroyInitializedValue() {
         precondition(state == .initialized)
         metadata.vwt.destroy(storage)
         state = .uninitialized
     }
 
-    func moveInitializedValue<Value>(as _: Value.Type) -> Value {
+    package func moveInitializedValue<Value>(as _: Value.Type) -> Value {
         precondition(state == .initialized)
         precondition(
             ObjectIdentifier(Value.self) == ObjectIdentifier(metadata.type),
@@ -106,7 +106,7 @@ final class ManagedValueBuffer: @unchecked Sendable {
         return value
     }
 
-    func markTransferred() {
+    package func markTransferred() {
         precondition(state == .initialized)
         state = .transferred
     }

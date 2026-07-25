@@ -176,3 +176,4 @@ enum RecordingResultEncoder {
             + "for \(method.name)."
     }
 }
+import TestDoublesRuntime

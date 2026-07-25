@@ -1,15 +1,15 @@
 import Echo
 
 extension FunctionReabstraction {
-    static func canInitializeDirectValue(of type: Any.Type) -> Bool {
+    package static func canInitializeDirectValue(of type: Any.Type) -> Bool {
         canReabstract(type, direction: .genericToDirect, visited: [])
     }
 
-    static func canBoxDirectResult(of type: Any.Type) -> Bool {
+    package static func canBoxDirectResult(of type: Any.Type) -> Bool {
         canReabstract(type, direction: .directToGeneric, visited: [])
     }
 
-    static func boxDirectValue(
+    package static func boxDirectValue(
         type: Any.Type,
         source: UnsafeMutableRawPointer
     ) -> Any {
@@ -29,7 +29,7 @@ extension FunctionReabstraction {
         return value
     }
 
-    static func initializeDirectReturn(
+    package static func initializeDirectReturn(
         _ value: Any,
         expectedType: Any.Type,
         at destination: UnsafeMutableRawPointer
@@ -57,7 +57,7 @@ extension FunctionReabstraction {
         return initialized
     }
 
-    static func requiresStructuralReabstraction(_ type: Any.Type) -> Bool {
+    package static func requiresStructuralReabstraction(_ type: Any.Type) -> Bool {
         requiresStructuralReabstraction(type, visited: [])
     }
 }

@@ -50,3 +50,4 @@ struct FunctionPointerAuthenticationTests {
         #expect(functionIsAsync(mixed))
     }
 }
+import TestDoublesRuntime

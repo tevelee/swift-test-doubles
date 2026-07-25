@@ -295,3 +295,4 @@ struct RealAssociatedSIMDABIProbe: AssociatedSIMDABIProbe {
         }
     }
 }
+import TestDoublesRuntime

@@ -4,7 +4,7 @@ extension TupleMetadata {
     /// Avoids Echo 0.0.5's `Array(unsafeUninitializedCapacity: 0)` path for
     /// `Void`, which mutates Swift's shared empty-array storage and races when
     /// multiple stubs inspect metadata concurrently.
-    var safelyInitializedElements: [Element] {
+    package var safelyInitializedElements: [Element] {
         numElements == 0 ? [] : elements
     }
 }

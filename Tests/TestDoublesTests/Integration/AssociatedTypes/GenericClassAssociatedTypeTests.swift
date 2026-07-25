@@ -317,3 +317,4 @@ private func assertGenericClassDescriptor<Value>(
 private func isSingleReference(_ layout: ABIClass) -> Bool {
     if case .integer(words: 1) = layout { true } else { false }
 }
+import TestDoublesRuntime

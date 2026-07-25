@@ -1,20 +1,20 @@
 import Echo
 
-func functionLoweredParameterCount(_ metadata: FunctionMetadata) -> Int {
+package func functionLoweredParameterCount(_ metadata: FunctionMetadata) -> Int {
     metadata.flags.numParams + (metadata.isNonisolatedNonsending ? 1 : 0)
 }
 
 /// Echo's zero-parameter accessor uses an unsafe-uninitialized empty Array,
 /// which writes shared empty-array bookkeeping and trips ThreadSanitizer when
 /// nested `() -> T` metadata is inspected concurrently.
-func safeFunctionParameterTypes(
+package func safeFunctionParameterTypes(
     _ metadata: FunctionMetadata
 ) -> [Any.Type] {
     guard metadata.flags.numParams > 0 else { return [] }
     return metadata.paramTypes
 }
 
-func loweredFunctionParameterType(
+package func loweredFunctionParameterType(
     _ metadata: FunctionMetadata,
     type: Any.Type,
     at index: Int
@@ -30,7 +30,7 @@ func loweredFunctionParameterType(
     return _openExistential(type, do: arrayType)
 }
 
-func functionParameterOwnership(
+package func functionParameterOwnership(
     _ metadata: FunctionMetadata,
     at index: Int
 ) -> UInt32 {
@@ -38,7 +38,7 @@ func functionParameterOwnership(
     return UInt32(metadata.paramFlags[index].valueOwnership.rawValue)
 }
 
-func functionParameterIsIsolated(
+package func functionParameterIsIsolated(
     _ metadata: FunctionMetadata,
     at index: Int
 ) -> Bool {
@@ -46,6 +46,6 @@ func functionParameterIsIsolated(
     return metadata.paramFlags[index].bits & 0x400 != 0
 }
 
-func functionIsAsync(_ metadata: FunctionMetadata) -> Bool {
+package func functionIsAsync(_ metadata: FunctionMetadata) -> Bool {
     metadata.flags.bits & 0x2000_0000 != 0
 }

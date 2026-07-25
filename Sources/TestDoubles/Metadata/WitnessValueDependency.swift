@@ -203,3 +203,4 @@ indirect enum WitnessValueDependency: Equatable, Sendable {
 // AssociatedTypeID is a pair of an immutable descriptor address and a name.
 // The address is used only as stable process-local identity.
 extension AssociatedTypeID: @unchecked Sendable {}
+import TestDoublesRuntime

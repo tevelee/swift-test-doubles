@@ -283,3 +283,4 @@ final class ForwardedAsyncState:
         frame.restore(storedFrame.pointee)
     }
 }
+import TestDoublesRuntime

@@ -195,3 +195,4 @@ enum SynchronousAccessorDispatch {
         return _openExistential(method.returnType, do: opened)
     }
 }
+import TestDoublesRuntime

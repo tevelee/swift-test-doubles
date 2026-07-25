@@ -386,3 +386,4 @@ private func typedErrorDescription(_ error: TypedErrorTransport) -> String {
 private func sameType(_ lhs: Any.Type, _ rhs: Any.Type) -> Bool {
     ObjectIdentifier(lhs) == ObjectIdentifier(rhs)
 }
+import TestDoublesRuntime

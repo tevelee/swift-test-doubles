@@ -7,11 +7,11 @@ import Foundation
 /// spellings remain canonical leaf nodes and are interpreted by runtime type
 /// resolution. This keeps syntax validation separate from metadata lookup
 /// without claiming support for a broader Swift grammar.
-indirect enum DemangledTypeSyntax: Equatable {
+package indirect enum DemangledTypeSyntax: Equatable {
     case concrete(String)
     case function(DemangledFunctionTypeSyntax)
 
-    init?(_ spelling: String) {
+    package init?(_ spelling: String) {
         let canonicalSpelling = spelling.trimmingCharacters(in: .whitespaces)
         guard canonicalSpelling.isEmpty == false,
             let scanner = DelimitedSyntaxScanner(canonicalSpelling)
@@ -35,7 +35,7 @@ indirect enum DemangledTypeSyntax: Equatable {
         }
     }
 
-    var canonicalSpelling: String {
+    package var canonicalSpelling: String {
         switch self {
             case .concrete(let spelling): spelling
             case .function(let function): function.canonicalSpelling
@@ -43,13 +43,13 @@ indirect enum DemangledTypeSyntax: Equatable {
     }
 }
 
-struct DemangledFunctionTypeSyntax: Equatable {
-    let canonicalSpelling: String
-    let attributes: String
-    let effects: DemangledFunctionEffectSyntax
-    let parameters: [DemangledFunctionParameterSyntax]
-    let result: DemangledTypeSyntax
-    let hasSendingResult: Bool
+package struct DemangledFunctionTypeSyntax: Equatable {
+    package let canonicalSpelling: String
+    package let attributes: String
+    package let effects: DemangledFunctionEffectSyntax
+    package let parameters: [DemangledFunctionParameterSyntax]
+    package let result: DemangledTypeSyntax
+    package let hasSendingResult: Bool
 
     fileprivate init?(
         _ canonicalSpelling: String,
@@ -119,13 +119,13 @@ struct DemangledFunctionTypeSyntax: Equatable {
     }
 }
 
-struct DemangledFunctionEffectSyntax: Equatable {
-    let canonicalSpelling: String
-    let isAsync: Bool
-    let isThrowing: Bool
-    let thrownError: DemangledTypeSyntax?
+package struct DemangledFunctionEffectSyntax: Equatable {
+    package let canonicalSpelling: String
+    package let isAsync: Bool
+    package let isThrowing: Bool
+    package let thrownError: DemangledTypeSyntax?
 
-    init?(_ spelling: String) {
+    package init?(_ spelling: String) {
         let canonicalSpelling = spelling.trimmingCharacters(in: .whitespaces)
         guard let scanner = DelimitedSyntaxScanner(canonicalSpelling) else {
             return nil
@@ -166,23 +166,23 @@ struct DemangledFunctionEffectSyntax: Equatable {
     }
 }
 
-struct DemangledFunctionParameterSyntax: Equatable {
-    enum Ownership: UInt32, Equatable {
+package struct DemangledFunctionParameterSyntax: Equatable {
+    package enum Ownership: UInt32, Equatable {
         case `default` = 0
         case inoutValue = 1
         case borrowed = 2
         case owned = 3
     }
 
-    let canonicalSpelling: String
-    let type: DemangledTypeSyntax
-    let ownership: Ownership
-    let isIsolated: Bool
-    let isSending: Bool
-    let isAutoclosure: Bool
-    let isVariadic: Bool
+    package let canonicalSpelling: String
+    package let type: DemangledTypeSyntax
+    package let ownership: Ownership
+    package let isIsolated: Bool
+    package let isSending: Bool
+    package let isAutoclosure: Bool
+    package let isVariadic: Bool
 
-    init?(_ spelling: String) {
+    package init?(_ spelling: String) {
         let canonicalSpelling = spelling.trimmingCharacters(in: .whitespaces)
         var value = canonicalSpelling
 

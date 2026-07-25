@@ -2,7 +2,7 @@
 import Echo
 import Foundation
 
-enum ABIClass: Sendable {
+package enum ABIClass: Sendable {
     case void
     case integer(words: Int)
     case floatingPoint
@@ -10,18 +10,18 @@ enum ABIClass: Sendable {
     case indirect
 }
 
-enum DirectValueRegister: Equatable, Sendable {
+package enum DirectValueRegister: Equatable, Sendable {
     case gp
     case fp
 }
 
-struct DirectValuePart: Sendable {
-    let register: DirectValueRegister
-    let offset: Int
-    let byteCount: Int
+package struct DirectValuePart: Sendable {
+    package let register: DirectValueRegister
+    package let offset: Int
+    package let byteCount: Int
 
     /// Loads this part's bytes from in-memory value storage into a register word.
-    func load(from source: UnsafeRawPointer) -> UInt64 {
+    package func load(from source: UnsafeRawPointer) -> UInt64 {
         precondition(
             byteCount <= MemoryLayout<UInt64>.size,
             "[TestDoubles] A scalar register word cannot load a wider vector value."
@@ -48,7 +48,7 @@ struct DirectValuePart: Sendable {
     }
 
     /// Stores a register word into this part's bytes of in-memory value storage.
-    func store(_ value: UInt64, into destination: UnsafeMutableRawPointer) {
+    package func store(_ value: UInt64, into destination: UnsafeMutableRawPointer) {
         precondition(
             byteCount <= MemoryLayout<UInt64>.size,
             "[TestDoubles] A scalar register word cannot store a wider vector value."
@@ -83,7 +83,7 @@ struct DirectValuePart: Sendable {
     }
 }
 
-func abiClass(for type: Any.Type, isReturn: Bool = false) -> ABIClass {
+package func abiClass(for type: Any.Type, isReturn: Bool = false) -> ABIClass {
     let metadata = reflect(type)
     let size = metadata.vwt.size
     if size == 0 {
@@ -116,7 +116,7 @@ func abiClass(for type: Any.Type, isReturn: Bool = false) -> ABIClass {
 /// excluded as well (`scalarCount * scalar stride` falls short of the 16-byte
 /// storage size) so this boundary transports only complete lane payloads with
 /// no unspecified bytes.
-func concreteSIMDRegisterByteCount(for type: Any.Type) -> Int? {
+package func concreteSIMDRegisterByteCount(for type: Any.Type) -> Int? {
     guard let simdType = type as? any SIMD.Type else { return nil }
     return _openExistential(simdType, do: openedConcreteSIMDRegisterByteCount)
 }
@@ -130,7 +130,7 @@ private func openedConcreteSIMDRegisterByteCount<T: SIMD>(_: T.Type) -> Int? {
     return size
 }
 
-func directArgumentParts(for type: Any.Type) -> [DirectValuePart]? {
+package func directArgumentParts(for type: Any.Type) -> [DirectValuePart]? {
     let metadata = reflect(type)
     guard metadata.vwt.size <= 4 * MemoryLayout<UInt>.size,
         let parts = directReturnParts(for: type),
@@ -193,7 +193,7 @@ private func containsFunctionStorage(_ type: Any.Type) -> Bool {
     return containsFunctionStorage(type, visited: &visited)
 }
 
-func directReturnParts(for type: Any.Type) -> [DirectValuePart]? {
+package func directReturnParts(for type: Any.Type) -> [DirectValuePart]? {
     if let byteCount = concreteSIMDRegisterByteCount(for: type) {
         return [
             DirectValuePart(

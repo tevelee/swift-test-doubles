@@ -2,8 +2,8 @@ import CTestDoublesTrampoline
 import Echo
 
 /// Owns the retain/release contract for Swift's heap-allocated error objects.
-enum SwiftErrorTransport {
-    static func encode(
+package enum SwiftErrorTransport {
+    package static func encode(
         _ error: any Error,
         into frame: TrampolineCallFrame
     ) {
@@ -11,7 +11,7 @@ enum SwiftErrorTransport {
         frame.storeReturnError(retainedPointer(to: error))
     }
 
-    static func take(_ address: UInt) -> any Error {
+    package static func take(_ address: UInt) -> any Error {
         guard let errorObject = UnsafeRawPointer(bitPattern: address) else {
             preconditionFailure(
                 "[TestDoubles] Dynamic closure returned an invalid error."
@@ -43,7 +43,7 @@ enum SwiftErrorTransport {
         return error
     }
 
-    static func encodeTyped(
+    package static func encodeTyped(
         _ error: Any,
         expectedType: Any.Type,
         layout: ABIClass,

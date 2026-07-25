@@ -4,14 +4,14 @@ import Echo
 /// Owns one dynamic call frame and its optional result/error value buffers.
 /// Buffer state prevents failure paths from destroying uninitialized memory
 /// and prevents moved values from being destroyed a second time.
-final class ManagedDynamicCall: @unchecked Sendable {
-    let rawFrame: UnsafeMutablePointer<TDCallFrame>
-    let result: ManagedValueBuffer
-    let error: ManagedValueBuffer?
+package final class ManagedDynamicCall: @unchecked Sendable {
+    package let rawFrame: UnsafeMutablePointer<TDCallFrame>
+    package let result: ManagedValueBuffer
+    package let error: ManagedValueBuffer?
 
-    var frame: TrampolineCallFrame { TrampolineCallFrame(rawFrame) }
+    package var frame: TrampolineCallFrame { TrampolineCallFrame(rawFrame) }
 
-    init(resultType: Any.Type, errorType: Any.Type?) {
+    package init(resultType: Any.Type, errorType: Any.Type?) {
         rawFrame = .allocate(capacity: 1)
         UnsafeMutableRawPointer(rawFrame).initializeMemory(
             as: UInt8.self,
@@ -25,7 +25,7 @@ final class ManagedDynamicCall: @unchecked Sendable {
     /// Completes the ownership transition for values returned through the
     /// captured frame. Direct values are copied out of return registers;
     /// indirect values already occupy their caller-provided buffers.
-    func finish(
+    package func finish(
         resultLayout: ABIClass,
         typedErrorLayout: ABIClass?,
         typedErrorUsesIndirectResultSlot: Bool

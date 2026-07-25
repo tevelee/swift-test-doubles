@@ -78,3 +78,4 @@ struct ManualMethodCatalog {
         return "\(name)(\(matcherList))"
     }
 }
+import TestDoublesRuntime

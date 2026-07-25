@@ -73,3 +73,4 @@ private struct SIMDWrappingValue {
         }
     }
 }
+import TestDoublesRuntime

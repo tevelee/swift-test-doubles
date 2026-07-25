@@ -284,3 +284,4 @@ import TestDoublesFixtures
 /// exercise the "resolves the argument, then fails the conformance check"
 /// path rather than failing earlier at "can't even resolve this name."
 struct NotHashableProbe {}
+import TestDoublesRuntime

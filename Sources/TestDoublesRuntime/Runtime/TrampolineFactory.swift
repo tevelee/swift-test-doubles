@@ -1,7 +1,7 @@
 import CTestDoublesTrampoline
 
-enum TrampolineFactory {
-    enum Kind {
+package enum TrampolineFactory {
+    package enum Kind {
         case synchronous
         case asynchronous
         case modify
@@ -11,7 +11,7 @@ enum TrampolineFactory {
 
     /// Builds one fabricated witness graph's veneers before publishing all of
     /// its executable pages together.
-    final class Arena {
+    package final class Arena {
         private enum State {
             case building(OpaquePointer)
             case published(OpaquePointer)
@@ -32,7 +32,7 @@ enum TrampolineFactory {
 
         private var state: State
 
-        init?() {
+        package init?() {
             guard let rawArena = td_witness_veneer_arena_create() else {
                 return nil
             }
@@ -43,17 +43,17 @@ enum TrampolineFactory {
             destroy()
         }
 
-        var isPublished: Bool {
+        package var isPublished: Bool {
             guard case .published = state else { return false }
             return true
         }
 
-        var pageCount: Int {
+        package var pageCount: Int {
             guard let rawArena = state.rawArena else { return 0 }
             return Int(td_witness_veneer_arena_page_count(rawArena))
         }
 
-        func make(
+        package func make(
             kind: Kind,
             slot: Int,
             context: UnsafeRawPointer
@@ -97,7 +97,7 @@ enum TrampolineFactory {
             return pointer.map(UnsafeRawPointer.init)
         }
 
-        func makeTyped(
+        package func makeTyped(
             target: UnsafeRawPointer,
             invocation: UnsafeRawPointer,
             invocationArgumentIndex: Int
@@ -118,7 +118,7 @@ enum TrampolineFactory {
             ).map(UnsafeRawPointer.init)
         }
 
-        func publish() -> Bool {
+        package func publish() -> Bool {
             guard case .building(let rawArena) = state else {
                 return false
             }
@@ -130,7 +130,7 @@ enum TrampolineFactory {
             return true
         }
 
-        func destroy() {
+        package func destroy() {
             guard let rawArena = state.rawArena else { return }
             state = .destroyed
             td_witness_veneer_arena_destroy(rawArena)

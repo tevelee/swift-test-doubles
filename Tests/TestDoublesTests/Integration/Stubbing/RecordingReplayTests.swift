@@ -170,3 +170,4 @@ private final class SequencedResponder: @unchecked Sendable {
         }
     }
 #endif
+import TestDoublesRuntime

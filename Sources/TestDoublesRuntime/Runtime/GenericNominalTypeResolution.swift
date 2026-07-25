@@ -1,13 +1,23 @@
 import Echo
 
-struct GenericClassID: Equatable, Sendable {
-    let name: String
-    let descriptorAddress: UInt
+package struct GenericClassID: Equatable, Sendable {
+    package let name: String
+    package let descriptorAddress: UInt
+
+    package init(name: String, descriptorAddress: UInt) {
+        self.name = name
+        self.descriptorAddress = descriptorAddress
+    }
 }
 
-struct ResolvedGenericClassType: Sendable {
-    let type: Any.Type
-    let constructor: GenericClassID
+package struct ResolvedGenericClassType: Sendable {
+    package let type: Any.Type
+    package let constructor: GenericClassID
+
+    package init(type: Any.Type, constructor: GenericClassID) {
+        self.type = type
+        self.constructor = constructor
+    }
 }
 
 /// Instantiates a public generic nominal type without requiring its source or
@@ -15,7 +25,7 @@ struct ResolvedGenericClassType: Sendable {
 /// type-metadata key arguments when the context needs nothing else, or the
 /// witness-table-extended path when a parameter carries a protocol
 /// requirement, before falling back to failing closed.
-func genericNominalType(named name: String) -> Any.Type? {
+package func genericNominalType(named name: String) -> Any.Type? {
     guard let application = genericApplication(name) else {
         return nil
     }
@@ -199,7 +209,7 @@ private func callConstrainedGenericAccessor(
 /// for any kind; this only ever declines a class whose accessor needs more
 /// than one or two key arguments' worth of parameters, or a constructor
 /// whose accessor doesn't actually round-trip to a class.
-func genericClassType(
+package func genericClassType(
     named constructorName: String,
     arguments: [Any.Type]
 ) -> ResolvedGenericClassType? {
@@ -295,7 +305,7 @@ private func callGenericAccessor(
     }
 }
 
-func genericApplication(
+package func genericApplication(
     _ name: String
 ) -> (constructor: String, arguments: String)? {
     guard name.last == ">" else { return nil }

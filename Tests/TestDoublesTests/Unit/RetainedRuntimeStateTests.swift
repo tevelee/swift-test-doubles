@@ -32,3 +32,4 @@ struct RetainedRuntimeStateTests {
         #expect(weakState == nil)
     }
 }
+import TestDoublesRuntime

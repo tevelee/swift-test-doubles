@@ -52,3 +52,4 @@ import Testing
         #expect(topLevelComponents(in: "Swift.Int], Swift.String") == nil)
     }
 }
+import TestDoublesRuntime

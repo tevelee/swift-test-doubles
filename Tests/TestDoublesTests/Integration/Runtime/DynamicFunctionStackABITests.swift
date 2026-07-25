@@ -125,3 +125,4 @@ private struct DynamicFunctionABIPair: Sendable {
         )
     }
 }
+import TestDoublesRuntime
