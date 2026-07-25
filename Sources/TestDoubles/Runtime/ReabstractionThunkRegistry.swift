@@ -152,18 +152,46 @@ private let collectReabstractionThunk:
         return true
     }
 
-private struct ReabstractionPair {
+struct ReabstractionPair {
     let sourceIsGeneric: Bool
     let source: LoweredFunctionSyntax
     let target: LoweredFunctionSyntax
 }
 
 private let reabstractionPrefix =
-    "partial apply forwarder for reabstraction thunk helper from "
+    "partial apply forwarder for reabstraction thunk helper "
 
-private func reabstractionPair(in demangled: String) -> ReabstractionPair? {
-    guard demangled.hasPrefix(reabstractionPrefix) else { return nil }
-    let body = demangled.dropFirst(reabstractionPrefix.count)
+/// When the thunk itself carries its own generic signature, NodePrinter.cpp
+/// inserts `"<...> "` between `"helper "` and `"from "`
+/// (e.g. `"...helper <A> from @callee_guaranteed (...) -> (...) to ..."`).
+func bodyAfterHelper(in demangled: Substring) -> Substring? {
+    // Re-derive a String so DelimitedSyntaxScanner's indices line up with
+    // `text`'s own storage -- `demangled`'s indices, taken from whatever
+    // larger string it was sliced from, aren't valid offsets into a fresh
+    // `String(demangled)` copy.
+    let text = String(demangled)
+    if text.first == "<" {
+        guard let scanner = DelimitedSyntaxScanner(text),
+            let closing = scanner.matchingClosingDelimiter(openingAt: text.startIndex)
+        else {
+            return nil
+        }
+        let afterGenerics = text[text.index(after: closing)...]
+        guard afterGenerics.hasPrefix(" from ") else { return nil }
+        return afterGenerics.dropFirst(" from ".count)
+    }
+    guard text.hasPrefix("from ") else { return nil }
+    return text[text.index(text.startIndex, offsetBy: "from ".count)...]
+}
+
+func reabstractionPair(in demangled: String) -> ReabstractionPair? {
+    guard demangled.hasPrefix(reabstractionPrefix),
+        let body = bodyAfterHelper(
+            in: demangled.dropFirst(reabstractionPrefix.count)
+        )
+    else {
+        return nil
+    }
     guard let separator = body.range(of: " to ", options: .backwards) else { return nil }
     guard let source = LoweredFunctionSyntax(String(body[..<separator.lowerBound])),
         let target = LoweredFunctionSyntax(String(body[separator.upperBound...]))
