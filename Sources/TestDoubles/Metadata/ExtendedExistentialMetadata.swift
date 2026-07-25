@@ -54,7 +54,7 @@ func inspectStubProtocolMetadata(
 ) throws -> StubProtocolMetadata {
     let metadata = unsafeBitCast(type, to: UnsafeRawPointer.self)
     switch metadata.load(as: UInt.self) {
-        case 0x303:
+        case MetadataKindValue.existential:
             guard let existential = reflect(type) as? ExistentialMetadata else {
                 throw StubError.typeIsNotProtocol(typeDescription: typeDescription)
             }
@@ -67,11 +67,22 @@ func inspectStubProtocolMetadata(
                 specialProtocol: existential.flags.specialProtocol,
                 associatedTypeBindings: []
             )
-        case 0x307:
+        case MetadataKindValue.extendedExistential:
             return try inspectExtendedExistential(metadata, typeDescription: typeDescription)
         default:
             throw StubError.typeIsNotProtocol(typeDescription: typeDescription)
     }
+}
+
+/// Runtime `MetadataKind` raw values, grounded in swiftlang/swift's
+/// `include/swift/ABI/MetadataKind.def`. These are the first word of a type's
+/// metadata record; only the two existential kinds this file inspects are
+/// listed here.
+private enum MetadataKindValue {
+    /// `Existential` = `3 | MetadataKindIsRuntimePrivate | MetadataKindIsNonHeap`.
+    static let existential: UInt = 0x303
+    /// `ExtendedExistential` = `7 | …IsRuntimePrivate | …IsNonHeap`.
+    static let extendedExistential: UInt = 0x307
 }
 
 private struct GenericSignatureHeader {
