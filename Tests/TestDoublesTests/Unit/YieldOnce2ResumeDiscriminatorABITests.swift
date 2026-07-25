@@ -218,7 +218,7 @@ import Testing
             )
         }
 
-        /// Compiles a minimal Swift 6.3 `read` or `_modify` accessor yielding
+        /// Compiles a minimal Swift 6.3 `read` or `modify` accessor yielding
         /// this probe's type, asks a live `xcrun swiftc` for its arm64e
         /// assembly, and extracts the resume-authentication discriminator the
         /// compiler embedded -- mirroring `compile_swift_63_read_probe` /
@@ -249,6 +249,14 @@ import Testing
                         }
                         """
                 case .modify:
+                    // The conforming struct's own accessor must use the new
+                    // `modify` keyword, not legacy `_modify`: the latter
+                    // compiles to the ordinary yield_once convention (the
+                    // fixed OpaqueModifyResumeFunction discriminator) for the
+                    // struct's own accessor, which sits alongside -- and, as
+                    // the first pacia site in the file, was mistaken by
+                    // extractARM64EResumeDiscriminator for -- the protocol
+                    // requirement's real yield_once_2 witness thunk discriminator.
                     source = """
                         \(auxiliaryDeclaration)
 
@@ -266,7 +274,7 @@ import Testing
                           public var value: \(typeSpelling) {
                             get { storage }
                             set { storage = newValue }
-                            _modify { yield &storage }
+                            modify { yield &storage }
                           }
                         }
                         """
