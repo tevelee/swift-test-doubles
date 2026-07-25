@@ -1,7 +1,7 @@
 # Trampoline Architecture
 
 See how one fixed runtime trampoline dispatches arbitrary supported protocol
-witness calls to a stub recorder.
+witness calls through the public test-double semantics.
 
 ## Overview
 
@@ -13,6 +13,12 @@ state expected by the caller.
 
 This design keeps the package small: TestDoubles does not emit Swift source,
 compile a conformer, or generate a matrix of typed thunks for each protocol.
+The public library owns recorder semantics and diagnostics. Its internal
+`TestDoublesRuntime` target owns the ABI-sensitive metadata, fabricated
+witnesses, trampoline callbacks, and raw value transport; it receives semantic
+decisions through a package-scoped endpoint rather than depending on a
+recorder. Echo reflection and the C/assembly trampoline are dependencies of
+that runtime target only.
 
 ### Construction
 

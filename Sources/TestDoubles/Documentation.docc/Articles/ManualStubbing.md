@@ -152,6 +152,10 @@ func load(_ id: Int) throws(ServiceError) -> Item {
 ManualStub is ordinary Swift. It avoids runtime metadata, witness table
 patching, and runtime code generation entirely.
 
+It also stays outside the internal runtime implementation: manual forwarding
+talks only to TestDoubles' recording semantics, never to Echo reflection,
+fabricated witness tables, executable trampolines, or ABI frame types.
+
 That makes it the best fit for:
 
 - protocols with requirement shapes the runtime trampoline doesn't cover

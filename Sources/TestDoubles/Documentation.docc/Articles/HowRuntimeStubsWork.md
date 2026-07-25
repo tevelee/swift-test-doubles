@@ -16,6 +16,15 @@ calls. A trampoline connects the two worlds: it receives a protocol witness
 call in Swift's native calling convention and turns it into a recorder
 operation that can match arguments, run a handler, and return a value.
 
+The product keeps those responsibilities in separate internal layers.
+`TestDoubles` owns the recorder, matching, verification, and public
+diagnostics. `TestDoublesRuntime` owns protocol metadata inspection, witness
+fabrication, ABI decoding and encoding, and callback lifetime. The runtime
+asks a package-scoped semantic endpoint what the recorder decided, but it does
+not depend on recorder or public test-double types. The C and assembly
+trampoline plus Swift runtime reflection sit below that runtime layer. This
+keeps public test semantics independent from the compiler-coupled machinery.
+
 The complete path looks like this:
 
 ```text
@@ -23,9 +32,9 @@ protocol call
     → fabricated witness table
     → per-requirement veneer
     → shared assembly trampoline
-    → Swift decoder and recorder
-    → configured behavior
-    → Swift encoder
+    → runtime decoder and semantic endpoint
+    → configured behavior or forwarding decision
+    → runtime encoder
     → original caller
 ```
 

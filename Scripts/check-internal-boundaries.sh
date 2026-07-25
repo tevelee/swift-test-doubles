@@ -30,6 +30,7 @@ check_absent() {
 check_single_declaration() {
   local type_name="$1"
   local expected_file="$2"
+  shift 2
   local pattern
   pattern="^[[:space:]]*((public|package|internal|fileprivate|private|final|indirect)[[:space:]]+)*(class|struct|enum|actor|protocol|typealias)[[:space:]]+${type_name}\\b"
 
@@ -38,7 +39,7 @@ check_single_declaration() {
     grep --recursive --extended-regexp --files-with-matches \
       --include='*.swift' \
       "$pattern" \
-      Sources/TestDoubles
+      "$@"
   )"; then
     :
   else
@@ -61,46 +62,54 @@ check_single_declaration() {
 }
 
 check_absent \
-  '^[[:space:]]*(public[[:space:]]+)?extension[[:space:]]+Stub\.Requirement\b' \
-  'Runtime must not extend Stub.Requirement:' \
-  Sources/TestDoubles/Runtime
+  '^[[:space:]]*(@_exported[[:space:]]+)?import[[:space:]]+(Echo|CTestDoublesTrampoline)\b' \
+  'The public TestDoubles target must not import low-level dependencies:' \
+  Sources/TestDoubles
 
 check_absent \
-  '^[[:space:]]*public[[:space:]]+(final[[:space:]]+)?(class|struct|enum|actor|protocol|typealias)[[:space:]]+Invocation\b' \
-  'Runtime must not define a public Invocation type:' \
-  Sources/TestDoubles/Runtime
+  '^[[:space:]]*@_exported[[:space:]]+import\b' \
+  'The runtime must not re-export implementation dependencies:' \
+  Sources/TestDoublesRuntime
 
 check_absent \
-  '\bStubResources\b' \
-  'Metadata and Recording must not depend on concrete StubResources:' \
-  Sources/TestDoubles/Metadata \
-  Sources/TestDoubles/Recording
+  '\b(StubRecorder|StubError|Dummy|Spy|IssueReporting)\b' \
+  'Runtime must not depend on TestDoubles semantic or diagnostic types:' \
+  Sources/TestDoublesRuntime
 
 check_absent \
-  '^[[:space:]]*((public|package|internal|fileprivate|private|final|indirect)[[:space:]]+)*(class|struct|enum|actor|protocol|typealias)[[:space:]]+StubPayload\b' \
-  'StubPayload must be declared outside Runtime:' \
-  Sources/TestDoubles/Runtime
+  '^[[:space:]]*import[[:space:]]+(TestDoublesRuntime|Echo|CTestDoublesTrampoline)\b' \
+  'ManualStub must remain a source-level semantic API:' \
+  Sources/TestDoubles/Doubles/ManualStub.swift
 
 check_absent \
-  '\bStub<' \
-  'Runtime must not depend on the generic Stub preparation coordinator:' \
-  Sources/TestDoubles/Runtime
+  '\b(MethodDescriptor|ABIClass|Trampoline|WitnessTable)\b' \
+  'ManualStub must not name runtime ABI or trampoline implementation types:' \
+  Sources/TestDoubles/Doubles/ManualStub.swift
 
 check_single_declaration \
-  'StubPayload' \
-  'Sources/TestDoubles/Metadata/StubPayload.swift'
+  'FabricatedPayload' \
+  'Sources/TestDoublesRuntime/Metadata/FabricatedPayload.swift' \
+  Sources/TestDoublesRuntime
 
 check_single_declaration \
   'StubExistentialRepresentation' \
-  'Sources/TestDoubles/Metadata/StubExistentialRepresentation.swift'
+  'Sources/TestDoublesRuntime/Metadata/StubExistentialRepresentation.swift' \
+  Sources/TestDoublesRuntime
 
 check_single_declaration \
   'LinkedWitnessTableGraph' \
-  'Sources/TestDoubles/Metadata/LinkedWitnessTableGraph.swift'
+  'Sources/TestDoublesRuntime/Metadata/LinkedWitnessTableGraph.swift' \
+  Sources/TestDoublesRuntime
 
 check_single_declaration \
   'ProtocolWitnessTableLayout' \
-  'Sources/TestDoubles/Metadata/ProtocolWitnessTableLayout.swift'
+  'Sources/TestDoublesRuntime/Metadata/ProtocolWitnessTableLayout.swift' \
+  Sources/TestDoublesRuntime
+
+check_single_declaration \
+  'MethodDescriptor' \
+  'Sources/TestDoublesRuntime/Metadata/MethodDescriptor.swift' \
+  Sources/TestDoublesRuntime
 
 if [[ "$failure" -ne 0 ]]; then
   exit 1
