@@ -129,7 +129,8 @@ vocabulary and the values stay diff-able against swiftlang/swift. Commit-by-comm
    fully specified for a future edit made on real arm64e hardware with an
    execution test, without shipping unverifiable ptrauth assembly.
 
-3. **CI discriminator cross-checks — RESOLVED, then strengthened.**
+3. **CI discriminator cross-checks — RESOLVED and strengthened, and it found a
+   real, still-open discrepancy.**
    `check-swift-abi-constants.sh` pins every hardcoded discriminator in the
    header to its documented `SpecialPointerAuthDiscriminators` value (the four
    CoroAllocator values, the shape and async-context values, the modify-resume
@@ -140,18 +141,35 @@ vocabulary and the values stay diff-able against swiftlang/swift. Commit-by-comm
    `Tests/TestDoublesTests/Unit/YieldOnce2ResumeDiscriminatorABITests.swift`,
    which calls the actual shipped `YieldingAccessorRuntime.resumeDiscriminator`
    (`@testable`) and cross-checks it against a live `xcrun swiftc`'s arm64e
-   codegen for four distinct yield shapes: two non-generic structs with
-   different mangled names (`Int`, `Bool`), a class reference (the constant
-   `-class` spelling), and a 64-byte struct (the formally indirect result
-   path, which bypasses `pointerAuthTypeSpelling` entirely and was previously
-   completely unchecked). `resumeDiscriminator(for:)` was split to expose a
-   pure `resumeDiscriminator(isIndirect:returnType:)` core so the test can
-   drive it without constructing a full `MethodDescriptor`. The suite
-   self-gates on the same live-Swift-6.3 requirement the bash script checks,
-   and is a no-op off Apple platforms. On arm64 CI the accessor tests can't
-   catch a wrong discriminator (no active ptrauth), so this is the first
-   automated check of the library's spelling model against the compiler
-   itself, not against another copy of the same assumption.
+   codegen. `resumeDiscriminator(for:)` was split to expose a pure
+   `resumeDiscriminator(isIndirect:returnType:)` core so the test can drive it
+   without constructing a full `MethodDescriptor`. The suite self-gates on the
+   same live-Swift-6.3 requirement the bash script checks, and is a no-op off
+   Apple platforms.
+
+   Three of four probed yield shapes are **confirmed correct** against the
+   live compiler: two non-generic structs with different mangled names (`Int`,
+   `Bool`) and a class reference (the constant `-class` spelling). The fourth
+   -- a 64-byte struct exercising the *formally indirect* result path, which
+   bypasses `pointerAuthTypeSpelling` entirely -- **does not match**: the
+   compiler emits discriminator `33953`; the library's bare `"indirect"`
+   spelling computes `16775`. The next most plausible fix, `"-indirect"`
+   (matching the leading-dash convention `pointerAuthFunctionSpelling` uses
+   for an indirect *parameter*), also does not match (`64687`, checked
+   directly against `td_function_discriminator`, not against a compiler). This
+   is an unresolved, genuinely open question, not a guessed-and-verified fix
+   -- it needs either the real IRGen source for `yield_once_2`'s
+   `PointerAuthEntity` scheme, or a compiler transcript (`-emit-sil` /
+   `-emit-ir`) for a witness with a truly indirect yield, to resolve. It is
+   tracked as `indirectYieldDiscriminatorIsAKnownOpenDiscrepancy`, wrapped in
+   `withKnownIssue` so it stays visible (and will itself fail, loudly, the
+   moment a future fix makes it start passing) without blocking CI. This
+   branch had zero live-compiler coverage before this suite existed; it still
+   has none that passes, but the gap is now precisely characterized instead of
+   silently assumed correct. On arm64 CI the accessor tests can't catch a
+   wrong discriminator at all (no active ptrauth), so this is the first
+   evidence, in either direction, about the library's indirect-yield spelling
+   model.
 
 4. **`swift_deletedCalleeAllocatedCoroutineMethodErrorTwc` weak shim — RETAINED,
    with recheck note.** Still required: Apple Swift 6.3's dead-method elimination
