@@ -353,6 +353,11 @@ private func resolveRelativeDirectPointer(
     field + Int(field.load(as: Int32.self))
 }
 
+/// Matches `RelativeIndirectablePointer<T>::get()`
+/// (include/swift/Basic/RelativePointer.h): mask the low bit off the stored
+/// offset to get `this + offset`; a set low bit means that address itself
+/// holds the real pointer (one more dereference), clear means it already is
+/// the real pointer.
 private func resolveRelativeIndirectablePointer(
     at field: UnsafeRawPointer
 ) -> UnsafeRawPointer {
