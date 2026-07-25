@@ -2,9 +2,10 @@ struct ResolvedFabricatedInvocation {
     let slot: Int
     let target: FabricatedInvocationTarget
     let recorder: StubRecorder
+    let endpoint: StubRecorderInvocationEndpoint
     let runtimeMethod: PreparedRuntimeMethod?
 
-    var forwarder: (any ProtocolForwarding)? { target.forwarder }
+    var forwarder: (any RuntimeForwarding)? { target.forwarder }
 
     static func resolve(
         in frame: TrampolineCallFrame
@@ -18,6 +19,12 @@ struct ResolvedFabricatedInvocation {
             slot: frame.slot,
             target: target,
             recorder: target.recorderOrReject(slot: frame.slot),
+            endpoint: {
+                guard case .stub(let invocation) = target else {
+                    preconditionFailure("[TestDoubles] Dummy invocation did not reject.")
+                }
+                return invocation.endpoint
+            }(),
             runtimeMethod: target.method(at: frame.slot)
         )
     }

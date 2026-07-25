@@ -1,26 +1,26 @@
 import CTestDoublesTrampoline
 
 /// Distinguishes retained coroutine states that otherwise share one lifecycle.
-enum YieldingAccessorKind: Equatable {
+package enum YieldingAccessorKind: Equatable {
     case read
     case modify
 }
 
-protocol YieldingAccessorState: AnyObject, Sendable {
+package protocol YieldingAccessorState: AnyObject, Sendable {
     var kind: YieldingAccessorKind { get }
     var yieldedStorage: UnsafeMutableRawPointer? { get }
     func finish(isAborting: Bool)
 }
 
 /// Centralizes the retain/consume boundary shared by `_read` and `_modify`.
-enum YieldingAccessorRuntime {
-    static func retain(
+package enum YieldingAccessorRuntime {
+    package static func retain(
         _ state: any YieldingAccessorState
     ) -> UnsafeMutableRawPointer {
         RetainedRuntimeState.retain(state as AnyObject)
     }
 
-    static func finish(
+    package static func finish(
         _ rawState: UnsafeMutableRawPointer,
         as expectedKind: YieldingAccessorKind,
         isAborting: Bool,
@@ -43,7 +43,7 @@ enum YieldingAccessorRuntime {
     /// witness. `read` can yield either directly (small, non-generic
     /// results) or indirectly (everything else), so the shape is derived
     /// from the getter's own value-size ABI classification.
-    static func readResumeDiscriminator(for method: MethodDescriptor) -> UInt16? {
+    package static func readResumeDiscriminator(for method: MethodDescriptor) -> UInt16? {
         let isIndirect: Bool
         switch method.result.layout {
             case .indirect:
@@ -60,7 +60,7 @@ enum YieldingAccessorRuntime {
     /// yield is unconditionally indirect, and `method.result.layout`'s
     /// value-size classification (which only describes how the *getter*
     /// returns the value) does not apply here.
-    static func modifyResumeDiscriminator(for method: MethodDescriptor) -> UInt16? {
+    package static func modifyResumeDiscriminator(for method: MethodDescriptor) -> UInt16? {
         resumeDiscriminator(isIndirect: true, returnType: method.returnType)
     }
 
@@ -82,7 +82,7 @@ enum YieldingAccessorRuntime {
     /// against a live Swift 6.3 compiler: `"yield_once_2:1:inout:"` hashes to
     /// the exact discriminator (33953) the compiler emits both for a
     /// formally indirect `read` and for every `modify` witness.
-    static func resumeDiscriminator(
+    package static func resumeDiscriminator(
         isIndirect: Bool,
         returnType: Any.Type
     ) -> UInt16? {
@@ -102,97 +102,3 @@ enum YieldingAccessorRuntime {
         }
     }
 }
-
-enum SynchronousAccessorRole {
-    case read
-    case modify
-
-    fileprivate var queuedResultDescription: String {
-        switch self {
-            case .read: "read"
-            case .modify: "_modify"
-        }
-    }
-
-    fileprivate var dispatchDescription: String {
-        switch self {
-            case .read: "read"
-            case .modify: "_modify"
-        }
-    }
-
-    fileprivate var dispatchThrowDescription: String {
-        switch self {
-            case .read: "read accessor"
-            case .modify: "_modify getter"
-        }
-    }
-
-    fileprivate var behaviorThrowDescription: String {
-        switch self {
-            case .read: "read accessor"
-            case .modify: "_modify accessor"
-        }
-    }
-}
-
-/// Evaluates synchronous accessor handlers and validates their dynamic result
-/// before either coroutine constructs yielded storage.
-enum SynchronousAccessorDispatch {
-    static func dispatch(
-        method: MethodDescriptor,
-        arguments: [Any],
-        recorder: StubRecorder,
-        role: SynchronousAccessorRole
-    ) -> Any {
-        func opened<Result>(_ type: Result.Type) -> Any {
-            do {
-                return try recorder.dispatchTyped(
-                    method: method,
-                    args: arguments,
-                    as: type
-                )
-            } catch {
-                fatalError(
-                    "[TestDoubles] A nonthrowing \(role.dispatchThrowDescription) handler threw \(error)."
-                )
-            }
-        }
-        return _openExistential(method.returnType, do: opened)
-    }
-
-    static func evaluate(
-        _ behavior: StubRecorder.StubEntry.Behavior,
-        method: MethodDescriptor,
-        arguments: [Any],
-        role: SynchronousAccessorRole
-    ) -> Any {
-        let result: Any
-        do {
-            switch behavior {
-                case .fixed(let fixedResult):
-                    result = try fixedResult.get()
-                case .fixedSequence:
-                    preconditionFailure(
-                        "[TestDoubles] A queued \(role.queuedResultDescription) result was not reserved during dispatch."
-                    )
-                case .immediate(let handler):
-                    result = try handler(arguments)
-                case .suspending:
-                    fatalError(
-                        "[TestDoubles] A suspending handler was selected for synchronous \(role.dispatchDescription) dispatch of \(method.name)."
-                    )
-            }
-        } catch {
-            fatalError(
-                "[TestDoubles] A nonthrowing \(role.behaviorThrowDescription) handler threw \(error)."
-            )
-        }
-
-        func opened<Result>(_ type: Result.Type) -> Any {
-            requireStubbedResult(result, as: type, method: method.name)
-        }
-        return _openExistential(method.returnType, do: opened)
-    }
-}
-import TestDoublesRuntime

@@ -1,6 +1,6 @@
 import CTestDoublesTrampoline
 
-protocol ProtocolForwarding: AnyObject, Sendable {
+package protocol RuntimeForwarding: AnyObject, Sendable {
     func forward(_ method: MethodDescriptor, frame: TrampolineCallFrame)
     func makeModifyState(
         for method: MethodDescriptor,
@@ -16,11 +16,11 @@ protocol ProtocolForwarding: AnyObject, Sendable {
     ) -> any AsyncTrampolineDispatchState
 }
 
-final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
+package final class ProtocolForwarder<P>: RuntimeForwarding, @unchecked Sendable {
     private let target: ForwardingTarget<P>
     private let plans: ProtocolForwardingPlans
 
-    init(
+    package init(
         target: ForwardingTarget<P>,
         methods: [MethodDescriptor],
         layout: ProtocolLayout
@@ -33,7 +33,7 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
         ).build()
     }
 
-    func forward(_ method: MethodDescriptor, frame: TrampolineCallFrame) {
+    package func forward(_ method: MethodDescriptor, frame: TrampolineCallFrame) {
         let plan = prepareCall(method, frame: frame)
         precondition(
             plan.isAsync == false,
@@ -63,7 +63,7 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
         )
     }
 
-    func makeReadState(
+    package func makeReadState(
         for method: MethodDescriptor,
         frame: TrampolineCallFrame
     ) -> any YieldingAccessorState {
@@ -80,7 +80,7 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
         )
     }
 
-    func makeModifyState(
+    package func makeModifyState(
         for method: MethodDescriptor,
         frame: TrampolineCallFrame
     ) -> any YieldingAccessorState {
@@ -97,7 +97,7 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
         )
     }
 
-    func makeAsyncState(
+    package func makeAsyncState(
         for method: MethodDescriptor,
         frame: TrampolineCallFrame
     ) -> any AsyncTrampolineDispatchState {
@@ -151,4 +151,3 @@ final class ProtocolForwarder<P>: ProtocolForwarding, @unchecked Sendable {
         return plan
     }
 }
-import TestDoublesRuntime

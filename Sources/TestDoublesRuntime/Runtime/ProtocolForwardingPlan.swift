@@ -1,4 +1,3 @@
-import TestDoublesRuntime
 import CTestDoublesTrampoline
 import Echo
 
@@ -84,7 +83,7 @@ struct ProtocolForwardingPlanBuilder<P> {
                 requirement.protocolDescriptor
             )
             guard let witnessTable = target.witnessTables[identifier] else {
-                throw StubError.unsupportedProtocolShape(
+                throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: protocolName,
                     reason: "The forwarding target is missing a witness table for requirement \(method.index)."
                 )
@@ -141,7 +140,7 @@ struct ProtocolForwardingPlanBuilder<P> {
                 layout.nodes.first(where: {
                     $0.readCoroutineRequirements.contains { $0.abi == .yieldOnce }
                 })?.descriptor.name ?? String(reflecting: P.self)
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
                 reason: "Forwarding Spy does not yet support Swift 6.4's paired legacy read and yielding-borrow witnesses. Use a Stub or a hand-written spy."
             )
@@ -153,7 +152,7 @@ struct ProtocolForwardingPlanBuilder<P> {
         protocolName: String
     ) throws {
         guard method.receiver == .instance, method.kind != .initializer else {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
                 reason: "Forwarding Spy supports instance requirements only; requirement \(method.index) uses a metatype receiver."
             )
@@ -161,7 +160,7 @@ struct ProtocolForwardingPlanBuilder<P> {
         try validateDynamicSelfBoundary(method, protocolName: protocolName)
         let concreteTypes = method.argumentTypes + [method.returnType]
         guard concreteTypes.allSatisfy({ !($0 is any SIMD.Type) }) else {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
                 reason: "Forwarding Spy does not yet support SIMD arguments or results in requirement \(method.index)."
             )
@@ -169,7 +168,7 @@ struct ProtocolForwardingPlanBuilder<P> {
         guard method.typedWitnessAdapterFactory == nil,
             concreteTypes.allSatisfy({ reflect($0).kind != .function })
         else {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
                 reason: "Forwarding Spy does not yet support function-valued arguments or results in requirement \(method.index)."
             )
@@ -190,7 +189,7 @@ struct ProtocolForwardingPlanBuilder<P> {
             method.typedWitnessAdapterFactory == nil,
             method.arguments.allSatisfy({ $0.ownership == .borrowed })
         else {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
                 reason:
                     "The _modify requirement at witness index \(modifyRequirement.witnessIndex) is outside the supported synchronous, nonthrowing borrowed-value forwarding ABI."
@@ -229,7 +228,7 @@ struct ProtocolForwardingPlanBuilder<P> {
                     let discriminator =
                         YieldingAccessorRuntime.modifyResumeDiscriminator(for: method)
                 else {
-                    throw StubError.unsupportedProtocolShape(
+                    throw RuntimeConstructionError.unsupportedProtocolShape(
                         protocolName: protocolName,
                         reason:
                             "The forwarding target's _modify witness at index \(modifyRequirement.witnessIndex) is not a supported yield_once_2 descriptor with a 32-byte caller frame."
@@ -280,7 +279,7 @@ struct ProtocolForwardingPlanBuilder<P> {
             let resumeDiscriminator =
                 YieldingAccessorRuntime.readResumeDiscriminator(for: method)
         else {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
                 reason:
                     "The read requirement at witness index \(readRequirement.witnessIndex) is outside the supported synchronous, nonthrowing borrowed-value forwarding ABI."
@@ -303,7 +302,7 @@ struct ProtocolForwardingPlanBuilder<P> {
             let entry = descriptorTarget.entry,
             descriptorTarget.callerFrameSize == 32
         else {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
                 reason:
                     "The forwarding target's read witness at index \(readRequirement.witnessIndex) is not a supported Swift 6.3 yield_once_2 descriptor with a 32-byte caller frame."
@@ -365,7 +364,7 @@ struct ProtocolForwardingPlanBuilder<P> {
                 td_strip_witness_function_pointer(signedFunction)
             }
         guard let function else {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
                 reason: "The forwarding target has a null witness for requirement \(method.index)."
             )
@@ -397,7 +396,7 @@ struct ProtocolForwardingPlanBuilder<P> {
         )
         guard let sources = transport.directForwardingOutgoingStackSources else {
             let limit = WitnessCallTransportPlan.maximumOutgoingStackWords
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
                 reason:
                     "Forwarding Spy requirement \(method.index) needs more outgoing stack transport than \(limit) words support. Use fewer arguments or a hand-written spy."
@@ -413,7 +412,7 @@ struct ProtocolForwardingPlanBuilder<P> {
         guard method.returnConvention != .selfType,
             method.returnConvention != .optionalSelf
         else {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
                 reason: "Forwarding Spy does not yet support dynamic Self results in requirement \(method.index)."
             )
@@ -424,7 +423,7 @@ struct ProtocolForwardingPlanBuilder<P> {
                     && $0.value.convention != .optionalSelf
             })
         else {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
                 reason: "Forwarding Spy does not support direct or Optional Self arguments in requirement \(method.index). Use an automatic Stub or a hand-written spy."
             )
@@ -445,7 +444,7 @@ struct ProtocolForwardingPlanBuilder<P> {
             let hiddenArgumentIndex =
                 transport.directForwardingHiddenArgumentIndex
         else {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
                 reason: "Forwarding Spy requirement \(method.index) uses stack arguments or leaves no registers for its target metadata and witness table. Use fewer arguments or a hand-written spy."
             )

@@ -1,45 +1,38 @@
 import Echo
 
 /// Synthesizes safe temporary results while a requirement is being recorded.
-enum RecordingResultEncoder {
-    static func encode(
+package enum RecordingResultEncoder {
+    package static func encode(
         for method: MethodDescriptor,
         arguments: [Any],
-        recorder: StubRecorder,
+        endpoint: any RuntimeInvocationEndpoint,
         into frame: TrampolineCallFrame
     ) {
-        if method.kind == .initializer {
-            DependentResultEncoder.encodeInitializer(
-                .success,
-                for: method,
-                recorder: recorder,
-                into: frame
-            )
-        } else if method.returnConvention == .selfType {
-            DependentResultEncoder.encodeDynamicSelf(
-                for: method,
-                recorder: recorder,
-                into: frame
-            )
-        } else if method.returnConvention == .optionalSelf {
-            DependentResultEncoder.encodeOptionalDynamicSelf(
-                .value,
-                for: method,
-                recorder: recorder,
-                into: frame
-            )
-        } else if let placeholder = RecordingReturnPlaceholderContext.box {
-            DependentResultEncoder.encode(
-                placeholder.value,
-                for: method,
-                into: frame
-            )
-        } else {
-            encodePlaceholder(
-                for: method,
-                arguments: arguments,
-                into: frame
-            )
+        switch endpoint.recordingResult(for: method, args: arguments) {
+            case .payload:
+                DependentResultEncoder.encodePayload(
+                    for: method,
+                    endpoint: endpoint,
+                    into: frame
+                )
+
+            case .nilPayload:
+                DependentResultEncoder.encodeOptionalPayload(
+                    .nilPayload,
+                    for: method,
+                    endpoint: endpoint,
+                    into: frame
+                )
+
+            case .value(let value):
+                DependentResultEncoder.encode(value, for: method, into: frame)
+
+            case .synthesize:
+                encodePlaceholder(
+                    for: method,
+                    arguments: arguments,
+                    into: frame
+                )
         }
     }
 
@@ -176,4 +169,3 @@ enum RecordingResultEncoder {
             + "for \(method.name)."
     }
 }
-import TestDoublesRuntime

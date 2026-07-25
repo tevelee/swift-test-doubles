@@ -1,10 +1,9 @@
-import TestDoublesRuntime
 import Echo
 
 /// Owns a concrete protocol existential at a stable address so its projected
 /// value and witness tables remain valid for every forwarded call.
-final class ForwardingTarget<P>: @unchecked Sendable {
-    let witnessTables: [ProtocolLayout.DescriptorID: WitnessTable]
+package final class ForwardingTarget<P>: @unchecked Sendable {
+    package let witnessTables: [ProtocolLayout.DescriptorID: WitnessTable]
 
     private let storage: UnsafeMutableRawPointer
     private let representation: StubExistentialRepresentation
@@ -12,7 +11,7 @@ final class ForwardingTarget<P>: @unchecked Sendable {
     private let objectPointer: UnsafeRawPointer?
     private let dynamicMetadata: UnsafeRawPointer
 
-    init(
+    package init(
         _ target: P,
         layout: ProtocolLayout,
         representation: StubExistentialRepresentation
@@ -53,7 +52,7 @@ final class ForwardingTarget<P>: @unchecked Sendable {
         guard MemoryLayout<P>.size >= expectedWordCount * MemoryLayout<UInt>.size else {
             storage.assumingMemoryBound(to: P.self).deinitialize(count: 1)
             storage.deallocate()
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: String(reflecting: P.self),
                 reason: "The forwarding target's existential storage does not contain the expected root witness tables."
             )

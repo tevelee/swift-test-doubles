@@ -33,50 +33,19 @@ final class DummyInvocation: Sendable {
     }
 }
 
-final class PreparedRuntimeMethod: Sendable {
-    let descriptor: MethodDescriptor
-    let consumingDecodingPlan: RuntimeArgumentDecodingPlan
-    let borrowedDecodingPlan: RuntimeArgumentDecodingPlan
-    let resultTransport: RuntimeResultTransportPlan
-    let asyncStackAdjustmentByteCount: Int?
-
-    init(_ descriptor: MethodDescriptor) {
-        self.descriptor = descriptor
-        let decodingTransport = WitnessCallTransportPlan(method: descriptor)
-        consumingDecodingPlan = RuntimeArgumentDecodingPlan.witness(
-            method: descriptor,
-            transport: decodingTransport,
-            consumeOwnedArguments: true
-        )
-        borrowedDecodingPlan = RuntimeArgumentDecodingPlan.witness(
-            method: descriptor,
-            transport: decodingTransport,
-            consumeOwnedArguments: false
-        )
-        resultTransport = RuntimeResultTransportPlan(
-            resultType: descriptor.returnType
-        )
-        asyncStackAdjustmentByteCount =
-            descriptor.isAsync
-            ? asyncWitnessStackPlan(
-                for: descriptor,
-                architecture: .current
-            ).stackAdjustmentByteCount
-            : nil
-    }
-}
-
 final class FabricatedStubInvocation: Sendable {
     let recorder: StubRecorder
-    let forwarder: (any ProtocolForwarding)?
+    let endpoint: StubRecorderInvocationEndpoint
+    let forwarder: (any RuntimeForwarding)?
     private let methods: [PreparedRuntimeMethod]
 
     init(
         recorder: StubRecorder,
         methodsByIndex: [Int: MethodDescriptor],
-        forwarder: (any ProtocolForwarding)?
+        forwarder: (any RuntimeForwarding)?
     ) {
         self.recorder = recorder
+        endpoint = StubRecorderInvocationEndpoint(recorder: recorder)
         self.forwarder = forwarder
         methods = (0 ..< methodsByIndex.count).map { index in
             guard let method = methodsByIndex[index] else {
@@ -107,7 +76,7 @@ enum FabricatedInvocationTarget: Sendable {
         }
     }
 
-    var forwarder: (any ProtocolForwarding)? {
+    var forwarder: (any RuntimeForwarding)? {
         guard case .stub(let invocation) = self else { return nil }
         return invocation.forwarder
     }

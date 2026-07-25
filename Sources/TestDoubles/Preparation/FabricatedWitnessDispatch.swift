@@ -9,7 +9,7 @@ enum FabricatedWitnessDispatch {
     case stub(
         recorder: StubRecorder,
         methodsByIndex: [Int: MethodDescriptor],
-        forwarder: (any ProtocolForwarding)?
+        forwarder: (any RuntimeForwarding)?
     )
     case dummy(DummyInvocation)
 

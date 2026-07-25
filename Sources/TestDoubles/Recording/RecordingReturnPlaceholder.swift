@@ -1,3 +1,5 @@
+import TestDoublesRuntime
+
 struct ClosureFailureTransport<Failure: Error>: Error {
     let error: Failure
 }

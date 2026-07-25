@@ -5,7 +5,7 @@ extension Stub {
         associatedTypeBindings: AssociatedTypeBindings,
         representation: StubExistentialRepresentation,
         methods: [MethodDescriptor],
-        forwarder: (any ProtocolForwarding)? = nil
+        forwarder: (any RuntimeForwarding)? = nil
     ) throws -> PreparedStub {
         let modifyDispatchDescriptors = try validate(
             methods: methods,

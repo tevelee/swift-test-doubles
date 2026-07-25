@@ -39,10 +39,11 @@ enum RuntimeTrampolineHandler {
     private struct Invocation {
         let target: FabricatedInvocationTarget
         let recorder: StubRecorder
+        let endpoint: StubRecorderInvocationEndpoint
         let runtimeMethod: PreparedRuntimeMethod
         let decodedArguments: DecodedArguments
 
-        var forwarder: (any ProtocolForwarding)? { target.forwarder }
+        var forwarder: (any RuntimeForwarding)? { target.forwarder }
         var method: MethodDescriptor { runtimeMethod.descriptor }
     }
 
@@ -55,7 +56,7 @@ enum RuntimeTrampolineHandler {
     {
         var frame: TDCallFrame
         let runtimeMethod: PreparedRuntimeMethod
-        let recorder: StubRecorder
+        let endpoint: StubRecorderInvocationEndpoint
         let args: [Any]
         let typedErrorDestination: UnsafeMutableRawPointer?
         let handler: ([Any]) async throws -> Any
@@ -63,13 +64,13 @@ enum RuntimeTrampolineHandler {
         init(
             frame: TDCallFrame,
             runtimeMethod: PreparedRuntimeMethod,
-            recorder: StubRecorder,
+            endpoint: StubRecorderInvocationEndpoint,
             decodedArguments: DecodedArguments,
             handler: @escaping ([Any]) async throws -> Any
         ) {
             self.frame = frame
             self.runtimeMethod = runtimeMethod
-            self.recorder = recorder
+            self.endpoint = endpoint
             self.args = decodedArguments.values
             self.typedErrorDestination =
                 decodedArguments.typedErrorDestination
@@ -85,7 +86,7 @@ enum RuntimeTrampolineHandler {
                     RuntimeResultEncoder.encodeDispatchResult(
                         result,
                         for: runtimeMethod,
-                        recorder: recorder,
+                        endpoint: endpoint,
                         into: frame
                     )
                 }
@@ -112,6 +113,7 @@ enum RuntimeTrampolineHandler {
             frame,
             forwarder: invocation.forwarder,
             recorder: invocation.recorder,
+            endpoint: invocation.endpoint,
             runtimeMethod: invocation.runtimeMethod,
             decodedArguments: invocation.decodedArguments
         )
@@ -119,8 +121,9 @@ enum RuntimeTrampolineHandler {
 
     private static func handle(
         _ frame: TrampolineCallFrame,
-        forwarder: (any ProtocolForwarding)?,
+        forwarder: (any RuntimeForwarding)?,
         recorder: StubRecorder,
+        endpoint: StubRecorderInvocationEndpoint,
         runtimeMethod: PreparedRuntimeMethod,
         decodedArguments: DecodedArguments
     ) {
@@ -139,7 +142,7 @@ enum RuntimeTrampolineHandler {
                 RuntimeResultEncoder.encodeRecordingResult(
                     for: method,
                     args: decodedArguments.values,
-                    recorder: recorder,
+                    endpoint: endpoint,
                     into: frame
                 )
                 return
@@ -196,7 +199,7 @@ enum RuntimeTrampolineHandler {
         RuntimeResultEncoder.encodeDispatchResult(
             result,
             for: runtimeMethod,
-            recorder: recorder,
+            endpoint: endpoint,
             into: frame
         )
     }
@@ -236,7 +239,7 @@ enum RuntimeTrampolineHandler {
                 RuntimeResultEncoder.encodeRecordingResult(
                     for: invocation.method,
                     args: invocation.decodedArguments.values,
-                    recorder: invocation.recorder,
+                    endpoint: invocation.endpoint,
                     into: frame
                 )
                 return nil
@@ -247,7 +250,7 @@ enum RuntimeTrampolineHandler {
                 RuntimeResultEncoder.encodeDispatchResult(
                     result,
                     for: invocation.runtimeMethod,
-                    recorder: invocation.recorder,
+                    endpoint: invocation.endpoint,
                     into: frame
                 )
                 return nil
@@ -268,7 +271,7 @@ enum RuntimeTrampolineHandler {
                 let state = AsyncDispatchState(
                     frame: frame.snapshot,
                     runtimeMethod: invocation.runtimeMethod,
-                    recorder: invocation.recorder,
+                    endpoint: invocation.endpoint,
                     decodedArguments: invocation.decodedArguments,
                     handler: handler
                 )
@@ -350,6 +353,7 @@ enum RuntimeTrampolineHandler {
         return Invocation(
             target: resolved.target,
             recorder: resolved.recorder,
+            endpoint: resolved.endpoint,
             runtimeMethod: runtimeMethod,
             decodedArguments: RuntimeArgumentDecoder.decode(
                 for: runtimeMethod,

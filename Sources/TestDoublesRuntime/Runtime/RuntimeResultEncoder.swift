@@ -1,10 +1,9 @@
-/// Applies requirement-level result policy before delegating to the ABI
-/// transports responsible for values and Swift errors.
-enum RuntimeResultEncoder {
-    static func encodeDispatchResult(
+/// Applies endpoint-selected result policy before delegating to ABI transports.
+package enum RuntimeResultEncoder {
+    package static func encodeDispatchResult(
         _ result: Any,
         for runtimeMethod: PreparedRuntimeMethod,
-        recorder: StubRecorder,
+        endpoint: any RuntimeInvocationEndpoint,
         into frame: TrampolineCallFrame
     ) {
         let method = runtimeMethod.descriptor
@@ -13,44 +12,28 @@ enum RuntimeResultEncoder {
             return
         }
         if method.kind == .initializer {
-            guard let outcome = result as? InitializerDispatchOutcome else {
-                preconditionFailure(
-                    "[TestDoubles] Initializer handlers must return an initializer outcome. "
-                        + "Configure this requirement with when(initializer: ...).thenInitialize(), "
-                        + "thenReturnNil(), or then { ... }."
-                )
-            }
-            DependentResultEncoder.encodeInitializer(
-                outcome,
+            DependentResultEncoder.encodeDependentResult(
+                endpoint.dependentResult(for: result, method: method),
                 for: method,
-                recorder: recorder,
+                endpoint: endpoint,
                 into: frame
             )
         } else if method.returnConvention == .selfType {
-            guard result is SelfResultDispatchOutcome else {
+            guard endpoint.dependentResult(for: result, method: method) == .payload else {
                 preconditionFailure(
-                    "[TestDoubles] Dynamic Self handlers must complete successfully. "
-                        + "Configure this requirement with "
-                        + "when(returningSelf: ...).thenReturnValue()."
+                    "[TestDoubles] A nonoptional runtime Self result cannot produce nil."
                 )
             }
-            DependentResultEncoder.encodeDynamicSelf(
+            DependentResultEncoder.encodePayload(
                 for: method,
-                recorder: recorder,
+                endpoint: endpoint,
                 into: frame
             )
         } else if method.returnConvention == .optionalSelf {
-            guard let outcome = result as? OptionalSelfResultDispatchOutcome else {
-                preconditionFailure(
-                    "[TestDoubles] Optional dynamic Self handlers must return a supported outcome. "
-                        + "Configure this requirement with when(returningOptionalSelf: ...)."
-                        + "thenReturnValue(), thenReturnNil(), or then { ... }."
-                )
-            }
-            DependentResultEncoder.encodeOptionalDynamicSelf(
-                outcome,
+            DependentResultEncoder.encodeOptionalPayload(
+                endpoint.dependentResult(for: result, method: method),
                 for: method,
-                recorder: recorder,
+                endpoint: endpoint,
                 into: frame
             )
         } else {
@@ -63,21 +46,21 @@ enum RuntimeResultEncoder {
         }
     }
 
-    static func encodeRecordingResult(
+    package static func encodeRecordingResult(
         for method: MethodDescriptor,
         args: [Any],
-        recorder: StubRecorder,
+        endpoint: any RuntimeInvocationEndpoint,
         into frame: TrampolineCallFrame
     ) {
         RecordingResultEncoder.encode(
             for: method,
             arguments: args,
-            recorder: recorder,
+            endpoint: endpoint,
             into: frame
         )
     }
 
-    static func encodeFailure(
+    package static func encodeFailure(
         _ error: any Error,
         for method: MethodDescriptor,
         typedErrorDestination: UnsafeMutableRawPointer?,
@@ -103,4 +86,3 @@ enum RuntimeResultEncoder {
         )
     }
 }
-import TestDoublesRuntime

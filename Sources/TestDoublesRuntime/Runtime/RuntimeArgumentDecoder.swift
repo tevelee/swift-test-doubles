@@ -1,17 +1,17 @@
 import Echo
 
-struct RuntimeArgumentSpec: Sendable {
-    let type: Any.Type
-    let layout: ABIClass
-    let ownership: WitnessArgumentOwnership
+package struct RuntimeArgumentSpec: Sendable {
+    package let type: Any.Type
+    package let layout: ABIClass
+    package let ownership: WitnessArgumentOwnership
 }
 
-struct RuntimeArgumentDecodingPlan: Sendable {
-    enum DiagnosticContext: Sendable {
+package struct RuntimeArgumentDecodingPlan: Sendable {
+    package enum DiagnosticContext: Sendable {
         case dynamicFunction
         case witness(String)
 
-        var missingIndirectArgument: String {
+        package var missingIndirectArgument: String {
             switch self {
                 case .dynamicFunction:
                     "[TestDoubles] Missing indirect dynamic function argument storage."
@@ -20,7 +20,7 @@ struct RuntimeArgumentDecodingPlan: Sendable {
             }
         }
 
-        var missingTypedErrorDestination: String {
+        package var missingTypedErrorDestination: String {
             switch self {
                 case .dynamicFunction:
                     "[TestDoubles] Missing indirect dynamic function typed-error storage."
@@ -30,12 +30,12 @@ struct RuntimeArgumentDecodingPlan: Sendable {
         }
     }
 
-    let arguments: [RuntimeArgumentSpec]
-    let argumentLocations: [[CallFrameArgumentLocation]]
-    let typedErrorDestinationLocation: CallFrameArgumentLocation?
-    let diagnosticContext: DiagnosticContext
+    package let arguments: [RuntimeArgumentSpec]
+    package let argumentLocations: [[CallFrameArgumentLocation]]
+    package let typedErrorDestinationLocation: CallFrameArgumentLocation?
+    package let diagnosticContext: DiagnosticContext
 
-    static func witness(
+    package static func witness(
         method: MethodDescriptor,
         transport: WitnessCallTransportPlan,
         consumeOwnedArguments: Bool
@@ -57,8 +57,8 @@ struct RuntimeArgumentDecodingPlan: Sendable {
     }
 }
 
-enum RuntimeArgumentDecoder {
-    static func decode(
+package enum RuntimeArgumentDecoder {
+    package static func decode(
         for runtimeMethod: PreparedRuntimeMethod,
         from frame: TrampolineCallFrame,
         consumeOwnedArguments: Bool = true
@@ -69,7 +69,7 @@ enum RuntimeArgumentDecoder {
         return decode(runtimeMethod.borrowedDecodingPlan, from: frame)
     }
 
-    static func decode(
+    package static func decode(
         for method: MethodDescriptor,
         from frame: TrampolineCallFrame,
         initialGeneralPurposeOffset: Int = 0,
@@ -89,7 +89,7 @@ enum RuntimeArgumentDecoder {
         )
     }
 
-    private static func decode(
+    package static func decode(
         _ plan: borrowing RuntimeArgumentDecodingPlan,
         from frame: TrampolineCallFrame
     ) -> DecodedArguments {
@@ -242,4 +242,3 @@ enum RuntimeArgumentDecoder {
         return value
     }
 }
-import TestDoublesRuntime

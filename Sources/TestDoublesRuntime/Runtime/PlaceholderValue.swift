@@ -1,9 +1,9 @@
 import Echo
 
 /// Creates valid placeholder values for matcher recording and runtime fallback returns.
-enum PlaceholderValue {
+package enum PlaceholderValue {
     /// Creates a placeholder of `type`, or returns `nil` when the type cannot be synthesized safely.
-    static func make<T>(_ type: T.Type = T.self) -> T? {
+    package static func make<T>(_ type: T.Type = T.self) -> T? {
         let storage = reflect(type).allocateValueBuffer()
         guard initialize(type: type, at: storage) else {
             storage.deallocate()
@@ -17,7 +17,7 @@ enum PlaceholderValue {
     }
 
     /// Initializes a placeholder at `destination` when `type` can be synthesized safely.
-    static func initialize(type: Any.Type, at destination: UnsafeMutableRawPointer) -> Bool {
+    package static func initialize(type: Any.Type, at destination: UnsafeMutableRawPointer) -> Bool {
         var visited: Set<UInt> = []
         guard let plan = initializationPlan(for: type, visited: &visited) else {
             return false
@@ -32,7 +32,7 @@ enum PlaceholderValue {
     }
 
     /// Returns whether `type` can be initialized as a valid placeholder.
-    static func canInitialize(type: Any.Type) -> Bool {
+    package static func canInitialize(type: Any.Type) -> Bool {
         var visited: Set<UInt> = []
         return initializationPlan(for: type, visited: &visited) != nil
     }
@@ -319,4 +319,3 @@ enum PlaceholderValue {
         }
     }
 }
-import TestDoublesRuntime
