@@ -483,9 +483,10 @@ if [[ -z "$read_resume_discriminator" || "$read_resume_discriminator" == *$'\n'*
 fi
 
 # Whether the library's own resume-discriminator derivation
-# (YieldingAccessorRuntime.resumeDiscriminator) agrees with the compiler is
-# checked by calling that real, shipped function directly -- not by
-# reproducing its spelling algorithm a second time here. See
+# (YieldingAccessorRuntime.readResumeDiscriminator /
+# modifyResumeDiscriminator) agrees with the compiler is checked by calling
+# those real, shipped functions directly -- not by reproducing their spelling
+# algorithm a second time here. See
 # Tests/TestDoublesTests/Unit/YieldOnce2ResumeDiscriminatorABITests.swift,
 # which does this `@testable` for several yield shapes (a hand-copied bash/C
 # reproduction could only ever catch a divergence between two transcriptions,

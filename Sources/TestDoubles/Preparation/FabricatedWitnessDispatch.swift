@@ -105,7 +105,7 @@ enum FabricatedWitnessDispatch {
                     method.returnConvention != .optionalSelf,
                     reflect(method.returnType).kind != .function,
                     let resumeDiscriminator =
-                        YieldingAccessorRuntime.resumeDiscriminator(for: method)
+                        YieldingAccessorRuntime.readResumeDiscriminator(for: method)
                 else {
                     throw StubError.unsupportedProtocolShape(
                         protocolName: node.descriptor.name,
@@ -151,7 +151,7 @@ enum FabricatedWitnessDispatch {
                     method.returnConvention != .optionalSelf,
                     reflect(method.returnType).kind != .function,
                     let resumeDiscriminator =
-                        YieldingAccessorRuntime.resumeDiscriminator(for: method)
+                        YieldingAccessorRuntime.modifyResumeDiscriminator(for: method)
                 else {
                     throw StubError.unsupportedProtocolShape(
                         protocolName: node.descriptor.name,

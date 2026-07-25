@@ -39,9 +39,11 @@ enum YieldingAccessorRuntime {
         state.finish(isAborting: isAborting)
     }
 
-    /// Derives the arm64e resume discriminator shared by `yield_once_2`
-    /// read and modify witnesses.
-    static func resumeDiscriminator(for method: MethodDescriptor) -> UInt16? {
+    /// Derives the arm64e resume discriminator for a `yield_once_2` `read`
+    /// witness. `read` can yield either directly (small, non-generic
+    /// results) or indirectly (everything else), so the shape is derived
+    /// from the getter's own value-size ABI classification.
+    static func readResumeDiscriminator(for method: MethodDescriptor) -> UInt16? {
         let isIndirect: Bool
         switch method.result.layout {
             case .indirect:
@@ -52,9 +54,20 @@ enum YieldingAccessorRuntime {
         return resumeDiscriminator(isIndirect: isIndirect, returnType: method.returnType)
     }
 
-    /// The pure core of `resumeDiscriminator(for:)`, factored out so it is
-    /// directly testable against a live Swift compiler without constructing a
-    /// full `MethodDescriptor`: only the caller-visible yield shape (whether
+    /// Derives the arm64e resume discriminator for a `yield_once_2` `modify`
+    /// witness. Unlike `read`, `modify` always yields an address for
+    /// in-place mutation, regardless of the property's value size -- so the
+    /// yield is unconditionally indirect, and `method.result.layout`'s
+    /// value-size classification (which only describes how the *getter*
+    /// returns the value) does not apply here.
+    static func modifyResumeDiscriminator(for method: MethodDescriptor) -> UInt16? {
+        resumeDiscriminator(isIndirect: true, returnType: method.returnType)
+    }
+
+    /// The pure core shared by `readResumeDiscriminator(for:)` and
+    /// `modifyResumeDiscriminator(for:)`, factored out so it is directly
+    /// testable against a live Swift compiler without constructing a full
+    /// `MethodDescriptor`: only the caller-visible yield shape (whether
     /// Swift formally returns the value indirectly) and the yielded type feed
     /// the spelling, mirroring IRGen's own `PointerAuthEntity` string scheme
     /// for a `yield_once_2` coroutine continuation.

@@ -129,8 +129,8 @@ vocabulary and the values stay diff-able against swiftlang/swift. Commit-by-comm
    fully specified for a future edit made on real arm64e hardware with an
    execution test, without shipping unverifiable ptrauth assembly.
 
-3. **CI discriminator cross-checks — RESOLVED and strengthened, and it found a
-   real, still-open discrepancy.**
+3. **CI discriminator cross-checks — RESOLVED and strengthened, and it found
+   two real discrepancies: one fixed, one still open.**
    `check-swift-abi-constants.sh` pins every hardcoded discriminator in the
    header to its documented `SpecialPointerAuthDiscriminators` value (the four
    CoroAllocator values, the shape and async-context values, the modify-resume
@@ -139,15 +139,15 @@ vocabulary and the values stay diff-able against swiftlang/swift. Commit-by-comm
    divergence between two transcriptions, not a bug in the real Swift source.
    It was replaced by
    `Tests/TestDoublesTests/Unit/YieldOnce2ResumeDiscriminatorABITests.swift`,
-   which calls the actual shipped `YieldingAccessorRuntime.resumeDiscriminator`
-   (`@testable`) and cross-checks it against a live `xcrun swiftc`'s arm64e
-   codegen. `resumeDiscriminator(for:)` was split to expose a pure
-   `resumeDiscriminator(isIndirect:returnType:)` core so the test can drive it
-   without constructing a full `MethodDescriptor`. The suite self-gates on the
-   same live-Swift-6.3 requirement the bash script checks, and is a no-op off
-   Apple platforms.
+   which calls the actual shipped `YieldingAccessorRuntime` functions
+   (`@testable`) and cross-checks them against a live `xcrun swiftc`'s arm64e
+   codegen. What was one function, `resumeDiscriminator(for:)`, was split to
+   expose a pure `resumeDiscriminator(isIndirect:returnType:)` core so the
+   test can drive it without constructing a full `MethodDescriptor`. The suite
+   self-gates on the same live-Swift-6.3 requirement the bash script checks,
+   and is a no-op off Apple platforms.
 
-   Three of four probed yield shapes are **confirmed correct** against the
+   Three of four `read` yield shapes are **confirmed correct** against the
    live compiler: two non-generic structs with different mangled names (`Int`,
    `Bool`) and a class reference (the constant `-class` spelling). The fourth
    -- a 64-byte struct exercising the *formally indirect* result path, which
@@ -160,16 +160,53 @@ vocabulary and the values stay diff-able against swiftlang/swift. Commit-by-comm
    is an unresolved, genuinely open question, not a guessed-and-verified fix
    -- it needs either the real IRGen source for `yield_once_2`'s
    `PointerAuthEntity` scheme, or a compiler transcript (`-emit-sil` /
-   `-emit-ir`) for a witness with a truly indirect yield, to resolve. It is
-   tracked as `indirectYieldDiscriminatorIsAKnownOpenDiscrepancy`, wrapped in
-   `withKnownIssue` so it stays visible (and will itself fail, loudly, the
-   moment a future fix makes it start passing) without blocking CI. This
-   branch had zero live-compiler coverage before this suite existed; it still
-   has none that passes, but the gap is now precisely characterized instead of
-   silently assumed correct. On arm64 CI the accessor tests can't catch a
-   wrong discriminator at all (no active ptrauth), so this is the first
-   evidence, in either direction, about the library's indirect-yield spelling
-   model.
+   `-emit-ir`) for a witness with a truly indirect yield, to resolve.
+
+   Extending the cross-check to `modify` witnesses surfaced a second,
+   independent finding, this one a genuine library bug rather than a spelling
+   gap: `resumeDiscriminator(for:)` derived its `isIndirect` argument from
+   `method.result.layout`, the *getter's* ordinary value-size ABI
+   classification (`.integer`/`.floatingPoint`/`.aggregate` vs `.indirect`).
+   That classification answers "does the getter return this value directly or
+   through a pointer," which is the right question for `read` (which can
+   legitimately do either) but the wrong one for `modify` -- a `modify`
+   accessor always yields the address of the property's storage for in-place
+   mutation, regardless of how small the value is, because there is no other
+   way to write through it. Compiling real `modify` witnesses for `Int`,
+   `Bool`, and a class reference confirmed this at the ABI level: the live
+   compiler emits the exact same discriminator, `33953`, for all three --
+   identical to the formally-indirect `read` case above, and never the
+   direct-yield value the old code path computed for small types. `modifyPlan`
+   (`FabricatedWitnessDispatch.swift`) and `makeModifyPlan`
+   (`ProtocolForwardingPlan.swift`) both fed the shared, getter-layout-derived
+   function, so this affected both witness fabrication (Stub) and forwarding
+   (Spy) for every `get`/`set`/`modify` property whose getter returns a
+   direct-layout type -- i.e. most of them.
+
+   **Fixed:** `resumeDiscriminator(for:)` is now two functions,
+   `readResumeDiscriminator(for:)` (unchanged value-size-derived behavior) and
+   `modifyResumeDiscriminator(for:)` (always passes `isIndirect: true`, never
+   inspects `method.result.layout`), and every `modify` call site was moved to
+   the latter. This does not, by itself, make the `modify` probes pass --
+   they hit the exact same unresolved indirect-spelling gap the 64-byte struct
+   `read` probe does, since both now go through the identical `isIndirect: true`
+   branch. But it corrects the classification itself, which is independently
+   verifiable against the ABI (`modify` is unconditionally by-reference) without
+   needing the indirect spelling resolved first, and it consolidates what were
+   two distinct wrong numbers into one well-understood open question instead of
+   a silent, type-dependent misclassification.
+
+   All four now-known-indirect probes (`read`'s oversized struct, and
+   `modify`'s `Int`/`Bool`/class) are tracked with `withKnownIssue` so they
+   stay visible -- and will fail loudly the moment a future fix on the shared
+   spelling makes them start passing -- without blocking CI. This branch had
+   zero live-compiler coverage before this suite existed; it still has none
+   that passes for the indirect/`modify` branch, but the gap is now precisely
+   characterized instead of silently assumed correct, and the classification
+   bug that was hiding *inside* that gap is fixed. On arm64 CI the accessor
+   tests can't catch a wrong discriminator at all (no active ptrauth), so this
+   is the first evidence, in either direction, about the library's
+   indirect-yield spelling model and about `modify`'s classification.
 
 4. **`swift_deletedCalleeAllocatedCoroutineMethodErrorTwc` weak shim — RETAINED,
    with recheck note.** Still required: Apple Swift 6.3's dead-method elimination

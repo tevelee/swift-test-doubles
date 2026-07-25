@@ -226,7 +226,7 @@ struct ProtocolForwardingPlanBuilder<P> {
                     let descriptorEntry = descriptorTarget.entry,
                     descriptorTarget.callerFrameSize == 32,
                     let discriminator =
-                        YieldingAccessorRuntime.resumeDiscriminator(for: method)
+                        YieldingAccessorRuntime.modifyResumeDiscriminator(for: method)
                 else {
                     throw StubError.unsupportedProtocolShape(
                         protocolName: protocolName,
@@ -277,7 +277,7 @@ struct ProtocolForwardingPlanBuilder<P> {
             method.isThrowing == false,
             method.arguments.allSatisfy({ $0.ownership == .borrowed }),
             let resumeDiscriminator =
-                YieldingAccessorRuntime.resumeDiscriminator(for: method)
+                YieldingAccessorRuntime.readResumeDiscriminator(for: method)
         else {
             throw StubError.unsupportedProtocolShape(
                 protocolName: protocolName,
