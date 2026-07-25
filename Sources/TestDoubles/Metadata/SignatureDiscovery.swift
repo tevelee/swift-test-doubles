@@ -383,10 +383,14 @@ private enum DynamicSelfValueShape {
 private func dynamicSelfValueShape(
     _ spelling: String
 ) -> DynamicSelfValueShape? {
+    // "A?"/"Self?" are deliberately not matched: swift_demangle (the only
+    // demangling entry point this codebase uses) always disables sugar
+    // synthesis, so it never emits that spelling -- only the verbose
+    // "Optional<...>" forms below are reachable.
     switch spelling {
         case "A", "Self":
             .direct
-        case "A?", "Self?", "Optional<A>", "Swift.Optional<A>",
+        case "Optional<A>", "Swift.Optional<A>",
             "Optional<Self>", "Swift.Optional<Self>":
             .optional
         default:

@@ -32,16 +32,13 @@ func resolveSupportedDependentType(
     return resolved.dependency.isAssociatedTypeDependent ? resolved : nil
 }
 
+// Only the verbose "Dictionary<K, V>" form is handled: `swift_demangle`
+// (the only demangling entry point this codebase uses) always runs with
+// SynthesizeSugarOnTypes = false, so it never emits the "[K: V]" sugar --
+// confirmed by calling the actual exported swift_demangle C function
+// directly (not the swift-demangle CLI tool, which enables sugar by
+// default and would give a false negative here).
 private func dictionaryComponents(in name: String) -> (key: String, value: String)? {
-    if name.first == "[", name.last == "]" {
-        let contents = String(name.dropFirst().dropLast())
-        guard let colon = lastTopLevelColon(in: contents) else { return nil }
-        return (
-            String(contents[..<colon]).trimmingCharacters(in: .whitespaces),
-            String(contents[contents.index(after: colon)...])
-                .trimmingCharacters(in: .whitespaces)
-        )
-    }
     for constructor in ["Dictionary", "Swift.Dictionary"] {
         let prefix = "\(constructor)<"
         guard name.hasPrefix(prefix), name.last == ">" else { continue }
@@ -214,9 +211,6 @@ private enum StandardLibraryDependentShape {
 private func standardLibraryDependentShape(
     in spelling: String
 ) -> StandardLibraryDependentShape? {
-    if spelling.hasSuffix("?") {
-        return .optional(String(spelling.dropLast()))
-    }
     if let wrapped = unaryGenericArgument(
         in: spelling,
         constructors: ["Optional", "Swift.Optional"]
@@ -234,9 +228,6 @@ private func standardLibraryDependentShape(
             success: components.first,
             failure: components.second
         )
-    }
-    if spelling.first == "[", spelling.last == "]" {
-        return .array(String(spelling.dropFirst().dropLast()))
     }
     if let element = unaryGenericArgument(
         in: spelling,
