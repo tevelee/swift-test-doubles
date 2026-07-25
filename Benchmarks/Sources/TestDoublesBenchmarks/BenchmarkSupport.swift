@@ -44,7 +44,7 @@ enum BenchmarkSuite: String {
 
 struct RunOptions {
     var suite = BenchmarkSuite.all
-    var sampleCount = 7
+    var sampleCount = 21
     var targetMilliseconds = 100.0
     var filter: String?
     var outputPath: String?
