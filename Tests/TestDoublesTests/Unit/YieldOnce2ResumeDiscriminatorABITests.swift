@@ -260,10 +260,10 @@ import Testing
                 throw ProbeError(
                     message:
                         "xcrun \(arguments.joined(separator: " ")) exited \(process.terminationStatus): "
-                        + String(decoding: errorData, as: UTF8.self)
+                        + (String(bytes: errorData, encoding: .utf8) ?? "<non-UTF8 output>")
                 )
             }
-            return String(decoding: outputData, as: UTF8.self)
+            return String(bytes: outputData, encoding: .utf8) ?? "<non-UTF8 output>"
         }
     }
 
@@ -287,7 +287,7 @@ import Testing
         let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
         guard process.terminationStatus == 0 else { return false }
-        return String(decoding: data, as: UTF8.self).contains("Apple Swift version 6.3")
+        return (String(bytes: data, encoding: .utf8) ?? "").contains("Apple Swift version 6.3")
     }()
 
 #endif
