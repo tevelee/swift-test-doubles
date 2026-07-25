@@ -1,11 +1,11 @@
-name: Documentation Pages
+name: Publish Documentation
 
 on:
   push:
     branches: [main]
     paths:
       - "*.md"
-      - .github/workflows/documentation-pages.yml
+      - .github/workflows/publish-documentation.yml
       - .spi.yml
       - "Sources/**/*.md"
       - Sources/TestDoubles/Documentation.docc/**
