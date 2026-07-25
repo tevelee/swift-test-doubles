@@ -70,6 +70,16 @@
 // include/swift/Runtime/Config.h).
 #define TD_PTRAUTH_NONUNIQUE_EXTENDED_EXISTENTIAL_TYPE_SHAPE 0xe798
 
+// AsyncContext head fields (include/swift/ABI/Task.h): `Parent` at offset 0 and
+// `ResumeParent` at offset 8. `Parent` is signed with
+// ptrauth_key_process_independent_data (__ptrauth_swift_async_context_parent);
+// `ResumeParent` with ptrauth_key_function_pointer
+// (__ptrauth_swift_async_context_resume). Both are address-diversified against
+// their own storage slot. See the async-entry note in TestDoublesTrampoline.S
+// for why the arm64e signing these describe is grounded but not yet applied.
+#define TD_PTRAUTH_ASYNC_CONTEXT_PARENT 0xbda2
+#define TD_PTRAUTH_ASYNC_CONTEXT_RESUME 0xd707
+
 #ifndef __ASSEMBLER__
 #include <stdbool.h>
 #include <stddef.h>
