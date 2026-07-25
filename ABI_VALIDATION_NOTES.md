@@ -104,52 +104,62 @@ uses for `@convention(thin)` closure words (`"function:N:…:1:result:"`). ✅
 
 ---
 
-## 2. Noteworthy findings / latent gaps (candidates to revisit)
+## 2. Follow-up status
 
-1. **Extended-existential `Shape` pointer is loaded raw.**
-   `Metadata.h` declares `TargetExtendedExistentialTypeMetadata::Shape` as
-   `__ptrauth_swift_nonunique_extended_existential_type_shape`
-   (discriminator `0xe798`). `inspectExtendedExistential` does
-   `metadata.load(fromByteOffset: 8, as: UnsafeRawPointer.self)` and dereferences
-   it directly. Correct on arm64 / x86_64 (user processes don't sign it), but on
-   a genuine arm64e process this needs authentication/stripping. Same pattern as
-   the async-context note below. → *Future: an arm64e-safe shape reader.*
+The grounding pass turned every bare ABI magic number into a named constant that
+copies the compiler's own identifier, so the trampoline speaks the compiler's
+vocabulary and the values stay diff-able against swiftlang/swift. Commit-by-commit:
 
-2. **Async `Parent` / `ResumeParent` stored unsigned on arm64e.**
-   The async trampoline does `stp x11, x8, [x0]` into the callee context's
-   `Parent`/`ResumeParent` without the `__ptrauth_swift_async_context_parent`
-   (`0xbda2`) / `…_resume` (`0xd707`) signing the runtime uses on arm64e. Fine on
-   shippable arm64/x86_64; a real arm64e target would fault. The lib already
-   signs *function pointers* on arm64e (`blraa`/`pacia`, `@AUTH`), so this is a
-   consistency gap specific to context words. → *Future arm64e async support.*
+1. **Extended-existential `Shape` pointer — RESOLVED.**
+   `inspectExtendedExistential` now authenticates the `Shape` field through
+   `td_auth_extended_existential_shape`
+   (`ptrauth_key_process_independent_data`, address-diversified, discriminator
+   `NonUniqueExtendedExistentialTypeShape = 0xe798`), mirroring the existing
+   `td_prepare_coro_witness_target` pattern. Off arm64e the helper returns the
+   pointer unchanged, so arm64 / x86_64 behavior is byte-identical.
 
-3. **CI cross-checks the resume discriminators but not the CoroAllocator
-   discriminators.** `check-swift-abi-constants.sh` derives and compares the
-   modify-resume discriminator, and prints the read-resume one, but the four
-   hardcoded `@AUTH` values in `td_swift_read_coro_allocator`
-   (24469/40879/53841/23464) are not probed. They match today's Swift, but a
-   future rename would drift silently. → *Add a probe, or reference the constants
-   symbolically.* Also: the read-resume derivation prints the compiler value but
-   does **not** assert equality with `YieldingAccessorRuntime.resumeDiscriminator`'s
-   computed hash — worth tightening.
+2. **Async `Parent` / `ResumeParent` on arm64e — GROUNDED + SPECIFIED, not
+   applied.** The exact `pacda`/`pacia` sign-on-store and `autda`/`autia`
+   auth-on-read recipe (keys and diversity from `Config.h`, discriminators
+   `AsyncContextParent = 0xbda2` / `AsyncContextResume = 0xd707`, now named
+   constants) is recorded inline at the async store site. It is deliberately not
+   applied: the sign/auth pairing spans the trampoline's custom context structs
+   and cannot be exercised anywhere available (CI runs arm64 non-e; arm64e is not
+   executable here and is not a shippable app target). This leaves the change
+   fully specified for a future edit made on real arm64e hardware with an
+   execution test, without shipping unverifiable ptrauth assembly.
 
-4. **`swift_deletedCalleeAllocatedCoroutineMethodErrorTwc` weak shim.**
-   The lib provides a weak trapping `…Twc` descriptor because "Apple Swift 6.3's
-   dead-method elimination references it but the SDK does not export it." This is
-   a real SDK gap workaround; when a future SDK exports the real symbol the weak
-   def yields to it. Worth a periodic recheck so it can be removed once the SDK
-   ships it, and to ensure no duplicate-symbol conflict.
+3. **CI discriminator cross-checks — RESOLVED.**
+   `check-swift-abi-constants.sh` now pins every hardcoded discriminator in the
+   header to its documented `SpecialPointerAuthDiscriminators` value (the four
+   CoroAllocator values, the shape and async-context values, the modify-resume
+   value), and reproduces the library's runtime read-resume discriminator from
+   the `yield_once_2:1:$sSi:` spelling via `td_function_discriminator`, requiring
+   equality with the compiler-derived value. On arm64 CI the accessor tests can't
+   catch a wrong discriminator (no active ptrauth), so this is the first
+   automated check of the library's spelling model.
 
-5. **`mallocTypeId` in the coro descriptor is intentionally unused.**
-   The lib supplies its own `Malloc`-kind allocator rather than the
-   `TypedMalloc` (`swift_coroFrameAlloc`) path the `mallocTypeId` feeds. Valid and
-   simpler, but means fabricated read/modify2 coroutines don't participate in
-   typed allocation. Note if typed-allocation instrumentation ever matters.
+4. **`swift_deletedCalleeAllocatedCoroutineMethodErrorTwc` weak shim — RETAINED,
+   with recheck note.** Still required: Apple Swift 6.3's dead-method elimination
+   references this `…Twc` coroutine descriptor but the SDK does not export it, so
+   the package supplies a weak trapping definition that a future runtime export
+   would override. Recheck when bumping the toolchain — once the SDK ships the
+   symbol, drop the shim and confirm no duplicate-definition conflict.
 
-6. **`getExtraDiscriminator()` has no mask in current Swift.**
+5. **`mallocTypeId` — intentionally unused, now grounded.** The generated coro
+   descriptor sets `mallocTypeID = 0` and the veneer supplies its own
+   `CoroAllocatorKind::Malloc` allocator (flags `0x102` = Malloc |
+   ShouldDeallocateImmediately) instead of the `TypedMalloc`
+   (`swift_coroFrameAlloc`) path the field feeds — matching Swift IRGen's own
+   zero-when-disabled behavior. Fabricated read/modify2 coroutines therefore do
+   not participate in typed-frame allocation; revisit only if typed-allocation
+   instrumentation is ever needed.
+
+6. **`getExtraDiscriminator()` masking — forward-looking caution.**
    `ProtocolRequirementFlags::getExtraDiscriminator()` is `Value >> 16` with no
-   `& 0xFFFF`. Not something the lib relies on, but if any code starts reading a
-   requirement's extra discriminator from a 32-bit flags word, mask it.
+   `& 0xFFFF`. The library never reads a requirement's extra discriminator, so
+   nothing depends on this today; if that changes, mask the high half of the
+   32-bit flags word to match the compiler.
 
 ---
 
@@ -159,8 +169,10 @@ uses for `@convention(thin)` closure words (`"function:N:…:1:result:"`). ✅
   6.4 witness-table shape (paired legacy `read:` + `yielding_borrow:` entries),
   and it is deliberately fail-closed. The scaffolding to detect it exists; the
   dispatch/forwarding path is the remaining work.
-- **arm64e as a first-class target.** Items (1) and (2) above are the two
-  concrete blockers; the function-pointer signing is already in place.
+- **arm64e as a first-class target.** The extended-existential shape read is now
+  authenticated (§2.1); the async-context `Parent`/`ResumeParent` signing (§2.2)
+  is the remaining concrete blocker, fully specified and awaiting an arm64e
+  execution test. Function-pointer signing is already in place.
 - **Broader SIMD.** Current support is bounded to complete one-register 128-bit
   lanes (correct: AArch64 `q`/x86_64 `xmm` each carry ≤128 bits in one register).
   Multi-register vectors, scalarized lanes, and stack-passed vectors are
