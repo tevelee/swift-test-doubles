@@ -124,7 +124,7 @@ fi
 
 expected="$({
   sed -nE \
-    's/^#define TD_MODIFY_RESUME_DISCRIMINATOR ([0-9]+)$/\1/p' \
+    's/^#define TD_PTRAUTH_OPAQUE_MODIFY_RESUME_FUNCTION ([0-9]+)$/\1/p' \
     "$header"
 } | sort -u)"
 
@@ -141,7 +141,7 @@ modify_context_size="$({
 } | sort -u)"
 
 if [[ -z "$expected" || "$expected" == *$'\n'* ]]; then
-  echo "Could not read one TD_MODIFY_RESUME_DISCRIMINATOR from $header." >&2
+  echo "Could not read one TD_PTRAUTH_OPAQUE_MODIFY_RESUME_FUNCTION from $header." >&2
   exit 1
 fi
 

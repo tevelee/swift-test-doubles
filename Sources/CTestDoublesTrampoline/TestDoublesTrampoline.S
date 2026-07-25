@@ -345,7 +345,7 @@ SYMBOL(td_swift_resume_modify_witness):
     mov x0, x1
     mov x17, x1
     mov w1, w2
-    movk x17, #TD_MODIFY_RESUME_DISCRIMINATOR, lsl #48
+    movk x17, #TD_PTRAUTH_OPAQUE_MODIFY_RESUME_FUNCTION, lsl #48
 #if defined(__arm64e__)
     blraa x16, x17
 #else
@@ -688,7 +688,7 @@ SYMBOL(td_swift_modify_trampoline_entry):
 #endif
 #if defined(__arm64e__)
     mov x17, x9
-    movk x17, #TD_MODIFY_RESUME_DISCRIMINATOR, lsl #48
+    movk x17, #TD_PTRAUTH_OPAQUE_MODIFY_RESUME_FUNCTION, lsl #48
     pacia x16, x17
 #endif
     mov x0, x16
@@ -1841,10 +1841,10 @@ SYMBOL(td_swift_read_coro_allocator):
     .long 258
     .long 0
 #if defined(__arm64e__)
-    .quad SYMBOL(td_swift_read_coro_malloc)@AUTH(ia,24469,addr)
-    .quad SYMBOL(td_swift_read_coro_free)@AUTH(ia,40879,addr)
-    .quad SYMBOL(td_swift_read_coro_malloc)@AUTH(ia,53841,addr)
-    .quad SYMBOL(td_swift_read_coro_free)@AUTH(ia,23464,addr)
+    .quad SYMBOL(td_swift_read_coro_malloc)@AUTH(ia,TD_PTRAUTH_CORO_ALLOCATION_FUNCTION,addr)
+    .quad SYMBOL(td_swift_read_coro_free)@AUTH(ia,TD_PTRAUTH_CORO_DEALLOCATION_FUNCTION,addr)
+    .quad SYMBOL(td_swift_read_coro_malloc)@AUTH(ia,TD_PTRAUTH_CORO_FRAME_ALLOCATION_FUNCTION,addr)
+    .quad SYMBOL(td_swift_read_coro_free)@AUTH(ia,TD_PTRAUTH_CORO_FRAME_DEALLOCATION_FUNCTION,addr)
 #else
     .quad SYMBOL(td_swift_read_coro_malloc)
     .quad SYMBOL(td_swift_read_coro_free)
