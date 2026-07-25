@@ -1,3 +1,4 @@
+import TestDoublesRuntime
 import CTestDoublesTrampoline
 import Echo
 

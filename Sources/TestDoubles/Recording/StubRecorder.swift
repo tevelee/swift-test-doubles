@@ -1,3 +1,4 @@
+import TestDoublesRuntime
 import Foundation
 
 struct ModifyDispatchDescriptor: Sendable {

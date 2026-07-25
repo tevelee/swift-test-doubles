@@ -3,21 +3,21 @@
 /// Resolved occurrences retain the declaring protocol as part of their
 /// identity. Name-only occurrences exist solely for low-level synthetic
 /// descriptors that have no declaring protocol context.
-enum AssociatedTypeReference: Equatable, Sendable {
+package enum AssociatedTypeReference: Equatable, Sendable {
     case declaration(AssociatedTypeID)
     /// An exact associated-type declaration whose `AnyObject` constraint
     /// fixes its formal witness transport to one reference word.
     case referenceDeclaration(AssociatedTypeID)
     case name(String)
 
-    var name: String {
+    package var name: String {
         switch self {
             case .declaration(let id), .referenceDeclaration(let id): id.name
             case .name(let name): name
         }
     }
 
-    var usesReferenceABI: Bool {
+    package var usesReferenceABI: Bool {
         if case .referenceDeclaration = self { return true }
         return false
     }
@@ -29,7 +29,7 @@ enum AssociatedTypeReference: Equatable, Sendable {
 /// Keeping the complete source shape prevents equal concrete substitutions
 /// from erasing either generic-argument positions or declaring-protocol
 /// identity during explicit requirement validation.
-indirect enum WitnessValueDependency: Equatable, Sendable {
+package indirect enum WitnessValueDependency: Equatable, Sendable {
     case independent
     case associatedType(AssociatedTypeReference)
     case optional(WitnessValueDependency)
@@ -50,27 +50,27 @@ indirect enum WitnessValueDependency: Equatable, Sendable {
 
     /// Compatibility construction for synthetic descriptors and focused
     /// descriptor tests that have no declaring protocol metadata.
-    static func associatedType(name: String) -> Self {
+    package static func associatedType(name: String) -> Self {
         .associatedType(.name(name))
     }
 
-    static func associatedType(id: AssociatedTypeID) -> Self {
+    package static func associatedType(id: AssociatedTypeID) -> Self {
         .associatedType(.declaration(id))
     }
 
-    static func referenceAssociatedType(id: AssociatedTypeID) -> Self {
+    package static func referenceAssociatedType(id: AssociatedTypeID) -> Self {
         .associatedType(.referenceDeclaration(id))
     }
 
     /// Compatibility construction for the previously flat Dictionary marker.
-    static func dictionary(key: String?, value: String?) -> Self {
+    package static func dictionary(key: String?, value: String?) -> Self {
         .dictionary(
             key: key.map(Self.associatedType(name:)) ?? .independent,
             value: value.map(Self.associatedType(name:)) ?? .independent
         )
     }
 
-    var isAssociatedTypeDependent: Bool {
+    package var isAssociatedTypeDependent: Bool {
         switch self {
             case .independent:
                 false
@@ -95,7 +95,7 @@ indirect enum WitnessValueDependency: Equatable, Sendable {
     /// witnesses of a concrete substitution. Standard-library collection
     /// shells have fixed reference-backed layouts, while Optional preserves
     /// whether its wrapped value is formally opaque.
-    var usesOpaqueValueWitnessConvention: Bool {
+    package var usesOpaqueValueWitnessConvention: Bool {
         switch self {
             case .independent:
                 false
@@ -113,7 +113,7 @@ indirect enum WitnessValueDependency: Equatable, Sendable {
         }
     }
 
-    var firstAssociatedTypeName: String? {
+    package var firstAssociatedTypeName: String? {
         switch self {
             case .independent:
                 nil
@@ -131,12 +131,12 @@ indirect enum WitnessValueDependency: Equatable, Sendable {
         }
     }
 
-    var directAssociatedTypeName: String? {
+    package var directAssociatedTypeName: String? {
         guard case .associatedType(let reference) = self else { return nil }
         return reference.name
     }
 
-    var containsReferenceAssociatedType: Bool {
+    package var containsReferenceAssociatedType: Bool {
         switch self {
             case .independent:
                 false
@@ -159,7 +159,7 @@ indirect enum WitnessValueDependency: Equatable, Sendable {
     /// and exactly one Optional shell. Other dependent outer shapes keep their
     /// existing fail-closed boundary until their constrained formal ABI is
     /// probed independently.
-    var usesSupportedReferenceAssociatedTransport: Bool {
+    package var usesSupportedReferenceAssociatedTransport: Bool {
         guard containsReferenceAssociatedType else { return true }
         switch self {
             case .associatedType(let reference):
@@ -173,7 +173,7 @@ indirect enum WitnessValueDependency: Equatable, Sendable {
 
     /// Preserves the existing name-based descriptor projections while exact
     /// structural dependencies remain stored on each witness value.
-    var legacyProjection: Self {
+    package var legacyProjection: Self {
         switch self {
             case .independent:
                 .independent
@@ -203,4 +203,3 @@ indirect enum WitnessValueDependency: Equatable, Sendable {
 // AssociatedTypeID is a pair of an immutable descriptor address and a name.
 // The address is used only as stable process-local identity.
 extension AssociatedTypeID: @unchecked Sendable {}
-import TestDoublesRuntime

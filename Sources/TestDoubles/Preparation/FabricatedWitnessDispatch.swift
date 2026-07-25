@@ -1,3 +1,4 @@
+import TestDoublesRuntime
 import Echo
 
 struct YieldOnce2WitnessPlan {

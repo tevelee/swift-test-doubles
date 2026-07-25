@@ -1,3 +1,4 @@
+import TestDoublesRuntime
 /// Configures the result of a stubbed method or property.
 public struct StubBuilder<Result> {
     let recorder: StubRecorder

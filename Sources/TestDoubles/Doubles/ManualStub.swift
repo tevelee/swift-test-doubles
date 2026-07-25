@@ -1,3 +1,4 @@
+import TestDoublesRuntime
 /// Marks a hand-written struct as a manually stubbed conformer.
 ///
 /// Conform your stub struct to both your protocol and `StubConformer`, and

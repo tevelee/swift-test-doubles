@@ -4,11 +4,11 @@ import Echo
 ///
 /// Associated-type names are scoped to their declaring protocol, so the name
 /// alone is not sufficient in inheritance graphs and protocol compositions.
-struct AssociatedTypeID: Hashable {
-    let protocolID: ProtocolLayout.DescriptorID
-    let name: String
+package struct AssociatedTypeID: Hashable {
+    package let protocolID: ProtocolLayout.DescriptorID
+    package let name: String
 
-    init(protocolDescriptor: ProtocolDescriptor, name: String) {
+    package init(protocolDescriptor: ProtocolDescriptor, name: String) {
         protocolID = ProtocolLayout.DescriptorID(protocolDescriptor)
         self.name = name
     }
@@ -16,18 +16,18 @@ struct AssociatedTypeID: Hashable {
 
 /// Concrete associated-type bindings with deterministic metadata order and
 /// indexed lookup by declaration identity.
-struct AssociatedTypeBindings {
-    let ordered: [StubProtocolMetadata.AssociatedTypeBinding]
+package struct AssociatedTypeBindings {
+    package let ordered: [StubProtocolMetadata.AssociatedTypeBinding]
 
     private let byID: [AssociatedTypeID: StubProtocolMetadata.AssociatedTypeBinding]
     private let byProtocolID: [ProtocolLayout.DescriptorID: [StubProtocolMetadata.AssociatedTypeBinding]]
     private let referenceAssociatedTypeIDs: Set<AssociatedTypeID>
 
-    init() {
+    package init() {
         self.init([])
     }
 
-    init(
+    package init(
         _ bindings: [StubProtocolMetadata.AssociatedTypeBinding],
         referenceAssociatedTypeIDs: Set<AssociatedTypeID> = []
     ) {
@@ -44,16 +44,16 @@ struct AssociatedTypeBindings {
         self.byProtocolID = byProtocolID
     }
 
-    var isEmpty: Bool { ordered.isEmpty }
-    var count: Int { ordered.count }
-    var ids: [AssociatedTypeID] { ordered.map(\.id) }
-    var hasUniqueIDs: Bool { byID.count == ordered.count }
+    package var isEmpty: Bool { ordered.isEmpty }
+    package var count: Int { ordered.count }
+    package var ids: [AssociatedTypeID] { ordered.map(\.id) }
+    package var hasUniqueIDs: Bool { byID.count == ordered.count }
 
-    subscript(id: AssociatedTypeID) -> StubProtocolMetadata.AssociatedTypeBinding? {
+    package subscript(id: AssociatedTypeID) -> StubProtocolMetadata.AssociatedTypeBinding? {
         byID[id]
     }
 
-    func declared(
+    package func declared(
         by protocolDescriptor: ProtocolDescriptor
     ) -> [StubProtocolMetadata.AssociatedTypeBinding] {
         byProtocolID[ProtocolLayout.DescriptorID(protocolDescriptor)] ?? []
@@ -61,13 +61,13 @@ struct AssociatedTypeBindings {
 
     /// Returns the concrete binding for one associated type, or throws the
     /// shared unbound-associated-type diagnostic.
-    func binding(
+    package func binding(
         named name: String,
         declaredBy protocolDescriptor: ProtocolDescriptor
     ) throws -> StubProtocolMetadata.AssociatedTypeBinding {
         let id = AssociatedTypeID(protocolDescriptor: protocolDescriptor, name: name)
         guard let binding = self[id] else {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolDescriptor.name,
                 reason: "No concrete binding is available for associated type '\(name)'. Construct the stub as `Stub<any \(protocolDescriptor.name)<ConcreteType>>`."
             )
@@ -75,7 +75,7 @@ struct AssociatedTypeBindings {
         return binding
     }
 
-    func dependency(
+    package func dependency(
         for binding: StubProtocolMetadata.AssociatedTypeBinding
     ) -> WitnessValueDependency {
         if referenceAssociatedTypeIDs.contains(binding.id) {
@@ -84,7 +84,7 @@ struct AssociatedTypeBindings {
         return .associatedType(id: binding.id)
     }
 
-    func resolvedAssociatedType(
+    package func resolvedAssociatedType(
         named name: String,
         declaredBy protocolDescriptor: ProtocolDescriptor
     ) throws -> ResolvedDependentType {
@@ -98,10 +98,10 @@ struct AssociatedTypeBindings {
         )
     }
 
-    func validateReferenceBindings() throws {
+    package func validateReferenceBindings() throws {
         for binding in ordered where referenceAssociatedTypeIDs.contains(binding.id) {
             guard binding.type is AnyObject.Type else {
-                throw StubError.unsupportedProtocolShape(
+                throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: binding.protocolDescriptor.name,
                     reason:
                         "AnyObject-constrained associated type '\(binding.name)' must be bound to a concrete class type. "
@@ -113,13 +113,13 @@ struct AssociatedTypeBindings {
 }
 
 extension StubProtocolMetadata.AssociatedTypeBinding {
-    var id: AssociatedTypeID {
+    package var id: AssociatedTypeID {
         AssociatedTypeID(protocolDescriptor: protocolDescriptor, name: name)
     }
 }
 
 extension ProtocolLayout.AssociatedTypeRequirement {
-    var id: AssociatedTypeID {
+    package var id: AssociatedTypeID {
         AssociatedTypeID(protocolDescriptor: protocolDescriptor, name: name)
     }
 }

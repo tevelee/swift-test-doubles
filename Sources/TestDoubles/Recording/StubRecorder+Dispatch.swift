@@ -1,3 +1,4 @@
+import TestDoublesRuntime
 import Foundation
 
 extension StubRecorder {

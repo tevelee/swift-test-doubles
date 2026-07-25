@@ -1,10 +1,10 @@
 /// The concrete typed-error channel, including the ABI decision that selects
 /// a distinct caller-provided result slot.
-struct TypedErrorTransport: Sendable {
-    let type: Any.Type
-    let layout: ABIClass
-    let dependency: WitnessValueDependency
-    let usesIndirectResultSlot: Bool
+package struct TypedErrorTransport: Sendable {
+    package let type: Any.Type
+    package let layout: ABIClass
+    package let dependency: WitnessValueDependency
+    package let usesIndirectResultSlot: Bool
 }
 
 /// Effects that change witness dispatch and result transport.
@@ -12,11 +12,11 @@ struct TypedErrorTransport: Sendable {
 /// This immutable reference also keeps compatibility projections from
 /// borrowing nested optional payloads through `MethodDescriptor`, a pattern
 /// that Swift 6.3's optimized CopyPropagation pass rejects.
-final class RequirementEffects: Sendable {
-    struct Throwing: Sendable {
-        let isThrowing: Bool
-        let isReliable: Bool
-        let typedError: TypedErrorTransport?
+package final class RequirementEffects: Sendable {
+    package struct Throwing: Sendable {
+        package let isThrowing: Bool
+        package let isReliable: Bool
+        package let typedError: TypedErrorTransport?
 
         static func nonthrowing(reliable: Bool) -> Self {
             Self(
@@ -43,12 +43,11 @@ final class RequirementEffects: Sendable {
         }
     }
 
-    let isAsync: Bool
-    let throwing: Throwing
+    package let isAsync: Bool
+    package let throwing: Throwing
 
-    init(isAsync: Bool, throwing: Throwing) {
+    package init(isAsync: Bool, throwing: Throwing) {
         self.isAsync = isAsync
         self.throwing = throwing
     }
 }
-import TestDoublesRuntime

@@ -3,27 +3,27 @@ import Foundation
 
 // MARK: - Signature parsing
 
-struct ParsedWitnessSignature {
-    let name: String
-    let argumentTypes: [DemangledTypeSyntax]
-    let returnType: DemangledTypeSyntax
-    let isThrowing: Bool
-    let typedError: DemangledTypeSyntax?
+package struct ParsedWitnessSignature {
+    package let name: String
+    package let argumentTypes: [DemangledTypeSyntax]
+    package let returnType: DemangledTypeSyntax
+    package let isThrowing: Bool
+    package let typedError: DemangledTypeSyntax?
 
-    var argumentTypeNames: [String] {
+    package var argumentTypeNames: [String] {
         argumentTypes.map(\.canonicalSpelling)
     }
 
-    var returnTypeName: String {
+    package var returnTypeName: String {
         returnType.canonicalSpelling
     }
 
-    var typedErrorName: String? {
+    package var typedErrorName: String? {
         typedError?.canonicalSpelling
     }
 }
 
-func parseWitnessSignature(
+package func parseWitnessSignature(
     _ demangled: String,
     kind: ProtocolRequirement.Kind
 ) -> ParsedWitnessSignature? {
@@ -254,12 +254,3 @@ private func lastParameterList(
     }
     return candidate
 }
-
-func topLevelComponents(in text: String) -> [String]? {
-    DelimitedSyntaxScanner(text)?.components(separatedBy: ",")
-}
-
-func lastTopLevelColon(in text: String) -> String.Index? {
-    DelimitedSyntaxScanner(text)?.lastTopLevelIndex(of: ":")
-}
-import TestDoublesRuntime

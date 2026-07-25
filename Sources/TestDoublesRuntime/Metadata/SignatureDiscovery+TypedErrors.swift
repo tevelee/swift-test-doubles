@@ -18,7 +18,7 @@ func resolveTypedError(
             declaredBy: protocolDescriptor
         )
         guard binding.type is any Error.Type else {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolDescriptor.name,
                 reason: "Associated typed error '\(associatedTypeName)' is bound to '\(runtimeTypeName(binding.type))', which does not conform to Error."
             )
@@ -35,7 +35,7 @@ func resolveTypedError(
         associatedTypeBindings: associatedTypeBindings
     ) {
         guard resolved.type is any Error.Type else {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolDescriptor.name,
                 reason: "Associated-dependent typed error '\(name)' resolves to '\(runtimeTypeName(resolved.type))', which does not conform to Error."
             )
@@ -47,7 +47,7 @@ func resolveTypedError(
         protocolDescriptor: protocolDescriptor,
         associatedTypeBindings: associatedTypeBindings
     ) {
-        throw StubError.unsupportedProtocolShape(
+        throw RuntimeConstructionError.unsupportedProtocolShape(
             protocolName: protocolDescriptor.name,
             reason:
                 "Requirement \(requirementIndex) embeds an associated type inside unsupported typed error '\(name)'. "
@@ -55,13 +55,13 @@ func resolveTypedError(
         )
     }
     guard let type = resolveRuntimeType(syntax) else {
-        throw StubError.unsupportedProtocolShape(
+        throw RuntimeConstructionError.unsupportedProtocolShape(
             protocolName: protocolDescriptor.name,
             reason: "Requirement \(requirementIndex) has typed error '\(name)' whose runtime metadata could not be resolved."
         )
     }
     guard reflect(type).kind != .function else {
-        throw StubError.unsupportedProtocolShape(
+        throw RuntimeConstructionError.unsupportedProtocolShape(
             protocolName: protocolDescriptor.name,
             reason: "Requirement \(requirementIndex) has a function-valued typed error."
         )
@@ -126,7 +126,7 @@ private func resolveAssociatedTypedErrorClassComponent(
                 arguments: arguments.map(\.type)
             )
         else {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolDescriptor.name,
                 reason:
                     "Requirement \(requirementIndex) embeds an associated type inside unsupported typed error '\(spelling)'. "
@@ -147,7 +147,7 @@ private func resolveAssociatedTypedErrorClassComponent(
         protocolDescriptor: protocolDescriptor,
         associatedTypeBindings: associatedTypeBindings
     ) {
-        throw StubError.unsupportedProtocolShape(
+        throw RuntimeConstructionError.unsupportedProtocolShape(
             protocolName: protocolDescriptor.name,
             reason:
                 "Requirement \(requirementIndex) embeds an associated type inside unsupported typed-error component '\(spelling)'. "
@@ -157,11 +157,10 @@ private func resolveAssociatedTypedErrorClassComponent(
     guard let syntax = DemangledTypeSyntax(spelling),
         let type = resolveRuntimeType(syntax)
     else {
-        throw StubError.unsupportedProtocolShape(
+        throw RuntimeConstructionError.unsupportedProtocolShape(
             protocolName: protocolDescriptor.name,
             reason: "Requirement \(requirementIndex) has typed-error component '\(spelling)' whose runtime metadata could not be resolved."
         )
     }
     return ResolvedDependentType(type: type, dependency: .independent)
 }
-import TestDoublesRuntime

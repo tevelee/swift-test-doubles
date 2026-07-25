@@ -1,3 +1,4 @@
+import TestDoublesRuntime
 enum StubRecorderDiagnostics {
     static func dispatchFailure(
         title: String,

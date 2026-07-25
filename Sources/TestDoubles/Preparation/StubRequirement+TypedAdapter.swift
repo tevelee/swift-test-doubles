@@ -1,3 +1,4 @@
+import TestDoublesRuntime
 extension Stub.Requirement {
     static func typedAdapterFactory<Adapter>(
         _ adapter: Adapter
@@ -10,8 +11,8 @@ extension Stub.Requirement {
         return TypedWitnessAdapterFactory(
             functionType: Adapter.self,
             invocationType: Stub<P>.Invocation.self,
-            make: { recorder, method in
-                let invocation = Stub<P>.Invocation(recorder: recorder, method: method)
+            make: { endpoint, method in
+                let invocation = Stub<P>.Invocation(endpoint: endpoint, method: method)
                 guard let target = UnsafeRawPointer(bitPattern: word) else {
                     preconditionFailure("[TestDoubles] A typed witness adapter has no entry point.")
                 }

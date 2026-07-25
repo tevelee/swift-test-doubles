@@ -1,3 +1,4 @@
+import TestDoublesRuntime
 /// Runs a runtime test-double construction operation while preserving the
 /// public `StubError` failure contract.
 ///
@@ -12,6 +13,8 @@ func withStubConstructionError<Result>(
         return try operation()
     } catch let error as StubError {
         throw error
+    } catch let error as RuntimeConstructionError {
+        throw StubError(error)
     } catch {
         preconditionFailure(
             "[TestDoubles] Construction for '\(String(reflecting: protocolType))' "

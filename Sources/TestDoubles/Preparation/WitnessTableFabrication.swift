@@ -1,3 +1,4 @@
+import TestDoublesRuntime
 extension Stub {
     static func prepareFabricated(
         layout: ProtocolLayout,

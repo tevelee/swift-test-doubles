@@ -1,3 +1,4 @@
+import TestDoublesRuntime
 import Foundation
 
 /// A handle to calls parked by `thenSuspend()`.

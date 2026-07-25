@@ -37,7 +37,7 @@ extension ProtocolLayout {
             let identifier = DescriptorID(descriptor)
             guard visited.contains(identifier) == false else { return }
             guard active.insert(identifier).inserted else {
-                throw StubError.unsupportedProtocolShape(
+                throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: contextName,
                     reason: "Protocol inheritance contains a cycle through '\(descriptor.name)'."
                 )
@@ -88,7 +88,7 @@ extension ProtocolLayout {
                                 $0.witnessIndex == readRequirement.recorderWitnessIndex
                             })
                         else {
-                            throw StubError.unsupportedProtocolShape(
+                            throw RuntimeConstructionError.unsupportedProtocolShape(
                                 protocolName: descriptor.name,
                                 reason: "A read coroutine is missing its getter dispatch mapping."
                             )
@@ -110,7 +110,7 @@ extension ProtocolLayout {
                                 $0.witnessIndex == modifyRequirement.setterWitnessIndex
                             })
                         else {
-                            throw StubError.unsupportedProtocolShape(
+                            throw RuntimeConstructionError.unsupportedProtocolShape(
                                 protocolName: descriptor.name,
                                 reason: "A _modify coroutine is missing its getter or setter dispatch mapping."
                             )
@@ -176,7 +176,7 @@ extension ProtocolLayout {
                 requirement.flags.kind == .associatedConformanceAccessFunction ? index : nil
             }
             guard associatedTypeNames.count == associatedTypeWitnessIndices.count else {
-                throw StubError.unsupportedProtocolShape(
+                throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: descriptor.name,
                     reason: "Associated-type names do not match their witness-table entries."
                 )
@@ -194,7 +194,7 @@ extension ProtocolLayout {
                 constrainsProtocolSelf($0) == false
             }
             guard selfConformances.count == baseWitnessIndices.count else {
-                throw StubError.unsupportedProtocolShape(
+                throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: descriptor.name,
                     reason: "Inherited-protocol metadata is malformed or uses an unsupported constraint."
                 )
@@ -216,7 +216,7 @@ extension ProtocolLayout {
                 guard dependentConformances.isEmpty,
                     associatedConformanceWitnessIndices.isEmpty
                 else {
-                    throw StubError.unsupportedProtocolShape(
+                    throw RuntimeConstructionError.unsupportedProtocolShape(
                         protocolName: descriptor.name,
                         reason: "Inherited-protocol metadata is malformed or uses an unsupported constraint."
                     )
@@ -224,7 +224,7 @@ extension ProtocolLayout {
                 associatedConformances = []
             } else {
                 guard dependentConformances.count == associatedConformanceWitnessIndices.count else {
-                    throw StubError.unsupportedProtocolShape(
+                    throw RuntimeConstructionError.unsupportedProtocolShape(
                         protocolName: descriptor.name,
                         reason: "Associated-type conformance constraints do not match their witness-table entries."
                     )
@@ -240,7 +240,7 @@ extension ProtocolLayout {
                         DescriptorID(identity.protocolDescriptor) == DescriptorID(descriptor),
                         associatedTypeNames.contains(identity.name)
                     else {
-                        throw StubError.unsupportedProtocolShape(
+                        throw RuntimeConstructionError.unsupportedProtocolShape(
                             protocolName: descriptor.name,
                             reason: "An associated-type conformance constraint does not identify a declared associated type."
                         )
@@ -264,7 +264,7 @@ extension ProtocolLayout {
                 switch requirement.flags.kind {
                     case .baseProtocol:
                         guard requirement.flags.isInstance == false else {
-                            throw StubError.unsupportedProtocolShape(
+                            throw RuntimeConstructionError.unsupportedProtocolShape(
                                 protocolName: descriptor.name,
                                 reason: "Inherited-protocol requirement \(index) has invalid flags."
                             )
@@ -272,7 +272,7 @@ extension ProtocolLayout {
 
                     case .method, .getter:
                         guard let kind = StubRequirementKind(requirement.flags.kind) else {
-                            throw StubError.unsupportedProtocolShape(
+                            throw RuntimeConstructionError.unsupportedProtocolShape(
                                 protocolName: descriptor.name,
                                 reason: "Requirement \(index) has invalid callable flags."
                             )
@@ -288,7 +288,7 @@ extension ProtocolLayout {
                         guard requirement.flags.isInstance == false,
                             let kind = StubRequirementKind(requirement.flags.kind)
                         else {
-                            throw StubError.unsupportedProtocolShape(
+                            throw RuntimeConstructionError.unsupportedProtocolShape(
                                 protocolName: descriptor.name,
                                 reason: "Initializer requirement \(index) has invalid instance flags."
                             )
@@ -298,7 +298,7 @@ extension ProtocolLayout {
                     case .associatedTypeAccessFunction,
                         .associatedConformanceAccessFunction:
                         guard requirement.flags.isInstance == false else {
-                            throw StubError.unsupportedProtocolShape(
+                            throw RuntimeConstructionError.unsupportedProtocolShape(
                                 protocolName: descriptor.name,
                                 reason: "Associated requirement \(index) has invalid instance flags."
                             )
@@ -313,7 +313,7 @@ extension ProtocolLayout {
                             localRequirements[index + 1].flags.isInstance == requirement.flags.isInstance,
                             let kind = StubRequirementKind(requirement.flags.kind)
                         else {
-                            throw StubError.unsupportedProtocolShape(
+                            throw RuntimeConstructionError.unsupportedProtocolShape(
                                 protocolName: descriptor.name,
                                 reason: "Requirement \(index) is a setter outside Swift's ordinary getter/setter/modify property layout."
                             )
@@ -332,7 +332,7 @@ extension ProtocolLayout {
                             localRequirements[index - 2].flags.kind == .getter,
                             localRequirements[index - 2].flags.isInstance == requirement.flags.isInstance
                         else {
-                            throw StubError.unsupportedProtocolShape(
+                            throw RuntimeConstructionError.unsupportedProtocolShape(
                                 protocolName: descriptor.name,
                                 reason: "Requirement \(index) is an unsupported standalone _modify coroutine."
                             )
@@ -358,7 +358,7 @@ extension ProtocolLayout {
                         )
 
                     @unknown default:
-                        throw StubError.unsupportedProtocolShape(
+                        throw RuntimeConstructionError.unsupportedProtocolShape(
                             protocolName: descriptor.name,
                             reason: "Requirement \(index) is a \(requirement.flags.kind). Only inherited protocols, initializers, methods, ordinary getters, and direct property setters are supported."
                         )
@@ -395,13 +395,13 @@ extension ProtocolLayout {
                 conformances.count + classLayouts.count
                     + invertedProtocols.count == signature.count
             else {
-                throw StubError.unsupportedProtocolShape(
+                throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: descriptor.name,
                     reason: "Only inherited-protocol, associated-type conformance, and class-layout constraints are supported."
                 )
             }
             if let requirement = invertedProtocols.first {
-                throw StubError.unsupportedProtocolShape(
+                throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: descriptor.name,
                     reason: invertedProtocolDiagnostic(for: requirement)
                 )
@@ -450,7 +450,7 @@ extension ProtocolLayout {
                 localRequirements[pairedIndex].flags.isInstance
                     == requirement.flags.isInstance
             else {
-                throw StubError.unsupportedProtocolShape(
+                throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: descriptor.name,
                     reason: "The legacy read witness at index \(index) is missing its adjacent Swift 6.4 yielding-borrow witness."
                 )
@@ -488,7 +488,7 @@ extension ProtocolLayout {
                         == GenericRequirementLayoutKindCode.anyObjectClass
                 })
             else {
-                throw StubError.unsupportedProtocolShape(
+                throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: descriptor.name,
                     reason: "Only the AnyObject class layout constraint is supported."
                 )
@@ -497,7 +497,7 @@ extension ProtocolLayout {
             guard selfRequirements.count <= 1,
                 selfRequirements.isEmpty || allowsClassConstraint
             else {
-                throw StubError.unsupportedProtocolShape(
+                throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: descriptor.name,
                     reason: "A Self: AnyObject requirement requires class-constrained existential metadata."
                 )
@@ -513,7 +513,7 @@ extension ProtocolLayout {
                         DescriptorID(identity.protocolDescriptor) == DescriptorID(descriptor),
                         associatedTypeNames.contains(identity.name)
                     else {
-                        throw StubError.unsupportedProtocolShape(
+                        throw RuntimeConstructionError.unsupportedProtocolShape(
                             protocolName: descriptor.name,
                             reason: "A class-layout constraint does not identify a declared associated type."
                         )
@@ -521,7 +521,7 @@ extension ProtocolLayout {
                     return identity.name
                 }
             guard Set(constrainedAssociatedTypeNames).count == constrainedAssociatedTypeNames.count else {
-                throw StubError.unsupportedProtocolShape(
+                throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: descriptor.name,
                     reason: "An associated type has duplicate class-layout constraints."
                 )

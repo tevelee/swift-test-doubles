@@ -302,11 +302,12 @@ extension Stub {
                     continue
                 }
                 expected = discovered
-            } catch let error as StubError {
+            } catch let error as RuntimeConstructionError {
                 // Once linked discovery identifies an unsupported ABI shape,
                 // explicit metadata must not bypass that fail-closed boundary.
-                if case .unsupportedProtocolShape = error { throw error }
-                if requiresStrictDiscovery { throw error }
+                let mappedError = StubError(error)
+                if case .unsupportedProtocolShape = mappedError { throw mappedError }
+                if requiresStrictDiscovery { throw mappedError }
                 continue
             } catch {
                 if requiresStrictDiscovery { throw error }

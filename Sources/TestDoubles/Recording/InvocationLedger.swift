@@ -1,3 +1,4 @@
+import TestDoublesRuntime
 import Foundation
 
 /// Process-global monotonic stamp shared by every recorder, so ordered

@@ -1,3 +1,4 @@
+import TestDoublesRuntime
 import TestDoublesFixtures
 import Testing
 @testable import TestDoubles

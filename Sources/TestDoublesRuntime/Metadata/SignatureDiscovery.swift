@@ -2,7 +2,7 @@ import CTestDoublesTrampoline
 import Echo
 import Foundation
 
-enum GetterEffectDiscoveryPolicy {
+package enum GetterEffectDiscoveryPolicy {
     /// Preserves automatic discovery's historical behavior: synchronous
     /// getters are accepted with an unreliable nonthrowing placeholder, while
     /// async getters require an explicit source of truth.
@@ -18,7 +18,7 @@ enum GetterEffectDiscoveryPolicy {
 /// Discovers method signatures using symbol lookup and demangling. Linked
 /// witness thunks are preferred; resilient protocols can fall back to their
 /// exported per-requirement method descriptor symbols.
-func discoverMethods(
+package func discoverMethods(
     witnessTables: [ProtocolLayout.DescriptorID: WitnessTable],
     layout: ProtocolLayout,
     requirements: [ProtocolLayout.CallableRequirement]? = nil,
@@ -37,13 +37,13 @@ func discoverMethods(
         )
         guard symbols.names.isEmpty == false else {
             if symbols.hasWitnessTable {
-                throw StubError.signatureDiscoveryFailed(
+                throw RuntimeConstructionError.signatureDiscoveryFailed(
                     protocolName: proto.name,
                     requirementIndex: requirement.dispatchIndex,
                     details: "Neither the witness entry nor the protocol requirement descriptor has a resolvable signature symbol. Supply explicit Requirement values."
                 )
             }
-            throw StubError.noConformanceFound(protocolName: proto.name)
+            throw RuntimeConstructionError.noConformanceFound(protocolName: proto.name)
         }
 
         var attempted: [String] = []
@@ -59,7 +59,7 @@ func discoverMethods(
             }
         }
         guard let parsed, let parsedMangledName else {
-            throw StubError.signatureDiscoveryFailed(
+            throw RuntimeConstructionError.signatureDiscoveryFailed(
                 protocolName: proto.name,
                 requirementIndex: requirement.dispatchIndex,
                 details: "Could not parse any discovered symbol: \(attempted.joined(separator: "; ")). Supply explicit Requirement values."
@@ -116,7 +116,7 @@ func discoverMethods(
             guard kind == .method,
                 supportsResultConvention
             else {
-                throw StubError.unsupportedProtocolShape(
+                throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: proto.name,
                     reason: "Requirement \(requirement.dispatchIndex) combines typed throws with an unsupported accessor, initializer, or Self result convention."
                 )
@@ -172,7 +172,7 @@ private func requirementSymbolNames(
     )
 }
 
-func resilientRequirementSymbolName(
+package func resilientRequirementSymbolName(
     _ requirement: ProtocolLayout.CallableRequirement
 ) -> String? {
     let proto = requirement.protocolDescriptor
@@ -212,7 +212,7 @@ private func resolveGetterEffect(
     switch policy {
         case .automatic:
             guard isAsync == false else {
-                throw StubError.signatureDiscoveryFailed(
+                throw RuntimeConstructionError.signatureDiscoveryFailed(
                     protocolName: protocolDescriptor.name,
                     requirementIndex: dispatchIndex,
                     details: "Swift witness symbols do not encode whether an async getter throws. Supply GetterEffect hints or explicit Requirement values for effectful getters."
@@ -226,7 +226,7 @@ private func resolveGetterEffect(
                 witnessIndex: witnessIndex
             )
             guard let isThrowing = hints[identifier] else {
-                throw StubError.signatureDiscoveryFailed(
+                throw RuntimeConstructionError.signatureDiscoveryFailed(
                     protocolName: protocolDescriptor.name,
                     requirementIndex: dispatchIndex,
                     details: "No GetterEffect hint was supplied for this getter."
@@ -252,7 +252,7 @@ private func resolveWitnessValue(
         if dynamicSelfValueShape(valueName) != nil
             || containsDynamicSelfReference(valueName)
         {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolDescriptor.name,
                 reason:
                     "Requirement \(requirementIndex) uses an inout Self argument. "
@@ -284,7 +284,7 @@ private func resolveWitnessValue(
     }
     if let selfShape = dynamicSelfValueShape(valueName) {
         guard isAutoclosure == false else {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolDescriptor.name,
                 reason:
                     "Requirement \(requirementIndex) uses Self through an autoclosure argument. "
@@ -297,7 +297,7 @@ private func resolveWitnessValue(
         )
     }
     if containsDynamicSelfReference(valueName) {
-        throw StubError.unsupportedProtocolShape(
+        throw RuntimeConstructionError.unsupportedProtocolShape(
             protocolName: protocolDescriptor.name,
             reason:
                 "Requirement \(requirementIndex) embeds Self inside unsupported type '\(valueName)'. "
@@ -313,7 +313,7 @@ private func resolveWitnessValue(
             associatedTypeBindings: associatedTypeBindings
         )
     {
-        throw StubError.unsupportedProtocolShape(
+        throw RuntimeConstructionError.unsupportedProtocolShape(
             protocolName: protocolDescriptor.name,
             reason:
                 "Requirement \(requirementIndex) uses an associated-dependent function value. "
@@ -328,7 +328,7 @@ private func resolveWitnessValue(
         }
         if let spelling = spellings.first(where: { rawName.hasSuffix(" \($0)") }) {
             let ownership = rawName.dropLast(spelling.count).trimmingCharacters(in: .whitespaces)
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolDescriptor.name,
                 reason: "Requirement \(requirementIndex) uses unsupported ownership spelling '\(ownership)' for associated type '\(binding.name)'. Only borrowed and __owned associated-type arguments are supported."
             )
@@ -348,7 +348,7 @@ private func resolveWitnessValue(
     for binding in bindings {
         let spellings = ["A.\(binding.name)", "Self.\(binding.name)"]
         if spellings.contains(where: valueName.contains) {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolDescriptor.name,
                 reason:
                     "Requirement \(requirementIndex) embeds associated type '\(binding.name)' inside unsupported type '\(valueName)'. "
@@ -362,7 +362,7 @@ private func resolveWitnessValue(
             containedInMangledSymbol: mangledSignature
         )
     else {
-        throw StubError.signatureDiscoveryFailed(
+        throw RuntimeConstructionError.signatureDiscoveryFailed(
             protocolName: protocolDescriptor.name,
             requirementIndex: requirementIndex,
             details: "Could not resolve runtime metadata for type '\(rawName)'. Supply explicit Requirement values."
@@ -449,6 +449,5 @@ extension ProtocolRequirement.Flags {
     /// Mirrors `ProtocolRequirementFlags::isAsync()`: an async method. The
     /// compiler deliberately excludes coroutine requirements that also set the
     /// `IsAsyncMask` bit, so this is not simply `hasAsyncBit`.
-    var isAsync: Bool { !isCoroutine && hasAsyncBit }
+    package var isAsync: Bool { !isCoroutine && hasAsyncBit }
 }
-import TestDoublesRuntime

@@ -1,9 +1,19 @@
 import Echo
 
-struct AsyncWitnessStackPlan: Equatable, Sendable {
-    let decodedStackByteCount: Int
-    let hiddenStackByteCount: Int
-    let stackAdjustmentByteCount: Int
+package struct AsyncWitnessStackPlan: Equatable, Sendable {
+    package let decodedStackByteCount: Int
+    package let hiddenStackByteCount: Int
+    package let stackAdjustmentByteCount: Int
+
+    package init(
+        decodedStackByteCount: Int,
+        hiddenStackByteCount: Int,
+        stackAdjustmentByteCount: Int
+    ) {
+        self.decodedStackByteCount = decodedStackByteCount
+        self.hiddenStackByteCount = hiddenStackByteCount
+        self.stackAdjustmentByteCount = stackAdjustmentByteCount
+    }
 }
 
 /// The one outgoing async Spy stack shape proven against Swift 6.3.
@@ -15,13 +25,23 @@ struct AsyncWitnessStackPlan: Equatable, Sendable {
 /// continuation stack before resuming the helper. The completion adjustment is
 /// therefore zero for every supported architecture and records that the helper
 /// must not remove the area a second time.
-struct AsyncForwardingStackPlan: Equatable, Sendable {
-    let visibleArgumentLocation: CallFrameArgumentLocation
-    let outgoingStackByteCount: Int
-    let completionStackAdjustmentByteCount: Int
+package struct AsyncForwardingStackPlan: Equatable, Sendable {
+    package let visibleArgumentLocation: CallFrameArgumentLocation
+    package let outgoingStackByteCount: Int
+    package let completionStackAdjustmentByteCount: Int
+
+    package init(
+        visibleArgumentLocation: CallFrameArgumentLocation,
+        outgoingStackByteCount: Int,
+        completionStackAdjustmentByteCount: Int
+    ) {
+        self.visibleArgumentLocation = visibleArgumentLocation
+        self.outgoingStackByteCount = outgoingStackByteCount
+        self.completionStackAdjustmentByteCount = completionStackAdjustmentByteCount
+    }
 }
 
-func unsupportedRuntimeReason(
+package func unsupportedRuntimeReason(
     for method: MethodDescriptor,
     architecture: RuntimeArchitecture
 ) -> String? {
@@ -47,7 +67,7 @@ func unsupportedRuntimeReason(
         + "Use fewer values or a hand-written test double."
 }
 
-func asyncWitnessStackPlan(
+package func asyncWitnessStackPlan(
     for method: MethodDescriptor,
     architecture: RuntimeArchitecture
 ) -> AsyncWitnessStackPlan {
@@ -123,7 +143,7 @@ private func asyncWitnessStackPlan(
 /// This deliberately accepts only one complete concrete eight-byte value that
 /// spills from the general-purpose bank. Split, padded, indirect, dependent,
 /// vector, accessor, and typed-error shapes remain fail-closed.
-func asyncForwardingStackPlan(
+package func asyncForwardingStackPlan(
     for method: MethodDescriptor,
     architecture: RuntimeArchitecture
 ) -> AsyncForwardingStackPlan? {
@@ -190,4 +210,3 @@ func asyncForwardingStackPlan(
         completionStackAdjustmentByteCount: 0
     )
 }
-import TestDoublesRuntime

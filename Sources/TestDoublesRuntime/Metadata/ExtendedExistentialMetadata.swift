@@ -3,22 +3,32 @@ import Echo
 
 /// The exact ordinary and extended existential metadata subset supported by
 /// runtime stubs.
-struct StubProtocolMetadata {
-    struct AssociatedTypeBinding {
-        let protocolDescriptor: ProtocolDescriptor
-        let name: String
-        let type: Any.Type
+package struct StubProtocolMetadata {
+    package struct AssociatedTypeBinding {
+        package let protocolDescriptor: ProtocolDescriptor
+        package let name: String
+        package let type: Any.Type
+
+        package init(
+            protocolDescriptor: ProtocolDescriptor,
+            name: String,
+            type: Any.Type
+        ) {
+            self.protocolDescriptor = protocolDescriptor
+            self.name = name
+            self.type = type
+        }
     }
-    let protocols: [ProtocolDescriptor]
-    let numberOfWitnessTables: Int
-    let isClassConstrained: Bool
-    let hasSuperclassConstraint: Bool
-    let superclass: Any.Type?
-    let specialProtocol: SpecialProtocol
+    package let protocols: [ProtocolDescriptor]
+    package let numberOfWitnessTables: Int
+    package let isClassConstrained: Bool
+    package let hasSuperclassConstraint: Bool
+    package let superclass: Any.Type?
+    package let specialProtocol: SpecialProtocol
     /// Concrete metadata arguments supplied by an accepted extended
     /// existential shape, keyed by the descriptor and associated-type name
     /// encoded in each same-type requirement.
-    let associatedTypeBindings: [AssociatedTypeBinding]
+    package let associatedTypeBindings: [AssociatedTypeBinding]
 }
 
 /// Whether an accepted extended existential shape is copied through the
@@ -27,7 +37,7 @@ struct StubProtocolMetadata {
 ///
 /// The runtime pre-builds opaque-existential tables for zero and one witness
 /// tables and class-existential tables for up to two.
-func extendedExistentialUsesRuntimeInstantiatedValueWitnesses(
+package func extendedExistentialUsesRuntimeInstantiatedValueWitnesses(
     isClassConstrained: Bool,
     numberOfWitnessTables: Int
 ) -> Bool {
@@ -42,14 +52,14 @@ func extendedExistentialUsesRuntimeInstantiatedValueWitnesses(
 /// word, which actually stores half of the shape pointer, so every container
 /// copy overruns the destination by whatever count those pointer bits encode
 /// (swiftlang/swift#85346, rdar://163980446).
-let runtimeCopiesExtendedExistentialContainersCorrectly: Bool = {
+package let runtimeCopiesExtendedExistentialContainersCorrectly: Bool = {
     if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
         return true
     }
     return false
 }()
 
-func inspectStubProtocolMetadata(
+package func inspectStubProtocolMetadata(
     _ type: Any.Type,
     typeDescription: String
 ) throws -> StubProtocolMetadata {
@@ -57,7 +67,7 @@ func inspectStubProtocolMetadata(
     switch metadata.load(as: UInt.self) {
         case MetadataKindValue.existential:
             guard let existential = reflect(type) as? ExistentialMetadata else {
-                throw StubError.typeIsNotProtocol(typeDescription: typeDescription)
+                throw RuntimeConstructionError.typeIsNotProtocol(typeDescription: typeDescription)
             }
             return StubProtocolMetadata(
                 protocols: existential.protocols,
@@ -71,7 +81,7 @@ func inspectStubProtocolMetadata(
         case MetadataKindValue.extendedExistential:
             return try inspectExtendedExistential(metadata, typeDescription: typeDescription)
         default:
-            throw StubError.typeIsNotProtocol(typeDescription: typeDescription)
+            throw RuntimeConstructionError.typeIsNotProtocol(typeDescription: typeDescription)
     }
 }
 
@@ -107,14 +117,14 @@ private func inspectExtendedExistential(
             shapeField
         )
     else {
-        throw StubError.typeIsNotProtocol(typeDescription: typeDescription)
+        throw RuntimeConstructionError.typeIsNotProtocol(typeDescription: typeDescription)
     }
     let flags = shape.load(as: UInt32.self)
     let specialKind = flags & 0xff
     guard specialKind == 0 || specialKind == 1,
         flags & ~UInt32(0xff) == 0x1900
     else {
-        throw StubError.unsupportedProtocolShape(
+        throw RuntimeConstructionError.unsupportedProtocolShape(
             protocolName: typeDescription,
             reason: "This extended existential is outside the supported bound-associated-type metadata shape. Only opaque or class-constrained existentials with concretely bound primary associated types are supported."
         )
@@ -132,7 +142,7 @@ private func inspectExtendedExistential(
     for index in 0 ..< Int(requirementHeader.numberOfRequirements) {
         let requirement = requirements + index * 12
         if requirement.load(as: UInt32.self) == 0x02 {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: typeDescription,
                 reason: unsupportedSuperclassReason
             )
@@ -147,7 +157,7 @@ private func inspectExtendedExistential(
         generalizationHeader.numberOfKeyArguments == generalizationHeader.numberOfParameters,
         generalizationHeader.flags == 0
     else {
-        throw StubError.unsupportedProtocolShape(
+        throw RuntimeConstructionError.unsupportedProtocolShape(
             protocolName: typeDescription,
             reason: "Bound associated-type support requires a metadata-only generalization argument for every concrete primary-associated-type binding."
         )
@@ -195,19 +205,19 @@ private func inspectExtendedExistential(
                         suffix: [0x51, 0x79, 0x64, 0x5f, 0x5f]
                     )
                 else {
-                    throw StubError.unsupportedProtocolShape(
+                    throw RuntimeConstructionError.unsupportedProtocolShape(
                         protocolName: typeDescription,
                         reason: "Concrete associated-type bindings are not in a supported deterministic metadata-argument order."
                     )
                 }
                 associatedTypeIdentities.append(identity)
             case 0x02:
-                throw StubError.unsupportedProtocolShape(
+                throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: typeDescription,
                     reason: unsupportedSuperclassReason
                 )
             default:
-                throw StubError.unsupportedProtocolShape(
+                throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: typeDescription,
                     reason: "The bound associated-type requirement signature contains unsupported generic requirement flags."
                 )
@@ -227,7 +237,7 @@ private func inspectExtendedExistential(
         Int(requirementHeader.numberOfRequirements) == protocols.count + numberOfBindings,
         Int(requirementHeader.numberOfKeyArguments) == protocols.count + numberOfBindings + 1
     else {
-        throw StubError.unsupportedProtocolShape(
+        throw RuntimeConstructionError.unsupportedProtocolShape(
             protocolName: typeDescription,
             reason: "Bound associated-type support requires one same-type binding per metadata argument and one witness-table requirement per distinct root protocol."
         )
@@ -238,7 +248,7 @@ private func inspectExtendedExistential(
     ),
         runtimeCopiesExtendedExistentialContainersCorrectly == false
     {
-        throw StubError.unsupportedProtocolShape(
+        throw RuntimeConstructionError.unsupportedProtocolShape(
             protocolName: typeDescription,
             reason: "The Swift runtime in this process miscounts witness tables while copying bound existential compositions, so materializing one would overrun memory "
                 + "(fixed in the 26.4 OS releases by swiftlang/swift#85346). Run on an OS at 26.4 or newer, or stub the unbound composition and supply `associatedTypes:` bindings instead."
@@ -276,7 +286,7 @@ private func inspectExtendedExistential(
 
 /// Returns the associated-type identity encoded by the supported dependent
 /// member mangling used in a protocol requirement signature.
-func parseProtocolAssociatedTypeReference(
+package func parseProtocolAssociatedTypeReference(
     at mangledName: UnsafeRawPointer
 ) -> (protocolDescriptor: ProtocolDescriptor, name: String)? {
     parseAssociatedTypeReference(

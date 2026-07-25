@@ -1,3 +1,4 @@
+import TestDoublesRuntime
 import Echo
 
 extension Stub.Requirement.Value {

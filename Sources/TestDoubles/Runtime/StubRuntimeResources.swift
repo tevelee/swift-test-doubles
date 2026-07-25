@@ -87,7 +87,8 @@ final class StubResources: @unchecked Sendable {
         method: MethodDescriptor
     ) -> UnsafeRawPointer? {
         requireBuilding()
-        let adapter = factory.make(recorder, method)
+        let endpoint = StubRecorderInvocationEndpoint(recorder: recorder)
+        let adapter = factory.make(endpoint, method)
         guard
             let trampoline = trampolineArena?.makeTyped(
                 target: adapter.target,

@@ -1,3 +1,4 @@
+import TestDoublesRuntime
 import Echo
 
 enum SpyGetterEffectInput<P> {
@@ -95,7 +96,7 @@ extension Stub {
             using getterEffectPolicy: GetterEffectDiscoveryPolicy
         ) throws -> [MethodDescriptor] {
             let witnessTables = try LinkedWitnessTableGraph.discover(in: layout)
-            return try TestDoubles.discoverMethods(
+            return try TestDoublesRuntime.discoverMethods(
                 witnessTables: witnessTables,
                 layout: layout,
                 associatedTypeBindings: bindings,

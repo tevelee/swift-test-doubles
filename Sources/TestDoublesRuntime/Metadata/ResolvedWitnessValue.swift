@@ -1,24 +1,29 @@
 /// Concrete metadata paired with the source-level associated-type positions
 /// that produced it.
-struct ResolvedDependentType: Sendable {
-    let type: Any.Type
-    let dependency: WitnessValueDependency
+package struct ResolvedDependentType: Sendable {
+    package let type: Any.Type
+    package let dependency: WitnessValueDependency
 
-    func optional() -> Self {
+    package init(type: Any.Type, dependency: WitnessValueDependency) {
+        self.type = type
+        self.dependency = dependency
+    }
+
+    package func optional() -> Self {
         Self(
             type: _openExistential(type, do: optionalType),
             dependency: .optional(dependency)
         )
     }
 
-    func array() -> Self {
+    package func array() -> Self {
         Self(
             type: _openExistential(type, do: arrayType),
             dependency: .array(dependency)
         )
     }
 
-    func set(
+    package func set(
         protocolName: String,
         sourceDescription: String
     ) throws -> Self {
@@ -36,7 +41,7 @@ struct ResolvedDependentType: Sendable {
                     + "'\(runtimeTypeName(self.type))', which does not conform "
                     + "to Hashable."
             }
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
                 reason: reason
             )
@@ -44,13 +49,13 @@ struct ResolvedDependentType: Sendable {
         return Self(type: type, dependency: .set(dependency))
     }
 
-    static func dictionary(
+    package static func dictionary(
         key: Self,
         value: Self,
         protocolName: String
     ) throws -> Self {
         guard let type = dictionaryType(key: key.type, value: value.type) else {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
                 reason: "Dictionary key '\(runtimeTypeName(key.type))' does not conform to Hashable. Bind its associated type to a Hashable concrete type."
             )
@@ -64,7 +69,7 @@ struct ResolvedDependentType: Sendable {
         )
     }
 
-    static func result(
+    package static func result(
         success: Self,
         failure: Self,
         protocolName: String
@@ -75,7 +80,7 @@ struct ResolvedDependentType: Sendable {
                 failure: failure.type
             )
         else {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
                 reason: "Result failure '\(runtimeTypeName(failure.type))' does not conform to Error."
             )
@@ -92,20 +97,32 @@ struct ResolvedDependentType: Sendable {
 
 /// A value resolved from either an explicit requirement or an automatically
 /// discovered witness signature before its ABI layout is classified.
-struct ResolvedWitnessValue: Sendable {
-    let type: Any.Type
-    let convention: WitnessValueConvention
-    let dependency: WitnessValueDependency
-    let ownership: WitnessArgumentOwnership?
+package struct ResolvedWitnessValue: Sendable {
+    package let type: Any.Type
+    package let convention: WitnessValueConvention
+    package let dependency: WitnessValueDependency
+    package let ownership: WitnessArgumentOwnership?
 
-    func argumentOwnership(
+    package init(
+        type: Any.Type,
+        convention: WitnessValueConvention,
+        dependency: WitnessValueDependency,
+        ownership: WitnessArgumentOwnership?
+    ) {
+        self.type = type
+        self.convention = convention
+        self.dependency = dependency
+        self.ownership = ownership
+    }
+
+    package func argumentOwnership(
         for kind: StubRequirementKind,
         at offset: Int
     ) -> WitnessArgumentOwnership {
         ownership ?? kind.defaultArgumentOwnership(at: offset)
     }
 
-    static func resolved(
+    package static func resolved(
         _ value: ResolvedDependentType,
         ownership: WitnessArgumentOwnership? = nil
     ) -> Self {
@@ -126,7 +143,7 @@ struct ResolvedWitnessValue: Sendable {
     }
 
     /// The dynamic `Self` value transported through `StubPayload` storage.
-    static func selfValue(
+    package static func selfValue(
         isOptional: Bool,
         ownership: WitnessArgumentOwnership? = nil
     ) -> Self {
@@ -138,4 +155,3 @@ struct ResolvedWitnessValue: Sendable {
         )
     }
 }
-import TestDoublesRuntime

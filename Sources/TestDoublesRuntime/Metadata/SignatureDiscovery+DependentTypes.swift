@@ -156,7 +156,7 @@ private func resolveSupportedTypeComponent(
                 arguments: arguments.map(\.type)
             )
         else {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolDescriptor.name,
                 reason:
                     "Requirement \(requirementIndex) embeds an associated type inside unsupported generic nominal '\(spelling)'. "
@@ -177,7 +177,7 @@ private func resolveSupportedTypeComponent(
         protocolDescriptor: protocolDescriptor,
         associatedTypeBindings: associatedTypeBindings
     ) {
-        throw StubError.unsupportedProtocolShape(
+        throw RuntimeConstructionError.unsupportedProtocolShape(
             protocolName: protocolDescriptor.name,
             reason:
                 "Requirement \(requirementIndex) embeds an associated type inside unsupported type '\(spelling)'. "
@@ -191,7 +191,7 @@ private func resolveSupportedTypeComponent(
             containedInMangledSymbol: mangledSignature
         )
     else {
-        throw StubError.signatureDiscoveryFailed(
+        throw RuntimeConstructionError.signatureDiscoveryFailed(
             protocolName: protocolDescriptor.name,
             requirementIndex: requirementIndex,
             details: "Could not resolve runtime metadata for nested generic argument '\(spelling)'. Supply explicit Requirement values."
@@ -300,4 +300,3 @@ func referencesAssociatedType(
             || spelling.contains("Self.\(binding.name)")
     }
 }
-import TestDoublesRuntime

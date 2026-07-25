@@ -447,11 +447,11 @@ private struct ParsedTupleElement {
     let typeName: String
 }
 
-func topLevelComponents(in text: String) -> [String]? {
+package func topLevelComponents(in text: String) -> [String]? {
     DelimitedSyntaxScanner(text)?.components(separatedBy: ",")
 }
 
-private func lastTopLevelColon(in text: String) -> String.Index? {
+func lastTopLevelColon(in text: String) -> String.Index? {
     DelimitedSyntaxScanner(text)?.lastTopLevelIndex(of: ":")
 }
 

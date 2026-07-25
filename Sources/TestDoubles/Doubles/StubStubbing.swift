@@ -1,3 +1,4 @@
+import TestDoublesRuntime
 extension Stub {
     /// Configures a nonfailable initializer requirement.
     ///

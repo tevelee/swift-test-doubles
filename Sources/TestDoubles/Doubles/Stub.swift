@@ -1,3 +1,4 @@
+import TestDoublesRuntime
 /// A runtime-generated test double for a protocol existential.
 ///
 /// Use the throwing initializer without requirements when signatures are

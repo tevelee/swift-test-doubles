@@ -1,24 +1,24 @@
-struct MethodDescriptor: Sendable {
-    enum Origin: Equatable, Sendable {
+package struct MethodDescriptor: Sendable {
+    package enum Origin: Equatable, Sendable {
         case automatic
         case explicit
         case manual
     }
 
-    let kind: StubRequirementKind
-    let receiver: StubRequirementReceiver
-    let origin: Origin
-    let name: String
+    package let kind: StubRequirementKind
+    package let receiver: StubRequirementReceiver
+    package let origin: Origin
+    package let name: String
     /// Dense identifier used by the recorder and trampoline handler.
-    let index: Int
+    package let index: Int
     /// Slot in the declaring protocol's witness table.
-    let witnessIndex: Int
-    let arguments: [WitnessArgumentDescriptor]
-    let result: WitnessValueDescriptor
-    let effects: RequirementEffects
-    let typedWitnessAdapterFactory: TypedWitnessAdapterFactory?
+    package let witnessIndex: Int
+    package let arguments: [WitnessArgumentDescriptor]
+    package let result: WitnessValueDescriptor
+    package let effects: RequirementEffects
+    package let typedWitnessAdapterFactory: TypedWitnessAdapterFactory?
 
-    init(
+    package init(
         kind: StubRequirementKind,
         receiver: StubRequirementReceiver = .instance,
         origin: Origin = .automatic,
@@ -133,7 +133,7 @@ struct MethodDescriptor: Sendable {
     /// Builds a descriptor from resolved witness values, applying each
     /// requirement kind's default argument ownership and rejecting a
     /// consuming result.
-    init(
+    package init(
         kind: StubRequirementKind,
         receiver: StubRequirementReceiver,
         origin: Origin = .automatic,
@@ -152,7 +152,7 @@ struct MethodDescriptor: Sendable {
         typedWitnessAdapterFactory: TypedWitnessAdapterFactory? = nil
     ) throws {
         guard result.ownership == nil else {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
                 reason: "Requirement \(index) marks a result as consuming. Ownership applies only to arguments."
             )
@@ -164,7 +164,7 @@ struct MethodDescriptor: Sendable {
                 \.usesSupportedReferenceAssociatedTransport
             )
         else {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
                 reason:
                     "Requirement \(index) embeds an AnyObject-constrained associated type in an unsupported value shape. "
@@ -200,36 +200,36 @@ struct MethodDescriptor: Sendable {
     // Convenience projections over the typed model. The scalar accessors are
     // used throughout the runtime; the per-argument arrays remain for
     // descriptor-focused tests.
-    var argumentTypes: [Any.Type] { arguments.map(\.value.type) }
-    var returnType: Any.Type { result.type }
-    var argumentConventions: [WitnessValueConvention] {
+    package var argumentTypes: [Any.Type] { arguments.map(\.value.type) }
+    package var returnType: Any.Type { result.type }
+    package var argumentConventions: [WitnessValueConvention] {
         arguments.map(\.value.convention)
     }
-    var argumentDependencies: [WitnessValueDependency] {
+    package var argumentDependencies: [WitnessValueDependency] {
         arguments.map { $0.value.dependency.legacyProjection }
     }
-    var argumentOwnerships: [WitnessArgumentOwnership] {
+    package var argumentOwnerships: [WitnessArgumentOwnership] {
         arguments.map(\.ownership)
     }
-    var returnConvention: WitnessValueConvention { result.convention }
-    var returnDependency: WitnessValueDependency {
+    package var returnConvention: WitnessValueConvention { result.convention }
+    package var returnDependency: WitnessValueDependency {
         result.dependency.legacyProjection
     }
-    var argumentLayouts: [ABIClass] { arguments.map(\.value.layout) }
-    var returnLayout: ABIClass { result.layout }
-    var typedErrorType: Any.Type? { effects.throwing.typedError?.type }
-    var typedErrorLayout: ABIClass? { effects.throwing.typedError?.layout }
-    var typedErrorDependency: WitnessValueDependency {
+    package var argumentLayouts: [ABIClass] { arguments.map(\.value.layout) }
+    package var returnLayout: ABIClass { result.layout }
+    package var typedErrorType: Any.Type? { effects.throwing.typedError?.type }
+    package var typedErrorLayout: ABIClass? { effects.throwing.typedError?.layout }
+    package var typedErrorDependency: WitnessValueDependency {
         effects.throwing.typedError?.dependency.legacyProjection ?? .independent
     }
-    var typedErrorUsesIndirectResultSlot: Bool {
+    package var typedErrorUsesIndirectResultSlot: Bool {
         effects.throwing.typedError?.usesIndirectResultSlot ?? false
     }
-    var isThrowing: Bool { effects.throwing.isThrowing }
-    var isAsync: Bool { effects.isAsync }
-    var hasReliableThrowing: Bool { effects.throwing.isReliable }
+    package var isThrowing: Bool { effects.throwing.isThrowing }
+    package var isAsync: Bool { effects.isAsync }
+    package var hasReliableThrowing: Bool { effects.throwing.isReliable }
 
-    var signatureDescription: String {
+    package var signatureDescription: String {
         let throwingEffect =
             effects.throwing.typedError.map {
                 "throws(\(typedErrorDescription($0)))"
@@ -263,7 +263,7 @@ struct MethodDescriptor: Sendable {
         }
     }
 
-    func hasSameSignature(as discovered: Self) -> Bool {
+    package func hasSameSignature(as discovered: Self) -> Bool {
         let typedErrorsMatch: Bool
         switch (
             effects.throwing.typedError,
@@ -386,4 +386,3 @@ private func typedErrorDescription(_ error: TypedErrorTransport) -> String {
 private func sameType(_ lhs: Any.Type, _ rhs: Any.Type) -> Bool {
     ObjectIdentifier(lhs) == ObjectIdentifier(rhs)
 }
-import TestDoublesRuntime

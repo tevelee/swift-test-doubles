@@ -1,12 +1,30 @@
 import Echo
 
 /// Type-erased construction of a compiler-emitted thin witness adapter.
-struct TypedWitnessAdapterFactory: @unchecked Sendable {
-    let functionType: Any.Type
-    let invocationType: Any.Type
-    let make: @Sendable (StubRecorder, MethodDescriptor) -> TypedWitnessAdapter
+package struct TypedWitnessAdapterFactory: @unchecked Sendable {
+    package let functionType: Any.Type
+    package let invocationType: Any.Type
+    package let make:
+        @Sendable (
+            any RuntimeInvocationEndpoint,
+            MethodDescriptor
+        ) -> TypedWitnessAdapter
 
-    func incompatibility(with method: MethodDescriptor) -> String? {
+    package init(
+        functionType: Any.Type,
+        invocationType: Any.Type,
+        make:
+            @escaping @Sendable (
+                any RuntimeInvocationEndpoint,
+                MethodDescriptor
+            ) -> TypedWitnessAdapter
+    ) {
+        self.functionType = functionType
+        self.invocationType = invocationType
+        self.make = make
+    }
+
+    package func incompatibility(with method: MethodDescriptor) -> String? {
         guard let metadata = reflect(functionType) as? FunctionMetadata else {
             return "The typed adapter must be a Swift function."
         }
@@ -49,7 +67,7 @@ struct TypedWitnessAdapterFactory: @unchecked Sendable {
         return nil
     }
 
-    func invocationArgumentIndex(for method: MethodDescriptor) -> Int? {
+    package func invocationArgumentIndex(for method: MethodDescriptor) -> Int? {
         WitnessCallTransportPlan(
             method: method,
             trailingPayload: .typedAdapterInvocation
@@ -64,13 +82,13 @@ extension FunctionMetadata.Flags {
 
 /// Retains the dispatch object explicitly appended to a thin adapter's
 /// argument list for the lifetime of the fabricated witness table.
-final class TypedWitnessAdapter: @unchecked Sendable {
-    let target: UnsafeRawPointer
-    let invocation: UnsafeRawPointer
-    let invocationArgumentIndex: Int
+package final class TypedWitnessAdapter: @unchecked Sendable {
+    package let target: UnsafeRawPointer
+    package let invocation: UnsafeRawPointer
+    package let invocationArgumentIndex: Int
     private let retainedInvocation: AnyObject
 
-    init(
+    package init(
         target: UnsafeRawPointer,
         invocationArgumentIndex: Int,
         invocation: AnyObject
@@ -82,7 +100,7 @@ final class TypedWitnessAdapter: @unchecked Sendable {
     }
 }
 
-func typedAdapterArgumentIndex(for method: MethodDescriptor) -> Int {
+package func typedAdapterArgumentIndex(for method: MethodDescriptor) -> Int {
     let transport = WitnessCallTransportPlan(
         method: method,
         trailingPayload: .typedAdapterInvocation
@@ -94,4 +112,3 @@ func typedAdapterArgumentIndex(for method: MethodDescriptor) -> Int {
     }
     return index
 }
-import TestDoublesRuntime

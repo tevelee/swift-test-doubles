@@ -1,3 +1,4 @@
+import TestDoublesRuntime
 /// Errors reported while constructing a runtime-generated test double.
 public enum StubError: Error, Sendable, CustomStringConvertible {
     private static let manualStubbingRecovery =
@@ -144,6 +145,34 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
             case .unsupportedTypeKind(let typeName):
                 return "Stub does not support the runtime type kind used by '\(typeName)'.\n"
                     + Self.manualStubbingRecovery
+        }
+    }
+}
+
+extension StubError {
+    /// Converts a package-only runtime construction failure into the stable
+    /// public error vocabulary without changing its diagnostic payload.
+    init(_ runtimeError: RuntimeConstructionError) {
+        switch runtimeError {
+            case .typeIsNotProtocol(let typeDescription):
+                self = .typeIsNotProtocol(typeDescription: typeDescription)
+            case .unsupportedProtocolShape(let protocolName, let reason):
+                self = .unsupportedProtocolShape(
+                    protocolName: protocolName,
+                    reason: reason
+                )
+            case .noConformanceFound(let protocolName):
+                self = .noConformanceFound(protocolName: protocolName)
+            case .signatureDiscoveryFailed(
+                let protocolName,
+                let requirementIndex,
+                let details
+            ):
+                self = .signatureDiscoveryFailed(
+                    protocolName: protocolName,
+                    requirementIndex: requirementIndex,
+                    details: details
+                )
         }
     }
 }

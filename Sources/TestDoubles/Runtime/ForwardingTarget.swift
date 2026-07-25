@@ -1,3 +1,4 @@
+import TestDoublesRuntime
 import Echo
 
 /// Owns a concrete protocol existential at a stable address so its projected

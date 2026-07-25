@@ -3,10 +3,10 @@
 /// Metadata and recording only need an opaque owner whose lifetime follows the
 /// generated value. Runtime-specific resources remain behind that ownership
 /// boundary.
-final class StubPayload {
-    let owner: AnyObject
+package final class StubPayload {
+    package let owner: AnyObject
 
-    init(resources: AnyObject) {
+    package init(resources: AnyObject) {
         owner = resources
     }
 }

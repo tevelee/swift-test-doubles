@@ -2,8 +2,8 @@ import Echo
 
 /// Resolves the witness tables linked through a protocol existential or an
 /// image conformance into the descriptor-keyed graph consumed by discovery.
-enum LinkedWitnessTableGraph {
-    static func discover(
+package enum LinkedWitnessTableGraph {
+    package static func discover(
         in layout: ProtocolLayout
     ) throws -> [ProtocolLayout.DescriptorID: WitnessTable] {
         var witnessTables: [ProtocolLayout.DescriptorID: WitnessTable] = [:]
@@ -19,7 +19,7 @@ enum LinkedWitnessTableGraph {
         return witnessTables
     }
 
-    static func collect(
+    package static func collect(
         descriptor: ProtocolDescriptor,
         witnessTable: WitnessTable,
         layout: ProtocolLayout,
@@ -28,7 +28,7 @@ enum LinkedWitnessTableGraph {
         let identifier = ProtocolLayout.DescriptorID(descriptor)
         if witnessTables[identifier] != nil { return }
         guard let node = layout.node(for: descriptor) else {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: descriptor.name,
                 reason: "Inherited-protocol metadata changed while resolving linked witnesses."
             )
@@ -40,7 +40,7 @@ enum LinkedWitnessTableGraph {
                 in: witnessTable.ptr
             ).load(as: UnsafeRawPointer?.self)
             guard let pointer else {
-                throw StubError.signatureDiscoveryFailed(
+                throw RuntimeConstructionError.signatureDiscoveryFailed(
                     protocolName: descriptor.name,
                     requirementIndex: baseProtocol.witnessIndex,
                     details: "The linked base-protocol witness table is null. Supply explicit Requirement values."

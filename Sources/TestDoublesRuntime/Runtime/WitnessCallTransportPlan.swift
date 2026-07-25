@@ -4,13 +4,13 @@
 /// general-purpose words that follow them. Consumers select the trailing ABI
 /// payload they need, but all of them observe the same register banks and
 /// declaration-order stack cursor.
-struct WitnessCallTransportPlan: Sendable {
-    enum TrailingPayload: Sendable {
+package struct WitnessCallTransportPlan: Sendable {
+    package enum TrailingPayload: Sendable {
         case none
         case dynamicSelf
         case typedAdapterInvocation
 
-        fileprivate var generalPurposeWordCount: Int {
+        var generalPurposeWordCount: Int {
             switch self {
                 case .none: 0
                 case .dynamicSelf: 2
@@ -19,11 +19,11 @@ struct WitnessCallTransportPlan: Sendable {
         }
     }
 
-    struct DynamicSelfLocations: Equatable, Sendable {
-        let metadata: CallFrameArgumentLocation
-        let witnessTable: CallFrameArgumentLocation
+    package struct DynamicSelfLocations: Equatable, Sendable {
+        package let metadata: CallFrameArgumentLocation
+        package let witnessTable: CallFrameArgumentLocation
 
-        var consecutiveRegisterStart: Int? {
+        package var consecutiveRegisterStart: Int? {
             guard case .generalPurposeRegister(let metadataIndex) = metadata.storage,
                 case .generalPurposeRegister(let witnessTableIndex) = witnessTable.storage,
                 witnessTableIndex == metadataIndex + 1
@@ -34,21 +34,21 @@ struct WitnessCallTransportPlan: Sendable {
         }
     }
 
-    let argumentLocations: [[CallFrameArgumentLocation]]
-    let asyncIndirectResultLocation: CallFrameArgumentLocation?
-    let typedErrorDestinationLocation: CallFrameArgumentLocation?
-    let dynamicSelfLocations: DynamicSelfLocations?
-    let typedAdapterInvocationLocation: CallFrameArgumentLocation?
+    package let argumentLocations: [[CallFrameArgumentLocation]]
+    package let asyncIndirectResultLocation: CallFrameArgumentLocation?
+    package let typedErrorDestinationLocation: CallFrameArgumentLocation?
+    package let dynamicSelfLocations: DynamicSelfLocations?
+    package let typedAdapterInvocationLocation: CallFrameArgumentLocation?
 
     /// Stack bytes copied by argument decoding, including an indirect typed
     /// error destination but excluding dynamic-Self metadata and witness words.
-    let decodedStackByteCount: Int
+    package let decodedStackByteCount: Int
 
     /// Stack bytes occupied only by the selected trailing payload.
-    let hiddenStackByteCount: Int
-    let stackByteCount: Int
+    package let hiddenStackByteCount: Int
+    package let stackByteCount: Int
 
-    init(
+    package init(
         method: MethodDescriptor,
         initialGeneralPurposeOffset: Int = 0,
         trailingPayload: TrailingPayload = .none,
@@ -135,7 +135,7 @@ struct WitnessCallTransportPlan: Sendable {
     /// by `_read`/`_modify` forwarding, whose invoke routines have no outgoing
     /// stack transport at all, so metadata and witness table must both land
     /// in registers or the call is declined.
-    var directForwardingHiddenArgumentIndex: Int? {
+    package var directForwardingHiddenArgumentIndex: Int? {
         guard decodedStackByteCount == 0,
             hiddenStackByteCount == 0
         else {
@@ -148,7 +148,7 @@ struct WitnessCallTransportPlan: Sendable {
     /// the real target: either a spilled visible argument (read from the
     /// captured incoming frame) or the target's own metadata/witness-table
     /// pointer (computed at forwarding time, never read from the frame).
-    enum OutgoingStackSource: Equatable, Sendable {
+    package enum OutgoingStackSource: Equatable, Sendable {
         case argument(CallFrameArgumentLocation)
         case metadata
         case witnessTable
@@ -158,7 +158,7 @@ struct WitnessCallTransportPlan: Sendable {
     /// will copy to the outgoing call, as explicit parameters — it never
     /// touches `TDCallFrame`'s layout, so this ceiling is purely a
     /// self-imposed, testable limit, not an ABI constraint.
-    static let maximumOutgoingStackWords = 2
+    package static let maximumOutgoingStackWords = 2
 
     /// The ordered outgoing-stack-word sources for a synchronous forwarding
     /// call whose total (spilled visible arguments plus whichever of
@@ -174,7 +174,7 @@ struct WitnessCallTransportPlan: Sendable {
     /// produces — exactly matching `argumentLocations`' own competitive
     /// cursor. Forcing them into fixed registers regardless of argument
     /// count is an ABI mismatch, not merely a missing feature.
-    var directForwardingOutgoingStackSources: [OutgoingStackSource]? {
+    package var directForwardingOutgoingStackSources: [OutgoingStackSource]? {
         guard let dynamicSelfLocations,
             typedErrorDestinationLocation?.isStack != true
         else {
@@ -197,7 +197,7 @@ struct WitnessCallTransportPlan: Sendable {
         return sources.sorted { $0.offset < $1.offset }.map(\.source)
     }
 
-    var typedAdapterInvocationArgumentIndex: Int? {
+    package var typedAdapterInvocationArgumentIndex: Int? {
         guard let typedAdapterInvocationLocation,
             case .generalPurposeRegister(let index) =
                 typedAdapterInvocationLocation.storage
@@ -214,4 +214,3 @@ extension CallFrameArgumentLocation {
         return false
     }
 }
-import TestDoublesRuntime

@@ -1,3 +1,4 @@
+import TestDoublesRuntime
 import Echo
 
 /// Couples one fabricated existential's ABI storage with the object that owns

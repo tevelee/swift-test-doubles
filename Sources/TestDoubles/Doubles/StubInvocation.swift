@@ -6,11 +6,14 @@ extension Stub {
     /// boxed only after Swift has received them with the requirement's exact
     /// types and escaping conventions.
     public final class Invocation: @unchecked Sendable {
-        private let recorder: StubRecorder
+        private let endpoint: any RuntimeInvocationEndpoint
         private let method: MethodDescriptor
 
-        init(recorder: StubRecorder, method: MethodDescriptor) {
-            self.recorder = recorder
+        init(
+            endpoint: any RuntimeInvocationEndpoint,
+            method: MethodDescriptor
+        ) {
+            self.endpoint = endpoint
             self.method = method
         }
 
@@ -62,7 +65,7 @@ extension Stub {
                 erased.append(argument)
             }
 
-            return try recorder.dispatchTyped(
+            return try endpoint.dispatchTyped(
                 method: method,
                 args: erased,
                 as: resultType

@@ -1,3 +1,4 @@
+import TestDoublesRuntime
 #if canImport(ObjectiveC)
     import Foundation
     import ObjectiveC
