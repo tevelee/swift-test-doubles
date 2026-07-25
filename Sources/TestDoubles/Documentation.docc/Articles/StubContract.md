@@ -340,6 +340,14 @@ Supported value shapes include integer and floating-point values, direct and
 indirect aggregates, `Void`, existentials, optionals, enums, tuples, metatypes,
 and strings. These source-level types share runtime calling-convention
 machinery; they do not each need a dedicated stubbing API.
+Automatic and linked mangled-type discovery also reconstruct metadata for
+other public, top-level generic nominal types whose parameters carry protocol
+conformance requirements, not only unconstrained ones -- a `struct Box<T:
+Codable>` resolves the same way `Array` or `Optional` already do, one witness
+table per constrained parameter, up to four key arguments (type metadata plus
+witness tables combined) in total. A parameter constrained by more than one
+protocol at once, a same-type or base-class requirement, or a type that
+doesn't actually conform remains fail-closed.
 Synchronous instance methods also accept a bounded set of direct, unpadded
 128-bit SIMD values whose complete lane payload uses one vector register for
 both arguments and results on arm64 and x86_64: `SIMD4<Float>`,

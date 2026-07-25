@@ -193,4 +193,71 @@ import TestDoublesFixtures
         )
     }
 
+    @Test func constrainedGenericNominalsResolveThroughTheAccessorWitnessPath() {
+        // ExternalConstrainedAssociatedBox<Value: Hashable> needs a second
+        // key argument (Int's Hashable witness table) beyond its own type
+        // metadata -- the case genericNominalType always declined before,
+        // confirmed here against the real compiler-generated type as ground
+        // truth via ObjectIdentifier, not just non-nil construction success.
+        let resolved = resolveRuntimeType(
+            "TestDoublesFixtures.ExternalConstrainedAssociatedBox<Swift.Int>"
+        )
+        #expect(resolved != nil)
+        if let resolved {
+            #expect(
+                ObjectIdentifier(resolved)
+                    == ObjectIdentifier(ExternalConstrainedAssociatedBox<Int>.self)
+            )
+        }
+    }
+
+    @Test func secondParameterConstraintResolvesTheRightWitnessTable() {
+        // Only Second: Hashable is constrained here, exercising the "q_"
+        // (depth 0, index 1) generic-parameter mangling rather than the "x"
+        // (depth 0, index 0) shortcut a first-parameter constraint uses --
+        // proving the witness table attaches to the correct key argument,
+        // not just any of them.
+        let resolved = resolveRuntimeType(
+            "TestDoublesFixtures.ExternalSecondParameterConstrainedPair<Swift.String, Swift.Int>"
+        )
+        #expect(resolved != nil)
+        if let resolved {
+            #expect(
+                ObjectIdentifier(resolved)
+                    == ObjectIdentifier(
+                        ExternalSecondParameterConstrainedPair<String, Int>.self
+                    )
+            )
+        }
+    }
+
+    @Test func bothParametersConstrainedResolveTwoWitnessTables() {
+        let resolved = resolveRuntimeType(
+            "TestDoublesFixtures.ExternalBothParametersConstrainedPair<Swift.String, Swift.Int>"
+        )
+        #expect(resolved != nil)
+        if let resolved {
+            #expect(
+                ObjectIdentifier(resolved)
+                    == ObjectIdentifier(
+                        ExternalBothParametersConstrainedPair<String, Int>.self
+                    )
+            )
+        }
+    }
+
+    @Test func nonConformingArgumentFailsConstrainedGenericResolutionSafely() {
+        #expect(
+            resolveRuntimeType(
+                "TestDoublesFixtures.ExternalConstrainedAssociatedBox<TestDoublesTests.NotHashableProbe>"
+            ) == nil
+        )
+    }
+
 }
+
+/// Top-level (not function-local) so it has an ordinary resolvable qualified
+/// name, letting `nonConformingArgumentFailsConstrainedGenericResolutionSafely`
+/// exercise the "resolves the argument, then fails the conformance check"
+/// path rather than failing earlier at "can't even resolve this name."
+struct NotHashableProbe {}

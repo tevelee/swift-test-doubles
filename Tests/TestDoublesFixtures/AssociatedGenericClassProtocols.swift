@@ -32,6 +32,32 @@ public final class ExternalConstrainedAssociatedBox<Value: Hashable> {
     }
 }
 
+/// Constrains both parameters, so resolving it exercises two witness-table
+/// key arguments in the same call (four key arguments total, at this
+/// resolver's arity ceiling).
+public struct ExternalBothParametersConstrainedPair<First: Hashable, Second: Hashable> {
+    public let first: First
+    public let second: Second
+
+    public init(_ first: First, _ second: Second) {
+        self.first = first
+        self.second = second
+    }
+}
+
+/// Constrains only its second parameter, so resolving it exercises the
+/// `q_` (depth 0, index 1) generic-parameter mangling, not just the `x`
+/// (depth 0, index 0) shortcut a single-parameter constrained type would.
+public struct ExternalSecondParameterConstrainedPair<First, Second: Hashable> {
+    public let first: First
+    public let second: Second
+
+    public init(_ first: First, _ second: Second) {
+        self.first = first
+        self.second = second
+    }
+}
+
 public struct ExternalAssociatedValue<Value> {
     public let value: Value
 

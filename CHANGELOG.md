@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Automatic and linked mangled-type discovery now reconstruct metadata for
+  generic nominal types whose parameters carry protocol conformance
+  requirements, not only unconstrained ones. A public, top-level `struct
+  Box<T: Codable>` (or `enum`/`class`) resolves the same way `Array` or
+  `Optional` already do, verified against swiftlang/swift's own generic
+  key-argument layout: one witness table per constrained parameter, up to
+  four key arguments total. A parameter constrained by more than one
+  protocol at once, a same-type or base-class requirement, or an argument
+  that doesn't actually conform remains fail-closed.
 - Tuple arguments and results of any arity now resolve through automatic and
   linked mangled-type discovery, the same as any other supported shape.
   Metadata reconstruction previously wrapped the runtime's fixed 2- and
