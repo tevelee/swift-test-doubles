@@ -344,8 +344,8 @@ extension ProtocolLayout {
                                 setterWitnessIndex: index - 1,
                                 receiver: requirement.flags.isInstance ? .instance : .metatype,
                                 abi:
-                                    requirement.flags.bits & 0x20 == 0
-                                    ? .yieldOnce : .yieldOnce2
+                                    requirement.flags.isCalleeAllocatedCoroutine
+                                    ? .yieldOnce2 : .yieldOnce
                             ))
 
                     case .readCoroutine:
@@ -419,11 +419,11 @@ extension ProtocolLayout {
             let requirement = localRequirements[index]
             let receiver: StubRequirementReceiver =
                 requirement.flags.isInstance ? .instance : .metatype
-            let usesYieldOnce2 = requirement.flags.bits & 0x20 != 0
+            let usesYieldOnce2 = requirement.flags.isCalleeAllocatedCoroutine
             if usesYieldOnce2,
                 index > localRequirements.startIndex,
                 localRequirements[index - 1].flags.kind == .readCoroutine,
-                localRequirements[index - 1].flags.bits & 0x20 == 0
+                localRequirements[index - 1].flags.isCalleeAllocatedCoroutine == false
             {
                 // Swift 6.4's paired `yielding borrow` witness was already
                 // recorded with its legacy `read` slot.
@@ -446,7 +446,7 @@ extension ProtocolLayout {
             let pairedIndex = index + 1
             guard pairedIndex < localRequirements.endIndex,
                 localRequirements[pairedIndex].flags.kind == .readCoroutine,
-                localRequirements[pairedIndex].flags.bits & 0x20 != 0,
+                localRequirements[pairedIndex].flags.isCalleeAllocatedCoroutine,
                 localRequirements[pairedIndex].flags.isInstance
                     == requirement.flags.isInstance
             else {

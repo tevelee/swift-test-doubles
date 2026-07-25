@@ -124,7 +124,7 @@ fi
 
 expected="$({
   sed -nE \
-    's/^#define TD_MODIFY_RESUME_DISCRIMINATOR ([0-9]+)$/\1/p' \
+    's/^#define TD_PTRAUTH_OPAQUE_MODIFY_RESUME_FUNCTION ([0-9]+)$/\1/p' \
     "$header"
 } | sort -u)"
 
@@ -141,9 +141,37 @@ modify_context_size="$({
 } | sort -u)"
 
 if [[ -z "$expected" || "$expected" == *$'\n'* ]]; then
-  echo "Could not read one TD_MODIFY_RESUME_DISCRIMINATOR from $header." >&2
+  echo "Could not read one TD_PTRAUTH_OPAQUE_MODIFY_RESUME_FUNCTION from $header." >&2
   exit 1
 fi
+
+# The pointer-auth discriminators the trampoline hardcodes are verbatim copies
+# of swiftlang/swift's SpecialPointerAuthDiscriminators
+# (include/swift/ABI/MetadataValues.h). Pin every one to its documented value:
+# the compiler does not emit the CoroAllocator, async-context, or shape
+# discriminators in a small probe, so this guards them against an accidental
+# header edit that a live-compiler probe could not catch.
+assert_header_discriminator() {
+  local name="$1"
+  local want="$2"
+  local got
+  got="$(sed -nE "s/^#define ${name} ([0-9a-fx]+)$/\1/p" "$header" | sort -u)"
+  if [[ "$got" != "$want" ]]; then
+    echo "${name} must remain ${want} (SpecialPointerAuthDiscriminators);" \
+      "header has ${got:-missing}." >&2
+    exit 1
+  fi
+}
+
+assert_header_discriminator TD_PTRAUTH_OPAQUE_MODIFY_RESUME_FUNCTION 3909
+assert_header_discriminator TD_PTRAUTH_CORO_ALLOCATION_FUNCTION 24469
+assert_header_discriminator TD_PTRAUTH_CORO_DEALLOCATION_FUNCTION 40879
+assert_header_discriminator TD_PTRAUTH_CORO_FRAME_ALLOCATION_FUNCTION 53841
+assert_header_discriminator TD_PTRAUTH_CORO_FRAME_DEALLOCATION_FUNCTION 23464
+assert_header_discriminator TD_PTRAUTH_NONUNIQUE_EXTENDED_EXISTENTIAL_TYPE_SHAPE 0xe798
+assert_header_discriminator TD_PTRAUTH_ASYNC_CONTEXT_PARENT 0xbda2
+assert_header_discriminator TD_PTRAUTH_ASYNC_CONTEXT_RESUME 0xd707
+echo "Header pointer-auth discriminators match SpecialPointerAuthDiscriminators."
 
 if [[ "$read_context_size" != "16" ]]; then
   echo "TD_READ_CONTEXT_SIZE must remain the runtime's 16-byte read context." >&2
@@ -453,6 +481,17 @@ if [[ -z "$read_resume_discriminator" || "$read_resume_discriminator" == *$'\n'*
   echo "Could not derive one arm64e read-resume discriminator from compiler assembly." >&2
   exit 1
 fi
+
+# Whether the library's own resume-discriminator derivation
+# (YieldingAccessorRuntime.readResumeDiscriminator /
+# modifyResumeDiscriminator) agrees with the compiler is checked by calling
+# those real, shipped functions directly -- not by reproducing their spelling
+# algorithm a second time here. See
+# Tests/TestDoublesTests/Unit/YieldOnce2ResumeDiscriminatorABITests.swift,
+# which does this `@testable` for several yield shapes (a hand-copied bash/C
+# reproduction could only ever catch a divergence between two transcriptions,
+# not a bug in the real Swift source). `swift test` already runs that suite in
+# CI, gated on this same live-compiler requirement.
 
 echo "Swift 6.3 compiler selected for the required accessor ABI baseline."
 echo "Swift 6.3 _modify convention matches: yield_once"
