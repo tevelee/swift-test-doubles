@@ -32,53 +32,13 @@
 
 #define TD_MODIFY_CONTEXT_STATE_OFFSET 0
 #define TD_MODIFY_CONTEXT_SIZE 32
+// Swift 6.3.3's arm64e discriminator for a yield-once resume function
+// authenticated against the caller-provided coroutine context. Keep this in
+// sync with Scripts/check-swift-abi-constants.sh.
+#define TD_MODIFY_RESUME_DISCRIMINATOR 3909
 
 #define TD_READ_CONTEXT_STATE_OFFSET 0
 #define TD_READ_CONTEXT_SIZE 16
-
-// Pointer-authentication discriminators.
-//
-// Every value below is a verbatim copy of the correspondingly named entry in
-// swiftlang/swift's `SpecialPointerAuthDiscriminators`
-// (include/swift/ABI/MetadataValues.h). The Swift names are preserved so this
-// stays cross-checkable against the compiler; the header comments list the key
-// and diversity each one is signed with, taken from the matching
-// `__ptrauth_swift_*` macro in include/swift/Runtime/Config.h.
-//
-// `TD_PTRAUTH_OPAQUE_MODIFY_RESUME_FUNCTION` in particular is verified against
-// the live compiler by Scripts/check-swift-abi-constants.sh; keep that script's
-// `#define` grep in sync when renaming.
-
-// OpaqueModifyResumeFunction: the resume function of a caller-allocated
-// (legacy yield_once) `_modify` coroutine yielding one opaque inout value.
-// Signed with ptrauth_key_function_pointer, blended with the caller-provided
-// coroutine context address.
-#define TD_PTRAUTH_OPAQUE_MODIFY_RESUME_FUNCTION 3909
-
-// Function pointers stored in a `swift::CoroAllocator` (include/swift/ABI/Coro.h).
-// All four are signed with ptrauth_key_function_pointer (`ia`) and address
-// diversity against their slot in the allocator struct.
-#define TD_PTRAUTH_CORO_ALLOCATION_FUNCTION 24469
-#define TD_PTRAUTH_CORO_DEALLOCATION_FUNCTION 40879
-#define TD_PTRAUTH_CORO_FRAME_ALLOCATION_FUNCTION 53841
-#define TD_PTRAUTH_CORO_FRAME_DEALLOCATION_FUNCTION 23464
-
-// NonUniqueExtendedExistentialTypeShape: the `Shape` pointer inside a
-// TargetExtendedExistentialTypeMetadata (Metadata.h). Signed with
-// ptrauth_key_process_independent_data and address diversity against the shape
-// field's storage location (__ptrauth_swift_nonunique_extended_existential_type_shape,
-// include/swift/Runtime/Config.h).
-#define TD_PTRAUTH_NONUNIQUE_EXTENDED_EXISTENTIAL_TYPE_SHAPE 0xe798
-
-// AsyncContext head fields (include/swift/ABI/Task.h): `Parent` at offset 0 and
-// `ResumeParent` at offset 8. `Parent` is signed with
-// ptrauth_key_process_independent_data (__ptrauth_swift_async_context_parent);
-// `ResumeParent` with ptrauth_key_function_pointer
-// (__ptrauth_swift_async_context_resume). Both are address-diversified against
-// their own storage slot. See the async-entry note in TestDoublesTrampoline.S
-// for why the arm64e signing these describe is grounded but not yet applied.
-#define TD_PTRAUTH_ASYNC_CONTEXT_PARENT 0xbda2
-#define TD_PTRAUTH_ASYNC_CONTEXT_RESUME 0xd707
 
 #ifndef __ASSEMBLER__
 #include <stdbool.h>
@@ -231,15 +191,6 @@ bool td_prepare_coro_witness_target(const void *signedDescriptor,
                                     const void *slot,
                                     uint16_t declarationDiscriminator,
                                     TDCoroWitnessTarget *result);
-/// Authenticates the `Shape` pointer of an extended-existential type metadata.
-///
-/// `storageAddress` is the address of the shape field within the metadata
-/// record (the metadata pointer plus one word). On pointer-authenticated
-/// targets the shape is signed with
-/// `__ptrauth_swift_nonunique_extended_existential_type_shape`; elsewhere the
-/// pointer is returned unchanged.
-const void *td_auth_extended_existential_shape(const void *signedShape,
-                                               const void *storageAddress);
 const void *td_strip_witness_function_pointer(const void *pointer);
 const void *td_strip_async_witness_pointer(const void *pointer);
 uint16_t td_generic_function_discriminator(uint16_t parameterCount,

@@ -66,10 +66,9 @@ func discoverMethods(
             )
         }
         let kind = requirement.kind
-        // `isAsync` already mirrors `ProtocolRequirementFlags::isAsync()`, which
-        // returns false for read/modify coroutines even though they set the
-        // `IsAsyncMask` bit (there it means `isCalleeAllocatedCoroutine`).
-        let isAsync = req.flags.isAsync
+        // Swift 6.3 read-coroutine flags reuse bit 0x20 as part of the
+        // requirement kind, so it is not the ordinary async marker here.
+        let isAsync = req.flags.kind == .readCoroutine ? false : req.flags.isAsync
         let getterEffect: (isThrowing: Bool, isReliable: Bool)? =
             if kind == .getter {
                 try resolveGetterEffect(
@@ -422,28 +421,5 @@ private func containsDynamicSelfReference(_ spelling: String) -> Bool {
 }
 
 extension ProtocolRequirement.Flags {
-    // Grounded in Swift's `ProtocolRequirementFlags`
-    // (include/swift/ABI/MetadataValues.h). Bit `0x20` is `IsAsyncMask`; its
-    // meaning depends on the requirement `kind`, so the compiler exposes two
-    // distinct predicates rather than reading the bit directly.
-
-    /// Mirrors `ProtocolRequirementFlags::_hasAsyncBitSet()`: the raw `0x20`
-    /// (`IsAsyncMask`) bit.
-    var hasAsyncBit: Bool { bits & 0x20 != 0 }
-
-    /// Mirrors `ProtocolRequirementFlags::isCoroutine()`.
-    var isCoroutine: Bool {
-        kind == .readCoroutine || kind == .modifyCoroutine
-    }
-
-    /// Mirrors `ProtocolRequirementFlags::isCalleeAllocatedCoroutine()`: a
-    /// Swift 6.3 `yield_once_2` read/modify coroutine, whose witness slot holds
-    /// a `CoroFunctionPointer` descriptor rather than a caller-allocated
-    /// `yield_once` entry point.
-    var isCalleeAllocatedCoroutine: Bool { isCoroutine && hasAsyncBit }
-
-    /// Mirrors `ProtocolRequirementFlags::isAsync()`: an async method. The
-    /// compiler deliberately excludes coroutine requirements that also set the
-    /// `IsAsyncMask` bit, so this is not simply `hasAsyncBit`.
-    var isAsync: Bool { !isCoroutine && hasAsyncBit }
+    var isAsync: Bool { bits & 0x20 != 0 }
 }

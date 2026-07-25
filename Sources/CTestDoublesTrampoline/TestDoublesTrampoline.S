@@ -345,7 +345,7 @@ SYMBOL(td_swift_resume_modify_witness):
     mov x0, x1
     mov x17, x1
     mov w1, w2
-    movk x17, #TD_PTRAUTH_OPAQUE_MODIFY_RESUME_FUNCTION, lsl #48
+    movk x17, #TD_MODIFY_RESUME_DISCRIMINATOR, lsl #48
 #if defined(__arm64e__)
     blraa x16, x17
 #else
@@ -563,21 +563,6 @@ SYMBOL(td_swift_async_trampoline_entry):
     adrp x8, SYMBOL(td_swift_async_trampoline_complete)
     add x8, x8, :lo12:SYMBOL(td_swift_async_trampoline_complete)
 #endif
-    // x0 is the callee AsyncContext for td_swift_async_dispatch: its Parent
-    // (x22) and ResumeParent (x8) are read by that Swift function's
-    // compiler-generated return epilogue. On arm64e that epilogue authenticates
-    // both fields, so they would need signing here first:
-    //   sign x22 with ptrauth_key_process_independent_data (DA),
-    //     modifier = blend(x0,     #TD_PTRAUTH_ASYNC_CONTEXT_PARENT)  -> pacda
-    //   sign x8  with ptrauth_key_function_pointer (IA),
-    //     modifier = blend(x0 + 8, #TD_PTRAUTH_ASYNC_CONTEXT_RESUME)  -> pacia
-    // and the paired raw reads in td_swift_async_trampoline_complete and
-    // td_swift_invoke_async_function_complete would need matching autda/autia.
-    // The discriminators and keys above are grounded (Task.h / Config.h), but the
-    // full sign/auth pairing spans our custom context structs and cannot be
-    // exercised: CI runs arm64 (non-e) and arm64e code cannot be executed here.
-    // Left unsigned deliberately -- arm64e is not a shippable app target and the
-    // raw stores/reads are internally consistent on every target that is.
     stp x22, x8, [x0]
     ldr x1, [x22, #TD_ASYNC_CONTEXT_STATE_OFFSET]
     mov x22, x0
@@ -703,7 +688,7 @@ SYMBOL(td_swift_modify_trampoline_entry):
 #endif
 #if defined(__arm64e__)
     mov x17, x9
-    movk x17, #TD_PTRAUTH_OPAQUE_MODIFY_RESUME_FUNCTION, lsl #48
+    movk x17, #TD_MODIFY_RESUME_DISCRIMINATOR, lsl #48
     pacia x16, x17
 #endif
     mov x0, x16
@@ -1856,10 +1841,10 @@ SYMBOL(td_swift_read_coro_allocator):
     .long 258
     .long 0
 #if defined(__arm64e__)
-    .quad SYMBOL(td_swift_read_coro_malloc)@AUTH(ia,TD_PTRAUTH_CORO_ALLOCATION_FUNCTION,addr)
-    .quad SYMBOL(td_swift_read_coro_free)@AUTH(ia,TD_PTRAUTH_CORO_DEALLOCATION_FUNCTION,addr)
-    .quad SYMBOL(td_swift_read_coro_malloc)@AUTH(ia,TD_PTRAUTH_CORO_FRAME_ALLOCATION_FUNCTION,addr)
-    .quad SYMBOL(td_swift_read_coro_free)@AUTH(ia,TD_PTRAUTH_CORO_FRAME_DEALLOCATION_FUNCTION,addr)
+    .quad SYMBOL(td_swift_read_coro_malloc)@AUTH(ia,24469,addr)
+    .quad SYMBOL(td_swift_read_coro_free)@AUTH(ia,40879,addr)
+    .quad SYMBOL(td_swift_read_coro_malloc)@AUTH(ia,53841,addr)
+    .quad SYMBOL(td_swift_read_coro_free)@AUTH(ia,23464,addr)
 #else
     .quad SYMBOL(td_swift_read_coro_malloc)
     .quad SYMBOL(td_swift_read_coro_free)

@@ -148,22 +148,6 @@ const void *td_sign_modify_witness_pointer(const void *pointer,
 #endif
 }
 
-const void *td_auth_extended_existential_shape(const void *signedShape,
-                                               const void *storageAddress) {
-#if defined(__APPLE__) && __has_feature(ptrauth_calls)
-  if (!signedShape) {
-    return signedShape;
-  }
-  uintptr_t blended = ptrauth_blend_discriminator(
-      storageAddress, TD_PTRAUTH_NONUNIQUE_EXTENDED_EXISTENTIAL_TYPE_SHAPE);
-  return ptrauth_auth_data(signedShape, ptrauth_key_process_independent_data,
-                           blended);
-#else
-  (void)storageAddress;
-  return signedShape;
-#endif
-}
-
 bool td_prepare_coro_witness_target(const void *signedDescriptor,
                                     const void *slot,
                                     uint16_t declarationDiscriminator,

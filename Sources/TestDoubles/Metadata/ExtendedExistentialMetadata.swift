@@ -1,4 +1,3 @@
-import CTestDoublesTrampoline
 import Echo
 
 /// The exact ordinary and extended existential metadata subset supported by
@@ -55,7 +54,7 @@ func inspectStubProtocolMetadata(
 ) throws -> StubProtocolMetadata {
     let metadata = unsafeBitCast(type, to: UnsafeRawPointer.self)
     switch metadata.load(as: UInt.self) {
-        case MetadataKindValue.existential:
+        case 0x303:
             guard let existential = reflect(type) as? ExistentialMetadata else {
                 throw StubError.typeIsNotProtocol(typeDescription: typeDescription)
             }
@@ -68,22 +67,11 @@ func inspectStubProtocolMetadata(
                 specialProtocol: existential.flags.specialProtocol,
                 associatedTypeBindings: []
             )
-        case MetadataKindValue.extendedExistential:
+        case 0x307:
             return try inspectExtendedExistential(metadata, typeDescription: typeDescription)
         default:
             throw StubError.typeIsNotProtocol(typeDescription: typeDescription)
     }
-}
-
-/// Runtime `MetadataKind` raw values, grounded in swiftlang/swift's
-/// `include/swift/ABI/MetadataKind.def`. These are the first word of a type's
-/// metadata record; only the two existential kinds this file inspects are
-/// listed here.
-private enum MetadataKindValue {
-    /// `Existential` = `3 | MetadataKindIsRuntimePrivate | MetadataKindIsNonHeap`.
-    static let existential: UInt = 0x303
-    /// `ExtendedExistential` = `7 | …IsRuntimePrivate | …IsNonHeap`.
-    static let extendedExistential: UInt = 0x307
 }
 
 private struct GenericSignatureHeader {
@@ -97,16 +85,7 @@ private func inspectExtendedExistential(
     _ metadata: UnsafeRawPointer,
     typeDescription: String
 ) throws -> StubProtocolMetadata {
-    // On pointer-authenticated targets the metadata's `Shape` field is signed
-    // (__ptrauth_swift_nonunique_extended_existential_type_shape), so it must be
-    // authenticated against its own storage address before it can be read.
-    let shapeField = metadata + 8
-    guard let shape = td_auth_extended_existential_shape(
-        shapeField.load(as: UnsafeRawPointer.self),
-        shapeField
-    ) else {
-        throw StubError.typeIsNotProtocol(typeDescription: typeDescription)
-    }
+    let shape = metadata.load(fromByteOffset: 8, as: UnsafeRawPointer.self)
     let flags = shape.load(as: UInt32.self)
     let specialKind = flags & 0xff
     guard specialKind == 0 || specialKind == 1,
