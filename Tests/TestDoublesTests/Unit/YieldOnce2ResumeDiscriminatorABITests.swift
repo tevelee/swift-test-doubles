@@ -18,7 +18,7 @@ import Testing
 /// actual shipped function here, `@testable`, means a mismatch is a genuine
 /// finding about the library.
 @Suite(.enabled(if: liveSwift63CompilerIsAvailable))
-struct YieldOnce2ResumeDiscriminatorABITests {
+private struct YieldOnce2ResumeDiscriminatorABITests {
     @Test(arguments: YieldOnce2ResumeDiscriminatorProbe.all)
     func libraryDiscriminatorMatchesTheLiveCompiler(
         _ probe: YieldOnce2ResumeDiscriminatorProbe
