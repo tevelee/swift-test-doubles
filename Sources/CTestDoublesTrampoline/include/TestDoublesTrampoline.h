@@ -63,6 +63,13 @@
 #define TD_PTRAUTH_CORO_FRAME_ALLOCATION_FUNCTION 53841
 #define TD_PTRAUTH_CORO_FRAME_DEALLOCATION_FUNCTION 23464
 
+// NonUniqueExtendedExistentialTypeShape: the `Shape` pointer inside a
+// TargetExtendedExistentialTypeMetadata (Metadata.h). Signed with
+// ptrauth_key_process_independent_data and address diversity against the shape
+// field's storage location (__ptrauth_swift_nonunique_extended_existential_type_shape,
+// include/swift/Runtime/Config.h).
+#define TD_PTRAUTH_NONUNIQUE_EXTENDED_EXISTENTIAL_TYPE_SHAPE 0xe798
+
 #ifndef __ASSEMBLER__
 #include <stdbool.h>
 #include <stddef.h>
@@ -214,6 +221,15 @@ bool td_prepare_coro_witness_target(const void *signedDescriptor,
                                     const void *slot,
                                     uint16_t declarationDiscriminator,
                                     TDCoroWitnessTarget *result);
+/// Authenticates the `Shape` pointer of an extended-existential type metadata.
+///
+/// `storageAddress` is the address of the shape field within the metadata
+/// record (the metadata pointer plus one word). On pointer-authenticated
+/// targets the shape is signed with
+/// `__ptrauth_swift_nonunique_extended_existential_type_shape`; elsewhere the
+/// pointer is returned unchanged.
+const void *td_auth_extended_existential_shape(const void *signedShape,
+                                               const void *storageAddress);
 const void *td_strip_witness_function_pointer(const void *pointer);
 const void *td_strip_async_witness_pointer(const void *pointer);
 uint16_t td_generic_function_discriminator(uint16_t parameterCount,

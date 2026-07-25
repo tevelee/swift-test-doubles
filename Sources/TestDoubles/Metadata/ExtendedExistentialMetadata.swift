@@ -1,3 +1,4 @@
+import CTestDoublesTrampoline
 import Echo
 
 /// The exact ordinary and extended existential metadata subset supported by
@@ -96,7 +97,16 @@ private func inspectExtendedExistential(
     _ metadata: UnsafeRawPointer,
     typeDescription: String
 ) throws -> StubProtocolMetadata {
-    let shape = metadata.load(fromByteOffset: 8, as: UnsafeRawPointer.self)
+    // On pointer-authenticated targets the metadata's `Shape` field is signed
+    // (__ptrauth_swift_nonunique_extended_existential_type_shape), so it must be
+    // authenticated against its own storage address before it can be read.
+    let shapeField = metadata + 8
+    guard let shape = td_auth_extended_existential_shape(
+        shapeField.load(as: UnsafeRawPointer.self),
+        shapeField
+    ) else {
+        throw StubError.typeIsNotProtocol(typeDescription: typeDescription)
+    }
     let flags = shape.load(as: UInt32.self)
     let specialKind = flags & 0xff
     guard specialKind == 0 || specialKind == 1,
