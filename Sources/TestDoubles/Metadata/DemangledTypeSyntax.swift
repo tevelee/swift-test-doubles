@@ -191,11 +191,12 @@ struct DemangledFunctionParameterSyntax: Equatable {
         let isSending = value.hasPrefix("sending ")
         if isSending { value.removeFirst("sending ".count) }
 
+        // NodePrinter.cpp never prints the source-level "borrowing"/"consuming"
+        // keywords; SE-0377 parameters demangle as the SIL-level "__shared"/
+        // "__owned" conventions instead.
         let ownershipPrefixes: [(String, Ownership)] = [
             ("inout ", .inoutValue),
-            ("borrowing ", .borrowed),
             ("__shared ", .borrowed),
-            ("consuming ", .owned),
             ("__owned ", .owned)
         ]
         var ownership = Ownership.default

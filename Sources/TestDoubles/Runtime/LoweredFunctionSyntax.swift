@@ -155,9 +155,10 @@ struct LoweredFunctionParameterSyntax: Equatable {
         self.canonicalSpelling = canonicalSpelling
         self.type = type
         self.ownership = ownership
-        self.isIsolated =
-            attributes.contains("isolated")
-            || attributes.contains("@sil_isolated")
+        // "@sil_isolated" is the separate SIL-textual-printer spelling
+        // (docs/SIL/Types.md); swift_demangle's NodePrinter.cpp only ever
+        // emits the bare "isolated" keyword this checks alongside.
+        self.isIsolated = attributes.contains("isolated")
     }
 }
 
