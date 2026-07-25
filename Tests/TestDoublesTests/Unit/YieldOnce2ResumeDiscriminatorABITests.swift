@@ -3,7 +3,7 @@ import Testing
 
 @testable import TestDoubles
 
-#if canImport(Darwin)
+#if os(macOS)
 
     /// Cross-checks `YieldingAccessorRuntime.resumeDiscriminator` -- the exact
     /// function the trampoline calls when fabricating a Swift 6.3 `yield_once_2`
@@ -274,8 +274,8 @@ import Testing
 
     /// Gates the whole suite on a live, exact Swift 6.3 `xcrun swiftc`, mirroring
     /// Scripts/check-swift-abi-constants.sh's own version check. Off that exact
-    /// toolchain -- including entirely off Apple platforms, where `xcrun` does
-    /// not exist -- the suite is skipped rather than failing.
+    /// toolchain -- including any non-macOS CI target, where `xcrun` does not
+    /// exist -- the suite is skipped rather than failing.
     private let liveSwift63CompilerIsAvailable: Bool = {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
