@@ -18,8 +18,10 @@ import Testing
     /// hand-written copies, not a bug in the real Swift source of
     /// `pointerAuthTypeSpelling` / `resumeDiscriminator` itself. Calling the
     /// actual shipped functions here, `@testable`, means a mismatch is a
-    /// genuine finding about the library. Exactly that happened for `modify`:
-    /// see the doc comment on `indirectYieldDiscriminatorIsAKnownOpenDiscrepancy`.
+    /// genuine finding about the library. Exactly that happened for the
+    /// formally-indirect yield shape (`indirectStruct`, shared by `read`'s
+    /// large-struct case and every `modify` case): see its doc comment for
+    /// the "inout" vs. "indirect" spelling fix this suite drove.
     @Suite(.enabled(if: liveSwift63CompilerIsAvailable))
     private struct YieldOnce2ResumeDiscriminatorABITests {
         @Test(arguments: YieldOnce2ResumeDiscriminatorProbe.all)
@@ -32,60 +34,17 @@ import Testing
         /// `modify` always yields an address for in-place mutation, regardless
         /// of the property's value size, so `modifyResumeDiscriminator(for:)`
         /// unconditionally passes `isIndirect: true` -- unlike `read`, which
-        /// only does so for results too large to return directly.
-        /// `allModify`'s probes confirm the compiler agrees: a live Swift 6.3
-        /// compiler emits the identical resume discriminator (`33953`) for the
+        /// only does so for results too large to return directly. `allModify`'s
+        /// probes confirm the compiler agrees: a live Swift 6.3 compiler emits
+        /// the identical resume discriminator (`33953`, `"inout"`) for the
         /// `modify` witness of an `Int`, a `Bool`, and a class reference,
-        /// exactly the value it emits for a formally indirect `read`. These
-        /// probes are tracked with `indirectYieldDiscriminatorIsAKnownOpenDiscrepancy`
-        /// rather than asserted directly, because that shared indirect spelling
-        /// is itself not yet reconciled with the library -- see that test's
-        /// doc comment.
+        /// exactly the value it emits for a formally indirect `read`
+        /// (`indirectStruct`, folded into `.all` below).
         @Test(arguments: YieldOnce2ResumeDiscriminatorProbe.allModify)
         func libraryDiscriminatorMatchesTheLiveCompilerForModify(
             _ probe: YieldOnce2ResumeDiscriminatorProbe
         ) throws {
-            try withKnownIssue(
-                """
-                modifyResumeDiscriminator(for:)'s indirect-yield spelling has not been \
-                reconciled with the live Swift 6.3 compiler; see the doc comment on \
-                indirectYieldDiscriminatorIsAKnownOpenDiscrepancy.
-                """
-            ) {
-                try probe.assertLibraryDiscriminatorMatchesTheLiveCompiler()
-            }
-        }
-
-        /// The formally indirect yield path (`isIndirect: true`) is a genuinely
-        /// open finding, not yet a confirmed library bug: a live Swift 6.3
-        /// compiler's discriminator for a 64-byte struct's `read` accessor --
-        /// and, as `libraryDiscriminatorMatchesTheLiveCompilerForModify` now
-        /// also confirms, for *any* `modify` accessor regardless of type -- is
-        /// `33953`, but the shared indirect-yield spelling this library computes
-        /// (a bare `"indirect"`) hashes to `16775`. `"-indirect"` -- the
-        /// leading-dash convention `pointerAuthFunctionSpelling` uses for an
-        /// indirect *parameter* -- was the next most plausible guess and also
-        /// does not match (`64687`). Both were checked by hashing candidate
-        /// spellings directly with `td_function_discriminator`, not by asking a
-        /// compiler, so this is not a search of the real IRGen source. Resolving
-        /// this definitively needs either that source or a compiler transcript
-        /// (`-emit-sil` / `-emit-ir`) for a `yield_once_2` witness with a
-        /// genuinely indirect yield, neither of which was available while writing
-        /// this test. Tracked here rather than guessed at, and rather than
-        /// silently dropped: this branch had zero live-compiler coverage before
-        /// this suite existed, and still has none that passes.
-        @Test
-        func indirectYieldDiscriminatorIsAKnownOpenDiscrepancy() throws {
-            try withKnownIssue(
-                """
-                modifyResumeDiscriminator(for:)'s and readResumeDiscriminator(for:)'s shared \
-                indirect-yield spelling has not been reconciled with the live Swift 6.3 compiler; \
-                see the doc comment on this test.
-                """
-            ) {
-                try YieldOnce2ResumeDiscriminatorProbe.indirectStruct
-                    .assertLibraryDiscriminatorMatchesTheLiveCompiler()
-            }
+            try probe.assertLibraryDiscriminatorMatchesTheLiveCompiler()
         }
     }
 
@@ -122,7 +81,8 @@ import Testing
 
         var description: String { name }
 
-        /// Confirmed to match a live Swift 6.3 compiler.
+        /// Confirmed to match a live Swift 6.3 compiler, including
+        /// `indirectStruct`'s formally indirect yield.
         static let all: [YieldOnce2ResumeDiscriminatorProbe] = [
             YieldOnce2ResumeDiscriminatorProbe(
                 name: "Int read (direct scalar, non-generic struct mangled-name branch)",
@@ -154,7 +114,8 @@ import Testing
                       public init() {}
                     }
                     """
-            )
+            ),
+            indirectStruct
         ]
 
         /// The `modify` counterparts of the three confirmed `read` probes
@@ -196,8 +157,14 @@ import Testing
             )
         ]
 
-        /// Does NOT currently match a live Swift 6.3 compiler. See
-        /// `indirectYieldDiscriminatorIsAKnownOpenDiscrepancy`.
+        /// A formally indirect `read` result. Resolved: `resumeDiscriminator`
+        /// used to spell this shape `"indirect"` (hash `16775`), which never
+        /// matched the live compiler's `33953`. `SILFunctionType::
+        /// getCoroutineYieldTypesDiscriminator` (lib/SIL/IR/SILFunctionType.cpp)
+        /// spells it `"inout"` instead -- every `yield_once_2` accessor yields
+        /// an address, which that function treats as the `isIndirectInOut()`
+        /// shape regardless of the property's own mutability -- and
+        /// `"yield_once_2:1:inout:"` hashes to exactly `33953`.
         static let indirectStruct = YieldOnce2ResumeDiscriminatorProbe(
             name: "64-byte struct read (formally indirect result, bypasses pointerAuthTypeSpelling)",
             returnType: Int.self,
@@ -220,8 +187,8 @@ import Testing
                 """
         )
 
-        /// Shared by both the confirmed-passing parameterized test and the
-        /// tracked known-issue test, so both exercise the identical comparison.
+        /// Shared by both parameterized tests, so both exercise the identical
+        /// comparison.
         func assertLibraryDiscriminatorMatchesTheLiveCompiler() throws {
             let compilerDiscriminator = try compilerDerivedResumeDiscriminator()
             let libraryDiscriminator = YieldingAccessorRuntime.resumeDiscriminator(

@@ -71,13 +71,24 @@ enum YieldingAccessorRuntime {
     /// Swift formally returns the value indirectly) and the yielded type feed
     /// the spelling, mirroring IRGen's own `PointerAuthEntity` string scheme
     /// for a `yield_once_2` coroutine continuation.
+    ///
+    /// `SILFunctionType::getCoroutineYieldTypesDiscriminator`
+    /// (lib/SIL/IR/SILFunctionType.cpp) spells an indirectly-yielded value as
+    /// `"inout"` (`yield.isIndirectInOut()`), not `"indirect"`
+    /// (`yield.isFormalIndirect()`, used only for ordinary indirect
+    /// parameters/results elsewhere in that file) -- every `yield_once_2`
+    /// read/modify accessor yields an address, which is the "inout" shape
+    /// regardless of whether the property itself is mutable. Confirmed
+    /// against a live Swift 6.3 compiler: `"yield_once_2:1:inout:"` hashes to
+    /// the exact discriminator (33953) the compiler emits both for a
+    /// formally indirect `read` and for every `modify` witness.
     static func resumeDiscriminator(
         isIndirect: Bool,
         returnType: Any.Type
     ) -> UInt16? {
         let yieldSpelling: String
         if isIndirect {
-            yieldSpelling = "indirect"
+            yieldSpelling = "inout"
         } else {
             guard let spelling = pointerAuthTypeSpelling(returnType) else {
                 return nil

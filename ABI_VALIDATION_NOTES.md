@@ -130,7 +130,7 @@ vocabulary and the values stay diff-able against swiftlang/swift. Commit-by-comm
    execution test, without shipping unverifiable ptrauth assembly.
 
 3. **CI discriminator cross-checks — RESOLVED and strengthened, and it found
-   two real discrepancies: one fixed, one still open.**
+   two real discrepancies, both now fixed (see the follow-up below).**
    `check-swift-abi-constants.sh` pins every hardcoded discriminator in the
    header to its documented `SpecialPointerAuthDiscriminators` value (the four
    CoroAllocator values, the shape and async-context values, the modify-resume
@@ -207,6 +207,23 @@ vocabulary and the values stay diff-able against swiftlang/swift. Commit-by-comm
    tests can't catch a wrong discriminator at all (no active ptrauth), so this
    is the first evidence, in either direction, about the library's
    indirect-yield spelling model and about `modify`'s classification.
+
+   **Follow-up — RESOLVED.** The "genuinely open question" above is answered
+   by `lib/SIL/IR/SILFunctionType.cpp`'s
+   `SILFunctionType::getCoroutineYieldTypesDiscriminator`, which distinguishes
+   two yield spellings this library's candidates never tried: `"inout"` for
+   `yield.isIndirectInOut()` vs. the already-tried `"indirect"` for
+   `yield.isFormalIndirect()` (the latter is a different function,
+   `hashStringForList`, used only for ordinary indirect parameters/results,
+   not yields). Every `yield_once_2` accessor yields an address, which that
+   function treats as the `isIndirectInOut()` shape regardless of the
+   property's own mutability. Hashing `"yield_once_2:1:inout:"` directly with
+   `td_function_discriminator` gives exactly `33953` -- the value both the
+   oversized-struct `read` probe and every `modify` probe were stuck on.
+   `YieldingAccessorRuntime.resumeDiscriminator` now spells the indirect case
+   `"inout"`; all four previously-`withKnownIssue` probes pass outright, and
+   `indirectStruct` was folded into `YieldOnce2ResumeDiscriminatorProbe.all`
+   since it's confirmed rather than open.
 
 4. **`swift_deletedCalleeAllocatedCoroutineMethodErrorTwc` weak shim — RETAINED,
    with recheck note.** Still required: Apple Swift 6.3's dead-method elimination
