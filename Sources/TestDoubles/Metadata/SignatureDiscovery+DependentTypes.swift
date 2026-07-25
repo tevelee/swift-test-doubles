@@ -163,8 +163,8 @@ private func resolveSupportedTypeComponent(
                 protocolName: protocolDescriptor.name,
                 reason:
                     "Requirement \(requirementIndex) embeds an associated type inside unsupported generic nominal '\(spelling)'. "
-                    + "Only linked, top-level generic classes with one or two unconstrained type parameters are supported. "
-                    + "Generic structs, enums, constrained classes, and other constructors remain unsupported."
+                    + "Only linked, top-level generic classes with one or two type parameters are supported. "
+                    + "Generic structs, enums, and other constructors remain unsupported."
             )
         }
         return ResolvedDependentType(
@@ -185,7 +185,7 @@ private func resolveSupportedTypeComponent(
             reason:
                 "Requirement \(requirementIndex) embeds an associated type inside unsupported type '\(spelling)'. "
                 + "Bound associated-type support accepts recursive combinations of Optional, Array, Set, Dictionary, Result, "
-                + "and linked generic classes with one or two unconstrained type parameters."
+                + "and linked generic classes with one or two type parameters."
         )
     }
     guard let syntax = DemangledTypeSyntax(spelling),

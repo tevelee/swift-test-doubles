@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Bound associated-type resolution now accepts a linked, top-level generic
+  class with a protocol-constrained type parameter (`Box<Value: Hashable>`),
+  not only unconstrained ones, sharing the same witness-table key-argument
+  path the standalone constrained-generic resolution above uses. Covers both
+  a dependent argument/result embedding such a class and an
+  associated-dependent typed error whose outer type is one.
 - Automatic and linked mangled-type discovery now reconstruct metadata for
   generic nominal types whose parameters carry protocol conformance
   requirements, not only unconstrained ones. A public, top-level `struct

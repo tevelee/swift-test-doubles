@@ -172,7 +172,7 @@ import TestDoublesFixtures
         )
     }
 
-    @Test func genericClassAccessorRejectsNonClassesAndConstrainedClasses() {
+    @Test func genericClassAccessorRejectsNonClasses() {
         #expect(
             genericClassType(
                 named: "TestDoublesFixtures.ExternalAssociatedValue",
@@ -185,10 +185,33 @@ import TestDoublesFixtures
                 arguments: [Int.self]
             ) == nil
         )
-        #expect(
+    }
+
+    @Test func genericClassAccessorResolvesConstrainedClasses() throws {
+        // genericClassType used to decline any constrained class outright;
+        // it now resolves through the same witness-table key-argument path
+        // constrainedGenericNominalType uses for structs and enums.
+        let resolved = try #require(
             genericClassType(
                 named: "TestDoublesFixtures.ExternalConstrainedAssociatedBox",
                 arguments: [Int.self]
+            )
+        )
+        #expect(
+            ObjectIdentifier(resolved.type)
+                == ObjectIdentifier(ExternalConstrainedAssociatedBox<Int>.self)
+        )
+        #expect(
+            resolved.constructor.name
+                == "TestDoublesFixtures.ExternalConstrainedAssociatedBox"
+        )
+    }
+
+    @Test func genericClassAccessorRejectsNonConformingConstrainedArgument() {
+        #expect(
+            genericClassType(
+                named: "TestDoublesFixtures.ExternalConstrainedAssociatedBox",
+                arguments: [NotHashableProbe.self]
             ) == nil
         )
     }

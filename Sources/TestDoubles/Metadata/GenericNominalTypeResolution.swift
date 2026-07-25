@@ -74,6 +74,26 @@ private func constrainedGenericNominalType(
     context: GenericContext,
     arguments: [Any.Type]
 ) -> Any.Type? {
+    guard
+        let keyArguments = constrainedGenericKeyArguments(
+            context: context,
+            arguments: arguments
+        )
+    else {
+        return nil
+    }
+    return callConstrainedGenericAccessor(descriptor.accessor, keyArguments: keyArguments)
+}
+
+/// Builds the (type, witness table) key-argument list a constrained
+/// generic context's accessor needs, shared by `constrainedGenericNominalType`
+/// (any kind) and `genericClassType` (classes only, for dependent-type
+/// resolution's linked-class path). See `constrainedGenericNominalType`'s
+/// documentation for the layout this reconstructs and what it declines.
+private func constrainedGenericKeyArguments(
+    context: GenericContext,
+    arguments: [Any.Type]
+) -> [(type: Any.Type, witnessTable: WitnessTable?)]? {
     let parameters = context.parameters
     guard parameters.count == arguments.count,
         parameters.allSatisfy({ $0.kind == .type && $0.hasKeyArgument })
@@ -111,7 +131,7 @@ private func constrainedGenericNominalType(
 
     let witnessCount = keyArguments.filter { $0.witnessTable != nil }.count
     guard context.numKeyArguments == arguments.count + witnessCount else { return nil }
-    return callConstrainedGenericAccessor(descriptor.accessor, keyArguments: keyArguments)
+    return keyArguments
 }
 
 /// Decodes a direct, depth-0 generic-parameter reference from a generic
@@ -174,8 +194,11 @@ private func callConstrainedGenericAccessor(
 
 /// Reconstructs metadata only for a linked, top-level generic Swift class.
 ///
-/// This deliberately excludes constrained constructors and constructors whose
-/// accessor needs anything besides one or two type-metadata arguments.
+/// A constrained parameter (`Box<Value: Hashable>`) resolves through the
+/// same witness-table key-argument path `constrainedGenericNominalType`
+/// uses; this only ever declines a class whose accessor needs more than
+/// one or two key arguments' worth of parameters, or a constructor whose
+/// accessor doesn't actually round-trip to a class.
 func genericClassType(
     named constructorName: String,
     arguments: [Any.Type]
@@ -187,16 +210,27 @@ func genericClassType(
         ),
         let context = descriptor.genericContext,
         context.numParams == arguments.count,
-        context.numKeyArguments == arguments.count,
-        context.numExtraArguments == 0,
-        context.numRequirements == 0,
-        context.parameters.allSatisfy({
-            $0.kind == .type && $0.hasKeyArgument
-        }),
-        let type = callGenericAccessor(
+        context.numExtraArguments == 0
+    else {
+        return nil
+    }
+
+    let type: Any.Type?
+    if context.numKeyArguments == arguments.count {
+        type = callGenericAccessor(descriptor.accessor, arguments: arguments)
+    } else if let keyArguments = constrainedGenericKeyArguments(
+        context: context,
+        arguments: arguments
+    ) {
+        type = callConstrainedGenericAccessor(
             descriptor.accessor,
-            arguments: arguments
-        ),
+            keyArguments: keyArguments
+        )
+    } else {
+        type = nil
+    }
+
+    guard let type,
         reflect(type).kind == .class,
         let reconstructedDescriptor = reflectClass(type)?.descriptor,
         reconstructedDescriptor.ptr == descriptor.ptr

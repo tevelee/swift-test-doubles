@@ -51,7 +51,7 @@ func resolveTypedError(
             protocolName: protocolDescriptor.name,
             reason:
                 "Requirement \(requirementIndex) embeds an associated type inside unsupported typed error '\(name)'. "
-                + "Only a direct associated typed error or a linked, top-level generic class with one or two unconstrained type parameters is supported."
+                + "Only a direct associated typed error or a linked, top-level generic class with one or two type parameters is supported."
         )
     }
     guard let type = resolveRuntimeType(syntax) else {
@@ -130,8 +130,8 @@ private func resolveAssociatedTypedErrorClassComponent(
                 protocolName: protocolDescriptor.name,
                 reason:
                     "Requirement \(requirementIndex) embeds an associated type inside unsupported typed error '\(spelling)'. "
-                    + "Only a direct associated typed error or a linked, top-level generic class with one or two unconstrained type parameters is supported. "
-                    + "Optional and other value wrappers, generic structs or enums, constrained classes, and source-less constructors remain unsupported."
+                    + "Only a direct associated typed error or a linked, top-level generic class with one or two type parameters is supported. "
+                    + "Optional and other value wrappers, generic structs or enums, and source-less constructors remain unsupported."
             )
         }
         return ResolvedDependentType(

@@ -317,10 +317,10 @@ alongside inheritance, or span multiple composed roots. Direct dependent
 arguments and results, dependent setters and initializer arguments, and
 recursive `Optional`, `Array`, `Set`, `Dictionary`, and `Result` values are
 supported. Automatic discovery additionally accepts linked,
-public, top-level generic Swift classes with one or two unconstrained type
-parameters when every argument recursively resolves and reconstructed metadata
-proves the exact class descriptor. No source-less explicit generic-class schema
-is available. An `AnyObject`-constrained associated type bound to a concrete
+public, top-level generic Swift classes with one or two type parameters, each
+optionally carrying a single protocol conformance requirement, when every
+argument recursively resolves and reconstructed metadata proves the exact
+class descriptor. No source-less explicit generic-class schema is available. An `AnyObject`-constrained associated type bound to a concrete
 class uses the documented direct or single-`Optional` reference slice. Direct
 and supported container method arguments may be consuming.
 Methods may combine these values with `async`, untyped `throws`, and a direct

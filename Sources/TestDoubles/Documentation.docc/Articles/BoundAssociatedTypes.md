@@ -83,8 +83,9 @@ let stub = try SourceStub(
 ```
 
 Automatic discovery also recognizes a bounded generic-class shape. The class
-must be a linked, public, top-level Swift class with one or two unconstrained
-type parameters, and every argument must resolve recursively from concrete or
+must be a linked, public, top-level Swift class with one or two type
+parameters, each optionally carrying a single protocol conformance
+requirement, and every argument must resolve recursively from concrete or
 associated metadata:
 
 ```swift
@@ -215,11 +216,12 @@ it must evolve alongside the repository's Swift runtime support matrix.
   `Hashable`, and every resolved `Result` failure must prove `Error`. Method
   arguments in all supported container forms may be consuming.
 - Automatically discovered linked, public, top-level generic Swift classes
-  with one or two unconstrained type parameters. Every argument may recursively
-  contain concrete types, associated types, and supported standard-library or
-  generic-class shapes. Reconstructed metadata must identify the exact linked
-  class descriptor and prove class reference metadata before construction
-  proceeds.
+  with one or two type parameters, each optionally carrying a single protocol
+  conformance requirement (`Box<Value: Hashable>`, not only `Box<Value>`).
+  Every argument may recursively contain concrete types, associated types,
+  and supported standard-library or generic-class shapes. Reconstructed
+  metadata must identify the exact linked class descriptor and prove class
+  reference metadata before construction proceeds.
 - Direct and supported-container associated-type initializer arguments. Swift's
   initializer witness convention owns every parameter.
 - Requirements with any combination of `async` and ordinary untyped `throws`.
@@ -235,7 +237,7 @@ it must evolve alongside the repository's Swift runtime support matrix.
   instead uses its proven direct reference channel.
 - Automatic discovery also supports an associated-dependent typed error whose
   outer type is a linked, public, top-level generic class with one or two
-  unconstrained type parameters. Direct associated arguments and recursively
+  type parameters. Direct associated arguments and recursively
   nested class applications are supported. Exact descriptor-based metadata
   reconstruction proves the class reference layout before construction, so
   synchronous and async failures use the direct typed-error channel.

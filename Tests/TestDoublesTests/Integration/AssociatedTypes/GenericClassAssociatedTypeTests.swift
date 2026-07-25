@@ -167,7 +167,7 @@ private func useLinkedConstrainedGenericClassAssociatedProbe(
         }
     }
 
-    @Test func automaticDiscoveryRejectsGenericStructsEnumsAndConstraints() {
+    @Test func automaticDiscoveryRejectsGenericStructsAndEnums() {
         #expect(
             useLinkedGenericStructAssociatedProbe(
                 RealExternalGenericStructAssociatedProbe()
@@ -178,11 +178,6 @@ private func useLinkedConstrainedGenericClassAssociatedProbe(
                 RealExternalGenericEnumAssociatedProbe()
             ) == 1
         )
-        #expect(
-            useLinkedConstrainedGenericClassAssociatedProbe(
-                RealExternalConstrainedGenericClassAssociatedProbe()
-            ) == 1
-        )
 
         for operation in [
             {
@@ -190,19 +185,53 @@ private func useLinkedConstrainedGenericClassAssociatedProbe(
             },
             {
                 _ = try Stub<any ExternalGenericEnumAssociatedProbe<Int>>()
-            },
-            {
-                _ = try Stub<
-                    any ExternalConstrainedGenericClassAssociatedProbe<Int>
-                >()
             }
         ] {
             expectUnsupportedProtocolShape(
-                containing: "Generic structs, enums, constrained classes"
+                containing: "Generic structs, enums, and other constructors"
             ) {
                 try operation()
             }
         }
+    }
+
+    @Test func automaticDiscoverySupportsConstrainedGenericClasses() throws {
+        // genericClassType used to decline any constrained class outright,
+        // so a generic class embedding an associated type behind a
+        // conformance requirement (Value: Hashable here) fell into the same
+        // "Generic structs, enums, constrained classes" fail-closed bucket
+        // as actual structs and enums. It now resolves the same witness-table
+        // key-argument path constrainedGenericNominalType uses for a
+        // standalone constrained type.
+        #expect(
+            useLinkedConstrainedGenericClassAssociatedProbe(
+                RealExternalConstrainedGenericClassAssociatedProbe()
+            ) == 1
+        )
+        typealias ProbeStub = Stub<
+            any ExternalConstrainedGenericClassAssociatedProbe<Int>
+        >
+        let stub = try ProbeStub()
+
+        try assertGenericClassDescriptor(
+            #require(stub.recorder.runtimeMethod(for: 0)),
+            type: ExternalConstrainedAssociatedBox<Int>.self,
+            dependency: .genericClass(
+                "TestDoublesFixtures.ExternalConstrainedAssociatedBox",
+                [.associatedType("Element")]
+            )
+        )
+
+        let placeholder = ExternalConstrainedAssociatedBox(0)
+        stub.when(returning: placeholder) {
+            $0.transform(any(using: placeholder))
+        }.then { (box: ExternalConstrainedAssociatedBox<Int>) in
+            ExternalConstrainedAssociatedBox(box.value + 1)
+        }
+        let probe: any ExternalConstrainedGenericClassAssociatedProbe<Int> = stub()
+        #expect(
+            probe.transform(ExternalConstrainedAssociatedBox(41)).value == 42
+        )
     }
 }
 
