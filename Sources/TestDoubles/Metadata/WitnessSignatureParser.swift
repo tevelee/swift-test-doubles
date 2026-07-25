@@ -200,8 +200,29 @@ private func buildMethodName(_ baseName: String, parameters: [ParsedParameter]) 
     return "\(baseName)(\(labels.joined()))"
 }
 
+/// Extracts the base name from a qualified declaration path such as
+/// `"Module.P.fetch"` or, for a generic protocol requirement, `"Module.P.fetch<A>"`.
+/// Splitting is top-level-aware so neither a dot inside a generic argument
+/// clause (`"Module.P.take<Swift.Int>"`) nor the clause itself ends up in the
+/// extracted name.
 private func extractMethodName(_ str: String) -> String {
-    str.components(separatedBy: ".").last ?? str
+    guard let scanner = DelimitedSyntaxScanner(str) else {
+        return str.components(separatedBy: ".").last ?? str
+    }
+    let nameStart = scanner.lastTopLevelIndex(of: ".").map(str.index(after:)) ?? str.startIndex
+    return strippingTrailingGenericParameterClause(from: String(str[nameStart...]))
+}
+
+private func strippingTrailingGenericParameterClause(from name: String) -> String {
+    guard let openAngle = name.firstIndex(of: "<"),
+        let scanner = DelimitedSyntaxScanner(name),
+        scanner.isTopLevel(openAngle),
+        scanner.matchingClosingDelimiter(openingAt: openAngle)
+            == name.index(before: name.endIndex)
+    else {
+        return name
+    }
+    return String(name[..<openAngle])
 }
 
 private func lastParameterList(
