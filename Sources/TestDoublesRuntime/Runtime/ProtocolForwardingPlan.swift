@@ -140,9 +140,9 @@ struct ProtocolForwardingPlanBuilder<P> {
                 layout.nodes.first(where: {
                     $0.readCoroutineRequirements.contains { $0.abi == .yieldOnce }
                 })?.descriptor.name ?? String(reflecting: P.self)
-            throw RuntimeConstructionError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.forwardingUnsupported(
                 protocolName: protocolName,
-                reason: "Forwarding does not yet support Swift 6.4's paired legacy read and yielding-borrow witnesses. Use a configured runtime double or a hand-written conformer."
+                reason: .pairedLegacyReadAndYieldingBorrow
             )
         }
     }
@@ -152,25 +152,25 @@ struct ProtocolForwardingPlanBuilder<P> {
         protocolName: String
     ) throws {
         guard method.receiver == .instance, method.kind != .initializer else {
-            throw RuntimeConstructionError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.forwardingUnsupported(
                 protocolName: protocolName,
-                reason: "Forwarding supports instance requirements only; requirement \(method.index) uses a metatype receiver."
+                reason: .nonInstanceRequirement(index: method.index)
             )
         }
         try validateDynamicSelfBoundary(method, protocolName: protocolName)
         let concreteTypes = method.argumentTypes + [method.returnType]
         guard concreteTypes.allSatisfy({ !($0 is any SIMD.Type) }) else {
-            throw RuntimeConstructionError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.forwardingUnsupported(
                 protocolName: protocolName,
-                reason: "Forwarding does not yet support SIMD arguments or results in requirement \(method.index)."
+                reason: .simd(index: method.index)
             )
         }
         guard method.typedWitnessAdapterFactory == nil,
             concreteTypes.allSatisfy({ reflect($0).kind != .function })
         else {
-            throw RuntimeConstructionError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.forwardingUnsupported(
                 protocolName: protocolName,
-                reason: "Forwarding does not yet support function-valued arguments or results in requirement \(method.index)."
+                reason: .functionValues(index: method.index)
             )
         }
     }
@@ -396,10 +396,12 @@ struct ProtocolForwardingPlanBuilder<P> {
         )
         guard let sources = transport.directForwardingOutgoingStackSources else {
             let limit = WitnessCallTransportPlan.maximumOutgoingStackWords
-            throw RuntimeConstructionError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.forwardingUnsupported(
                 protocolName: protocolName,
-                reason:
-                    "Forwarding requirement \(method.index) needs more outgoing stack transport than \(limit) words support. Use fewer arguments or a hand-written conformer."
+                reason: .outgoingStackWords(
+                    index: method.index,
+                    limit: limit
+                )
             )
         }
         return (transport.dynamicSelfLocations, sources)
@@ -412,9 +414,9 @@ struct ProtocolForwardingPlanBuilder<P> {
         guard method.returnConvention != .selfType,
             method.returnConvention != .optionalSelf
         else {
-            throw RuntimeConstructionError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.forwardingUnsupported(
                 protocolName: protocolName,
-                reason: "Forwarding does not yet support dynamic Self results in requirement \(method.index)."
+                reason: .dynamicSelfResult(index: method.index)
             )
         }
         guard
@@ -423,9 +425,9 @@ struct ProtocolForwardingPlanBuilder<P> {
                     && $0.value.convention != .optionalSelf
             })
         else {
-            throw RuntimeConstructionError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.forwardingUnsupported(
                 protocolName: protocolName,
-                reason: "Forwarding does not support direct or Optional Self arguments in requirement \(method.index). Use an automatic runtime double or a hand-written conformer."
+                reason: .selfArguments(index: method.index)
             )
         }
     }
@@ -444,9 +446,9 @@ struct ProtocolForwardingPlanBuilder<P> {
             let hiddenArgumentIndex =
                 transport.directForwardingHiddenArgumentIndex
         else {
-            throw RuntimeConstructionError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.forwardingUnsupported(
                 protocolName: protocolName,
-                reason: "Forwarding requirement \(method.index) uses stack arguments or leaves no registers for its target metadata and witness table. Use fewer arguments or a hand-written conformer."
+                reason: .hiddenArguments(index: method.index)
             )
         }
         return hiddenArgumentIndex

@@ -24,5 +24,22 @@ package enum RuntimeConstructionError: Error, Sendable {
         expected: String,
         actual: String
     )
+    /// A forwarding transport limitation expressed without public-double
+    /// terminology. The public target maps this to its stable forwarding diagnostic.
+    case forwardingUnsupported(
+        protocolName: String,
+        reason: RuntimeForwardingUnsupportedReason
+    )
     case trampolineAllocationFailed(requirementIndex: Int)
+}
+
+package enum RuntimeForwardingUnsupportedReason: Sendable {
+    case pairedLegacyReadAndYieldingBorrow
+    case nonInstanceRequirement(index: Int)
+    case simd(index: Int)
+    case functionValues(index: Int)
+    case outgoingStackWords(index: Int, limit: Int)
+    case dynamicSelfResult(index: Int)
+    case selfArguments(index: Int)
+    case hiddenArguments(index: Int)
 }
