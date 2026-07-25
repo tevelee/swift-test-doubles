@@ -8,7 +8,9 @@ import Testing
     /// Cross-checks `YieldingAccessorRuntime.resumeDiscriminator` -- the exact
     /// function the trampoline calls when fabricating a Swift 6.3 `yield_once_2`
     /// read/modify witness veneer -- against a live Swift 6.3 compiler's own
-    /// arm64e resume-discriminator codegen, for several distinct yield shapes.
+    /// arm64e resume-discriminator codegen, for several distinct yield shapes
+    /// and for both accessor kinds the function claims to share one spelling
+    /// scheme between.
     ///
     /// An earlier revision of Scripts/check-swift-abi-constants.sh instead
     /// hand-copied the discriminator's spelling algorithm into a small C probe.
@@ -21,6 +23,20 @@ import Testing
     private struct YieldOnce2ResumeDiscriminatorABITests {
         @Test(arguments: YieldOnce2ResumeDiscriminatorProbe.all)
         func libraryDiscriminatorMatchesTheLiveCompiler(
+            _ probe: YieldOnce2ResumeDiscriminatorProbe
+        ) throws {
+            try probe.assertLibraryDiscriminatorMatchesTheLiveCompiler()
+        }
+
+        /// `resumeDiscriminator`'s doc comment claims one spelling scheme is
+        /// shared between `read` and `modify` `yield_once_2` witnesses, but
+        /// until now that claim was only ever checked against `read`. These
+        /// probes compile a real `_modify` witness for each type already
+        /// confirmed correct for `read` above, so a mismatch here would mean
+        /// the sharing assumption itself -- not just one yield shape -- is
+        /// wrong.
+        @Test(arguments: YieldOnce2ResumeDiscriminatorProbe.allModify)
+        func libraryDiscriminatorMatchesTheLiveCompilerForModify(
             _ probe: YieldOnce2ResumeDiscriminatorProbe
         ) throws {
             try probe.assertLibraryDiscriminatorMatchesTheLiveCompiler()
@@ -67,6 +83,14 @@ import Testing
     /// One yield shape exercising a distinct branch of
     /// `pointerAuthTypeSpelling` / `YieldingAccessorRuntime.resumeDiscriminator`.
     private struct YieldOnce2ResumeDiscriminatorProbe: Sendable, CustomStringConvertible {
+        /// Which `yield_once_2` witness kind to compile. `resumeDiscriminator`
+        /// claims both share one spelling; `.modify` probes exist to check
+        /// that claim rather than assume it.
+        enum AccessorKind: Sendable {
+            case read
+            case modify
+        }
+
         let name: String
         /// Passed to the real, shipped `YieldingAccessorRuntime.resumeDiscriminator`.
         /// Unread when `isIndirect` is true (that branch never reaches
@@ -74,6 +98,7 @@ import Testing
         /// indirect branch may use any placeholder type here.
         let returnType: Any.Type
         let isIndirect: Bool
+        let accessorKind: AccessorKind
         fileprivate let probeID: String
         fileprivate let typeSpelling: String
         fileprivate let auxiliaryDeclaration: String
@@ -83,26 +108,66 @@ import Testing
         /// Confirmed to match a live Swift 6.3 compiler.
         static let all: [YieldOnce2ResumeDiscriminatorProbe] = [
             YieldOnce2ResumeDiscriminatorProbe(
-                name: "Int (direct scalar, non-generic struct mangled-name branch)",
+                name: "Int read (direct scalar, non-generic struct mangled-name branch)",
                 returnType: Int.self,
                 isIndirect: false,
+                accessorKind: .read,
                 probeID: "Int",
                 typeSpelling: "Int",
                 auxiliaryDeclaration: ""
             ),
             YieldOnce2ResumeDiscriminatorProbe(
-                name: "Bool (direct scalar, distinct non-generic struct mangled name)",
+                name: "Bool read (direct scalar, distinct non-generic struct mangled name)",
                 returnType: Bool.self,
                 isIndirect: false,
+                accessorKind: .read,
                 probeID: "Bool",
                 typeSpelling: "Bool",
                 auxiliaryDeclaration: ""
             ),
             YieldOnce2ResumeDiscriminatorProbe(
-                name: "class reference (direct, constant \"-class\" spelling)",
+                name: "class reference read (direct, constant \"-class\" spelling)",
                 returnType: YieldOnce2ResumeDiscriminatorProbeReferenceType.self,
                 isIndirect: false,
+                accessorKind: .read,
                 probeID: "Class",
+                typeSpelling: "ProbeReferenceType",
+                auxiliaryDeclaration: """
+                    public final class ProbeReferenceType {
+                      public init() {}
+                    }
+                    """
+            )
+        ]
+
+        /// The `_modify` counterparts of the three confirmed `read` probes
+        /// above, checking whether `resumeDiscriminator`'s shared spelling
+        /// actually holds for `modify` too. Not yet known to pass or fail.
+        static let allModify: [YieldOnce2ResumeDiscriminatorProbe] = [
+            YieldOnce2ResumeDiscriminatorProbe(
+                name: "Int _modify (yield_once_2 modify witness, shared spelling with read)",
+                returnType: Int.self,
+                isIndirect: false,
+                accessorKind: .modify,
+                probeID: "ModifyInt",
+                typeSpelling: "Int",
+                auxiliaryDeclaration: ""
+            ),
+            YieldOnce2ResumeDiscriminatorProbe(
+                name: "Bool _modify (yield_once_2 modify witness, distinct mangled name)",
+                returnType: Bool.self,
+                isIndirect: false,
+                accessorKind: .modify,
+                probeID: "ModifyBool",
+                typeSpelling: "Bool",
+                auxiliaryDeclaration: ""
+            ),
+            YieldOnce2ResumeDiscriminatorProbe(
+                name: "class reference _modify (yield_once_2 modify witness, constant \"-class\" spelling)",
+                returnType: YieldOnce2ResumeDiscriminatorProbeReferenceType.self,
+                isIndirect: false,
+                accessorKind: .modify,
+                probeID: "ModifyClass",
                 typeSpelling: "ProbeReferenceType",
                 auxiliaryDeclaration: """
                     public final class ProbeReferenceType {
@@ -115,9 +180,10 @@ import Testing
         /// Does NOT currently match a live Swift 6.3 compiler. See
         /// `indirectYieldDiscriminatorIsAKnownOpenDiscrepancy`.
         static let indirectStruct = YieldOnce2ResumeDiscriminatorProbe(
-            name: "64-byte struct (formally indirect result, bypasses pointerAuthTypeSpelling)",
+            name: "64-byte struct read (formally indirect result, bypasses pointerAuthTypeSpelling)",
             returnType: Int.self,
             isIndirect: true,
+            accessorKind: .read,
             probeID: "Indirect",
             typeSpelling: "ProbeLargeStruct",
             auxiliaryDeclaration: """
@@ -152,32 +218,59 @@ import Testing
             )
         }
 
-        /// Compiles a minimal Swift 6.3 `read` accessor yielding this probe's
-        /// type, asks a live `xcrun swiftc` for its arm64e assembly, and extracts
-        /// the resume-authentication discriminator the compiler embedded --
-        /// mirroring `compile_swift_63_read_probe` in
+        /// Compiles a minimal Swift 6.3 `read` or `_modify` accessor yielding
+        /// this probe's type, asks a live `xcrun swiftc` for its arm64e
+        /// assembly, and extracts the resume-authentication discriminator the
+        /// compiler embedded -- mirroring `compile_swift_63_read_probe` /
+        /// `compile_swift_63_modify_descriptor_probe` in
         /// Scripts/check-swift-abi-constants.sh.
         func compilerDerivedResumeDiscriminator() throws -> UInt16 {
             let moduleName = "TDResumeDiscriminatorProbe\(probeID)"
-            let source = """
-                \(auxiliaryDeclaration)
+            let source: String
+            switch accessorKind {
+                case .read:
+                    source = """
+                        \(auxiliaryDeclaration)
 
-                public protocol \(moduleName)Protocol {
-                  var value: \(typeSpelling) { read }
-                }
+                        public protocol \(moduleName)Protocol {
+                          var value: \(typeSpelling) { read }
+                        }
 
-                public struct \(moduleName)Conformer: \(moduleName)Protocol {
-                  private var storage: \(typeSpelling)
+                        public struct \(moduleName)Conformer: \(moduleName)Protocol {
+                          private var storage: \(typeSpelling)
 
-                  public init(storage: \(typeSpelling)) {
-                    self.storage = storage
-                  }
+                          public init(storage: \(typeSpelling)) {
+                            self.storage = storage
+                          }
 
-                  public var value: \(typeSpelling) {
-                    read { yield storage }
-                  }
-                }
-                """
+                          public var value: \(typeSpelling) {
+                            read { yield storage }
+                          }
+                        }
+                        """
+                case .modify:
+                    source = """
+                        \(auxiliaryDeclaration)
+
+                        public protocol \(moduleName)Protocol {
+                          var value: \(typeSpelling) { get set }
+                        }
+
+                        public struct \(moduleName)Conformer: \(moduleName)Protocol {
+                          private var storage: \(typeSpelling)
+
+                          public init(storage: \(typeSpelling)) {
+                            self.storage = storage
+                          }
+
+                          public var value: \(typeSpelling) {
+                            get { storage }
+                            set { storage = newValue }
+                            _modify { yield &storage }
+                          }
+                        }
+                        """
+            }
 
             let assembly = try Self.runXcrunSwiftc(
                 arguments: [
