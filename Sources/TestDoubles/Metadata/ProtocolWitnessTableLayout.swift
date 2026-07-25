@@ -1,4 +1,9 @@
 enum ProtocolWitnessTableLayout {
+    /// `WitnessTableFirstRequirementOffset` (include/swift/ABI/MetadataValues.h):
+    /// word 0 of a witness table is the conformance descriptor, so requirement
+    /// N lives at word `1 + N`.
+    static let firstRequirementOffset = 1
+
     /// Returns the address of a protocol requirement's witness-table entry.
     /// The first word is the conformance descriptor, so requirement zero
     /// begins one pointer-sized word after the table address.
@@ -7,7 +12,7 @@ enum ProtocolWitnessTableLayout {
         in witnessTable: UnsafeRawPointer
     ) -> UnsafeRawPointer {
         witnessTable
-            + (1 + witnessIndex) * MemoryLayout<UnsafeRawPointer>.size
+            + (firstRequirementOffset + witnessIndex) * MemoryLayout<UnsafeRawPointer>.size
     }
 
     static func entry(
@@ -15,6 +20,6 @@ enum ProtocolWitnessTableLayout {
         in witnessTable: UnsafeMutableRawPointer
     ) -> UnsafeMutableRawPointer {
         witnessTable
-            + (1 + witnessIndex) * MemoryLayout<UnsafeRawPointer>.size
+            + (firstRequirementOffset + witnessIndex) * MemoryLayout<UnsafeRawPointer>.size
     }
 }

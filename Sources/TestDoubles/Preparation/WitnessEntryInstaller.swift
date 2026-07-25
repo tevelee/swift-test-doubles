@@ -151,13 +151,18 @@ struct WitnessEntryInstaller {
         }
     }
 
+    /// `ProtocolRequirementFlags::ExtraDiscriminatorShift`
+    /// (include/swift/ABI/MetadataValues.h): the requirement's pointer-auth
+    /// discriminator occupies the high 16 bits of the 32-bit flags word.
+    private static let extraDiscriminatorShift: UInt32 = 16
+
     private func declarationDiscriminator(
         for witnessIndex: Int,
         in node: ProtocolLayout.Node
     ) -> UInt16 {
         UInt16(
             truncatingIfNeeded: node.descriptor
-                .requirements[witnessIndex].flags.bits >> 16
+                .requirements[witnessIndex].flags.bits >> Self.extraDiscriminatorShift
         )
     }
 }

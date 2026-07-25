@@ -383,13 +383,13 @@ extension ProtocolLayout {
             classLayouts: [GenericRequirementDescriptor]
         ) {
             let conformances = signature.filter {
-                genericRequirementKindCode($0) == 0
+                genericRequirementKindCode($0) == GenericRequirementKindCode.protocolConformance
             }
             let classLayouts = signature.filter {
-                genericRequirementKindCode($0) == 0x1f
+                genericRequirementKindCode($0) == GenericRequirementKindCode.layout
             }
             let invertedProtocols = signature.filter {
-                genericRequirementKindCode($0) == 5
+                genericRequirementKindCode($0) == GenericRequirementKindCode.invertedProtocols
             }
             guard
                 conformances.count + classLayouts.count
@@ -484,7 +484,8 @@ extension ProtocolLayout {
         ) throws -> Set<String> {
             guard
                 requirements.allSatisfy({
-                    genericRequirementLayoutKindCode($0) == 0
+                    genericRequirementLayoutKindCode($0)
+                        == GenericRequirementLayoutKindCode.anyObjectClass
                 })
             else {
                 throw StubError.unsupportedProtocolShape(
@@ -535,13 +536,28 @@ private func constrainsProtocolSelf(_ requirement: GenericRequirementDescriptor)
     return name[0] == UInt8(ascii: "x") && name[1] == 0
 }
 
+/// `GenericRequirementKind` values and the `Value & 0x1F` mask that recovers
+/// them from a `TargetGenericRequirementDescriptor`'s flags word
+/// (include/swift/ABI/MetadataValues.h).
+private enum GenericRequirementKindCode {
+    static let mask: UInt32 = 0x1f
+    static let protocolConformance: UInt8 = 0
+    static let invertedProtocols: UInt8 = 5
+    static let layout: UInt8 = 0x1f
+}
+
 private func genericRequirementKindCode(
     _ requirement: GenericRequirementDescriptor
 ) -> UInt8 {
     // Echo 0.0.5 force-unwraps its enum. Read the stable flags word first so a
     // newer requirement kind is rejected rather than trapping in the library.
     let pointer = unsafeBitCast(requirement, to: UnsafeRawPointer.self)
-    return UInt8(pointer.load(as: UInt32.self) & 0x1f)
+    return UInt8(pointer.load(as: UInt32.self) & GenericRequirementKindCode.mask)
+}
+
+/// `GenericRequirementLayoutKind` values (include/swift/ABI/MetadataValues.h).
+private enum GenericRequirementLayoutKindCode {
+    static let anyObjectClass: UInt32 = 0
 }
 
 private func genericRequirementLayoutKindCode(
@@ -554,6 +570,13 @@ private func genericRequirementLayoutKindCode(
     return pointer.load(fromByteOffset: 8, as: UInt32.self)
 }
 
+/// `InvertibleProtocolSet` bit positions (include/swift/ABI/
+/// InvertibleProtocols.def / .h): each protocol's bit is `1 << kind`.
+private enum InvertibleProtocolSetBit {
+    static let copyable: UInt16 = 1 << 0
+    static let escapable: UInt16 = 1 << 1
+}
+
 private func invertedProtocolDiagnostic(
     for requirement: GenericRequirementDescriptor
 ) -> String {
@@ -561,8 +584,8 @@ private func invertedProtocolDiagnostic(
     // The InvertedProtocols payload stores a UInt16 generic-parameter index,
     // followed by Swift's ABI-defined Copyable/Escapable bitset.
     let protocols = pointer.load(fromByteOffset: 10, as: UInt16.self)
-    let copyable = protocols & 0x1 != 0
-    let escapable = protocols & 0x2 != 0
+    let copyable = protocols & InvertibleProtocolSetBit.copyable != 0
+    let escapable = protocols & InvertibleProtocolSetBit.escapable != 0
     if copyable, escapable {
         return "The protocol relaxes Copyable and Escapable with `~Copyable` and `~Escapable`. Runtime test doubles record escaping `Any` values, which require copyable, escapable payloads."
     }

@@ -19,6 +19,14 @@ struct FabricatedWitnessTableGraph {
     }
 }
 
+/// `ConformanceFlags::TypeReferenceKind` values (include/swift/ABI/
+/// MetadataValues.h), shifted into their field position by
+/// `TypeMetadataKindShift = 3` in the conformance descriptor's `Flags` word.
+private enum TypeReferenceKindFlag {
+    static let indirectTypeDescriptor: UInt32 = 0x1 << 3
+    static let directObjCClassName: UInt32 = 0x2 << 3
+}
+
 struct WitnessTableGraphBuilder {
     let layout: ProtocolLayout
     let associatedTypeBindings: AssociatedTypeBindings
@@ -177,7 +185,10 @@ struct WitnessTableGraphBuilder {
         )
         switch conformanceTypeReference {
             case .indirectTypeDescriptor(let descriptorPointer):
-                (descriptor + 12).storeBytes(of: UInt32(0x1 << 3), as: UInt32.self)
+                (descriptor + 12).storeBytes(
+                    of: TypeReferenceKindFlag.indirectTypeDescriptor,
+                    as: UInt32.self
+                )
                 let cell = allocation + typeReferenceOffset
                 let signedDescriptorPointer =
                     td_sign_type_descriptor_pointer(descriptorPointer, cell)
@@ -187,7 +198,10 @@ struct WitnessTableGraphBuilder {
                     as: UnsafeRawPointer.self
                 )
             case .directObjectiveCClassName(let bytes):
-                (descriptor + 12).storeBytes(of: UInt32(0x2 << 3), as: UInt32.self)
+                (descriptor + 12).storeBytes(
+                    of: TypeReferenceKindFlag.directObjCClassName,
+                    as: UInt32.self
+                )
                 for (index, byte) in bytes.enumerated() {
                     (allocation + typeReferenceOffset + index).storeBytes(
                         of: byte,
