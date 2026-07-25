@@ -1,88 +1,57 @@
 import TestDoublesRuntime
-import Echo
 
 extension Stub.Requirement.Value {
-    func resolve(
-        protocolDescriptor: ProtocolDescriptor,
-        bindings: AssociatedTypeBindings
-    ) throws -> ResolvedWitnessValue {
-        if case .selfType(let isOptional) = source {
-            return .selfValue(isOptional: isOptional, ownership: ownership)
-        }
-        return .resolved(
-            try source.resolveDependentType(
-                protocolDescriptor: protocolDescriptor,
-                bindings: bindings
-            ),
+    var runtimeValue: RuntimeExplicitRequirementSchema.Value {
+        RuntimeExplicitRequirementSchema.Value(
+            source: source.runtimeSource,
             ownership: ownership
         )
     }
 }
 
 extension Stub.Requirement.Value.Source {
-    func resolveDependentType(
-        protocolDescriptor: ProtocolDescriptor,
-        bindings: AssociatedTypeBindings
-    ) throws -> ResolvedDependentType {
+    var runtimeSource: RuntimeExplicitRequirementSchema.Source {
         switch self {
             case .concrete(let type):
-                return ResolvedDependentType(
-                    type: type,
-                    dependency: .independent
-                )
+                .concrete(type)
             case .associatedType(let name):
-                return try bindings.resolvedAssociatedType(
-                    named: name,
-                    declaredBy: protocolDescriptor
-                )
+                .associatedType(name)
             case .optional(let wrapped):
-                return try wrapped.resolveDependentType(
-                    protocolDescriptor: protocolDescriptor,
-                    bindings: bindings
-                ).optional()
+                .optional(wrapped.runtimeSource)
             case .array(let element):
-                return try element.resolveDependentType(
-                    protocolDescriptor: protocolDescriptor,
-                    bindings: bindings
-                ).array()
+                .array(element.runtimeSource)
             case .set(let element):
-                let resolved = try element.resolveDependentType(
-                    protocolDescriptor: protocolDescriptor,
-                    bindings: bindings
-                )
-                return try resolved.set(
-                    protocolName: protocolDescriptor.name,
-                    sourceDescription: runtimeTypeName(resolved.type)
-                )
+                .set(element.runtimeSource)
             case .dictionary(let key, let value):
-                return try .dictionary(
-                    key: key.resolveDependentType(
-                        protocolDescriptor: protocolDescriptor,
-                        bindings: bindings
-                    ),
-                    value: value.resolveDependentType(
-                        protocolDescriptor: protocolDescriptor,
-                        bindings: bindings
-                    ),
-                    protocolName: protocolDescriptor.name
+                .dictionary(
+                    key: key.runtimeSource,
+                    value: value.runtimeSource
                 )
             case .result(let success, let failure):
-                return try .result(
-                    success: success.resolveDependentType(
-                        protocolDescriptor: protocolDescriptor,
-                        bindings: bindings
-                    ),
-                    failure: failure.resolveDependentType(
-                        protocolDescriptor: protocolDescriptor,
-                        bindings: bindings
-                    ),
-                    protocolName: protocolDescriptor.name
+                .result(
+                    success: success.runtimeSource,
+                    failure: failure.runtimeSource
                 )
-            case .selfType:
-                throw StubError.unsupportedProtocolShape(
-                    protocolName: protocolDescriptor.name,
-                    reason: "Dynamic Self is supported only as a direct result, not inside a container value schema."
-                )
+            case .selfType(let isOptional):
+                .selfType(isOptional: isOptional)
         }
+    }
+}
+
+extension Stub.Requirement {
+    var runtimeSchema: RuntimeExplicitRequirementSchema {
+        RuntimeExplicitRequirementSchema(
+            kind: kind,
+            arguments: arguments.map(\.runtimeValue),
+            result: result.runtimeValue,
+            typedErrorType: typedErrorType,
+            typedErrorAssociatedTypeName: typedErrorAssociatedTypeName,
+            isThrowing: isThrowing,
+            isAsync: isAsync,
+            typedWitnessAdapterFactory: typedWitnessAdapterFactory,
+            inferredFromSignature: inferredFromSignature,
+            erasedSelfType: P.self,
+            erasedOptionalSelfType: Optional<P>.self
+        )
     }
 }

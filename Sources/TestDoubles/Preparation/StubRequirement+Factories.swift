@@ -1,5 +1,4 @@
 import TestDoublesRuntime
-import Echo
 
 extension Stub.Requirement {
     /// Describes a method requirement.
@@ -512,101 +511,18 @@ extension Stub.Requirement {
         index: Int,
         witnessIndex: Int,
         receiver: StubRequirementReceiver,
-        protocolDescriptor: ProtocolDescriptor,
+        protocolDescriptor: RuntimeProtocolDescriptor,
         bindings: AssociatedTypeBindings,
         containsAssociatedTypes: Bool
     ) throws -> MethodDescriptor {
-        try validateInferredSignature(
-            index: index,
-            protocolDescriptor: protocolDescriptor,
-            containsAssociatedTypes: containsAssociatedTypes
-        )
-        let resolvedTypedError:
-            (
-                type: Any.Type?,
-                dependency: WitnessValueDependency
-            )
-        if let name = typedErrorAssociatedTypeName {
-            let binding = try bindings.binding(
-                named: name,
-                declaredBy: protocolDescriptor
-            )
-            guard binding.type is any Error.Type else {
-                throw StubError.unsupportedProtocolShape(
-                    protocolName: protocolDescriptor.name,
-                    reason: "Associated typed error '\(name)' is bound to '\(runtimeTypeName(binding.type))', which does not conform to Error."
-                )
-            }
-            resolvedTypedError = (
-                binding.type,
-                bindings.dependency(for: binding)
-            )
-        } else {
-            resolvedTypedError = (typedErrorType, .independent)
-        }
-        return try MethodDescriptor(
-            kind: kind,
-            receiver: receiver,
-            origin: .explicit,
-            name: "requirement_\(index)",
+        try makeExplicitMethodDescriptor(
+            schema: runtimeSchema,
             index: index,
             witnessIndex: witnessIndex,
-            arguments: try arguments.map {
-                try $0.resolve(protocolDescriptor: protocolDescriptor, bindings: bindings)
-            },
-            result: try result.resolve(
-                protocolDescriptor: protocolDescriptor,
-                bindings: bindings
-            ),
-            protocolName: protocolDescriptor.name,
-            typedErrorType: resolvedTypedError.type,
-            typedErrorDependency: resolvedTypedError.dependency,
-            selfIsClassConstrained: protocolUsesClassSelfConvention(
-                protocolDescriptor
-            ),
-            isThrowing: isThrowing,
-            isAsync: isAsync,
-            typedWitnessAdapterFactory: typedWitnessAdapterFactory
+            receiver: receiver,
+            protocolDescriptor: protocolDescriptor,
+            bindings: bindings,
+            containsAssociatedTypes: containsAssociatedTypes
         )
-    }
-
-    private func validateInferredSignature(
-        index: Int,
-        protocolDescriptor: ProtocolDescriptor,
-        containsAssociatedTypes: Bool
-    ) throws {
-        guard inferredFromSignature else { return }
-        if containsAssociatedTypes {
-            throw StubError.unsupportedProtocolShape(
-                protocolName: protocolDescriptor.name,
-                reason: "Requirement \(index) uses `signatureOf:` in an existential containing associated types. Function conversion erases associated-type identity; describe this requirement with explicit `Requirement.Value` values."
-            )
-        }
-
-        let values = arguments + [result]
-        let containsErasedSelf = values.contains { value in
-            guard case .concrete(let type) = value.source else { return false }
-            return ObjectIdentifier(type) == ObjectIdentifier(P.self)
-                || ObjectIdentifier(type) == ObjectIdentifier(Optional<P>.self)
-        }
-        if containsErasedSelf {
-            throw StubError.unsupportedProtocolShape(
-                protocolName: protocolDescriptor.name,
-                reason:
-                    "Requirement \(index) uses `signatureOf:` with a protocol-existential "
-                    + "value that may represent dynamic `Self`. Function conversion erases "
-                    + "that distinction; describe this requirement with explicit "
-                    + "`Requirement.Value` values."
-            )
-        }
-
-        if typedErrorType != nil || typedErrorAssociatedTypeName != nil,
-            kind != .method
-        {
-            throw StubError.unsupportedProtocolShape(
-                protocolName: protocolDescriptor.name,
-                reason: "Requirement \(index) uses `signatureOf:` with typed throws on an accessor. Typed-throwing accessors are unsupported."
-            )
-        }
     }
 }

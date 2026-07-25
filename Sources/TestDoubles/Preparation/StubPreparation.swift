@@ -1,5 +1,4 @@
 import TestDoublesRuntime
-import Echo
 
 enum SpyGetterEffectInput<P> {
     case automatic
@@ -114,7 +113,7 @@ extension Stub {
                     index: protocolRequirement.dispatchIndex,
                     witnessIndex: protocolRequirement.witnessIndex,
                     receiver: protocolRequirement.receiver,
-                    protocolDescriptor: protocolRequirement.protocolDescriptor,
+                    protocolDescriptor: protocolRequirement.runtimeProtocolDescriptor,
                     bindings: bindings,
                     containsAssociatedTypes: layout.associatedTypeRequirements.isEmpty == false
                 )
@@ -122,7 +121,7 @@ extension Stub {
             for (method, protocolRequirement) in zip(methods, protocolRequirements) {
                 guard method.kind == protocolRequirement.kind else {
                     throw StubError.requirementMismatch(
-                        protocolName: protocolRequirement.protocolDescriptor.name,
+                        protocolName: protocolRequirement.runtimeProtocolDescriptor.name,
                         requirementIndex: protocolRequirement.dispatchIndex,
                         expected: protocolRequirement.kind.rawValue,
                         actual: method.kind.rawValue
@@ -135,7 +134,7 @@ extension Stub {
         func validateLinkedConformances(
             for methods: [MethodDescriptor]
         ) throws {
-            try Stub.validateAgainstLinkedConformances(
+            try validateExplicitRequirementsAgainstLinkedConformances(
                 methods,
                 layout: layout,
                 associatedTypeBindings: bindings
@@ -304,7 +303,7 @@ extension Stub {
     ) throws -> [(node: ProtocolLayout.Node, items: [Item])] {
         let nodesByID = Dictionary(
             uniqueKeysWithValues: declaringNodes.map {
-                (ProtocolLayout.DescriptorID($0.descriptor), $0)
+                (ProtocolLayout.DescriptorID($0.runtimeProtocolDescriptor), $0)
             })
         var suppliedGroups: [ProtocolLayout.DescriptorID: [Item]] = [:]
 
@@ -324,9 +323,11 @@ extension Stub {
         }
 
         return try declaringNodes.map { node in
-            let identifier = ProtocolLayout.DescriptorID(node.descriptor)
+            let identifier = ProtocolLayout.DescriptorID(
+                node.runtimeProtocolDescriptor
+            )
             guard let items = suppliedGroups[identifier] else {
-                throw diagnostics.missingGroup(node.descriptor.name)
+                throw diagnostics.missingGroup(node.runtimeProtocolDescriptor.name)
             }
             return (node, items)
         }
@@ -348,7 +349,7 @@ extension Stub {
             uniqueKeysWithValues: zip(getters, effects).map { requirement, effect in
                 (
                     ProtocolLayout.GetterRequirementID(
-                        protocolDescriptor: requirement.protocolDescriptor,
+                        protocolDescriptor: requirement.runtimeProtocolDescriptor,
                         witnessIndex: requirement.witnessIndex
                     ),
                     effect.isThrowing
@@ -363,13 +364,10 @@ extension Stub {
 
     /// Returns the descriptor of the single protocol named by an unbound
     /// existential type, or `nil` for any other runtime type.
-    static func singleProtocolDescriptor(of type: Any.Type) -> ProtocolDescriptor? {
-        guard let existential = reflect(type) as? ExistentialMetadata,
-            existential.protocols.count == 1
-        else {
-            return nil
-        }
-        return existential.protocols[0]
+    static func singleProtocolDescriptor(
+        of type: Any.Type
+    ) -> RuntimeProtocolDescriptor? {
+        runtimeSingleProtocolDescriptor(of: type)
     }
 
 }

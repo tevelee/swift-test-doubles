@@ -12,6 +12,10 @@ package struct AssociatedTypeID: Hashable {
         protocolID = ProtocolLayout.DescriptorID(protocolDescriptor)
         self.name = name
     }
+
+    package init(protocolDescriptor: RuntimeProtocolDescriptor, name: String) {
+        self.init(protocolDescriptor: protocolDescriptor.raw, name: name)
+    }
 }
 
 /// Concrete associated-type bindings with deterministic metadata order and
@@ -59,6 +63,12 @@ package struct AssociatedTypeBindings {
         byProtocolID[ProtocolLayout.DescriptorID(protocolDescriptor)] ?? []
     }
 
+    package func declared(
+        by protocolDescriptor: RuntimeProtocolDescriptor
+    ) -> [StubProtocolMetadata.AssociatedTypeBinding] {
+        declared(by: protocolDescriptor.raw)
+    }
+
     /// Returns the concrete binding for one associated type, or throws the
     /// shared unbound-associated-type diagnostic.
     package func binding(
@@ -73,6 +83,13 @@ package struct AssociatedTypeBindings {
             )
         }
         return binding
+    }
+
+    package func binding(
+        named name: String,
+        declaredBy protocolDescriptor: RuntimeProtocolDescriptor
+    ) throws -> StubProtocolMetadata.AssociatedTypeBinding {
+        try binding(named: name, declaredBy: protocolDescriptor.raw)
     }
 
     package func dependency(
@@ -96,6 +113,13 @@ package struct AssociatedTypeBindings {
             type: binding.type,
             dependency: dependency(for: binding)
         )
+    }
+
+    package func resolvedAssociatedType(
+        named name: String,
+        declaredBy protocolDescriptor: RuntimeProtocolDescriptor
+    ) throws -> ResolvedDependentType {
+        try resolvedAssociatedType(named: name, declaredBy: protocolDescriptor.raw)
     }
 
     package func validateReferenceBindings() throws {

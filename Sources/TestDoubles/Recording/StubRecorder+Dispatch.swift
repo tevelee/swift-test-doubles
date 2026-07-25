@@ -2,6 +2,21 @@ import TestDoublesRuntime
 import Foundation
 
 extension StubRecorder {
+    func dispatchTyped<Result>(
+        manualMethod: ManualMethod,
+        args: [Any],
+        as type: Result.Type
+    ) throws -> Result {
+        try dispatchTyped(method: manualMethod.descriptor, args: args, as: type)
+    }
+
+    func prepareAsyncDispatch(
+        manualMethod: ManualMethod,
+        args: [Any]
+    ) -> AsyncDispatch {
+        prepareAsyncDispatch(method: manualMethod.descriptor, args: args)
+    }
+
     func dispatch(method: MethodDescriptor, args: [Any]) throws -> Any {
         switch prepareDispatch(method: method, args: args) {
             case .placeholder:

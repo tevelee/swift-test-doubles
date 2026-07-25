@@ -151,11 +151,11 @@ final class StubRecorder: @unchecked Sendable {
     /// and effects keep legal Swift overloads in distinct recorder slots.
     func internManualMethod(
         signature: String,
-        kind: StubRequirementKind,
+        kind: ManualMethodKind,
         returnType: Any.Type,
         isAsync: Bool,
         isThrowing: Bool
-    ) -> MethodDescriptor {
+    ) -> ManualMethod {
         internManualMethod(
             route: .implicit(signature),
             kind: kind,
@@ -169,20 +169,21 @@ final class StubRecorder: @unchecked Sendable {
     /// printed signature or a typed route discriminator.
     func internManualMethod(
         route: ManualMethodRouteIdentity,
-        kind: StubRequirementKind,
+        kind: ManualMethodKind,
         returnType: Any.Type,
         isAsync: Bool,
         isThrowing: Bool
-    ) -> MethodDescriptor {
-        withLockedPolicy {
-            $0.methodCatalog.internManualMethod(
-                route: route,
-                kind: kind,
-                returnType: returnType,
-                isAsync: isAsync,
-                isThrowing: isThrowing
-            )
-        }
+    ) -> ManualMethod {
+        ManualMethod(
+            descriptor: withLockedPolicy {
+                $0.methodCatalog.internManualMethod(
+                    route: route,
+                    kind: kind.runtimeKind,
+                    returnType: returnType,
+                    isAsync: isAsync,
+                    isThrowing: isThrowing
+                )
+            })
     }
 
     // MARK: - Capture lifecycle

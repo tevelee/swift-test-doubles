@@ -18,6 +18,18 @@ package struct StubProtocolMetadata {
             self.name = name
             self.type = type
         }
+
+        package init(
+            protocolDescriptor: RuntimeProtocolDescriptor,
+            name: String,
+            type: Any.Type
+        ) {
+            self.init(
+                protocolDescriptor: protocolDescriptor.raw,
+                name: name,
+                type: type
+            )
+        }
     }
     package let protocols: [ProtocolDescriptor]
     package let numberOfWitnessTables: Int

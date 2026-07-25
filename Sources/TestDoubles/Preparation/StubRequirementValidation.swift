@@ -1,4 +1,4 @@
-import Echo
+import TestDoublesRuntime
 
 extension Stub {
     static func validate(
@@ -125,7 +125,7 @@ extension Stub {
             let dependentValues = method.arguments.map(\.value) + [method.result]
             if dependentValues.contains(where: {
                 if $0.dependency.isAssociatedTypeDependent {
-                    return reflect($0.type).kind == .function
+                    return runtimeIsFunctionType($0.type)
                 }
                 return false
             }) {
@@ -135,7 +135,7 @@ extension Stub {
                 )
             }
             let containsFunction = concreteTypes.contains {
-                reflect($0).kind == .function
+                runtimeIsFunctionType($0)
             }
             if containsFunction {
                 guard method.origin == .automatic || method.typedWitnessAdapterFactory != nil else {
@@ -174,7 +174,7 @@ extension Stub {
                     reason: "Requirement \(method.index) supplies a typed adapter but has no direct function argument or result."
                 )
             }
-            if let reason = simdUnsupportedReason(for: method) {
+            if let reason = runtimeSIMDUnsupportedReason(for: method) {
                 throw StubError.unsupportedProtocolShape(
                     protocolName: protocolName,
                     reason: "Requirement \(method.index) contains an unsupported SIMD value. \(reason)"
@@ -225,7 +225,7 @@ extension Stub {
                     modifyPairIsCompatible(getter: getter, setter: setter)
                 else {
                     throw StubError.unsupportedProtocolShape(
-                        protocolName: node.descriptor.name,
+                        protocolName: node.runtimeProtocolDescriptor.name,
                         reason: "The _modify requirement at witness index \(modify.witnessIndex) does not have a compatible synchronous getter/setter pair."
                     )
                 }
@@ -260,174 +260,4 @@ extension Stub {
             }
     }
 
-    static func validateAgainstLinkedConformances(
-        _ supplied: [MethodDescriptor],
-        layout: ProtocolLayout,
-        associatedTypeBindings: AssociatedTypeBindings
-    ) throws {
-        let requiresStrictDiscovery = associatedTypeBindings.isEmpty == false
-        var witnessTables: [ProtocolLayout.DescriptorID: WitnessTable] = [:]
-        for root in layout.roots {
-            guard let conformance = Echo.findConformance(to: root) else { continue }
-            var collected = witnessTables
-            do {
-                try LinkedWitnessTableGraph.collect(
-                    descriptor: root,
-                    witnessTable: conformance.witnessTablePattern,
-                    layout: layout,
-                    into: &collected
-                )
-                witnessTables = collected
-            } catch {
-                if requiresStrictDiscovery { throw error }
-            }
-        }
-
-        let discoverableRequirements = layout.callableRequirements.filter {
-            witnessTables[ProtocolLayout.DescriptorID($0.protocolDescriptor)] != nil
-                || resilientRequirementSymbolName($0) != nil
-        }
-        for requirement in discoverableRequirements {
-            let expected: MethodDescriptor
-            do {
-                guard
-                    let discovered = try discoverMethods(
-                        witnessTables: witnessTables,
-                        layout: layout,
-                        requirements: [requirement],
-                        associatedTypeBindings: associatedTypeBindings,
-                        getterEffectPolicy: .explicitRequirementValidation
-                    ).first
-                else {
-                    continue
-                }
-                expected = discovered
-            } catch let error as RuntimeConstructionError {
-                // Once linked discovery identifies an unsupported ABI shape,
-                // explicit metadata must not bypass that fail-closed boundary.
-                let mappedError = StubError(error)
-                if case .unsupportedProtocolShape = mappedError { throw mappedError }
-                if requiresStrictDiscovery { throw mappedError }
-                continue
-            } catch {
-                if requiresStrictDiscovery { throw error }
-                continue
-            }
-            guard supplied.indices.contains(expected.index) else { continue }
-            let actual = supplied[expected.index]
-            guard actual.hasSameSignature(as: expected) == false else { continue }
-            let protocolName = layout.callableRequirements[expected.index]
-                .protocolDescriptor.name
-            throw StubError.requirementMismatch(
-                protocolName: protocolName,
-                requirementIndex: expected.index,
-                expected: expected.signatureDescription,
-                actual: actual.signatureDescription
-            )
-        }
-    }
-
 }
-
-/// Returns the fail-closed reason for a SIMD-bearing requirement, or `nil` for
-/// the bounded concrete synchronous method shapes proven on both runtimes.
-private func simdUnsupportedReason(for method: MethodDescriptor) -> String? {
-    let values = method.arguments.map(\.value) + [method.result]
-    let simdValues = values.filter { containsSIMDStorage($0.type) }
-    guard simdValues.isEmpty == false else { return nil }
-
-    guard method.kind == .method, method.receiver == .instance else {
-        return "The bounded vector-register path supports ordinary instance methods only."
-    }
-    guard method.isAsync == false else {
-        return "Async continuation transport has not been proven for SIMD registers."
-    }
-
-    for value in simdValues {
-        guard value.type is any SIMD.Type else {
-            return "SIMD nested in an aggregate does not share the direct vector ABI."
-        }
-        guard value.dependency.isAssociatedTypeDependent == false else {
-            return "Associated-dependent SIMD needs metadata-directed vector substitution."
-        }
-        guard concreteSIMDRegisterByteCount(for: value.type) == 16 else {
-            return "Only complete 128-bit lane payloads with one identical arm64/x86_64 vector-register shape are supported."
-        }
-        guard case .aggregate(let parts) = value.layout,
-            parts.count == 1,
-            parts[0].register == .fp,
-            parts[0].offset == 0,
-            parts[0].byteCount == 16
-        else {
-            return "Its runtime ABI classification is not one 128-bit vector register."
-        }
-    }
-
-    for architecture in [RuntimeArchitecture.arm64, .x86_64] {
-        let transport = WitnessCallTransportPlan(
-            method: method,
-            architecture: architecture
-        )
-        for (argument, locations) in zip(
-            method.arguments,
-            transport.argumentLocations
-        ) where argument.value.type is any SIMD.Type {
-            guard locations.count == 1,
-                case .vectorRegister = locations[0].storage
-            else {
-                return "Its vector argument spills outside the captured register bank on \(architecture)."
-            }
-        }
-    }
-    return nil
-}
-
-/// Whether a value of `type` stores SIMD vector data anywhere direct register
-/// classification might otherwise mistake for an ordinary aggregate.
-private func containsSIMDStorage(_ type: Any.Type) -> Bool {
-    var visited: Set<UInt> = []
-    return containsSIMDStorage(type, visited: &visited)
-}
-
-private func containsSIMDStorage(_ type: Any.Type, visited: inout Set<UInt>) -> Bool {
-    if type is any SIMD.Type {
-        return true
-    }
-    let metadata = reflect(type)
-    if let tupleMetadata = metadata as? TupleMetadata {
-        return tupleMetadata.safelyInitializedElements.contains {
-            containsSIMDStorage($0.type, visited: &visited)
-        }
-    }
-    guard let structMetadata = reflectStruct(type) else {
-        return false
-    }
-    let key = UInt(bitPattern: structMetadata.ptr)
-    guard visited.insert(key).inserted else {
-        return false
-    }
-    defer { visited.remove(key) }
-    return structMetadata.descriptor.fields.records.contains { field in
-        guard field.hasMangledTypeName,
-            let fieldType = structMetadata.type(of: field.mangledTypeName)
-        else {
-            return false
-        }
-        return containsSIMDStorage(fieldType, visited: &visited)
-    }
-}
-
-func runtimeConformance(
-    _ type: UnsafeRawPointer,
-    _ protocolDescriptor: UnsafeRawPointer
-) -> UnsafeRawPointer? {
-    typealias Function =
-        @convention(c) (
-            UnsafeRawPointer,
-            UnsafeRawPointer
-        ) -> UnsafeRawPointer?
-    guard let function: Function = RuntimeSymbols.function(named: "swift_conformsToProtocol")
-    else { return nil }
-    return function(type, protocolDescriptor)
-}
-import TestDoublesRuntime

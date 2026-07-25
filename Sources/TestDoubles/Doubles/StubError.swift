@@ -185,6 +185,18 @@ extension StubError {
                     expected: expected,
                     actual: actual
                 )
+            case .requirementMismatch(
+                let protocolName,
+                let requirementIndex,
+                let expected,
+                let actual
+            ):
+                self = .requirementMismatch(
+                    protocolName: protocolName,
+                    requirementIndex: requirementIndex,
+                    expected: expected,
+                    actual: actual
+                )
             case .trampolineAllocationFailed(let requirementIndex):
                 self = .trampolineAllocationFailed(
                     requirementIndex: requirementIndex

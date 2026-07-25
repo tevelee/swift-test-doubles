@@ -14,6 +14,10 @@ package struct ProtocolLayout {
         package init(_ descriptor: ProtocolDescriptor) {
             rawValue = UInt(bitPattern: descriptor.ptr)
         }
+
+        package init(_ descriptor: RuntimeProtocolDescriptor) {
+            self.init(descriptor.raw)
+        }
     }
 
     package struct BaseProtocol {
@@ -31,6 +35,16 @@ package struct ProtocolLayout {
             protocolID = DescriptorID(protocolDescriptor)
             self.witnessIndex = witnessIndex
         }
+
+        package init(
+            protocolDescriptor: RuntimeProtocolDescriptor,
+            witnessIndex: Int
+        ) {
+            self.init(
+                protocolDescriptor: protocolDescriptor.raw,
+                witnessIndex: witnessIndex
+            )
+        }
     }
 
     package struct CallableRequirement {
@@ -39,6 +53,10 @@ package struct ProtocolLayout {
         package let dispatchIndex: Int
         package let kind: StubRequirementKind
         package let receiver: StubRequirementReceiver
+
+        package var runtimeProtocolDescriptor: RuntimeProtocolDescriptor {
+            RuntimeProtocolDescriptor(protocolDescriptor)
+        }
     }
 
     package struct AssociatedTypeRequirement {
@@ -100,6 +118,10 @@ package struct ProtocolLayout {
         package let callableRequirements: [CallableRequirement]
         package let readCoroutineRequirements: [ReadCoroutineRequirement]
         package let modifyCoroutineRequirements: [ModifyCoroutineRequirement]
+
+        package var runtimeProtocolDescriptor: RuntimeProtocolDescriptor {
+            RuntimeProtocolDescriptor(descriptor)
+        }
     }
 
     /// Root protocols in canonical existential-metadata order.
@@ -123,6 +145,10 @@ package struct ProtocolLayout {
     package func node(for descriptor: ProtocolDescriptor) -> Node? {
         let identifier = DescriptorID(descriptor)
         return nodes.first { DescriptorID($0.descriptor) == identifier }
+    }
+
+    package func node(for descriptor: RuntimeProtocolDescriptor) -> Node? {
+        node(for: descriptor.raw)
     }
 
     package static func build(

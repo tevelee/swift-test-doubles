@@ -18,5 +18,11 @@ package enum RuntimeConstructionError: Error, Sendable {
         expected: Int,
         actual: Int
     )
+    case requirementMismatch(
+        protocolName: String,
+        requirementIndex: Int,
+        expected: String,
+        actual: String
+    )
     case trampolineAllocationFailed(requirementIndex: Int)
 }

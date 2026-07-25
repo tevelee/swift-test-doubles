@@ -1,4 +1,3 @@
-import TestDoublesRuntime
 /// Marks a hand-written struct as a manually stubbed conformer.
 ///
 /// Conform your stub struct to both your protocol and `StubConformer`, and
@@ -483,7 +482,7 @@ public final class ManualStub<T: StubConformer> {
         returnType: Any.Type,
         isAsync: Bool,
         isThrowing: Bool
-    ) -> MethodDescriptor {
+    ) -> ManualMethod {
         recorder.internManualMethod(
             route: route,
             kind: .method,
@@ -499,7 +498,7 @@ public final class ManualStub<T: StubConformer> {
     // diagnostic trap. Typed capture dispatch and placeholder resolution are
     // shared with `Stub.Invocation` through the recorder.
 
-    func dispatchValue<R>(method: MethodDescriptor, args: [Any]) -> R {
+    func dispatchValue<R>(method: ManualMethod, args: [Any]) -> R {
         do {
             return try dispatchThrowingValue(method: method, args: args)
         } catch {
@@ -509,11 +508,11 @@ public final class ManualStub<T: StubConformer> {
         }
     }
 
-    func dispatchThrowingValue<R>(method: MethodDescriptor, args: [Any]) throws -> R {
-        try recorder.dispatchTyped(method: method, args: args, as: R.self)
+    func dispatchThrowingValue<R>(method: ManualMethod, args: [Any]) throws -> R {
+        try recorder.dispatchTyped(manualMethod: method, args: args, as: R.self)
     }
 
-    func dispatchAsyncValue<R>(method: MethodDescriptor, args: [Any]) async -> R {
+    func dispatchAsyncValue<R>(method: ManualMethod, args: [Any]) async -> R {
         do {
             return try await dispatchAsyncThrowingValue(method: method, args: args)
         } catch {
@@ -523,8 +522,8 @@ public final class ManualStub<T: StubConformer> {
         }
     }
 
-    func dispatchAsyncThrowingValue<R>(method: MethodDescriptor, args: [Any]) async throws -> R {
-        switch recorder.prepareAsyncDispatch(method: method, args: args) {
+    func dispatchAsyncThrowingValue<R>(method: ManualMethod, args: [Any]) async throws -> R {
+        switch recorder.prepareAsyncDispatch(manualMethod: method, args: args) {
             case .placeholder:
                 return RecordingReturnPlaceholderContext.requiredValue(
                     for: R.self,
