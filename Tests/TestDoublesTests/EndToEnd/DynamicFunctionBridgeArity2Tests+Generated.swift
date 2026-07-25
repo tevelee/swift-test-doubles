@@ -2,6 +2,7 @@
 // Arity 2 executes every supported effect and sendability branch.
 
 import Testing
+import TestDoublesRuntime
 
 @testable import TestDoubles
 

@@ -565,6 +565,7 @@ private func dynamicBridgeMatrixTestSource(arity: Int) -> String {
         // Arity \(arity) executes every supported effect and sendability branch.
 
         import Testing
+        import TestDoublesRuntime
 
         @testable import TestDoubles
 
