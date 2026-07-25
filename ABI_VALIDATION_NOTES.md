@@ -129,15 +129,29 @@ vocabulary and the values stay diff-able against swiftlang/swift. Commit-by-comm
    fully specified for a future edit made on real arm64e hardware with an
    execution test, without shipping unverifiable ptrauth assembly.
 
-3. **CI discriminator cross-checks — RESOLVED.**
-   `check-swift-abi-constants.sh` now pins every hardcoded discriminator in the
+3. **CI discriminator cross-checks — RESOLVED, then strengthened.**
+   `check-swift-abi-constants.sh` pins every hardcoded discriminator in the
    header to its documented `SpecialPointerAuthDiscriminators` value (the four
    CoroAllocator values, the shape and async-context values, the modify-resume
-   value), and reproduces the library's runtime read-resume discriminator from
-   the `yield_once_2:1:$sSi:` spelling via `td_function_discriminator`, requiring
-   equality with the compiler-derived value. On arm64 CI the accessor tests can't
+   value). The read-resume check first shipped as a second, independent
+   hand-copy of the spelling algorithm in bash/C -- that could only catch a
+   divergence between two transcriptions, not a bug in the real Swift source.
+   It was replaced by
+   `Tests/TestDoublesTests/Unit/YieldOnce2ResumeDiscriminatorABITests.swift`,
+   which calls the actual shipped `YieldingAccessorRuntime.resumeDiscriminator`
+   (`@testable`) and cross-checks it against a live `xcrun swiftc`'s arm64e
+   codegen for four distinct yield shapes: two non-generic structs with
+   different mangled names (`Int`, `Bool`), a class reference (the constant
+   `-class` spelling), and a 64-byte struct (the formally indirect result
+   path, which bypasses `pointerAuthTypeSpelling` entirely and was previously
+   completely unchecked). `resumeDiscriminator(for:)` was split to expose a
+   pure `resumeDiscriminator(isIndirect:returnType:)` core so the test can
+   drive it without constructing a full `MethodDescriptor`. The suite
+   self-gates on the same live-Swift-6.3 requirement the bash script checks,
+   and is a no-op off Apple platforms. On arm64 CI the accessor tests can't
    catch a wrong discriminator (no active ptrauth), so this is the first
-   automated check of the library's spelling model.
+   automated check of the library's spelling model against the compiler
+   itself, not against another copy of the same assumption.
 
 4. **`swift_deletedCalleeAllocatedCoroutineMethodErrorTwc` weak shim — RETAINED,
    with recheck note.** Still required: Apple Swift 6.3's dead-method elimination

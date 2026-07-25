@@ -42,15 +42,34 @@ enum YieldingAccessorRuntime {
     /// Derives the arm64e resume discriminator shared by `yield_once_2`
     /// read and modify witnesses.
     static func resumeDiscriminator(for method: MethodDescriptor) -> UInt16? {
-        let yieldSpelling: String
+        let isIndirect: Bool
         switch method.result.layout {
             case .indirect:
-                yieldSpelling = "indirect"
+                isIndirect = true
             case .void, .integer, .floatingPoint, .aggregate:
-                guard let spelling = pointerAuthTypeSpelling(method.returnType) else {
-                    return nil
-                }
-                yieldSpelling = spelling
+                isIndirect = false
+        }
+        return resumeDiscriminator(isIndirect: isIndirect, returnType: method.returnType)
+    }
+
+    /// The pure core of `resumeDiscriminator(for:)`, factored out so it is
+    /// directly testable against a live Swift compiler without constructing a
+    /// full `MethodDescriptor`: only the caller-visible yield shape (whether
+    /// Swift formally returns the value indirectly) and the yielded type feed
+    /// the spelling, mirroring IRGen's own `PointerAuthEntity` string scheme
+    /// for a `yield_once_2` coroutine continuation.
+    static func resumeDiscriminator(
+        isIndirect: Bool,
+        returnType: Any.Type
+    ) -> UInt16? {
+        let yieldSpelling: String
+        if isIndirect {
+            yieldSpelling = "indirect"
+        } else {
+            guard let spelling = pointerAuthTypeSpelling(returnType) else {
+                return nil
+            }
+            yieldSpelling = spelling
         }
         let spelling = "yield_once_2:1:\(yieldSpelling):"
         let bytes = Array(spelling.utf8)

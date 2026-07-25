@@ -482,45 +482,15 @@ if [[ -z "$read_resume_discriminator" || "$read_resume_discriminator" == *$'\n'*
   exit 1
 fi
 
-# Independently reproduce the discriminator the library computes at runtime
-# (YieldingAccessorRuntime.resumeDiscriminator) for this same Int-yielding read2
-# probe and require it to equal the compiler's. The library hashes the SIL
-# coroutine continuation spelling with the same stable SipHash the compiler's
-# ptrauth string discriminator uses; td_function_discriminator in SymbolLookup.c
-# is that hash. For an `Int` yield the spelling is `yield_once_2:1:$sSi:`
-# (one yield of the type mangled `Si`). Previously the compiler value was only
-# printed, never checked against the library's derivation.
-read_resume_probe_dir="$(mktemp -d)"
-cat > "$read_resume_probe_dir/probe.c" <<'PROBE'
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <stddef.h>
-extern uint16_t td_function_discriminator(const uint8_t *spelling, size_t length);
-int main(void) {
-  const char *spelling = "yield_once_2:1:$sSi:";
-  printf("%u\n", td_function_discriminator((const uint8_t *)spelling,
-                                           strlen(spelling)));
-  return 0;
-}
-PROBE
-
-library_read_resume_discriminator="$({
-  xcrun clang \
-    "$read_resume_probe_dir/probe.c" \
-    "$repository_root/Sources/CTestDoublesTrampoline/SymbolLookup.c" \
-    -I"$repository_root/Sources/CTestDoublesTrampoline/include" \
-    -o "$read_resume_probe_dir/probe" &&
-    "$read_resume_probe_dir/probe"
-})"
-rm -rf "$read_resume_probe_dir"
-
-if [[ "$library_read_resume_discriminator" != "$read_resume_discriminator" ]]; then
-  echo "Library read-resume discriminator does not match the compiler." >&2
-  echo "Compiler (arm64e read2 assembly): $read_resume_discriminator" >&2
-  echo "Library (yield_once_2:1:\$sSi:):   ${library_read_resume_discriminator:-missing}" >&2
-  exit 1
-fi
+# Whether the library's own resume-discriminator derivation
+# (YieldingAccessorRuntime.resumeDiscriminator) agrees with the compiler is
+# checked by calling that real, shipped function directly -- not by
+# reproducing its spelling algorithm a second time here. See
+# Tests/TestDoublesTests/Unit/YieldOnce2ResumeDiscriminatorABITests.swift,
+# which does this `@testable` for several yield shapes (a hand-copied bash/C
+# reproduction could only ever catch a divergence between two transcriptions,
+# not a bug in the real Swift source). `swift test` already runs that suite in
+# CI, gated on this same live-compiler requirement.
 
 echo "Swift 6.3 compiler selected for the required accessor ABI baseline."
 echo "Swift 6.3 _modify convention matches: yield_once"
@@ -532,7 +502,6 @@ echo "Swift 6.3 read witness contract matches: one read2 yield_once_2 witness"
 echo "Swift 6.3 read requirement low flags match: 0x0035"
 echo "Swift 6.3 yield_once_2 descriptor shape and caller frame match: 32 bytes"
 echo "Swift 6.3 compiler emitted one Int read-resume discriminator: $read_resume_discriminator"
-echo "Library read-resume discriminator matches the compiler: $library_read_resume_discriminator"
 echo "Runtime read context size matches header contract: $read_context_size bytes"
 echo "Runtime modify2 context size matches header contract: $modify_context_size bytes"
 
