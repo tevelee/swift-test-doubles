@@ -145,6 +145,34 @@ if [[ -z "$expected" || "$expected" == *$'\n'* ]]; then
   exit 1
 fi
 
+# The pointer-auth discriminators the trampoline hardcodes are verbatim copies
+# of swiftlang/swift's SpecialPointerAuthDiscriminators
+# (include/swift/ABI/MetadataValues.h). Pin every one to its documented value:
+# the compiler does not emit the CoroAllocator, async-context, or shape
+# discriminators in a small probe, so this guards them against an accidental
+# header edit that a live-compiler probe could not catch.
+assert_header_discriminator() {
+  local name="$1"
+  local want="$2"
+  local got
+  got="$(sed -nE "s/^#define ${name} ([0-9a-fx]+)$/\1/p" "$header" | sort -u)"
+  if [[ "$got" != "$want" ]]; then
+    echo "${name} must remain ${want} (SpecialPointerAuthDiscriminators);" \
+      "header has ${got:-missing}." >&2
+    exit 1
+  fi
+}
+
+assert_header_discriminator TD_PTRAUTH_OPAQUE_MODIFY_RESUME_FUNCTION 3909
+assert_header_discriminator TD_PTRAUTH_CORO_ALLOCATION_FUNCTION 24469
+assert_header_discriminator TD_PTRAUTH_CORO_DEALLOCATION_FUNCTION 40879
+assert_header_discriminator TD_PTRAUTH_CORO_FRAME_ALLOCATION_FUNCTION 53841
+assert_header_discriminator TD_PTRAUTH_CORO_FRAME_DEALLOCATION_FUNCTION 23464
+assert_header_discriminator TD_PTRAUTH_NONUNIQUE_EXTENDED_EXISTENTIAL_TYPE_SHAPE 0xe798
+assert_header_discriminator TD_PTRAUTH_ASYNC_CONTEXT_PARENT 0xbda2
+assert_header_discriminator TD_PTRAUTH_ASYNC_CONTEXT_RESUME 0xd707
+echo "Header pointer-auth discriminators match SpecialPointerAuthDiscriminators."
+
 if [[ "$read_context_size" != "16" ]]; then
   echo "TD_READ_CONTEXT_SIZE must remain the runtime's 16-byte read context." >&2
   echo "Header: ${read_context_size:-missing}" >&2
@@ -454,6 +482,46 @@ if [[ -z "$read_resume_discriminator" || "$read_resume_discriminator" == *$'\n'*
   exit 1
 fi
 
+# Independently reproduce the discriminator the library computes at runtime
+# (YieldingAccessorRuntime.resumeDiscriminator) for this same Int-yielding read2
+# probe and require it to equal the compiler's. The library hashes the SIL
+# coroutine continuation spelling with the same stable SipHash the compiler's
+# ptrauth string discriminator uses; td_function_discriminator in SymbolLookup.c
+# is that hash. For an `Int` yield the spelling is `yield_once_2:1:$sSi:`
+# (one yield of the type mangled `Si`). Previously the compiler value was only
+# printed, never checked against the library's derivation.
+read_resume_probe_dir="$(mktemp -d)"
+cat > "$read_resume_probe_dir/probe.c" <<'PROBE'
+#include <stdio.h>
+#include <string.h>
+#include <stdint.h>
+#include <stddef.h>
+extern uint16_t td_function_discriminator(const uint8_t *spelling, size_t length);
+int main(void) {
+  const char *spelling = "yield_once_2:1:$sSi:";
+  printf("%u\n", td_function_discriminator((const uint8_t *)spelling,
+                                           strlen(spelling)));
+  return 0;
+}
+PROBE
+
+library_read_resume_discriminator="$({
+  xcrun clang \
+    "$read_resume_probe_dir/probe.c" \
+    "$repository_root/Sources/CTestDoublesTrampoline/SymbolLookup.c" \
+    -I"$repository_root/Sources/CTestDoublesTrampoline/include" \
+    -o "$read_resume_probe_dir/probe" &&
+    "$read_resume_probe_dir/probe"
+})"
+rm -rf "$read_resume_probe_dir"
+
+if [[ "$library_read_resume_discriminator" != "$read_resume_discriminator" ]]; then
+  echo "Library read-resume discriminator does not match the compiler." >&2
+  echo "Compiler (arm64e read2 assembly): $read_resume_discriminator" >&2
+  echo "Library (yield_once_2:1:\$sSi:):   ${library_read_resume_discriminator:-missing}" >&2
+  exit 1
+fi
+
 echo "Swift 6.3 compiler selected for the required accessor ABI baseline."
 echo "Swift 6.3 _modify convention matches: yield_once"
 echo "Swift arm64e modify-resume discriminator matches header: $derived"
@@ -464,6 +532,7 @@ echo "Swift 6.3 read witness contract matches: one read2 yield_once_2 witness"
 echo "Swift 6.3 read requirement low flags match: 0x0035"
 echo "Swift 6.3 yield_once_2 descriptor shape and caller frame match: 32 bytes"
 echo "Swift 6.3 compiler emitted one Int read-resume discriminator: $read_resume_discriminator"
+echo "Library read-resume discriminator matches the compiler: $library_read_resume_discriminator"
 echo "Runtime read context size matches header contract: $read_context_size bytes"
 echo "Runtime modify2 context size matches header contract: $modify_context_size bytes"
 
