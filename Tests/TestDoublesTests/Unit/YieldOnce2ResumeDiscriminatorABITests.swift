@@ -109,7 +109,7 @@ import Testing
                       public init() {}
                     }
                     """
-            ),
+            )
         ]
 
         /// Does NOT currently match a live Swift 6.3 compiler. See
@@ -188,7 +188,7 @@ import Testing
                     "-module-name", moduleName,
                     "-target", "arm64e-apple-macosx13.0",
                     "-o", "-",
-                    "-",
+                    "-"
                 ],
                 standardInput: source
             )
