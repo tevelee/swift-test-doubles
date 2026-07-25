@@ -55,7 +55,14 @@ func parseWitnessSignature(
             case .setter:
                 markers = [".setter : "]
             case .readCoroutine:
-                markers = [".yielding_borrow : ", ".read2 : ", ".read : "]
+                // The live Swift 6.3.3 toolchain demangles a yield_once_2
+                // read witness as ".read2 : "; swiftlang/swift@main's
+                // NodePrinter.cpp no longer has a distinct node for it (it
+                // prints "read" for both the legacy and yield_once_2 forms),
+                // so treat ".read2 : " as a version-specific spelling rather
+                // than dropping it. ".borrow : " covers the newer
+                // BorrowAccessor node kind main does have.
+                markers = [".yielding_borrow : ", ".read2 : ", ".borrow : ", ".read : "]
             default:
                 preconditionFailure("Accessor kind was validated before parsing.")
         }
