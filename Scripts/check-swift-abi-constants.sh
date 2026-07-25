@@ -67,6 +67,32 @@ public struct TestDoublesReadDescriptorConformer: TestDoublesReadDescriptorProbe
 SWIFT
 }
 
+compile_swift_63_register_probe() {
+  xcrun swiftc "$@" - <<'SWIFT'
+public protocol TestDoublesRegisterProbe {
+  func work(_ value: Int) throws -> Int
+}
+
+public struct TestDoublesRegisterProbeConformer: TestDoublesRegisterProbe {
+  public init() {}
+  public func work(_ value: Int) throws -> Int { value }
+}
+SWIFT
+}
+
+compile_swift_63_async_register_probe() {
+  xcrun swiftc "$@" - <<'SWIFT'
+public protocol TestDoublesAsyncRegisterProbe {
+  func work(_ value: Int) async -> Int
+}
+
+public struct TestDoublesAsyncRegisterProbeConformer: TestDoublesAsyncRegisterProbe {
+  public init() {}
+  public func work(_ value: Int) async -> Int { value }
+}
+SWIFT
+}
+
 compile_swift_64_yielding_borrow_probe() {
   local developer_directory="$1"
   shift
@@ -440,6 +466,60 @@ echo "Swift 6.3 yield_once_2 descriptor shape and caller frame match: 32 bytes"
 echo "Swift 6.3 compiler emitted one Int read-resume discriminator: $read_resume_discriminator"
 echo "Runtime read context size matches header contract: $read_context_size bytes"
 echo "Runtime modify2 context size matches header contract: $modify_context_size bytes"
+
+# TestDoublesTrampoline.S hand-writes self/error/async-context register
+# traffic (TD_FRAME_SWIFT_SELF_OFFSET/TD_FRAME_SWIFT_ERROR_OFFSET load from
+# x20/x21 on arm64 and %r13/%r12 on x86_64; async invoke routines thread
+# x22/%r14 the same way) instead of letting the compiler emit that plumbing
+# itself. The exact physical register each maps to is
+# docs/ABI/CallingConventionSummary.rst's call, not this project's or a
+# single compiler version's -- verifying that mapping directly would mean
+# inspecting AArch64/X86 backend register allocation, and it's the most
+# stable, most widely depended-upon part of the whole platform ABI. The far
+# more likely drift is Swift's frontend no longer marking these parameters
+# specially at all, which this checks directly via the
+# swiftself/swifterror/swiftasync LLVM attributes IRGen emits on every
+# protocol witness thunk.
+witness_thunk_ir="$({
+  compile_swift_63_register_probe \
+    -emit-ir \
+    -parse-as-library \
+    -module-name TestDoublesRegisterABIProbe \
+    -o -
+})"
+
+witness_thunk_self_error_count="$({
+  printf '%s\n' "$witness_thunk_ir" |
+    grep -c 'TW"(i64 %0, ptr noalias swiftself .*ptr noalias swifterror' || true
+})"
+
+if [[ "$witness_thunk_self_error_count" != "1" ]]; then
+  echo "Swift 6.3 protocol witness thunks no longer mark self/error with swiftself/swifterror." >&2
+  echo "Matching witness thunk signatures: $witness_thunk_self_error_count" >&2
+  exit 1
+fi
+
+async_witness_thunk_ir="$({
+  compile_swift_63_async_register_probe \
+    -emit-ir \
+    -parse-as-library \
+    -module-name TestDoublesAsyncRegisterABIProbe \
+    -o -
+})"
+
+async_witness_thunk_context_count="$({
+  printf '%s\n' "$async_witness_thunk_ir" |
+    grep -c 'TW"(ptr swiftasync %0' || true
+})"
+
+if [[ "$async_witness_thunk_context_count" != "1" ]]; then
+  echo "Swift 6.3 async protocol witness thunks no longer mark the async context with swiftasync." >&2
+  echo "Matching async witness thunk signatures: $async_witness_thunk_context_count" >&2
+  exit 1
+fi
+
+echo "Swift 6.3 witness thunks mark self/error with swiftself/swifterror (x20/x21 arm64, r13/r12 x86_64 per docs/ABI/CallingConventionSummary.rst)."
+echo "Swift 6.3 async witness thunks mark the async context with swiftasync (x22 arm64, r14 x86_64 per docs/ABI/CallingConventionSummary.rst)."
 
 if [[ -z "${SWIFT_6_4_DEVELOPER_DIR:-}" ]]; then
   echo "Swift 6.4 yielding-borrow compatibility probe skipped; set SWIFT_6_4_DEVELOPER_DIR to enable it."
