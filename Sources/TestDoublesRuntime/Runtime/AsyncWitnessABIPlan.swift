@@ -16,7 +16,7 @@ package struct AsyncWitnessStackPlan: Equatable, Sendable {
     }
 }
 
-/// The one outgoing async Spy stack shape proven against Swift 6.3.
+/// The one outgoing async forwarding stack shape proven against Swift 6.3.
 ///
 /// `visibleArgumentLocation` identifies the word that must be copied while the
 /// outer witness-entry frame is still live. `outgoingStackByteCount` is the

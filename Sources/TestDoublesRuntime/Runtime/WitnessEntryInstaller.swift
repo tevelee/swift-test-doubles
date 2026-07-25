@@ -1,15 +1,15 @@
 import CTestDoublesTrampoline
 
-struct WitnessEntryInstaller {
+package struct WitnessEntryInstaller {
     let layout: ProtocolLayout
     let dispatch: FabricatedWitnessDispatch
-    let resources: StubResources
+    let resources: FabricatedRuntimeResources
 
-    func install(in graph: FabricatedWitnessTableGraph) throws {
+    package func install(in graph: FabricatedWitnessTableGraph) throws {
         for node in layout.nodes {
             let identifier = ProtocolLayout.DescriptorID(node.descriptor)
             guard let witnessTable = graph.tables[identifier] else {
-                throw StubError.unsupportedProtocolShape(
+                throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: node.descriptor.name,
                     reason: "Failed to allocate a protocol witness table."
                 )
@@ -68,7 +68,7 @@ struct WitnessEntryInstaller {
                     context: UnsafeRawPointer(witnessTable)
                 )
             else {
-                throw StubError.trampolineAllocationFailed(
+                throw RuntimeConstructionError.trampolineAllocationFailed(
                     requirementIndex: requirement.witnessIndex
                 )
             }
@@ -117,7 +117,7 @@ struct WitnessEntryInstaller {
                     context: UnsafeRawPointer(witnessTable)
                 )
             else {
-                throw StubError.trampolineAllocationFailed(
+                throw RuntimeConstructionError.trampolineAllocationFailed(
                     requirementIndex: requirement.witnessIndex
                 )
             }
@@ -166,4 +166,3 @@ struct WitnessEntryInstaller {
         )
     }
 }
-import TestDoublesRuntime

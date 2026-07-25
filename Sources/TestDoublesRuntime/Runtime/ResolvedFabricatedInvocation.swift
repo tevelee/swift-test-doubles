@@ -1,31 +1,23 @@
 struct ResolvedFabricatedInvocation {
     let slot: Int
-    let target: FabricatedInvocationTarget
-    let recorder: StubRecorder
-    let endpoint: StubRecorderInvocationEndpoint
+    let invocation: RuntimeFabricatedInvocation
     let runtimeMethod: PreparedRuntimeMethod?
 
-    var forwarder: (any RuntimeForwarding)? { target.forwarder }
+    var endpoint: any RuntimeInvocationEndpoint { invocation.endpoint }
+    var forwarder: (any RuntimeForwarding)? { invocation.forwarder }
 
     static func resolve(
         in frame: TrampolineCallFrame
     ) -> ResolvedFabricatedInvocation? {
         guard let key = UnsafeRawPointer(bitPattern: frame.context),
-            let target = FabricatedInvocationRegistry.resolveOptional(key)
+            let invocation = FabricatedInvocationRegistry.resolveOptional(key)
         else {
             return nil
         }
         return ResolvedFabricatedInvocation(
             slot: frame.slot,
-            target: target,
-            recorder: target.recorderOrReject(slot: frame.slot),
-            endpoint: {
-                guard case .stub(let invocation) = target else {
-                    preconditionFailure("[TestDoubles] Dummy invocation did not reject.")
-                }
-                return invocation.endpoint
-            }(),
-            runtimeMethod: target.method(at: frame.slot)
+            invocation: invocation,
+            runtimeMethod: invocation.method(at: frame.slot)
         )
     }
 
@@ -33,7 +25,7 @@ struct ResolvedFabricatedInvocation {
         failureMessage: @autoclosure () -> String
     ) -> PreparedRuntimeMethod {
         guard let runtimeMethod else {
-            fatalError(failureMessage())
+            endpoint.rejectInvocation(at: slot)
         }
         return runtimeMethod
     }
@@ -44,4 +36,3 @@ struct ResolvedFabricatedInvocation {
         requireRuntimeMethod(failureMessage: failureMessage()).descriptor
     }
 }
-import TestDoublesRuntime

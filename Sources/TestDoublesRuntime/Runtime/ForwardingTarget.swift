@@ -92,7 +92,7 @@ package final class ForwardingTarget<P>: @unchecked Sendable {
             case .classConstrained, .superclassConstrained:
                 guard let objectPointer else {
                     preconditionFailure(
-                        "[TestDoubles] A class-constrained Spy target has no object pointer."
+                        "[TestDoubles] A class-constrained forwarding target has no object pointer."
                     )
                 }
                 return objectPointer

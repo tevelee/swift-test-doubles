@@ -28,9 +28,9 @@ struct StubSourceLocation: Sendable {
 /// A recorded playback invocation or a capture-mode expectation.
 struct RecordedCall: @unchecked Sendable {
     private final class WeakPayload {
-        weak var value: StubPayload?
+        weak var value: FabricatedPayload?
 
-        init(_ value: StubPayload) {
+        init(_ value: FabricatedPayload) {
             self.value = value
         }
     }
@@ -42,11 +42,11 @@ struct RecordedCall: @unchecked Sendable {
             self.recorder = recorder
         }
 
-        func makePayload() -> StubPayload? {
+        func makePayload() -> FabricatedPayload? {
             recorder?.makeRuntimePayload()
         }
 
-        func requirePayload() -> StubPayload {
+        func requirePayload() -> FabricatedPayload {
             guard let payload = makePayload() else {
                 preconditionFailure(
                     "[TestDoubles] Recorded Self argument is no longer available because its runtime resources were released."
@@ -73,9 +73,9 @@ struct RecordedCall: @unchecked Sendable {
                             "[TestDoubles] Recorded Self argument requires a runtime payload materializer."
                         )
                     }
-                    guard let payload = value as? StubPayload else {
+                    guard let payload = value as? FabricatedPayload else {
                         preconditionFailure(
-                            "[TestDoubles] Runtime decoded Self argument as \(type(of: value)); expected StubPayload."
+                            "[TestDoubles] Runtime decoded Self argument as \(type(of: value)); expected FabricatedPayload."
                         )
                     }
                     self = .selfPayload(WeakPayload(payload), materializer)
@@ -86,9 +86,9 @@ struct RecordedCall: @unchecked Sendable {
                             "[TestDoubles] Recorded Optional Self argument requires a runtime payload materializer."
                         )
                     }
-                    guard let optional = value as? StubPayload? else {
+                    guard let optional = value as? FabricatedPayload? else {
                         preconditionFailure(
-                            "[TestDoubles] Runtime decoded Optional Self argument as \(type(of: value)); expected Optional<StubPayload>."
+                            "[TestDoubles] Runtime decoded Optional Self argument as \(type(of: value)); expected Optional<FabricatedPayload>."
                         )
                     }
                     guard let payload = optional else {

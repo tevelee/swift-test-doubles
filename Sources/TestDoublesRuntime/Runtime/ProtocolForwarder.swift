@@ -37,7 +37,7 @@ package final class ProtocolForwarder<P>: RuntimeForwarding, @unchecked Sendable
         let plan = prepareCall(method, frame: frame)
         precondition(
             plan.isAsync == false,
-            "[TestDoubles] An async Spy requirement entered synchronous forwarding."
+            "[TestDoubles] An async forwarding requirement entered synchronous transport."
         )
         precondition(
             plan.outgoingStackSources.count
@@ -69,7 +69,7 @@ package final class ProtocolForwarder<P>: RuntimeForwarding, @unchecked Sendable
     ) -> any YieldingAccessorState {
         guard let plan = plans.reads[method.index] else {
             preconditionFailure(
-                "[TestDoubles] No read forwarding plan exists for Spy requirement \(method.index)."
+                "[TestDoubles] No read forwarding plan exists for requirement \(method.index)."
             )
         }
         return ForwardedReadState(
@@ -86,7 +86,7 @@ package final class ProtocolForwarder<P>: RuntimeForwarding, @unchecked Sendable
     ) -> any YieldingAccessorState {
         guard let plan = plans.modifications[method.index] else {
             preconditionFailure(
-                "[TestDoubles] No _modify forwarding plan exists for Spy requirement \(method.index)."
+                "[TestDoubles] No _modify forwarding plan exists for requirement \(method.index)."
             )
         }
         return ForwardedModifyState(
@@ -104,7 +104,7 @@ package final class ProtocolForwarder<P>: RuntimeForwarding, @unchecked Sendable
         let plan = prepareCall(method, frame: frame)
         precondition(
             plan.isAsync,
-            "[TestDoubles] A synchronous Spy requirement entered async forwarding."
+            "[TestDoubles] A synchronous forwarding requirement entered async transport."
         )
         return ForwardedAsyncState(
             owner: self,
@@ -121,7 +121,7 @@ package final class ProtocolForwarder<P>: RuntimeForwarding, @unchecked Sendable
     ) -> ForwardedCallPlan {
         guard let plan = plans.calls[method.index] else {
             preconditionFailure(
-                "[TestDoubles] No forwarding plan exists for Spy requirement \(method.index)."
+                "[TestDoubles] No forwarding plan exists for requirement \(method.index)."
             )
         }
         // Metadata and witness table each independently land in a register

@@ -142,7 +142,7 @@ struct ProtocolForwardingPlanBuilder<P> {
                 })?.descriptor.name ?? String(reflecting: P.self)
             throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
-                reason: "Forwarding Spy does not yet support Swift 6.4's paired legacy read and yielding-borrow witnesses. Use a Stub or a hand-written spy."
+                reason: "Forwarding does not yet support Swift 6.4's paired legacy read and yielding-borrow witnesses. Use a configured runtime double or a hand-written conformer."
             )
         }
     }
@@ -154,7 +154,7 @@ struct ProtocolForwardingPlanBuilder<P> {
         guard method.receiver == .instance, method.kind != .initializer else {
             throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
-                reason: "Forwarding Spy supports instance requirements only; requirement \(method.index) uses a metatype receiver."
+                reason: "Forwarding supports instance requirements only; requirement \(method.index) uses a metatype receiver."
             )
         }
         try validateDynamicSelfBoundary(method, protocolName: protocolName)
@@ -162,7 +162,7 @@ struct ProtocolForwardingPlanBuilder<P> {
         guard concreteTypes.allSatisfy({ !($0 is any SIMD.Type) }) else {
             throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
-                reason: "Forwarding Spy does not yet support SIMD arguments or results in requirement \(method.index)."
+                reason: "Forwarding does not yet support SIMD arguments or results in requirement \(method.index)."
             )
         }
         guard method.typedWitnessAdapterFactory == nil,
@@ -170,7 +170,7 @@ struct ProtocolForwardingPlanBuilder<P> {
         else {
             throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
-                reason: "Forwarding Spy does not yet support function-valued arguments or results in requirement \(method.index)."
+                reason: "Forwarding does not yet support function-valued arguments or results in requirement \(method.index)."
             )
         }
     }
@@ -399,7 +399,7 @@ struct ProtocolForwardingPlanBuilder<P> {
             throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
                 reason:
-                    "Forwarding Spy requirement \(method.index) needs more outgoing stack transport than \(limit) words support. Use fewer arguments or a hand-written spy."
+                    "Forwarding requirement \(method.index) needs more outgoing stack transport than \(limit) words support. Use fewer arguments or a hand-written conformer."
             )
         }
         return (transport.dynamicSelfLocations, sources)
@@ -414,7 +414,7 @@ struct ProtocolForwardingPlanBuilder<P> {
         else {
             throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
-                reason: "Forwarding Spy does not yet support dynamic Self results in requirement \(method.index)."
+                reason: "Forwarding does not yet support dynamic Self results in requirement \(method.index)."
             )
         }
         guard
@@ -425,7 +425,7 @@ struct ProtocolForwardingPlanBuilder<P> {
         else {
             throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
-                reason: "Forwarding Spy does not support direct or Optional Self arguments in requirement \(method.index). Use an automatic Stub or a hand-written spy."
+                reason: "Forwarding does not support direct or Optional Self arguments in requirement \(method.index). Use an automatic runtime double or a hand-written conformer."
             )
         }
     }
@@ -446,7 +446,7 @@ struct ProtocolForwardingPlanBuilder<P> {
         else {
             throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
-                reason: "Forwarding Spy requirement \(method.index) uses stack arguments or leaves no registers for its target metadata and witness table. Use fewer arguments or a hand-written spy."
+                reason: "Forwarding requirement \(method.index) uses stack arguments or leaves no registers for its target metadata and witness table. Use fewer arguments or a hand-written conformer."
             )
         }
         return hiddenArgumentIndex

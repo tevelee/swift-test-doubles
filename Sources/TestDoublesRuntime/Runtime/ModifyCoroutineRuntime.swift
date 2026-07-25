@@ -30,7 +30,7 @@ private enum ModifyCoroutineRuntime {
         let kind = YieldingAccessorKind.modify
         let getter: MethodDescriptor
         let setter: MethodDescriptor
-        let recorder: StubRecorder
+        let endpoint: any RuntimeInvocationEndpoint
         let indices: [Any]
         let buffer: ManagedValueBuffer
         let skipsForwardingSetter: Bool
@@ -41,14 +41,14 @@ private enum ModifyCoroutineRuntime {
         init(
             getter: MethodDescriptor,
             setter: MethodDescriptor,
-            recorder: StubRecorder,
+            endpoint: any RuntimeInvocationEndpoint,
             indices: [Any],
             buffer: ManagedValueBuffer,
             skipsForwardingSetter: Bool
         ) {
             self.getter = getter
             self.setter = setter
-            self.recorder = recorder
+            self.endpoint = endpoint
             self.indices = indices
             self.buffer = buffer
             self.skipsForwardingSetter = skipsForwardingSetter
@@ -79,11 +79,11 @@ private enum ModifyCoroutineRuntime {
         private func dispatchSetter(_ value: Any) {
             let arguments = [value] + indices
             if skipsForwardingSetter {
-                switch recorder.prepareDispatch(
+                switch endpoint.prepareDispatch(
                     method: setter,
                     args: arguments
                 ) {
-                    case .placeholder, .forwarding:
+                    case .recording, .forwarding:
                         // A getter override owns this outer coroutine. A
                         // falling-through setter must not enter the real
                         // target after the target `_modify` was skipped.
@@ -99,15 +99,20 @@ private enum ModifyCoroutineRuntime {
                 }
             }
 
-            do {
-                _ = try recorder.dispatch(
-                    method: setter,
-                    args: arguments
-                )
-            } catch {
-                fatalError(
-                    "[TestDoubles] A nonthrowing _modify setter handler threw \(error)."
-                )
+            switch endpoint.prepareDispatch(method: setter, args: arguments) {
+                case .recording:
+                    _ = endpoint.recordingAccessorResult(for: setter)
+                case .behavior(let behavior):
+                    _ = SynchronousAccessorDispatch.evaluate(
+                        behavior,
+                        method: setter,
+                        arguments: arguments,
+                        role: .modify
+                    )
+                case .forwarding:
+                    preconditionFailure(
+                        "[TestDoubles] A forwarding setter entered configured _modify writeback."
+                    )
             }
         }
     }
@@ -122,8 +127,11 @@ private enum ModifyCoroutineRuntime {
                 "[TestDoubles] _modify trampoline could not resolve recorder for getter slot \(getterIndex)."
             )
         }
-        let recorder = invocation.recorder
-        switch recorder.mode {
+        _ = invocation.requireRuntimeMethod(
+            failureMessage:
+                "[TestDoubles] _modify trampoline could not resolve runtime dispatch \(getterIndex)."
+        )
+        switch invocation.endpoint.invocationMode {
             case .normal:
                 break
             case .capturing:
@@ -132,7 +140,7 @@ private enum ModifyCoroutineRuntime {
                 )
         }
         guard
-            let (getter, setter) = recorder.modifyDispatchMethods(
+            let (getter, setter) = invocation.endpoint.modifyDispatchMethods(
                 forGetterIndex: getterIndex
             )
         else {
@@ -148,14 +156,14 @@ private enum ModifyCoroutineRuntime {
         ).values
         let state: any YieldingAccessorState
         if let forwarder = invocation.forwarder {
-            switch recorder.prepareDispatch(method: getter, args: indices) {
+            switch invocation.endpoint.prepareDispatch(method: getter, args: indices) {
                 case .forwarding:
                     state = forwarder.makeModifyState(
                         for: getter,
                         frame: frame
                     )
 
-                case .placeholder:
+                case .recording:
                     preconditionFailure(
                         "[TestDoubles] _modify capture must fail before dispatch."
                     )
@@ -170,7 +178,7 @@ private enum ModifyCoroutineRuntime {
                         ),
                         getter: getter,
                         setter: setter,
-                        recorder: recorder,
+                        endpoint: invocation.endpoint,
                         indices: indices,
                         skipsForwardingSetter: true
                     )
@@ -180,12 +188,12 @@ private enum ModifyCoroutineRuntime {
                 result: SynchronousAccessorDispatch.dispatch(
                     method: getter,
                     arguments: indices,
-                    recorder: recorder,
+                    endpoint: invocation.endpoint,
                     role: .modify
                 ),
                 getter: getter,
                 setter: setter,
-                recorder: recorder,
+                endpoint: invocation.endpoint,
                 indices: indices,
                 skipsForwardingSetter: false
             )
@@ -218,7 +226,7 @@ private enum ModifyCoroutineRuntime {
         result: Any,
         getter: MethodDescriptor,
         setter: MethodDescriptor,
-        recorder: StubRecorder,
+        endpoint: any RuntimeInvocationEndpoint,
         indices: [Any],
         skipsForwardingSetter: Bool
     ) -> any YieldingAccessorState {
@@ -232,11 +240,10 @@ private enum ModifyCoroutineRuntime {
         return ConfiguredState(
             getter: getter,
             setter: setter,
-            recorder: recorder,
+            endpoint: endpoint,
             indices: indices,
             buffer: buffer,
             skipsForwardingSetter: skipsForwardingSetter
         )
     }
 }
-import TestDoublesRuntime

@@ -142,13 +142,13 @@ package struct ResolvedWitnessValue: Sendable {
         )
     }
 
-    /// The dynamic `Self` value transported through `StubPayload` storage.
+    /// The dynamic `Self` value transported through fabricated payload storage.
     package static func selfValue(
         isOptional: Bool,
         ownership: WitnessArgumentOwnership? = nil
     ) -> Self {
         Self(
-            type: isOptional ? Optional<StubPayload>.self : StubPayload.self,
+            type: isOptional ? Optional<FabricatedPayload>.self : FabricatedPayload.self,
             convention: isOptional ? .optionalSelf : .selfType,
             dependency: .independent,
             ownership: ownership

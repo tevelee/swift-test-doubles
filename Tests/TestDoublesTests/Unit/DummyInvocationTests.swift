@@ -4,10 +4,10 @@ import Testing
 @Suite("Dummy invocation diagnostics")
 struct DummyInvocationTests {
     @Test func describesKnownAndUnknownWitnessSlots() {
-        let invocation = DummyInvocation(
+        let invocation = DummyInvocationEndpoint(
             typeDescription: "any ExampleService",
             requirements: [
-                3: DummyInvocation.Requirement(
+                3: DummyInvocationEndpoint.Requirement(
                     protocolName: "ExampleService",
                     witnessIndex: 5,
                     kind: .method

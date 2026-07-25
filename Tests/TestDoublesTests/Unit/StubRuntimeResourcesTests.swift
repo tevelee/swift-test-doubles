@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import TestDoubles
+@testable import TestDoublesRuntime
 
 private final class WitnessAllocationLifetimeSpy: @unchecked Sendable {
     private let lock = NSLock()
@@ -47,7 +48,7 @@ struct StubRuntimeResourcesTests {
     }
 
     @Test func constructionPhasesAdvanceOnlyAtPublicationAndCommit() throws {
-        let resources = StubResources()
+        let resources = FabricatedRuntimeResources()
 
         #expect(resources.constructionPhase == .building)
         try resources.publishTrampolines()
@@ -60,17 +61,16 @@ struct StubRuntimeResourcesTests {
         let key = UnsafeMutableRawPointer.allocate(byteCount: 1, alignment: 1)
         defer { key.deallocate() }
         let recorder = StubRecorder(methods: [])
+        let invocation = RuntimeFabricatedInvocation(
+            endpoint: StubRecorderInvocationEndpoint(recorder: recorder),
+            methodsByIndex: [:]
+        )
 
         do {
-            let resources = StubResources()
+            let resources = FabricatedRuntimeResources()
             try resources.publishTrampolines()
             resources.register(
-                .stub(
-                    FabricatedStubInvocation(
-                        recorder: recorder,
-                        methodsByIndex: [:],
-                        forwarder: nil
-                    )),
+                invocation,
                 for: UnsafeRawPointer(key)
             )
             #expect(FabricatedInvocationRegistry.resolveOptional(key) != nil)
@@ -83,15 +83,14 @@ struct StubRuntimeResourcesTests {
         let key = UnsafeMutableRawPointer.allocate(byteCount: 1, alignment: 1)
         defer { key.deallocate() }
         let recorder = StubRecorder(methods: [])
+        let invocation = RuntimeFabricatedInvocation(
+            endpoint: StubRecorderInvocationEndpoint(recorder: recorder),
+            methodsByIndex: [:]
+        )
 
         do {
             let registration = FabricatedInvocationRegistry.register(
-                .stub(
-                    FabricatedStubInvocation(
-                        recorder: recorder,
-                        methodsByIndex: [:],
-                        forwarder: nil
-                    )),
+                invocation,
                 for: UnsafeRawPointer(key)
             )
             #expect(FabricatedInvocationRegistry.resolveOptional(key) != nil)
@@ -105,7 +104,7 @@ struct StubRuntimeResourcesTests {
         phase: FabricatedResourceConstructionPhase,
         observer: @escaping @Sendable (FabricatedWitnessAllocationDisposition) -> Void
     ) throws {
-        let resources = StubResources(witnessLifetimeObserver: observer)
+        let resources = FabricatedRuntimeResources(witnessLifetimeObserver: observer)
         resources.own(.allocate(byteCount: 1, alignment: 1))
         switch phase {
             case .building:

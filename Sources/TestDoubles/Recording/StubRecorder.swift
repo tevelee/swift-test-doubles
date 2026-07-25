@@ -139,9 +139,9 @@ final class StubRecorder: @unchecked Sendable {
         }
     }
 
-    func makeRuntimePayload() -> StubPayload? {
+    func makeRuntimePayload() -> FabricatedPayload? {
         withLockedPolicy { _ in runtimeResourceOwner }
-            .map(StubPayload.init(resources:))
+            .map(FabricatedPayload.init(resources:))
     }
 
     // MARK: - Manual stub method interning

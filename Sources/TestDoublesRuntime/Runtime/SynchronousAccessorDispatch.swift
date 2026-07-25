@@ -1,5 +1,3 @@
-import TestDoublesRuntime
-
 enum SynchronousAccessorRole {
     case read
     case modify
@@ -33,33 +31,34 @@ enum SynchronousAccessorRole {
     }
 }
 
-/// Evaluates public-layer accessor behavior before the runtime constructs
+/// Evaluates endpoint-selected accessor behavior before the runtime constructs
 /// coroutine storage for the yielded value.
 enum SynchronousAccessorDispatch {
     static func dispatch(
         method: MethodDescriptor,
         arguments: [Any],
-        recorder: StubRecorder,
+        endpoint: any RuntimeInvocationEndpoint,
         role: SynchronousAccessorRole
     ) -> Any {
-        func opened<Result>(_ type: Result.Type) -> Any {
-            do {
-                return try recorder.dispatchTyped(
+        switch endpoint.prepareDispatch(method: method, args: arguments) {
+            case .recording:
+                return endpoint.recordingAccessorResult(for: method)
+            case .behavior(let behavior):
+                return evaluate(
+                    behavior,
                     method: method,
-                    args: arguments,
-                    as: type
+                    arguments: arguments,
+                    role: role
                 )
-            } catch {
-                fatalError(
-                    "[TestDoubles] A nonthrowing \(role.dispatchThrowDescription) handler threw \(error)."
+            case .forwarding:
+                preconditionFailure(
+                    "[TestDoubles] A forwarding accessor has no forwarding transport."
                 )
-            }
         }
-        return _openExistential(method.returnType, do: opened)
     }
 
     static func evaluate(
-        _ behavior: StubRecorder.StubEntry.Behavior,
+        _ behavior: RuntimeDispatchBehavior,
         method: MethodDescriptor,
         arguments: [Any],
         role: SynchronousAccessorRole
@@ -69,10 +68,6 @@ enum SynchronousAccessorDispatch {
             switch behavior {
                 case .fixed(let fixedResult):
                     result = try fixedResult.get()
-                case .fixedSequence:
-                    preconditionFailure(
-                        "[TestDoubles] A queued \(role.queuedResultDescription) result was not reserved during dispatch."
-                    )
                 case .immediate(let handler):
                     result = try handler(arguments)
                 case .suspending:
@@ -87,7 +82,12 @@ enum SynchronousAccessorDispatch {
         }
 
         func opened<Result>(_ type: Result.Type) -> Any {
-            requireStubbedResult(result, as: type, method: method.name)
+            guard let typed = result as? Result else {
+                fatalError(
+                    "[TestDoubles] Stubbed return for '\(method.name)' is not \(type)."
+                )
+            }
+            return typed
         }
         return _openExistential(method.returnType, do: opened)
     }

@@ -15,28 +15,28 @@ private final class FabricatedWitnessAllocationArena: @unchecked Sendable {
     }
 }
 
-enum FabricatedWitnessAllocationDisposition: Equatable, Sendable {
+package enum FabricatedWitnessAllocationDisposition: Equatable, Sendable {
     case deallocatedAfterFailedConstruction
     case retainedForProcessLifetime
 }
 
-enum FabricatedResourceConstructionPhase: Equatable, Sendable {
+package enum FabricatedResourceConstructionPhase: Equatable, Sendable {
     case building
     case published
     case committed
 }
 
 /// Owns every runtime object used by fabricated protocol-conformance graphs.
-final class StubResources: @unchecked Sendable {
+package final class FabricatedRuntimeResources: @unchecked Sendable {
     private var invocationRegistrations: [FabricatedInvocationRegistration] = []
     private var allocations: [UnsafeMutableRawPointer] = []
     private let trampolineArena: TrampolineFactory.Arena? = .init()
     private var lastTrampolineRequirementIndex: Int?
     private var typedWitnessAdapters: [TypedWitnessAdapter] = []
     private let witnessLifetimeObserver: (@Sendable (FabricatedWitnessAllocationDisposition) -> Void)?
-    private(set) var constructionPhase = FabricatedResourceConstructionPhase.building
+    package private(set) var constructionPhase = FabricatedResourceConstructionPhase.building
 
-    init(
+    package init(
         witnessLifetimeObserver: (
             @Sendable (FabricatedWitnessAllocationDisposition) -> Void
         )? = nil
@@ -50,13 +50,13 @@ final class StubResources: @unchecked Sendable {
     }
 
     func register(
-        _ target: FabricatedInvocationTarget,
+        _ invocation: RuntimeFabricatedInvocation,
         for registryKey: UnsafeRawPointer
     ) {
         requirePublished()
         invocationRegistrations.append(
             FabricatedInvocationRegistry.register(
-                target,
+                invocation,
                 for: registryKey
             )
         )
@@ -83,11 +83,10 @@ final class StubResources: @unchecked Sendable {
 
     func makeTypedTrampoline(
         factory: TypedWitnessAdapterFactory,
-        recorder: StubRecorder,
+        endpoint: any RuntimeInvocationEndpoint,
         method: MethodDescriptor
     ) -> UnsafeRawPointer? {
         requireBuilding()
-        let endpoint = StubRecorderInvocationEndpoint(recorder: recorder)
         let adapter = factory.make(endpoint, method)
         guard
             let trampoline = trampolineArena?.makeTyped(
@@ -106,7 +105,7 @@ final class StubResources: @unchecked Sendable {
     func publishTrampolines() throws {
         requireBuilding()
         guard trampolineArena?.publish() == true else {
-            throw StubError.trampolineAllocationFailed(
+            throw RuntimeConstructionError.trampolineAllocationFailed(
                 requirementIndex: lastTrampolineRequirementIndex ?? 0
             )
         }
@@ -135,7 +134,7 @@ final class StubResources: @unchecked Sendable {
                 witnessLifetimeObserver?(.deallocatedAfterFailedConstruction)
             case .committed:
                 // Generic metadata caches retain witness-table identity without
-                // retaining StubResources. Reusing one of these allocations
+                // retaining the runtime resource owner. Reusing one of these allocations
                 // could leave a cache key pointing at unrelated descriptor bytes.
                 FabricatedWitnessAllocationArena.shared.retain(allocations)
                 witnessLifetimeObserver?(.retainedForProcessLifetime)
@@ -157,12 +156,12 @@ final class StubResources: @unchecked Sendable {
     }
 }
 
-struct FabricatedWitnessTables {
+package struct FabricatedWitnessTables {
     /// Root tables in canonical existential-metadata order.
     let roots: [UnsafeMutableRawPointer]
-    let resources: StubResources
+    package let resources: FabricatedRuntimeResources
 
-    func makeStorage<P>(
+    package func makeStorage<P>(
         representation: StubExistentialRepresentation,
         payload: AnyObject
     ) throws -> FabricatedExistentialStorage<P> {
@@ -175,4 +174,3 @@ struct FabricatedWitnessTables {
         return storage
     }
 }
-import TestDoublesRuntime

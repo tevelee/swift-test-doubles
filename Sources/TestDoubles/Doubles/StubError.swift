@@ -156,6 +156,8 @@ extension StubError {
         switch runtimeError {
             case .typeIsNotProtocol(let typeDescription):
                 self = .typeIsNotProtocol(typeDescription: typeDescription)
+            case .unsupportedTypeKind(let typeName):
+                self = .unsupportedTypeKind(typeName: typeName)
             case .unsupportedProtocolShape(let protocolName, let reason):
                 self = .unsupportedProtocolShape(
                     protocolName: protocolName,
@@ -172,6 +174,20 @@ extension StubError {
                     protocolName: protocolName,
                     requirementIndex: requirementIndex,
                     details: details
+                )
+            case .requirementCountMismatch(
+                let protocolName,
+                let expected,
+                let actual
+            ):
+                self = .requirementCountMismatch(
+                    protocolName: protocolName,
+                    expected: expected,
+                    actual: actual
+                )
+            case .trampolineAllocationFailed(let requirementIndex):
+                self = .trampolineAllocationFailed(
+                    requirementIndex: requirementIndex
                 )
         }
     }

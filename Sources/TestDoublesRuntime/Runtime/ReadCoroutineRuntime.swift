@@ -72,7 +72,6 @@ enum ReadCoroutineRuntime {
                 "[TestDoubles] read trampoline could not resolve recorder dispatch \(dispatchIndex)."
             )
         }
-        let recorder = invocation.recorder
         let method = invocation.requireMethod(
             failureMessage:
                 "[TestDoubles] read trampoline could not resolve recorder dispatch \(dispatchIndex)."
@@ -95,16 +94,16 @@ enum ReadCoroutineRuntime {
         ).values
         let state: any YieldingAccessorState
         if let forwarder = invocation.forwarder {
-            switch recorder.prepareDispatch(method: method, args: arguments) {
+            switch invocation.endpoint.prepareDispatch(method: method, args: arguments) {
                 case .forwarding:
                     state = forwarder.makeReadState(
                         for: method,
                         frame: frame
                     )
 
-                case .placeholder:
+                case .recording:
                     state = ConfiguredState(
-                        result: placeholderResult(for: method),
+                        result: invocation.endpoint.recordingAccessorResult(for: method),
                         method: method,
                         frame: frame
                     )
@@ -126,7 +125,7 @@ enum ReadCoroutineRuntime {
                 result: SynchronousAccessorDispatch.dispatch(
                     method: method,
                     arguments: arguments,
-                    recorder: recorder,
+                    endpoint: invocation.endpoint,
                     role: .read
                 ),
                 method: method,
@@ -152,18 +151,4 @@ enum ReadCoroutineRuntime {
                 "[TestDoubles] read coroutine state has an invalid type."
         )
     }
-
-    private static func placeholderResult(
-        for method: MethodDescriptor
-    ) -> Any {
-        func opened<Result>(_ type: Result.Type) -> Any {
-            RecordingReturnPlaceholderContext.requiredValue(
-                for: type,
-                method: method.name
-            )
-        }
-        return _openExistential(method.returnType, do: opened)
-    }
-
 }
-import TestDoublesRuntime

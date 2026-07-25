@@ -12,6 +12,65 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
         self.recorder = recorder
     }
 
+    var invocationMode: RuntimeInvocationMode {
+        switch recorder.mode {
+            case .normal: .normal
+            case .capturing: .capturing
+        }
+    }
+
+    func prepareDispatch(
+        method: MethodDescriptor,
+        args: [Any]
+    ) -> RuntimePreparedDispatch {
+        switch recorder.prepareDispatch(method: method, args: args) {
+            case .placeholder:
+                return .recording
+            case .forwarding:
+                return .forwarding
+            case .behavior(let behavior):
+                return .behavior(runtimeBehavior(behavior))
+        }
+    }
+
+    func prepareAsyncDispatch(
+        method: MethodDescriptor,
+        args: [Any]
+    ) -> RuntimeAsyncDispatch {
+        switch recorder.prepareAsyncDispatch(method: method, args: args) {
+            case .placeholder:
+                return .recording
+            case .immediate(let result):
+                return .immediate(result)
+            case .suspending(let handler):
+                return .suspending(handler)
+            case .forwarding:
+                return .forwarding
+        }
+    }
+
+    func modifyDispatchMethods(
+        forGetterIndex getterIndex: Int
+    ) -> (getter: MethodDescriptor, setter: MethodDescriptor)? {
+        recorder.modifyDispatchMethods(forGetterIndex: getterIndex)
+    }
+
+    func rejectInvocation(at slot: Int) -> Never {
+        fatalError(
+            "[TestDoubles] A configured runtime invocation endpoint rejected witness slot \(slot)."
+        )
+    }
+
+    func recordingAccessorResult(for method: MethodDescriptor) -> Any {
+        func opened<Result>(_ type: Result.Type) -> Any {
+            RecordingReturnPlaceholderContext.requiredValue(
+                for: type,
+                method: method.name
+            )
+        }
+        return _openExistential(method.returnType, do: opened)
+    }
+
     func dispatchTyped<Result>(
         method: MethodDescriptor,
         args: [Any],
@@ -88,5 +147,22 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
             return .value(placeholder.value)
         }
         return .synthesize
+    }
+
+    private func runtimeBehavior(
+        _ behavior: StubRecorder.StubEntry.Behavior
+    ) -> RuntimeDispatchBehavior {
+        switch behavior {
+            case .fixed(let result):
+                return .fixed(result)
+            case .fixedSequence:
+                preconditionFailure(
+                    "[TestDoubles] A queued stub result was not reserved during dispatch."
+                )
+            case .immediate(let handler):
+                return .immediate(handler)
+            case .suspending(let handler):
+                return .suspending(handler)
+        }
     }
 }

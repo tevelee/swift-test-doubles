@@ -340,7 +340,7 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
             name: "duplicate()",
             index: 0,
             argumentTypes: [],
-            returnType: Optional<StubPayload>.self,
+            returnType: Optional<FabricatedPayload>.self,
             returnConvention: .optionalSelf,
             isThrowing: false,
             isAsync: false

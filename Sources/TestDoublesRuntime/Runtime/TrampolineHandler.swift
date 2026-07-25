@@ -13,9 +13,7 @@ func td_swift_async_trampoline_handler(
     guard let rawFrame else {
         return TDAsyncTrampolineResult(state: nil, stackAdjustment: 0)
     }
-    return RuntimeTrampolineHandler.prepareAsync(
-        TrampolineCallFrame(rawFrame)
-    )
+    return RuntimeTrampolineHandler.prepareAsync(TrampolineCallFrame(rawFrame))
 }
 
 @_silgen_name("td_swift_async_dispatch")
@@ -29,21 +27,16 @@ func td_swift_async_dispatch_finish(
     _ rawFrame: UnsafeMutablePointer<TDCallFrame>?
 ) {
     guard let rawState, let rawFrame else { return }
-    RuntimeTrampolineHandler.finishAsync(
-        rawState,
-        into: TrampolineCallFrame(rawFrame)
-    )
+    RuntimeTrampolineHandler.finishAsync(rawState, into: TrampolineCallFrame(rawFrame))
 }
 
 enum RuntimeTrampolineHandler {
     private struct Invocation {
-        let target: FabricatedInvocationTarget
-        let recorder: StubRecorder
-        let endpoint: StubRecorderInvocationEndpoint
+        let endpoint: any RuntimeInvocationEndpoint
+        let forwarder: (any RuntimeForwarding)?
         let runtimeMethod: PreparedRuntimeMethod
         let decodedArguments: DecodedArguments
 
-        var forwarder: (any RuntimeForwarding)? { target.forwarder }
         var method: MethodDescriptor { runtimeMethod.descriptor }
     }
 
@@ -56,7 +49,7 @@ enum RuntimeTrampolineHandler {
     {
         var frame: TDCallFrame
         let runtimeMethod: PreparedRuntimeMethod
-        let endpoint: StubRecorderInvocationEndpoint
+        let endpoint: any RuntimeInvocationEndpoint
         let args: [Any]
         let typedErrorDestination: UnsafeMutableRawPointer?
         let handler: ([Any]) async throws -> Any
@@ -64,16 +57,15 @@ enum RuntimeTrampolineHandler {
         init(
             frame: TDCallFrame,
             runtimeMethod: PreparedRuntimeMethod,
-            endpoint: StubRecorderInvocationEndpoint,
+            endpoint: any RuntimeInvocationEndpoint,
             decodedArguments: DecodedArguments,
             handler: @escaping ([Any]) async throws -> Any
         ) {
             self.frame = frame
             self.runtimeMethod = runtimeMethod
             self.endpoint = endpoint
-            self.args = decodedArguments.values
-            self.typedErrorDestination =
-                decodedArguments.typedErrorDestination
+            args = decodedArguments.values
+            typedErrorDestination = decodedArguments.typedErrorDestination
             self.handler = handler
         }
 
@@ -109,31 +101,20 @@ enum RuntimeTrampolineHandler {
 
     static func handle(_ frame: TrampolineCallFrame) {
         let invocation = invocation(for: frame)
-        handle(
-            frame,
-            forwarder: invocation.forwarder,
-            recorder: invocation.recorder,
-            endpoint: invocation.endpoint,
-            runtimeMethod: invocation.runtimeMethod,
-            decodedArguments: invocation.decodedArguments
-        )
+        handle(frame, invocation: invocation)
     }
 
     private static func handle(
         _ frame: TrampolineCallFrame,
-        forwarder: (any RuntimeForwarding)?,
-        recorder: StubRecorder,
-        endpoint: StubRecorderInvocationEndpoint,
-        runtimeMethod: PreparedRuntimeMethod,
-        decodedArguments: DecodedArguments
+        invocation: Invocation
     ) {
-        let method = runtimeMethod.descriptor
+        let method = invocation.method
         let result: Any
-        switch recorder.prepareDispatch(
+        switch invocation.endpoint.prepareDispatch(
             method: method,
-            args: decodedArguments.values
+            args: invocation.decodedArguments.values
         ) {
-            case .placeholder:
+            case .recording:
                 if method.isThrowing || method.isAsync {
                     frame.storeReturnError(0)
                 } else {
@@ -141,23 +122,23 @@ enum RuntimeTrampolineHandler {
                 }
                 RuntimeResultEncoder.encodeRecordingResult(
                     for: method,
-                    args: decodedArguments.values,
-                    endpoint: endpoint,
+                    args: invocation.decodedArguments.values,
+                    endpoint: invocation.endpoint,
                     into: frame
                 )
                 return
 
             case .forwarding:
-                guard let forwarder else {
+                guard let forwarder = invocation.forwarder else {
                     preconditionFailure(
-                        "[TestDoubles] A forwarding dispatch has no Spy target."
+                        "[TestDoubles] A forwarding dispatch has no target transport."
                     )
                 }
                 forwarder.forward(method, frame: frame)
                 return
 
             case .behavior(let behavior):
-                if forwarder != nil {
+                if invocation.forwarder != nil {
                     _ = RuntimeArgumentDecoder.decode(
                         for: method,
                         from: frame,
@@ -168,16 +149,11 @@ enum RuntimeTrampolineHandler {
                     switch behavior {
                         case .fixed(let fixedResult):
                             result = try fixedResult.get()
-                        case .fixedSequence:
-                            preconditionFailure(
-                                "[TestDoubles] A queued stub result was not reserved during dispatch."
-                            )
                         case .immediate(let handler):
-                            result = try handler(decodedArguments.values)
+                            result = try handler(invocation.decodedArguments.values)
                         case .suspending:
                             fatalError(
-                                "[TestDoubles] A suspending handler was selected for synchronous dispatch of \(method.name). "
-                                    + "Use it only with an async Stub requirement."
+                                "[TestDoubles] A suspending handler was selected for synchronous dispatch of \(method.name). Use it only with an async requirement."
                             )
                     }
                     if method.isThrowing || method.isAsync {
@@ -189,7 +165,8 @@ enum RuntimeTrampolineHandler {
                     encodeThrown(
                         error,
                         from: method,
-                        typedErrorDestination: decodedArguments.typedErrorDestination,
+                        typedErrorDestination: invocation.decodedArguments
+                            .typedErrorDestination,
                         into: frame
                     )
                     return
@@ -198,8 +175,8 @@ enum RuntimeTrampolineHandler {
 
         RuntimeResultEncoder.encodeDispatchResult(
             result,
-            for: runtimeMethod,
-            endpoint: endpoint,
+            for: invocation.runtimeMethod,
+            endpoint: invocation.endpoint,
             into: frame
         )
     }
@@ -212,10 +189,7 @@ enum RuntimeTrampolineHandler {
         }
         let invocation = invocation(for: frame)
         let state = prepareAsync(frame, invocation: invocation)
-        guard
-            let stackAdjustment =
-                invocation.runtimeMethod.asyncStackAdjustmentByteCount
-        else {
+        guard let stackAdjustment = invocation.runtimeMethod.asyncStackAdjustmentByteCount else {
             preconditionFailure(
                 "[TestDoubles] Async trampoline method has no stack adjustment plan."
             )
@@ -230,11 +204,11 @@ enum RuntimeTrampolineHandler {
         _ frame: TrampolineCallFrame,
         invocation: Invocation
     ) -> UnsafeMutableRawPointer? {
-        switch invocation.recorder.prepareAsyncDispatch(
+        switch invocation.endpoint.prepareAsyncDispatch(
             method: invocation.method,
             args: invocation.decodedArguments.values
         ) {
-            case .placeholder:
+            case .recording:
                 frame.storeReturnError(0)
                 RuntimeResultEncoder.encodeRecordingResult(
                     for: invocation.method,
@@ -280,7 +254,7 @@ enum RuntimeTrampolineHandler {
             case .forwarding:
                 guard let forwarder = invocation.forwarder else {
                     preconditionFailure(
-                        "[TestDoubles] A forwarding async dispatch has no Spy target."
+                        "[TestDoubles] A forwarding async dispatch has no target transport."
                     )
                 }
                 let state = forwarder.makeAsyncState(
@@ -324,7 +298,7 @@ enum RuntimeTrampolineHandler {
     ) {
         guard method.isThrowing else {
             fatalError(
-                "[TestDoubles] A nonthrowing \(method.isAsync ? "async " : "")stub handler threw \(error)."
+                "[TestDoubles] A nonthrowing \(method.isAsync ? "async " : "")handler threw \(error)."
             )
         }
         RuntimeResultEncoder.encodeFailure(
@@ -335,15 +309,11 @@ enum RuntimeTrampolineHandler {
         )
     }
 
-    static func findRecorder(in frame: TrampolineCallFrame) -> StubRecorder? {
-        ResolvedFabricatedInvocation.resolve(in: frame)?.recorder
-    }
-
     private static func invocation(for frame: TrampolineCallFrame) -> Invocation {
         let slot = frame.slot
         guard let resolved = ResolvedFabricatedInvocation.resolve(in: frame) else {
             fatalError(
-                "[TestDoubles] Trampoline could not resolve recorder for witness call at slot \(slot)."
+                "[TestDoubles] Trampoline could not resolve runtime endpoint for witness call at slot \(slot)."
             )
         }
         let runtimeMethod = resolved.requireRuntimeMethod(
@@ -351,16 +321,15 @@ enum RuntimeTrampolineHandler {
                 "[TestDoubles] No method descriptor registered for witness slot \(slot)."
         )
         return Invocation(
-            target: resolved.target,
-            recorder: resolved.recorder,
             endpoint: resolved.endpoint,
+            forwarder: resolved.forwarder,
             runtimeMethod: runtimeMethod,
             decodedArguments: RuntimeArgumentDecoder.decode(
                 for: runtimeMethod,
                 from: frame,
                 consumeOwnedArguments:
                     resolved.forwarder == nil
-                    || resolved.recorder.mode == .capturing
+                    || resolved.endpoint.invocationMode == .capturing
             )
         )
     }
@@ -377,4 +346,3 @@ enum RuntimeTrampolineHandler {
         )
     }
 }
-import TestDoublesRuntime

@@ -1,4 +1,3 @@
-import TestDoublesRuntime
 #if canImport(ObjectiveC)
     import Foundation
     import ObjectiveC
@@ -8,12 +7,12 @@ import TestDoublesRuntime
     nonisolated(unsafe) private var superclassPayloadAssociationKey: UInt8 = 0
 #endif
 
-enum FabricatedConformanceTypeReference {
+package enum FabricatedConformanceTypeReference {
     case indirectTypeDescriptor(UnsafeRawPointer)
     case directObjectiveCClassName([UInt8])
 }
 
-struct FabricatedRuntimePlan {
+package struct FabricatedRuntimePlan {
     private enum Payload {
         case stub
 
@@ -22,10 +21,10 @@ struct FabricatedRuntimePlan {
         #endif
     }
 
-    let conformanceTypeReference: FabricatedConformanceTypeReference
+    package let conformanceTypeReference: FabricatedConformanceTypeReference
     private let payload: Payload
 
-    static func prepare(
+    package static func prepare(
         for representation: StubExistentialRepresentation,
         protocolName: String
     ) throws -> Self {
@@ -45,7 +44,7 @@ struct FabricatedRuntimePlan {
                 } else {
                     #if canImport(ObjectiveC)
                         guard let objectType = superclass as? NSObject.Type else {
-                            throw StubError.unsupportedProtocolShape(
+                            throw RuntimeConstructionError.unsupportedProtocolShape(
                                 protocolName: protocolName,
                                 reason: "The superclass has neither a Swift type descriptor nor an Objective-C class identity."
                             )
@@ -55,7 +54,7 @@ struct FabricatedRuntimePlan {
                             Array(name.utf8) + [0]
                         )
                     #else
-                        throw StubError.unsupportedProtocolShape(
+                        throw RuntimeConstructionError.unsupportedProtocolShape(
                             protocolName: protocolName,
                             reason: "The superclass does not expose a Swift type context descriptor."
                         )
@@ -64,7 +63,7 @@ struct FabricatedRuntimePlan {
 
                 #if canImport(ObjectiveC)
                     guard let objectType = superclass as? NSObject.Type else {
-                        throw StubError.unsupportedProtocolShape(
+                        throw RuntimeConstructionError.unsupportedProtocolShape(
                             protocolName: protocolName,
                             reason: "Superclass-constrained runtime test doubles require an NSObject-backed superclass."
                         )
@@ -74,7 +73,7 @@ struct FabricatedRuntimePlan {
                         payload: .superclass(objectType)
                     )
                 #else
-                    throw StubError.unsupportedProtocolShape(
+                    throw RuntimeConstructionError.unsupportedProtocolShape(
                         protocolName: protocolName,
                         reason: "Superclass-constrained runtime test doubles require the Objective-C runtime."
                     )
@@ -82,10 +81,10 @@ struct FabricatedRuntimePlan {
         }
     }
 
-    func makePayload(resources: StubResources) -> AnyObject {
+    package func makePayload(resources: FabricatedRuntimeResources) -> AnyObject {
         switch payload {
             case .stub:
-                return StubPayload(resources: resources)
+                return FabricatedPayload(resources: resources)
 
             #if canImport(ObjectiveC)
                 case .superclass(let objectType):
@@ -93,7 +92,7 @@ struct FabricatedRuntimePlan {
                     objc_setAssociatedObject(
                         object,
                         &superclassPayloadAssociationKey,
-                        StubPayload(resources: resources),
+                        FabricatedPayload(resources: resources),
                         .OBJC_ASSOCIATION_RETAIN_NONATOMIC
                     )
                     return object
@@ -103,8 +102,10 @@ struct FabricatedRuntimePlan {
 }
 
 private func payloadContextDescriptor() throws -> UnsafeRawPointer {
-    guard let descriptor = swift_getTypeContextDescriptor(StubPayload.self) else {
-        throw StubError.unsupportedTypeKind(typeName: String(reflecting: StubPayload.self))
+    guard let descriptor = swift_getTypeContextDescriptor(FabricatedPayload.self) else {
+        throw RuntimeConstructionError.unsupportedTypeKind(
+            typeName: String(reflecting: FabricatedPayload.self)
+        )
     }
     return descriptor
 }

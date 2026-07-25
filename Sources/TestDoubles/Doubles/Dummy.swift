@@ -1,3 +1,5 @@
+import TestDoublesRuntime
+
 /// A runtime-generated test double that must not be used by the code under test.
 ///
 /// Use a dummy when an API requires a protocol value but the exercised code

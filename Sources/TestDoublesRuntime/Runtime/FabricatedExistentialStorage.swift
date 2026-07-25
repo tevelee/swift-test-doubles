@@ -1,13 +1,12 @@
-import TestDoublesRuntime
 import Echo
 
 /// Couples one fabricated existential's ABI storage with the object that owns
 /// its runtime resources.
-struct FabricatedExistentialStorage<P> {
+package struct FabricatedExistentialStorage<P> {
     private let words: [UInt]
     private let payload: AnyObject
 
-    init(
+    package init(
         witnessTables: [UnsafeMutableRawPointer],
         representation: StubExistentialRepresentation,
         payload: AnyObject
@@ -16,7 +15,7 @@ struct FabricatedExistentialStorage<P> {
         var words: [UInt]
         switch representation {
             case .opaque:
-                var base = AnyExistentialContainer(type: StubPayload.self)
+                var base = AnyExistentialContainer(type: FabricatedPayload.self)
                 words = withUnsafeBytes(of: &base) { bytes in
                     stride(from: 0, to: bytes.count, by: wordSize).map {
                         bytes.load(fromByteOffset: $0, as: UInt.self)
@@ -40,7 +39,7 @@ struct FabricatedExistentialStorage<P> {
         guard MemoryLayout<P>.size == expectedSize,
             MemoryLayout<P>.alignment <= MemoryLayout<UInt>.alignment
         else {
-            throw StubError.unsupportedProtocolShape(
+            throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: String(reflecting: P.self),
                 reason: "Existential storage is \(MemoryLayout<P>.size) bytes, but runtime metadata requires \(expectedSize) bytes."
             )
@@ -50,7 +49,7 @@ struct FabricatedExistentialStorage<P> {
         self.payload = payload
     }
 
-    func materialize() -> P {
+    package func materialize() -> P {
         let size = MemoryLayout<P>.size
         precondition(
             size == words.count * MemoryLayout<UInt>.size,

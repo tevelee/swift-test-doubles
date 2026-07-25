@@ -1,16 +1,15 @@
-import TestDoublesRuntime
 import CTestDoublesTrampoline
 import Echo
 
-struct FabricatedWitnessTableGraph {
+package struct FabricatedWitnessTableGraph {
     let tables: [ProtocolLayout.DescriptorID: UnsafeMutableRawPointer]
 
-    func rootTables(
+    package func rootTables(
         for layout: ProtocolLayout
     ) throws -> [UnsafeMutableRawPointer] {
         try layout.roots.map { root in
             guard let witnessTable = tables[ProtocolLayout.DescriptorID(root)] else {
-                throw StubError.unsupportedProtocolShape(
+                throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: root.name,
                     reason: "Failed to fabricate the root witness table."
                 )
@@ -28,13 +27,24 @@ private enum TypeReferenceKindFlag {
     static let directObjCClassName: UInt32 = 0x2 << 3
 }
 
-struct WitnessTableGraphBuilder {
+private func runtimeConformance(
+    _ type: UnsafeRawPointer,
+    _ protocolDescriptor: UnsafeRawPointer
+) -> UnsafeRawPointer? {
+    typealias Function =
+        @convention(c) (UnsafeRawPointer, UnsafeRawPointer) -> UnsafeRawPointer?
+    guard let function: Function = RuntimeSymbols.function(named: "swift_conformsToProtocol")
+    else { return nil }
+    return function(type, protocolDescriptor)
+}
+
+package struct WitnessTableGraphBuilder {
     let layout: ProtocolLayout
     let associatedTypeBindings: AssociatedTypeBindings
     let conformanceTypeReference: FabricatedConformanceTypeReference
-    let resources: StubResources
+    let resources: FabricatedRuntimeResources
 
-    func build() throws -> FabricatedWitnessTableGraph {
+    package func build() throws -> FabricatedWitnessTableGraph {
         var witnessTables: [ProtocolLayout.DescriptorID: UnsafeMutableRawPointer] = [:]
         for node in layout.nodes {
             witnessTables[ProtocolLayout.DescriptorID(node.descriptor)] =
@@ -51,7 +61,7 @@ struct WitnessTableGraphBuilder {
         for node in layout.nodes {
             let identifier = ProtocolLayout.DescriptorID(node.descriptor)
             guard let witnessTable = witnessTables[identifier] else {
-                throw StubError.unsupportedProtocolShape(
+                throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: node.descriptor.name,
                     reason: "Failed to allocate a protocol witness table."
                 )
@@ -77,7 +87,7 @@ struct WitnessTableGraphBuilder {
                     ProtocolLayout.DescriptorID(baseProtocol.descriptor)
                 ]
             else {
-                throw StubError.unsupportedProtocolShape(
+                throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: node.descriptor.name,
                     reason: "A fabricated base-protocol witness table is missing."
                 )
@@ -128,7 +138,7 @@ struct WitnessTableGraphBuilder {
                     requirement.constraint.ptr
                 )
             else {
-                throw StubError.unsupportedProtocolShape(
+                throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: node.descriptor.name,
                     reason: "Bound associated type '\(runtimeTypeName(binding.type))' does not conform to '\(requirement.constraint.name)'."
                 )
