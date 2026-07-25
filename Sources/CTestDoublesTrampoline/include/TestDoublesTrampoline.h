@@ -115,6 +115,13 @@ typedef struct TDCallFrame {
   uint64_t swiftSelf;
   uint64_t swiftError;
   uint64_t reserved;
+  // The 4-word direct-return capacity below (both GP and FP) matches observed
+  // arm64/x86_64 compiler output for every direct (non-indirect) result this
+  // package has exercised, but the cap itself is decided by Clang's
+  // SwiftCallingConv.cpp, outside both this checkout and the Swift repo
+  // entirely -- docs/ABI/CallingConvention.rst only describes the philosophy
+  // ("one or two more registers to the result"), not a hard number. Treat as
+  // an empirical constant, not a documented ABI guarantee.
   uint64_t returnGP[4];
   uint64_t returnFP[4];
   uint64_t returnError;

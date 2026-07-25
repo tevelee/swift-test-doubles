@@ -230,6 +230,17 @@ SYMBOL(td_swift_invoke_witness):
     ldp x29, x30, [sp], #48
     ret
 
+// x23 below is the arm64 `swiftcoro` (yield_once_2 coroutine-allocator)
+// parameter's dedicated physical register. The LLVM attribute this reflects
+// (`llvm::Attribute::SwiftCoro`, emitted by IGM.addSwiftCoroAttributes in
+// GenCall.cpp) is real and documented in swiftlang/swift, but its physical
+// register assignment is decided by the LLVM AArch64 backend, which is
+// outside the Swift repo and not covered by docs/ABI/CallingConventionSummary
+// .rst (that table predates yield_once_2 and only lists x23-x28 as generic
+// callee-saved registers). This is empirically pinned to the Swift 6.3.3
+// arm64 backend, not citable against a stable doc -- re-verify on a compiler
+// bump. (x86_64 has no equivalent special-cased register: the allocator is
+// just the ordinary 2nd integer argument, %rsi, right after the context.)
 .p2align 2
 .globl SYMBOL(td_swift_invoke_read_witness)
 SYMBOL(td_swift_invoke_read_witness):
@@ -948,6 +959,12 @@ SYMBOL(td_swift_read_coro_free):
 // Shared by td_swift_invoke_function and td_swift_invoke_witness -- see the
 // arm64 td_load_frame_call_registers/td_store_call_return_registers macros
 // above for why this marshaling is factored out instead of duplicated.
+//
+// %rax carries the indirect-result pointer here, mirroring arm64's dedicated
+// x8 (docs/ABI/CallingConventionSummary.rst documents x8 explicitly but has
+// no x86-64 row for this at all -- Swift's swiftcc sret-style convention on
+// x86-64 is well-established compiler behavior, but the register choice
+// itself is an LLVM X86 backend detail, not a Swift-repo-documented fact).
 .macro td_load_frame_call_registers frame
     movq TD_FRAME_INDIRECT_RESULT_OFFSET(\frame), %rax
     td_load_frame_argument_registers \frame
