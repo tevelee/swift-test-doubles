@@ -28,9 +28,17 @@ let package = Package(
         .target(
             name: "TestDoubles",
             dependencies: [
+                "TestDoublesRuntime",
                 "CTestDoublesTrampoline",
                 .product(name: "Echo", package: "Echo"),
                 .product(name: "IssueReporting", package: "swift-issue-reporting")
+            ]
+        ),
+        .target(
+            name: "TestDoublesRuntime",
+            dependencies: [
+                "CTestDoublesTrampoline",
+                .product(name: "Echo", package: "Echo")
             ]
         ),
         .target(
