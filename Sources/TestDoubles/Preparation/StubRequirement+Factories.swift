@@ -515,7 +515,7 @@ extension Stub.Requirement {
         bindings: AssociatedTypeBindings,
         containsAssociatedTypes: Bool
     ) throws -> MethodDescriptor {
-        try makeExplicitMethodDescriptor(
+        try RuntimeStubFactory.makeExplicitMethodDescriptor(
             schema: runtimeSchema,
             index: index,
             witnessIndex: witnessIndex,

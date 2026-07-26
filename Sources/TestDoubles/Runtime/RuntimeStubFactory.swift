@@ -42,3 +42,69 @@ enum RuntimeStubFactory {
         )
     }
 }
+
+extension RuntimeStubFactory {
+    static func discoverMethods(
+        layout: ProtocolLayout,
+        associatedTypeBindings: AssociatedTypeBindings,
+        getterEffectPolicy: GetterEffectDiscoveryPolicy
+    ) throws -> [MethodDescriptor] {
+        try TestDoublesRuntime.RuntimeStubFactory.discoverMethods(
+            layout: layout,
+            associatedTypeBindings: associatedTypeBindings,
+            getterEffectPolicy: getterEffectPolicy
+        )
+    }
+
+    static func prepareForwarding<P>(
+        to target: P,
+        layout: ProtocolLayout,
+        representation: StubExistentialRepresentation,
+        associatedTypeBindings: AssociatedTypeBindings,
+        getterEffectPolicy: GetterEffectDiscoveryPolicy
+    ) throws -> (
+        methods: [MethodDescriptor],
+        forwarder: any RuntimeForwarding
+    ) {
+        try TestDoublesRuntime.RuntimeStubFactory.prepareForwarding(
+            to: target,
+            layout: layout,
+            representation: representation,
+            associatedTypeBindings: associatedTypeBindings,
+            getterEffectPolicy: getterEffectPolicy
+        )
+    }
+
+    static func makeExplicitMethodDescriptor(
+        schema: RuntimeExplicitRequirementSchema,
+        index: Int,
+        witnessIndex: Int,
+        receiver: StubRequirementReceiver,
+        protocolDescriptor: RuntimeProtocolDescriptor,
+        bindings: AssociatedTypeBindings,
+        containsAssociatedTypes: Bool
+    ) throws -> MethodDescriptor {
+        try TestDoublesRuntime.RuntimeStubFactory.makeExplicitMethodDescriptor(
+            schema: schema,
+            index: index,
+            witnessIndex: witnessIndex,
+            receiver: receiver,
+            protocolDescriptor: protocolDescriptor,
+            bindings: bindings,
+            containsAssociatedTypes: containsAssociatedTypes
+        )
+    }
+
+    static func validateExplicitRequirementsAgainstLinkedConformances(
+        _ methods: [MethodDescriptor],
+        layout: ProtocolLayout,
+        associatedTypeBindings: AssociatedTypeBindings
+    ) throws {
+        try TestDoublesRuntime.RuntimeStubFactory
+            .validateExplicitRequirementsAgainstLinkedConformances(
+                methods,
+                layout: layout,
+                associatedTypeBindings: associatedTypeBindings
+            )
+    }
+}

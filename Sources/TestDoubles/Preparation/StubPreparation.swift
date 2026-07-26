@@ -40,11 +40,6 @@ extension Stub {
         getterEffects input: SpyGetterEffectInput<P>
     ) throws -> PreparedStub {
         let shape = try extractProtocolShape()
-        let forwardingTarget = try ForwardingTarget(
-            target,
-            layout: shape.layout,
-            representation: shape.representation
-        )
         let resolvedGetterEffectPolicy: GetterEffectDiscoveryPolicy
         switch input {
             case .automatic:
@@ -60,23 +55,19 @@ extension Stub {
                     layout: shape.layout
                 )
         }
-        let methods = try discoverMethods(
-            witnessTables: forwardingTarget.witnessTables,
+        let preparedForwarding = try RuntimeStubFactory.prepareForwarding(
+            to: target,
             layout: shape.layout,
+            representation: shape.representation,
             associatedTypeBindings: shape.associatedTypeBindings,
             getterEffectPolicy: resolvedGetterEffectPolicy
-        )
-        let forwarder = try ProtocolForwarder(
-            target: forwardingTarget,
-            methods: methods,
-            layout: shape.layout
         )
         return try prepareFabricated(
             layout: shape.layout,
             associatedTypeBindings: shape.associatedTypeBindings,
             representation: shape.representation,
-            methods: methods,
-            forwarder: forwarder
+            methods: preparedForwarding.methods,
+            forwarder: preparedForwarding.forwarder
         )
     }
 
@@ -94,9 +85,7 @@ extension Stub {
         func discoverMethods(
             using getterEffectPolicy: GetterEffectDiscoveryPolicy
         ) throws -> [MethodDescriptor] {
-            let witnessTables = try LinkedWitnessTableGraph.discover(in: layout)
-            return try TestDoublesRuntime.discoverMethods(
-                witnessTables: witnessTables,
+            try RuntimeStubFactory.discoverMethods(
                 layout: layout,
                 associatedTypeBindings: bindings,
                 getterEffectPolicy: getterEffectPolicy
@@ -134,7 +123,7 @@ extension Stub {
         func validateLinkedConformances(
             for methods: [MethodDescriptor]
         ) throws {
-            try validateExplicitRequirementsAgainstLinkedConformances(
+            try RuntimeStubFactory.validateExplicitRequirementsAgainstLinkedConformances(
                 methods,
                 layout: layout,
                 associatedTypeBindings: bindings
