@@ -22,10 +22,14 @@ func expectExtendedAutomaticClosureBoundary(
     _ operation: () throws -> Void,
     sourceLocation: SourceLocation = #_sourceLocation
 ) -> Bool {
-    expectUnsupportedProtocolShape(
-        containing: "Extended isolation, sending, or invertible-protocol flags require compiler reabstraction",
-        sourceLocation: sourceLocation,
-        operation
-    )
+    #if os(Linux) && arch(x86_64)
+        expectLinuxX86TypedThrowsClosureBoundary(operation, sourceLocation: sourceLocation)
+    #else
+        expectUnsupportedProtocolShape(
+            containing: "Extended isolation, sending, or invertible-protocol flags require compiler reabstraction",
+            sourceLocation: sourceLocation,
+            operation
+        )
+    #endif
     return true
 }
