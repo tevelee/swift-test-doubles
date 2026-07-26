@@ -75,17 +75,11 @@ extension StubRecorder {
         behavior: StubEntry.Behavior,
         location: StubSourceLocation?
     ) {
-        let fabricatedSignature = fabricatedDiagnosticSignature(
-            for: method,
-            matchers: matchers
-        )
         let shadow: (new: String, shadowedBy: String)? = withLockedPolicy {
-            let newSignature =
-                fabricatedSignature
-                ?? $0.methodCatalog.diagnosticSignature(
-                    method: method,
-                    matchers: matchers
-                )
+            let newSignature = $0.methodCatalog.diagnosticSignature(
+                method: method,
+                matchers: matchers
+            )
             let shadowedBy = $0.behaviorRegistry.shadowingSignature(
                 forMethod: method,
                 newMatchers: matchers

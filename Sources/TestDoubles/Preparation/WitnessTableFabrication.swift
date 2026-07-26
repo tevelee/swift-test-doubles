@@ -15,19 +15,12 @@ extension Stub {
             representation: representation
         )
 
-        let fabricatedMethodCatalog = FabricatedMethodCatalog(
-            methods: methods,
-            modifyDispatchDescriptors: modifyDispatchDescriptors
-        )
         let recorder = StubRecorder(
-            methods: [],
-            fabricatedMethodCatalog: fabricatedMethodCatalog,
+            methods: methods,
+            modifyDispatchDescriptors: modifyDispatchDescriptors,
             allowsForwardingFallback: forwarder != nil
         )
-        let endpoint = StubRecorderInvocationEndpoint(
-            recorder: recorder,
-            fabricatedMethodCatalog: fabricatedMethodCatalog
-        )
+        let endpoint = StubRecorderInvocationEndpoint(recorder: recorder)
         let protocolName = String(reflecting: P.self)
         let storage: RuntimeStubFactory.Storage<P> = try RuntimeStubFactory.fabricate(
             layout: layout,
