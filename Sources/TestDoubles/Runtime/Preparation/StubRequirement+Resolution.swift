@@ -1,5 +1,4 @@
-import TestDoublesRuntime
-import TestDoublesRuntimeMetadata
+import InternalRuntimeContract
 
 extension Stub.Requirement.Value {
     var runtimeValue: RuntimeExplicitRequirementSchema.Value {
@@ -49,7 +48,7 @@ extension Stub.Requirement {
             typedErrorAssociatedTypeName: typedErrorAssociatedTypeName,
             isThrowing: isThrowing,
             isAsync: isAsync,
-            typedWitnessAdapterFactory: typedWitnessAdapterFactory,
+            typedWitnessAdapter: typedWitnessAdapter,
             inferredFromSignature: inferredFromSignature,
             erasedSelfType: P.self,
             erasedOptionalSelfType: Optional<P>.self

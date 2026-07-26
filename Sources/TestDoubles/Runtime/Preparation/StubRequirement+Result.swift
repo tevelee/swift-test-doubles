@@ -1,4 +1,3 @@
-import TestDoublesRuntimeMetadata
 extension Stub.Requirement.Value {
     /// Describes a Result whose success and failure use requirement value schemas.
     ///

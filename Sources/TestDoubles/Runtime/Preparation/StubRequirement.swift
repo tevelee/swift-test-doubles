@@ -1,5 +1,4 @@
-import TestDoublesRuntime
-import TestDoublesRuntimeMetadata
+import InternalRuntimeContract
 
 extension Stub {
     /// The throwing behavior of a getter used with automatic signature discovery.
@@ -77,7 +76,7 @@ extension Stub {
                 case selfType(isOptional: Bool)
             }
             let source: Source
-            let ownership: WitnessArgumentOwnership?
+            let ownership: RuntimeArgumentOwnership?
 
             /// Describes an ordinary concrete value.
             public static func concrete<T>(_ type: T.Type) -> Self {
@@ -231,25 +230,25 @@ extension Stub {
             }
         }
 
-        let kind: StubRequirementKind
+        let kind: RuntimeRequirementKind
         let arguments: [Value]
         let result: Value
         let typedErrorType: Any.Type?
         let typedErrorAssociatedTypeName: String?
         let isThrowing: Bool
         let isAsync: Bool
-        let typedWitnessAdapterFactory: TypedWitnessAdapterFactory?
+        let typedWitnessAdapter: RuntimeTypedWitnessAdapterToken?
         let inferredFromSignature: Bool
 
         init(
-            kind: StubRequirementKind,
+            kind: RuntimeRequirementKind,
             arguments: [Value],
             result: Value,
             typedErrorType: Any.Type? = nil,
             typedErrorAssociatedTypeName: String? = nil,
             isThrowing: Bool,
             isAsync: Bool,
-            typedWitnessAdapterFactory: TypedWitnessAdapterFactory? = nil,
+            typedWitnessAdapter: RuntimeTypedWitnessAdapterToken? = nil,
             inferredFromSignature: Bool = false
         ) {
             self.kind = kind
@@ -259,7 +258,7 @@ extension Stub {
             self.typedErrorAssociatedTypeName = typedErrorAssociatedTypeName
             self.isThrowing = isThrowing
             self.isAsync = isAsync
-            self.typedWitnessAdapterFactory = typedWitnessAdapterFactory
+            self.typedWitnessAdapter = typedWitnessAdapter
             self.inferredFromSignature = inferredFromSignature
         }
     }

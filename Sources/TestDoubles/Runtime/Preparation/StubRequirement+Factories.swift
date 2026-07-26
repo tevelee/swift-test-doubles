@@ -1,6 +1,3 @@
-import TestDoublesRuntime
-import TestDoublesRuntimeMetadata
-
 extension Stub.Requirement {
     /// Describes a method requirement.
     public static func method<each Argument, Result>(
@@ -47,7 +44,7 @@ extension Stub.Requirement {
             result: concreteValue(result),
             isThrowing: isThrowing,
             isAsync: false,
-            typedWitnessAdapterFactory: typedAdapterFactory(adapter)
+            typedWitnessAdapter: typedAdapter(adapter)
         )
     }
 
@@ -68,7 +65,7 @@ extension Stub.Requirement {
             typedErrorType: error,
             isThrowing: true,
             isAsync: false,
-            typedWitnessAdapterFactory: typedAdapterFactory(adapter)
+            typedWitnessAdapter: typedAdapter(adapter)
         )
     }
 
@@ -310,7 +307,7 @@ extension Stub.Requirement {
             result: concreteValue(value),
             isThrowing: isThrowing,
             isAsync: false,
-            typedWitnessAdapterFactory: typedAdapterFactory(adapter)
+            typedWitnessAdapter: typedAdapter(adapter)
         )
     }
 
@@ -361,7 +358,7 @@ extension Stub.Requirement {
             result: concreteValue(result),
             isThrowing: isThrowing,
             isAsync: false,
-            typedWitnessAdapterFactory: typedAdapterFactory(adapter)
+            typedWitnessAdapter: typedAdapter(adapter)
         )
     }
 
@@ -508,22 +505,4 @@ extension Stub.Requirement {
         return (true, failure)
     }
 
-    func descriptor(
-        index: Int,
-        witnessIndex: Int,
-        receiver: StubRequirementReceiver,
-        protocolDescriptor: RuntimeProtocolDescriptor,
-        bindings: AssociatedTypeBindings,
-        containsAssociatedTypes: Bool
-    ) throws -> MethodDescriptor {
-        try RuntimeStubFactory.makeExplicitMethodDescriptor(
-            schema: runtimeSchema,
-            index: index,
-            witnessIndex: witnessIndex,
-            receiver: receiver,
-            protocolDescriptor: protocolDescriptor,
-            bindings: bindings,
-            containsAssociatedTypes: containsAssociatedTypes
-        )
-    }
 }

@@ -732,8 +732,6 @@ private func signatureOfSource() -> String {
         // Swift cannot reabstract an unbound method reference through a parameter-pack
         // function parameter. Keep these convenience overloads at fixed arities; the
         // explicit metatype-based factory continues to support arbitrary arity.
-        import TestDoublesRuntimeMetadata
-
         extension Stub.Requirement {
         \(methods)
         }
