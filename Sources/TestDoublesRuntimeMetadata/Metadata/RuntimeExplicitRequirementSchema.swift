@@ -1,70 +1,4 @@
-/// Source-level requirement data normalized for runtime metadata resolution.
-///
-/// The public target builds this request from its stable factories; all
-/// dependent-type resolution and ABI descriptor construction remains here.
-package struct RuntimeExplicitRequirementSchema: @unchecked Sendable {
-    package struct Value: Sendable {
-        package let source: Source
-        package let ownership: WitnessArgumentOwnership?
-
-        package init(
-            source: Source,
-            ownership: WitnessArgumentOwnership?
-        ) {
-            self.source = source
-            self.ownership = ownership
-        }
-    }
-
-    package indirect enum Source: Sendable {
-        case concrete(Any.Type)
-        case associatedType(String)
-        case optional(Source)
-        case array(Source)
-        case set(Source)
-        case dictionary(key: Source, value: Source)
-        case result(success: Source, failure: Source)
-        case selfType(isOptional: Bool)
-    }
-
-    package let kind: StubRequirementKind
-    package let arguments: [Value]
-    package let result: Value
-    package let typedErrorType: Any.Type?
-    package let typedErrorAssociatedTypeName: String?
-    package let isThrowing: Bool
-    package let isAsync: Bool
-    package let typedWitnessAdapterFactory: TypedWitnessAdapterFactory?
-    package let inferredFromSignature: Bool
-    package let erasedSelfType: Any.Type
-    package let erasedOptionalSelfType: Any.Type
-
-    package init(
-        kind: StubRequirementKind,
-        arguments: [Value],
-        result: Value,
-        typedErrorType: Any.Type?,
-        typedErrorAssociatedTypeName: String?,
-        isThrowing: Bool,
-        isAsync: Bool,
-        typedWitnessAdapterFactory: TypedWitnessAdapterFactory?,
-        inferredFromSignature: Bool,
-        erasedSelfType: Any.Type,
-        erasedOptionalSelfType: Any.Type
-    ) {
-        self.kind = kind
-        self.arguments = arguments
-        self.result = result
-        self.typedErrorType = typedErrorType
-        self.typedErrorAssociatedTypeName = typedErrorAssociatedTypeName
-        self.isThrowing = isThrowing
-        self.isAsync = isAsync
-        self.typedWitnessAdapterFactory = typedWitnessAdapterFactory
-        self.inferredFromSignature = inferredFromSignature
-        self.erasedSelfType = erasedSelfType
-        self.erasedOptionalSelfType = erasedOptionalSelfType
-    }
-}
+import InternalRuntimeContract
 
 package func makeExplicitMethodDescriptor(
     schema: RuntimeExplicitRequirementSchema,
@@ -100,7 +34,7 @@ package func makeExplicitMethodDescriptor(
     }
 
     return try MethodDescriptor(
-        kind: schema.kind,
+        kind: StubRequirementKind(schema.kind),
         receiver: receiver,
         origin: .explicit,
         name: "requirement_\(index)",
@@ -124,7 +58,9 @@ package func makeExplicitMethodDescriptor(
         selfIsClassConstrained: protocolUsesClassSelfConvention(protocolDescriptor),
         isThrowing: schema.isThrowing,
         isAsync: schema.isAsync,
-        typedWitnessAdapterFactory: schema.typedWitnessAdapterFactory
+        typedWitnessAdapterFactory: typedWitnessAdapterFactory(
+            from: schema.typedWitnessAdapter
+        )
     )
 }
 
@@ -134,7 +70,10 @@ private func resolveExplicitWitnessValue(
     bindings: AssociatedTypeBindings
 ) throws -> ResolvedWitnessValue {
     if case .selfType(let isOptional) = value.source {
-        return .selfValue(isOptional: isOptional, ownership: value.ownership)
+        return .selfValue(
+            isOptional: isOptional,
+            ownership: value.ownership.map(WitnessArgumentOwnership.init)
+        )
     }
     return .resolved(
         try resolveExplicitDependentType(
@@ -142,7 +81,7 @@ private func resolveExplicitWitnessValue(
             protocolDescriptor: protocolDescriptor,
             bindings: bindings
         ),
-        ownership: value.ownership
+        ownership: value.ownership.map(WitnessArgumentOwnership.init)
     )
 }
 
@@ -258,5 +197,37 @@ private func validateInferredRequirementSignature(
             protocolName: protocolDescriptor.name,
             reason: "Requirement \(index) uses `signatureOf:` with typed throws on an accessor. Typed-throwing accessors are unsupported."
         )
+    }
+}
+
+private func typedWitnessAdapterFactory(
+    from token: RuntimeTypedWitnessAdapterToken?
+) -> TypedWitnessAdapterFactory? {
+    guard let token else { return nil }
+    guard let factory = token.payload(as: TypedWitnessAdapterFactory.self) else {
+        preconditionFailure(
+            "[TestDoubles] RuntimeTypedWitnessAdapterToken contains an unexpected payload."
+        )
+    }
+    return factory
+}
+
+extension StubRequirementKind {
+    fileprivate init(_ kind: RuntimeRequirementKind) {
+        switch kind {
+            case .method: self = .method
+            case .initializer: self = .initializer
+            case .getter: self = .getter
+            case .setter: self = .setter
+        }
+    }
+}
+
+extension WitnessArgumentOwnership {
+    fileprivate init(_ ownership: RuntimeArgumentOwnership) {
+        switch ownership {
+            case .borrowed: self = .borrowed
+            case .owned: self = .owned
+        }
     }
 }
