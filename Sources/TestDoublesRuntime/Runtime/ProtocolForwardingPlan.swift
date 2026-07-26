@@ -202,9 +202,7 @@ struct ProtocolForwardingPlanBuilder<P> {
         let flags = requirement.protocolDescriptor.requirements[
             modifyRequirement.witnessIndex
         ].flags
-        let declarationDiscriminator = UInt16(
-            truncatingIfNeeded: flags.bits >> 16
-        )
+        let declarationDiscriminator = flags.extraDiscriminator
         let entry: UnsafeRawPointer
         let resumeDiscriminator: UInt16?
         let callerFrameSize: Int
@@ -288,9 +286,7 @@ struct ProtocolForwardingPlanBuilder<P> {
         let flags = requirement.protocolDescriptor.requirements[
             method.witnessIndex
         ].flags
-        let declarationDiscriminator = UInt16(
-            truncatingIfNeeded: flags.bits >> 16
-        )
+        let declarationDiscriminator = flags.extraDiscriminator
         var descriptorTarget = TDCoroWitnessTarget()
         guard
             td_prepare_coro_witness_target(

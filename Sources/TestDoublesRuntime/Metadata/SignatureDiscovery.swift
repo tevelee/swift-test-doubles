@@ -31,6 +31,13 @@ package func discoverMethods(
         let proto = requirement.protocolDescriptor
         let requirementIndex = requirement.witnessIndex
         let req = proto.requirements[requirementIndex]
+        guard let abiKind = protocolRequirementKind(req.flags) else {
+            throw RuntimeConstructionError.signatureDiscoveryFailed(
+                protocolName: proto.name,
+                requirementIndex: requirement.dispatchIndex,
+                details: "Requirement uses an unknown ABI kind."
+            )
+        }
         let symbols = requirementSymbolNames(
             requirement,
             witnessTables: witnessTables
@@ -52,7 +59,7 @@ package func discoverMethods(
         for mangledName in symbols.names {
             let demangled = RuntimeSymbols.demangle(mangledName)
             attempted.append(demangled)
-            if let candidate = parseWitnessSignature(demangled, kind: req.flags.kind) {
+            if let candidate = parseWitnessSignature(demangled, kind: abiKind) {
                 parsed = candidate
                 parsedMangledName = mangledName
                 break
@@ -425,29 +432,13 @@ private func containsDynamicSelfReference(_ spelling: String) -> Bool {
     return false
 }
 
-extension ProtocolRequirement.Flags {
-    // Grounded in Swift's `ProtocolRequirementFlags`
-    // (include/swift/ABI/MetadataValues.h). Bit `0x20` is `IsAsyncMask`; its
-    // meaning depends on the requirement `kind`, so the compiler exposes two
-    // distinct predicates rather than reading the bit directly.
-
-    /// Mirrors `ProtocolRequirementFlags::_hasAsyncBitSet()`: the raw `0x20`
-    /// (`IsAsyncMask`) bit.
-    var hasAsyncBit: Bool { bits & 0x20 != 0 }
-
-    /// Mirrors `ProtocolRequirementFlags::isCoroutine()`.
-    var isCoroutine: Bool {
-        kind == .readCoroutine || kind == .modifyCoroutine
-    }
-
-    /// Mirrors `ProtocolRequirementFlags::isCalleeAllocatedCoroutine()`: a
-    /// Swift 6.3 `yield_once_2` read/modify coroutine, whose witness slot holds
-    /// a `CoroFunctionPointer` descriptor rather than a caller-allocated
-    /// `yield_once` entry point.
-    var isCalleeAllocatedCoroutine: Bool { isCoroutine && hasAsyncBit }
-
-    /// Mirrors `ProtocolRequirementFlags::isAsync()`: an async method. The
-    /// compiler deliberately excludes coroutine requirements that also set the
-    /// `IsAsyncMask` bit, so this is not simply `hasAsyncBit`.
-    package var isAsync: Bool { !isCoroutine && hasAsyncBit }
+private func protocolRequirementKind(
+    _ flags: ProtocolRequirement.Flags
+) -> ProtocolRequirement.Kind? {
+    // Echo's `kind` accessor force-unwraps this enum. Decode the stable flag
+    // field first so future requirement kinds fail closed before its semantic
+    // `isAsync` accessor is used below.
+    ProtocolRequirement.Kind(
+        rawValue: UInt8(truncatingIfNeeded: flags.bits & 0xF)
+    )
 }

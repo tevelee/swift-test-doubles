@@ -141,16 +141,20 @@ extension ProtocolLayout {
             readCoroutineRequirements: [LocalReadRequirement],
             modifyCoroutineRequirements: [LocalModifyRequirement]
         ) {
-            // Echo 0.0.5 constructs these arrays with
+            // Echo constructs these arrays with
             // `unsafeUninitializedCapacity`. Its zero-capacity path mutates
             // Swift's shared empty-array storage, which ThreadSanitizer reports
             // when independent stubs are constructed in parallel. Bypass that
             // path for empty metadata and cache non-empty arrays once.
             let localRequirements: [ProtocolRequirement] =
                 descriptor.numRequirements == 0 ? [] : descriptor.requirements
-            let baseWitnessIndices = localRequirements.enumerated().compactMap {
-                index, requirement in
-                requirement.flags.kind == .baseProtocol ? index : nil
+            let localRequirementKinds = try validatedRequirementKinds(
+                localRequirements,
+                for: descriptor
+            )
+            let baseWitnessIndices = localRequirementKinds.enumerated().compactMap {
+                index, kind in
+                kind == .baseProtocol ? index : nil
             }
             let signature: [GenericRequirementDescriptor] =
                 descriptor.numRequirementsInSignature == 0
@@ -167,13 +171,13 @@ extension ProtocolLayout {
                     for: descriptor,
                     associatedTypeNames: associatedTypeNames
                 )
-            let associatedTypeWitnessIndices = localRequirements.enumerated().compactMap {
-                index, requirement in
-                requirement.flags.kind == .associatedTypeAccessFunction ? index : nil
+            let associatedTypeWitnessIndices = localRequirementKinds.enumerated().compactMap {
+                index, kind in
+                kind == .associatedTypeAccessFunction ? index : nil
             }
-            let associatedConformanceWitnessIndices = localRequirements.enumerated().compactMap {
-                index, requirement in
-                requirement.flags.kind == .associatedConformanceAccessFunction ? index : nil
+            let associatedConformanceWitnessIndices = localRequirementKinds.enumerated().compactMap {
+                index, kind in
+                kind == .associatedConformanceAccessFunction ? index : nil
             }
             guard associatedTypeNames.count == associatedTypeWitnessIndices.count else {
                 throw RuntimeConstructionError.unsupportedProtocolShape(
@@ -261,7 +265,8 @@ extension ProtocolLayout {
             var readCoroutineRequirements: [LocalReadRequirement] = []
             var modifyCoroutineRequirements: [LocalModifyRequirement] = []
             for (index, requirement) in localRequirements.enumerated() {
-                switch requirement.flags.kind {
+                let requirementKind = localRequirementKinds[index]
+                switch requirementKind {
                     case .baseProtocol:
                         guard requirement.flags.isInstance == false else {
                             throw RuntimeConstructionError.unsupportedProtocolShape(
@@ -271,7 +276,7 @@ extension ProtocolLayout {
                         }
 
                     case .method, .getter:
-                        guard let kind = StubRequirementKind(requirement.flags.kind) else {
+                        guard let kind = StubRequirementKind(requirementKind) else {
                             throw RuntimeConstructionError.unsupportedProtocolShape(
                                 protocolName: descriptor.name,
                                 reason: "Requirement \(index) has invalid callable flags."
@@ -286,7 +291,7 @@ extension ProtocolLayout {
 
                     case .`init`:
                         guard requirement.flags.isInstance == false,
-                            let kind = StubRequirementKind(requirement.flags.kind)
+                            let kind = StubRequirementKind(requirementKind)
                         else {
                             throw RuntimeConstructionError.unsupportedProtocolShape(
                                 protocolName: descriptor.name,
@@ -307,11 +312,11 @@ extension ProtocolLayout {
                     case .setter:
                         guard index > localRequirements.startIndex,
                             index + 1 < localRequirements.endIndex,
-                            localRequirements[index - 1].flags.kind == .getter,
+                            localRequirementKinds[index - 1] == .getter,
                             localRequirements[index - 1].flags.isInstance == requirement.flags.isInstance,
-                            localRequirements[index + 1].flags.kind == .modifyCoroutine,
+                            localRequirementKinds[index + 1] == .modifyCoroutine,
                             localRequirements[index + 1].flags.isInstance == requirement.flags.isInstance,
-                            let kind = StubRequirementKind(requirement.flags.kind)
+                            let kind = StubRequirementKind(requirementKind)
                         else {
                             throw RuntimeConstructionError.unsupportedProtocolShape(
                                 protocolName: descriptor.name,
@@ -327,9 +332,9 @@ extension ProtocolLayout {
 
                     case .modifyCoroutine:
                         guard index >= localRequirements.startIndex + 2,
-                            localRequirements[index - 1].flags.kind == .setter,
+                            localRequirementKinds[index - 1] == .setter,
                             localRequirements[index - 1].flags.isInstance == requirement.flags.isInstance,
-                            localRequirements[index - 2].flags.kind == .getter,
+                            localRequirementKinds[index - 2] == .getter,
                             localRequirements[index - 2].flags.isInstance == requirement.flags.isInstance
                         else {
                             throw RuntimeConstructionError.unsupportedProtocolShape(
@@ -352,6 +357,7 @@ extension ProtocolLayout {
                         try appendReadCoroutineRequirement(
                             at: index,
                             from: localRequirements,
+                            kinds: localRequirementKinds,
                             for: descriptor,
                             callableRequirements: &callableRequirements,
                             readCoroutineRequirements: &readCoroutineRequirements
@@ -360,7 +366,7 @@ extension ProtocolLayout {
                     @unknown default:
                         throw RuntimeConstructionError.unsupportedProtocolShape(
                             protocolName: descriptor.name,
-                            reason: "Requirement \(index) is a \(requirement.flags.kind). Only inherited protocols, initializers, methods, ordinary getters, and direct property setters are supported."
+                            reason: "Requirement \(index) is a \(requirementKind). Only inherited protocols, initializers, methods, ordinary getters, and direct property setters are supported."
                         )
                 }
             }
@@ -375,6 +381,21 @@ extension ProtocolLayout {
             )
         }
 
+        private func validatedRequirementKinds(
+            _ requirements: [ProtocolRequirement],
+            for descriptor: ProtocolDescriptor
+        ) throws -> [ProtocolRequirement.Kind] {
+            try requirements.enumerated().map { index, requirement in
+                guard let kind = protocolRequirementKind(requirement) else {
+                    throw RuntimeConstructionError.unsupportedProtocolShape(
+                        protocolName: descriptor.name,
+                        reason: "Requirement \(index) has an unknown ABI kind."
+                    )
+                }
+                return kind
+            }
+        }
+
         private func validatedSignatureConstraints(
             _ signature: [GenericRequirementDescriptor],
             for descriptor: ProtocolDescriptor
@@ -382,29 +403,34 @@ extension ProtocolLayout {
             conformances: [GenericRequirementDescriptor],
             classLayouts: [GenericRequirementDescriptor]
         ) {
-            let conformances = signature.filter {
-                genericRequirementKindCode($0) == GenericRequirementKindCode.protocolConformance
-            }
-            let classLayouts = signature.filter {
-                genericRequirementKindCode($0) == GenericRequirementKindCode.layout
-            }
-            let invertedProtocols = signature.filter {
-                genericRequirementKindCode($0) == GenericRequirementKindCode.invertedProtocols
-            }
-            guard
-                conformances.count + classLayouts.count
-                    + invertedProtocols.count == signature.count
-            else {
-                throw RuntimeConstructionError.unsupportedProtocolShape(
-                    protocolName: descriptor.name,
-                    reason: "Only inherited-protocol, associated-type conformance, and class-layout constraints are supported."
-                )
-            }
-            if let requirement = invertedProtocols.first {
-                throw RuntimeConstructionError.unsupportedProtocolShape(
-                    protocolName: descriptor.name,
-                    reason: invertedProtocolDiagnostic(for: requirement)
-                )
+            var conformances: [GenericRequirementDescriptor] = []
+            var classLayouts: [GenericRequirementDescriptor] = []
+            for requirement in signature {
+                guard let kind = genericRequirementKind(requirement) else {
+                    throw RuntimeConstructionError.unsupportedProtocolShape(
+                        protocolName: descriptor.name,
+                        reason: "Only inherited-protocol, associated-type conformance, and class-layout constraints are supported."
+                    )
+                }
+                switch kind {
+                    case .protocol:
+                        conformances.append(requirement)
+
+                    case .layout:
+                        classLayouts.append(requirement)
+
+                    case .invertedProtocols:
+                        throw RuntimeConstructionError.unsupportedProtocolShape(
+                            protocolName: descriptor.name,
+                            reason: invertedProtocolDiagnostic(for: requirement)
+                        )
+
+                    case .sameType, .baseClass, .sameConformance, .sameShape:
+                        throw RuntimeConstructionError.unsupportedProtocolShape(
+                            protocolName: descriptor.name,
+                            reason: "Only inherited-protocol, associated-type conformance, and class-layout constraints are supported."
+                        )
+                }
             }
             return (conformances, classLayouts)
         }
@@ -412,6 +438,7 @@ extension ProtocolLayout {
         private func appendReadCoroutineRequirement(
             at index: Int,
             from localRequirements: [ProtocolRequirement],
+            kinds: [ProtocolRequirement.Kind],
             for descriptor: ProtocolDescriptor,
             callableRequirements: inout [LocalCallableRequirement],
             readCoroutineRequirements: inout [LocalReadRequirement]
@@ -422,7 +449,7 @@ extension ProtocolLayout {
             let usesYieldOnce2 = requirement.flags.isCalleeAllocatedCoroutine
             if usesYieldOnce2,
                 index > localRequirements.startIndex,
-                localRequirements[index - 1].flags.kind == .readCoroutine,
+                kinds[index - 1] == .readCoroutine,
                 localRequirements[index - 1].flags.isCalleeAllocatedCoroutine == false
             {
                 // Swift 6.4's paired `yielding borrow` witness was already
@@ -445,7 +472,7 @@ extension ProtocolLayout {
 
             let pairedIndex = index + 1
             guard pairedIndex < localRequirements.endIndex,
-                localRequirements[pairedIndex].flags.kind == .readCoroutine,
+                kinds[pairedIndex] == .readCoroutine,
                 localRequirements[pairedIndex].flags.isCalleeAllocatedCoroutine,
                 localRequirements[pairedIndex].flags.isInstance
                     == requirement.flags.isInstance
@@ -484,8 +511,10 @@ extension ProtocolLayout {
         ) throws -> Set<String> {
             guard
                 requirements.allSatisfy({
-                    genericRequirementLayoutKindCode($0)
-                        == GenericRequirementLayoutKindCode.anyObjectClass
+                    guard genericRequirementLayoutKind($0) != nil else {
+                        return false
+                    }
+                    return $0.layoutKind == .class
                 })
             else {
                 throw RuntimeConstructionError.unsupportedProtocolShape(
@@ -536,63 +565,57 @@ private func constrainsProtocolSelf(_ requirement: GenericRequirementDescriptor)
     return name[0] == UInt8(ascii: "x") && name[1] == 0
 }
 
-/// `GenericRequirementKind` values and the `Value & 0x1F` mask that recovers
-/// them from a `TargetGenericRequirementDescriptor`'s flags word
-/// (include/swift/ABI/MetadataValues.h).
-private enum GenericRequirementKindCode {
-    static let mask: UInt32 = 0x1f
-    static let protocolConformance: UInt8 = 0
-    static let invertedProtocols: UInt8 = 5
-    static let layout: UInt8 = 0x1f
+private func protocolRequirementKind(
+    _ requirement: ProtocolRequirement
+) -> ProtocolRequirement.Kind? {
+    // Echo's `flags.kind` force-unwraps this enum. Decode the stable flag
+    // field first so requirements introduced by newer Swift runtimes fail
+    // closed instead of trapping before this parser can reject them.
+    ProtocolRequirement.Kind(
+        rawValue: UInt8(truncatingIfNeeded: requirement.flags.bits & 0xF)
+    )
 }
 
-private func genericRequirementKindCode(
+private func genericRequirementKind(
     _ requirement: GenericRequirementDescriptor
-) -> UInt8 {
-    // Echo 0.0.5 force-unwraps its enum. Read the stable flags word first so a
-    // newer requirement kind is rejected rather than trapping in the library.
-    let pointer = unsafeBitCast(requirement, to: UnsafeRawPointer.self)
-    return UInt8(pointer.load(as: UInt32.self) & GenericRequirementKindCode.mask)
+) -> GenericRequirementKind? {
+    // Echo's `flags.kind` force-unwraps this enum. Read the stable flags word
+    // first so a newer requirement kind is rejected rather than trapping in
+    // the library.
+    GenericRequirementKind(
+        rawValue: UInt8(truncatingIfNeeded: requirement.flags.bits & 0x1F)
+    )
 }
 
-/// `GenericRequirementLayoutKind` values (include/swift/ABI/MetadataValues.h).
-private enum GenericRequirementLayoutKindCode {
-    static let anyObjectClass: UInt32 = 0
-}
-
-private func genericRequirementLayoutKindCode(
+private func genericRequirementLayoutKind(
     _ requirement: GenericRequirementDescriptor
-) -> UInt32 {
+) -> GenericRequirementLayoutKind? {
     // The requirement payload follows the flags and relative parameter-name
     // pointer. Reading the raw stable ABI value avoids Echo force-unwrapping a
     // newer layout-kind enum before this parser can reject it.
     let pointer = unsafeBitCast(requirement, to: UnsafeRawPointer.self)
-    return pointer.load(fromByteOffset: 8, as: UInt32.self)
-}
-
-/// `InvertibleProtocolSet` bit positions (include/swift/ABI/
-/// InvertibleProtocols.def / .h): each protocol's bit is `1 << kind`.
-private enum InvertibleProtocolSetBit {
-    static let copyable: UInt16 = 1 << 0
-    static let escapable: UInt16 = 1 << 1
+    return GenericRequirementLayoutKind(
+        rawValue: pointer.load(fromByteOffset: 8, as: UInt32.self)
+    )
 }
 
 private func invertedProtocolDiagnostic(
     for requirement: GenericRequirementDescriptor
 ) -> String {
-    let pointer = unsafeBitCast(requirement, to: UnsafeRawPointer.self)
-    // The InvertedProtocols payload stores a UInt16 generic-parameter index,
-    // followed by Swift's ABI-defined Copyable/Escapable bitset.
-    let protocols = pointer.load(fromByteOffset: 10, as: UInt16.self)
-    let copyable = protocols & InvertibleProtocolSetBit.copyable != 0
-    let escapable = protocols & InvertibleProtocolSetBit.escapable != 0
-    if copyable, escapable {
+    // `validatedSignatureConstraints` checks the raw kind before calling this
+    // property, which preserves fail-closed parsing when future Swift runtimes
+    // add generic requirement kinds.
+    let protocols = requirement.invertedProtocols
+    if protocols.hasUnknownProtocols {
+        return "The protocol uses an unknown inverted-protocol constraint. Runtime test doubles require Copyable and Escapable payloads."
+    }
+    if protocols.invertsCopyable, protocols.invertsEscapable {
         return "The protocol relaxes Copyable and Escapable with `~Copyable` and `~Escapable`. Runtime test doubles record escaping `Any` values, which require copyable, escapable payloads."
     }
-    if copyable {
+    if protocols.invertsCopyable {
         return "The protocol relaxes Copyable with `~Copyable`. Runtime test doubles record values as escaping `Any`, which requires Copyable payloads."
     }
-    if escapable {
+    if protocols.invertsEscapable {
         return "The protocol relaxes Escapable with `~Escapable`. Runtime test doubles retain recorded values beyond the call, which requires Escapable payloads."
     }
     return "The protocol uses an unknown inverted-protocol constraint. Runtime test doubles require Copyable and Escapable payloads."
