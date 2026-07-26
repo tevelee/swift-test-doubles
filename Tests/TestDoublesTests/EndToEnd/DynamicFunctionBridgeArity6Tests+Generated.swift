@@ -100,20 +100,38 @@ struct DynamicFunctionBridgeArity6Tests {
     @Test
     func typedArity6TypedThrowing() async throws {
         let function: (Int, Int, Int, Int, Int, Int) throws(GeneratedBridgeMatrixError) -> Int = { value0, value1, value2, value3, value4, value5 in value0 + value1 + value2 + value3 + value4 + value5 }
-        #expect(
-            try roundTripGeneratedBridge(function)(1, 2, 3, 4, 5, 6)
-                == 21
-        )
+        #if os(Linux) && arch(x86_64)
+            let functionType = type(of: function)
+            #expect(
+                FunctionReabstraction.automaticResultUnsupportedReason(
+                    for: functionType
+                )?.contains("Typed-throws closure values are unavailable on Linux x86_64") == true
+            )
+        #else
+            #expect(
+                try roundTripGeneratedBridge(function)(1, 2, 3, 4, 5, 6)
+                    == 21
+            )
+        #endif
     }
 
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test
     func typedArity6SendableTypedThrowing() async throws {
         let function: @Sendable (Int, Int, Int, Int, Int, Int) throws(GeneratedBridgeMatrixError) -> Int = { value0, value1, value2, value3, value4, value5 in value0 + value1 + value2 + value3 + value4 + value5 }
-        #expect(
-            try roundTripGeneratedBridge(function)(1, 2, 3, 4, 5, 6)
-                == 21
-        )
+        #if os(Linux) && arch(x86_64)
+            let functionType = type(of: function)
+            #expect(
+                FunctionReabstraction.automaticResultUnsupportedReason(
+                    for: functionType
+                )?.contains("Typed-throws closure values are unavailable on Linux x86_64") == true
+            )
+        #else
+            #expect(
+                try roundTripGeneratedBridge(function)(1, 2, 3, 4, 5, 6)
+                    == 21
+            )
+        #endif
     }
 
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)

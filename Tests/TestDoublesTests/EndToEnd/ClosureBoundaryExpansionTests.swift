@@ -156,6 +156,7 @@ struct ClosureBoundaryExpansionTests {
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func largeTypedErrorsUseIndirectInnerTransport() throws {
         _ = RealExternalIndirectTypedThrowingClosureService()
+        if expectLinuxX86TypedThrowsClosureBoundary({ _ = try Stub<any ExternalIndirectTypedThrowingClosureService>() }) { return }
         let failure = ExternalLargeClosureError(
             first: 1,
             second: 2,
@@ -183,6 +184,7 @@ struct ClosureBoundaryExpansionTests {
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func asyncIndirectResultsAndTypedErrorsRoundTripBothClosureDirections() async throws {
         _ = RealExternalIndirectTypedThrowingClosureService()
+        if expectLinuxX86TypedThrowsClosureBoundary({ _ = try Stub<any ExternalIndirectTypedThrowingClosureService>() }) { return }
         let failure = ExternalLargeClosureError(
             first: 5,
             second: 6,
@@ -583,6 +585,7 @@ struct ClosureBoundaryExpansionTests {
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func dynamicBridgePreservesTypedErrorsAcrossMixedRegisters() throws {
         _ = RealExternalDynamicTypedClosureService()
+        if expectLinuxX86TypedThrowsClosureBoundary({ _ = try Stub<any ExternalDynamicTypedClosureService>() }) { return }
         let quaternaryPlaceholder: ExternalTypedQuaternaryClosure = {
             value, _, _, _ in "\(value)"
         }
@@ -671,6 +674,7 @@ struct ClosureBoundaryExpansionTests {
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func typedErrorsRemainDistinctFromIndirectSuccessStorage() throws {
         _ = RealExternalDynamicTypedClosureService()
+        if expectLinuxX86TypedThrowsClosureBoundary({ _ = try Stub<any ExternalDynamicTypedClosureService>() }) { return }
         let placeholder: ExternalTypedIndirectSuccessClosure = { value in
             ExternalNullaryLargeResult(
                 first: value,
@@ -727,6 +731,7 @@ struct ClosureBoundaryExpansionTests {
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func typedThrowsComposesWithNullaryAndHigherOrderClosures() throws {
         _ = RealExternalDynamicTypedClosureService()
+        if expectLinuxX86TypedThrowsClosureBoundary({ _ = try Stub<any ExternalDynamicTypedClosureService>() }) { return }
         let nullaryFailure: ExternalDynamicClosureError = .rejected(0)
         let nullaryPlaceholder: ExternalTypedNullaryClosure = { 0 }
         let nullaryInput: ExternalTypedNullaryClosure = {

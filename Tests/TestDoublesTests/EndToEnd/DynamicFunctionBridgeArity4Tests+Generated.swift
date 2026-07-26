@@ -100,20 +100,38 @@ struct DynamicFunctionBridgeArity4Tests {
     @Test
     func typedArity4TypedThrowing() async throws {
         let function: (Int, Int, Int, Int) throws(GeneratedBridgeMatrixError) -> Int = { value0, value1, value2, value3 in value0 + value1 + value2 + value3 }
-        #expect(
-            try roundTripGeneratedBridge(function)(1, 2, 3, 4)
-                == 10
-        )
+        #if os(Linux) && arch(x86_64)
+            let functionType = type(of: function)
+            #expect(
+                FunctionReabstraction.automaticResultUnsupportedReason(
+                    for: functionType
+                )?.contains("Typed-throws closure values are unavailable on Linux x86_64") == true
+            )
+        #else
+            #expect(
+                try roundTripGeneratedBridge(function)(1, 2, 3, 4)
+                    == 10
+            )
+        #endif
     }
 
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test
     func typedArity4SendableTypedThrowing() async throws {
         let function: @Sendable (Int, Int, Int, Int) throws(GeneratedBridgeMatrixError) -> Int = { value0, value1, value2, value3 in value0 + value1 + value2 + value3 }
-        #expect(
-            try roundTripGeneratedBridge(function)(1, 2, 3, 4)
-                == 10
-        )
+        #if os(Linux) && arch(x86_64)
+            let functionType = type(of: function)
+            #expect(
+                FunctionReabstraction.automaticResultUnsupportedReason(
+                    for: functionType
+                )?.contains("Typed-throws closure values are unavailable on Linux x86_64") == true
+            )
+        #else
+            #expect(
+                try roundTripGeneratedBridge(function)(1, 2, 3, 4)
+                    == 10
+            )
+        #endif
     }
 
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
@@ -124,10 +142,19 @@ struct DynamicFunctionBridgeArity4Tests {
             await Task.yield()
             return value0 + value1 + value2 + value3
         }
-        #expect(
-            try await roundTripGeneratedBridge(function)(1, 2, 3, 4)
-                == 10
-        )
+        #if os(Linux) && arch(x86_64)
+            let functionType = type(of: function)
+            #expect(
+                FunctionReabstraction.automaticResultUnsupportedReason(
+                    for: functionType
+                )?.contains("Typed-throws closure values are unavailable on Linux x86_64") == true
+            )
+        #else
+            #expect(
+                try await roundTripGeneratedBridge(function)(1, 2, 3, 4)
+                    == 10
+            )
+        #endif
     }
 
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
@@ -138,9 +165,18 @@ struct DynamicFunctionBridgeArity4Tests {
             await Task.yield()
             return value0 + value1 + value2 + value3
         }
-        #expect(
-            try await roundTripGeneratedBridge(function)(1, 2, 3, 4)
-                == 10
-        )
+        #if os(Linux) && arch(x86_64)
+            let functionType = type(of: function)
+            #expect(
+                FunctionReabstraction.automaticResultUnsupportedReason(
+                    for: functionType
+                )?.contains("Typed-throws closure values are unavailable on Linux x86_64") == true
+            )
+        #else
+            #expect(
+                try await roundTripGeneratedBridge(function)(1, 2, 3, 4)
+                    == 10
+            )
+        #endif
     }
 }

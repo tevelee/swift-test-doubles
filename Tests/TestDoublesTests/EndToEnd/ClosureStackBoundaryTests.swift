@@ -6,6 +6,11 @@ import Testing
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func returnedSynchronousClosuresTransportOneStackWord() throws {
         _ = RealExternalClosureStackBridgeService()
+        if expectLinuxX86TypedThrowsClosureBoundary({
+            _ = try Stub<any ExternalClosureStackBridgeService>()
+        }) {
+            return
+        }
         let placeholder = externalStackSyncClosure(offset: 0)
         let result = externalStackSyncClosure(offset: 100)
         let stub = try Stub<any ExternalClosureStackBridgeService>()
@@ -24,6 +29,11 @@ import Testing
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func returnedTypedThrowingClosuresSpillTheirErrorDestination() throws {
         _ = RealExternalClosureStackBridgeService()
+        if expectLinuxX86TypedThrowsClosureBoundary({
+            _ = try Stub<any ExternalClosureStackBridgeService>()
+        }) {
+            return
+        }
         let failure = ExternalLargeClosureError(
             first: 11,
             second: 12,
@@ -56,6 +66,11 @@ import Testing
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func returnedAsyncClosuresCopyTheirStackWordBeforeSuspending() async throws {
         _ = RealExternalClosureStackBridgeService()
+        if expectLinuxX86TypedThrowsClosureBoundary({
+            _ = try Stub<any ExternalClosureStackBridgeService>()
+        }) {
+            return
+        }
         let placeholder = externalStackAsyncClosure(offset: 0)
         let result = externalStackAsyncClosure(offset: 100)
         let stub = try Stub<any ExternalClosureStackBridgeService>()
@@ -72,6 +87,11 @@ import Testing
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func returnedAsyncTypedClosuresSpillResultAndErrorDestinations() async throws {
         _ = RealExternalClosureStackBridgeService()
+        if expectLinuxX86TypedThrowsClosureBoundary({
+            _ = try Stub<any ExternalClosureStackBridgeService>()
+        }) {
+            return
+        }
         let failure = ExternalLargeClosureError(
             first: 11,
             second: 12,
@@ -112,6 +132,11 @@ import Testing
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func sixParameterInputsStageOneOwnedStackWordBeforeInvocation() async throws {
         _ = RealExternalClosureStackBridgeService()
+        if expectLinuxX86TypedThrowsClosureBoundary({
+            _ = try Stub<any ExternalClosureStackBridgeService>()
+        }) {
+            return
+        }
         let directPlaceholder = externalDirectStackInputClosure(offset: 0)
         let asyncPlaceholder = externalDirectAsyncStackInputClosure(offset: 0)
         let stub = try Stub<any ExternalClosureStackBridgeService>()

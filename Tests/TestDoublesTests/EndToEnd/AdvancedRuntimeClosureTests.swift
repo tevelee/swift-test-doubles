@@ -161,6 +161,11 @@ private actor ClosureIsolationActor {
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func asyncTypedThrowingClosureValuesPreserveTypedErrors() async throws {
         _ = RealExternalExtendedClosureService()
+        if expectLinuxX86TypedThrowsClosureBoundary({
+            _ = try Stub<any ExternalExtendedClosureService>()
+        }) {
+            return
+        }
         let identity: ExternalAsyncTypedThrowingClosure = { "\($0)" }
         let stub = try Stub<any ExternalExtendedClosureService>()
         stub.when(returning: identity) {
@@ -384,14 +389,11 @@ private actor ClosureIsolationActor {
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func typedThrowingClosureValuesPreserveTypedErrors() throws {
         _ = RealExternalExtendedClosureService()
-        #if os(Linux) && arch(x86_64)
-            expectUnsupportedProtocolShape(
-                containing: "Typed-throws closure values are unavailable on Linux x86_64"
-            ) {
-                _ = try Stub<any ExternalExtendedClosureService>()
-            }
+        if expectLinuxX86TypedThrowsClosureBoundary({
+            _ = try Stub<any ExternalExtendedClosureService>()
+        }) {
             return
-        #endif
+        }
         let identity: ExternalTypedThrowingClosure = { "\($0)" }
         let result: ExternalTypedThrowingClosure = {
             value throws(ExternalClosureError) in
@@ -414,6 +416,11 @@ private actor ClosureIsolationActor {
     @MainActor
     @Test func globalActorClosureValuesPreserveIsolation() throws {
         _ = RealExternalExtendedClosureService()
+        if expectLinuxX86TypedThrowsClosureBoundary({
+            _ = try Stub<any ExternalExtendedClosureService>()
+        }) {
+            return
+        }
         let identity: ExternalMainActorClosure = { "\($0)" }
         let result: ExternalMainActorClosure = { "\($0 * 2)!" }
         let stub = try Stub<any ExternalExtendedClosureService>()
@@ -428,6 +435,11 @@ private actor ClosureIsolationActor {
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func isolatedAnyClosureValuesPreserveDynamicActorIsolation() async throws {
         _ = RealExternalExtendedClosureService()
+        if expectLinuxX86TypedThrowsClosureBoundary({
+            _ = try Stub<any ExternalExtendedClosureService>()
+        }) {
+            return
+        }
         let identity: ExternalIsolatedClosure = { "\($0)" }
         let actor = ClosureIsolationActor()
         let result = await actor.makeResult()
@@ -445,6 +457,11 @@ private actor ClosureIsolationActor {
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func transferAndNonsendingClosureFlagsRoundTrip() async throws {
         _ = RealExternalExtendedClosureService()
+        if expectLinuxX86TypedThrowsClosureBoundary({
+            _ = try Stub<any ExternalExtendedClosureService>()
+        }) {
+            return
+        }
         let sendingIdentity: ExternalSendingClosure = { $0 }
         let sendingResult: ExternalSendingClosure = { $0.uppercased() }
         let nonsendingIdentity: ExternalNonsendingClosure = { "\($0)" }
