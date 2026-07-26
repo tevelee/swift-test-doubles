@@ -1,5 +1,5 @@
 import Testing
-@testable import TestDoubles
+@testable import TestDoublesRuntime
 
 private final class ValueBufferLifetimeToken {}
 
@@ -64,5 +64,4 @@ private struct ValueBufferOwnedValue {
         #expect(buffer.state == .transferred)
     }
 }
-import TestDoublesRuntime
 import TestDoublesRuntimeMetadata

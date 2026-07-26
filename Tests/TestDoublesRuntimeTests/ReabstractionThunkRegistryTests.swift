@@ -1,5 +1,5 @@
 import Testing
-@testable import TestDoubles
+@testable import TestDoublesRuntimeMetadata
 
 @Suite struct ReabstractionThunkRegistryTests {
     // Captured with `nm ... | swift-demangle` from this package's own
@@ -47,4 +47,3 @@ import Testing
     }
 }
 import TestDoublesRuntime
-import TestDoublesRuntimeMetadata

@@ -1,8 +1,6 @@
 import TestDoublesRuntime
 import TestDoublesRuntimeMetadata
 import Testing
-@testable import TestDoubles
-
 @Suite struct WitnessSignatureParserTests {
     @Test func genericProtocolMethodNameExcludesItsOwnGenericClause() throws {
         let signature = try #require(

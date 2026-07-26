@@ -1,5 +1,5 @@
 import Testing
-@testable import TestDoubles
+@testable import TestDoublesRuntime
 
 private struct WideTransportValue: Equatable {
     let first: Int
@@ -133,5 +133,4 @@ private struct WideTransportError: Error, Equatable {
         return call.error!.moveInitializedValue(as: Failure.self)
     }
 }
-import TestDoublesRuntime
 import TestDoublesRuntimeMetadata

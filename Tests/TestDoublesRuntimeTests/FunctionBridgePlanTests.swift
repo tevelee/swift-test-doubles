@@ -1,7 +1,7 @@
 import Echo
 import Testing
 
-@testable import TestDoubles
+@testable import TestDoublesRuntime
 
 private enum FunctionBridgePlanError: Error {
     case failure
@@ -95,5 +95,4 @@ struct FunctionBridgePlanTests {
         #expect(armAnalysis.validated(for: .genericToDirect) != nil)
     }
 }
-import TestDoublesRuntime
 import TestDoublesRuntimeMetadata

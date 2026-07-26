@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import TestDoubles
+@testable import TestDoublesRuntimeMetadata
 
 @Suite struct DelimitedSyntaxScannerTests {
     @Test func findsTheOuterArrowAcrossNestedFunctionsAndTypedThrows() throws {
@@ -53,4 +53,3 @@ import Testing
     }
 }
 import TestDoublesRuntime
-import TestDoublesRuntimeMetadata

@@ -1,4 +1,4 @@
-@testable import TestDoubles
+@testable import TestDoublesRuntime
 import Testing
 
 @Suite("Witness veneer arena")
@@ -146,5 +146,4 @@ struct TrampolineArenaTests {
         )
     }
 }
-import TestDoublesRuntime
 import TestDoublesRuntimeMetadata

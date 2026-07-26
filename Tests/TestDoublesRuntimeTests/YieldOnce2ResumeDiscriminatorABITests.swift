@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import TestDoubles
+@testable import TestDoublesRuntime
 
 #if os(macOS)
 
@@ -378,5 +378,4 @@ import Testing
     }()
 
 #endif
-import TestDoublesRuntime
 import TestDoublesRuntimeMetadata

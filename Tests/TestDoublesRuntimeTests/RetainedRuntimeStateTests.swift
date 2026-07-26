@@ -1,6 +1,6 @@
 import Testing
 
-@testable import TestDoubles
+@testable import TestDoublesRuntime
 
 @Suite
 struct RetainedRuntimeStateTests {
@@ -32,5 +32,4 @@ struct RetainedRuntimeStateTests {
         #expect(weakState == nil)
     }
 }
-import TestDoublesRuntime
 import TestDoublesRuntimeMetadata

@@ -1,7 +1,7 @@
 import Echo
 import Testing
 
-@testable import TestDoubles
+@testable import TestDoublesRuntime
 
 private final class PointerAuthReference {}
 
@@ -50,5 +50,4 @@ struct FunctionPointerAuthenticationTests {
         #expect(functionIsAsync(mixed))
     }
 }
-import TestDoublesRuntime
 import TestDoublesRuntimeMetadata

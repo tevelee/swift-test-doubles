@@ -1,5 +1,5 @@
 import Testing
-@testable import TestDoubles
+@testable import TestDoublesRuntimeMetadata
 import TestDoublesFixtures
 
 /// Unit coverage for demangled-name resolution: no stubs are constructed and
@@ -300,4 +300,3 @@ import TestDoublesFixtures
 /// path rather than failing earlier at "can't even resolve this name."
 struct NotHashableProbe {}
 import TestDoublesRuntime
-import TestDoublesRuntimeMetadata

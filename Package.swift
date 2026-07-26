@@ -98,6 +98,17 @@ let package = Package(
             ]
         ),
         .testTarget(
+            name: "TestDoublesRuntimeTests",
+            dependencies: [
+                "TestDoubles",
+                "TestDoublesRuntime",
+                "TestDoublesRuntimeMetadata",
+                "InternalRuntimeContract",
+                "TestDoublesFixtures"
+            ],
+            path: "Tests/TestDoublesRuntimeTests"
+        ),
+        .testTarget(
             name: "TestDoublesWasmTests",
             dependencies: [
                 "TestDoubles"

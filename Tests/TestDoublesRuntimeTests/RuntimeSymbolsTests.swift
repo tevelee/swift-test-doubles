@@ -1,5 +1,5 @@
 import Testing
-@testable import TestDoubles
+@testable import TestDoublesRuntimeMetadata
 
 @Suite struct RuntimeSymbolsTests {
     @Test func successfulRuntimeTypeResolutionIsCached() {
@@ -60,4 +60,3 @@ import Testing
     }
 }
 import TestDoublesRuntime
-import TestDoublesRuntimeMetadata

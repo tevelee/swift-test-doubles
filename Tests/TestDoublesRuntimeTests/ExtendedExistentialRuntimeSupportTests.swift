@@ -2,13 +2,6 @@ import TestDoublesRuntime
 import TestDoublesRuntimeMetadata
 import Testing
 
-@testable import TestDoubles
-
-/// The Swift runtime pre-builds fixed value witness tables for opaque
-/// existentials with up to one witness table and class existentials with up
-/// to two. Every larger extended existential is copied through
-/// runtime-instantiated witnesses, which miscount witness tables on OS
-/// runtimes older than the 26.4 releases (swiftlang/swift#85346).
 struct ExtendedExistentialRuntimeSupportTests {
     @Test func singleRootOpaqueShapesUsePrebuiltValueWitnesses() {
         #expect(
