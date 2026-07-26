@@ -38,6 +38,19 @@ import Testing
         #expect(attempts == 2)
     }
 
+    @Test func runtimeTypeResolutionAllowsRecursiveLookup() {
+        let parent = "TestDoublesTests.RuntimeSymbolsTests.Parent"
+        let child = "TestDoublesTests.RuntimeSymbolsTests.Child"
+
+        let resolved = RuntimeSymbols.cachedRuntimeType(named: parent) {
+            RuntimeSymbols.cachedRuntimeType(named: child) {
+                Int.self
+            }
+        }
+
+        #expect(resolved == Int.self)
+    }
+
     @Test func processRuntimeSymbolAddressesAreStable() {
         let first = RuntimeSymbols.rawSymbol(named: "swift_conformsToProtocol")
         let second = RuntimeSymbols.rawSymbol(named: "swift_conformsToProtocol")

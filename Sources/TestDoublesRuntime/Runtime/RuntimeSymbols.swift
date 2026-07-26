@@ -25,28 +25,33 @@ package enum RuntimeSymbols {
     #if !os(WASI)
         private static let handle = Handle(value: dlopen(nil, RTLD_NOW))
     #endif
-    private static let lock = NSLock()
+    // Resolving a type can recursively resolve its component types. The
+    // fallback symbol walk is also a process-wide runtime query, so cache
+    // misses must remain serialized while allowing that same-thread recursion.
+    private static let lock = NSRecursiveLock()
     private nonisolated(unsafe) static var addresses: [String: Address] = [:]
     private nonisolated(unsafe) static var demangledNames: [String: String] = [:]
     private nonisolated(unsafe) static var runtimeTypes: [String: Any.Type] = [:]
 
     package static func rawSymbol(named name: String) -> UnsafeMutableRawPointer? {
-        if let cached = withLock({ addresses[name] }) {
-            return cached.value
+        withLock {
+            if let cached = addresses[name] {
+                return cached.value
+            }
+            let address = name.withCString { symbol in
+                #if os(WASI)
+                    td_symbol_address(symbol).map(UnsafeMutableRawPointer.init(mutating:))
+                #else
+                    handle.value.flatMap { dlsym($0, symbol) }
+                        ?? td_symbol_address(symbol).map(UnsafeMutableRawPointer.init(mutating:))
+                #endif
+            }
+            guard let address else {
+                return nil
+            }
+            addresses[name] = Address(value: address)
+            return address
         }
-        let address = name.withCString { symbol in
-            #if os(WASI)
-                td_symbol_address(symbol).map(UnsafeMutableRawPointer.init(mutating:))
-            #else
-                handle.value.flatMap { dlsym($0, symbol) }
-                    ?? td_symbol_address(symbol).map(UnsafeMutableRawPointer.init(mutating:))
-            #endif
-        }
-        guard let address else {
-            return nil
-        }
-        withLock { addresses[name] = Address(value: address) }
-        return address
     }
 
     package static func function<Function>(
@@ -84,12 +89,14 @@ package enum RuntimeSymbols {
         named name: String,
         resolve: () -> Any.Type?
     ) -> Any.Type? {
-        if let cached = withLock({ runtimeTypes[name] }) {
-            return cached
+        withLock {
+            if let cached = runtimeTypes[name] {
+                return cached
+            }
+            guard let resolved = resolve() else { return nil }
+            runtimeTypes[name] = resolved
+            return resolved
         }
-        guard let resolved = resolve() else { return nil }
-        withLock { runtimeTypes[name] = resolved }
-        return resolved
     }
 
     private static func withLock<Result>(_ operation: () -> Result) -> Result {
