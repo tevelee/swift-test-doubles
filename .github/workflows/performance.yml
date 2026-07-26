@@ -60,22 +60,47 @@ jobs:
           mkdir -p baseline/Benchmarks baseline/Scripts
           rsync -a --delete candidate/Benchmarks/ baseline/Benchmarks/
           cp candidate/Scripts/run-benchmarks.sh baseline/Scripts/run-benchmarks.sh
-      - name: Benchmark baseline
-        run: >-
-          baseline/Scripts/run-benchmarks.sh
-          --suite comparable
-          --output "$RUNNER_TEMP/baseline.json"
-          --quiet
-      - name: Benchmark candidate
-        run: >-
-          candidate/Scripts/run-benchmarks.sh
-          --suite all
-          --output "$RUNNER_TEMP/candidate.json"
+      - name: Build benchmark drivers
+        run: |
+          swift build \
+            --package-path baseline/Benchmarks \
+            --scratch-path baseline/.build/benchmarks \
+            --configuration release \
+            --product TestDoublesBenchmarks
+          swift build \
+            --package-path candidate/Benchmarks \
+            --scratch-path candidate/.build/benchmarks \
+            --configuration release \
+            --product TestDoublesBenchmarks
+      - name: Run paired benchmark trials
+        run: |
+          benchmark_baseline() {
+            baseline/Scripts/run-benchmarks.sh \
+              --suite comparable \
+              --output "$RUNNER_TEMP/baseline-$1.json" \
+              --quiet
+          }
+          benchmark_candidate() {
+            candidate/Scripts/run-benchmarks.sh \
+              --suite all \
+              --output "$RUNNER_TEMP/candidate-$1.json"
+          }
+
+          benchmark_baseline 1
+          benchmark_candidate 1
+          benchmark_candidate 2
+          benchmark_baseline 2
+          benchmark_baseline 3
+          benchmark_candidate 3
       - name: Compare performance
         run: >-
           candidate/Scripts/run-benchmarks.sh compare
-          "$RUNNER_TEMP/baseline.json"
-          "$RUNNER_TEMP/candidate.json"
+          "$RUNNER_TEMP/baseline-1.json"
+          "$RUNNER_TEMP/candidate-1.json"
+          "$RUNNER_TEMP/baseline-2.json"
+          "$RUNNER_TEMP/candidate-2.json"
+          "$RUNNER_TEMP/baseline-3.json"
+          "$RUNNER_TEMP/candidate-3.json"
           --max-regression-percent 20
       - name: Upload benchmark results
         if: always()
