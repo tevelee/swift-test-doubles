@@ -35,7 +35,7 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
         parameterTypes = safeFunctionParameterTypes(metadata)
         resultType = metadata.resultType
         resultLayout = abiClass(for: metadata.resultType, isReturn: true)
-        let typedErrorType = metadata.thrownErrorType
+        let typedErrorType = typedThrownErrorType(metadata)
         self.typedErrorType = typedErrorType
         typedErrorLayout = typedErrorType.map {
             abiClass(for: $0, isReturn: true)

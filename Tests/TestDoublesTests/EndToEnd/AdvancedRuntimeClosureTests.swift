@@ -384,6 +384,14 @@ private actor ClosureIsolationActor {
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func typedThrowingClosureValuesPreserveTypedErrors() throws {
         _ = RealExternalExtendedClosureService()
+        #if os(Linux) && arch(x86_64)
+            expectUnsupportedProtocolShape(
+                containing: "Typed-throws closure values are unavailable on Linux x86_64"
+            ) {
+                _ = try Stub<any ExternalExtendedClosureService>()
+            }
+            return
+        #endif
         let identity: ExternalTypedThrowingClosure = { "\($0)" }
         let result: ExternalTypedThrowingClosure = {
             value throws(ExternalClosureError) in

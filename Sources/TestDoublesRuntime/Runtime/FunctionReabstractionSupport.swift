@@ -231,25 +231,51 @@ package func isDynamicFunctionAsync(_ metadata: FunctionMetadata) -> Bool {
 package func typedThrowingFunctionRuntimeUnsupportedReason(
     _ metadata: FunctionMetadata
 ) -> String? {
-    guard metadata.thrownErrorType != nil else { return nil }
-    guard
-        #available(macOS 15,
-        iOS 18,
-        macCatalyst 18,
-        tvOS 18,
-        visionOS 2,
-        watchOS 11,
-        *)
-    else {
-        return "Typed-throws closure values require macOS 15, iOS 18, Mac Catalyst 18, tvOS 18, visionOS 2, or watchOS 11."
-    }
-    return nil
+    guard functionHasTypedThrows(metadata) else { return nil }
+
+    // Echo's typed-throws field is not a usable `Any.Type` on the Swift 6.3
+    // Linux x86_64 release runtime. Reading it can produce an invalid metadata
+    // pointer during bridge planning, so reject the unsupported ABI before any
+    // reflection rather than letting the trampoline crash.
+    #if os(Linux) && arch(x86_64)
+        return "Typed-throws closure values are unavailable on Linux x86_64 because the Swift runtime does not expose their error metadata in a stable ABI form."
+    #else
+        guard typedThrownErrorType(metadata) != nil else {
+            return "Typed-throws closure error metadata could not be resolved safely."
+        }
+        guard
+            #available(macOS 15,
+            iOS 18,
+            macCatalyst 18,
+            tvOS 18,
+            visionOS 2,
+            watchOS 11,
+            *)
+        else {
+            return "Typed-throws closure values require macOS 15, iOS 18, Mac Catalyst 18, tvOS 18, visionOS 2, or watchOS 11."
+        }
+        return nil
+    #endif
+}
+
+package func functionHasTypedThrows(_ metadata: FunctionMetadata) -> Bool {
+    metadata.extendedFlags?.isTypedThrows == true
+}
+
+package func typedThrownErrorType(_ metadata: FunctionMetadata) -> Any.Type? {
+    guard functionHasTypedThrows(metadata) else { return nil }
+
+    #if os(Linux) && arch(x86_64)
+        return nil
+    #else
+        return metadata.thrownErrorType
+    #endif
 }
 
 package func dynamicDirectTypedErrorUsesIndirectResultSlot(
     _ metadata: FunctionMetadata
 ) -> Bool {
-    guard let errorType = metadata.thrownErrorType else { return false }
+    guard let errorType = typedThrownErrorType(metadata) else { return false }
     return abiClassIsIndirect(abiClass(for: metadata.resultType, isReturn: true))
         || typedErrorLayoutRequiresIndirectSlot(
             abiClass(for: errorType, isReturn: true)
@@ -263,7 +289,7 @@ package func dynamicDirectTypedErrorUsesIndirectResultSlot(
 package func dynamicGenericTypedErrorUsesIndirectResultSlot(
     _ metadata: FunctionMetadata
 ) -> Bool {
-    guard let errorType = metadata.thrownErrorType else { return false }
+    guard let errorType = typedThrownErrorType(metadata) else { return false }
     return dynamicDirectTypedErrorUsesIndirectResultSlot(metadata)
         || reflect(errorType).vwt.size > 0
 }
@@ -374,9 +400,4 @@ extension FunctionMetadata {
         extendedFlags?.isNonIsolatedNonsending == true
     }
 
-    /// Compatibility spelling for the typed-throws result consumed by the
-    /// existing reabstraction implementation.
-    var typedThrownErrorType: Any.Type? {
-        thrownErrorType
-    }
 }

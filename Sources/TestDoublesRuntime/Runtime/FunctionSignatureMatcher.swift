@@ -93,7 +93,8 @@ enum FunctionSignatureMatcher {
         _ parsed: LoweredTypeSyntax?,
         matches metadata: FunctionMetadata
     ) -> Bool {
-        if let typed = metadata.thrownErrorType {
+        if functionHasTypedThrows(metadata) {
+            guard let typed = typedThrownErrorType(metadata) else { return false }
             guard let parsed else { return false }
             return type(parsed, matches: typed)
         }
