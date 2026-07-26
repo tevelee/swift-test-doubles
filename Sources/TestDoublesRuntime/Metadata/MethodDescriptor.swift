@@ -1,3 +1,5 @@
+import InternalRuntimeContract
+
 package struct MethodDescriptor: Sendable {
     package enum Origin: Equatable, Sendable {
         case automatic
@@ -229,6 +231,28 @@ package struct MethodDescriptor: Sendable {
     package var isAsync: Bool { effects.isAsync }
     package var hasReliableThrowing: Bool { effects.throwing.isReliable }
 
+    /// The ABI-free projection consumed by the public semantic layer.
+    package var runtimeMethod: RuntimeMethod {
+        RuntimeMethod(
+            kind: RuntimeRequirementKind(kind),
+            receiver: RuntimeRequirementReceiver(receiver),
+            origin: RuntimeRequirementOrigin(origin),
+            name: name,
+            slot: index,
+            witnessSlot: witnessIndex,
+            argumentTypes: argumentTypes,
+            argumentConventions: argumentConventions.map(RuntimeValueConvention.init),
+            argumentOwnerships: argumentOwnerships.map(RuntimeArgumentOwnership.init),
+            returnType: returnType,
+            returnConvention: RuntimeValueConvention(returnConvention),
+            typedErrorType: typedErrorType,
+            isThrowing: isThrowing,
+            isAsync: isAsync,
+            hasReliableThrowing: hasReliableThrowing,
+            signatureDescription: signatureDescription
+        )
+    }
+
     package var signatureDescription: String {
         let throwingEffect =
             effects.throwing.typedError.map {
@@ -331,6 +355,56 @@ package struct MethodDescriptor: Sendable {
             case .associatedType: .indirect
             case .selfType, .optionalSelf:
                 selfIsClassConstrained ? .integer(words: 1) : .indirect
+        }
+    }
+}
+
+extension RuntimeRequirementKind {
+    fileprivate init(_ kind: StubRequirementKind) {
+        switch kind {
+            case .method: self = .method
+            case .initializer: self = .initializer
+            case .getter: self = .getter
+            case .setter: self = .setter
+        }
+    }
+}
+
+extension RuntimeRequirementReceiver {
+    fileprivate init(_ receiver: StubRequirementReceiver) {
+        switch receiver {
+            case .instance: self = .instance
+            case .metatype: self = .metatype
+        }
+    }
+}
+
+extension RuntimeRequirementOrigin {
+    fileprivate init(_ origin: MethodDescriptor.Origin) {
+        switch origin {
+            case .automatic: self = .automatic
+            case .explicit: self = .explicit
+            case .manual: self = .manual
+        }
+    }
+}
+
+extension RuntimeValueConvention {
+    fileprivate init(_ convention: WitnessValueConvention) {
+        switch convention {
+            case .concrete: self = .concrete
+            case .associatedType(let name): self = .associatedType(name: name)
+            case .selfType: self = .selfType
+            case .optionalSelf: self = .optionalSelf
+        }
+    }
+}
+
+extension RuntimeArgumentOwnership {
+    fileprivate init(_ ownership: WitnessArgumentOwnership) {
+        switch ownership {
+            case .borrowed: self = .borrowed
+            case .owned: self = .owned
         }
     }
 }
