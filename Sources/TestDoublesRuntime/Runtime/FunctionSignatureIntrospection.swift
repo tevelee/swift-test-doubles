@@ -1,7 +1,8 @@
 import Echo
 
 package func functionLoweredParameterCount(_ metadata: FunctionMetadata) -> Int {
-    metadata.flags.numParams + (metadata.isNonisolatedNonsending ? 1 : 0)
+    metadata.flags.numParams
+        + (metadata.extendedFlags?.isNonIsolatedNonsending == true ? 1 : 0)
 }
 
 /// Echo's zero-parameter accessor uses an unsafe-uninitialized empty Array,
@@ -35,7 +36,7 @@ package func functionParameterOwnership(
     at index: Int
 ) -> UInt32 {
     guard metadata.flags.hasParamFlags else { return 0 }
-    return UInt32(metadata.paramFlags[index].valueOwnership.rawValue)
+    return UInt32(metadata.paramFlags[index].ownership.rawValue)
 }
 
 package func functionParameterIsIsolated(
@@ -43,9 +44,9 @@ package func functionParameterIsIsolated(
     at index: Int
 ) -> Bool {
     guard metadata.flags.hasParamFlags else { return false }
-    return metadata.paramFlags[index].bits & 0x400 != 0
+    return metadata.paramFlags[index].isIsolated
 }
 
 package func functionIsAsync(_ metadata: FunctionMetadata) -> Bool {
-    metadata.flags.bits & 0x2000_0000 != 0
+    metadata.flags.isAsync
 }

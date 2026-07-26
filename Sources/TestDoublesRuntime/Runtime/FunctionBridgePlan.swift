@@ -35,8 +35,9 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
         parameterTypes = safeFunctionParameterTypes(metadata)
         resultType = metadata.resultType
         resultLayout = abiClass(for: metadata.resultType, isReturn: true)
-        typedErrorType = metadata.typedThrownErrorType
-        typedErrorLayout = metadata.typedThrownErrorType.map {
+        let typedErrorType = metadata.thrownErrorType
+        self.typedErrorType = typedErrorType
+        typedErrorLayout = typedErrorType.map {
             abiClass(for: $0, isReturn: true)
         }
         isAsync = isDynamicFunctionAsync(metadata)
@@ -86,7 +87,7 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
         {
             return "The x86_64 async typed-error return bridge cannot mix a full direct register bank with generic stack transport."
         }
-        guard metadata.flags.bits & 0x0800_0000 == 0 else {
+        guard metadata.flags.isDifferentiable == false else {
             return "Differentiable functions require derivative metadata."
         }
         guard metadata.globalActorType == nil else {

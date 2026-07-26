@@ -205,18 +205,33 @@ package func decodeDirectResult(
 package func hasOnlyDynamicallySupportedExtendedFlags(
     _ metadata: FunctionMetadata
 ) -> Bool {
-    let typedThrowsFlag = UInt32(0x1)
-    return metadata.rawExtendedFlags.map { $0 & ~typedThrowsFlag == 0 } ?? true
+    guard let flags = metadata.extendedFlags else { return true }
+
+    let invertedProtocols = flags.invertedProtocols
+    guard flags.isIsolatedAny == false,
+        flags.isNonIsolatedNonsending == false,
+        flags.hasSendingResult == false,
+        invertedProtocols.isEmpty,
+        invertedProtocols.hasUnknownProtocols == false
+    else {
+        return false
+    }
+
+    // Echo exposes the currently understood semantics above. Keep this exact
+    // bit comparison as a fail-closed gate for reserved flags and future ABI
+    // extensions that Echo cannot name yet.
+    let supportedBits: UInt32 = flags.isTypedThrows ? 0x1 : 0
+    return flags.bits == supportedBits
 }
 
 package func isDynamicFunctionAsync(_ metadata: FunctionMetadata) -> Bool {
-    metadata.flags.bits & 0x2000_0000 != 0
+    metadata.flags.isAsync
 }
 
 package func typedThrowingFunctionRuntimeUnsupportedReason(
     _ metadata: FunctionMetadata
 ) -> String? {
-    guard metadata.typedThrownErrorType != nil else { return nil }
+    guard metadata.thrownErrorType != nil else { return nil }
     guard
         #available(macOS 15,
         iOS 18,
@@ -234,7 +249,7 @@ package func typedThrowingFunctionRuntimeUnsupportedReason(
 package func dynamicDirectTypedErrorUsesIndirectResultSlot(
     _ metadata: FunctionMetadata
 ) -> Bool {
-    guard let errorType = metadata.typedThrownErrorType else { return false }
+    guard let errorType = metadata.thrownErrorType else { return false }
     return abiClassIsIndirect(abiClass(for: metadata.resultType, isReturn: true))
         || typedErrorLayoutRequiresIndirectSlot(
             abiClass(for: errorType, isReturn: true)
@@ -248,7 +263,7 @@ package func dynamicDirectTypedErrorUsesIndirectResultSlot(
 package func dynamicGenericTypedErrorUsesIndirectResultSlot(
     _ metadata: FunctionMetadata
 ) -> Bool {
-    guard let errorType = metadata.typedThrownErrorType else { return false }
+    guard let errorType = metadata.thrownErrorType else { return false }
     return dynamicDirectTypedErrorUsesIndirectResultSlot(metadata)
         || reflect(errorType).vwt.size > 0
 }
@@ -347,72 +362,21 @@ func demangleReabstractionSymbol(_ mangledName: String) -> String {
 }
 
 extension FunctionMetadata {
-    var rawExtendedFlags: UInt32? {
-        guard let offset = extendedFlagsOffset else { return nil }
-        return ptr.load(fromByteOffset: offset, as: UInt32.self)
-    }
-
+    /// Compatibility spelling for the isolated-any query used by the existing
+    /// reabstraction implementation.
     var isIsolatedAny: Bool {
-        rawExtendedFlags.map { $0 & 0xE == 0x2 } == true
+        extendedFlags?.isIsolatedAny == true
     }
 
+    /// Compatibility spelling for the nonisolated-nonsending query used by
+    /// the existing function-pointer authentication implementation.
     var isNonisolatedNonsending: Bool {
-        rawExtendedFlags.map { $0 & 0xE == 0x4 } == true
+        extendedFlags?.isNonIsolatedNonsending == true
     }
 
+    /// Compatibility spelling for the typed-throws result consumed by the
+    /// existing reabstraction implementation.
     var typedThrownErrorType: Any.Type? {
-        guard let offset = extendedFlagsOffset else { return nil }
-        let extendedFlags = ptr.load(fromByteOffset: offset, as: UInt32.self)
-        guard extendedFlags & 0x1 != 0 else { return nil }
-        let thrownErrorOffset = alignedToPointer(
-            offset + MemoryLayout<UInt32>.size
-        )
-        return ptr.load(
-            fromByteOffset: thrownErrorOffset,
-            as: Any.Type.self
-        )
-    }
-
-    var globalActorType: Any.Type? {
-        guard rawFlagsBits & 0x1000_0000 != 0 else { return nil }
-        return unsafeBitCast(
-            ptr.load(
-                fromByteOffset: postDifferentiabilityOffset,
-                as: UnsafeRawPointer.self
-            ),
-            to: Any.Type.self
-        )
-    }
-
-    private var extendedFlagsOffset: Int? {
-        guard rawFlagsBits & 0x8000_0000 != 0 else { return nil }
-        var offset = postDifferentiabilityOffset
-        if rawFlagsBits & 0x1000_0000 != 0 {
-            offset += MemoryLayout<UInt>.size
-        }
-        return offset
-    }
-
-    private var postDifferentiabilityOffset: Int {
-        var offset =
-            3 * MemoryLayout<UInt>.size
-            + flags.numParams * MemoryLayout<Any.Type>.size
-        if flags.hasParamFlags {
-            offset += flags.numParams * MemoryLayout<UInt32>.size
-        }
-        offset = alignedToPointer(offset)
-        if rawFlagsBits & 0x0800_0000 != 0 {
-            offset += MemoryLayout<UInt>.size
-        }
-        return offset
-    }
-
-    private var rawFlagsBits: UInt32 {
-        UInt32(truncatingIfNeeded: flags.bits)
-    }
-
-    private func alignedToPointer(_ offset: Int) -> Int {
-        (offset + MemoryLayout<UInt>.alignment - 1)
-            & ~(MemoryLayout<UInt>.alignment - 1)
+        thrownErrorType
     }
 }

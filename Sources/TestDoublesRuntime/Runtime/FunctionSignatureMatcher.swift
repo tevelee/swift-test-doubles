@@ -6,9 +6,9 @@ enum FunctionSignatureMatcher {
         matches metadata: FunctionMetadata
     ) -> Bool {
         let parsedGlobalActor = parsed.globalActor.flatMap(resolveRuntimeType)
-        guard parsed.isSendable == (metadata.flags.bits & 0x4000_0000 != 0),
-            parsed.isEscaping == (metadata.flags.bits & 0x0400_0000 != 0),
-            parsed.isIsolated == metadata.isIsolatedAny,
+        guard parsed.isSendable == metadata.flags.isSendable,
+            parsed.isEscaping == metadata.flags.isEscaping,
+            parsed.isIsolated == (metadata.extendedFlags?.isIsolatedAny == true),
             parsed.globalActor == nil || parsedGlobalActor != nil,
             parsed.globalActor == nil
                 || sameRuntimeType(parsedGlobalActor, metadata.globalActorType),
@@ -34,10 +34,11 @@ enum FunctionSignatureMatcher {
         if direct(parsed, matches: metadata) { return true }
         let parsedGlobalActor = parsed.globalActor.flatMap(resolveRuntimeType)
         return parsed.isSendable
-            == (metadata.flags.bits & 0x4000_0000 != 0)
+            == metadata.flags.isSendable
             && parsed.isEscaping
-                == (metadata.flags.bits & 0x0400_0000 != 0)
-            && parsed.isIsolated == metadata.isIsolatedAny
+                == metadata.flags.isEscaping
+            && parsed.isIsolated
+                == (metadata.extendedFlags?.isIsolatedAny == true)
             && (parsed.globalActor == nil || parsedGlobalActor != nil)
             && (parsed.globalActor == nil
                 || sameRuntimeType(parsedGlobalActor, metadata.globalActorType))
@@ -51,7 +52,7 @@ enum FunctionSignatureMatcher {
         match metadata: FunctionMetadata
     ) -> Bool {
         var semanticParameters = parsed[...]
-        if metadata.isNonisolatedNonsending {
+        if metadata.extendedFlags?.isNonIsolatedNonsending == true {
             guard case .implicitActor? = semanticParameters.first?.type else {
                 return false
             }
@@ -92,7 +93,7 @@ enum FunctionSignatureMatcher {
         _ parsed: LoweredTypeSyntax?,
         matches metadata: FunctionMetadata
     ) -> Bool {
-        if let typed = metadata.typedThrownErrorType {
+        if let typed = metadata.thrownErrorType {
             guard let parsed else { return false }
             return type(parsed, matches: typed)
         }

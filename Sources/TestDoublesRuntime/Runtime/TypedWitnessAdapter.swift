@@ -75,11 +75,6 @@ package struct TypedWitnessAdapterFactory: @unchecked Sendable {
     }
 }
 
-extension FunctionMetadata.Flags {
-    /// `FunctionTypeFlags::Async` in Swift's runtime ABI.
-    fileprivate var isAsync: Bool { bits & 0x2000_0000 != 0 }
-}
-
 /// Retains the dispatch object explicitly appended to a thin adapter's
 /// argument list for the lifetime of the fabricated witness table.
 package final class TypedWitnessAdapter: @unchecked Sendable {
