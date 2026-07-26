@@ -7,6 +7,7 @@ build_path="${SWIFT_TEST_DOUBLES_SYMBOL_GRAPH_BUILD_PATH:-$root/.build/symbol-gr
 symbols="$build_path/symbols"
 
 cd "$root"
+swift package --scratch-path "$build_path/package" clean
 mkdir -p "$symbols"
 for stale_symbol_graph in "$symbols"/TestDoubles*.symbols.json; do
     [[ -e "$stale_symbol_graph" ]] || continue
