@@ -64,6 +64,18 @@ struct FunctionBridgePlanTests {
         ) async throws(FunctionBridgePlanError) -> Int
         let metadata = try #require(reflect(Function.self) as? FunctionMetadata)
 
+        #if os(Linux) && arch(x86_64)
+            let analysis = FunctionBridgeAnalysis(metadata)
+            #expect(analysis.validated(for: .directToGeneric) == nil)
+            #expect(analysis.validated(for: .genericToDirect) == nil)
+            #expect(
+                analysis.unsupportedReason(for: .directToGeneric)?.contains(
+                    "Typed-throws closure values are unavailable on Linux x86_64"
+                ) == true
+            )
+            return
+        #endif
+
         let x86Analysis = FunctionBridgeAnalysis(
             metadata,
             architecture: .x86_64

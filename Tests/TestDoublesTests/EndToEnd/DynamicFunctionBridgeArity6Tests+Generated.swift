@@ -124,7 +124,14 @@ struct DynamicFunctionBridgeArity6Tests {
             await Task.yield()
             return value0 + value1 + value2 + value3 + value4 + value5
         }
-        #if arch(x86_64)
+        #if os(Linux) && arch(x86_64)
+            let functionType = type(of: function)
+            #expect(
+                FunctionReabstraction.automaticResultUnsupportedReason(
+                    for: functionType
+                )?.contains("Typed-throws closure values are unavailable on Linux x86_64") == true
+            )
+        #elseif arch(x86_64)
             let functionType = type(of: function)
             #expect(
                 FunctionReabstraction.automaticResultUnsupportedReason(
@@ -147,7 +154,14 @@ struct DynamicFunctionBridgeArity6Tests {
             await Task.yield()
             return value0 + value1 + value2 + value3 + value4 + value5
         }
-        #if arch(x86_64)
+        #if os(Linux) && arch(x86_64)
+            let functionType = type(of: function)
+            #expect(
+                FunctionReabstraction.automaticResultUnsupportedReason(
+                    for: functionType
+                )?.contains("Typed-throws closure values are unavailable on Linux x86_64") == true
+            )
+        #elseif arch(x86_64)
             let functionType = type(of: function)
             #expect(
                 FunctionReabstraction.automaticResultUnsupportedReason(
