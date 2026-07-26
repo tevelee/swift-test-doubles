@@ -291,7 +291,9 @@ struct RealAssociatedGetterEffectProbe: AssociatedGetterEffectProbe {
 
         #expect(try await stub().current == 42)
         let descriptor = try #require(stub.recorder.runtimeMethod(for: 0))
-        #expect(descriptor.returnDependency == .associatedType(name: "Element"))
+        #expect(
+            descriptor.returnAssociatedTypeUse == .associatedType(named: "Element")
+        )
         #expect(descriptor.isThrowing)
         #expect(descriptor.hasReliableThrowing)
     }

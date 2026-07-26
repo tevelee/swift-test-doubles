@@ -230,9 +230,9 @@ private func useLinkedAssociatedReadWriteSubscript(
                 RuntimeArgumentOwnership.borrowed
             ])
         #expect(
-            setter.argumentDependencies == [
-                RuntimeValueDependency.associatedType(name: "Value"),
-                RuntimeValueDependency.independent
+            setter.argumentAssociatedTypeUses == [
+                .associatedType(named: "Value"),
+                .none
             ])
     }
 

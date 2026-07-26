@@ -1,5 +1,3 @@
-import TestDoublesRuntime
-import TestDoublesRuntimeMetadata
 import InternalRuntimeContract
 import TestDoublesFixtures
 import Testing
@@ -26,18 +24,12 @@ private func useLinkedAssociatedClassTypedErrorProbe(
         try assertTypedError(
             #require(stub.recorder.runtimeMethod(for: 0)),
             type: ExternalAssociatedClassError<Int>.self,
-            dependency: .genericClass(
-                "TestDoublesFixtures.ExternalAssociatedClassError",
-                [.associatedType("Element")]
-            )
+            associatedTypeNames: ["Element"]
         )
         try assertTypedError(
             #require(stub.recorder.runtimeMethod(for: 1)),
             type: ExternalAssociatedPairClassError<Int, String>.self,
-            dependency: .genericClass(
-                "TestDoublesFixtures.ExternalAssociatedPairClassError",
-                [.associatedType("Element"), .independent]
-            )
+            associatedTypeNames: ["Element"]
         )
         try assertTypedError(
             #require(stub.recorder.runtimeMethod(for: 2)),
@@ -45,24 +37,12 @@ private func useLinkedAssociatedClassTypedErrorProbe(
                 ExternalAssociatedClassError<Int>,
                 String
             >.self,
-            dependency: .genericClass(
-                "TestDoublesFixtures.ExternalAssociatedPairClassError",
-                [
-                    .genericClass(
-                        "TestDoublesFixtures.ExternalAssociatedClassError",
-                        [.associatedType("Element")]
-                    ),
-                    .independent
-                ]
-            )
+            associatedTypeNames: ["Element"]
         )
         try assertTypedError(
             #require(stub.recorder.runtimeMethod(for: 3)),
             type: ExternalAssociatedClassError<Int>.self,
-            dependency: .genericClass(
-                "TestDoublesFixtures.ExternalAssociatedClassError",
-                [.associatedType("Element")]
-            )
+            associatedTypeNames: ["Element"]
         )
     }
 
@@ -246,43 +226,10 @@ private func useLinkedAssociatedClassTypedErrorProbe(
     }
 }
 
-private indirect enum AssociatedClassErrorDependencyShape: Equatable {
-    case independent
-    case associatedType(String)
-    case genericClass(String, [Self])
-}
-
-private func associatedClassErrorDependencyShape(
-    _ dependency: RuntimeValueDependency
-) -> AssociatedClassErrorDependencyShape? {
-    switch dependency {
-        case .independent:
-            return .independent
-        case .associatedType(let name), .referenceAssociatedType(let name):
-            return .associatedType(name)
-        case .genericClass(let name, let arguments):
-            if arguments.isEmpty {
-                return .genericClass(name, [])
-            }
-            var resolved: [AssociatedClassErrorDependencyShape] = []
-            resolved.reserveCapacity(arguments.count)
-            for argument in arguments {
-                guard let shape = associatedClassErrorDependencyShape(argument)
-                else {
-                    return nil
-                }
-                resolved.append(shape)
-            }
-            return .genericClass(name, resolved)
-        case .optional, .array, .set, .dictionary, .result:
-            return nil
-    }
-}
-
 private func assertTypedError<Failure: Error>(
     _ method: RuntimeMethod,
     type: Failure.Type,
-    dependency: AssociatedClassErrorDependencyShape,
+    associatedTypeNames: [String],
     sourceLocation: SourceLocation = #_sourceLocation
 ) throws {
     let errorType = try #require(
@@ -294,8 +241,7 @@ private func assertTypedError<Failure: Error>(
         sourceLocation: sourceLocation
     )
     #expect(
-        method.typedErrorDependency.flatMap(associatedClassErrorDependencyShape)
-            == dependency,
+        method.typedErrorAssociatedTypeUse?.names == associatedTypeNames,
         sourceLocation: sourceLocation
     )
 }

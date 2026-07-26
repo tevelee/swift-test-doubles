@@ -247,7 +247,7 @@ package struct MethodDescriptor: Sendable {
                     value: RuntimeValue(
                         type: argument.value.type,
                         convention: RuntimeValueConvention(argument.value.convention),
-                        dependency: RuntimeValueDependency(argument.value.dependency)
+                        associatedTypeUse: argument.value.dependency.associatedTypeUse
                     ),
                     ownership: RuntimeArgumentOwnership(argument.ownership)
                 )
@@ -255,11 +255,11 @@ package struct MethodDescriptor: Sendable {
             result: RuntimeValue(
                 type: result.type,
                 convention: RuntimeValueConvention(result.convention),
-                dependency: RuntimeValueDependency(result.dependency)
+                associatedTypeUse: result.dependency.associatedTypeUse
             ),
             typedErrorType: typedErrorType,
-            typedErrorDependency: effects.throwing.typedError.map {
-                RuntimeValueDependency($0.dependency)
+            typedErrorAssociatedTypeUse: effects.throwing.typedError.map {
+                $0.dependency.associatedTypeUse
             },
             selfIsClassConstrained: selfIsClassConstrained,
             isThrowing: isThrowing,
@@ -420,35 +420,6 @@ extension RuntimeArgumentOwnership {
         switch ownership {
             case .borrowed: self = .borrowed
             case .owned: self = .owned
-        }
-    }
-}
-
-extension RuntimeValueDependency {
-    fileprivate init(_ dependency: WitnessValueDependency) {
-        switch dependency {
-            case .independent:
-                self = .independent
-            case .associatedType(let reference):
-                self =
-                    reference.usesReferenceABI
-                    ? .referenceAssociatedType(name: reference.name)
-                    : .associatedType(name: reference.name)
-            case .optional(let wrapped):
-                self = .optional(Self(wrapped))
-            case .array(let element):
-                self = .array(Self(element))
-            case .set(let element):
-                self = .set(Self(element))
-            case .dictionary(let key, let value):
-                self = .dictionary(key: Self(key), value: Self(value))
-            case .result(let success, let failure):
-                self = .result(success: Self(success), failure: Self(failure))
-            case .genericClass(let constructor, let arguments):
-                self = .genericClass(
-                    name: constructor.name,
-                    arguments: arguments.map(Self.init)
-                )
         }
     }
 }

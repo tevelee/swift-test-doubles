@@ -55,11 +55,31 @@ import Testing
         #expect(endpoint.modifyDispatch(forGetterSlot: 0)?.setterSlot == 1)
     }
 
+    @Test func semanticAssociatedTypeUseRetainsOrderedNamesOnly() {
+        let associatedTypeUse = RuntimeAssociatedTypeUse(
+            names: ["Element", "Failure", "Element"]
+        )
+        let method = method(
+            slot: 0,
+            name: "result()",
+            resultAssociatedTypeUse: associatedTypeUse
+        )
+
+        #expect(associatedTypeUse.names == ["Element", "Failure"])
+        #expect(associatedTypeUse.isDependent)
+        #expect(method.returnAssociatedTypeUse == associatedTypeUse)
+        #expect(
+            method.signatureDescription
+                == "method () -> Swift.String [associated Element, Failure]"
+        )
+    }
+
     private func method(
         slot: Int,
         name: String,
         kind: RuntimeRequirementKind = .method,
-        resultConvention: RuntimeValueConvention = .concrete
+        resultConvention: RuntimeValueConvention = .concrete,
+        resultAssociatedTypeUse: RuntimeAssociatedTypeUse = .none
     ) -> RuntimeMethod {
         RuntimeMethod(
             kind: kind,
@@ -72,10 +92,10 @@ import Testing
             result: RuntimeValue(
                 type: String.self,
                 convention: resultConvention,
-                dependency: .independent
+                associatedTypeUse: resultAssociatedTypeUse
             ),
             typedErrorType: nil,
-            typedErrorDependency: nil,
+            typedErrorAssociatedTypeUse: nil,
             selfIsClassConstrained: false,
             isThrowing: false,
             isAsync: false,

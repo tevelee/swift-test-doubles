@@ -1,3 +1,4 @@
+import InternalRuntimeContract
 import Testing
 @testable import TestDoubles
 
@@ -195,8 +196,9 @@ struct NestedAssociatedTypeTests {
         #expect(getter.argumentTypes.isEmpty)
         #expect(ObjectIdentifier(getter.returnType) == ObjectIdentifier(Int?.self))
         #expect(getter.returnConvention == .associatedType(name: "Element"))
-        #expect(getter.returnDependency == .associatedType(name: "Element"))
-        #expect(isIndirect(getter.returnLayout))
+        #expect(
+            getter.returnAssociatedTypeUse == .associatedType(named: "Element")
+        )
 
         stub.when { $0.transform(optional: any()) }.then { (value: Int?) in
             value.map { $0 + 1 }
@@ -342,17 +344,17 @@ struct NestedAssociatedTypeTests {
         assertDependentDictionary(
             values,
             type: [String: String].self,
-            dependency: .dictionary(key: nil, value: "Value")
+            associatedTypeNames: ["Value"]
         )
         assertDependentDictionary(
             keys,
             type: [String: Int].self,
-            dependency: .dictionary(key: "Key", value: nil)
+            associatedTypeNames: ["Key"]
         )
         assertDependentDictionary(
             entries,
             type: [String: String].self,
-            dependency: .dictionary(key: "Key", value: "Value")
+            associatedTypeNames: ["Key", "Value"]
         )
 
         stub.when { $0.transform(values: any()) }.then { (values: [String: String]) in
@@ -396,17 +398,17 @@ struct NestedAssociatedTypeTests {
         assertDependentDictionary(
             try #require(stub.recorder.runtimeMethod(for: 0)),
             type: [String: String].self,
-            dependency: .dictionary(key: nil, value: "Value")
+            associatedTypeNames: ["Value"]
         )
         assertDependentDictionary(
             try #require(stub.recorder.runtimeMethod(for: 1)),
             type: [String: Int].self,
-            dependency: .dictionary(key: "Key", value: nil)
+            associatedTypeNames: ["Key"]
         )
         assertDependentDictionary(
             try #require(stub.recorder.runtimeMethod(for: 2)),
             type: [String: String].self,
-            dependency: .dictionary(key: "Key", value: "Value")
+            associatedTypeNames: ["Key", "Value"]
         )
 
         stub.when { $0.transform(values: any()) }.thenReturn(["explicit": "value"])
@@ -476,38 +478,27 @@ struct NestedAssociatedTypeTests {
         try assertRecursiveDescriptor(
             #require(stub.recorder.runtimeMethod(for: 0)),
             type: Optional<Int?>.self,
-            dependency: .optional(.optional(.associatedType("Element"))),
-            usesIndirectLayout: true
+            associatedTypeNames: ["Element"]
         )
         try assertRecursiveDescriptor(
             #require(stub.recorder.runtimeMethod(for: 1)),
             type: Optional<[Int]>.self,
-            dependency: .optional(.array(.associatedType("Element"))),
-            usesIndirectLayout: false
+            associatedTypeNames: ["Element"]
         )
         try assertRecursiveDescriptor(
             #require(stub.recorder.runtimeMethod(for: 2)),
             type: Array<Int?>.self,
-            dependency: .array(.optional(.associatedType("Element"))),
-            usesIndirectLayout: false
+            associatedTypeNames: ["Element"]
         )
         try assertRecursiveDescriptor(
             #require(stub.recorder.runtimeMethod(for: 3)),
             type: Set<Int?>.self,
-            dependency: .set(.optional(.associatedType("Element"))),
-            usesIndirectLayout: false
+            associatedTypeNames: ["Element"]
         )
         try assertRecursiveDescriptor(
             #require(stub.recorder.runtimeMethod(for: 4)),
             type: NestedDictionary.self,
-            dependency: .dictionary(
-                key: .optional(.set(.optional(.associatedType("Element")))),
-                value: .dictionary(
-                    key: .independent,
-                    value: .array(.optional(.associatedType("Element")))
-                )
-            ),
-            usesIndirectLayout: false
+            associatedTypeNames: ["Element"]
         )
     }
 
@@ -542,8 +533,8 @@ struct NestedAssociatedTypeTests {
         let optionalArrayDescriptor = try #require(
             stub.recorder.runtimeMethod(for: 1)
         )
-        #expect(isIndirect(opaqueDescriptor.returnLayout))
-        #expect(isSingleWordInteger(optionalArrayDescriptor.returnLayout))
+        #expect(opaqueDescriptor.returnAssociatedTypeUse.names == ["Element"])
+        #expect(optionalArrayDescriptor.returnAssociatedTypeUse.names == ["Element"])
 
         stub.when { $0.transform(optionalArray: any()) }
             .thenReturn([42])
@@ -631,7 +622,7 @@ struct NestedAssociatedTypeTests {
         )
         #expect(initializer.argumentConventions == [.concrete])
         #expect(
-            initializer.argumentDependencies == [.associatedType(name: "Element")]
+            initializer.argumentAssociatedTypeUses == [.associatedType(named: "Element")]
         )
         #expect(initializer.argumentOwnerships == [.owned])
         #expect(initializer.returnConvention == .selfType)
@@ -699,28 +690,24 @@ private func exerciseConsumingNestedAssociatedTypes(
         #require(stub.recorder.runtimeMethod(for: 0)),
         type: NestedAssociatedTypeBox?.self,
         convention: .associatedType(name: "Element"),
-        isIndirect: true,
         isAsync: false
     )
     try assertConsumingNestedDescriptor(
         #require(stub.recorder.runtimeMethod(for: 1)),
         type: [NestedAssociatedTypeBox].self,
         convention: .concrete,
-        isIndirect: false,
         isAsync: false
     )
     try assertConsumingNestedDescriptor(
         #require(stub.recorder.runtimeMethod(for: 2)),
         type: NestedAssociatedTypeBox?.self,
         convention: .associatedType(name: "Element"),
-        isIndirect: true,
         isAsync: true
     )
     try assertConsumingNestedDescriptor(
         #require(stub.recorder.runtimeMethod(for: 3)),
         type: [NestedAssociatedTypeBox].self,
         convention: .concrete,
-        isIndirect: false,
         isAsync: true
     )
 
@@ -767,12 +754,10 @@ private func assertConsumingNestedDescriptor<T>(
     _ method: RuntimeMethod,
     type: T.Type,
     convention: RuntimeValueConvention,
-    isIndirect expectedIndirect: Bool,
     isAsync: Bool,
     sourceLocation: SourceLocation = #_sourceLocation
 ) throws {
     let argumentType = try #require(method.argumentTypes.first)
-    let layout = try #require(method.argumentLayouts.first)
     #expect(method.argumentTypes.count == 1, sourceLocation: sourceLocation)
     #expect(
         ObjectIdentifier(argumentType) == ObjectIdentifier(type),
@@ -780,16 +765,11 @@ private func assertConsumingNestedDescriptor<T>(
     )
     #expect(method.argumentConventions == [convention], sourceLocation: sourceLocation)
     #expect(
-        method.argumentDependencies == [.associatedType(name: "Element")],
+        method.argumentAssociatedTypeUses == [.associatedType(named: "Element")],
         sourceLocation: sourceLocation
     )
     #expect(method.argumentOwnerships == [.owned], sourceLocation: sourceLocation)
     #expect(method.isAsync == isAsync, sourceLocation: sourceLocation)
-    if expectedIndirect {
-        #expect(isIndirect(layout), sourceLocation: sourceLocation)
-    } else {
-        #expect(isSingleWordInteger(layout), sourceLocation: sourceLocation)
-    }
 }
 
 private func makeOptionalNestedAssociatedTypeBox() -> (
@@ -818,54 +798,10 @@ private func makeArrayNestedAssociatedTypeBox() -> (
     )
 }
 
-private indirect enum ExpectedDependency: Equatable {
-    case independent
-    case associatedType(String)
-    case optional(Self)
-    case array(Self)
-    case set(Self)
-    case dictionary(key: Self, value: Self)
-    case result(success: Self, failure: Self)
-    case genericClass(String, [Self])
-}
-
-private func expectedDependency(
-    _ dependency: RuntimeValueDependency
-) -> ExpectedDependency {
-    switch dependency {
-        case .independent:
-            .independent
-        case .associatedType(let name), .referenceAssociatedType(let name):
-            .associatedType(name)
-        case .optional(let wrapped):
-            .optional(expectedDependency(wrapped))
-        case .array(let element):
-            .array(expectedDependency(element))
-        case .set(let element):
-            .set(expectedDependency(element))
-        case .dictionary(let key, let value):
-            .dictionary(
-                key: expectedDependency(key),
-                value: expectedDependency(value)
-            )
-        case .result(let success, let failure):
-            .result(
-                success: expectedDependency(success),
-                failure: expectedDependency(failure)
-            )
-        case .genericClass(let name, let arguments):
-            .genericClass(
-                name,
-                arguments.map(expectedDependency)
-            )
-    }
-}
-
 private func assertRecursiveDescriptor<Value>(
     _ method: RuntimeMethod,
     type: Value.Type,
-    dependency: ExpectedDependency,
-    usesIndirectLayout: Bool,
+    associatedTypeNames: [String],
     sourceLocation: SourceLocation = #_sourceLocation
 ) throws {
     let argument = try #require(
@@ -882,23 +818,13 @@ private func assertRecursiveDescriptor<Value>(
         sourceLocation: sourceLocation
     )
     #expect(
-        expectedDependency(argument.value.dependency) == dependency,
+        argument.value.associatedTypeUse.names == associatedTypeNames,
         sourceLocation: sourceLocation
     )
     #expect(
-        expectedDependency(method.result.dependency) == dependency,
+        method.result.associatedTypeUse.names == associatedTypeNames,
         sourceLocation: sourceLocation
     )
-    if usesIndirectLayout {
-        #expect(isIndirect(argument.value.layout), sourceLocation: sourceLocation)
-        #expect(isIndirect(method.result.layout), sourceLocation: sourceLocation)
-    } else {
-        #expect(
-            isSingleWordInteger(argument.value.layout),
-            sourceLocation: sourceLocation
-        )
-        #expect(isSingleWordInteger(method.result.layout), sourceLocation: sourceLocation)
-    }
 }
 
 private func assertDependentIndirect<Argument, Result>(
@@ -910,8 +836,7 @@ private func assertDependentIndirect<Argument, Result>(
     #expect(method.argumentTypes.count == 1, sourceLocation: sourceLocation)
     guard
         let actualArgumentType = method.argumentTypes.first,
-        let argumentConvention = method.argumentConventions.first,
-        let argumentLayout = method.argumentLayouts.first
+        let argumentConvention = method.argumentConventions.first
     else {
         return
     }
@@ -928,7 +853,7 @@ private func assertDependentIndirect<Argument, Result>(
         sourceLocation: sourceLocation
     )
     #expect(
-        method.argumentDependencies == [.associatedType(name: "Element")],
+        method.argumentAssociatedTypeUses == [.associatedType(named: "Element")],
         sourceLocation: sourceLocation
     )
     #expect(
@@ -936,11 +861,9 @@ private func assertDependentIndirect<Argument, Result>(
         sourceLocation: sourceLocation
     )
     #expect(
-        method.returnDependency == .associatedType(name: "Element"),
+        method.returnAssociatedTypeUse == .associatedType(named: "Element"),
         sourceLocation: sourceLocation
     )
-    #expect(isIndirect(argumentLayout), sourceLocation: sourceLocation)
-    #expect(isIndirect(method.returnLayout), sourceLocation: sourceLocation)
 }
 
 private func assertDependentArray<Argument, Result>(
@@ -952,8 +875,7 @@ private func assertDependentArray<Argument, Result>(
     #expect(method.argumentTypes.count == 1, sourceLocation: sourceLocation)
     guard
         let actualArgumentType = method.argumentTypes.first,
-        let argumentConvention = method.argumentConventions.first,
-        let argumentLayout = method.argumentLayouts.first
+        let argumentConvention = method.argumentConventions.first
     else {
         return
     }
@@ -968,15 +890,13 @@ private func assertDependentArray<Argument, Result>(
     #expect(argumentConvention == .concrete, sourceLocation: sourceLocation)
     #expect(method.returnConvention == .concrete, sourceLocation: sourceLocation)
     #expect(
-        method.argumentDependencies == [.associatedType(name: "Element")],
+        method.argumentAssociatedTypeUses == [.associatedType(named: "Element")],
         sourceLocation: sourceLocation
     )
     #expect(
-        method.returnDependency == .associatedType(name: "Element"),
+        method.returnAssociatedTypeUse == .associatedType(named: "Element"),
         sourceLocation: sourceLocation
     )
-    #expect(isSingleWordInteger(argumentLayout), sourceLocation: sourceLocation)
-    #expect(isSingleWordInteger(method.returnLayout), sourceLocation: sourceLocation)
 }
 
 private func assertDependentSet<Argument, Result>(
@@ -988,8 +908,7 @@ private func assertDependentSet<Argument, Result>(
     #expect(method.argumentTypes.count == 1, sourceLocation: sourceLocation)
     guard
         let actualArgumentType = method.argumentTypes.first,
-        let argumentConvention = method.argumentConventions.first,
-        let argumentLayout = method.argumentLayouts.first
+        let argumentConvention = method.argumentConventions.first
     else {
         return
     }
@@ -1004,21 +923,19 @@ private func assertDependentSet<Argument, Result>(
     #expect(argumentConvention == .concrete, sourceLocation: sourceLocation)
     #expect(method.returnConvention == .concrete, sourceLocation: sourceLocation)
     #expect(
-        method.argumentDependencies == [.associatedType(name: "Element")],
+        method.argumentAssociatedTypeUses == [.associatedType(named: "Element")],
         sourceLocation: sourceLocation
     )
     #expect(
-        method.returnDependency == .associatedType(name: "Element"),
+        method.returnAssociatedTypeUse == .associatedType(named: "Element"),
         sourceLocation: sourceLocation
     )
-    #expect(isSingleWordInteger(argumentLayout), sourceLocation: sourceLocation)
-    #expect(isSingleWordInteger(method.returnLayout), sourceLocation: sourceLocation)
 }
 
 private func assertDependentDictionary<Value>(
     _ method: RuntimeMethod,
     type: Value.Type,
-    dependency: RuntimeValueDependency,
+    associatedTypeNames: [String],
     sourceLocation: SourceLocation = #_sourceLocation
 ) {
     #expect(method.argumentTypes.count == 1, sourceLocation: sourceLocation)
@@ -1032,21 +949,14 @@ private func assertDependentDictionary<Value>(
     )
     #expect(method.argumentConventions == [.concrete], sourceLocation: sourceLocation)
     #expect(method.returnConvention == .concrete, sourceLocation: sourceLocation)
-    #expect(method.argumentDependencies == [dependency], sourceLocation: sourceLocation)
-    #expect(method.returnDependency == dependency, sourceLocation: sourceLocation)
     #expect(
-        method.argumentLayouts.first.map(isSingleWordInteger) == true,
+        method.argumentAssociatedTypeUses.map(\.names) == [associatedTypeNames],
         sourceLocation: sourceLocation
     )
-    #expect(isSingleWordInteger(method.returnLayout), sourceLocation: sourceLocation)
-}
-
-private func isIndirect(_ layout: ABIClass) -> Bool {
-    if case .indirect = layout { true } else { false }
-}
-
-private func isSingleWordInteger(_ layout: ABIClass) -> Bool {
-    if case .integer(words: 1) = layout { true } else { false }
+    #expect(
+        method.returnAssociatedTypeUse.names == associatedTypeNames,
+        sourceLocation: sourceLocation
+    )
 }
 
 private func expectRequirementMismatch(
@@ -1078,6 +988,3 @@ private func expectDictionaryRequirementMismatch(
             && actual.contains("associated Dictionary key Key")
     }
 }
-import TestDoublesRuntime
-import TestDoublesRuntimeMetadata
-import InternalRuntimeContract

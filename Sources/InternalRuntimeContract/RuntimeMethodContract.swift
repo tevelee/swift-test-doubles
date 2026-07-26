@@ -41,62 +41,35 @@ package enum RuntimeArgumentOwnership: String, Equatable, Sendable {
     case owned
 }
 
-/// The source-level positions in which a value depends on an associated type.
+/// The associated types used by one source-level requirement value.
 ///
-/// Unlike the runtime's descriptor graph, this has no metadata identity or
-/// layout decision. It preserves enough requirement schema to validate and
-/// diagnose explicit requirements without exposing witness transport.
-package indirect enum RuntimeValueDependency: Equatable, Sendable {
-    case independent
-    case associatedType(name: String)
-    case referenceAssociatedType(name: String)
-    case optional(RuntimeValueDependency)
-    case array(RuntimeValueDependency)
-    case set(RuntimeValueDependency)
-    case dictionary(key: RuntimeValueDependency, value: RuntimeValueDependency)
-    case result(success: RuntimeValueDependency, failure: RuntimeValueDependency)
-    case genericClass(name: String, arguments: [RuntimeValueDependency])
+/// This ordered summary intentionally omits the type expression that contains
+/// each use and all witness transport details. The metadata runtime keeps that
+/// information in its private descriptor graph; recording and diagnostics
+/// need only know whether a value is dependent and which names it uses.
+package struct RuntimeAssociatedTypeUse: Equatable, Sendable {
+    /// Associated-type names in source order, with later duplicates removed.
+    package let names: [String]
 
-    /// Convenience construction for source-level schemas and tests.
-    package static func associatedType(_ name: String) -> Self {
-        .associatedType(name: name)
+    package init(names: [String]) {
+        var seen = Set<String>()
+        self.names = names.filter { seen.insert($0).inserted }
     }
 
-    /// Convenience construction for dictionary schemas that name direct
-    /// associated-type positions only.
-    package static func dictionary(key: String?, value: String?) -> Self {
-        .dictionary(
-            key: key.map(Self.associatedType) ?? .independent,
-            value: value.map(Self.associatedType) ?? .independent
-        )
+    /// A value that does not use an associated type.
+    package static let none = Self(names: [])
+
+    /// A value that uses one named associated type.
+    package static func associatedType(named name: String) -> Self {
+        Self(names: [name])
     }
 
-    /// The compatibility projection used by scalar method summaries.
-    /// Full structural relationships remain on ``RuntimeValue/dependency``.
-    package var legacyProjection: Self {
-        switch self {
-            case .independent:
-                .independent
-            case .associatedType(let name), .referenceAssociatedType(let name):
-                .associatedType(name: name)
-            case .optional(let wrapped), .array(let wrapped), .set(let wrapped):
-                wrapped.legacyProjection
-            case .dictionary(let key, let value):
-                .dictionary(
-                    key: key.legacyProjection,
-                    value: value.legacyProjection
-                )
-            case .result(let success, let failure):
-                .result(
-                    success: success.legacyProjection,
-                    failure: failure.legacyProjection
-                )
-            case .genericClass(let name, let arguments):
-                .genericClass(
-                    name: name,
-                    arguments: arguments.map(\.legacyProjection)
-                )
-        }
+    package var isDependent: Bool {
+        names.isEmpty == false
+    }
+
+    package var firstName: String? {
+        names.first
     }
 }
 
@@ -104,16 +77,16 @@ package indirect enum RuntimeValueDependency: Equatable, Sendable {
 package struct RuntimeValue: @unchecked Sendable {
     package let type: Any.Type
     package let convention: RuntimeValueConvention
-    package let dependency: RuntimeValueDependency
+    package let associatedTypeUse: RuntimeAssociatedTypeUse
 
     package init(
         type: Any.Type,
         convention: RuntimeValueConvention,
-        dependency: RuntimeValueDependency
+        associatedTypeUse: RuntimeAssociatedTypeUse
     ) {
         self.type = type
         self.convention = convention
-        self.dependency = dependency
+        self.associatedTypeUse = associatedTypeUse
     }
 }
 
@@ -144,7 +117,7 @@ package struct RuntimeMethod: @unchecked Sendable {
     package let arguments: [RuntimeArgument]
     package let result: RuntimeValue
     package let typedErrorType: Any.Type?
-    package let typedErrorDependency: RuntimeValueDependency?
+    package let typedErrorAssociatedTypeUse: RuntimeAssociatedTypeUse?
     /// A source-level class constraint on `Self`; layout remains runtime-owned.
     package let selfIsClassConstrained: Bool
     package let isThrowing: Bool
@@ -162,7 +135,7 @@ package struct RuntimeMethod: @unchecked Sendable {
         arguments: [RuntimeArgument],
         result: RuntimeValue,
         typedErrorType: Any.Type?,
-        typedErrorDependency: RuntimeValueDependency?,
+        typedErrorAssociatedTypeUse: RuntimeAssociatedTypeUse?,
         selfIsClassConstrained: Bool,
         isThrowing: Bool,
         isAsync: Bool,
@@ -178,7 +151,7 @@ package struct RuntimeMethod: @unchecked Sendable {
         self.arguments = arguments
         self.result = result
         self.typedErrorType = typedErrorType
-        self.typedErrorDependency = typedErrorDependency
+        self.typedErrorAssociatedTypeUse = typedErrorAssociatedTypeUse
         self.selfIsClassConstrained = selfIsClassConstrained
         self.isThrowing = isThrowing
         self.isAsync = isAsync
@@ -199,13 +172,13 @@ package struct RuntimeMethod: @unchecked Sendable {
     package var argumentOwnerships: [RuntimeArgumentOwnership] {
         arguments.map(\.ownership)
     }
-    package var argumentDependencies: [RuntimeValueDependency] {
-        arguments.map { $0.value.dependency.legacyProjection }
+    package var argumentAssociatedTypeUses: [RuntimeAssociatedTypeUse] {
+        arguments.map(\.value.associatedTypeUse)
     }
     package var returnType: Any.Type { result.type }
     package var returnConvention: RuntimeValueConvention { result.convention }
-    package var returnDependency: RuntimeValueDependency {
-        result.dependency.legacyProjection
+    package var returnAssociatedTypeUse: RuntimeAssociatedTypeUse {
+        result.associatedTypeUse
     }
 
     /// A human-readable requirement signature used only by diagnostics.
@@ -223,7 +196,7 @@ private func runtimeMethodSignatureDescription(_ method: RuntimeMethod) -> Strin
     let typedErrorDescription = method.typedErrorType.map {
         runtimeTypedErrorDescription(
             type: $0,
-            dependency: method.typedErrorDependency ?? .independent
+            associatedTypeUse: method.typedErrorAssociatedTypeUse ?? .none
         )
     }
     let throwingEffect =
@@ -264,21 +237,8 @@ private func runtimeArgumentDescription(_ argument: RuntimeArgument) -> String {
 }
 
 private func runtimeValueDescription(_ value: RuntimeValue) -> String {
-    switch value.dependency.legacyProjection {
-        case .independent:
-            break
-        case .associatedType(let name), .referenceAssociatedType(let name):
-            return "\(runtimeTypeName(value.type)) [associated \(name)]"
-        case .dictionary(let key, let valueDependency):
-            let components = [
-                key.directAssociatedTypeName.map { "key \($0)" },
-                valueDependency.directAssociatedTypeName.map { "value \($0)" }
-            ].compactMap { $0 }.joined(separator: ", ")
-            return "\(runtimeTypeName(value.type)) [associated Dictionary \(components)]"
-        case .result, .genericClass:
-            break
-        case .optional, .array, .set:
-            break
+    if value.associatedTypeUse.isDependent {
+        return "\(runtimeTypeName(value.type)) [associated \(value.associatedTypeUse.names.joined(separator: ", "))]"
     }
 
     return switch value.convention {
@@ -295,29 +255,15 @@ private func runtimeValueDescription(_ value: RuntimeValue) -> String {
 
 private func runtimeTypedErrorDescription(
     type: Any.Type,
-    dependency: RuntimeValueDependency
+    associatedTypeUse: RuntimeAssociatedTypeUse
 ) -> String {
     let typeName = runtimeTypeName(type)
-    if let name = dependency.directAssociatedTypeName {
-        return "\(typeName) [associated \(name)]"
-    }
-    if case .genericClass = dependency {
-        return "\(typeName) [associated-dependent generic class]"
+    if associatedTypeUse.isDependent {
+        return "\(typeName) [associated \(associatedTypeUse.names.joined(separator: ", "))]"
     }
     return typeName
 }
 
 private func runtimeTypeName(_ type: Any.Type) -> String {
     type == Void.self ? "Swift.Void" : String(reflecting: type)
-}
-
-extension RuntimeValueDependency {
-    fileprivate var directAssociatedTypeName: String? {
-        switch self {
-            case .associatedType(let name), .referenceAssociatedType(let name):
-                name
-            default:
-                nil
-        }
-    }
 }

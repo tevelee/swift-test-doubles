@@ -227,7 +227,10 @@ private func callWithValue(
             method.typedErrorType.map(ObjectIdentifier.init)
                 == ObjectIdentifier(AsyncAssociatedTypedThrowsError.self)
         )
-        #expect(method.typedErrorDependency == .associatedType(name: "Failure"))
+        #expect(
+            method.typedErrorAssociatedTypeUse
+                == .associatedType(named: "Failure")
+        )
 
         await stub.when { try await $0.load(equal(false)) }.thenReturn("loaded")
         await stub.when { try await $0.load(equal(true)) }.then {

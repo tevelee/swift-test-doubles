@@ -118,7 +118,10 @@ private final class NonEquatableCallerBinding {}
         )
         let method = try #require(stub.recorder.runtimeMethod(for: 0))
 
-        #expect(method.typedErrorDependency == .associatedType(name: "Failure"))
+        #expect(
+            method.typedErrorAssociatedTypeUse
+                == .associatedType(named: "Failure")
+        )
         stub.when { try $0.load(equal(false)) }.thenReturn(42)
         stub.when { try $0.load(equal(true)) }.thenThrow(CallerBoundTypedFailure(code: 7))
 

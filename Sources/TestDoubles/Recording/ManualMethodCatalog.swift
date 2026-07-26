@@ -67,10 +67,10 @@ struct ManualMethodCatalog {
             result: RuntimeValue(
                 type: returnType,
                 convention: .concrete,
-                dependency: .independent
+                associatedTypeUse: .none
             ),
             typedErrorType: nil,
-            typedErrorDependency: nil,
+            typedErrorAssociatedTypeUse: nil,
             selfIsClassConstrained: false,
             isThrowing: isThrowing,
             isAsync: isAsync,

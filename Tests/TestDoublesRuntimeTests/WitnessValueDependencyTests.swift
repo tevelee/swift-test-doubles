@@ -52,6 +52,8 @@ private protocol SecondDependencyScope {
         #expect(first != reference)
         #expect(reference != secondReference)
         #expect(reference.legacyProjection == .associatedType(name: "Value"))
+        #expect(reference.associatedTypeUse.names == ["Value"])
+        #expect(reference.associatedTypeUse == first.associatedTypeUse)
         #expect(reference.usesOpaqueValueWitnessConvention == false)
         #expect(reference.usesSupportedReferenceAssociatedTransport)
         #expect(
@@ -124,6 +126,7 @@ private protocol SecondDependencyScope {
             arguments: [first]
         )
         #expect(genericClass.isAssociatedTypeDependent)
+        #expect(genericClass.associatedTypeUse.names == ["Value"])
         #expect(genericClass.usesOpaqueValueWitnessConvention == false)
         #expect(
             genericClass
@@ -134,6 +137,41 @@ private protocol SecondDependencyScope {
                     ),
                     arguments: [first]
                 )
+        )
+    }
+
+    @Test func semanticUseErasesRawDependencyShapeInSourceOrder() {
+        let key = WitnessValueDependency.associatedType(name: "Key")
+        let value = WitnessValueDependency.associatedType(name: "Value")
+        let failure = WitnessValueDependency.associatedType(name: "Failure")
+        let shape = WitnessValueDependency.result(
+            success: .dictionary(
+                key: key,
+                value: .optional(.array(value))
+            ),
+            failure: .genericClass(
+                constructor: GenericClassID(
+                    name: "Module.ErrorBox",
+                    descriptorAddress: 1
+                ),
+                arguments: [value, failure, key]
+            )
+        )
+
+        #expect(shape.associatedTypeUse.names == ["Key", "Value", "Failure"])
+        #expect(
+            WitnessValueDependency.optional(value).associatedTypeUse
+                == WitnessValueDependency.array(value).associatedTypeUse
+        )
+        #expect(
+            WitnessValueDependency.genericClass(
+                constructor: GenericClassID(
+                    name: "Module.OtherBox",
+                    descriptorAddress: 2
+                ),
+                arguments: [value]
+            ).associatedTypeUse
+                == value.associatedTypeUse
         )
     }
 }

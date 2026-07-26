@@ -119,59 +119,34 @@ private func useLinkedUnsupportedResultAssociatedTypeProbe(
         try assertResultDescriptor(
             #require(stub.recorder.runtimeMethod(for: 0)),
             type: Result<Int, ResultAssociatedFailure>.self,
-            dependency: .result(
-                success: .associatedType("Element"),
-                failure: .independent
-            ),
-            convention: .associatedType(name: "Element"),
-            isIndirect: true
+            associatedTypeNames: ["Element"],
+            convention: .associatedType(name: "Element")
         )
         try assertResultDescriptor(
             #require(stub.recorder.runtimeMethod(for: 1)),
             type: Result<[Int], ResultAssociatedFailure>.self,
-            dependency: .result(
-                success: .array(.independent),
-                failure: .associatedType("Failure")
-            ),
-            convention: .associatedType(name: "Failure"),
-            isIndirect: true
+            associatedTypeNames: ["Failure"],
+            convention: .associatedType(name: "Failure")
         )
         try assertResultDescriptor(
             #require(stub.recorder.runtimeMethod(for: 2)),
             type: Result<[Int], ResultAssociatedFailure>.self,
-            dependency: .result(
-                success: .array(.associatedType("Element")),
-                failure: .independent
-            ),
-            convention: .concrete,
-            isIndirect: false
+            associatedTypeNames: ["Element"],
+            convention: .concrete
         )
         try assertResultDescriptor(
             #require(stub.recorder.runtimeMethod(for: 3)),
             type: Result<Set<Int?>, ResultAssociatedFailure>.self,
-            dependency: .result(
-                success: .set(.optional(.associatedType("Element"))),
-                failure: .independent
-            ),
-            convention: .concrete,
-            isIndirect: false
+            associatedTypeNames: ["Element"],
+            convention: .concrete
         )
         try assertResultDescriptor(
             #require(stub.recorder.runtimeMethod(for: 4)),
             type: Optional<
                 [String: Result<[Int]?, ResultAssociatedFailure>]
             >.self,
-            dependency: .optional(
-                .dictionary(
-                    key: .independent,
-                    value: .result(
-                        success: .optional(.array(.associatedType("Element"))),
-                        failure: .independent
-                    )
-                )
-            ),
-            convention: .concrete,
-            isIndirect: false
+            associatedTypeNames: ["Element"],
+            convention: .concrete
         )
 
         stub.when(returning: Result<Int, ResultAssociatedFailure>.success(0)) {
@@ -308,55 +283,11 @@ private func useLinkedUnsupportedResultAssociatedTypeProbe(
     }
 }
 
-private indirect enum ResultDependencyShape: Equatable {
-    case independent
-    case associatedType(String)
-    case optional(Self)
-    case array(Self)
-    case set(Self)
-    case dictionary(key: Self, value: Self)
-    case result(success: Self, failure: Self)
-    case genericClass(String, [Self])
-}
-
-private func resultDependencyShape(
-    _ dependency: RuntimeValueDependency
-) -> ResultDependencyShape {
-    switch dependency {
-        case .independent:
-            .independent
-        case .associatedType(let name), .referenceAssociatedType(let name):
-            .associatedType(name)
-        case .optional(let wrapped):
-            .optional(resultDependencyShape(wrapped))
-        case .array(let element):
-            .array(resultDependencyShape(element))
-        case .set(let element):
-            .set(resultDependencyShape(element))
-        case .dictionary(let key, let value):
-            .dictionary(
-                key: resultDependencyShape(key),
-                value: resultDependencyShape(value)
-            )
-        case .result(let success, let failure):
-            .result(
-                success: resultDependencyShape(success),
-                failure: resultDependencyShape(failure)
-            )
-        case .genericClass(let name, let arguments):
-            .genericClass(
-                name,
-                arguments.map(resultDependencyShape)
-            )
-    }
-}
-
 private func assertResultDescriptor<Value>(
     _ method: RuntimeMethod,
     type: Value.Type,
-    dependency: ResultDependencyShape,
+    associatedTypeNames: [String],
     convention: RuntimeValueConvention,
-    isIndirect _: Bool,
     sourceLocation: SourceLocation = #_sourceLocation
 ) throws {
     let argument = try #require(
@@ -373,11 +304,11 @@ private func assertResultDescriptor<Value>(
         sourceLocation: sourceLocation
     )
     #expect(
-        resultDependencyShape(argument.value.dependency) == dependency,
+        argument.value.associatedTypeUse.names == associatedTypeNames,
         sourceLocation: sourceLocation
     )
     #expect(
-        resultDependencyShape(method.result.dependency) == dependency,
+        method.result.associatedTypeUse.names == associatedTypeNames,
         sourceLocation: sourceLocation
     )
     #expect(argument.value.convention == convention, sourceLocation: sourceLocation)

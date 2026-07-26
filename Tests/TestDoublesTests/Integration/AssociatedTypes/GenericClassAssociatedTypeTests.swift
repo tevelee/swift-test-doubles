@@ -48,41 +48,22 @@ private func useLinkedConstrainedGenericClassAssociatedProbe(
         try assertGenericClassDescriptor(
             #require(stub.recorder.runtimeMethod(for: 0)),
             type: ExternalAssociatedBox<Int>.self,
-            dependency: .genericClass(
-                "TestDoublesFixtures.ExternalAssociatedBox",
-                [.associatedType("Element")]
-            )
+            associatedTypeNames: ["Element"]
         )
         try assertGenericClassDescriptor(
             #require(stub.recorder.runtimeMethod(for: 1)),
             type: ExternalAssociatedPair<[Int]?, String>.self,
-            dependency: .genericClass(
-                "TestDoublesFixtures.ExternalAssociatedPair",
-                [
-                    .optional(.array(.associatedType("Element"))),
-                    .independent
-                ]
-            )
+            associatedTypeNames: ["Element"]
         )
         try assertGenericClassDescriptor(
             #require(stub.recorder.runtimeMethod(for: 2)),
             type: Optional<ExternalAssociatedBox<Int>>.self,
-            dependency: .optional(
-                .genericClass(
-                    "TestDoublesFixtures.ExternalAssociatedBox",
-                    [.associatedType("Element")]
-                )
-            )
+            associatedTypeNames: ["Element"]
         )
         try assertGenericClassDescriptor(
             #require(stub.recorder.runtimeMethod(for: 3)),
             type: [ExternalAssociatedBox<Int>].self,
-            dependency: .array(
-                .genericClass(
-                    "TestDoublesFixtures.ExternalAssociatedBox",
-                    [.associatedType("Element")]
-                )
-            )
+            associatedTypeNames: ["Element"]
         )
         try assertGenericClassDescriptor(
             #require(stub.recorder.runtimeMethod(for: 4)),
@@ -90,16 +71,7 @@ private func useLinkedConstrainedGenericClassAssociatedProbe(
                 ExternalAssociatedBox<Int>,
                 String
             >.self,
-            dependency: .genericClass(
-                "TestDoublesFixtures.ExternalAssociatedPair",
-                [
-                    .genericClass(
-                        "TestDoublesFixtures.ExternalAssociatedBox",
-                        [.associatedType("Element")]
-                    ),
-                    .independent
-                ]
-            )
+            associatedTypeNames: ["Element"]
         )
 
         let placeholder = ExternalAssociatedBox(0)
@@ -217,10 +189,7 @@ private func useLinkedConstrainedGenericClassAssociatedProbe(
         try assertGenericClassDescriptor(
             #require(stub.recorder.runtimeMethod(for: 0)),
             type: ExternalConstrainedAssociatedBox<Int>.self,
-            dependency: .genericClass(
-                "TestDoublesFixtures.ExternalConstrainedAssociatedBox",
-                [.associatedType("Element")]
-            )
+            associatedTypeNames: ["Element"]
         )
 
         let placeholder = ExternalConstrainedAssociatedBox(0)
@@ -236,53 +205,10 @@ private func useLinkedConstrainedGenericClassAssociatedProbe(
     }
 }
 
-private indirect enum GenericClassDependencyShape: Equatable {
-    case independent
-    case associatedType(String)
-    case optional(Self)
-    case array(Self)
-    case set(Self)
-    case dictionary(key: Self, value: Self)
-    case result(success: Self, failure: Self)
-    case genericClass(String, [Self])
-}
-
-private func genericClassDependencyShape(
-    _ dependency: RuntimeValueDependency
-) -> GenericClassDependencyShape {
-    switch dependency {
-        case .independent:
-            .independent
-        case .associatedType(let name), .referenceAssociatedType(let name):
-            .associatedType(name)
-        case .optional(let wrapped):
-            .optional(genericClassDependencyShape(wrapped))
-        case .array(let element):
-            .array(genericClassDependencyShape(element))
-        case .set(let element):
-            .set(genericClassDependencyShape(element))
-        case .dictionary(let key, let value):
-            .dictionary(
-                key: genericClassDependencyShape(key),
-                value: genericClassDependencyShape(value)
-            )
-        case .result(let success, let failure):
-            .result(
-                success: genericClassDependencyShape(success),
-                failure: genericClassDependencyShape(failure)
-            )
-        case .genericClass(let name, let arguments):
-            .genericClass(
-                name,
-                arguments.map(genericClassDependencyShape)
-            )
-    }
-}
-
 private func assertGenericClassDescriptor<Value>(
     _ method: RuntimeMethod,
     type: Value.Type,
-    dependency: GenericClassDependencyShape,
+    associatedTypeNames: [String],
     sourceLocation: SourceLocation = #_sourceLocation
 ) throws {
     let argument = try #require(
@@ -299,24 +225,13 @@ private func assertGenericClassDescriptor<Value>(
         sourceLocation: sourceLocation
     )
     #expect(
-        genericClassDependencyShape(argument.value.dependency) == dependency,
+        argument.value.associatedTypeUse.names == associatedTypeNames,
         sourceLocation: sourceLocation
     )
     #expect(
-        genericClassDependencyShape(method.result.dependency) == dependency,
+        method.result.associatedTypeUse.names == associatedTypeNames,
         sourceLocation: sourceLocation
     )
     #expect(argument.value.convention == .concrete, sourceLocation: sourceLocation)
     #expect(method.result.convention == .concrete, sourceLocation: sourceLocation)
-    #expect(
-        isSingleReference(argument.value.layout),
-        sourceLocation: sourceLocation
-    )
-    #expect(isSingleReference(method.result.layout), sourceLocation: sourceLocation)
 }
-
-private func isSingleReference(_ layout: ABIClass) -> Bool {
-    if case .integer(words: 1) = layout { true } else { false }
-}
-import TestDoublesRuntime
-import TestDoublesRuntimeMetadata

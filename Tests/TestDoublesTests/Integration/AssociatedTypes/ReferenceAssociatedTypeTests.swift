@@ -13,24 +13,24 @@ import Testing
             try #require(stub.recorder.runtimeMethod(for: $0))
         }
 
-        assertDirectReference(methods[0].arguments[0].value)
-        assertDirectReference(methods[1].arguments[0].value)
-        assertDirectReference(methods[1].result)
+        assertAssociatedTypeUse(methods[0].arguments[0].value)
+        assertAssociatedTypeUse(methods[1].arguments[0].value)
+        assertAssociatedTypeUse(methods[1].result)
         #expect(methods[1].arguments[0].ownership == .borrowed)
-        assertDirectReference(methods[2].arguments[0].value)
+        assertAssociatedTypeUse(methods[2].arguments[0].value)
         #expect(methods[2].arguments[0].ownership == .owned)
-        assertOptionalReference(methods[3].arguments[0].value)
-        assertOptionalReference(methods[3].result)
-        assertDirectReference(methods[4].arguments[0].value)
-        assertDirectReference(methods[4].result)
+        assertAssociatedTypeUse(methods[3].arguments[0].value)
+        assertAssociatedTypeUse(methods[3].result)
+        assertAssociatedTypeUse(methods[4].arguments[0].value)
+        assertAssociatedTypeUse(methods[4].result)
         #expect(methods[4].isAsync)
-        assertDirectReference(methods[5].arguments[0].value)
+        assertAssociatedTypeUse(methods[5].arguments[0].value)
         #expect(methods[5].arguments[0].ownership == .owned)
         #expect(methods[5].isAsync)
-        assertDirectReference(methods[6].arguments[0].value)
-        assertDirectReference(methods[6].result)
-        assertOptionalReference(methods[7].arguments[0].value)
-        assertOptionalReference(methods[7].result)
+        assertAssociatedTypeUse(methods[6].arguments[0].value)
+        assertAssociatedTypeUse(methods[6].result)
+        assertAssociatedTypeUse(methods[7].arguments[0].value)
+        assertAssociatedTypeUse(methods[7].result)
         #expect(methods[7].isAsync)
     }
 
@@ -126,8 +126,14 @@ import Testing
         let synchronous = try #require(stub.recorder.runtimeMethod(for: 0))
         let asynchronous = try #require(stub.recorder.runtimeMethod(for: 1))
 
-        assertReferenceDependency(synchronous.typedErrorDependency)
-        assertReferenceDependency(asynchronous.typedErrorDependency)
+        assertAssociatedTypeUse(
+            synchronous.typedErrorAssociatedTypeUse,
+            named: "Failure"
+        )
+        assertAssociatedTypeUse(
+            asynchronous.typedErrorAssociatedTypeUse,
+            named: "Failure"
+        )
 
         stub.when { try $0.load(equal(false)) }.thenReturn(40)
         stub.when { try $0.load(equal(true)) }.thenThrow(
@@ -171,8 +177,14 @@ import Testing
 
         #expect(synchronous.typedErrorType.map(ObjectIdentifier.init) == expectedType)
         #expect(asynchronous.typedErrorType.map(ObjectIdentifier.init) == expectedType)
-        assertReferenceDependency(synchronous.typedErrorDependency)
-        assertReferenceDependency(asynchronous.typedErrorDependency)
+        assertAssociatedTypeUse(
+            synchronous.typedErrorAssociatedTypeUse,
+            named: "Failure"
+        )
+        assertAssociatedTypeUse(
+            asynchronous.typedErrorAssociatedTypeUse,
+            named: "Failure"
+        )
 
         stub.when { try $0.load(equal(false)) }.thenReturn(50)
         stub.when { try $0.load(equal(true)) }.thenThrow(
@@ -284,7 +296,10 @@ import Testing
         )
         let method = try #require(stub.recorder.runtimeMethod(for: 0))
 
-        assertReferenceDependency(method.typedErrorDependency)
+        assertAssociatedTypeUse(
+            method.typedErrorAssociatedTypeUse,
+            named: "Failure"
+        )
         stub.when { try $0.load() }.thenThrow(
             ExternalReferenceAssociatedFailure(code: 44)
         )
@@ -310,10 +325,10 @@ import Testing
         )
         let direct = try #require(stub.recorder.runtimeMethod(for: 1))
         let optional = try #require(stub.recorder.runtimeMethod(for: 3))
-        assertDirectReference(direct.arguments[0].value)
-        assertDirectReference(direct.result)
-        assertOptionalReference(optional.arguments[0].value)
-        assertOptionalReference(optional.result)
+        assertAssociatedTypeUse(direct.arguments[0].value)
+        assertAssociatedTypeUse(direct.result)
+        assertAssociatedTypeUse(optional.arguments[0].value)
+        assertAssociatedTypeUse(optional.result)
 
         expectUnsupportedProtocolShape(
             containing: "must be bound to a concrete class type"
@@ -515,38 +530,22 @@ private func exerciseConsumingReferenceArguments() async throws -> (
     return (weakSync, weakAsync, syncCounter, asyncCounter)
 }
 
-private func assertDirectReference(
+private func assertAssociatedTypeUse(
     _ value: RuntimeValue,
     sourceLocation: SourceLocation = #_sourceLocation
 ) {
-    assertReferenceDependency(value.dependency, sourceLocation: sourceLocation)
+    assertAssociatedTypeUse(
+        value.associatedTypeUse,
+        sourceLocation: sourceLocation
+    )
 }
 
-private func assertOptionalReference(
-    _ value: RuntimeValue,
+private func assertAssociatedTypeUse(
+    _ associatedTypeUse: RuntimeAssociatedTypeUse?,
+    named name: String = "Element",
     sourceLocation: SourceLocation = #_sourceLocation
 ) {
-    guard case .optional(let wrapped) = value.dependency else {
-        Issue.record(
-            "Expected an Optional dependency.",
-            sourceLocation: sourceLocation
-        )
-        return
-    }
-    assertReferenceDependency(wrapped, sourceLocation: sourceLocation)
-}
-
-private func assertReferenceDependency(
-    _ dependency: RuntimeValueDependency?,
-    sourceLocation: SourceLocation = #_sourceLocation
-) {
-    guard case .referenceAssociatedType = dependency else {
-        Issue.record(
-            "Expected an associated-type dependency.",
-            sourceLocation: sourceLocation
-        )
-        return
-    }
+    #expect(associatedTypeUse?.names == [name], sourceLocation: sourceLocation)
 }
 
 // Reopen the unbound existential, then retype the concrete class through the

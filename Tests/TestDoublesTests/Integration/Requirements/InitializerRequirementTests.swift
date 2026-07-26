@@ -433,7 +433,7 @@ private func assertAssociatedTypeInitializerDescriptor<Argument>(
         sourceLocation: sourceLocation
     )
     #expect(
-        method.argumentDependencies == [.associatedType(name: "Element")],
+        method.argumentAssociatedTypeUses == [.associatedType(named: "Element")],
         sourceLocation: sourceLocation
     )
     #expect(method.argumentOwnerships == [.owned], sourceLocation: sourceLocation)

@@ -534,7 +534,7 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
         #expect(stub().value() == 42)
     }
 
-    @Test func associatedTypeClassLayoutUsesReferenceTransport() throws {
+    @Test func associatedTypeClassUseStaysSemantic() throws {
         _ = RealReferenceElementAssociatedTypeProbe()
         let stub = try Stub<any ReferenceElementAssociatedTypeProbe>(
             associatedTypes: [
@@ -547,18 +547,12 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
         )
         let method = try #require(stub.recorder.runtimeMethod(for: 0))
 
-        #expect(method.argumentLayouts.count == 1)
-        guard case .integer(words: 1) = method.argumentLayouts[0] else {
-            Issue.record("Expected a direct reference argument.")
-            return
-        }
-        guard case .integer(words: 1) = method.returnLayout else {
-            Issue.record("Expected a direct reference result.")
-            return
-        }
         #expect(
-            method.arguments[0].value.dependency
-                .usesOpaqueValueWitnessConvention == false
+            method.arguments[0].value.associatedTypeUse
+                == .associatedType(named: "Element")
+        )
+        #expect(
+            method.returnAssociatedTypeUse == .associatedType(named: "Element")
         )
     }
 

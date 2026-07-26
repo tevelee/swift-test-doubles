@@ -24,7 +24,8 @@ enum SpyTypedForwardingError: Error, Equatable {
 }
 
 /// Large enough that its error layout is `.indirect`, forcing
-/// `typedErrorUsesIndirectResultSlot` regardless of the result type's own
+/// `MethodDescriptor.typedErrorUsesIndirectResultSlot` regardless of the
+/// result type's own
 /// layout — this exercises `typedErrorDestinationLocation` through
 /// forwarding, distinct from `SpyTypedForwardingError`'s register-sized case.
 struct SpyIndirectTypedForwardingError: Error, Equatable {

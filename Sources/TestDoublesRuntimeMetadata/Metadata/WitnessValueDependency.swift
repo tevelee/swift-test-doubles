@@ -1,3 +1,5 @@
+import InternalRuntimeContract
+
 /// One associated-type occurrence in a protocol requirement signature.
 ///
 /// Resolved occurrences retain the declaring protocol as part of their
@@ -86,6 +88,18 @@ package indirect enum WitnessValueDependency: Equatable, Sendable {
             case .genericClass(_, let arguments):
                 arguments.contains(where: \.isAssociatedTypeDependent)
         }
+    }
+
+    /// The dependency-free summary used by the semantic runtime contract.
+    ///
+    /// Traversal follows source type-expression order: wrapper payloads are
+    /// visited before later siblings, dictionary keys before values, Result
+    /// successes before failures, and generic-class arguments left to right.
+    /// `RuntimeAssociatedTypeUse` removes later duplicate names. Neither the
+    /// surrounding type form nor the declaration identity and reference ABI of
+    /// an occurrence cross this boundary.
+    package var associatedTypeUse: RuntimeAssociatedTypeUse {
+        RuntimeAssociatedTypeUse(names: associatedTypeNames)
     }
 
     /// Whether Swift's formal generic witness convention transports the
@@ -196,6 +210,23 @@ package indirect enum WitnessValueDependency: Equatable, Sendable {
                     constructor: constructor,
                     arguments: arguments.map(\.legacyProjection)
                 )
+        }
+    }
+
+    private var associatedTypeNames: [String] {
+        switch self {
+            case .independent:
+                []
+            case .associatedType(let reference):
+                [reference.name]
+            case .optional(let wrapped), .array(let wrapped), .set(let wrapped):
+                wrapped.associatedTypeNames
+            case .dictionary(let key, let value):
+                key.associatedTypeNames + value.associatedTypeNames
+            case .result(let success, let failure):
+                success.associatedTypeNames + failure.associatedTypeNames
+            case .genericClass(_, let arguments):
+                arguments.flatMap(\.associatedTypeNames)
         }
     }
 }
