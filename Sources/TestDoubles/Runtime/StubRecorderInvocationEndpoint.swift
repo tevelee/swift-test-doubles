@@ -1,42 +1,56 @@
 import InternalRuntimeContract
 import TestDoublesRuntime
 
-/// Supplies the immutable requirement catalog for a fabricated stub.
+/// Immutable requirement catalog shared by a fabricated stub's semantic
+/// recorder and invocation endpoint.
 ///
-/// This remains in the semantic target: it maps a trampoline slot to a
-/// test-double requirement, without exposing runtime storage or ABI metadata.
-protocol StubRuntimeMethodProvider: AnyObject {
-    func runtimeMethod(at slot: Int) -> MethodDescriptor?
+/// This remains in the semantic target: it maps trampoline slots to
+/// test-double requirements, without exposing runtime storage or ABI metadata.
+final class FabricatedMethodCatalog {
+    private let methods: [MethodDescriptor]
+    private let modifyDispatchDescriptors: [Int: ModifyDispatchDescriptor]
+
+    init(
+        methods: [MethodDescriptor],
+        modifyDispatchDescriptors: [Int: ModifyDispatchDescriptor]
+    ) {
+        self.methods = methods
+        self.modifyDispatchDescriptors = modifyDispatchDescriptors
+    }
+
+    func method(at slot: Int) -> MethodDescriptor? {
+        guard methods.indices.contains(slot) else { return nil }
+        return methods[slot]
+    }
+
+    func modifyDispatch(forGetterSlot getterSlot: Int) -> ModifyDispatchDescriptor? {
+        modifyDispatchDescriptors[getterSlot]
+    }
 }
 
 /// The transitional public-layer endpoint for compiler-typed witness
 /// adapters. Keeping the recorder here prevents the runtime target from
 /// depending on TestDoubles recording semantics.
 final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
-    @unchecked Sendable,
-    StubRuntimeMethodProvider
+    @unchecked Sendable
 {
     private let recorder: StubRecorder
     /// Runtime-fabricated stubs have a fixed, dense method catalog. Keeping
     /// that catalog next to the semantic endpoint avoids taking the manual
     /// recorder catalog lock for every trampoline call.
-    private let fabricatedMethods: [MethodDescriptor]?
-    private let fabricatedModifyDispatches: [Int: ModifyDispatchDescriptor]?
+    private let fabricatedMethodCatalog: FabricatedMethodCatalog?
 
     init(recorder: StubRecorder) {
         self.recorder = recorder
-        fabricatedMethods = nil
-        fabricatedModifyDispatches = nil
+        fabricatedMethodCatalog = nil
     }
 
     init(
         recorder: StubRecorder,
-        fabricatedMethods: [MethodDescriptor],
-        modifyDispatchDescriptors: [Int: ModifyDispatchDescriptor]
+        fabricatedMethodCatalog: FabricatedMethodCatalog
     ) {
         self.recorder = recorder
-        self.fabricatedMethods = fabricatedMethods
-        fabricatedModifyDispatches = modifyDispatchDescriptors
+        self.fabricatedMethodCatalog = fabricatedMethodCatalog
     }
 
     var invocationMode: RuntimeInvocationMode {
@@ -83,8 +97,12 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
     func modifyDispatch(
         forGetterSlot getterSlot: Int
     ) -> RuntimeModifyDispatch? {
-        if let fabricatedModifyDispatches {
-            guard let dispatch = fabricatedModifyDispatches[getterSlot] else {
+        if let fabricatedMethodCatalog {
+            guard
+                let dispatch = fabricatedMethodCatalog.modifyDispatch(
+                    forGetterSlot: getterSlot
+                )
+            else {
                 return nil
             }
             return RuntimeModifyDispatch(
@@ -233,12 +251,9 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
         return method
     }
 
-    func runtimeMethod(at slot: Int) -> MethodDescriptor? {
-        if let fabricatedMethods {
-            guard fabricatedMethods.indices.contains(slot) else {
-                return nil
-            }
-            return fabricatedMethods[slot]
+    private func runtimeMethod(at slot: Int) -> MethodDescriptor? {
+        if let fabricatedMethodCatalog {
+            return fabricatedMethodCatalog.method(at: slot)
         }
         return recorder.runtimeMethod(for: slot)
     }
