@@ -94,12 +94,18 @@ Swift layers:
 - Semantic method information: requirement kind and receiver, effects,
   result policy, ownership intent, dynamic-`Self` convention, and dispatch
   identities.
+- `RuntimeAssociatedTypeUse`: an ordered summary of the associated-type names
+  used by a value. It intentionally omits the surrounding type expression,
+  declaration identity, and reference or opaque transport.
 - Explicit requirement schemas and an opaque typed-witness-adapter token.
 - An opaque `AnyObject` lifecycle callback that lets the semantic endpoint
   retain published runtime resources without importing their ABI type.
 
 The contract deliberately does not name method descriptors, protocol
 descriptors, witness tables, frames, ABI layouts, Echo types, or C types.
+In particular, it does not enumerate supported containers or generic classes:
+those are source-schema input on one side of the boundary and Metadata's
+validated runtime capability on the other.
 
 `TestDoublesRuntimeSupport` owns low-level facts shared by metadata and
 execution: runtime construction errors, process-wide runtime-symbol lookup and
@@ -113,6 +119,10 @@ fabrication, or public semantic policy.
   resolution.
 - Requirement descriptors, ABI value classification, type parsing and lookup,
   witness-signature parsing, and thunk discovery.
+- The complete `WitnessValueDependency` graph: associated declaration identity,
+  supported `Optional`/collection/`Result`/generic-class shapes, and the
+  `AnyObject` reference-transport exception. Its projection to the contract is
+  only `RuntimeAssociatedTypeUse`.
 - Fabricated payload identity and requirement validation. It has no fabricated
   invocation registry, endpoint, forwarding target, or trampoline execution
   state.
