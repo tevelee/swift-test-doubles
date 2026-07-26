@@ -27,6 +27,35 @@ check_absent() {
   fi
 }
 
+check_public_runtime_imports() {
+  local pattern='^[[:space:]]*import[[:space:]]+(TestDoublesRuntime|TestDoublesRuntimeMetadata)\b'
+  local matches=''
+  local file
+  local file_matches
+
+  while IFS= read -r file; do
+    if file_matches="$(grep --extended-regexp --line-number --with-filename "$pattern" "$file")"; then
+      matches+="$file_matches"$'\n'
+    else
+      local status=$?
+      if [[ "$status" -ne 1 ]]; then
+        echo "Boundary scan failed while checking public runtime imports." >&2
+        exit "$status"
+      fi
+    fi
+  done < <(
+    find Sources/TestDoubles -type f -name '*.swift' \
+      ! -path 'Sources/TestDoubles/Runtime/RuntimeStubFactory.swift' \
+      -print
+  )
+
+  if [[ -n "$matches" ]]; then
+    echo 'Only RuntimeStubFactory.swift may import ABI runtime targets:' >&2
+    printf '%s' "$matches" >&2
+    failure=1
+  fi
+}
+
 check_absent \
   '^[[:space:]]*(@_exported[[:space:]]+)?import[[:space:]]+(Echo|CTestDoublesTrampoline)\b' \
   'The public TestDoubles target must not import low-level dependencies:' \
@@ -43,31 +72,21 @@ check_absent \
   Sources/TestDoublesRuntime
 
 check_absent \
-  '\b(StubRecorder|StubError|Dummy|Spy|IssueReporting)\b' \
-  'Runtime must not depend on TestDoubles semantic or diagnostic types:' \
-  Sources/TestDoublesRuntime
-
-check_absent \
   '^[[:space:]]*@_exported[[:space:]]+import\b' \
   'Runtime metadata must not re-export implementation dependencies:' \
   Sources/TestDoublesRuntimeMetadata
 
-check_absent \
-  '\b(StubRecorder|StubError|Dummy|Spy|IssueReporting)\b' \
-  'Runtime metadata must not depend on TestDoubles semantic or diagnostic types:' \
-  Sources/TestDoublesRuntimeMetadata
-
-check_absent \
-  '^[[:space:]]*import[[:space:]]+(TestDoublesRuntime|TestDoublesRuntimeMetadata)\b' \
-  'Only Sources/TestDoubles/Runtime may import ABI runtime targets:' \
-  Sources/TestDoubles/Doubles \
-  Sources/TestDoubles/Metadata \
-  Sources/TestDoubles/Recording
+check_public_runtime_imports
 
 check_absent \
   '^[[:space:]]*@_exported[[:space:]]+import\b' \
   'The public Runtime facade must not re-export the ABI runtime:' \
   Sources/TestDoubles/Runtime
+
+check_absent \
+  '\b(FabricatedRuntimePlan|RuntimeFabricatedInvocation|FabricatedWitnessTableFactory|FabricatedWitnessTables|FabricatedExistentialStorage|FabricatedRuntimeResources)\b' \
+  'Public construction must not name runtime fabrication implementation types:' \
+  Sources/TestDoubles
 
 check_absent \
   '^[[:space:]]*import[[:space:]]+(TestDoublesRuntime|TestDoublesRuntimeMetadata|Echo|CTestDoublesTrampoline)\b' \

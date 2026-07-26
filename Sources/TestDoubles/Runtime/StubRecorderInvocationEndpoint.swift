@@ -1,5 +1,4 @@
 import InternalRuntimeContract
-import TestDoublesRuntimeMetadata
 
 /// The transitional public-layer endpoint for compiler-typed witness
 /// adapters. Keeping the recorder here prevents the runtime target from
