@@ -72,7 +72,7 @@ extension RuntimeStubFactory {
         layout: ProtocolLayout,
         associatedTypeBindings: AssociatedTypeBindings
     ) throws {
-        try TestDoublesRuntime.validateExplicitRequirementsAgainstLinkedConformances(
+        try TestDoublesRuntimeMetadata.validateExplicitRequirementsAgainstLinkedConformances(
             methods,
             layout: layout,
             associatedTypeBindings: associatedTypeBindings

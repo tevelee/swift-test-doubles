@@ -1,4 +1,5 @@
 import Echo
+import TestDoublesRuntimeSupport
 
 package struct GenericClassID: Equatable, Sendable {
     package let name: String

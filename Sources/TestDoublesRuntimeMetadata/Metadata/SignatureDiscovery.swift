@@ -1,6 +1,7 @@
 import CTestDoublesTrampoline
 import Echo
 import Foundation
+import TestDoublesRuntimeSupport
 
 package enum GetterEffectDiscoveryPolicy {
     /// Preserves automatic discovery's historical behavior: synchronous

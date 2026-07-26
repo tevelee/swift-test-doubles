@@ -39,6 +39,7 @@ let package = Package(
             dependencies: [
                 "InternalRuntimeContract",
                 "TestDoublesRuntimeMetadata",
+                "TestDoublesRuntimeSupport",
                 "CTestDoublesTrampoline",
                 .product(name: "Echo", package: "Echo")
             ]
@@ -47,9 +48,14 @@ let package = Package(
             name: "TestDoublesRuntimeMetadata",
             dependencies: [
                 "InternalRuntimeContract",
+                "TestDoublesRuntimeSupport",
                 "CTestDoublesTrampoline",
                 .product(name: "Echo", package: "Echo")
             ]
+        ),
+        .target(
+            name: "TestDoublesRuntimeSupport",
+            dependencies: ["CTestDoublesTrampoline"]
         ),
         .target(name: "InternalRuntimeContract"),
         .target(
@@ -80,6 +86,7 @@ let package = Package(
                 "TestDoubles",
                 "TestDoublesRuntime",
                 "TestDoublesRuntimeMetadata",
+                "TestDoublesRuntimeSupport",
                 "InternalRuntimeContract",
                 "TestDoublesFixtures",
                 "TestDoublesResilientFixtures",

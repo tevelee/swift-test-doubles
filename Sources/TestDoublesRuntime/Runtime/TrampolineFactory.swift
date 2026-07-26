@@ -1,5 +1,6 @@
 import CTestDoublesTrampoline
 import TestDoublesRuntimeMetadata
+import TestDoublesRuntimeSupport
 
 package enum TrampolineFactory {
     package enum Kind {

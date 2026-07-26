@@ -1,3 +1,5 @@
+import TestDoublesRuntimeSupport
+
 /// The physical call-frame transport for one protocol witness signature.
 ///
 /// This is the single allocation pass for formal arguments and the hidden

@@ -1,4 +1,5 @@
 import CTestDoublesTrampoline
+import TestDoublesRuntimeMetadata
 
 /// Typed access to the C call-frame storage populated by the assembly bridge.
 ///

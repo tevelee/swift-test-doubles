@@ -1,6 +1,7 @@
 import Foundation
 import InternalRuntimeContract
 import TestDoublesRuntimeMetadata
+import TestDoublesRuntimeSupport
 
 /// Keeps fabricated conformance descriptors and witness tables at stable
 /// addresses for as long as Swift's generic-metadata caches may reference them.

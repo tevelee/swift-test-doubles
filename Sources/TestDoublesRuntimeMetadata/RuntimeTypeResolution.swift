@@ -1,6 +1,7 @@
 import CTestDoublesTrampoline
 import Echo
 import Foundation
+import TestDoublesRuntimeSupport
 
 package func resolveRuntimeType(_ name: String) -> Any.Type? {
     guard let syntax = DemangledTypeSyntax(name) else { return nil }

@@ -1,5 +1,5 @@
 import Echo
-import TestDoublesRuntimeMetadata
+import TestDoublesRuntimeSupport
 
 /// Keeps ABI-facing validation inside the runtime target. The public target
 /// retains only its stable diagnostic vocabulary and maps these failures at
