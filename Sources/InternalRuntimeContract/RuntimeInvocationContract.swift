@@ -97,6 +97,13 @@ package protocol RuntimeInvocationEndpoint: AnyObject, Sendable {
         as resultType: Result.Type
     ) throws -> Result
 
+    /// Receives the runtime resource owner after witness publication and
+    /// before a fabricated existential commits its witness identities.
+    ///
+    /// The contract uses `AnyObject` so the public semantic layer can retain
+    /// the owner without importing ABI resource types.
+    func runtimeResourcesDidPublish(_ resources: AnyObject)
+
     func runtimePayload() -> AnyObject?
 
     func dependentResult(

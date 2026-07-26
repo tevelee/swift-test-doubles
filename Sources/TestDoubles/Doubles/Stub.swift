@@ -1,4 +1,3 @@
-import TestDoublesRuntime
 /// A runtime-generated test double for a protocol existential.
 ///
 /// Use the throwing initializer without requirements when signatures are
@@ -13,11 +12,11 @@ import TestDoublesRuntime
 /// ```
 public class Stub<P> {
     let recorder: StubRecorder
-    private let storage: FabricatedExistentialStorage<P>
+    private let storage: RuntimeStubFactory.Storage<P>
 
     struct PreparedStub {
         let recorder: StubRecorder
-        let storage: FabricatedExistentialStorage<P>
+        let storage: RuntimeStubFactory.Storage<P>
     }
 
     init(prepared: PreparedStub) {

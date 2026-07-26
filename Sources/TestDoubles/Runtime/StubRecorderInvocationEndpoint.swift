@@ -102,6 +102,10 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
         )
     }
 
+    func runtimeResourcesDidPublish(_ resources: AnyObject) {
+        recorder.attachRuntimeResources(resources)
+    }
+
     func runtimePayload() -> AnyObject? {
         recorder.makeRuntimePayload()
     }

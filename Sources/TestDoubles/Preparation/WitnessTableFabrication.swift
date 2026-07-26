@@ -22,27 +22,14 @@ extension Stub {
         )
         let endpoint = StubRecorderInvocationEndpoint(recorder: recorder)
         let protocolName = String(reflecting: P.self)
-        let runtimePlan = try FabricatedRuntimePlan.prepare(
-            for: representation,
-            protocolName: protocolName
-        )
-        let invocation = RuntimeFabricatedInvocation(
-            endpoint: endpoint,
-            methodsByIndex: Dictionary(
-                uniqueKeysWithValues: methods.map { ($0.index, $0) }
-            ),
-            forwarder: forwarder
-        )
-        let fabricated = try FabricatedWitnessTableFactory.fabricate(
+        let storage: RuntimeStubFactory.Storage<P> = try RuntimeStubFactory.fabricate(
             layout: layout,
             associatedTypeBindings: associatedTypeBindings,
-            invocation: invocation,
-            conformanceTypeReference: runtimePlan.conformanceTypeReference
-        )
-        recorder.attachRuntimeResources(fabricated.resources)
-        let storage: FabricatedExistentialStorage<P> = try fabricated.makeStorage(
             representation: representation,
-            payload: runtimePlan.makePayload(resources: fabricated.resources)
+            methods: methods,
+            endpoint: endpoint,
+            protocolName: protocolName,
+            forwarder: forwarder
         )
         return PreparedStub(recorder: recorder, storage: storage)
     }
@@ -50,10 +37,6 @@ extension Stub {
     static func prepareDummy() throws -> Dummy<P>.PreparedDummy {
         let shape = try extractProtocolShape()
         let protocolName = String(reflecting: P.self)
-        let runtimePlan = try FabricatedRuntimePlan.prepare(
-            for: shape.representation,
-            protocolName: protocolName
-        )
         let endpoint = DummyInvocationEndpoint(
             typeDescription: protocolName,
             requirements: Dictionary(
@@ -70,18 +53,13 @@ extension Stub {
                 }
             )
         )
-        let fabricated = try FabricatedWitnessTableFactory.fabricate(
+        let storage: RuntimeStubFactory.Storage<P> = try RuntimeStubFactory.fabricate(
             layout: shape.layout,
             associatedTypeBindings: shape.associatedTypeBindings,
-            invocation: RuntimeFabricatedInvocation(
-                endpoint: endpoint,
-                methodsByIndex: [:]
-            ),
-            conformanceTypeReference: runtimePlan.conformanceTypeReference
-        )
-        let storage: FabricatedExistentialStorage<P> = try fabricated.makeStorage(
             representation: shape.representation,
-            payload: runtimePlan.makePayload(resources: fabricated.resources)
+            methods: [],
+            endpoint: endpoint,
+            protocolName: protocolName
         )
         return Dummy<P>.PreparedDummy(storage: storage)
     }
@@ -151,6 +129,10 @@ final class DummyInvocationEndpoint: RuntimeInvocationEndpoint,
         _ = request.arguments
         _ = resultType
         rejectInvocation(at: request.slot)
+    }
+
+    func runtimeResourcesDidPublish(_ resources: AnyObject) {
+        _ = resources
     }
 
     func runtimePayload() -> AnyObject? { nil }

@@ -1,5 +1,3 @@
-import TestDoublesRuntime
-
 /// A runtime-generated test double that must not be used by the code under test.
 ///
 /// Use a dummy when an API requires a protocol value but the exercised code
@@ -16,10 +14,10 @@ import TestDoublesRuntime
 /// requirement. This fail-closed behavior exposes an incorrect dummy as a test
 /// bug instead of inventing a result.
 public final class Dummy<P> {
-    private let storage: FabricatedExistentialStorage<P>
+    private let storage: RuntimeStubFactory.Storage<P>
 
     struct PreparedDummy {
-        let storage: FabricatedExistentialStorage<P>
+        let storage: RuntimeStubFactory.Storage<P>
     }
 
     init(prepared: PreparedDummy) {
