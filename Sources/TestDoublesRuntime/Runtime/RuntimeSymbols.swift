@@ -26,6 +26,10 @@ package enum RuntimeSymbols {
         private static let handle = Handle(value: dlopen(nil, RTLD_NOW))
     #endif
     private static let lock = NSLock()
+    // The C fallback walks loaded images. Keep only that walk serial: it has
+    // process-wide loader state, while holding `lock` across a Swift runtime
+    // query can invert the runtime's own locks under concurrent fabrication.
+    private static let symbolLookupLock = NSLock()
     private nonisolated(unsafe) static var addresses: [String: Address] = [:]
     private nonisolated(unsafe) static var demangledNames: [String: String] = [:]
     private nonisolated(unsafe) static var runtimeTypes: [String: Any.Type] = [:]
@@ -36,10 +40,10 @@ package enum RuntimeSymbols {
         }
         let address = name.withCString { symbol in
             #if os(WASI)
-                td_symbol_address(symbol).map(UnsafeMutableRawPointer.init(mutating:))
+                fallbackSymbolAddress(symbol)
             #else
                 handle.value.flatMap { dlsym($0, symbol) }
-                    ?? td_symbol_address(symbol).map(UnsafeMutableRawPointer.init(mutating:))
+                    ?? fallbackSymbolAddress(symbol)
             #endif
         }
         guard let address else { return nil }
@@ -96,6 +100,12 @@ package enum RuntimeSymbols {
         lock.lock()
         defer { lock.unlock() }
         return operation()
+    }
+
+    private static func fallbackSymbolAddress(_ symbol: UnsafePointer<CChar>) -> UnsafeMutableRawPointer? {
+        symbolLookupLock.lock()
+        defer { symbolLookupLock.unlock() }
+        return td_symbol_address(symbol).map(UnsafeMutableRawPointer.init(mutating:))
     }
 }
 

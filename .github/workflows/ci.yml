@@ -180,20 +180,17 @@ jobs:
       - name: Resolve dependency checkouts
         run: swift package --scratch-path .build/linux resolve
       - name: Test debug
-        # Swift Testing's Linux scheduler can hang the full ABI suite under
-        # concurrent execution. Keep this platform deterministic; native and
-        # sanitizer jobs continue to exercise parallel execution.
-        env:
-          SWT_EXPERIMENTAL_MAXIMUM_PARALLELIZATION_WIDTH: "1"
         run: >-
           swift test
+          --parallel
+          --experimental-maximum-parallelization-width 4
           --scratch-path .build/linux
       - name: Test release
-        env:
-          SWT_EXPERIMENTAL_MAXIMUM_PARALLELIZATION_WIDTH: "1"
         run: >-
           swift test
           -c release
+          --parallel
+          --experimental-maximum-parallelization-width 4
           --skip ExitTests
           --scratch-path .build/linux
 
