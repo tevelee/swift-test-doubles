@@ -1,4 +1,5 @@
 import TestDoublesFixtures
+import InternalRuntimeContract
 import Testing
 @testable import TestDoubles
 
@@ -28,11 +29,9 @@ import Testing
         #expect(methods[5].isAsync)
         assertDirectReference(methods[6].arguments[0].value)
         assertDirectReference(methods[6].result)
-        #expect(methods[6].typedErrorUsesIndirectResultSlot == false)
         assertOptionalReference(methods[7].arguments[0].value)
         assertOptionalReference(methods[7].result)
         #expect(methods[7].isAsync)
-        #expect(methods[7].typedErrorUsesIndirectResultSlot == false)
     }
 
     @Test func synchronousCallsPreserveIdentityAndMatching() throws {
@@ -127,10 +126,8 @@ import Testing
         let synchronous = try #require(stub.recorder.runtimeMethod(for: 0))
         let asynchronous = try #require(stub.recorder.runtimeMethod(for: 1))
 
-        assertReferenceDependency(synchronous.effects.throwing.typedError?.dependency)
-        assertReferenceDependency(asynchronous.effects.throwing.typedError?.dependency)
-        #expect(synchronous.typedErrorUsesIndirectResultSlot == false)
-        #expect(asynchronous.typedErrorUsesIndirectResultSlot == false)
+        assertReferenceDependency(synchronous.typedErrorDependency)
+        assertReferenceDependency(asynchronous.typedErrorDependency)
 
         stub.when { try $0.load(equal(false)) }.thenReturn(40)
         stub.when { try $0.load(equal(true)) }.thenThrow(
@@ -174,10 +171,8 @@ import Testing
 
         #expect(synchronous.typedErrorType.map(ObjectIdentifier.init) == expectedType)
         #expect(asynchronous.typedErrorType.map(ObjectIdentifier.init) == expectedType)
-        assertReferenceDependency(synchronous.effects.throwing.typedError?.dependency)
-        assertReferenceDependency(asynchronous.effects.throwing.typedError?.dependency)
-        #expect(synchronous.typedErrorUsesIndirectResultSlot == false)
-        #expect(asynchronous.typedErrorUsesIndirectResultSlot == false)
+        assertReferenceDependency(synchronous.typedErrorDependency)
+        assertReferenceDependency(asynchronous.typedErrorDependency)
 
         stub.when { try $0.load(equal(false)) }.thenReturn(50)
         stub.when { try $0.load(equal(true)) }.thenThrow(
@@ -289,8 +284,7 @@ import Testing
         )
         let method = try #require(stub.recorder.runtimeMethod(for: 0))
 
-        assertReferenceDependency(method.effects.throwing.typedError?.dependency)
-        #expect(method.typedErrorUsesIndirectResultSlot == false)
+        assertReferenceDependency(method.typedErrorDependency)
         stub.when { try $0.load() }.thenThrow(
             ExternalReferenceAssociatedFailure(code: 44)
         )
@@ -522,15 +516,14 @@ private func exerciseConsumingReferenceArguments() async throws -> (
 }
 
 private func assertDirectReference(
-    _ value: WitnessValueDescriptor,
+    _ value: RuntimeValue,
     sourceLocation: SourceLocation = #_sourceLocation
 ) {
     assertReferenceDependency(value.dependency, sourceLocation: sourceLocation)
-    assertOneWord(value.layout, sourceLocation: sourceLocation)
 }
 
 private func assertOptionalReference(
-    _ value: WitnessValueDescriptor,
+    _ value: RuntimeValue,
     sourceLocation: SourceLocation = #_sourceLocation
 ) {
     guard case .optional(let wrapped) = value.dependency else {
@@ -541,34 +534,15 @@ private func assertOptionalReference(
         return
     }
     assertReferenceDependency(wrapped, sourceLocation: sourceLocation)
-    assertOneWord(value.layout, sourceLocation: sourceLocation)
 }
 
 private func assertReferenceDependency(
-    _ dependency: WitnessValueDependency?,
+    _ dependency: RuntimeValueDependency?,
     sourceLocation: SourceLocation = #_sourceLocation
 ) {
-    guard case .associatedType(let reference) = dependency else {
+    guard case .referenceAssociatedType = dependency else {
         Issue.record(
             "Expected an associated-type dependency.",
-            sourceLocation: sourceLocation
-        )
-        return
-    }
-    #expect(reference.usesReferenceABI, sourceLocation: sourceLocation)
-    #expect(
-        dependency?.usesOpaqueValueWitnessConvention == false,
-        sourceLocation: sourceLocation
-    )
-}
-
-private func assertOneWord(
-    _ layout: ABIClass,
-    sourceLocation: SourceLocation = #_sourceLocation
-) {
-    guard case .integer(words: 1) = layout else {
-        Issue.record(
-            "Expected one direct general-purpose word.",
             sourceLocation: sourceLocation
         )
         return

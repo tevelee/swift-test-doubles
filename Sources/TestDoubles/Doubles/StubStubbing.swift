@@ -1,4 +1,4 @@
-import TestDoublesRuntime
+import InternalRuntimeContract
 extension Stub {
     /// Configures a nonfailable initializer requirement.
     ///
@@ -189,7 +189,7 @@ extension Stub {
 
     private func requireInitializerRecording(
         _ recording: RecordedCall,
-        returnConvention: WitnessValueConvention
+        returnConvention: RuntimeValueConvention
     ) {
         guard let method = recorder.runtimeMethod(for: recording.methodIndex) else {
             preconditionFailure("[TestDoubles] The recording closure must invoke a requirement.")

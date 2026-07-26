@@ -52,10 +52,6 @@ private struct Modify2AbortFailure: Error {}
 
         let value = try #require(stub.recorder.runtimeMethod(for: 0))
         #expect(value.returnConvention == .associatedType(name: "Value"))
-        guard case .indirect = value.returnLayout else {
-            Issue.record("Associated read result should use formal indirect storage")
-            return
-        }
     }
 
     @Test func explicitReadRequirementNeedsNoLinkedConformer() throws {

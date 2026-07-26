@@ -1,4 +1,5 @@
 import TestDoublesRuntime
+import InternalRuntimeContract
 import Foundation
 import Testing
 @testable import TestDoubles
@@ -219,18 +220,18 @@ private func useLinkedAssociatedReadWriteSubscript(
         let setter = try #require(stub.recorder.runtimeMethod(for: 1))
         #expect(
             setter.argumentConventions == [
-                WitnessValueConvention.associatedType(name: "Value"),
-                WitnessValueConvention.concrete
+                RuntimeValueConvention.associatedType(name: "Value"),
+                RuntimeValueConvention.concrete
             ])
         #expect(
             setter.argumentOwnerships == [
-                WitnessArgumentOwnership.owned,
-                WitnessArgumentOwnership.borrowed
+                RuntimeArgumentOwnership.owned,
+                RuntimeArgumentOwnership.borrowed
             ])
         #expect(
             setter.argumentDependencies == [
-                WitnessValueDependency.associatedType(name: "Value"),
-                WitnessValueDependency.independent
+                RuntimeValueDependency.associatedType(name: "Value"),
+                RuntimeValueDependency.independent
             ])
     }
 

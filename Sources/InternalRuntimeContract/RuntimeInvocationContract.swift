@@ -38,6 +38,13 @@ package enum RuntimeRecordingResult: @unchecked Sendable {
     case synthesize
 }
 
+/// An opaque generated-value payload.
+///
+/// The public layer uses this only to preserve dynamic-`Self` identities
+/// during recording. Its concrete storage and the resources it owns remain
+/// implementation details of the ABI runtime.
+package protocol RuntimePayload: AnyObject {}
+
 /// The endpoint mode used to select borrowed or consuming argument decoding.
 package enum RuntimeInvocationMode: Sendable {
     case normal

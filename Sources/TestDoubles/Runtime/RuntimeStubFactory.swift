@@ -6,6 +6,12 @@ import TestDoublesRuntime
 /// Construction policy and semantic endpoints stay in `TestDoubles`; this
 /// facade keeps the ABI storage type out of public test-double classes.
 enum RuntimeStubFactory {
+    static func makePayload(
+        resources: AnyObject
+    ) -> AnyObject {
+        TestDoublesRuntime.FabricatedPayload(resources: resources)
+    }
+
     struct ProtocolShape {
         private let shape: TestDoublesRuntime.RuntimeStubFactory.ProtocolShape
 

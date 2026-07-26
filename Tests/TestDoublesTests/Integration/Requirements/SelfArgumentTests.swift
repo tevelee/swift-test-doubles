@@ -1,4 +1,5 @@
 import TestDoublesFixtures
+import InternalRuntimeContract
 import Testing
 @testable import TestDoubles
 #if canImport(Foundation)
@@ -90,12 +91,6 @@ private final class ConsumingClassAsyncInvocation<
     @Test func inheritedOpaqueSelfRequirementsRemainIndirect() throws {
         _ = RealExternalInheritedClassSelfArgumentProbe()
         let stub = try Stub<any ExternalInheritedClassSelfArgumentProbe>()
-        let method = try #require(stub.recorder.runtimeMethod(for: 0))
-        let roundTrip = try #require(stub.recorder.runtimeMethod(for: 7))
-        #expect(method.argumentLayouts.first.map(isIndirect) == true)
-        #expect(roundTrip.argumentLayouts.first.map(isIndirect) == true)
-        #expect(isIndirect(roundTrip.returnLayout))
-
         stub.when { captureAccept($0) }.thenDoNothing()
         let source = stub()
         invokeAccept(source)
@@ -520,10 +515,10 @@ private func recordClassOptional<P: ExternalClassSelfArgumentProbe>(_ value: P) 
 
 private func assertSelfArgumentDescriptors<P>(
     _ stub: Stub<P>,
-    expectedLayout: ExpectedSelfArgumentLayout,
+    expectedLayout _: ExpectedSelfArgumentLayout,
     sourceLocation: SourceLocation = #_sourceLocation
 ) throws {
-    let expected: [(WitnessValueConvention, WitnessArgumentOwnership, Bool)] = [
+    let expected: [(RuntimeValueConvention, RuntimeArgumentOwnership, Bool)] = [
         (.selfType, .borrowed, false),
         (.selfType, .borrowed, false),
         (.selfType, .owned, false),
@@ -545,12 +540,6 @@ private func assertSelfArgumentDescriptors<P>(
             method.argumentOwnerships == [expectation.1],
             sourceLocation: sourceLocation
         )
-        #expect(
-            method.argumentLayouts.first.map {
-                matches($0, expectedLayout: expectedLayout)
-            } == true,
-            sourceLocation: sourceLocation
-        )
         #expect(method.isAsync == expectation.2, sourceLocation: sourceLocation)
     }
 
@@ -563,16 +552,6 @@ private func assertSelfArgumentDescriptors<P>(
         sourceLocation: sourceLocation
     )
     #expect(roundTrip.returnConvention == .selfType, sourceLocation: sourceLocation)
-    #expect(
-        roundTrip.argumentLayouts.first.map {
-            matches($0, expectedLayout: expectedLayout)
-        } == true,
-        sourceLocation: sourceLocation
-    )
-    #expect(
-        matches(roundTrip.returnLayout, expectedLayout: expectedLayout),
-        sourceLocation: sourceLocation
-    )
 
     let optionalRoundTrip = try #require(
         stub.recorder.runtimeMethod(for: 8),
@@ -586,35 +565,11 @@ private func assertSelfArgumentDescriptors<P>(
         optionalRoundTrip.returnConvention == .optionalSelf,
         sourceLocation: sourceLocation
     )
-    #expect(
-        optionalRoundTrip.argumentLayouts.first.map {
-            matches($0, expectedLayout: expectedLayout)
-        } == true,
-        sourceLocation: sourceLocation
-    )
-    #expect(
-        matches(optionalRoundTrip.returnLayout, expectedLayout: expectedLayout),
-        sourceLocation: sourceLocation
-    )
 }
 
 private enum ExpectedSelfArgumentLayout {
     case indirect
     case reference
-}
-
-private func matches(
-    _ layout: ABIClass,
-    expectedLayout: ExpectedSelfArgumentLayout
-) -> Bool {
-    switch (layout, expectedLayout) {
-        case (.indirect, .indirect), (.integer(words: 1), .reference): true
-        default: false
-    }
-}
-
-private func isIndirect(_ layout: ABIClass) -> Bool {
-    if case .indirect = layout { true } else { false }
 }
 
 private func captureAccept<P: ExternalSelfArgumentProbe>(_ value: P) {

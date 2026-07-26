@@ -1,8 +1,8 @@
-import TestDoublesRuntime
+import InternalRuntimeContract
 enum StubRecorderDiagnostics {
     static func dispatchFailure(
         title: String,
-        method: MethodDescriptor,
+        method: RuntimeMethod,
         args: [Any],
         entries: [StubRecorder.StubEntry]
     ) -> String {
@@ -141,7 +141,7 @@ enum StubRecorderDiagnostics {
     }
 
     private static func suggestedStubSnippet(
-        method: MethodDescriptor,
+        method: RuntimeMethod,
         args: [Any]
     ) -> String {
         let invocation = suggestedInvocation(name: method.name, args: args)
@@ -240,7 +240,7 @@ extension StubRecorder {
     /// directly; production callers surface it only through `fatalError`.
     func diagnosticMessage(
         title: String,
-        method: MethodDescriptor,
+        method: RuntimeMethod,
         args: [Any],
         entries: [StubEntry]
     ) -> String {

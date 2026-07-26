@@ -345,9 +345,10 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
             isThrowing: false,
             isAsync: false
         )
-        let message = StubRecorder(methods: [method]).diagnosticMessage(
+        let runtimeMethod = method.runtimeMethod
+        let message = StubRecorder(methods: [runtimeMethod]).diagnosticMessage(
             title: "No stub configured",
-            method: method,
+            method: runtimeMethod,
             args: [],
             entries: []
         )

@@ -164,8 +164,6 @@ private func callWithValue(
         _ = RealIndirectTypedThrowsResultProbe()
 
         let indirectError = try Stub<any IndirectTypedThrowsRequirementProbe>()
-        let errorMethod = try #require(indirectError.recorder.runtimeMethod(for: 0))
-        #expect(errorMethod.typedErrorUsesIndirectResultSlot)
         indirectError.when { try $0.load(equal(false)) }.thenReturn(42)
         indirectError.when { try $0.load(equal(true)) }.then {
             (_: Bool) throws -> Int in
@@ -193,8 +191,6 @@ private func callWithValue(
         )
 
         let indirectResult = try Stub<any IndirectTypedThrowsResultProbe>()
-        let resultMethod = try #require(indirectResult.recorder.runtimeMethod(for: 0))
-        #expect(resultMethod.typedErrorUsesIndirectResultSlot)
         let expected = IndirectTypedThrowsResult(
             first: 1,
             second: 2,

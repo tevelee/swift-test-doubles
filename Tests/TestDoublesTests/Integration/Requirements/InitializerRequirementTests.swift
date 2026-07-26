@@ -1,4 +1,5 @@
 import TestDoublesRuntime
+import InternalRuntimeContract
 import Testing
 @testable import TestDoubles
 
@@ -415,7 +416,7 @@ struct InitializerRequirementTests {
 }
 
 private func assertAssociatedTypeInitializerDescriptor<Argument>(
-    _ method: MethodDescriptor,
+    _ method: RuntimeMethod,
     argumentType: Argument.Type,
     sourceLocation: SourceLocation = #_sourceLocation
 ) throws {

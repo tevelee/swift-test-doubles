@@ -1,4 +1,4 @@
-import TestDoublesRuntime
+import InternalRuntimeContract
 import Foundation
 
 extension StubRecorder {
@@ -17,7 +17,7 @@ extension StubRecorder {
         prepareAsyncDispatch(method: manualMethod.descriptor, args: args)
     }
 
-    func dispatch(method: MethodDescriptor, args: [Any]) throws -> Any {
+    func dispatch(method: RuntimeMethod, args: [Any]) throws -> Any {
         switch prepareDispatch(method: method, args: args) {
             case .placeholder:
                 return zeroValue
@@ -47,7 +47,7 @@ extension StubRecorder {
     }
 
     func dispatchTyped<Result>(
-        method: MethodDescriptor,
+        method: RuntimeMethod,
         args: [Any],
         as type: Result.Type
     ) throws -> Result {
@@ -69,7 +69,7 @@ extension StubRecorder {
     /// recorder lock. Recording and verification continue through the immediate
     /// dispatch path so their placeholder-return behavior remains synchronous.
     func prepareAsyncDispatch(
-        method: MethodDescriptor,
+        method: RuntimeMethod,
         args: [Any]
     ) -> AsyncDispatch {
         switch prepareDispatch(method: method, args: args) {
@@ -100,7 +100,7 @@ extension StubRecorder {
     }
 
     func prepareDispatch(
-        method: MethodDescriptor,
+        method: RuntimeMethod,
         args: [Any]
     ) -> PreparedDispatch {
         let methodIndex = method.index
@@ -185,7 +185,7 @@ extension StubRecorder {
 
     private func preparedBehavior(
         _ behavior: StubEntry.Behavior,
-        method: MethodDescriptor,
+        method: RuntimeMethod,
         args: [Any],
         entries: [StubEntry]
     ) -> PreparedDispatch {
@@ -318,7 +318,7 @@ extension StubRecorder {
     }
 
     private func recordForwardedInvocation(
-        method: MethodDescriptor,
+        method: RuntimeMethod,
         args: [Any]
     ) {
         let waiters = withLockedPolicy {
@@ -358,8 +358,8 @@ extension StubRecorder {
     }
 
     private func recordingArgumentConventions(
-        for method: MethodDescriptor
-    ) -> [WitnessValueConvention]? {
+        for method: RuntimeMethod
+    ) -> [RuntimeValueConvention]? {
         method.argumentConventions.contains {
             $0 == .selfType || $0 == .optionalSelf
         } ? method.argumentConventions : nil

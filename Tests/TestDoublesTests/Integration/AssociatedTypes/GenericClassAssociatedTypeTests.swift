@@ -1,4 +1,5 @@
 import TestDoublesFixtures
+import InternalRuntimeContract
 import Testing
 @testable import TestDoubles
 
@@ -247,13 +248,13 @@ private indirect enum GenericClassDependencyShape: Equatable {
 }
 
 private func genericClassDependencyShape(
-    _ dependency: WitnessValueDependency
+    _ dependency: RuntimeValueDependency
 ) -> GenericClassDependencyShape {
     switch dependency {
         case .independent:
             .independent
-        case .associatedType(let reference):
-            .associatedType(reference.name)
+        case .associatedType(let name), .referenceAssociatedType(let name):
+            .associatedType(name)
         case .optional(let wrapped):
             .optional(genericClassDependencyShape(wrapped))
         case .array(let element):
@@ -270,16 +271,16 @@ private func genericClassDependencyShape(
                 success: genericClassDependencyShape(success),
                 failure: genericClassDependencyShape(failure)
             )
-        case .genericClass(let constructor, let arguments):
+        case .genericClass(let name, let arguments):
             .genericClass(
-                constructor.name,
+                name,
                 arguments.map(genericClassDependencyShape)
             )
     }
 }
 
 private func assertGenericClassDescriptor<Value>(
-    _ method: MethodDescriptor,
+    _ method: RuntimeMethod,
     type: Value.Type,
     dependency: GenericClassDependencyShape,
     sourceLocation: SourceLocation = #_sourceLocation

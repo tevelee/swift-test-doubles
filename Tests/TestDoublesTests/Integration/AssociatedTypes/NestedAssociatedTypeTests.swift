@@ -764,9 +764,9 @@ private func exerciseConsumingNestedAssociatedTypes(
 }
 
 private func assertConsumingNestedDescriptor<T>(
-    _ method: MethodDescriptor,
+    _ method: RuntimeMethod,
     type: T.Type,
-    convention: WitnessValueConvention,
+    convention: RuntimeValueConvention,
     isIndirect expectedIndirect: Bool,
     isAsync: Bool,
     sourceLocation: SourceLocation = #_sourceLocation
@@ -830,13 +830,13 @@ private indirect enum ExpectedDependency: Equatable {
 }
 
 private func expectedDependency(
-    _ dependency: WitnessValueDependency
+    _ dependency: RuntimeValueDependency
 ) -> ExpectedDependency {
     switch dependency {
         case .independent:
             .independent
-        case .associatedType(let reference):
-            .associatedType(reference.name)
+        case .associatedType(let name), .referenceAssociatedType(let name):
+            .associatedType(name)
         case .optional(let wrapped):
             .optional(expectedDependency(wrapped))
         case .array(let element):
@@ -853,16 +853,16 @@ private func expectedDependency(
                 success: expectedDependency(success),
                 failure: expectedDependency(failure)
             )
-        case .genericClass(let constructor, let arguments):
+        case .genericClass(let name, let arguments):
             .genericClass(
-                constructor.name,
+                name,
                 arguments.map(expectedDependency)
             )
     }
 }
 
 private func assertRecursiveDescriptor<Value>(
-    _ method: MethodDescriptor,
+    _ method: RuntimeMethod,
     type: Value.Type,
     dependency: ExpectedDependency,
     usesIndirectLayout: Bool,
@@ -902,7 +902,7 @@ private func assertRecursiveDescriptor<Value>(
 }
 
 private func assertDependentIndirect<Argument, Result>(
-    _ method: MethodDescriptor,
+    _ method: RuntimeMethod,
     argumentType: Argument.Type,
     returnType: Result.Type,
     sourceLocation: SourceLocation = #_sourceLocation
@@ -944,7 +944,7 @@ private func assertDependentIndirect<Argument, Result>(
 }
 
 private func assertDependentArray<Argument, Result>(
-    _ method: MethodDescriptor,
+    _ method: RuntimeMethod,
     argumentType: Argument.Type,
     returnType: Result.Type,
     sourceLocation: SourceLocation = #_sourceLocation
@@ -980,7 +980,7 @@ private func assertDependentArray<Argument, Result>(
 }
 
 private func assertDependentSet<Argument, Result>(
-    _ method: MethodDescriptor,
+    _ method: RuntimeMethod,
     argumentType: Argument.Type,
     returnType: Result.Type,
     sourceLocation: SourceLocation = #_sourceLocation
@@ -1016,9 +1016,9 @@ private func assertDependentSet<Argument, Result>(
 }
 
 private func assertDependentDictionary<Value>(
-    _ method: MethodDescriptor,
+    _ method: RuntimeMethod,
     type: Value.Type,
-    dependency: WitnessValueDependency,
+    dependency: RuntimeValueDependency,
     sourceLocation: SourceLocation = #_sourceLocation
 ) {
     #expect(method.argumentTypes.count == 1, sourceLocation: sourceLocation)
@@ -1079,3 +1079,4 @@ private func expectDictionaryRequirementMismatch(
     }
 }
 import TestDoublesRuntime
+import InternalRuntimeContract

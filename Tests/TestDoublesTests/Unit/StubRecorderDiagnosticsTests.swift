@@ -1,4 +1,5 @@
 import TestDoublesRuntime
+import InternalRuntimeContract
 import Testing
 @testable import TestDoubles
 
@@ -10,7 +11,7 @@ private protocol AsyncFailureProbe {
 
 @Suite struct StubRecorderDiagnosticsTests {
     private func makeRecorder(
-        methods: [MethodDescriptor] = []
+        methods: [RuntimeMethod] = []
     ) -> StubRecorder {
         StubRecorder(methods: methods)
     }
@@ -25,7 +26,7 @@ private protocol AsyncFailureProbe {
         returnConvention: WitnessValueConvention = .concrete,
         isThrowing: Bool = false,
         isAsync: Bool = false
-    ) -> MethodDescriptor {
+    ) -> RuntimeMethod {
         MethodDescriptor(
             kind: kind,
             receiver: receiver,
@@ -37,7 +38,7 @@ private protocol AsyncFailureProbe {
             returnConvention: returnConvention,
             isThrowing: isThrowing,
             isAsync: isAsync
-        )
+        ).runtimeMethod
     }
 
     @Test func missingStubDiagnosticListsArgumentsAndSuggestion() {

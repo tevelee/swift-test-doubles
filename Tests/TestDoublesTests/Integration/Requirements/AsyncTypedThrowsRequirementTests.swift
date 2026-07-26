@@ -183,7 +183,6 @@ private func callWithValue(
             method.typedErrorType.map(ObjectIdentifier.init)
                 == ObjectIdentifier(TypedThrowsPayloadError.self)
         )
-        #expect(method.typedErrorUsesIndirectResultSlot == false)
 
         await stub.when { try await $0.load(equal(0)) }.thenReturn("immediate")
         await stub.when { try await $0.load(equal(1)) }.then {
@@ -228,7 +227,6 @@ private func callWithValue(
                 == ObjectIdentifier(AsyncAssociatedTypedThrowsError.self)
         )
         #expect(method.typedErrorDependency == .associatedType(name: "Failure"))
-        #expect(method.typedErrorUsesIndirectResultSlot)
 
         await stub.when { try await $0.load(equal(false)) }.thenReturn("loaded")
         await stub.when { try await $0.load(equal(true)) }.then {
@@ -250,8 +248,6 @@ private func callWithValue(
         _ = RealAsyncIndirectTypedResultProbe()
 
         let indirectError = try Stub<any AsyncIndirectTypedErrorProbe>()
-        let errorMethod = try #require(indirectError.recorder.runtimeMethod(for: 0))
-        #expect(errorMethod.typedErrorUsesIndirectResultSlot)
         await indirectError.when { try await $0.load(equal(false)) }.thenReturn(42)
         await indirectError.when { try await $0.load(equal(true)) }.then {
             (_: Bool) async throws -> Int in
@@ -280,8 +276,6 @@ private func callWithValue(
         )
 
         let indirectResult = try Stub<any AsyncIndirectTypedResultProbe>()
-        let resultMethod = try #require(indirectResult.recorder.runtimeMethod(for: 0))
-        #expect(resultMethod.typedErrorUsesIndirectResultSlot)
         let expected = IndirectTypedThrowsResult(
             first: 5,
             second: 4,

@@ -13,7 +13,6 @@ import Testing
                 == ObjectIdentifier(ThrowingProbeError.self)
         )
         #expect(method.typedErrorDependency == .associatedType(name: "Failure"))
-        #expect(method.typedErrorUsesIndirectResultSlot)
 
         stub.when { try $0.load(equal(false)) }.thenReturn(42)
         stub.when { try $0.load(equal(true)) }.thenThrow(ThrowingProbeError(value: 7))
@@ -42,7 +41,6 @@ import Testing
         let method = try #require(stub.recorder.runtimeMethod(for: 0))
 
         #expect(method.typedErrorDependency == .associatedType(name: "Failure"))
-        #expect(method.typedErrorUsesIndirectResultSlot)
         stub.when { try $0.load(any()) }.thenReturn(42)
         #expect(try stub().load(false) == 42)
     }

@@ -1,36 +1,38 @@
+import InternalRuntimeContract
+
 /// Lock-agnostic method metadata owned and synchronized by ``StubRecorder``.
 struct ManualMethodCatalog {
     private struct ManualMethodIdentity: Hashable {
         let route: ManualMethodRouteIdentity
-        let kind: StubRequirementKind
+        let kind: RuntimeRequirementKind
         let resultType: ObjectIdentifier
         let isAsync: Bool
         let isThrowing: Bool
     }
 
-    private var runtimeMethods: [MethodDescriptor]
-    private let modifyDispatchDescriptors: [Int: ModifyDispatchDescriptor]
-    private var manualMethodsByIdentity: [ManualMethodIdentity: MethodDescriptor] = [:]
+    private var runtimeMethods: [RuntimeMethod]
+    private let modifyDispatchDescriptors: [Int: RuntimeModifyDispatch]
+    private var manualMethodsByIdentity: [ManualMethodIdentity: RuntimeMethod] = [:]
 
     init(
-        methods: [MethodDescriptor],
-        modifyDispatchDescriptors: [Int: ModifyDispatchDescriptor]
+        methods: [RuntimeMethod],
+        modifyDispatchDescriptors: [Int: RuntimeModifyDispatch]
     ) {
         runtimeMethods = methods
         self.modifyDispatchDescriptors = modifyDispatchDescriptors
     }
 
-    func method(at index: Int) -> MethodDescriptor? {
+    func method(at index: Int) -> RuntimeMethod? {
         guard runtimeMethods.indices.contains(index) else { return nil }
         return runtimeMethods[index]
     }
 
     func modifyDispatchMethods(
         forGetterIndex getterIndex: Int
-    ) -> (getter: MethodDescriptor, setter: MethodDescriptor)? {
+    ) -> (getter: RuntimeMethod, setter: RuntimeMethod)? {
         guard let descriptor = modifyDispatchDescriptors[getterIndex],
-            let getter = method(at: descriptor.getterDispatchIndex),
-            let setter = method(at: descriptor.setterDispatchIndex)
+            let getter = method(at: descriptor.getterSlot),
+            let setter = method(at: descriptor.setterSlot)
         else {
             return nil
         }
@@ -39,11 +41,11 @@ struct ManualMethodCatalog {
 
     mutating func internManualMethod(
         route: ManualMethodRouteIdentity,
-        kind: StubRequirementKind,
+        kind: RuntimeRequirementKind,
         returnType: Any.Type,
         isAsync: Bool,
         isThrowing: Bool
-    ) -> MethodDescriptor {
+    ) -> RuntimeMethod {
         let identity = ManualMethodIdentity(
             route: route,
             kind: kind,
@@ -54,15 +56,26 @@ struct ManualMethodCatalog {
         if let existing = manualMethodsByIdentity[identity] {
             return existing
         }
-        let descriptor = MethodDescriptor(
+        let descriptor = RuntimeMethod(
             kind: kind,
+            receiver: .instance,
             origin: .manual,
             name: route.signature,
-            index: runtimeMethods.count,
-            argumentTypes: [],
-            returnType: returnType,
+            slot: runtimeMethods.count,
+            witnessSlot: runtimeMethods.count,
+            arguments: [],
+            result: RuntimeValue(
+                type: returnType,
+                convention: .concrete,
+                dependency: .independent
+            ),
+            typedErrorType: nil,
+            typedErrorDependency: nil,
+            selfIsClassConstrained: false,
             isThrowing: isThrowing,
-            isAsync: isAsync
+            isAsync: isAsync,
+            hasReliableThrowing: true,
+            signatureDescription: "manual \(route.signature)"
         )
         runtimeMethods.append(descriptor)
         manualMethodsByIdentity[identity] = descriptor
@@ -78,4 +91,3 @@ struct ManualMethodCatalog {
         return "\(name)(\(matcherList))"
     }
 }
-import TestDoublesRuntime

@@ -1,10 +1,12 @@
+import InternalRuntimeContract
+
 protocol StubRegistrationBuilder {
     var recorder: StubRecorder { get }
     var recording: RecordedCall { get }
 }
 
 extension StubRegistrationBuilder {
-    func requireRuntimeMethod() -> MethodDescriptor {
+    func requireRuntimeMethod() -> RuntimeMethod {
         guard let method = recorder.runtimeMethod(for: recording.methodIndex) else {
             preconditionFailure("[TestDoubles] The recording closure must invoke a requirement.")
         }
@@ -26,7 +28,7 @@ extension StubRegistrationBuilder {
 
     func addThrownError<Failure: Error>(
         _ error: Failure,
-        for method: MethodDescriptor
+        for method: RuntimeMethod
     ) {
         requireValidThrownError(error, for: method)
         addStubBehavior { _, _ -> Any in
@@ -36,7 +38,7 @@ extension StubRegistrationBuilder {
 
     func requireValidThrownError<Failure: Error>(
         _ error: Failure,
-        for method: MethodDescriptor
+        for method: RuntimeMethod
     ) {
         guard method.isThrowing else {
             fatalError("[TestDoubles] thenThrow requires a throwing requirement.")
@@ -111,7 +113,7 @@ extension StubRegistrationBuilder {
     }
 
     @discardableResult
-    func requireAsyncRequirement(configuring feature: String) -> MethodDescriptor {
+    func requireAsyncRequirement(configuring feature: String) -> RuntimeMethod {
         let method = requireRuntimeMethod()
         guard method.isAsync else {
             fatalError(
@@ -155,4 +157,3 @@ extension StubInitializerBuilder: StubRegistrationBuilder {}
 extension StubFailableInitializerBuilder: StubRegistrationBuilder {}
 extension StubSelfResultBuilder: StubRegistrationBuilder {}
 extension StubOptionalSelfResultBuilder: StubRegistrationBuilder {}
-import TestDoublesRuntime

@@ -1,4 +1,4 @@
-import TestDoublesRuntime
+import InternalRuntimeContract
 import Foundation
 
 /// Process-global monotonic stamp shared by every recorder, so ordered
@@ -28,9 +28,9 @@ struct StubSourceLocation: Sendable {
 /// A recorded playback invocation or a capture-mode expectation.
 struct RecordedCall: @unchecked Sendable {
     private final class WeakPayload {
-        weak var value: FabricatedPayload?
+        weak var value: (any RuntimePayload)?
 
-        init(_ value: FabricatedPayload) {
+        init(_ value: any RuntimePayload) {
             self.value = value
         }
     }
@@ -42,11 +42,11 @@ struct RecordedCall: @unchecked Sendable {
             self.recorder = recorder
         }
 
-        func makePayload() -> FabricatedPayload? {
-            recorder?.makeRuntimePayload()
+        func makePayload() -> (any RuntimePayload)? {
+            recorder?.makeRuntimePayload() as? any RuntimePayload
         }
 
-        func requirePayload() -> FabricatedPayload {
+        func requirePayload() -> any RuntimePayload {
             guard let payload = makePayload() else {
                 preconditionFailure(
                     "[TestDoubles] Recorded Self argument is no longer available because its runtime resources were released."
@@ -63,7 +63,7 @@ struct RecordedCall: @unchecked Sendable {
 
         init(
             _ value: Any,
-            convention: WitnessValueConvention?,
+            convention: RuntimeValueConvention?,
             materializer: RuntimePayloadMaterializer?
         ) {
             switch convention {
@@ -73,9 +73,9 @@ struct RecordedCall: @unchecked Sendable {
                             "[TestDoubles] Recorded Self argument requires a runtime payload materializer."
                         )
                     }
-                    guard let payload = value as? FabricatedPayload else {
+                    guard let payload = value as? any RuntimePayload else {
                         preconditionFailure(
-                            "[TestDoubles] Runtime decoded Self argument as \(type(of: value)); expected FabricatedPayload."
+                            "[TestDoubles] Runtime decoded Self argument as \(type(of: value)); expected an opaque runtime payload."
                         )
                     }
                     self = .selfPayload(WeakPayload(payload), materializer)
@@ -86,9 +86,9 @@ struct RecordedCall: @unchecked Sendable {
                             "[TestDoubles] Recorded Optional Self argument requires a runtime payload materializer."
                         )
                     }
-                    guard let optional = value as? FabricatedPayload? else {
+                    guard let optional = value as? (any RuntimePayload)? else {
                         preconditionFailure(
-                            "[TestDoubles] Runtime decoded Optional Self argument as \(type(of: value)); expected Optional<FabricatedPayload>."
+                            "[TestDoubles] Runtime decoded Optional Self argument as \(type(of: value)); expected an optional opaque runtime payload."
                         )
                     }
                     guard let payload = optional else {
@@ -141,7 +141,7 @@ struct RecordedCall: @unchecked Sendable {
         methodIndex: Int,
         name: String,
         args: [Any],
-        argumentConventions: [WitnessValueConvention]? = nil,
+        argumentConventions: [RuntimeValueConvention]? = nil,
         runtimePayloadRecorder: StubRecorder? = nil,
         matchers: [ParameterMatcher],
         registrationLocation: StubSourceLocation? = nil
@@ -261,7 +261,7 @@ struct InvocationLedger {
         method: Int,
         name: String,
         args: [Any],
-        argumentConventions: [WitnessValueConvention]? = nil,
+        argumentConventions: [RuntimeValueConvention]? = nil,
         runtimePayloadRecorder: StubRecorder? = nil
     ) -> [InvocationLedgerWaiter] {
         let callID = nextRecordedCallID

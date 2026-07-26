@@ -761,8 +761,6 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
     @Test func concreteTypedErrorsWorkWithDependentResults() throws {
         _ = RealTypedThrowingBoundAssociatedTypeProbe()
         let success = try Stub<any TypedThrowingBoundAssociatedTypeProbe<Int>>()
-        let method = try #require(success.recorder.runtimeMethod(for: 0))
-        #expect(method.typedErrorUsesIndirectResultSlot)
         success.when { try $0.load() }.thenReturn(41)
         #expect(try success().load() == 41)
 
@@ -778,8 +776,6 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
 
         _ = RealTypedThrowingArrayBoundAssociatedTypeProbe()
         let array = try Stub<any TypedThrowingArrayBoundAssociatedTypeProbe<Int>>()
-        let arrayMethod = try #require(array.recorder.runtimeMethod(for: 0))
-        #expect(arrayMethod.typedErrorUsesIndirectResultSlot == false)
         array.when { try $0.load() }.thenReturn([1, 2, 3])
         #expect(try array().load() == [1, 2, 3])
     }

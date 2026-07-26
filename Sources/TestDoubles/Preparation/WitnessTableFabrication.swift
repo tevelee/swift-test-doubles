@@ -16,7 +16,7 @@ extension Stub {
         )
 
         let recorder = StubRecorder(
-            methods: methods,
+            methods: methods.map(\.runtimeMethod),
             modifyDispatchDescriptors: modifyDispatchDescriptors,
             allowsForwardingFallback: forwarder != nil
         )

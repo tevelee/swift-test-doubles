@@ -1,10 +1,5 @@
-import TestDoublesRuntime
+import InternalRuntimeContract
 import Foundation
-
-struct ModifyDispatchDescriptor: Sendable {
-    let getterDispatchIndex: Int
-    let setterDispatchIndex: Int
-}
 
 /// Records method calls and returns stubbed values.
 /// Uses normal dispatch and task-local capture sessions shared by stubbing and
@@ -29,8 +24,8 @@ final class StubRecorder: @unchecked Sendable {
     private let lock = NSLock()
 
     init(
-        methods: [MethodDescriptor],
-        modifyDispatchDescriptors: [Int: ModifyDispatchDescriptor] = [:],
+        methods: [RuntimeMethod],
+        modifyDispatchDescriptors: [Int: RuntimeModifyDispatch] = [:],
         allowsForwardingFallback: Bool = false
     ) {
         policy = LockedPolicyState(
@@ -72,7 +67,7 @@ final class StubRecorder: @unchecked Sendable {
 
     // MARK: - Method catalog and runtime resources
 
-    func runtimeMethod(for index: Int) -> MethodDescriptor? {
+    func runtimeMethod(for index: Int) -> RuntimeMethod? {
         // Locked because a manual stub's first forwarding of a requirement
         // appends to the catalog while other invocations may be reading.
         withLockedPolicy { $0.methodCatalog.method(at: index) }
@@ -80,7 +75,7 @@ final class StubRecorder: @unchecked Sendable {
 
     func modifyDispatchMethods(
         forGetterIndex getterIndex: Int
-    ) -> (getter: MethodDescriptor, setter: MethodDescriptor)? {
+    ) -> (getter: RuntimeMethod, setter: RuntimeMethod)? {
         withLockedPolicy {
             $0.methodCatalog.modifyDispatchMethods(forGetterIndex: getterIndex)
         }
@@ -88,7 +83,7 @@ final class StubRecorder: @unchecked Sendable {
 
     func returnValueMatchesRuntimeType(_ value: Any, for methodIndex: Int) -> Bool {
         guard let method = runtimeMethod(for: methodIndex) else { return false }
-        guard case .associatedType = method.result.dependency else { return true }
+        guard case .associatedType = method.returnConvention else { return true }
 
         func matches<Expected>(_ type: Expected.Type) -> Bool {
             value is Expected
@@ -103,7 +98,7 @@ final class StubRecorder: @unchecked Sendable {
         guard returnValueMatchesRuntimeType(value, for: methodIndex) else {
             let expected =
                 runtimeMethod(for: methodIndex).map {
-                    runtimeTypeName($0.returnType)
+                    String(reflecting: $0.returnType)
                 } ?? "<missing method>"
             preconditionFailure(
                 "[TestDoubles] Associated result must be \(expected), got \(type(of: value))."
@@ -113,7 +108,7 @@ final class StubRecorder: @unchecked Sendable {
 
     func requireThrownErrorMatchesRuntimeType(
         _ error: any Error,
-        for method: MethodDescriptor
+        for method: RuntimeMethod
     ) {
         guard let expectedType = method.typedErrorType else {
             return
@@ -139,9 +134,9 @@ final class StubRecorder: @unchecked Sendable {
         }
     }
 
-    func makeRuntimePayload() -> FabricatedPayload? {
+    func makeRuntimePayload() -> AnyObject? {
         withLockedPolicy { _ in runtimeResourceOwner }
-            .map(FabricatedPayload.init(resources:))
+            .map { RuntimeStubFactory.makePayload(resources: $0) }
     }
 
     // MARK: - Manual stub method interning

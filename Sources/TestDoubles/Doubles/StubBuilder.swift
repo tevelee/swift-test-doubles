@@ -1,4 +1,4 @@
-import TestDoublesRuntime
+import InternalRuntimeContract
 /// Configures the result of a stubbed method or property.
 public struct StubBuilder<Result> {
     let recorder: StubRecorder
@@ -471,7 +471,7 @@ public struct StubBuilder<Result> {
     }
 
     @discardableResult
-    func requireOrdinaryResult() -> MethodDescriptor {
+    func requireOrdinaryResult() -> RuntimeMethod {
         let method = requireRuntimeMethod()
         guard method.kind != .initializer,
             method.returnConvention != .selfType

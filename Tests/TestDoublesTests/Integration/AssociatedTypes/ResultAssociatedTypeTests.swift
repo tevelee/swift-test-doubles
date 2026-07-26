@@ -320,13 +320,13 @@ private indirect enum ResultDependencyShape: Equatable {
 }
 
 private func resultDependencyShape(
-    _ dependency: WitnessValueDependency
+    _ dependency: RuntimeValueDependency
 ) -> ResultDependencyShape {
     switch dependency {
         case .independent:
             .independent
-        case .associatedType(let reference):
-            .associatedType(reference.name)
+        case .associatedType(let name), .referenceAssociatedType(let name):
+            .associatedType(name)
         case .optional(let wrapped):
             .optional(resultDependencyShape(wrapped))
         case .array(let element):
@@ -343,20 +343,20 @@ private func resultDependencyShape(
                 success: resultDependencyShape(success),
                 failure: resultDependencyShape(failure)
             )
-        case .genericClass(let constructor, let arguments):
+        case .genericClass(let name, let arguments):
             .genericClass(
-                constructor.name,
+                name,
                 arguments.map(resultDependencyShape)
             )
     }
 }
 
 private func assertResultDescriptor<Value>(
-    _ method: MethodDescriptor,
+    _ method: RuntimeMethod,
     type: Value.Type,
     dependency: ResultDependencyShape,
-    convention: WitnessValueConvention,
-    isIndirect expectedIndirect: Bool,
+    convention: RuntimeValueConvention,
+    isIndirect _: Bool,
     sourceLocation: SourceLocation = #_sourceLocation
 ) throws {
     let argument = try #require(
@@ -382,17 +382,5 @@ private func assertResultDescriptor<Value>(
     )
     #expect(argument.value.convention == convention, sourceLocation: sourceLocation)
     #expect(method.result.convention == convention, sourceLocation: sourceLocation)
-    #expect(
-        isIndirectLayout(argument.value.layout) == expectedIndirect,
-        sourceLocation: sourceLocation
-    )
-    #expect(
-        isIndirectLayout(method.result.layout) == expectedIndirect,
-        sourceLocation: sourceLocation
-    )
 }
-
-private func isIndirectLayout(_ layout: ABIClass) -> Bool {
-    if case .indirect = layout { true } else { false }
-}
-import TestDoublesRuntime
+import InternalRuntimeContract

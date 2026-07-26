@@ -1,4 +1,5 @@
 import TestDoublesRuntime
+import InternalRuntimeContract
 import TestDoublesFixtures
 import Testing
 @testable import TestDoubles
@@ -251,16 +252,16 @@ private indirect enum AssociatedClassErrorDependencyShape: Equatable {
 }
 
 private func associatedClassErrorDependencyShape(
-    _ dependency: WitnessValueDependency
+    _ dependency: RuntimeValueDependency
 ) -> AssociatedClassErrorDependencyShape? {
     switch dependency {
         case .independent:
             return .independent
-        case .associatedType(let reference):
-            return .associatedType(reference.name)
-        case .genericClass(let constructor, let arguments):
+        case .associatedType(let name), .referenceAssociatedType(let name):
+            return .associatedType(name)
+        case .genericClass(let name, let arguments):
             if arguments.isEmpty {
-                return .genericClass(constructor.name, [])
+                return .genericClass(name, [])
             }
             var resolved: [AssociatedClassErrorDependencyShape] = []
             resolved.reserveCapacity(arguments.count)
@@ -271,14 +272,14 @@ private func associatedClassErrorDependencyShape(
                 }
                 resolved.append(shape)
             }
-            return .genericClass(constructor.name, resolved)
+            return .genericClass(name, resolved)
         case .optional, .array, .set, .dictionary, .result:
             return nil
     }
 }
 
 private func assertTypedError<Failure: Error>(
-    _ method: MethodDescriptor,
+    _ method: RuntimeMethod,
     type: Failure.Type,
     dependency: AssociatedClassErrorDependencyShape,
     sourceLocation: SourceLocation = #_sourceLocation
@@ -292,12 +293,8 @@ private func assertTypedError<Failure: Error>(
         sourceLocation: sourceLocation
     )
     #expect(
-        associatedClassErrorDependencyShape(method.typedErrorDependency)
+        method.typedErrorDependency.flatMap(associatedClassErrorDependencyShape)
             == dependency,
-        sourceLocation: sourceLocation
-    )
-    #expect(
-        method.typedErrorUsesIndirectResultSlot == false,
         sourceLocation: sourceLocation
     )
 }

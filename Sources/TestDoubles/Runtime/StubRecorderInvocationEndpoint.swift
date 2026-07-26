@@ -1,5 +1,4 @@
 import InternalRuntimeContract
-import TestDoublesRuntime
 
 /// The transitional public-layer endpoint for compiler-typed witness
 /// adapters. Keeping the recorder here prevents the runtime target from
@@ -65,8 +64,8 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
             return nil
         }
         return RuntimeModifyDispatch(
-            getterSlot: methods.getter.index,
-            setterSlot: methods.setter.index
+            getterSlot: methods.getter.slot,
+            setterSlot: methods.setter.slot
         )
     }
 
@@ -191,14 +190,14 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
         }
     }
 
-    private func method(at slot: Int) -> MethodDescriptor {
+    private func method(at slot: Int) -> RuntimeMethod {
         guard let method = runtimeMethod(at: slot) else {
             rejectInvocation(at: slot)
         }
         return method
     }
 
-    private func runtimeMethod(at slot: Int) -> MethodDescriptor? {
+    private func runtimeMethod(at slot: Int) -> RuntimeMethod? {
         return recorder.runtimeMethod(for: slot)
     }
 }

@@ -1,4 +1,4 @@
-import TestDoublesRuntime
+import InternalRuntimeContract
 import Foundation
 
 /// A handle to calls parked by `thenSuspend()`.
@@ -12,12 +12,12 @@ public final class StubSuspension<Result> {
     private typealias Outcome = Swift.Result<Any, any Error>
 
     private let recorder: StubRecorder
-    private let method: MethodDescriptor
+    private let method: RuntimeMethod
     private let lock = NSLock()
     private var parked: [CheckedContinuation<Outcome, Never>] = []
     private var arrivalWaiters: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
 
-    init(recorder: StubRecorder, method: MethodDescriptor) {
+    init(recorder: StubRecorder, method: RuntimeMethod) {
         self.recorder = recorder
         self.method = method
     }

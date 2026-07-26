@@ -1,3 +1,4 @@
+import InternalRuntimeContract
 import TestDoublesRuntime
 
 extension Stub {
@@ -5,7 +6,7 @@ extension Stub {
         methods: [MethodDescriptor],
         layout: ProtocolLayout,
         representation: StubExistentialRepresentation
-    ) throws -> [Int: ModifyDispatchDescriptor] {
+    ) throws -> [Int: RuntimeModifyDispatch] {
         for method in methods {
             let protocolName = layout.callableRequirements[method.index]
                 .protocolDescriptor.name
@@ -209,11 +210,11 @@ extension Stub {
     private static func validateModifyCoroutinePairs(
         methods: [MethodDescriptor],
         layout: ProtocolLayout
-    ) throws -> [Int: ModifyDispatchDescriptor] {
+    ) throws -> [Int: RuntimeModifyDispatch] {
         let methodsByIndex = Dictionary(
             uniqueKeysWithValues: methods.map { ($0.index, $0) }
         )
-        var descriptors: [Int: ModifyDispatchDescriptor] = [:]
+        var descriptors: [Int: RuntimeModifyDispatch] = [:]
         for node in layout.nodes {
             for modify in node.modifyCoroutineRequirements {
                 guard let getter = methodsByIndex[modify.getterDispatchIndex],
@@ -230,9 +231,9 @@ extension Stub {
                     )
                 }
                 descriptors[modify.getterDispatchIndex] =
-                    ModifyDispatchDescriptor(
-                        getterDispatchIndex: modify.getterDispatchIndex,
-                        setterDispatchIndex: modify.setterDispatchIndex
+                    RuntimeModifyDispatch(
+                        getterSlot: modify.getterDispatchIndex,
+                        setterSlot: modify.setterDispatchIndex
                     )
             }
         }
