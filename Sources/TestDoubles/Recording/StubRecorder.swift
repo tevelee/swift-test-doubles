@@ -102,6 +102,17 @@ final class StubRecorder: @unchecked Sendable {
         fabricatedMethodProvider = provider
     }
 
+    func fabricatedDiagnosticSignature(
+        for method: Int,
+        matchers: [ParameterMatcher]
+    ) -> String? {
+        guard let method = fabricatedMethodProvider?.runtimeMethod(at: method) else {
+            return nil
+        }
+        let matcherList = matchers.map(\.diagnosticDescription).joined(separator: ", ")
+        return "\(method.name)(\(matcherList))"
+    }
+
     func returnValueMatchesRuntimeType(_ value: Any, for methodIndex: Int) -> Bool {
         guard let method = runtimeMethod(for: methodIndex) else { return false }
         guard case .associatedType = method.result.dependency else { return true }
