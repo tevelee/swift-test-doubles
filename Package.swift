@@ -110,6 +110,7 @@ let package = Package(
                 "TestDoubles",
                 "TestDoublesRuntime",
                 "TestDoublesRuntimeMetadata",
+                "TestDoublesRuntimeSupport",
                 "InternalRuntimeContract",
                 "TestDoublesFixtures"
             ],
