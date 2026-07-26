@@ -31,6 +31,46 @@ TestDoubles (public product)
         └── IssueReporting (public diagnostics)
 ```
 
+### Direct dependency tree
+
+The diagram above groups the targets by role. This is the actual direct-target
+graph, read from the public product toward the machine boundary:
+
+```text
+TestDoubles
+├── InternalRuntimeContract
+├── TestDoublesRuntimeMetadata
+│   ├── InternalRuntimeContract
+│   ├── TestDoublesRuntimeSupport
+│   │   └── CTestDoublesTrampoline
+│   ├── CTestDoublesTrampoline
+│   └── Echo
+├── TestDoublesRuntime
+│   ├── InternalRuntimeContract
+│   ├── TestDoublesRuntimeMetadata
+│   ├── TestDoublesRuntimeSupport
+│   ├── CTestDoublesTrampoline
+│   └── Echo
+└── IssueReporting
+```
+
+`TestDoublesRuntimeSupport` is deliberately below both runtime halves. It
+prevents symbol lookup, construction errors, and architecture facts from
+creating a metadata-to-execution cycle. `Echo` is a package dependency of the
+metadata and execution targets, never of the public target or the contract.
+
+### Responsibility map
+
+| Component | Owns | Must not own |
+| --- | --- | --- |
+| `TestDoubles` | Stable API, recorder, builders, matchers, verification, `StubError`, and semantic endpoints | ABI layouts, witness tables, Echo types, or C frames |
+| `InternalRuntimeContract` | Package-only semantic calls, method descriptions, requirement schemas, endpoint outcomes, and typed-adapter token | Runtime descriptors, layouts, symbol lookup, or transport plans |
+| `TestDoublesRuntimeSupport` | Construction errors, symbol lookup/cache, and architecture facts | Protocol discovery, fabrication, execution state, or public diagnostics |
+| `TestDoublesRuntimeMetadata` | Existential and protocol inspection, layouts, descriptor/schema resolution, and requirement validation | Fabricated invocation registry, endpoint retention, or trampoline execution |
+| `TestDoublesRuntime` | Witness fabrication, ABI decode/encode, forwarding, coroutine dispatch, and resource lifetime | Public recorder policy or independent metadata discovery |
+| `CTestDoublesTrampoline` | C frame layouts, executable veneers, assembly entries, and ABI constants | Swift semantic dispatch policy |
+| `Echo` | Swift runtime reflection primitives used by metadata and prepared-call value operations | Test-double semantics or the public API |
+
 `TestDoubles` owns the public API and test semantics:
 
 - `Stub`, `Spy`, `Dummy`, `ManualStub`, builders, matchers, recording,
@@ -105,6 +145,50 @@ trampoline target.
 `ManualStub` is deliberately outside the generated-runtime path. It is an
 ordinary Swift forwarding and recording API and must not import or name the
 runtime, Echo, C trampoline, witness-table, or ABI implementation types.
+
+## Example: one generated stub call
+
+For a protocol such as:
+
+```swift
+protocol Greeter {
+    func greeting(for name: String) -> String
+}
+
+let stub = try Stub<any Greeter>()
+stub.when { $0.greeting(for: "Ada") }.thenReturn("Hello, Ada")
+let greeter = stub()
+let value = greeter.greeting(for: "Ada")
+```
+
+construction and invocation cross the layers in two distinct phases:
+
+```text
+Construction
+Stub<any Greeter>
+  → RuntimeStubFactory (the sole public-target runtime importer)
+  → metadata discovers the protocol shape and requirement signature
+  → facade creates an opaque prepared plan
+      ├── semantic RuntimeMethod values → StubRecorder
+      └── raw descriptors/layout/forwarding transport stay private
+  → facade supplies StubRecorderInvocationEndpoint
+  → execution fabricates storage, witness table, and executable veneers
+  → Storage<any Greeter>.materialize() returns greeter
+
+Invocation
+greeter.greeting(for: "Ada")
+  → fabricated witness-table entry
+  → executable veneer and C/assembly trampoline
+  → TestDoublesRuntime decodes ABI arguments into a contract request
+  → StubRecorderInvocationEndpoint selects the recorded behavior
+  → TestDoublesRuntime encodes "Hello, Ada" for the original caller
+```
+
+An unmatched `Spy` call follows the same path through the endpoint, which
+returns the contract's forwarding outcome; execution then invokes the retained
+target through its prepared forwarding plan. A `Dummy` instead installs a
+semantic rejection endpoint, so any requirement call stops with its stable,
+source-level diagnostic.
 
 ## Runtime dispatch boundary
 
