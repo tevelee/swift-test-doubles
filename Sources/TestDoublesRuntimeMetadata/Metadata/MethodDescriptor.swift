@@ -264,8 +264,7 @@ package struct MethodDescriptor: Sendable {
             selfIsClassConstrained: selfIsClassConstrained,
             isThrowing: isThrowing,
             isAsync: isAsync,
-            hasReliableThrowing: hasReliableThrowing,
-            signatureDescription: signatureDescription
+            hasReliableThrowing: hasReliableThrowing
         )
     }
 

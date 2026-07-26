@@ -150,7 +150,7 @@ package struct RuntimeMethod: @unchecked Sendable {
     package let isThrowing: Bool
     package let isAsync: Bool
     package let hasReliableThrowing: Bool
-    package let signatureDescription: String
+    private let suppliedSignatureDescription: String?
 
     package init(
         kind: RuntimeRequirementKind,
@@ -167,7 +167,7 @@ package struct RuntimeMethod: @unchecked Sendable {
         isThrowing: Bool,
         isAsync: Bool,
         hasReliableThrowing: Bool,
-        signatureDescription: String
+        signatureDescription: String? = nil
     ) {
         self.kind = kind
         self.receiver = receiver
@@ -183,7 +183,7 @@ package struct RuntimeMethod: @unchecked Sendable {
         self.isThrowing = isThrowing
         self.isAsync = isAsync
         self.hasReliableThrowing = hasReliableThrowing
-        self.signatureDescription = signatureDescription
+        suppliedSignatureDescription = signatureDescription
     }
 
     /// Backward-compatible local spelling for the recorder's dispatch slot.
@@ -206,5 +206,118 @@ package struct RuntimeMethod: @unchecked Sendable {
     package var returnConvention: RuntimeValueConvention { result.convention }
     package var returnDependency: RuntimeValueDependency {
         result.dependency.legacyProjection
+    }
+
+    /// A human-readable requirement signature used only by diagnostics.
+    ///
+    /// Discovered methods are created on every fabricated-double construction.
+    /// Keep string formatting out of that path and derive it only when a
+    /// validation or diagnostic needs it. Manual routes can still retain their
+    /// explicit spelling.
+    package var signatureDescription: String {
+        suppliedSignatureDescription ?? runtimeMethodSignatureDescription(self)
+    }
+}
+
+private func runtimeMethodSignatureDescription(_ method: RuntimeMethod) -> String {
+    let typedErrorDescription = method.typedErrorType.map {
+        runtimeTypedErrorDescription(
+            type: $0,
+            dependency: method.typedErrorDependency ?? .independent
+        )
+    }
+    let throwingEffect =
+        typedErrorDescription.map { "throws(\($0))" }
+        ?? (method.isThrowing ? "throws" : nil)
+    let effectDescription = [method.isAsync ? "async" : nil, throwingEffect]
+        .compactMap { $0 }
+        .joined(separator: " ")
+    let effectSuffix = effectDescription.isEmpty ? "" : " \(effectDescription)"
+    let uncertaintySuffix = method.hasReliableThrowing ? "" : " [throwing effect unavailable]"
+    let resultDescription = runtimeValueDescription(method.result)
+
+    switch method.kind {
+        case .method:
+            let arguments = method.arguments.map(runtimeArgumentDescription).joined(separator: ", ")
+            return "method (\(arguments))\(effectSuffix)\(uncertaintySuffix) -> \(resultDescription)"
+        case .initializer:
+            let arguments = method.arguments.map(runtimeArgumentDescription).joined(separator: ", ")
+            return "initializer (\(arguments))\(effectSuffix) -> \(resultDescription)"
+        case .getter:
+            let indices = method.arguments.map(runtimeArgumentDescription).joined(separator: ", ")
+            let indexSuffix = indices.isEmpty ? "" : " (indices: \(indices))"
+            return "getter\(indexSuffix)\(effectSuffix)\(uncertaintySuffix) -> \(resultDescription)"
+        case .setter:
+            let arguments = method.arguments.map(runtimeArgumentDescription)
+            let value = arguments.first ?? "<missing>"
+            let indexSuffix =
+                arguments.count > 1
+                ? ", indices: \(arguments.dropFirst().joined(separator: ", "))"
+                : ""
+            return "setter (value: \(value)\(indexSuffix)) -> Swift.Void"
+    }
+}
+
+private func runtimeArgumentDescription(_ argument: RuntimeArgument) -> String {
+    let description = runtimeValueDescription(argument.value)
+    return argument.ownership == .owned ? "consuming \(description)" : description
+}
+
+private func runtimeValueDescription(_ value: RuntimeValue) -> String {
+    switch value.dependency.legacyProjection {
+        case .independent:
+            break
+        case .associatedType(let name), .referenceAssociatedType(let name):
+            return "\(runtimeTypeName(value.type)) [associated \(name)]"
+        case .dictionary(let key, let valueDependency):
+            let components = [
+                key.directAssociatedTypeName.map { "key \($0)" },
+                valueDependency.directAssociatedTypeName.map { "value \($0)" }
+            ].compactMap { $0 }.joined(separator: ", ")
+            return "\(runtimeTypeName(value.type)) [associated Dictionary \(components)]"
+        case .result, .genericClass:
+            break
+        case .optional, .array, .set:
+            break
+    }
+
+    return switch value.convention {
+        case .concrete:
+            runtimeTypeName(value.type)
+        case .associatedType(let name):
+            "\(runtimeTypeName(value.type)) [associated \(name)]"
+        case .selfType:
+            "Self"
+        case .optionalSelf:
+            "Self?"
+    }
+}
+
+private func runtimeTypedErrorDescription(
+    type: Any.Type,
+    dependency: RuntimeValueDependency
+) -> String {
+    let typeName = runtimeTypeName(type)
+    if let name = dependency.directAssociatedTypeName {
+        return "\(typeName) [associated \(name)]"
+    }
+    if case .genericClass = dependency {
+        return "\(typeName) [associated-dependent generic class]"
+    }
+    return typeName
+}
+
+private func runtimeTypeName(_ type: Any.Type) -> String {
+    type == Void.self ? "Swift.Void" : String(reflecting: type)
+}
+
+extension RuntimeValueDependency {
+    fileprivate var directAssociatedTypeName: String? {
+        switch self {
+            case .associatedType(let name), .referenceAssociatedType(let name):
+                name
+            default:
+                nil
+        }
     }
 }
