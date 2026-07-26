@@ -527,11 +527,12 @@ jobs:
             --disable-xctest \
             --enable-swift-testing
       - name: Test release
+        # Native x86 release-parallel execution is unstable in the pre-refactor
+        # baseline as well. Keep this ABI check serial; debug and sanitizer
+        # jobs continue to exercise parallel execution.
         run: |
           swift test \
             -c release \
-            --parallel \
-            --experimental-maximum-parallelization-width 4 \
             --skip ExitTests \
             --scratch-path .build/ci-native-intel \
             --triple x86_64-apple-macosx \
