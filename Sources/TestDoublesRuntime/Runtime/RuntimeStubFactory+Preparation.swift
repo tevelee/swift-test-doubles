@@ -1,3 +1,4 @@
+import InternalRuntimeContract
 import TestDoublesRuntimeMetadata
 /// Runtime preparation operations behind the opaque stub-factory boundary.
 ///
