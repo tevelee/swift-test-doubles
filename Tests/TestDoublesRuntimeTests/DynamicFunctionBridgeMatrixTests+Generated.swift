@@ -4,8 +4,6 @@
 import TestDoublesRuntime
 import TestDoublesRuntimeMetadata
 
-@testable import TestDoubles
-
 enum GeneratedBridgeMatrixError: Error {
     case failure
 }
@@ -30,7 +28,7 @@ func roundTripGeneratedBridge<Function>(
     source.destroyInitializedValue()
     guard let result = boxed as? Function else {
         preconditionFailure(
-            "[TestDoublesTests] Generated bridge changed the function type."
+            "[TestDoublesRuntimeTests] Generated bridge changed the function type."
         )
     }
     return result

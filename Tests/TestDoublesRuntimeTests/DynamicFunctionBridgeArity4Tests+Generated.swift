@@ -5,8 +5,6 @@ import Testing
 import TestDoublesRuntime
 import TestDoublesRuntimeMetadata
 
-@testable import TestDoubles
-
 @Suite
 struct DynamicFunctionBridgeArity4Tests {
     @Test

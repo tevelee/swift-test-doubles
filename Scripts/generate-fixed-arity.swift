@@ -582,8 +582,6 @@ private func dynamicBridgeMatrixTestSource(arity: Int) -> String {
         import TestDoublesRuntime
         import TestDoublesRuntimeMetadata
 
-        @testable import TestDoubles
-
         @Suite
         struct DynamicFunctionBridgeArity\(arity)Tests {
         \(untypedTests.indented(by: 4))
@@ -600,8 +598,6 @@ private func dynamicBridgeMatrixSupportSource() -> String {
 
     import TestDoublesRuntime
     import TestDoublesRuntimeMetadata
-
-    @testable import TestDoubles
 
     enum GeneratedBridgeMatrixError: Error {
         case failure
@@ -627,7 +623,7 @@ private func dynamicBridgeMatrixSupportSource() -> String {
         source.destroyInitializedValue()
         guard let result = boxed as? Function else {
             preconditionFailure(
-                "[TestDoublesTests] Generated bridge changed the function type."
+                "[TestDoublesRuntimeTests] Generated bridge changed the function type."
             )
         }
         return result
@@ -765,13 +761,13 @@ private let generatedFiles =
             contents: signatureOfSource()
         ),
         GeneratedFile(
-            path: "Tests/TestDoublesTests/EndToEnd/DynamicFunctionBridgeMatrixTests+Generated.swift",
+            path: "Tests/TestDoublesRuntimeTests/DynamicFunctionBridgeMatrixTests+Generated.swift",
             contents: dynamicBridgeMatrixSupportSource()
         )
     ]
     + (0 ... maximumArity).map { arity in
         GeneratedFile(
-            path: "Tests/TestDoublesTests/EndToEnd/DynamicFunctionBridgeArity\(arity)Tests+Generated.swift",
+            path: "Tests/TestDoublesRuntimeTests/DynamicFunctionBridgeArity\(arity)Tests+Generated.swift",
             contents: dynamicBridgeMatrixTestSource(arity: arity)
         )
     }
