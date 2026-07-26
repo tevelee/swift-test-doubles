@@ -28,6 +28,7 @@ let package = Package(
         .target(
             name: "TestDoubles",
             dependencies: [
+                "InternalRuntimeContract",
                 "TestDoublesRuntime",
                 .product(name: "IssueReporting", package: "swift-issue-reporting")
             ]
@@ -35,10 +36,12 @@ let package = Package(
         .target(
             name: "TestDoublesRuntime",
             dependencies: [
+                "InternalRuntimeContract",
                 "CTestDoublesTrampoline",
                 .product(name: "Echo", package: "Echo")
             ]
         ),
+        .target(name: "InternalRuntimeContract"),
         .target(
             name: "CTestDoublesTrampoline",
             publicHeadersPath: "include"
