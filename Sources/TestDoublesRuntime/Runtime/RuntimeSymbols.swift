@@ -86,14 +86,16 @@ package enum RuntimeSymbols {
         named name: String,
         resolve: () -> Any.Type?
     ) -> Any.Type? {
-        withLock {
-            if let cached = runtimeTypes[name] {
-                return cached
-            }
-            guard let resolved = resolve() else { return nil }
-            runtimeTypes[name] = resolved
-            return resolved
+        if let cached = withLock({ runtimeTypes[name] }) {
+            return cached
         }
+
+        // Resolution can recursively ask for component metadata. Only protect
+        // the cache itself: holding `lock` while resolving would deadlock that
+        // nested lookup and can also invert Swift runtime locks.
+        guard let resolved = resolve() else { return nil }
+        withLock { runtimeTypes[name] = resolved }
+        return resolved
     }
 
     private static func withLock<Result>(_ operation: () -> Result) -> Result {
