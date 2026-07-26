@@ -758,7 +758,7 @@ private let generatedFiles =
             contents: dynamicBoxingSource()
         ),
         GeneratedFile(
-            path: "Sources/TestDoubles/Preparation/StubRequirement+SignatureOf.swift",
+            path: "Sources/TestDoubles/Runtime/Preparation/StubRequirement+SignatureOf.swift",
             contents: signatureOfSource()
         ),
         GeneratedFile(

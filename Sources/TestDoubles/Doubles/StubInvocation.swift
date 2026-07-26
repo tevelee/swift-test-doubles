@@ -76,4 +76,3 @@ extension Stub {
         private var methodName: String { endpoint.methodName(at: slot) }
     }
 }
-import TestDoublesRuntime

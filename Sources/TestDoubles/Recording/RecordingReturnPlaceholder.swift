@@ -1,5 +1,3 @@
-import TestDoublesRuntime
-
 struct ClosureFailureTransport<Failure: Error>: Error {
     let error: Failure
 }
@@ -35,7 +33,7 @@ enum RecordingReturnPlaceholderContext {
         if let registered = RecordingPlaceholders.make(type) {
             return registered
         }
-        guard let placeholder = PlaceholderValue.make(type) else {
+        guard let placeholder = RuntimeStubFactory.makeRecordingPlaceholder(for: type) else {
             fatalError(
                 "[TestDoubles] Cannot synthesize a recording placeholder for \(type). "
                     + "Use the `returning:` placeholder overload of `when`/`verify`, or "

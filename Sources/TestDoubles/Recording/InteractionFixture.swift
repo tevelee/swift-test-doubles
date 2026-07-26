@@ -52,4 +52,3 @@ public struct InteractionFixture: Codable, Sendable {
         }
     }
 }
-import TestDoublesRuntime

@@ -12,6 +12,10 @@ enum RuntimeStubFactory {
         TestDoublesRuntime.FabricatedPayload(resources: resources)
     }
 
+    static func makeRecordingPlaceholder<T>(for type: T.Type) -> T? {
+        PlaceholderValue.make(type)
+    }
+
     struct ProtocolShape {
         private let shape: TestDoublesRuntime.RuntimeStubFactory.ProtocolShape
 

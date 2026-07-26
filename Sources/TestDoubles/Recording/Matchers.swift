@@ -213,7 +213,7 @@ func synthesizedPlaceholder<T>(for api: String, fallback: String) -> T {
     if let registered = RecordingPlaceholders.make(T.self) {
         return registered
     }
-    guard let placeholder = PlaceholderValue.make(T.self) else {
+    guard let placeholder = RuntimeStubFactory.makeRecordingPlaceholder(for: T.self) else {
         fatalError(
             "[TestDoubles] \(api) cannot safely synthesize a placeholder for \(T.self). "
                 + "Pass a valid value with \(fallback), or register a suite-wide "
@@ -222,4 +222,3 @@ func synthesizedPlaceholder<T>(for api: String, fallback: String) -> T {
     }
     return placeholder
 }
-import TestDoublesRuntime
