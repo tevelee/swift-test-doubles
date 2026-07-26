@@ -33,6 +33,12 @@ extension Stub {
             P.self,
             typeDescription: typeDescription
         )
+        guard metadata.hasProtocolWithoutSwiftWitnessTable == false else {
+            throw StubError.unsupportedProtocolShape(
+                protocolName: typeDescription,
+                reason: "The existential includes a protocol without a Swift witness table. Objective-C-only protocols use selector/IMP dispatch, which requires a separate runtime backend."
+            )
+        }
         guard metadata.protocols.isEmpty == false else {
             throw StubError.typeIsNotProtocol(typeDescription: typeDescription)
         }

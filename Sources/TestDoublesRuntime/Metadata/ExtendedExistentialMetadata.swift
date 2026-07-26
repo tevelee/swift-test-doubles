@@ -32,6 +32,9 @@ package struct StubProtocolMetadata {
     }
     package let protocols: [ProtocolDescriptor]
     package let numberOfWitnessTables: Int
+    /// Whether the existential includes a protocol that uses a dispatch ABI
+    /// other than Swift witness tables, such as an Objective-C protocol.
+    package let hasProtocolWithoutSwiftWitnessTable: Bool
     package let isClassConstrained: Bool
     package let hasSuperclassConstraint: Bool
     package let superclass: Any.Type?
@@ -79,6 +82,8 @@ package func inspectStubProtocolMetadata(
         return StubProtocolMetadata(
             protocols: existential.protocols,
             numberOfWitnessTables: existential.flags.numWitnessTables,
+            hasProtocolWithoutSwiftWitnessTable: existential.protocolReferences
+                .contains { $0.needsWitnessTable == false },
             isClassConstrained: existential.flags.isClassConstraint,
             hasSuperclassConstraint: existential.flags.hasSuperclassConstraint,
             superclass: existential.superclass,
@@ -246,6 +251,7 @@ private func inspectExtendedExistential(
     return StubProtocolMetadata(
         protocols: protocols,
         numberOfWitnessTables: protocols.count,
+        hasProtocolWithoutSwiftWitnessTable: false,
         isClassConstrained: specialKind == .class,
         hasSuperclassConstraint: false,
         superclass: nil,
