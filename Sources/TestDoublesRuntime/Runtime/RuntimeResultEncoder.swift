@@ -1,3 +1,5 @@
+import InternalRuntimeContract
+
 /// Applies endpoint-selected result policy before delegating to ABI transports.
 package enum RuntimeResultEncoder {
     package static func encodeDispatchResult(
@@ -13,13 +15,13 @@ package enum RuntimeResultEncoder {
         }
         if method.kind == .initializer {
             DependentResultEncoder.encodeDependentResult(
-                endpoint.dependentResult(for: result, method: method),
+                endpoint.dependentResult(for: result, at: method.index),
                 for: method,
                 endpoint: endpoint,
                 into: frame
             )
         } else if method.returnConvention == .selfType {
-            guard endpoint.dependentResult(for: result, method: method) == .payload else {
+            guard endpoint.dependentResult(for: result, at: method.index) == .payload else {
                 preconditionFailure(
                     "[TestDoubles] A nonoptional runtime Self result cannot produce nil."
                 )
@@ -31,7 +33,7 @@ package enum RuntimeResultEncoder {
             )
         } else if method.returnConvention == .optionalSelf {
             DependentResultEncoder.encodeOptionalPayload(
-                endpoint.dependentResult(for: result, method: method),
+                endpoint.dependentResult(for: result, at: method.index),
                 for: method,
                 endpoint: endpoint,
                 into: frame

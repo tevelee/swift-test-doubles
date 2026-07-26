@@ -1,4 +1,5 @@
 import Foundation
+import InternalRuntimeContract
 
 /// Keeps fabricated conformance descriptors and witness tables at stable
 /// addresses for as long as Swift's generic-metadata caches may reference them.
@@ -87,12 +88,17 @@ package final class FabricatedRuntimeResources: @unchecked Sendable {
         method: MethodDescriptor
     ) -> UnsafeRawPointer? {
         requireBuilding()
-        let adapter = factory.make(endpoint, method)
+        guard let invocationArgumentIndex = factory.invocationArgumentIndex(for: method) else {
+            preconditionFailure(
+                "[TestDoubles] A validated typed witness adapter has no general-purpose register for its invocation."
+            )
+        }
+        let adapter = factory.make(endpoint, method.index)
         guard
             let trampoline = trampolineArena?.makeTyped(
                 target: adapter.target,
                 invocation: adapter.invocation,
-                invocationArgumentIndex: adapter.invocationArgumentIndex
+                invocationArgumentIndex: invocationArgumentIndex
             )
         else {
             return nil

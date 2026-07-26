@@ -1,4 +1,5 @@
 import Echo
+import InternalRuntimeContract
 
 /// Synthesizes safe temporary results while a requirement is being recorded.
 package enum RecordingResultEncoder {
@@ -8,7 +9,7 @@ package enum RecordingResultEncoder {
         endpoint: any RuntimeInvocationEndpoint,
         into frame: TrampolineCallFrame
     ) {
-        switch endpoint.recordingResult(for: method, args: arguments) {
+        switch endpoint.recordingResult(at: method.index) {
             case .payload:
                 DependentResultEncoder.encodePayload(
                     for: method,

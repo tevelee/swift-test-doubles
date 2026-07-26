@@ -1,4 +1,5 @@
 import Echo
+import InternalRuntimeContract
 
 /// Type-erased construction of a compiler-emitted thin witness adapter.
 package struct TypedWitnessAdapterFactory: @unchecked Sendable {
@@ -7,7 +8,7 @@ package struct TypedWitnessAdapterFactory: @unchecked Sendable {
     package let make:
         @Sendable (
             any RuntimeInvocationEndpoint,
-            MethodDescriptor
+            Int
         ) -> TypedWitnessAdapter
 
     package init(
@@ -16,7 +17,7 @@ package struct TypedWitnessAdapterFactory: @unchecked Sendable {
         make:
             @escaping @Sendable (
                 any RuntimeInvocationEndpoint,
-                MethodDescriptor
+                Int
             ) -> TypedWitnessAdapter
     ) {
         self.functionType = functionType
@@ -80,30 +81,14 @@ package struct TypedWitnessAdapterFactory: @unchecked Sendable {
 package final class TypedWitnessAdapter: @unchecked Sendable {
     package let target: UnsafeRawPointer
     package let invocation: UnsafeRawPointer
-    package let invocationArgumentIndex: Int
     private let retainedInvocation: AnyObject
 
     package init(
         target: UnsafeRawPointer,
-        invocationArgumentIndex: Int,
         invocation: AnyObject
     ) {
         self.target = target
         self.invocation = UnsafeRawPointer(Unmanaged.passUnretained(invocation).toOpaque())
-        self.invocationArgumentIndex = invocationArgumentIndex
         retainedInvocation = invocation
     }
-}
-
-package func typedAdapterArgumentIndex(for method: MethodDescriptor) -> Int {
-    let transport = WitnessCallTransportPlan(
-        method: method,
-        trailingPayload: .typedAdapterInvocation
-    )
-    guard let index = transport.typedAdapterInvocationArgumentIndex else {
-        preconditionFailure(
-            "[TestDoubles] A validated typed witness adapter has no general-purpose register for its invocation."
-        )
-    }
-    return index
 }

@@ -1,3 +1,5 @@
+import InternalRuntimeContract
+
 extension Stub {
     /// Dispatch access passed to a requirement's compiler-typed witness adapter.
     ///
@@ -7,14 +9,14 @@ extension Stub {
     /// types and escaping conventions.
     public final class Invocation: @unchecked Sendable {
         private let endpoint: any RuntimeInvocationEndpoint
-        private let method: MethodDescriptor
+        private let slot: Int
 
         init(
             endpoint: any RuntimeInvocationEndpoint,
-            method: MethodDescriptor
+            slot: Int
         ) {
             self.endpoint = endpoint
-            self.method = method
+            self.slot = slot
         }
 
         /// Records or dispatches a synchronous nonthrowing requirement.
@@ -26,7 +28,7 @@ extension Stub {
                 return try dispatch(repeat each arguments, returning: resultType)
             } catch {
                 fatalError(
-                    "[TestDoubles] A nonthrowing typed adapter for '\(method.name)' threw \(error)."
+                    "[TestDoubles] A nonthrowing typed adapter for '\(methodName)' threw \(error)."
                 )
             }
         }
@@ -51,7 +53,7 @@ extension Stub {
                 throw failure
             } catch {
                 preconditionFailure(
-                    "[TestDoubles] Typed adapter for '\(method.name)' expected \(Failure.self), got \(type(of: error))."
+                    "[TestDoubles] Typed adapter for '\(methodName)' expected \(Failure.self), got \(type(of: error))."
                 )
             }
         }
@@ -66,11 +68,12 @@ extension Stub {
             }
 
             return try endpoint.dispatchTyped(
-                method: method,
-                args: erased,
+                RuntimeInvocationRequest(slot: slot, arguments: erased),
                 as: resultType
             )
         }
+
+        private var methodName: String { endpoint.methodName(at: slot) }
     }
 }
 import TestDoublesRuntime

@@ -1,4 +1,5 @@
 import CTestDoublesTrampoline
+import InternalRuntimeContract
 
 @_cdecl("td_swift_trampoline_handler")
 func td_swift_trampoline_handler(_ rawFrame: UnsafeMutablePointer<TDCallFrame>?) {
@@ -111,8 +112,10 @@ enum RuntimeTrampolineHandler {
         let method = invocation.method
         let result: Any
         switch invocation.endpoint.prepareDispatch(
-            method: method,
-            args: invocation.decodedArguments.values
+            RuntimeInvocationRequest(
+                slot: method.index,
+                arguments: invocation.decodedArguments.values
+            )
         ) {
             case .recording:
                 if method.isThrowing || method.isAsync {
@@ -205,8 +208,10 @@ enum RuntimeTrampolineHandler {
         invocation: Invocation
     ) -> UnsafeMutableRawPointer? {
         switch invocation.endpoint.prepareAsyncDispatch(
-            method: invocation.method,
-            args: invocation.decodedArguments.values
+            RuntimeInvocationRequest(
+                slot: invocation.method.index,
+                arguments: invocation.decodedArguments.values
+            )
         ) {
             case .recording:
                 frame.storeReturnError(0)

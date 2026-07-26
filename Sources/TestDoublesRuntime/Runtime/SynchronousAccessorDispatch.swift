@@ -1,3 +1,5 @@
+import InternalRuntimeContract
+
 enum SynchronousAccessorRole {
     case read
     case modify
@@ -40,9 +42,11 @@ enum SynchronousAccessorDispatch {
         endpoint: any RuntimeInvocationEndpoint,
         role: SynchronousAccessorRole
     ) -> Any {
-        switch endpoint.prepareDispatch(method: method, args: arguments) {
+        switch endpoint.prepareDispatch(
+            RuntimeInvocationRequest(slot: method.index, arguments: arguments)
+        ) {
             case .recording:
-                return endpoint.recordingAccessorResult(for: method)
+                return endpoint.recordingAccessorResult(at: method.index)
             case .behavior(let behavior):
                 return evaluate(
                     behavior,

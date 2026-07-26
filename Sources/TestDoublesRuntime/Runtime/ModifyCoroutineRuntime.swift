@@ -1,5 +1,6 @@
 import CTestDoublesTrampoline
 import Echo
+import InternalRuntimeContract
 
 @_cdecl("td_swift_modify_trampoline_handler")
 func td_swift_modify_trampoline_handler(
@@ -80,8 +81,10 @@ private enum ModifyCoroutineRuntime {
             let arguments = [value] + indices
             if skipsForwardingSetter {
                 switch endpoint.prepareDispatch(
-                    method: setter,
-                    args: arguments
+                    RuntimeInvocationRequest(
+                        slot: setter.index,
+                        arguments: arguments
+                    )
                 ) {
                     case .recording, .forwarding:
                         // A getter override owns this outer coroutine. A
@@ -99,9 +102,11 @@ private enum ModifyCoroutineRuntime {
                 }
             }
 
-            switch endpoint.prepareDispatch(method: setter, args: arguments) {
+            switch endpoint.prepareDispatch(
+                RuntimeInvocationRequest(slot: setter.index, arguments: arguments)
+            ) {
                 case .recording:
-                    _ = endpoint.recordingAccessorResult(for: setter)
+                    _ = endpoint.recordingAccessorResult(at: setter.index)
                 case .behavior(let behavior):
                     _ = SynchronousAccessorDispatch.evaluate(
                         behavior,
@@ -127,7 +132,7 @@ private enum ModifyCoroutineRuntime {
                 "[TestDoubles] _modify trampoline could not resolve recorder for getter slot \(getterIndex)."
             )
         }
-        _ = invocation.requireRuntimeMethod(
+        let runtimeGetter = invocation.requireRuntimeMethod(
             failureMessage:
                 "[TestDoubles] _modify trampoline could not resolve runtime dispatch \(getterIndex)."
         )
@@ -140,14 +145,18 @@ private enum ModifyCoroutineRuntime {
                 )
         }
         guard
-            let (getter, setter) = invocation.endpoint.modifyDispatchMethods(
-                forGetterIndex: getterIndex
-            )
+            let dispatch = invocation.endpoint.modifyDispatch(
+                forGetterSlot: getterIndex
+            ),
+            dispatch.getterSlot == getterIndex,
+            let runtimeSetter = invocation.invocation.method(at: dispatch.setterSlot)
         else {
             fatalError(
                 "[TestDoubles] _modify getter slot \(getterIndex) is not followed by a compatible setter."
             )
         }
+        let getter = runtimeGetter.descriptor
+        let setter = runtimeSetter.descriptor
 
         let indices = RuntimeArgumentDecoder.decode(
             for: getter,
@@ -156,7 +165,9 @@ private enum ModifyCoroutineRuntime {
         ).values
         let state: any YieldingAccessorState
         if let forwarder = invocation.forwarder {
-            switch invocation.endpoint.prepareDispatch(method: getter, args: indices) {
+            switch invocation.endpoint.prepareDispatch(
+                RuntimeInvocationRequest(slot: getter.index, arguments: indices)
+            ) {
                 case .forwarding:
                     state = forwarder.makeModifyState(
                         for: getter,

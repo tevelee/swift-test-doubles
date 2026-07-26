@@ -1,3 +1,4 @@
+import InternalRuntimeContract
 import TestDoublesRuntime
 
 extension Stub {
@@ -109,26 +110,23 @@ final class DummyInvocationEndpoint: RuntimeInvocationEndpoint,
     var invocationMode: RuntimeInvocationMode { .normal }
 
     func prepareDispatch(
-        method: MethodDescriptor,
-        args: [Any]
+        _ request: RuntimeInvocationRequest
     ) -> RuntimePreparedDispatch {
-        _ = method
-        _ = args
-        rejectInvocation(at: method.index)
+        _ = request.arguments
+        rejectInvocation(at: request.slot)
     }
 
     func prepareAsyncDispatch(
-        method: MethodDescriptor,
-        args: [Any]
+        _ request: RuntimeInvocationRequest
     ) -> RuntimeAsyncDispatch {
-        _ = args
-        rejectInvocation(at: method.index)
+        _ = request.arguments
+        rejectInvocation(at: request.slot)
     }
 
-    func modifyDispatchMethods(
-        forGetterIndex getterIndex: Int
-    ) -> (getter: MethodDescriptor, setter: MethodDescriptor)? {
-        _ = getterIndex
+    func modifyDispatch(
+        forGetterSlot getterSlot: Int
+    ) -> RuntimeModifyDispatch? {
+        _ = getterSlot
         return nil
     }
 
@@ -136,36 +134,37 @@ final class DummyInvocationEndpoint: RuntimeInvocationEndpoint,
         fatalError(rejectionMessage(slot: slot))
     }
 
-    func recordingAccessorResult(for method: MethodDescriptor) -> Any {
-        rejectInvocation(at: method.index)
+    func methodName(at slot: Int) -> String {
+        requirements[slot].map {
+            "\($0.protocolName) \($0.kind.rawValue) requirement"
+        } ?? "unknown requirement at dispatch slot \(slot)"
+    }
+
+    func recordingAccessorResult(at slot: Int) -> Any {
+        rejectInvocation(at: slot)
     }
 
     func dispatchTyped<Result>(
-        method: MethodDescriptor,
-        args: [Any],
+        _ request: RuntimeInvocationRequest,
         as resultType: Result.Type
     ) throws -> Result {
-        _ = args
+        _ = request.arguments
         _ = resultType
-        rejectInvocation(at: method.index)
+        rejectInvocation(at: request.slot)
     }
 
     func runtimePayload() -> AnyObject? { nil }
 
     func dependentResult(
         for result: Any,
-        method: MethodDescriptor
+        at slot: Int
     ) -> RuntimeDependentResult {
         _ = result
-        rejectInvocation(at: method.index)
+        rejectInvocation(at: slot)
     }
 
-    func recordingResult(
-        for method: MethodDescriptor,
-        args: [Any]
-    ) -> RuntimeRecordingResult {
-        _ = args
-        rejectInvocation(at: method.index)
+    func recordingResult(at slot: Int) -> RuntimeRecordingResult {
+        rejectInvocation(at: slot)
     }
 
     func rejectionMessage(slot: Int) -> String {

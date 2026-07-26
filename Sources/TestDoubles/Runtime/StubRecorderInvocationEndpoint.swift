@@ -1,3 +1,4 @@
+import InternalRuntimeContract
 import TestDoublesRuntime
 
 /// The transitional public-layer endpoint for compiler-typed witness
@@ -20,10 +21,12 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
     }
 
     func prepareDispatch(
-        method: MethodDescriptor,
-        args: [Any]
+        _ request: RuntimeInvocationRequest
     ) -> RuntimePreparedDispatch {
-        switch recorder.prepareDispatch(method: method, args: args) {
+        switch recorder.prepareDispatch(
+            method: method(at: request.slot),
+            args: request.arguments
+        ) {
             case .placeholder:
                 return .recording
             case .forwarding:
@@ -34,10 +37,12 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
     }
 
     func prepareAsyncDispatch(
-        method: MethodDescriptor,
-        args: [Any]
+        _ request: RuntimeInvocationRequest
     ) -> RuntimeAsyncDispatch {
-        switch recorder.prepareAsyncDispatch(method: method, args: args) {
+        switch recorder.prepareAsyncDispatch(
+            method: method(at: request.slot),
+            args: request.arguments
+        ) {
             case .placeholder:
                 return .recording
             case .immediate(let result):
@@ -49,10 +54,20 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
         }
     }
 
-    func modifyDispatchMethods(
-        forGetterIndex getterIndex: Int
-    ) -> (getter: MethodDescriptor, setter: MethodDescriptor)? {
-        recorder.modifyDispatchMethods(forGetterIndex: getterIndex)
+    func modifyDispatch(
+        forGetterSlot getterSlot: Int
+    ) -> RuntimeModifyDispatch? {
+        guard
+            let methods = recorder.modifyDispatchMethods(
+                forGetterIndex: getterSlot
+            )
+        else {
+            return nil
+        }
+        return RuntimeModifyDispatch(
+            getterSlot: methods.getter.index,
+            setterSlot: methods.setter.index
+        )
     }
 
     func rejectInvocation(at slot: Int) -> Never {
@@ -61,7 +76,12 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
         )
     }
 
-    func recordingAccessorResult(for method: MethodDescriptor) -> Any {
+    func methodName(at slot: Int) -> String {
+        method(at: slot).name
+    }
+
+    func recordingAccessorResult(at slot: Int) -> Any {
+        let method = method(at: slot)
         func opened<Result>(_ type: Result.Type) -> Any {
             RecordingReturnPlaceholderContext.requiredValue(
                 for: type,
@@ -72,11 +92,14 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
     }
 
     func dispatchTyped<Result>(
-        method: MethodDescriptor,
-        args: [Any],
+        _ request: RuntimeInvocationRequest,
         as resultType: Result.Type
     ) throws -> Result {
-        try recorder.dispatchTyped(method: method, args: args, as: resultType)
+        try recorder.dispatchTyped(
+            method: method(at: request.slot),
+            args: request.arguments,
+            as: resultType
+        )
     }
 
     func runtimePayload() -> AnyObject? {
@@ -85,8 +108,9 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
 
     func dependentResult(
         for result: Any,
-        method: MethodDescriptor
+        at slot: Int
     ) -> RuntimeDependentResult {
+        let method = method(at: slot)
         if method.kind == .initializer {
             guard let outcome = result as? InitializerDispatchOutcome else {
                 preconditionFailure(
@@ -132,11 +156,8 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
         }
     }
 
-    func recordingResult(
-        for method: MethodDescriptor,
-        args: [Any]
-    ) -> RuntimeRecordingResult {
-        _ = args
+    func recordingResult(at slot: Int) -> RuntimeRecordingResult {
+        let method = method(at: slot)
         if method.kind == .initializer || method.returnConvention == .selfType {
             return .payload
         }
@@ -164,5 +185,12 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
             case .suspending(let handler):
                 return .suspending(handler)
         }
+    }
+
+    private func method(at slot: Int) -> MethodDescriptor {
+        guard let method = recorder.runtimeMethod(for: slot) else {
+            rejectInvocation(at: slot)
+        }
+        return method
     }
 }

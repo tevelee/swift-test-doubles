@@ -1,3 +1,5 @@
+import InternalRuntimeContract
+
 struct ResolvedFabricatedInvocation {
     let slot: Int
     let invocation: RuntimeFabricatedInvocation

@@ -88,6 +88,8 @@ package protocol RuntimeInvocationEndpoint: AnyObject, Sendable {
 
     func rejectInvocation(at slot: Int) -> Never
 
+    func methodName(at slot: Int) -> String
+
     func recordingAccessorResult(at slot: Int) -> Any
 
     func dispatchTyped<Result>(

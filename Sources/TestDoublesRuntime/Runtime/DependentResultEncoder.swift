@@ -1,3 +1,5 @@
+import InternalRuntimeContract
+
 /// Encodes results whose storage depends on the dynamically generated payload.
 package enum DependentResultEncoder {
     package static func encodePayload(

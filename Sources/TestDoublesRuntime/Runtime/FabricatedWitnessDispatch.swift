@@ -1,4 +1,5 @@
 import Echo
+import InternalRuntimeContract
 
 package struct YieldOnce2WitnessPlan {
     package let resumeDiscriminator: UInt16

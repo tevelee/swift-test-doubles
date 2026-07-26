@@ -1,5 +1,6 @@
 import CTestDoublesTrampoline
 import Echo
+import InternalRuntimeContract
 
 @_cdecl("td_swift_read_trampoline_handler")
 func td_swift_read_trampoline_handler(
@@ -94,7 +95,9 @@ enum ReadCoroutineRuntime {
         ).values
         let state: any YieldingAccessorState
         if let forwarder = invocation.forwarder {
-            switch invocation.endpoint.prepareDispatch(method: method, args: arguments) {
+            switch invocation.endpoint.prepareDispatch(
+                RuntimeInvocationRequest(slot: method.index, arguments: arguments)
+            ) {
                 case .forwarding:
                     state = forwarder.makeReadState(
                         for: method,
@@ -103,7 +106,7 @@ enum ReadCoroutineRuntime {
 
                 case .recording:
                     state = ConfiguredState(
-                        result: invocation.endpoint.recordingAccessorResult(for: method),
+                        result: invocation.endpoint.recordingAccessorResult(at: method.index),
                         method: method,
                         frame: frame
                     )
