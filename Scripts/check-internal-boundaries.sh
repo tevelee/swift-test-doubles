@@ -67,6 +67,11 @@ check_absent \
   Sources/TestDoubles
 
 check_absent \
+  '^[[:space:]]*import\b' \
+  'InternalRuntimeContract must remain dependency-free:' \
+  Sources/InternalRuntimeContract
+
+check_absent \
   '^[[:space:]]*@_exported[[:space:]]+import\b' \
   'The runtime must not re-export implementation dependencies:' \
   Sources/TestDoublesRuntime
@@ -75,6 +80,18 @@ check_absent \
   '\b(StubRecorder|StubError|Dummy|Spy|IssueReporting)\b' \
   'Runtime must not depend on TestDoubles semantic or diagnostic types:' \
   Sources/TestDoublesRuntime
+
+check_absent \
+  '\b(FabricatedRuntimePlan|RuntimeFabricatedInvocation|FabricatedWitnessTableFactory|FabricatedWitnessTables|FabricatedExistentialStorage|FabricatedRuntimeResources)\b' \
+  'Public construction must not name runtime fabrication implementation types:' \
+  Sources/TestDoubles
+
+check_absent \
+  'TestDoublesRuntime\.RuntimeStubFactory\b' \
+  'Only the public RuntimeStubFactory facade may call the runtime factory:' \
+  Sources/TestDoubles/Preparation \
+  Sources/TestDoubles/Doubles \
+  Sources/TestDoubles/Recording
 
 check_absent \
   '^[[:space:]]*import[[:space:]]+(TestDoublesRuntime|Echo|CTestDoublesTrampoline)\b' \
@@ -110,6 +127,11 @@ check_single_declaration \
   'MethodDescriptor' \
   'Sources/TestDoublesRuntime/Metadata/MethodDescriptor.swift' \
   Sources/TestDoublesRuntime
+
+check_single_declaration \
+  'RuntimeInvocationEndpoint' \
+  'Sources/InternalRuntimeContract/RuntimeInvocationContract.swift' \
+  Sources
 
 if [[ "$failure" -ne 0 ]]; then
   exit 1

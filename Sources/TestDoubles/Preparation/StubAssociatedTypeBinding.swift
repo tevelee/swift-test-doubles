@@ -38,12 +38,12 @@ extension Stub {
                 callerAssociatedTypeBindings: callerAssociatedTypeBindings
             )
         )
-        let methods: [MethodDescriptor]
-        if requirements.isEmpty {
-            methods = try context.discoverMethods(using: .automatic)
-        } else {
-            methods = try flatExplicitMethods(requirements, context: context)
-        }
+        let methods =
+            if requirements.isEmpty {
+                try context.discoverMethods(using: .automatic)
+            } else {
+                try flatExplicitMethods(requirements, context: context)
+            }
 
         try RuntimeStubFactory.validateCallerBoundAssociatedTypeUse(
             methods,

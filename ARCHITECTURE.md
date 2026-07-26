@@ -10,7 +10,10 @@ the two areas can change and be validated independently.
 ```text
 TestDoubles (public product)
         │
+        ├── InternalRuntimeContract (package-only semantic contract)
+        │
         ├── TestDoublesRuntime (internal Swift ABI engine)
+        │           ├── InternalRuntimeContract
         │           ├── CTestDoublesTrampoline (C and assembly boundary)
         │           └── Echo (Swift runtime reflection and metadata)
         │
@@ -24,7 +27,22 @@ TestDoubles (public product)
 - Public requirement and associated-type input values, plus policy such as
   grouped-input diagnostics and capture behavior.
 - Semantic endpoint adapters that turn recorder decisions and dummy rejection
-  into the runtime's package-scoped dispatch contract.
+  into the package-scoped runtime contract.
+- The local `RuntimeStubFactory` facade. It passes validated semantic inputs
+  to the runtime and returns opaque materializable storage; it never exposes
+  fabricated tables, payloads, resource owners, or ABI references.
+
+`InternalRuntimeContract` owns only dependency-free values shared by the two
+Swift layers:
+
+- Dense dispatch-slot requests, endpoint outcomes, and the
+  `RuntimeInvocationEndpoint` protocol.
+- Source-level protocol-shape and associated-type-binding requests.
+- An opaque `AnyObject` lifecycle callback that lets the semantic endpoint
+  retain published runtime resources without importing their ABI type.
+
+The contract deliberately does not name method descriptors, protocol
+descriptors, witness tables, frames, ABI layouts, Echo types, or C types.
 
 `TestDoublesRuntime` owns the unsafe and compiler-coupled implementation:
 
@@ -35,6 +53,9 @@ TestDoubles (public product)
 - Argument decoding, result and error encoding, function reabstraction,
   forwarding transport, and synchronous, async, read, and modify dispatch.
 - Every Swift-to-C trampoline callback and its retained state.
+- The runtime half of `RuntimeStubFactory`: protocol-shape inspection,
+  signature discovery, forwarding transport, explicit descriptor resolution,
+  conformance validation, and the full fabrication/lifetime transaction.
 
 `CTestDoublesTrampoline` owns only the machine boundary: shared C frame
 layouts, executable veneers, assembly entries, and ABI constants. `Echo` owns
@@ -63,11 +84,13 @@ protocol call
 ```
 
 `RuntimeInvocationEndpoint` is the package-scoped seam between the two Swift
-targets. The endpoint supplies semantic outcomes such as recording placeholders,
+targets, declared in `InternalRuntimeContract`. The runtime passes a dense
+dispatch slot and boxed values; the semantic endpoint resolves that slot against
+its recorder catalog and supplies outcomes such as recording placeholders,
 configured values or failures, forwarding, dynamic `Self` payload choices, and
-intentional dummy rejection. The runtime owns the raw frame, value ownership,
-continuation state, and ABI encoding. It must never name `StubRecorder`,
-`StubError`, `Stub`, `Spy`, `Dummy`, or `IssueReporting`.
+intentional dummy rejection. The runtime retains its method descriptors, raw
+frame, value ownership, continuation state, and ABI encoding. It must never
+name `StubRecorder`, `StubError`, `Stub`, `Spy`, `Dummy`, or `IssueReporting`.
 
 Runtime argument decoding plans are precomputed per fabricated method in both
 borrowed and consuming forms. A normal forwarding call uses the borrowed plan;
@@ -96,16 +119,20 @@ lockstep.
 
 ## Dependency and validation rules
 
-The public target directly depends only on `TestDoublesRuntime` and
-IssueReporting. It does not re-export Echo or the C trampoline. Runtime APIs
+The public target directly depends on `InternalRuntimeContract`,
+`TestDoublesRuntime`, and IssueReporting. `InternalRuntimeContract` is
+dependency-free; `TestDoublesRuntime` is the only target that imports Echo or
+the C trampoline. Neither internal dependency is re-exported. Runtime APIs
 used across the internal boundary use explicit `package` access; none become
 part of the product API by accident.
 
 `Scripts/check-internal-boundaries.sh` enforces the critical source-level
-rules: direct low-level imports remain out of the public target, runtime does
-not name semantic public types, ManualStub stays source-level, implementation
-dependencies are not re-exported, and the key ABI model declarations have one
-runtime-owned home.
+rules: the contract remains dependency-free, direct low-level imports remain
+out of the public target, public construction cannot name runtime fabrication
+types, only the local facade may call the runtime factory, runtime does not
+name semantic public types, ManualStub stays source-level, implementation
+dependencies are not re-exported, and the key contract and ABI declarations
+have one owned home.
 
 Runtime or ABI changes require more than a SwiftPM unit pass: run debug and
 release tests, formatting and lint, the boundary check, documentation build,
