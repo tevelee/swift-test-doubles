@@ -8,9 +8,26 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
     @unchecked Sendable
 {
     private let recorder: StubRecorder
+    /// Runtime-fabricated stubs have a fixed, dense method catalog. Keeping
+    /// that catalog next to the semantic endpoint avoids taking the manual
+    /// recorder catalog lock for every trampoline call.
+    private let fabricatedMethods: [MethodDescriptor]?
+    private let fabricatedModifyDispatches: [Int: ModifyDispatchDescriptor]?
 
     init(recorder: StubRecorder) {
         self.recorder = recorder
+        fabricatedMethods = nil
+        fabricatedModifyDispatches = nil
+    }
+
+    init(
+        recorder: StubRecorder,
+        fabricatedMethods: [MethodDescriptor],
+        modifyDispatchDescriptors: [Int: ModifyDispatchDescriptor]
+    ) {
+        self.recorder = recorder
+        self.fabricatedMethods = fabricatedMethods
+        fabricatedModifyDispatches = modifyDispatchDescriptors
     }
 
     var invocationMode: RuntimeInvocationMode {
@@ -57,6 +74,15 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
     func modifyDispatch(
         forGetterSlot getterSlot: Int
     ) -> RuntimeModifyDispatch? {
+        if let fabricatedModifyDispatches {
+            guard let dispatch = fabricatedModifyDispatches[getterSlot] else {
+                return nil
+            }
+            return RuntimeModifyDispatch(
+                getterSlot: dispatch.getterDispatchIndex,
+                setterSlot: dispatch.setterDispatchIndex
+            )
+        }
         guard
             let methods = recorder.modifyDispatchMethods(
                 forGetterIndex: getterSlot
@@ -192,6 +218,12 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
     }
 
     private func method(at slot: Int) -> MethodDescriptor {
+        if let fabricatedMethods {
+            guard fabricatedMethods.indices.contains(slot) else {
+                rejectInvocation(at: slot)
+            }
+            return fabricatedMethods[slot]
+        }
         guard let method = recorder.runtimeMethod(for: slot) else {
             rejectInvocation(at: slot)
         }

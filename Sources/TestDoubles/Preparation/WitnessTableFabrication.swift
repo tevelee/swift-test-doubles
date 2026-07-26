@@ -20,7 +20,11 @@ extension Stub {
             modifyDispatchDescriptors: modifyDispatchDescriptors,
             allowsForwardingFallback: forwarder != nil
         )
-        let endpoint = StubRecorderInvocationEndpoint(recorder: recorder)
+        let endpoint = StubRecorderInvocationEndpoint(
+            recorder: recorder,
+            fabricatedMethods: methods,
+            modifyDispatchDescriptors: modifyDispatchDescriptors
+        )
         let protocolName = String(reflecting: P.self)
         let storage: RuntimeStubFactory.Storage<P> = try RuntimeStubFactory.fabricate(
             layout: layout,
