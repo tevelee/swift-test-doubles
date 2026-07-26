@@ -6,8 +6,12 @@ on:
     paths:
       - "*.md"
       - .github/workflows/publish-documentation.yml
+      - .swift-version
       - .spi.yml
+      - Package.resolved
+      - Package.swift
       - "Sources/**/*.md"
+      - Sources/TestDoubles/**/*.swift
       - Sources/TestDoubles/Documentation.docc/**
       - Scripts/build-documentation-site.sh
       - Scripts/generate-symbol-graph.sh

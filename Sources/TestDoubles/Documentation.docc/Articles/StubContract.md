@@ -450,7 +450,7 @@ and x86_64 are provisional cross-build targets.
 
 Android CI cross-builds debug and release test targets with the official Swift
 6.3.3 Android SDK and NDK r27d or later. The dependency graph must resolve Echo
-0.0.5 or newer for Android ELF image discovery; this repository pins 0.0.5. CI
+0.1.1 or newer for Android ELF image discovery. CI
 does not currently execute the tests on an Android emulator or device, so
 Android is not yet runtime-validated.
 

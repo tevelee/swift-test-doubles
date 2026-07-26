@@ -354,8 +354,8 @@ is a `ManualStub`-only target.
 
 Android support is cross-build validated in CI for debug and release test
 targets with the official Swift 6.3.3 Android SDK and NDK r27d or later. The
-dependency graph must resolve Echo 0.0.6 or newer for Android ELF image
-discovery; this repository pins 0.0.6. CI does not currently execute the tests
+dependency graph must resolve Echo 0.1.1 or newer for Android ELF image
+discovery. CI does not currently execute the tests
 on an Android emulator or device, so Android is not yet runtime-validated.
 
 Physical iOS, tvOS, visionOS, and watchOS devices are unsupported because the
@@ -376,7 +376,7 @@ Swift 6.3.1 WASI SDK, and actually runs both a small standalone executable and
 the `TestDoublesWasmTests` suite under `wasmtime`, demonstrating both halves
 of that story: `ManualStub` fully configured, invoked, and verified, and
 `Stub` construction failing closed. The dependency graph must resolve Echo
-0.0.6 or newer, whose C declarations avoid a wasm32 LLVM compiler crash on
+0.1.1 or newer, whose C declarations avoid a wasm32 LLVM compiler crash on
 unprototyped functions.
 
 </details>

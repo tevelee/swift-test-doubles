@@ -7,6 +7,7 @@ repository_root="$(cd "$script_directory/.." && pwd)"
 cd "$repository_root"
 
 failure=0
+import_prefix='^[[:space:]]*(@[[:alnum:]_]+(\([^)]*\))?[[:space:]]+)*'
 
 check_absent() {
   local pattern="$1"
@@ -28,7 +29,7 @@ check_absent() {
 }
 
 check_public_runtime_imports() {
-  local pattern='^[[:space:]]*import[[:space:]]+(TestDoublesRuntime|TestDoublesRuntimeMetadata)\b'
+  local pattern="${import_prefix}import[[:space:]]+(TestDoublesRuntime|TestDoublesRuntimeMetadata|TestDoublesRuntimeSupport)\\b"
   local matches=''
   local file
   local file_matches
@@ -50,36 +51,36 @@ check_public_runtime_imports() {
   )
 
   if [[ -n "$matches" ]]; then
-    echo 'Only RuntimeStubFactory.swift may import ABI runtime targets:' >&2
+    echo 'Only RuntimeStubFactory.swift may import runtime implementation targets:' >&2
     printf '%s' "$matches" >&2
     failure=1
   fi
 }
 
 check_absent \
-  '^[[:space:]]*(@_exported[[:space:]]+)?import[[:space:]]+(Echo|CTestDoublesTrampoline)\b' \
+  "${import_prefix}import[[:space:]]+(Echo|CTestDoublesTrampoline)\\b" \
   'The public TestDoubles target must not import low-level dependencies:' \
   Sources/TestDoubles
 
 check_absent \
-  '^[[:space:]]*import\b' \
+  "${import_prefix}import\\b" \
   'InternalRuntimeContract must remain dependency-free:' \
   Sources/InternalRuntimeContract
 
 check_absent \
-  '^[[:space:]]*@_exported[[:space:]]+import\b' \
+  '^[[:space:]]*(@[[:alnum:]_]+(\([^)]*\))?[[:space:]]+)*@_exported[[:space:]]+import\b' \
   'The runtime must not re-export implementation dependencies:' \
   Sources/TestDoublesRuntime
 
 check_absent \
-  '^[[:space:]]*@_exported[[:space:]]+import\b' \
+  '^[[:space:]]*(@[[:alnum:]_]+(\([^)]*\))?[[:space:]]+)*@_exported[[:space:]]+import\b' \
   'Runtime metadata must not re-export implementation dependencies:' \
   Sources/TestDoublesRuntimeMetadata
 
 check_public_runtime_imports
 
 check_absent \
-  '^[[:space:]]*@_exported[[:space:]]+import\b' \
+  '^[[:space:]]*(@[[:alnum:]_]+(\([^)]*\))?[[:space:]]+)*@_exported[[:space:]]+import\b' \
   'The public Runtime facade must not re-export the ABI runtime:' \
   Sources/TestDoubles/Runtime
 
@@ -89,7 +90,7 @@ check_absent \
   Sources/TestDoubles
 
 check_absent \
-  '^[[:space:]]*import[[:space:]]+(TestDoublesRuntime|TestDoublesRuntimeMetadata|Echo|CTestDoublesTrampoline)\b' \
+  "${import_prefix}import[[:space:]]+(TestDoublesRuntime|TestDoublesRuntimeMetadata|TestDoublesRuntimeSupport|Echo|CTestDoublesTrampoline)\\b" \
   'ManualStub must remain a source-level semantic API:' \
   Sources/TestDoubles/Doubles/ManualStub.swift
 

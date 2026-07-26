@@ -38,37 +38,58 @@ threshold = float(sys.argv[2])
 with coverage_path.open(encoding="utf-8") as coverage_file:
     report = json.load(coverage_file)
 
-covered = 0
-count = 0
-matched_files = 0
+source_roots = (
+    "InternalRuntimeContract",
+    "TestDoubles",
+    "TestDoublesRuntimeMetadata",
+    "TestDoublesRuntime",
+    "TestDoublesRuntimeSupport",
+)
+totals = {root: {"covered": 0, "count": 0, "files": 0} for root in source_roots}
 
 for data in report.get("data", []):
     for file in data.get("files", []):
         filename = file.get("filename", "").replace("\\", "/")
-        if "/Sources/TestDoubles/" not in filename or not filename.endswith(".swift"):
+        if not filename.endswith(".swift"):
+            continue
+
+        root = next(
+            (root for root in source_roots if f"/Sources/{root}/" in filename),
+            None,
+        )
+        if root is None:
             continue
 
         lines = file.get("summary", {}).get("lines", {})
-        covered += int(lines.get("covered", 0))
-        count += int(lines.get("count", 0))
-        matched_files += 1
+        totals[root]["covered"] += int(lines.get("covered", 0))
+        totals[root]["count"] += int(lines.get("count", 0))
+        totals[root]["files"] += 1
 
-if matched_files == 0 or count == 0:
-    print("error: coverage report contains no TestDoubles Swift sources", file=sys.stderr)
-    sys.exit(1)
+failed = False
+for root in source_roots:
+    total = totals[root]
+    if total["files"] == 0 or total["count"] == 0:
+        print(
+            f"error: coverage report contains no {root} Swift sources",
+            file=sys.stderr,
+        )
+        failed = True
+        continue
 
-percentage = covered * 100 / count
-print(
-    f"TestDoubles Swift source coverage: {percentage:.2f}% "
-    f"({covered}/{count} lines across {matched_files} files; "
-    f"minimum {threshold:.2f}%)"
-)
-
-if percentage < threshold:
+    percentage = total["covered"] * 100 / total["count"]
     print(
-        f"error: Swift source coverage {percentage:.2f}% is below "
-        f"the {threshold:.2f}% minimum",
-        file=sys.stderr,
+        f"{root} Swift source coverage: {percentage:.2f}% "
+        f"({total['covered']}/{total['count']} lines across {total['files']} files; "
+        f"minimum {threshold:.2f}%)"
     )
+    if percentage < threshold:
+        print(
+            f"error: {root} Swift source coverage {percentage:.2f}% is below "
+            f"the {threshold:.2f}% minimum",
+            file=sys.stderr,
+        )
+        failed = True
+
+if failed:
     sys.exit(1)
 PY
