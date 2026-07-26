@@ -6,6 +6,24 @@ import TestDoublesRuntime
 /// Construction policy and semantic endpoints stay in `TestDoubles`; this
 /// facade keeps the ABI storage type out of public test-double classes.
 enum RuntimeStubFactory {
+    struct ProtocolShape {
+        private let shape: TestDoublesRuntime.RuntimeStubFactory.ProtocolShape
+
+        fileprivate init(
+            shape: TestDoublesRuntime.RuntimeStubFactory.ProtocolShape
+        ) {
+            self.shape = shape
+        }
+
+        var layout: ProtocolLayout { shape.layout }
+        var associatedTypeBindings: AssociatedTypeBindings {
+            shape.associatedTypeBindings
+        }
+        var representation: StubExistentialRepresentation {
+            shape.representation
+        }
+    }
+
     struct Storage<P> {
         private let storage: TestDoublesRuntime.RuntimeStubFactory.Storage<P>
 
@@ -44,6 +62,41 @@ enum RuntimeStubFactory {
 }
 
 extension RuntimeStubFactory {
+    static func prepareProtocolShape<P>(
+        for protocolType: P.Type,
+        callerAssociatedTypeBindings: [Stub<P>.AssociatedTypeBinding]
+    ) throws -> ProtocolShape {
+        let request = RuntimeProtocolShapeRequest(
+            protocolType: protocolType,
+            typeDescription: String(reflecting: protocolType),
+            callerAssociatedTypeBindings: callerAssociatedTypeBindings.map {
+                RuntimeAssociatedTypeBindingRequest(
+                    declaringProtocol: $0.protocolType,
+                    name: $0.name,
+                    type: $0.type
+                )
+            }
+        )
+        return ProtocolShape(
+            shape: try TestDoublesRuntime.RuntimeStubFactory
+                .prepareProtocolShape(request)
+        )
+    }
+
+    static func validateCallerBoundAssociatedTypeUse(
+        _ methods: [MethodDescriptor],
+        layout: ProtocolLayout
+    ) throws {
+        try TestDoublesRuntime.RuntimeStubFactory
+            .validateCallerBoundAssociatedTypeUse(methods, layout: layout)
+    }
+
+    static func singleProtocolDescriptor(
+        of type: Any.Type
+    ) -> RuntimeProtocolDescriptor? {
+        TestDoublesRuntime.RuntimeStubFactory.singleProtocolDescriptor(of: type)
+    }
+
     static func discoverMethods(
         layout: ProtocolLayout,
         associatedTypeBindings: AssociatedTypeBindings,

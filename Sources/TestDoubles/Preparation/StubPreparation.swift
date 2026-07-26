@@ -6,12 +6,6 @@ enum SpyGetterEffectInput<P> {
     case grouped([Stub<P>.ProtocolGetterEffects])
 }
 
-struct StubProtocolShape {
-    let layout: ProtocolLayout
-    let associatedTypeBindings: AssociatedTypeBindings
-    let representation: StubExistentialRepresentation
-}
-
 /// The error vocabulary for one kind of grouped preparation input.
 struct GroupDiagnostics: Sendable {
     let invalidGroup: @Sendable (_ typeDescription: String) -> StubError
@@ -72,13 +66,13 @@ extension Stub {
     }
 
     struct PreparationContext {
-        private let shape: StubProtocolShape
+        private let shape: RuntimeStubFactory.ProtocolShape
 
         var layout: ProtocolLayout { shape.layout }
         var bindings: AssociatedTypeBindings { shape.associatedTypeBindings }
         var representation: StubExistentialRepresentation { shape.representation }
 
-        init(shape: StubProtocolShape) {
+        init(shape: RuntimeStubFactory.ProtocolShape) {
             self.shape = shape
         }
 
@@ -356,7 +350,7 @@ extension Stub {
     static func singleProtocolDescriptor(
         of type: Any.Type
     ) -> RuntimeProtocolDescriptor? {
-        runtimeSingleProtocolDescriptor(of: type)
+        RuntimeStubFactory.singleProtocolDescriptor(of: type)
     }
 
 }
