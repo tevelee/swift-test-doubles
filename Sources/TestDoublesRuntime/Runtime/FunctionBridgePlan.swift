@@ -1,4 +1,5 @@
 import Echo
+import TestDoublesRuntimeMetadata
 
 private let unsupportedDynamicValueFlags = UInt32(0x0080_0000)
 

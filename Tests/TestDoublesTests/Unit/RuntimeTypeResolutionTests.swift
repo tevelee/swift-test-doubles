@@ -300,3 +300,4 @@ import TestDoublesFixtures
 /// path rather than failing earlier at "can't even resolve this name."
 struct NotHashableProbe {}
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata

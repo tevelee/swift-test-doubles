@@ -1,3 +1,4 @@
+import TestDoublesRuntimeMetadata
 /// Runtime preparation operations behind the opaque stub-factory boundary.
 ///
 /// The public target selects requirement order, getter-effect policy, and
@@ -9,7 +10,7 @@ extension RuntimeStubFactory {
         associatedTypeBindings: AssociatedTypeBindings,
         getterEffectPolicy: GetterEffectDiscoveryPolicy
     ) throws -> [MethodDescriptor] {
-        try TestDoublesRuntime.discoverMethods(
+        try TestDoublesRuntimeMetadata.discoverMethods(
             witnessTables: try LinkedWitnessTableGraph.discover(in: layout),
             layout: layout,
             associatedTypeBindings: associatedTypeBindings,
@@ -32,7 +33,7 @@ extension RuntimeStubFactory {
             layout: layout,
             representation: representation
         )
-        let methods = try TestDoublesRuntime.discoverMethods(
+        let methods = try TestDoublesRuntimeMetadata.discoverMethods(
             witnessTables: forwardingTarget.witnessTables,
             layout: layout,
             associatedTypeBindings: associatedTypeBindings,
@@ -55,7 +56,7 @@ extension RuntimeStubFactory {
         bindings: AssociatedTypeBindings,
         containsAssociatedTypes: Bool
     ) throws -> MethodDescriptor {
-        try TestDoublesRuntime.makeExplicitMethodDescriptor(
+        try TestDoublesRuntimeMetadata.makeExplicitMethodDescriptor(
             schema: schema,
             index: index,
             witnessIndex: witnessIndex,

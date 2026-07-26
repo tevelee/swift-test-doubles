@@ -2,8 +2,8 @@ import CTestDoublesTrampoline
 import Echo
 import Foundation
 
-final class ReabstractionThunkRegistry: @unchecked Sendable {
-    static let shared = ReabstractionThunkRegistry()
+package final class ReabstractionThunkRegistry: @unchecked Sendable {
+    package static let shared = ReabstractionThunkRegistry()
 
     private let lock = NSLock()
     private var directToGenericThunks: [DirectToGenericThunk] = []
@@ -15,17 +15,17 @@ final class ReabstractionThunkRegistry: @unchecked Sendable {
         refresh()
     }
 
-    func directToGeneric(for metadata: FunctionMetadata) -> UnsafeRawPointer? {
+    package func directToGeneric(for metadata: FunctionMetadata) -> UnsafeRawPointer? {
         lookup(in: directToGenericSnapshot(), metadata: metadata)
             ?? refreshedLookup(in: directToGenericSnapshot, metadata: metadata)
     }
 
-    func genericToDirect(for metadata: FunctionMetadata) -> UnsafeRawPointer? {
+    package func genericToDirect(for metadata: FunctionMetadata) -> UnsafeRawPointer? {
         lookup(in: genericToDirectSnapshot(), metadata: metadata)
             ?? refreshedLookup(in: genericToDirectSnapshot, metadata: metadata)
     }
 
-    func hasBothDirections(for metadata: FunctionMetadata) -> Bool {
+    package func hasBothDirections(for metadata: FunctionMetadata) -> Bool {
         directToGeneric(for: metadata) != nil && genericToDirect(for: metadata) != nil
     }
 
@@ -170,6 +170,21 @@ package struct ReabstractionPair {
 
 private let reabstractionPrefix =
     "partial apply forwarder for reabstraction thunk helper "
+
+private func normalizedThunkName(_ value: String) -> String {
+    let asyncPrefix = "async function pointer to "
+    let withoutAsyncPrefix =
+        value.hasPrefix(asyncPrefix)
+        ? String(value.dropFirst(asyncPrefix.count))
+        : value
+    guard let suffix = withoutAsyncPrefix.range(of: " with unmangled suffix ")
+    else { return withoutAsyncPrefix }
+    return String(withoutAsyncPrefix[..<suffix.lowerBound])
+}
+
+private func demangleReabstractionSymbol(_ mangledName: String) -> String {
+    RuntimeSymbols.demangle(mangledName)
+}
 
 /// When the thunk itself carries its own generic signature, NodePrinter.cpp
 /// inserts `"<...> "` between `"helper "` and `"from "`

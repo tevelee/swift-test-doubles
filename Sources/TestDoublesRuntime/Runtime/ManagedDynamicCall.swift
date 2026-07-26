@@ -1,5 +1,6 @@
 import CTestDoublesTrampoline
 import Echo
+import TestDoublesRuntimeMetadata
 
 /// Owns one dynamic call frame and its optional result/error value buffers.
 /// Buffer state prevents failure paths from destroying uninitialized memory

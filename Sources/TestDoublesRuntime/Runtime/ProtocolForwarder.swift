@@ -1,4 +1,5 @@
 import CTestDoublesTrampoline
+import TestDoublesRuntimeMetadata
 
 package protocol RuntimeForwarding: AnyObject, Sendable {
     func forward(_ method: MethodDescriptor, frame: TrampolineCallFrame)

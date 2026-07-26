@@ -3,6 +3,7 @@
 
 import Testing
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata
 
 @testable import TestDoubles
 

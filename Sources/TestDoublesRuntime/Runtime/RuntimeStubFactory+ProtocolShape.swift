@@ -1,4 +1,5 @@
 import InternalRuntimeContract
+import TestDoublesRuntimeMetadata
 
 #if canImport(ObjectiveC)
     import Foundation

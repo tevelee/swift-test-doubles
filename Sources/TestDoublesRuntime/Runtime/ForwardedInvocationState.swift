@@ -1,4 +1,5 @@
 import CTestDoublesTrampoline
+import TestDoublesRuntimeMetadata
 
 final class ForwardedModifyState:
     YieldingAccessorState,

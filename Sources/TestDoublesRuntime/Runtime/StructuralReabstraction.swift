@@ -1,4 +1,5 @@
 import Echo
+import TestDoublesRuntimeMetadata
 
 extension FunctionReabstraction {
     package static func canInitializeDirectValue(of type: Any.Type) -> Bool {

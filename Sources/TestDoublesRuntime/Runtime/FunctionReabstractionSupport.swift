@@ -1,6 +1,7 @@
 import CTestDoublesTrampoline
 import Echo
 import Foundation
+import TestDoublesRuntimeMetadata
 
 // WASI has neither this trampoline's arm64/x86_64 assembly nor executable
 // memory to publish a fabricated veneer into (witness veneer allocation
@@ -258,20 +259,6 @@ package func typedThrowingFunctionRuntimeUnsupportedReason(
     #endif
 }
 
-package func functionHasTypedThrows(_ metadata: FunctionMetadata) -> Bool {
-    metadata.extendedFlags?.isTypedThrows == true
-}
-
-package func typedThrownErrorType(_ metadata: FunctionMetadata) -> Any.Type? {
-    guard functionHasTypedThrows(metadata) else { return nil }
-
-    #if os(Linux) && arch(x86_64)
-        return nil
-    #else
-        return metadata.thrownErrorType
-    #endif
-}
-
 package func dynamicDirectTypedErrorUsesIndirectResultSlot(
     _ metadata: FunctionMetadata
 ) -> Bool {
@@ -370,21 +357,6 @@ final class ReabstractionContext: @unchecked Sendable {
             "[TestDoubles] Swift changed native partial-apply context layout."
         )
     }
-}
-
-func normalizedThunkName(_ value: String) -> String {
-    let asyncPrefix = "async function pointer to "
-    let withoutAsyncPrefix =
-        value.hasPrefix(asyncPrefix)
-        ? String(value.dropFirst(asyncPrefix.count))
-        : value
-    guard let suffix = withoutAsyncPrefix.range(of: " with unmangled suffix ")
-    else { return withoutAsyncPrefix }
-    return String(withoutAsyncPrefix[..<suffix.lowerBound])
-}
-
-func demangleReabstractionSymbol(_ mangledName: String) -> String {
-    RuntimeSymbols.demangle(mangledName)
 }
 
 extension FunctionMetadata {

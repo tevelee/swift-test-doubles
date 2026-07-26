@@ -379,3 +379,4 @@ import Testing
 
 #endif
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata

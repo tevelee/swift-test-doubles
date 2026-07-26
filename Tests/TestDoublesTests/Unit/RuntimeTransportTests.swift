@@ -134,3 +134,4 @@ private struct WideTransportError: Error, Equatable {
     }
 }
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata

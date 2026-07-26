@@ -1,4 +1,5 @@
 import InternalRuntimeContract
+import TestDoublesRuntimeMetadata
 
 /// Applies endpoint-selected result policy before delegating to ABI transports.
 package enum RuntimeResultEncoder {

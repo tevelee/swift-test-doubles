@@ -366,6 +366,7 @@ private func dynamicBoxingSource() -> String {
         // swiftlint:disable file_length
 
         import Echo
+        import TestDoublesRuntimeMetadata
 
         \(dynamicDispatcher())
 
@@ -579,6 +580,7 @@ private func dynamicBridgeMatrixTestSource(arity: Int) -> String {
 
         import Testing
         import TestDoublesRuntime
+        import TestDoublesRuntimeMetadata
 
         @testable import TestDoubles
 
@@ -597,6 +599,7 @@ private func dynamicBridgeMatrixSupportSource() -> String {
     // Shared support for the independently diagnosable fixed-arity suites.
 
     import TestDoublesRuntime
+    import TestDoublesRuntimeMetadata
 
     @testable import TestDoubles
 
@@ -729,6 +732,8 @@ private func signatureOfSource() -> String {
         // Swift cannot reabstract an unbound method reference through a parameter-pack
         // function parameter. Keep these convenience overloads at fixed arities; the
         // explicit metatype-based factory continues to support arbitrary arity.
+        import TestDoublesRuntimeMetadata
+
         extension Stub.Requirement {
         \(methods)
         }

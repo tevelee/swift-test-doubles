@@ -1,5 +1,6 @@
 import InternalRuntimeContract
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata
 
 /// Test-only ABI assertions derived from the public semantic projection.
 ///

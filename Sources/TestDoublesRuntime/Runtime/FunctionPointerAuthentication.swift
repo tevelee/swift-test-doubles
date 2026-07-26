@@ -1,5 +1,6 @@
 import CTestDoublesTrampoline
 import Echo
+import TestDoublesRuntimeMetadata
 
 package func directFunctionDiscriminator(
     for metadata: FunctionMetadata

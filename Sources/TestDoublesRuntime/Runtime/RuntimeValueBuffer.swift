@@ -1,4 +1,5 @@
 import Echo
+import TestDoublesRuntimeMetadata
 
 extension Metadata {
     /// The byte count of temporary storage for one value of this type, padded

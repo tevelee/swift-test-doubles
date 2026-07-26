@@ -1,6 +1,7 @@
 import CTestDoublesTrampoline
 import Echo
 import Foundation
+import TestDoublesRuntimeMetadata
 
 /// Restores the concrete calling convention of function values that crossed
 /// the recorder's generic `Any` boundary. Swift emits both directions of this

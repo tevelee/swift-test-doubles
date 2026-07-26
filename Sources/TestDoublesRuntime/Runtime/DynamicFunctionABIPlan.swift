@@ -1,4 +1,5 @@
 import Echo
+import TestDoublesRuntimeMetadata
 
 /// The bounded direct-closure argument layout accepted by the dynamic bridge.
 ///

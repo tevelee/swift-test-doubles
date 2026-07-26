@@ -296,3 +296,4 @@ struct RealAssociatedSIMDABIProbe: AssociatedSIMDABIProbe {
     }
 }
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata

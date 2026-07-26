@@ -1,4 +1,5 @@
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata
 
 extension Stub {
     /// The throwing behavior of a getter used with automatic signature discovery.

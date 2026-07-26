@@ -48,8 +48,18 @@ check_absent \
   Sources/TestDoublesRuntime
 
 check_absent \
-  '^[[:space:]]*import[[:space:]]+TestDoublesRuntime\b' \
-  'Only Sources/TestDoubles/Runtime may import the ABI runtime:' \
+  '^[[:space:]]*@_exported[[:space:]]+import\b' \
+  'Runtime metadata must not re-export implementation dependencies:' \
+  Sources/TestDoublesRuntimeMetadata
+
+check_absent \
+  '\b(StubRecorder|StubError|Dummy|Spy|IssueReporting)\b' \
+  'Runtime metadata must not depend on TestDoubles semantic or diagnostic types:' \
+  Sources/TestDoublesRuntimeMetadata
+
+check_absent \
+  '^[[:space:]]*import[[:space:]]+(TestDoublesRuntime|TestDoublesRuntimeMetadata)\b' \
+  'Only Sources/TestDoubles/Runtime may import ABI runtime targets:' \
   Sources/TestDoubles/Doubles \
   Sources/TestDoubles/Metadata \
   Sources/TestDoubles/Recording
@@ -60,7 +70,7 @@ check_absent \
   Sources/TestDoubles/Runtime
 
 check_absent \
-  '^[[:space:]]*import[[:space:]]+(TestDoublesRuntime|Echo|CTestDoublesTrampoline)\b' \
+  '^[[:space:]]*import[[:space:]]+(TestDoublesRuntime|TestDoublesRuntimeMetadata|Echo|CTestDoublesTrampoline)\b' \
   'ManualStub must remain a source-level semantic API:' \
   Sources/TestDoubles/Doubles/ManualStub.swift
 

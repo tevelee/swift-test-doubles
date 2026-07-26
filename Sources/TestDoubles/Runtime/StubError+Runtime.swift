@@ -1,4 +1,5 @@
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata
 
 extension StubError {
     /// Converts a package-only runtime construction failure into the stable

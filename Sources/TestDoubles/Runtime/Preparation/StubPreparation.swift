@@ -1,4 +1,5 @@
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata
 
 enum SpyGetterEffectInput<P> {
     case automatic

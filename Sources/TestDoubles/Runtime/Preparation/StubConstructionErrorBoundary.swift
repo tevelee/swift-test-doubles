@@ -1,4 +1,5 @@
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata
 /// Runs a runtime test-double construction operation while preserving the
 /// public `StubError` failure contract.
 ///

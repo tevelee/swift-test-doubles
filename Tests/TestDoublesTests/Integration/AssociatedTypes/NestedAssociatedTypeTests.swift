@@ -1079,4 +1079,5 @@ private func expectDictionaryRequirementMismatch(
     }
 }
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata
 import InternalRuntimeContract

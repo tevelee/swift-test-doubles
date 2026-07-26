@@ -96,3 +96,4 @@ struct FunctionBridgePlanTests {
     }
 }
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata

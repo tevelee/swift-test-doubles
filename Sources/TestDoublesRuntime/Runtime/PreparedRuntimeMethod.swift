@@ -1,3 +1,4 @@
+import TestDoublesRuntimeMetadata
 /// Construction-time ABI plans for one fabricated witness requirement.
 ///
 /// Both argument decoding variants are precomputed so forwarding can borrow

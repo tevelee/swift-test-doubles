@@ -1,4 +1,5 @@
 import Echo
+import TestDoublesRuntimeMetadata
 
 package struct RuntimeArgumentSpec: Sendable {
     package let type: Any.Type

@@ -2,6 +2,7 @@
 // Shared support for the independently diagnosable fixed-arity suites.
 
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata
 
 @testable import TestDoubles
 

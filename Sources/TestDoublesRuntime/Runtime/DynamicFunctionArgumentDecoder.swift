@@ -1,4 +1,5 @@
 import Echo
+import TestDoublesRuntimeMetadata
 
 /// The decoded direct-call arguments needed to invoke a dynamically bridged
 /// generic function, plus optional typed-error storage supplied by its caller.

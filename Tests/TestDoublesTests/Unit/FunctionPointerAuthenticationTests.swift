@@ -51,3 +51,4 @@ struct FunctionPointerAuthenticationTests {
     }
 }
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata

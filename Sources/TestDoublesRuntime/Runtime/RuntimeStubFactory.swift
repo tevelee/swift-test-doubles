@@ -1,4 +1,5 @@
 import InternalRuntimeContract
+import TestDoublesRuntimeMetadata
 
 /// Builds an opaque fabricated existential from validated semantic inputs.
 ///

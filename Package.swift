@@ -30,11 +30,21 @@ let package = Package(
             dependencies: [
                 "InternalRuntimeContract",
                 "TestDoublesRuntime",
+                "TestDoublesRuntimeMetadata",
                 .product(name: "IssueReporting", package: "swift-issue-reporting")
             ]
         ),
         .target(
             name: "TestDoublesRuntime",
+            dependencies: [
+                "InternalRuntimeContract",
+                "TestDoublesRuntimeMetadata",
+                "CTestDoublesTrampoline",
+                .product(name: "Echo", package: "Echo")
+            ]
+        ),
+        .target(
+            name: "TestDoublesRuntimeMetadata",
             dependencies: [
                 "InternalRuntimeContract",
                 "CTestDoublesTrampoline",
@@ -69,6 +79,7 @@ let package = Package(
             dependencies: [
                 "TestDoubles",
                 "TestDoublesRuntime",
+                "TestDoublesRuntimeMetadata",
                 "InternalRuntimeContract",
                 "TestDoublesFixtures",
                 "TestDoublesResilientFixtures",

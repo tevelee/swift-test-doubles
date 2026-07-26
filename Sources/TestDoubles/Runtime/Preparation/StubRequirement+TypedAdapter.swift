@@ -1,5 +1,6 @@
 import InternalRuntimeContract
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata
 extension Stub.Requirement {
     static func typedAdapterFactory<Adapter>(
         _ adapter: Adapter

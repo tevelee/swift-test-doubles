@@ -1,5 +1,6 @@
 import CTestDoublesTrampoline
 import Echo
+import TestDoublesRuntimeMetadata
 
 struct ForwardedCallPlan: @unchecked Sendable {
     let function: UnsafeRawPointer

@@ -1,4 +1,5 @@
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata
 import Foundation
 import Testing
 @testable import TestDoubles

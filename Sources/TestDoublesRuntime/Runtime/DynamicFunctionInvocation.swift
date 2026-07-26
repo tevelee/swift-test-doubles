@@ -1,5 +1,6 @@
 import CTestDoublesTrampoline
 import Echo
+import TestDoublesRuntimeMetadata
 
 func canDynamicallyBoxFunctionArgument(
     _ metadata: FunctionMetadata

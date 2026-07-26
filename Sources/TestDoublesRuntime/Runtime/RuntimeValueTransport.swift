@@ -1,4 +1,5 @@
 import Echo
+import TestDoublesRuntimeMetadata
 
 /// Moves Swift values across the captured trampoline frame according to a
 /// previously validated ABI layout.

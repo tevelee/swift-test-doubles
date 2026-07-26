@@ -1,4 +1,5 @@
 import Echo
+import TestDoublesRuntimeMetadata
 
 /// Owns a concrete protocol existential at a stable address so its projected
 /// value and witness tables remain valid for every forwarded call.

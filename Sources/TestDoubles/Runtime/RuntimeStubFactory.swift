@@ -1,5 +1,6 @@
 import InternalRuntimeContract
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata
 
 /// The public target's opaque gateway to runtime-generated existential values.
 ///
@@ -9,7 +10,7 @@ enum RuntimeStubFactory {
     static func makePayload(
         resources: AnyObject
     ) -> AnyObject {
-        TestDoublesRuntime.FabricatedPayload(resources: resources)
+        TestDoublesRuntimeMetadata.FabricatedPayload(resources: resources)
     }
 
     static func makeRecordingPlaceholder<T>(for type: T.Type) -> T? {

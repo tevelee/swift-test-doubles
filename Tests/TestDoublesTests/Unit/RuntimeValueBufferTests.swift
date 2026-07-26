@@ -65,3 +65,4 @@ private struct ValueBufferOwnedValue {
     }
 }
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata

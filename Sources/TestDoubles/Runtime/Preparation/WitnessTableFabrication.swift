@@ -1,5 +1,6 @@
 import InternalRuntimeContract
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata
 
 extension Stub {
     static func prepareFabricated(

@@ -1,4 +1,5 @@
 import CTestDoublesTrampoline
+import TestDoublesRuntimeMetadata
 
 package struct WitnessEntryInstaller {
     let layout: ProtocolLayout

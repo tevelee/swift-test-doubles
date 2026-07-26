@@ -1,5 +1,6 @@
 import Foundation
 import InternalRuntimeContract
+import TestDoublesRuntimeMetadata
 
 /// Couples a fabricated witness table with an opaque semantic endpoint and
 /// precomputed ABI method plans. No public test-double type participates in

@@ -47,3 +47,4 @@ import Testing
     }
 }
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata

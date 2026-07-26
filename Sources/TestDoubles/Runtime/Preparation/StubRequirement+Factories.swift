@@ -1,4 +1,5 @@
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata
 
 extension Stub.Requirement {
     /// Describes a method requirement.

@@ -4,6 +4,7 @@
 // swiftlint:disable file_length
 
 import Echo
+import TestDoublesRuntimeMetadata
 
 func dynamicallyBoxFunctionArgument(
     function: UnsafeRawPointer,

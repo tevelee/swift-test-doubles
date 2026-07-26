@@ -894,3 +894,4 @@ private func makeExtendedAsyncStub() throws -> Stub<any ExtendedAsyncABIProbe> {
     )
 }
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata

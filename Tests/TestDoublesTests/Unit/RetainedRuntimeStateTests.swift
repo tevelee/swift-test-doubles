@@ -33,3 +33,4 @@ struct RetainedRuntimeStateTests {
     }
 }
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata

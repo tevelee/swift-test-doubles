@@ -1,3 +1,4 @@
+import TestDoublesRuntimeMetadata
 extension Stub {
     /// A concrete runtime binding for an associated type of an unbound protocol existential.
     public struct AssociatedTypeBinding: Sendable {

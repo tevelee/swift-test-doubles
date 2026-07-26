@@ -147,3 +147,4 @@ struct TrampolineArenaTests {
     }
 }
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata

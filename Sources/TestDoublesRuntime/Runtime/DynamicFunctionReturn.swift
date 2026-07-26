@@ -1,5 +1,6 @@
 import CTestDoublesTrampoline
 import Echo
+import TestDoublesRuntimeMetadata
 
 package func canDynamicallyInitializeFunctionResult(
     _ metadata: FunctionMetadata

@@ -138,3 +138,4 @@ private protocol SecondDependencyScope {
     }
 }
 import TestDoublesRuntime
+import TestDoublesRuntimeMetadata
