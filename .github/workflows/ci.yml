@@ -527,9 +527,12 @@ jobs:
             --disable-xctest \
             --enable-swift-testing
       - name: Test release
-        # Native x86 release-parallel execution is unstable in the pre-refactor
-        # baseline as well. Keep this ABI check serial; debug and sanitizer
-        # jobs continue to exercise parallel execution.
+        # Swift Testing has its own scheduler. Cap native x86 release checks to
+        # one worker: its release runtime is unstable under concurrent execution
+        # even in the pre-refactor baseline. Debug and sanitizer jobs still
+        # exercise parallel execution.
+        env:
+          SWT_EXPERIMENTAL_MAXIMUM_PARALLELIZATION_WIDTH: "1"
         run: |
           swift test \
             -c release \
