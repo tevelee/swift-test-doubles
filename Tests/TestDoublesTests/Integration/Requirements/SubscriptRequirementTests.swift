@@ -334,7 +334,7 @@ private func useLinkedAssociatedReadWriteSubscript(
     }
 
     @Test func mandatoryModifySlotMapsToGetterAndSetterDispatch() throws {
-        let layout = try Stub<any ConcreteReadWriteSubscriptProbe>.extractProtocolLayout()
+        let layout = try protocolLayout((any ConcreteReadWriteSubscriptProbe).self)
         let node = try #require(layout.nodes.first)
 
         #expect(node.callableRequirements.map(\.witnessIndex) == [0, 1])
@@ -344,4 +344,14 @@ private func useLinkedAssociatedReadWriteSubscript(
         #expect(node.modifyCoroutineRequirements.first?.getterDispatchIndex == 0)
         #expect(node.modifyCoroutineRequirements.first?.setterDispatchIndex == 1)
     }
+}
+
+private func protocolLayout<P>(_ protocolType: P.Type) throws -> ProtocolLayout {
+    try TestDoublesRuntime.RuntimeStubFactory.prepareProtocolShape(
+        RuntimeProtocolShapeRequest(
+            protocolType: protocolType,
+            typeDescription: String(reflecting: protocolType),
+            callerAssociatedTypeBindings: []
+        )
+    ).layout
 }

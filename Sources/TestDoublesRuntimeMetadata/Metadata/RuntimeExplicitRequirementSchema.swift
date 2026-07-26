@@ -204,12 +204,26 @@ private func typedWitnessAdapterFactory(
     from token: RuntimeTypedWitnessAdapterToken?
 ) -> TypedWitnessAdapterFactory? {
     guard let token else { return nil }
-    guard let factory = token.payload(as: TypedWitnessAdapterFactory.self) else {
+    guard let source = token.payload(as: RuntimeTypedWitnessAdapterSource.self) else {
         preconditionFailure(
             "[TestDoubles] RuntimeTypedWitnessAdapterToken contains an unexpected payload."
         )
     }
-    return factory
+    return TypedWitnessAdapterFactory(
+        functionType: source.functionType,
+        invocationType: source.invocationType,
+        make: { endpoint, slot in
+            guard let target = UnsafeRawPointer(bitPattern: source.entryPoint) else {
+                preconditionFailure(
+                    "[TestDoubles] A typed witness adapter has no entry point."
+                )
+            }
+            return TypedWitnessAdapter(
+                target: target,
+                invocation: source.makeInvocation(endpoint, slot)
+            )
+        }
+    )
 }
 
 extension StubRequirementKind {

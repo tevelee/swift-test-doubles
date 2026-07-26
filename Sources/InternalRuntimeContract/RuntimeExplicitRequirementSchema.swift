@@ -15,6 +15,38 @@ package struct RuntimeTypedWitnessAdapterToken: @unchecked Sendable {
     }
 }
 
+/// A source-level factory for a compiler-emitted typed witness adapter.
+///
+/// The semantic layer supplies the adapter's Swift type, entry point, and a
+/// typed invocation object. Metadata owns conversion into the ABI adapter
+/// object used while fabricating a witness table.
+package struct RuntimeTypedWitnessAdapterSource: @unchecked Sendable {
+    package let functionType: Any.Type
+    package let invocationType: Any.Type
+    package let entryPoint: UInt
+    package let makeInvocation:
+        @Sendable (
+            any RuntimeInvocationEndpoint,
+            Int
+        ) -> AnyObject
+
+    package init(
+        functionType: Any.Type,
+        invocationType: Any.Type,
+        entryPoint: UInt,
+        makeInvocation:
+            @escaping @Sendable (
+                any RuntimeInvocationEndpoint,
+                Int
+            ) -> AnyObject
+    ) {
+        self.functionType = functionType
+        self.invocationType = invocationType
+        self.entryPoint = entryPoint
+        self.makeInvocation = makeInvocation
+    }
+}
+
 /// Source-level requirement data normalized for runtime metadata resolution.
 ///
 /// Public factories build this dependency-free schema. The metadata runtime

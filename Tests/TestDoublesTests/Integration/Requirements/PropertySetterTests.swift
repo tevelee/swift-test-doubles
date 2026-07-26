@@ -1,3 +1,4 @@
+import InternalRuntimeContract
 import TestDoublesRuntime
 import TestDoublesRuntimeMetadata
 import Foundation
@@ -350,7 +351,7 @@ private final class LockedSetterValue<Value>: @unchecked Sendable {
     }
 
     @Test func mandatoryModifySlotsContainCoroutineWitnesses() throws {
-        let layout = try Stub<any AutomaticSetterProbe>.extractProtocolLayout()
+        let layout = try protocolLayout((any AutomaticSetterProbe).self)
         let node = try #require(layout.nodes.first)
         let stub = try Stub<any AutomaticSetterProbe>(
             .getter(Int.self),
@@ -381,6 +382,16 @@ private final class LockedSetterValue<Value>: @unchecked Sendable {
         #expect(entries[2] != 0)
         #expect(entries[1] != entries[2])
     }
+}
+
+private func protocolLayout<P>(_ protocolType: P.Type) throws -> ProtocolLayout {
+    try TestDoublesRuntime.RuntimeStubFactory.prepareProtocolShape(
+        RuntimeProtocolShapeRequest(
+            protocolType: protocolType,
+            typeDescription: String(reflecting: protocolType),
+            callerAssociatedTypeBindings: []
+        )
+    ).layout
 }
 
 @inline(never)

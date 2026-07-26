@@ -13,6 +13,20 @@ import Testing
         #expect(endpoint.invocationMode == .normal)
         _ = recorder.captureCalls {
             #expect(endpoint.invocationMode == .capturing)
+            if case .recording = endpoint.prepareDispatch(
+                RuntimeInvocationRequest(slot: 0, arguments: [])
+            ) {
+                #expect(Bool(true))
+            } else {
+                #expect(Bool(false))
+            }
+            if case .recording = endpoint.prepareAsyncDispatch(
+                RuntimeInvocationRequest(slot: 0, arguments: [])
+            ) {
+                #expect(Bool(true))
+            } else {
+                #expect(Bool(false))
+            }
         }
 
         let dispatch = endpoint.prepareDispatch(
@@ -38,8 +52,20 @@ import Testing
             kind: .setter,
             resultConvention: .concrete
         )
+        let optionalSelf = method(
+            slot: 2,
+            name: "optionalCopy()",
+            kind: .getter,
+            resultConvention: .optionalSelf
+        )
+        let initializer = method(
+            slot: 3,
+            name: "init()",
+            kind: .initializer,
+            resultConvention: .optionalSelf
+        )
         let recorder = StubRecorder(
-            methods: [getter, setter],
+            methods: [getter, setter, optionalSelf, initializer],
             modifyDispatchDescriptors: [
                 0: RuntimeModifyDispatch(getterSlot: 0, setterSlot: 1)
             ]
@@ -53,6 +79,31 @@ import Testing
         }
         #expect(endpoint.modifyDispatch(forGetterSlot: 0)?.getterSlot == 0)
         #expect(endpoint.modifyDispatch(forGetterSlot: 0)?.setterSlot == 1)
+        expectPayload(
+            endpoint.dependentResult(
+                for: SelfResultDispatchOutcome.success,
+                at: 0
+            ))
+        expectPayload(
+            endpoint.dependentResult(
+                for: OptionalSelfResultDispatchOutcome.value,
+                at: 2
+            ))
+        expectNilPayload(
+            endpoint.dependentResult(
+                for: OptionalSelfResultDispatchOutcome.nilValue,
+                at: 2
+            ))
+        expectPayload(
+            endpoint.dependentResult(
+                for: InitializerDispatchOutcome.success,
+                at: 3
+            ))
+        expectNilPayload(
+            endpoint.dependentResult(
+                for: InitializerDispatchOutcome.failure,
+                at: 3
+            ))
     }
 
     @Test func semanticAssociatedTypeUseRetainsOrderedNamesOnly() {
@@ -87,7 +138,6 @@ import Testing
             origin: .automatic,
             name: name,
             slot: slot,
-            witnessSlot: slot,
             arguments: [],
             result: RuntimeValue(
                 type: String.self,
@@ -101,5 +151,21 @@ import Testing
             isAsync: false,
             hasReliableThrowing: true
         )
+    }
+
+    private func expectPayload(_ result: RuntimeDependentResult) {
+        if case .payload = result {
+            #expect(Bool(true))
+        } else {
+            #expect(Bool(false))
+        }
+    }
+
+    private func expectNilPayload(_ result: RuntimeDependentResult) {
+        if case .nilPayload = result {
+            #expect(Bool(true))
+        } else {
+            #expect(Bool(false))
+        }
     }
 }

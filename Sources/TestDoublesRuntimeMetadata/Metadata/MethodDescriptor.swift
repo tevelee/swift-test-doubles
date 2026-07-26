@@ -241,7 +241,6 @@ package struct MethodDescriptor: Sendable {
             origin: RuntimeRequirementOrigin(origin),
             name: name,
             slot: index,
-            witnessSlot: witnessIndex,
             arguments: arguments.map { argument in
                 RuntimeArgument(
                     value: RuntimeValue(

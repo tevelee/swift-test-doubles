@@ -1,3 +1,4 @@
+import InternalRuntimeContract
 import Testing
 @testable import TestDoubles
 
@@ -7,10 +8,9 @@ struct DummyInvocationTests {
         let invocation = DummyInvocationEndpoint(
             typeDescription: "any ExampleService",
             requirements: [
-                3: DummyInvocationEndpoint.Requirement(
-                    protocolName: "ExampleService",
-                    witnessIndex: 5,
-                    kind: .method
+                RuntimeDummyRequirement(
+                    slot: 3,
+                    description: "ExampleService method requirement at witness index 5"
                 )
             ]
         )

@@ -5,6 +5,17 @@
 /// contract at the boundary.
 package enum RuntimeConstructionError: Error, Sendable {
     case typeIsNotProtocol(typeDescription: String)
+    case compositionRequiresGroupedRequirements(typeDescription: String)
+    case compositionRequiresGroupedGetterEffects(typeDescription: String)
+    case invalidProtocolRequirementGroup(typeDescription: String)
+    case missingProtocolRequirementGroup(protocolName: String)
+    case duplicateProtocolRequirementGroup(protocolName: String)
+    case foreignProtocolRequirementGroup(protocolName: String, typeDescription: String)
+    case invalidProtocolGetterEffectGroup(typeDescription: String)
+    case missingProtocolGetterEffectGroup(protocolName: String)
+    case duplicateProtocolGetterEffectGroup(protocolName: String)
+    case foreignProtocolGetterEffectGroup(protocolName: String, typeDescription: String)
+    case getterEffectCountMismatch(protocolName: String, expected: Int, actual: Int)
     case unsupportedTypeKind(typeName: String)
     case unsupportedProtocolShape(protocolName: String, reason: String)
     case noConformanceFound(protocolName: String)

@@ -105,15 +105,14 @@ package struct RuntimeArgument: @unchecked Sendable {
 /// recording and diagnostics layers.
 ///
 /// The dense `slot` is an endpoint dispatch identity, not a witness-table
-/// index. `witnessSlot` remains useful for diagnostics and manual routing, but
-/// it does not expose a witness-table layout or any ABI transport decision.
+/// index. Witness-table coordinates remain entirely within Metadata and
+/// execution, where they are required to fabricate ABI entries.
 package struct RuntimeMethod: @unchecked Sendable {
     package let kind: RuntimeRequirementKind
     package let receiver: RuntimeRequirementReceiver
     package let origin: RuntimeRequirementOrigin
     package let name: String
     package let slot: Int
-    package let witnessSlot: Int
     package let arguments: [RuntimeArgument]
     package let result: RuntimeValue
     package let typedErrorType: Any.Type?
@@ -131,7 +130,6 @@ package struct RuntimeMethod: @unchecked Sendable {
         origin: RuntimeRequirementOrigin,
         name: String,
         slot: Int,
-        witnessSlot: Int,
         arguments: [RuntimeArgument],
         result: RuntimeValue,
         typedErrorType: Any.Type?,
@@ -147,7 +145,6 @@ package struct RuntimeMethod: @unchecked Sendable {
         self.origin = origin
         self.name = name
         self.slot = slot
-        self.witnessSlot = witnessSlot
         self.arguments = arguments
         self.result = result
         self.typedErrorType = typedErrorType
@@ -161,9 +158,6 @@ package struct RuntimeMethod: @unchecked Sendable {
 
     /// Backward-compatible local spelling for the recorder's dispatch slot.
     package var index: Int { slot }
-
-    /// Backward-compatible local spelling for the requirement's source slot.
-    package var witnessIndex: Int { witnessSlot }
 
     package var argumentTypes: [Any.Type] { arguments.map(\.value.type) }
     package var argumentConventions: [RuntimeValueConvention] {

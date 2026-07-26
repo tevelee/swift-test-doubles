@@ -30,7 +30,7 @@ let package = Package(
             dependencies: [
                 "InternalRuntimeContract",
                 "TestDoublesRuntime",
-                "TestDoublesRuntimeMetadata",
+                "TestDoublesRuntimeSupport",
                 .product(name: "IssueReporting", package: "swift-issue-reporting")
             ]
         ),
@@ -97,6 +97,9 @@ let package = Package(
             name: "TestDoublesReadTests",
             dependencies: [
                 "TestDoubles",
+                "TestDoublesRuntime",
+                "TestDoublesRuntimeMetadata",
+                "InternalRuntimeContract",
                 "TestDoublesReadFixtures"
             ],
             path: "Tests/TestDoublesReadTests",
@@ -107,11 +110,9 @@ let package = Package(
         .testTarget(
             name: "TestDoublesRuntimeTests",
             dependencies: [
-                "TestDoubles",
                 "TestDoublesRuntime",
                 "TestDoublesRuntimeMetadata",
                 "TestDoublesRuntimeSupport",
-                "InternalRuntimeContract",
                 "TestDoublesFixtures"
             ],
             path: "Tests/TestDoublesRuntimeTests"

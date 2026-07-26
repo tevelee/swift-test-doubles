@@ -62,7 +62,6 @@ struct ManualMethodCatalog {
             origin: .manual,
             name: route.signature,
             slot: runtimeMethods.count,
-            witnessSlot: runtimeMethods.count,
             arguments: [],
             result: RuntimeValue(
                 type: returnType,

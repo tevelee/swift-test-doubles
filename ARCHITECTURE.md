@@ -12,12 +12,6 @@ TestDoubles (public product)
         │
         ├── InternalRuntimeContract (package-only semantic contract)
         │
-        ├── TestDoublesRuntimeMetadata (internal metadata engine)
-        │           ├── InternalRuntimeContract
-        │           ├── TestDoublesRuntimeSupport
-        │           ├── CTestDoublesTrampoline (ABI symbol access)
-        │           └── Echo (Swift runtime reflection and metadata)
-        │
         ├── TestDoublesRuntime (internal execution engine)
         │           ├── InternalRuntimeContract
         │           ├── TestDoublesRuntimeMetadata
@@ -39,18 +33,18 @@ graph, read from the public product toward the machine boundary:
 ```text
 TestDoubles
 ├── InternalRuntimeContract
-├── TestDoublesRuntimeMetadata
-│   ├── InternalRuntimeContract
-│   ├── TestDoublesRuntimeSupport
-│   │   └── CTestDoublesTrampoline
-│   ├── CTestDoublesTrampoline
-│   └── Echo
 ├── TestDoublesRuntime
 │   ├── InternalRuntimeContract
 │   ├── TestDoublesRuntimeMetadata
+│   │   ├── InternalRuntimeContract
+│   │   ├── TestDoublesRuntimeSupport
+│   │   │   └── CTestDoublesTrampoline
+│   │   ├── CTestDoublesTrampoline
+│   │   └── Echo
 │   ├── TestDoublesRuntimeSupport
 │   ├── CTestDoublesTrampoline
 │   └── Echo
+├── TestDoublesRuntimeSupport
 └── IssueReporting
 ```
 
@@ -80,10 +74,11 @@ metadata and execution targets, never of the public target or the contract.
 - Semantic endpoint adapters that turn recorder decisions and dummy rejection
   into the package-scoped runtime contract.
 - The local `RuntimeStubFactory` facade. It is the only public-target source
-  that imports a runtime target. It turns source-level requirements, effects,
-  bindings, and endpoints into an opaque prepared plan with semantic methods,
-  then materializes storage without exposing fabricated tables, payloads,
-  resource owners, or ABI references.
+  that imports a runtime implementation target. It passes source-level
+  requirements, effects, bindings, and endpoints to Runtime; Runtime returns
+  an opaque prepared plan with semantic methods, which the facade materializes
+  without exposing fabricated tables, payloads, resource owners, or ABI
+  references.
 
 `InternalRuntimeContract` owns only dependency-free values shared by the two
 Swift layers:
@@ -97,7 +92,8 @@ Swift layers:
 - `RuntimeAssociatedTypeUse`: an ordered summary of the associated-type names
   used by a value. It intentionally omits the surrounding type expression,
   declaration identity, and reference or opaque transport.
-- Explicit requirement schemas and an opaque typed-witness-adapter token.
+- Explicit requirement schemas, grouped preparation inputs, and an opaque
+  typed-witness-adapter token/source pair.
 - An opaque `AnyObject` lifecycle callback that lets the semantic endpoint
   retain published runtime resources without importing their ABI type.
 
@@ -177,8 +173,9 @@ construction and invocation cross the layers in two distinct phases:
 Construction
 Stub<any Greeter>
   → RuntimeStubFactory (the sole public-target runtime importer)
-  → metadata discovers the protocol shape and requirement signature
-  → facade creates an opaque prepared plan
+  → Runtime resolves the contract request; Metadata discovers the protocol
+    shape and requirement signature
+  → Runtime returns an opaque prepared plan
       ├── semantic RuntimeMethod values → StubRecorder
       └── raw descriptors/layout/forwarding transport stay private
   → facade supplies StubRecorderInvocationEndpoint
@@ -251,11 +248,11 @@ lockstep.
 
 ## Dependency and validation rules
 
-The public target directly depends on `InternalRuntimeContract`, both runtime
-targets, and IssueReporting. `InternalRuntimeContract` is dependency-free;
-the runtime targets are the only targets that import Echo, while the support
-and runtime targets may import the C trampoline. Neither internal dependency
-is re-exported. Runtime APIs
+The public target directly depends on `InternalRuntimeContract`, Runtime,
+RuntimeSupport, and IssueReporting. Metadata remains behind Runtime.
+`InternalRuntimeContract` is dependency-free; the runtime targets are the only
+targets that import Echo, while the support and runtime targets may import the
+C trampoline. Neither internal dependency is re-exported. Runtime APIs
 used across the internal boundary use explicit `package` access; none become
 part of the product API by accident.
 
@@ -265,7 +262,9 @@ rules: the contract remains dependency-free, only
 target, no ABI dependency is re-exported, and ManualStub stays source-level.
 Module targets enforce declaration ownership; the script intentionally avoids
 fragile semantic-name and declaration-location checks that merely duplicate
-those compiler boundaries.
+those compiler boundaries. Its one narrow name check rejects concrete
+fabrication types in the public target: that prevents the sole facade from
+letting an ABI storage type escape through a semantic API.
 
 Runtime or ABI changes require more than a SwiftPM unit pass: run debug and
 release tests, formatting and lint, the boundary check, documentation build,

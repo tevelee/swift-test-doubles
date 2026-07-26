@@ -18,12 +18,17 @@ operation that can match arguments, run a handler, and return a value.
 
 The product keeps those responsibilities in separate internal layers.
 `TestDoubles` owns the recorder, matching, verification, and public
-diagnostics. `TestDoublesRuntime` owns protocol metadata inspection, witness
-fabrication, ABI decoding and encoding, and callback lifetime. The runtime
-asks a package-scoped semantic endpoint what the recorder decided, but it does
-not depend on recorder or public test-double types. The C and assembly
-trampoline plus Swift runtime reflection sit below that runtime layer. This
-keeps public test semantics independent from the compiler-coupled machinery.
+diagnostics. `TestDoublesRuntimeMetadata` owns protocol metadata inspection,
+signature discovery, and validation. `TestDoublesRuntime` owns witness
+fabrication, ABI decoding and encoding, callback lifetime, and opaque
+preparation. The public layer sends source-level requirement schemas, effects,
+and associated-type bindings to Runtime; it receives semantic methods for the
+recorder plus a materializable plan whose descriptors and layouts stay private.
+Execution asks a package-scoped semantic endpoint what the recorder decided,
+but neither runtime target depends on recorder or public test-double types.
+Echo reflection and the C and assembly trampoline sit below those runtime
+layers. This keeps public test semantics independent from the compiler-coupled
+machinery.
 
 The complete path looks like this:
 

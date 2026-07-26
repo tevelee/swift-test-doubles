@@ -22,6 +22,100 @@ package enum RuntimeStubFactory {
         }
     }
 
+    /// A validated construction plan with semantic recorder information and
+    /// private runtime storage. The public layer can build its recorder from
+    /// the projected methods, but cannot inspect descriptors or ABI layouts.
+    package struct PreparedPlan<P> {
+        package let methods: [RuntimeMethod]
+        package let modifyDispatches: [Int: RuntimeModifyDispatch]
+        package let allowsForwardingFallback: Bool
+
+        private let layout: ProtocolLayout
+        private let associatedTypeBindings: AssociatedTypeBindings
+        private let representation: StubExistentialRepresentation
+        private let descriptors: [MethodDescriptor]
+        private let forwarder: (any RuntimeForwarding)?
+
+        package init(
+            layout: ProtocolLayout,
+            associatedTypeBindings: AssociatedTypeBindings,
+            representation: StubExistentialRepresentation,
+            descriptors: [MethodDescriptor],
+            forwarder: (any RuntimeForwarding)?,
+            modifyDispatches: [Int: RuntimeModifyDispatch]
+        ) {
+            self.layout = layout
+            self.associatedTypeBindings = associatedTypeBindings
+            self.representation = representation
+            self.descriptors = descriptors
+            self.forwarder = forwarder
+            self.modifyDispatches = modifyDispatches
+            methods = descriptors.map(\.runtimeMethod)
+            allowsForwardingFallback = forwarder != nil
+        }
+
+        package func materialize(
+            endpoint: any RuntimeInvocationEndpoint,
+            protocolName: String
+        ) throws -> Storage<P> {
+            try RuntimeStubFactory.fabricate(
+                layout: layout,
+                associatedTypeBindings: associatedTypeBindings,
+                representation: representation,
+                methods: descriptors,
+                endpoint: endpoint,
+                protocolName: protocolName,
+                forwarder: forwarder
+            )
+        }
+    }
+
+    /// A materializable dummy plan that exposes only failure diagnostics.
+    package struct PreparedDummyPlan<P> {
+        package let requirements: [RuntimeDummyRequirement]
+        private let layout: ProtocolLayout
+        private let associatedTypeBindings: AssociatedTypeBindings
+        private let representation: StubExistentialRepresentation
+
+        package init(
+            layout: ProtocolLayout,
+            associatedTypeBindings: AssociatedTypeBindings,
+            representation: StubExistentialRepresentation,
+            requirements: [RuntimeDummyRequirement]
+        ) {
+            self.layout = layout
+            self.associatedTypeBindings = associatedTypeBindings
+            self.representation = representation
+            self.requirements = requirements
+        }
+
+        package func materialize(
+            endpoint: any RuntimeInvocationEndpoint,
+            protocolName: String
+        ) throws -> Storage<P> {
+            try RuntimeStubFactory.fabricate(
+                layout: layout,
+                associatedTypeBindings: associatedTypeBindings,
+                representation: representation,
+                methods: [],
+                endpoint: endpoint,
+                protocolName: protocolName
+            )
+        }
+    }
+
+    /// Creates an opaque payload owner for values that must retain runtime
+    /// resources while a semantic recorder holds the generated value.
+    package static func makePayload(resources: AnyObject) -> AnyObject {
+        TestDoublesRuntimeMetadata.FabricatedPayload(resources: resources)
+    }
+
+    /// Synthesizes a source-level placeholder without exposing its runtime
+    /// implementation type to the semantic target.
+    package static func makeRecordingPlaceholder<T>(for type: T.Type) -> T? {
+        PlaceholderValue.make(type)
+    }
+
     /// Fabricates one complete conformance graph and materializable
     /// existential value.
     ///

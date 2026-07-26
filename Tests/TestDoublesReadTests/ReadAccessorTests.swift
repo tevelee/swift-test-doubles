@@ -1,3 +1,6 @@
+import InternalRuntimeContract
+import TestDoublesRuntime
+import TestDoublesRuntimeMetadata
 import TestDoublesReadFixtures
 import Testing
 @testable import TestDoubles
@@ -158,7 +161,7 @@ private struct Modify2AbortFailure: Error {}
     }
 
     @Test func readRequirementMapsOneWitnessToOneGetterDispatch() throws {
-        let layout = try Stub<any ConcreteReadAccessorProbe>.extractProtocolLayout()
+        let layout = try protocolLayout((any ConcreteReadAccessorProbe).self)
         let node = try #require(layout.nodes.first)
 
         #if compiler(>=6.4)
@@ -245,7 +248,7 @@ private struct Modify2AbortFailure: Error {}
     }
 
     @Test func fabricatedModify2WitnessContainsDescriptor() throws {
-        let layout = try Stub<any Modify2AccessorProbe>.extractProtocolLayout()
+        let layout = try protocolLayout((any Modify2AccessorProbe).self)
         let node = try #require(layout.nodes.first)
         let modify = try #require(node.modifyCoroutineRequirements.first)
         #expect(modify.abi == .yieldOnce2)
@@ -389,6 +392,16 @@ private struct Modify2AbortFailure: Error {}
             ) { $0.value }
         }
     #endif
+}
+
+private func protocolLayout<P>(_ protocolType: P.Type) throws -> ProtocolLayout {
+    try TestDoublesRuntime.RuntimeStubFactory.prepareProtocolShape(
+        RuntimeProtocolShapeRequest(
+            protocolType: protocolType,
+            typeDescription: String(reflecting: protocolType),
+            callerAssociatedTypeBindings: []
+        )
+    ).layout
 }
 
 @inline(never)
