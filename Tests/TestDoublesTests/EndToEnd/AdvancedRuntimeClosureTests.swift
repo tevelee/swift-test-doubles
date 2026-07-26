@@ -161,7 +161,7 @@ private actor ClosureIsolationActor {
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func asyncTypedThrowingClosureValuesPreserveTypedErrors() async throws {
         _ = RealExternalExtendedClosureService()
-        if expectLinuxX86TypedThrowsClosureBoundary({
+        if expectExtendedAutomaticClosureBoundary({
             _ = try Stub<any ExternalExtendedClosureService>()
         }) {
             return
@@ -389,7 +389,7 @@ private actor ClosureIsolationActor {
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func typedThrowingClosureValuesPreserveTypedErrors() throws {
         _ = RealExternalExtendedClosureService()
-        if expectLinuxX86TypedThrowsClosureBoundary({
+        if expectExtendedAutomaticClosureBoundary({
             _ = try Stub<any ExternalExtendedClosureService>()
         }) {
             return
@@ -416,7 +416,7 @@ private actor ClosureIsolationActor {
     @MainActor
     @Test func globalActorClosureValuesPreserveIsolation() throws {
         _ = RealExternalExtendedClosureService()
-        if expectLinuxX86TypedThrowsClosureBoundary({
+        if expectExtendedAutomaticClosureBoundary({
             _ = try Stub<any ExternalExtendedClosureService>()
         }) {
             return
@@ -435,7 +435,7 @@ private actor ClosureIsolationActor {
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func isolatedAnyClosureValuesPreserveDynamicActorIsolation() async throws {
         _ = RealExternalExtendedClosureService()
-        if expectLinuxX86TypedThrowsClosureBoundary({
+        if expectExtendedAutomaticClosureBoundary({
             _ = try Stub<any ExternalExtendedClosureService>()
         }) {
             return
@@ -457,7 +457,7 @@ private actor ClosureIsolationActor {
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func transferAndNonsendingClosureFlagsRoundTrip() async throws {
         _ = RealExternalExtendedClosureService()
-        if expectLinuxX86TypedThrowsClosureBoundary({
+        if expectExtendedAutomaticClosureBoundary({
             _ = try Stub<any ExternalExtendedClosureService>()
         }) {
             return

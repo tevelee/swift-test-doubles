@@ -58,6 +58,9 @@ package enum FunctionReabstraction {
         if let reason = typedThrowingFunctionRuntimeUnsupportedReason(metadata) {
             return reason
         }
+        if let reason = automaticClosureUnsupportedReason(metadata) {
+            return reason
+        }
         guard directFunctionDiscriminator(for: metadata) != nil else {
             return "The closure's pointer-authentication type spelling cannot be reconstructed safely."
         }
@@ -84,6 +87,9 @@ package enum FunctionReabstraction {
         if let reason = typedThrowingFunctionRuntimeUnsupportedReason(metadata) {
             return reason
         }
+        if let reason = automaticClosureUnsupportedReason(metadata) {
+            return reason
+        }
         guard directFunctionDiscriminator(for: metadata) != nil else {
             return "The closure's pointer-authentication type spelling cannot be reconstructed safely."
         }
@@ -96,6 +102,21 @@ package enum FunctionReabstraction {
             return nil
         }
         return "No matching compiler-emitted generic-to-direct closure reabstraction thunk is linked. \(reason)"
+    }
+
+    /// These effects alter execution or transport semantics. A compiler thunk
+    /// can appear incidentally in a debug binary, but it is not a portable
+    /// runtime contract and can disappear under release optimization.
+    private static func automaticClosureUnsupportedReason(
+        _ metadata: FunctionMetadata
+    ) -> String? {
+        guard metadata.globalActorType == nil else {
+            return "Global-actor functions require an executor-preserving bridge."
+        }
+        guard hasOnlyDynamicallySupportedExtendedFlags(metadata) else {
+            return "Extended isolation, sending, or invertible-protocol flags require compiler reabstraction."
+        }
+        return nil
     }
 
     package static func boxDirectArgument(

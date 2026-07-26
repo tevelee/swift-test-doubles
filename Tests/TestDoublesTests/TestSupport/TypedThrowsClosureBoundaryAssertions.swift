@@ -16,3 +16,16 @@ func expectLinuxX86TypedThrowsClosureBoundary(
         return false
     #endif
 }
+
+@discardableResult
+func expectExtendedAutomaticClosureBoundary(
+    _ operation: () throws -> Void,
+    sourceLocation: SourceLocation = #_sourceLocation
+) -> Bool {
+    expectUnsupportedProtocolShape(
+        containing: "Extended isolation, sending, or invertible-protocol flags require compiler reabstraction",
+        sourceLocation: sourceLocation,
+        operation
+    )
+    return true
+}
