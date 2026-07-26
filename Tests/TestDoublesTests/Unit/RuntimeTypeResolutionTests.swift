@@ -99,6 +99,21 @@ import TestDoublesFixtures
         )
     }
 
+    #if os(Linux) && arch(x86_64)
+        @Test func ambiguousTypedThrowingFunctionResolutionDefersToValidation() throws {
+            let spelling =
+                "@Sendable (@Sendable (Swift.Int) -> Swift.String, Swift.Int) throws(TestDoublesFixtures.ExternalDynamicClosureError) -> @Sendable (Swift.Int) -> Swift.String"
+            let syntax = try #require(DemangledTypeSyntax(spelling))
+
+            #expect(
+                resolveRuntimeType(
+                    syntax,
+                    containedInMangledSymbol: "intentionally-unmatched"
+                ) != nil
+            )
+        }
+    #endif
+
     @Test func genericResultsContainingClosureArrowsResolveCompletely() throws {
         typealias ClosureResult = Result<@Sendable (Int) -> String, Never>
         let spelling =

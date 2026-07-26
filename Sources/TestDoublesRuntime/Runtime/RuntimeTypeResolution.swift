@@ -185,6 +185,21 @@ package func resolveRuntimeType(
     if linkedVariants.count == 1 {
         return linkedVariants[0]
     }
+    #if os(Linux) && arch(x86_64)
+        // Typed-throws metadata on this runtime cannot safely expose its
+        // error type, but its extended flags remain readable. Keep one
+        // candidate long enough for StubRequirementValidation to reject the
+        // protocol before a trampoline can be prepared. Choosing an escaping
+        // variant is safe here because every subsequent path fails closed.
+        if let typedThrowing = unique.first(where: { candidate in
+            guard let metadata = reflect(candidate) as? FunctionMetadata else {
+                return false
+            }
+            return functionHasTypedThrows(metadata)
+        }) {
+            return typedThrowing
+        }
+    #endif
     return unique.count == 1 ? unique[0] : nil
 }
 
