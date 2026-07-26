@@ -19,6 +19,10 @@ final class StubRecorder: @unchecked Sendable {
     }
 
     private var policy: LockedPolicyState
+    /// Runtime-fabricated stubs keep their immutable catalog with the
+    /// invocation endpoint. The recorder borrows that catalog so it does not
+    /// retain a second copy solely for registration and diagnostics.
+    private weak var fabricatedMethodProvider: (any StubRuntimeMethodProvider)?
     private weak var runtimeResourceOwner: AnyObject?
     let allowsForwardingFallback: Bool
 
@@ -73,9 +77,12 @@ final class StubRecorder: @unchecked Sendable {
     // MARK: - Method catalog and runtime resources
 
     func runtimeMethod(for index: Int) -> MethodDescriptor? {
+        if let method = fabricatedMethodProvider?.runtimeMethod(at: index) {
+            return method
+        }
         // Locked because a manual stub's first forwarding of a requirement
         // appends to the catalog while other invocations may be reading.
-        withLockedPolicy { $0.methodCatalog.method(at: index) }
+        return withLockedPolicy { $0.methodCatalog.method(at: index) }
     }
 
     func modifyDispatchMethods(
@@ -84,6 +91,15 @@ final class StubRecorder: @unchecked Sendable {
         withLockedPolicy {
             $0.methodCatalog.modifyDispatchMethods(forGetterIndex: getterIndex)
         }
+    }
+
+    /// Installs the immutable catalog provider before the fabricated runtime
+    /// resources become callable. Manual stubs never install one and continue
+    /// to use the lock-protected, extensible catalog above.
+    func useFabricatedMethodProvider(
+        _ provider: any StubRuntimeMethodProvider
+    ) {
+        fabricatedMethodProvider = provider
     }
 
     func returnValueMatchesRuntimeType(_ value: Any, for methodIndex: Int) -> Bool {

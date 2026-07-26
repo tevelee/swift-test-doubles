@@ -1,11 +1,20 @@
 import InternalRuntimeContract
 import TestDoublesRuntime
 
+/// Supplies the immutable requirement catalog for a fabricated stub.
+///
+/// This remains in the semantic target: it maps a trampoline slot to a
+/// test-double requirement, without exposing runtime storage or ABI metadata.
+protocol StubRuntimeMethodProvider: AnyObject {
+    func runtimeMethod(at slot: Int) -> MethodDescriptor?
+}
+
 /// The transitional public-layer endpoint for compiler-typed witness
 /// adapters. Keeping the recorder here prevents the runtime target from
 /// depending on TestDoubles recording semantics.
 final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
-    @unchecked Sendable
+    @unchecked Sendable,
+    StubRuntimeMethodProvider
 {
     private let recorder: StubRecorder
     /// Runtime-fabricated stubs have a fixed, dense method catalog. Keeping
@@ -218,15 +227,19 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
     }
 
     private func method(at slot: Int) -> MethodDescriptor {
-        if let fabricatedMethods {
-            guard fabricatedMethods.indices.contains(slot) else {
-                rejectInvocation(at: slot)
-            }
-            return fabricatedMethods[slot]
-        }
-        guard let method = recorder.runtimeMethod(for: slot) else {
+        guard let method = runtimeMethod(at: slot) else {
             rejectInvocation(at: slot)
         }
         return method
+    }
+
+    func runtimeMethod(at slot: Int) -> MethodDescriptor? {
+        if let fabricatedMethods {
+            guard fabricatedMethods.indices.contains(slot) else {
+                return nil
+            }
+            return fabricatedMethods[slot]
+        }
+        return recorder.runtimeMethod(for: slot)
     }
 }
