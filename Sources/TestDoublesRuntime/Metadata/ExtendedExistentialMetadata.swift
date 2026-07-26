@@ -79,11 +79,21 @@ package func inspectStubProtocolMetadata(
 ) throws -> StubProtocolMetadata {
     let metadata = reflect(type)
     if let existential = metadata as? ExistentialMetadata {
+        let protocolReferences = existential.protocolReferences
+        var protocols: [ProtocolDescriptor] = []
+        protocols.reserveCapacity(protocolReferences.count)
+        var hasProtocolWithoutSwiftWitnessTable = false
+        for reference in protocolReferences {
+            if let protocolDescriptor = reference.swiftProtocol {
+                protocols.append(protocolDescriptor)
+            } else {
+                hasProtocolWithoutSwiftWitnessTable = true
+            }
+        }
         return StubProtocolMetadata(
-            protocols: existential.protocols,
+            protocols: protocols,
             numberOfWitnessTables: existential.flags.numWitnessTables,
-            hasProtocolWithoutSwiftWitnessTable: existential.protocolReferences
-                .contains { $0.needsWitnessTable == false },
+            hasProtocolWithoutSwiftWitnessTable: hasProtocolWithoutSwiftWitnessTable,
             isClassConstrained: existential.flags.isClassConstraint,
             hasSuperclassConstraint: existential.flags.hasSuperclassConstraint,
             superclass: existential.superclass,
