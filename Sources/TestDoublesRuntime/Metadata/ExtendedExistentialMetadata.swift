@@ -1,4 +1,3 @@
-import CTestDoublesTrampoline
 import Echo
 
 /// The exact ordinary and extended existential metadata subset supported by
@@ -75,99 +74,63 @@ package func inspectStubProtocolMetadata(
     _ type: Any.Type,
     typeDescription: String
 ) throws -> StubProtocolMetadata {
-    let metadata = unsafeBitCast(type, to: UnsafeRawPointer.self)
-    switch metadata.load(as: UInt.self) {
-        case MetadataKindValue.existential:
-            guard let existential = reflect(type) as? ExistentialMetadata else {
-                throw RuntimeConstructionError.typeIsNotProtocol(typeDescription: typeDescription)
-            }
-            return StubProtocolMetadata(
-                protocols: existential.protocols,
-                numberOfWitnessTables: existential.flags.numWitnessTables,
-                isClassConstrained: existential.flags.isClassConstraint,
-                hasSuperclassConstraint: existential.flags.hasSuperclassConstraint,
-                superclass: existential.superclass,
-                specialProtocol: existential.flags.specialProtocol,
-                associatedTypeBindings: []
-            )
-        case MetadataKindValue.extendedExistential:
-            return try inspectExtendedExistential(metadata, typeDescription: typeDescription)
-        default:
-            throw RuntimeConstructionError.typeIsNotProtocol(typeDescription: typeDescription)
+    let metadata = reflect(type)
+    if let existential = metadata as? ExistentialMetadata {
+        return StubProtocolMetadata(
+            protocols: existential.protocols,
+            numberOfWitnessTables: existential.flags.numWitnessTables,
+            isClassConstrained: existential.flags.isClassConstraint,
+            hasSuperclassConstraint: existential.flags.hasSuperclassConstraint,
+            superclass: existential.superclass,
+            specialProtocol: existential.flags.specialProtocol,
+            associatedTypeBindings: []
+        )
     }
-}
-
-/// Runtime `MetadataKind` raw values, grounded in swiftlang/swift's
-/// `include/swift/ABI/MetadataKind.def`. These are the first word of a type's
-/// metadata record; only the two existential kinds this file inspects are
-/// listed here.
-private enum MetadataKindValue {
-    /// `Existential` = `3 | MetadataKindIsRuntimePrivate | MetadataKindIsNonHeap`.
-    static let existential: UInt = 0x303
-    /// `ExtendedExistential` = `7 | …IsRuntimePrivate | …IsNonHeap`.
-    static let extendedExistential: UInt = 0x307
-}
-
-private struct GenericSignatureHeader {
-    let numberOfParameters: UInt16
-    let numberOfRequirements: UInt16
-    let numberOfKeyArguments: UInt16
-    let flags: UInt16
+    if let extendedExistential = metadata as? ExtendedExistentialMetadata {
+        return try inspectExtendedExistential(
+            extendedExistential,
+            typeDescription: typeDescription
+        )
+    }
+    throw RuntimeConstructionError.typeIsNotProtocol(typeDescription: typeDescription)
 }
 
 private func inspectExtendedExistential(
-    _ metadata: UnsafeRawPointer,
+    _ metadata: ExtendedExistentialMetadata,
     typeDescription: String
 ) throws -> StubProtocolMetadata {
-    // On pointer-authenticated targets the metadata's `Shape` field is signed
-    // (__ptrauth_swift_nonunique_extended_existential_type_shape), so it must be
-    // authenticated against its own storage address before it can be read.
-    let shapeField = metadata + 8
+    let shape = metadata.shape
+    let flags = shape.flags
     guard
-        let shape = td_auth_extended_existential_shape(
-            shapeField.load(as: UnsafeRawPointer.self),
-            shapeField
-        )
-    else {
-        throw RuntimeConstructionError.typeIsNotProtocol(typeDescription: typeDescription)
-    }
-    let flags = shape.load(as: UInt32.self)
-    let specialKind = flags & 0xff
-    guard specialKind == 0 || specialKind == 1,
-        flags & ~UInt32(0xff) == 0x1900
+        flags.bits == 0x1900 || flags.bits == 0x1901,
+        let specialKind = flags.specialKind
     else {
         throw RuntimeConstructionError.unsupportedProtocolShape(
             protocolName: typeDescription,
             reason: "This extended existential is outside the supported bound-associated-type metadata shape. Only opaque or class-constrained existentials with concretely bound primary associated types are supported."
         )
     }
-    // TargetExtendedExistentialTypeShape starts with 32-bit flags, a 32-bit
-    // relative existential-type pointer, and the requirement signature
-    // header. This accepted flag set then has one generalization header and no
-    // type expression, suggested witnesses, explicit parameter descriptors,
-    // or pack descriptors before the generic requirements.
-    let requirementHeader = (shape + 8).load(as: GenericSignatureHeader.self)
-    let generalizationHeader = (shape + 16).load(as: GenericSignatureHeader.self)
-    let requirements = shape + 24
+    let requirements = shape.requirementRequirements
     let unsupportedSuperclassReason =
         "Superclass-constrained bound associated-type existentials are not supported. Use an AnyObject-constrained protocol when the concrete superclass is not required."
-    for index in 0 ..< Int(requirementHeader.numberOfRequirements) {
-        let requirement = requirements + index * 12
-        if requirement.load(as: UInt32.self) == 0x02 {
-            throw RuntimeConstructionError.unsupportedProtocolShape(
-                protocolName: typeDescription,
-                reason: unsupportedSuperclassReason
-            )
-        }
+    for requirement in requirements where requirement.flags.bits == 0x02 {
+        throw RuntimeConstructionError.unsupportedProtocolShape(
+            protocolName: typeDescription,
+            reason: unsupportedSuperclassReason
+        )
     }
-    let numberOfBindings = Int(generalizationHeader.numberOfParameters)
-    guard numberOfBindings > 0,
-        Int(requirementHeader.numberOfParameters) == numberOfBindings + 1,
-        requirementHeader.numberOfRequirements > 0,
-        Int(requirementHeader.numberOfKeyArguments) == Int(requirementHeader.numberOfRequirements) + 1,
-        requirementHeader.flags == 0,
-        generalizationHeader.numberOfKeyArguments == generalizationHeader.numberOfParameters,
-        generalizationHeader.flags == 0
+    guard let generalizationSignature = shape.generalizationSignature else {
+        throw RuntimeConstructionError.unsupportedProtocolShape(
+            protocolName: typeDescription,
+            reason: "Bound associated-type support requires a metadata-only generalization argument for every concrete primary-associated-type binding."
+        )
+    }
+    let numberOfBindings = Int(generalizationSignature.numParams)
+    guard
+        numberOfBindings > 0,
+        shape.requirementParameterCount == numberOfBindings + 1,
+        requirements.isEmpty == false,
+        generalizationSignature.numKeyArguments == generalizationSignature.numParams
     else {
         throw RuntimeConstructionError.unsupportedProtocolShape(
             protocolName: typeDescription,
@@ -180,19 +143,14 @@ private func inspectExtendedExistential(
             protocolDescriptor: ProtocolDescriptor,
             name: String
         )] = []
-    for index in 0 ..< Int(requirementHeader.numberOfRequirements) {
-        let requirement = requirements + index * 12
-        let requirementFlags = requirement.load(as: UInt32.self)
+    for requirement in requirements {
+        let requirementFlags = requirement.flags.bits
         // Accepted protocol requirements contribute a key witness argument
         // (0x80). Concrete bindings are plain same-type requirements (0x01).
         // Reject extra/key bits on either kind.
         switch requirementFlags {
             case 0x80:
-                protocols.append(
-                    unsafeBitCast(
-                        resolveRelativeIndirectablePointer(at: requirement + 8),
-                        to: ProtocolDescriptor.self
-                    ))
+                protocols.append(requirement.protocol)
             case 0x01:
                 // The same-type requirement's Type field (RHS) always mangles
                 // as "Qyd__" -- dependent member of generalization parameter
@@ -210,10 +168,10 @@ private func inspectExtendedExistential(
                 // exact fixed suffix, not "Qyd__"/"Qyd0_" varying by index.
                 guard associatedTypeIdentities.count < numberOfBindings,
                     mangledGenericParameter(
-                        at: resolveRelativeDirectPointer(at: requirement + 4)
+                        at: requirement.paramMangledName
                     ) == associatedTypeIdentities.count,
                     let identity = parseAssociatedTypeReference(
-                        at: resolveRelativeDirectPointer(at: requirement + 8),
+                        at: requirement.mangledTypeName,
                         suffix: [0x51, 0x79, 0x64, 0x5f, 0x5f]
                     )
                 else {
@@ -246,8 +204,7 @@ private func inspectExtendedExistential(
         Set(protocolIDs).count == protocols.count,
         associatedTypeIdentities.count == numberOfBindings,
         Set(bindingIDs).count == associatedTypeIdentities.count,
-        Int(requirementHeader.numberOfRequirements) == protocols.count + numberOfBindings,
-        Int(requirementHeader.numberOfKeyArguments) == protocols.count + numberOfBindings + 1
+        shape.requirementCount == protocols.count + numberOfBindings
     else {
         throw RuntimeConstructionError.unsupportedProtocolShape(
             protocolName: typeDescription,
@@ -255,7 +212,7 @@ private func inspectExtendedExistential(
         )
     }
     if extendedExistentialUsesRuntimeInstantiatedValueWitnesses(
-        isClassConstrained: specialKind == 1,
+        isClassConstrained: specialKind == .class,
         numberOfWitnessTables: protocols.count
     ),
         runtimeCopiesExtendedExistentialContainersCorrectly == false
@@ -268,27 +225,28 @@ private func inspectExtendedExistential(
     }
     // TargetExtendedExistentialTypeMetadata is kind, shape, then the
     // generalization argument vector. `NumKeyArguments == NumParams` proves
-    // this vector contains metadata only, even when trailing generalization
-    // requirements describe non-key Copyable constraints. Those trailing
-    // requirements begin after the requirement-signature descriptors and are
-    // deliberately not interpreted here.
-    let wordSize = MemoryLayout<UnsafeRawPointer>.size
+    // Echo's raw argument words contain metadata only, even when trailing
+    // generalization requirements describe non-key Copyable constraints.
+    // Those trailing requirements are deliberately not interpreted here.
+    let generalizationArguments = metadata.generalizationArguments
+    guard generalizationArguments.count == numberOfBindings else {
+        throw RuntimeConstructionError.unsupportedProtocolShape(
+            protocolName: typeDescription,
+            reason: "Bound associated-type support requires a metadata-only generalization argument for every concrete primary-associated-type binding."
+        )
+    }
     let associatedTypeBindings = associatedTypeIdentities.enumerated().map {
         index, identity in
-        let boundMetadata = metadata.load(
-            fromByteOffset: 16 + index * wordSize,
-            as: UnsafeRawPointer.self
-        )
         return StubProtocolMetadata.AssociatedTypeBinding(
             protocolDescriptor: identity.protocolDescriptor,
             name: identity.name,
-            type: unsafeBitCast(boundMetadata, to: Any.Type.self)
+            type: unsafeBitCast(generalizationArguments[index], to: Any.Type.self)
         )
     }
     return StubProtocolMetadata(
         protocols: protocols,
         numberOfWitnessTables: protocols.count,
-        isClassConstrained: specialKind == 1,
+        isClassConstrained: specialKind == .class,
         hasSuperclassConstraint: false,
         superclass: nil,
         specialProtocol: .none,
@@ -367,23 +325,4 @@ private func mangledGenericParameter(at name: UnsafeRawPointer) -> Int? {
         return nil
     }
     return encodedIndex + 2
-}
-
-private func resolveRelativeDirectPointer(
-    at field: UnsafeRawPointer
-) -> UnsafeRawPointer {
-    field + Int(field.load(as: Int32.self))
-}
-
-/// Matches `RelativeIndirectablePointer<T>::get()`
-/// (include/swift/Basic/RelativePointer.h): mask the low bit off the stored
-/// offset to get `this + offset`; a set low bit means that address itself
-/// holds the real pointer (one more dereference), clear means it already is
-/// the real pointer.
-private func resolveRelativeIndirectablePointer(
-    at field: UnsafeRawPointer
-) -> UnsafeRawPointer {
-    let raw = field.load(as: Int32.self)
-    let target = field + Int(raw & ~1)
-    return raw & 1 == 0 ? target : target.load(as: UnsafeRawPointer.self)
 }
