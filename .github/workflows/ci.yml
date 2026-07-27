@@ -10,6 +10,7 @@ on:
       - .swift-format
       - .swift-version
       - .swiftlint.yml
+      - Benchmarks/**
       - Package.resolved
       - Package.swift
       - Scripts/**
@@ -24,6 +25,7 @@ on:
       - .swift-format
       - .swift-version
       - .swiftlint.yml
+      - Benchmarks/**
       - Package.resolved
       - Package.swift
       - Scripts/**
