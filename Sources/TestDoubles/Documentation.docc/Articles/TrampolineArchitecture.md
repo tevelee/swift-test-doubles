@@ -208,19 +208,20 @@ inherited unconstrained base witness.
 For an async call, the entry trampoline preserves the caller continuation,
 creates a Swift task continuation around recorder dispatch, and resumes through
 an architecture-specific continuation trampoline after recorder dispatch
-completes. A bounded ingress path also accepts exactly one eight-byte stack
-argument word after the arm64 or x86_64 register banks are exhausted. The entry
-frame points at that word only while synchronous preparation is running, so the
-decoder copies its value before returning a retained suspension state. The
-state never reads the saved stack pointer. The Swift handler returns the complete
-entry-SP-to-continuation-SP adjustment alongside that state. arm64 rounds the
-logical stack area up to its 16-byte boundary; x86_64 rounds down because its
-captured first-stack-argument address follows an implicit eight-byte async ABI
-slot. Before x86_64 advances the stack pointer, it carries that live slot to the
-resumed continuation stack pointer just as a compiler-generated witness thunk
-does. Assembly applies the adjustment once on both immediate and suspending
-entry exits, never from the completion trampoline. A second spilled word still
-fails closed.
+completes. The ingress path also accepts a sequence of complete, independent
+eight-byte general-purpose arguments after the arm64 or x86_64 register banks
+are exhausted. The entry frame points at those words only while synchronous
+preparation is running, so the decoder copies every value before returning a
+retained suspension state. The state never reads the saved stack pointer. The
+Swift handler returns the complete entry-SP-to-continuation-SP adjustment
+alongside that state. arm64 rounds the logical stack area up to its 16-byte
+boundary; x86_64 rounds down because its captured first-stack-argument address
+follows an implicit eight-byte async ABI slot. Before x86_64 advances the stack
+pointer, it carries that live slot to the resumed continuation stack pointer
+just as a compiler-generated witness thunk does. Assembly applies the
+adjustment once on both immediate and suspending entry exits, never from the
+completion trampoline. Split, padded, floating-point, vector, indirect,
+dependent, accessor, and wider typed-error stack shapes remain fail-closed.
 
 The bounded forwarding counterpart accepts one complete concrete eight-byte
 general-purpose spill for a nonthrowing instance method. Synchronous

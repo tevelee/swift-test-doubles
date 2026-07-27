@@ -467,14 +467,16 @@ checkouts. The README installation section lists the complete supported platform
 policy.
 
 An async Stub requirement may use the architecture's complete argument-register
-banks plus exactly one eight-byte incoming stack word. The entry trampoline
-decodes that first spilled word while the caller's invocation frame is still
-live, before an async handler can suspend. Arguments are copied into the retained
-dispatch state; indirect result and typed-error destination pointers already
-refer to caller-owned async storage and are retained separately. Construction
-still rejects a second spilled word. Before either an immediate return or a
-genuine suspension, the entry bridge removes the compiler-planned, ABI-aligned
-outgoing stack reservation exactly once.
+banks plus a sequence of complete, independent eight-byte general-purpose stack
+arguments. The entry trampoline decodes every spilled word while the caller's
+invocation frame is still live, before an async handler can suspend. Arguments
+are copied into the retained dispatch state; indirect result and the already
+proven single typed-error destination pointer refer to caller-owned async
+storage and are retained separately. Split, padded, floating-point, vector,
+indirect, dependent, accessor, and wider typed-error stack shapes remain
+fail-closed. Before either an immediate return or a genuine suspension, the
+entry bridge removes the compiler-planned, ABI-aligned outgoing stack
+reservation exactly once.
 
 A forwarding ``Spy`` supports the corresponding narrow outgoing path for an
 async instance method, untyped-throwing or not, when exactly one complete

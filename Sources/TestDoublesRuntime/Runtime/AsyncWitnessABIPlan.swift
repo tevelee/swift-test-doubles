@@ -49,24 +49,128 @@ package func unsupportedRuntimeReason(
 ) -> String? {
     guard method.isAsync else { return nil }
 
+    let transport = WitnessCallTransportPlan(
+        method: method,
+        trailingPayload: .dynamicSelf,
+        architecture: architecture
+    )
     let stackPlan = asyncWitnessStackPlan(
-        for: method,
+        transport: transport,
         architecture: architecture
     )
     // `prepareAsync` decodes this ingress plan before it can return a retained
     // state to assembly. The state owns decoded arguments and never follows the
     // snapshot's caller-stack pointer after suspension.
-    let supportedStackByteCount = MemoryLayout<UInt>.size
-
-    guard stackPlan.decodedStackByteCount > supportedStackByteCount else {
+    guard stackPlan.decodedStackByteCount > 0 else {
         return nil
     }
-    let requiredStackWords =
-        stackPlan.decodedStackByteCount / MemoryLayout<UInt>.size
-    return "Its arguments and hidden result or error storage require \(requiredStackWords) incoming "
-        + "stack words on \(architecture). The async Stub trampoline supports only the "
-        + "first spilled word; wider ingress needs continuation-owned stack transport. "
-        + "Use fewer values or a hand-written test double."
+    return unsupportedAsyncStubIngressReason(
+        for: method,
+        transport: transport,
+        architecture: architecture
+    )
+}
+
+private func unsupportedAsyncStubIngressReason(
+    for method: MethodDescriptor,
+    transport: WitnessCallTransportPlan,
+    architecture: RuntimeArchitecture
+) -> String? {
+    let wordByteCount = MemoryLayout<UInt>.size
+    let stackArguments = zip(method.arguments, transport.argumentLocations)
+        .compactMap {
+            argument,
+            locations -> (WitnessArgumentDescriptor, CallFrameArgumentLocation)? in
+            let stackLocations = locations.filter {
+                if case .stack = $0.storage { return true }
+                return false
+            }
+            guard stackLocations.isEmpty == false else { return nil }
+            guard locations.count == 1, let location = stackLocations.first else {
+                return (argument, stackLocations[0])
+            }
+            return (argument, location)
+        }
+
+    if let typedErrorDestination = transport.typedErrorDestinationLocation,
+        case .stack = typedErrorDestination.storage
+    {
+        guard method.kind == .method,
+            stackArguments.isEmpty,
+            transport.decodedStackByteCount == wordByteCount
+        else {
+            return unsupportedAsyncStubIngressDiagnostic(
+                architecture: architecture
+            )
+        }
+        return nil
+    }
+
+    guard method.kind == .method else {
+        return unsupportedAsyncStubIngressDiagnostic(
+            architecture: architecture
+        )
+    }
+    var expectedStackOffset = 0
+    for (argument, location) in stackArguments {
+        let isCompleteIndependentWord =
+            argument.value.dependency.isAssociatedTypeDependent == false
+            && {
+                if case .integer(words: 1) = argument.value.layout {
+                    return true
+                }
+                return false
+            }()
+            && ValueLayoutInfo(reflecting: argument.value.type).size
+                == wordByteCount
+        let isProvenSingleDependentIndirectWord =
+            transport.decodedStackByteCount == wordByteCount
+            && stackArguments.count == 1
+            && argument.value.dependency.isAssociatedTypeDependent
+            && {
+                if case .indirect = argument.value.layout {
+                    return true
+                }
+                return false
+            }()
+        guard
+            isCompleteIndependentWord || isProvenSingleDependentIndirectWord,
+            case .stack(let byteOffset) = location.storage,
+            byteOffset == expectedStackOffset,
+            location.valueOffset == 0,
+            location.byteCount == wordByteCount
+        else {
+            return unsupportedAsyncStubIngressDiagnostic(
+                architecture: architecture
+            )
+        }
+        expectedStackOffset += wordByteCount
+    }
+    guard expectedStackOffset == transport.decodedStackByteCount else {
+        return unsupportedAsyncStubIngressDiagnostic(
+            architecture: architecture
+        )
+    }
+
+    if transport.decodedStackByteCount > wordByteCount {
+        guard method.typedErrorType == nil
+        else {
+            return unsupportedAsyncStubIngressDiagnostic(
+                architecture: architecture
+            )
+        }
+    }
+    return nil
+}
+
+private func unsupportedAsyncStubIngressDiagnostic(
+    architecture: RuntimeArchitecture
+) -> String {
+    "Its caller-stack ingress on \(architecture) is not a sequence of complete, "
+        + "independent eight-byte general-purpose arguments supported by the async "
+        + "Stub trampoline. Split, padded, floating-point, vector, indirect, "
+        + "dependent, accessor, and wider typed-error shapes remain unsupported. "
+        + "Use compatible values or a hand-written test double."
 }
 
 package func asyncWitnessStackPlan(

@@ -374,7 +374,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
             unsupportedRuntimeReason(
                 for: method(argumentCount: 8),
                 architecture: .x86_64
-            ) != nil
+            ) == nil
         )
         #expect(
             unsupportedRuntimeReason(
@@ -386,7 +386,74 @@ protocol ExtendedAsyncABIProbe: Sendable {
             unsupportedRuntimeReason(
                 for: method(argumentCount: 10),
                 architecture: .arm64
-            ) != nil
+            ) == nil
+        )
+
+        #expect(
+            asyncWitnessStackPlan(
+                for: method(argumentCount: 8),
+                architecture: .x86_64
+            )
+                == AsyncWitnessStackPlan(
+                    decodedStackByteCount: 16,
+                    hiddenStackByteCount: 16,
+                    stackAdjustmentByteCount: 32
+                )
+        )
+        #expect(
+            asyncWitnessStackPlan(
+                for: method(argumentCount: 9),
+                architecture: .x86_64
+            )
+                == AsyncWitnessStackPlan(
+                    decodedStackByteCount: 24,
+                    hiddenStackByteCount: 16,
+                    stackAdjustmentByteCount: 32
+                )
+        )
+        #expect(
+            asyncWitnessStackPlan(
+                for: method(argumentCount: 12),
+                architecture: .x86_64
+            )
+                == AsyncWitnessStackPlan(
+                    decodedStackByteCount: 48,
+                    hiddenStackByteCount: 16,
+                    stackAdjustmentByteCount: 64
+                )
+        )
+        #expect(
+            asyncWitnessStackPlan(
+                for: method(argumentCount: 10),
+                architecture: .arm64
+            )
+                == AsyncWitnessStackPlan(
+                    decodedStackByteCount: 16,
+                    hiddenStackByteCount: 16,
+                    stackAdjustmentByteCount: 32
+                )
+        )
+        #expect(
+            asyncWitnessStackPlan(
+                for: method(argumentCount: 11),
+                architecture: .arm64
+            )
+                == AsyncWitnessStackPlan(
+                    decodedStackByteCount: 24,
+                    hiddenStackByteCount: 16,
+                    stackAdjustmentByteCount: 48
+                )
+        )
+        #expect(
+            asyncWitnessStackPlan(
+                for: method(argumentCount: 14),
+                architecture: .arm64
+            )
+                == AsyncWitnessStackPlan(
+                    decodedStackByteCount: 48,
+                    hiddenStackByteCount: 16,
+                    stackAdjustmentByteCount: 64
+                )
         )
 
         let indirectX86 = method(

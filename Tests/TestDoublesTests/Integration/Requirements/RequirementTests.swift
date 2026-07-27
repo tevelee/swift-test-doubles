@@ -524,7 +524,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
         }
     }
 
-    @Test func asyncStackBoundaryAllowsOnlyTheFirstSpilledWord() throws {
+    @Test func asyncStackBoundaryAllowsCompleteSpilledWords() throws {
         let method = MethodDescriptor(
             kind: .method,
             name: "call(_:_:_:_:_:_:)",
@@ -570,9 +570,9 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
         )
 
         #expect(unsupportedRuntimeReason(for: firstX86Spill, architecture: .x86_64) == nil)
-        #expect(unsupportedRuntimeReason(for: secondX86Spill, architecture: .x86_64) != nil)
+        #expect(unsupportedRuntimeReason(for: secondX86Spill, architecture: .x86_64) == nil)
         #expect(unsupportedRuntimeReason(for: firstArmSpill, architecture: .arm64) == nil)
-        #expect(unsupportedRuntimeReason(for: secondArmSpill, architecture: .arm64) != nil)
+        #expect(unsupportedRuntimeReason(for: secondArmSpill, architecture: .arm64) == nil)
 
         _ = try Stub<any SixIntegerAsyncRequirementProbe>(
             .method(
