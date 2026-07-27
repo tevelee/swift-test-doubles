@@ -1,5 +1,6 @@
 import Echo
 import EchoRuntimeReflection
+import EchoRuntimeSupport
 import TestDoublesRuntimeMetadata
 
 extension FunctionReabstraction {
@@ -23,7 +24,7 @@ extension FunctionReabstraction {
         }
 
         let metadata = reflect(type)
-        let temporary = metadata.allocateValueBuffer()
+        let temporary = ValueStorage.allocate(for: type)
         initializeGenericValue(source, type: type, at: temporary)
         let value = boxValue(type: type, source: temporary)
         metadata.vwt.destroy(temporary)
@@ -309,10 +310,10 @@ extension FunctionReabstraction {
         metadata: EnumMetadata,
         _ body: (UnsafeMutableRawPointer) -> Void
     ) {
-        let scratch = metadata.allocateValueBuffer()
+        let scratch = ValueStorage.allocate(for: metadata.type)
         scratch.copyMemory(
             from: source,
-            byteCount: metadata.valueBufferByteCount()
+            byteCount: ValueStorage.byteCount(for: metadata.type)
         )
         metadata.enumVwt.destructiveProjectEnumData(for: scratch)
         body(scratch)
@@ -325,7 +326,7 @@ extension FunctionReabstraction {
         destination.initializeMemory(
             as: UInt8.self,
             repeating: 0,
-            count: metadata.valueBufferByteCount()
+            count: ValueStorage.byteCount(for: metadata.type)
         )
     }
 }

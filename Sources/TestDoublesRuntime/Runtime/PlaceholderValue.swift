@@ -1,11 +1,12 @@
 import Echo
+import EchoRuntimeSupport
 import TestDoublesRuntimeMetadata
 
 /// Creates valid placeholder values for matcher recording and runtime fallback returns.
 package enum PlaceholderValue {
     /// Creates a placeholder of `type`, or returns `nil` when the type cannot be synthesized safely.
     package static func make<T>(_ type: T.Type = T.self) -> T? {
-        let storage = reflect(type).allocateValueBuffer()
+        let storage = ValueStorage.allocate(for: type)
         guard initialize(type: type, at: storage) else {
             storage.deallocate()
             return nil
@@ -26,7 +27,7 @@ package enum PlaceholderValue {
         destination.initializeMemory(
             as: UInt8.self,
             repeating: 0,
-            count: reflect(type).valueBufferByteCount()
+            count: ValueStorage.byteCount(for: type)
         )
         execute(plan, at: destination)
         return true

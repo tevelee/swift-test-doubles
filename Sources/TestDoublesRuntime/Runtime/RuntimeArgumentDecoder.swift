@@ -1,4 +1,5 @@
 import Echo
+import EchoRuntimeSupport
 import TestDoublesRuntimeMetadata
 
 package struct RuntimeArgumentSpec: Sendable {
@@ -203,13 +204,12 @@ package enum RuntimeArgumentDecoder {
         consuming: Bool
     ) -> Any {
         precondition(parts.count == locations.count)
-        let metadata = reflect(type)
-        let temporary = metadata.allocateValueBuffer()
+        let temporary = ValueStorage.allocate(for: type)
         defer { temporary.deallocate() }
         temporary.initializeMemory(
             as: UInt8.self,
             repeating: 0,
-            count: metadata.valueBufferByteCount()
+            count: ValueStorage.byteCount(for: type)
         )
         for (part, location) in zip(parts, locations) {
             precondition(part.offset == location.valueOffset)
