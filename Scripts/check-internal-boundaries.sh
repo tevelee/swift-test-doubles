@@ -77,6 +77,11 @@ check_absent \
   'Runtime metadata must not re-export implementation dependencies:' \
   Sources/TestDoublesRuntimeMetadata
 
+check_absent \
+  '\.vwt\.(initializeWithCopy|destroy)\b' \
+  'The execution runtime must use EchoRuntimeSupport value operations:' \
+  Sources/TestDoublesRuntime
+
 check_public_runtime_imports
 
 check_absent \
