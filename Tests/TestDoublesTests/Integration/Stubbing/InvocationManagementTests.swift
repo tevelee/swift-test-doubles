@@ -63,6 +63,27 @@ private final class BlockedBehaviorMatcherGate: @unchecked Sendable {
     }
 }
 
+private actor MatcherEvaluationGate {
+    private var evaluationCount = 0
+
+    func recordEvaluation() {
+        evaluationCount += 1
+    }
+
+    func waitUntilEvaluated(
+        atLeast expectedCount: Int,
+        within timeout: Duration
+    ) async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: timeout)
+        while evaluationCount < expectedCount {
+            guard clock.now < deadline else { return false }
+            await Task.yield()
+        }
+        return true
+    }
+}
+
 @Suite struct InvocationManagementTests {
     @Test func stubClearingBehaviorsRemovesShadowingRegistrations() throws {
         let stub = try Stub<any InvocationManagementService>()
@@ -208,22 +229,42 @@ private final class BlockedBehaviorMatcherGate: @unchecked Sendable {
     }
 
     @MainActor
-    @Test func eventualVerificationReevaluatesAcrossClear() async throws {
+    @Test(.timeLimit(.minutes(2)))
+    func eventualVerificationReevaluatesAcrossClear() async throws {
         let stub = try Stub<any InvocationManagementService>()
         stub.when { $0.notify(any()) }.thenDoNothing()
         let service: any InvocationManagementService = stub()
         let completions = LockedCounter()
+        let evaluationGate = MatcherEvaluationGate()
 
         service.notify(1)
         let verification = Task { @MainActor in
-            await stub.verify(2..., within: .seconds(60)) { $0.notify(any()) }
+            await stub.verify(2..., within: .seconds(60)) {
+                $0.notify(
+                    matching(description: "verification evaluation") { (value: Int) in
+                        Task { await evaluationGate.recordEvaluation() }
+                        return value > 0
+                    }
+                )
+            }
             completions.increment()
         }
 
-        try await Task.sleep(for: .milliseconds(10))
+        guard await evaluationGate.waitUntilEvaluated(atLeast: 1, within: .seconds(60)) else {
+            verification.cancel()
+            await verification.value
+            Issue.record("The eventual verification did not evaluate the initial call within 60 seconds.")
+            return
+        }
         stub.clearRecordedInvocations()
         service.notify(2)
-        try await Task.sleep(for: .milliseconds(10))
+
+        guard await evaluationGate.waitUntilEvaluated(atLeast: 2, within: .seconds(60)) else {
+            verification.cancel()
+            await verification.value
+            Issue.record("The eventual verification did not re-evaluate after clearing calls within 60 seconds.")
+            return
+        }
         #expect(completions.value == 0)
 
         service.notify(3)
