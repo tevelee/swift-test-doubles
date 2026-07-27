@@ -5,10 +5,11 @@ import Testing
     @Test func semanticProjectionErasesRawDependentShapeDetails() {
         let argumentDependency = WitnessValueDependency.dictionary(
             key: .associatedType(name: "Key"),
-            value: .genericClass(
-                constructor: GenericClassID(
-                    name: "Module.Box",
-                    descriptorAddress: 1
+            value: .genericValue(
+                constructor: GenericValueID(
+                    name: "Module.ValueBox",
+                    descriptorAddress: 1,
+                    kind: .struct
                 ),
                 arguments: [
                     .optional(.associatedType(name: "Value")),
@@ -59,7 +60,10 @@ import Testing
             runtimeMethod.typedErrorAssociatedTypeUse?.names
                 == ["Failure", "Value"]
         )
-        #expect(runtimeMethod.signatureDescription.contains("Module.Box") == false)
+        #expect(
+            runtimeMethod.signatureDescription.contains("Module.ValueBox")
+                == false
+        )
         #expect(runtimeMethod.signatureDescription.contains("Module.ErrorBox") == false)
     }
 

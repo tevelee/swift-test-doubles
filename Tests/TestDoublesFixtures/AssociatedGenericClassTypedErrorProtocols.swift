@@ -18,6 +18,16 @@ public final class ExternalAssociatedPairClassError<First, Second>:
     }
 }
 
+public final class ExternalConstrainedAssociatedClassError<Value: Hashable>:
+    Error, @unchecked Sendable
+{
+    public let value: Value
+
+    public init(_ value: Value) {
+        self.value = value
+    }
+}
+
 public protocol ExternalAssociatedClassTypedErrorProbe<Element> {
     associatedtype Element
 
@@ -79,6 +89,25 @@ public struct RealExternalAssociatedClassTypedErrorProbe:
     ) async throws(ExternalAssociatedClassError<Int>) -> String {
         if code != 0 { throw ExternalAssociatedClassError(code) }
         return "async"
+    }
+}
+
+public protocol ExternalConstrainedAssociatedClassTypedErrorProbe<Element> {
+    associatedtype Element: Hashable
+
+    func load(_ code: Int) throws(ExternalConstrainedAssociatedClassError<Element>) -> Int
+}
+
+public struct RealExternalConstrainedAssociatedClassTypedErrorProbe:
+    ExternalConstrainedAssociatedClassTypedErrorProbe
+{
+    public init() {}
+
+    public func load(
+        _ code: Int
+    ) throws(ExternalConstrainedAssociatedClassError<Int>) -> Int {
+        if code != 0 { throw ExternalConstrainedAssociatedClassError(code) }
+        return 10
     }
 }
 

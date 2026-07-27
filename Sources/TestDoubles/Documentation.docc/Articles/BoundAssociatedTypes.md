@@ -82,9 +82,9 @@ let stub = try SourceStub(
 )
 ```
 
-Automatic discovery also recognizes a bounded generic-class shape. The class
-must be a linked, public, top-level Swift class with one or two type
-parameters, each optionally carrying a single protocol conformance
+Automatic discovery also recognizes a bounded generic-nominal shape. The
+class, struct, or enum must be linked, public, and top-level, with one or two
+type parameters, each optionally carrying a single protocol-conformance
 requirement, and every argument must resolve recursively from concrete or
 associated metadata:
 
@@ -99,11 +99,11 @@ protocol PageSource<Element> {
 let stub = try Stub<any PageSource<Int>>()
 ```
 
-There is no source-less explicit `Value` schema for a generic class. Swift does
-not expose an unbound generic class metatype that could identify `Page` without
-either a string name or an arbitrary placeholder specialization. Both would
-make the schema less precise than automatic descriptor discovery. When a linked
-signature is available, describing `Page<Element>` as
+There is no source-less explicit `Value` schema for a generic nominal. Swift
+does not expose an unbound generic nominal metatype that could identify `Page`
+without either a string name or an arbitrary placeholder specialization. Both
+would make the schema less precise than automatic descriptor discovery. When a
+linked signature is available, describing `Page<Element>` as
 `.concrete(Page<Int>.self)` is rejected because it erases the dependent source
 shape.
 
@@ -160,7 +160,10 @@ Likewise, a reconstructed generic class is definitively reference metadata, so
 `Page<Element>` remains a direct one-word reference regardless of the payload's
 formal opacity. `Page<Element>?` is also one word, and wrapping the class in an
 Array, Set, or Dictionary retains that container's fixed reference-backed
-transport.
+transport. A reconstructed generic struct or enum instead retains a formally
+opaque complete value in the witness signature, so its argument and result
+transport are indirect even when the bound specialization itself would fit in
+registers.
 Dependency and ABI layout are therefore tracked separately: `[Int]` and
 `[Element]` have the same physical layout but are different explicit signature
 contracts. Dictionary dependencies additionally preserve the complete key and
@@ -215,13 +218,14 @@ it must evolve alongside the repository's Swift runtime support matrix.
   values. Every resolved `Set` element and `Dictionary` key must prove
   `Hashable`, and every resolved `Result` failure must prove `Error`. Method
   arguments in all supported container forms may be consuming.
-- Automatically discovered linked, public, top-level generic Swift classes
-  with one or two type parameters, each optionally carrying a single protocol
-  conformance requirement (`Box<Value: Hashable>`, not only `Box<Value>`).
-  Every argument may recursively contain concrete types, associated types,
-  and supported standard-library or generic-class shapes. Reconstructed
-  metadata must identify the exact linked class descriptor and prove class
-  reference metadata before construction proceeds.
+- Automatically discovered linked, public, top-level generic Swift classes,
+  structs, and enums with one or two type parameters, each optionally carrying
+  a single protocol-conformance requirement (`Box<Value: Hashable>`, not only
+  `Box<Value>`). Every argument may recursively contain concrete types,
+  associated types, and supported standard-library or generic-nominal shapes.
+  Reconstructed metadata must identify the exact linked nominal descriptor.
+  Classes prove fixed reference metadata; structs and enums use Swift's
+  formal opaque, indirect witness-value convention.
 - Direct and supported-container associated-type initializer arguments. Swift's
   initializer witness convention owns every parameter.
 - Requirements with any combination of `async` and ordinary untyped `throws`.
@@ -273,16 +277,17 @@ signature validation possible:
 - A missing, duplicate, or unknown concrete binding for any associated-type
   declaration in the flattened layout.
 - Dependent values outside recursive `Optional`, `Array`, `Set`, `Dictionary`,
-  `Result`, and the bounded automatic generic-class slice, such as tuples,
-  generic structs or enums, metatypes, existentials, or function types
+  `Result`, and the bounded automatic generic-nominal slice, such as tuples,
+  metatypes, existentials, or function types
   containing `Element`. An `AnyObject`-constrained associated type has a
   separately bounded slice: direct values and one `Optional` layer only.
-- Generic classes with constraints, more than two type parameters, nested or
+- Generic nominal values with more than two type parameters, nested or
   unlinked constructors, constructors whose metadata accessor needs non-type
-  arguments, and source-less explicit generic-class schemas.
+  arguments, more than one protocol-conformance requirement per parameter,
+  or source-less explicit generic-nominal schemas.
 - Associated-dependent typed errors whose outer shape is `Optional` or another
-  value wrapper, a generic struct or enum, a constrained or unlinked class, or
-  a class with more than two type parameters. Explicit concrete and string-named
+  value wrapper, a generic struct or enum, an unlinked class, or a class with
+  more than two type parameters. Explicit concrete and string-named
   associated-error schemas cannot describe the supported generic-class source
   dependency and are rejected when linked validation is available.
 - Same-type constraints other than concrete primary bindings, superclass
@@ -309,21 +314,26 @@ rejected declarations through construction.
 ### Work required for broader support
 
 The recursive classifier is deliberately bounded to standard-library
-`Optional`, `Array`, `Set`, `Dictionary`, and `Result`. Supporting other
-dependent values requires formal lowering evidence for tuples, generic structs
-and enums, metatypes, existentials, and function types. The implemented
-containers model their distinct lowering instead of inferring a universal
-convention from substituted concrete metadata. `Result` is special-cased as a
-two-payload enum: either formally opaque payload makes the complete value
-indirect, while two fixed payloads permit ordinary concrete enum
-classification. Generic classes are accepted only after exact descriptor-based
-metadata reconstruction proves reference identity and layout.
+`Optional`, `Array`, `Set`, `Dictionary`, `Result`, and linked top-level
+generic nominal values with one or two type parameters. Supporting other
+dependent values requires formal lowering evidence for tuples, metatypes,
+existentials, function types, and broader generic nominal forms. The
+implemented containers model their distinct lowering instead of inferring a
+universal convention from substituted concrete metadata. `Result` is
+special-cased as a two-payload enum: either formally opaque payload makes the
+complete value indirect, while two fixed payloads permit ordinary concrete enum
+classification. Exact descriptor-based metadata reconstruction proves the
+identity and generic arguments of every supported nominal: classes have their
+fixed reference transport, while generic structs and enums use Swift's formal
+opaque, indirect witness-value convention even when a concrete specialization
+would fit in registers.
 
-Expanding generic-class support to explicit source-less schemas needs a durable
-way to identify an unapplied constructor. A string is tied to symbol spelling,
-while a specialization such as `Page<Int>.self` does not state that `Int` is a
-placeholder to be replaced. Until Swift can express that constructor directly,
-the explicit path continues to fail closed rather than publish either contract.
+Expanding generic-nominal support to explicit source-less schemas needs a
+durable way to identify an unapplied constructor. A string is tied to symbol
+spelling, while a specialization such as `Page<Int>.self` does not state that
+`Int` is a placeholder to be replaced. Until Swift can express that constructor
+directly, the explicit path continues to fail closed rather than publish either
+contract.
 
 Consuming `Optional`, `Array`, `Set`, `Dictionary`, and `Result` values reuse the
 implemented value-witness and per-argument ownership path. Other nested,
@@ -344,9 +354,9 @@ formal error transport and no opaque error slot is needed. The same rule holds
 for proven one- and two-parameter class errors and recursively nested class
 applications.
 
-Optional and other value wrappers, generic structs or enums, and unsupported
-generic classes remain fail-closed. Supporting `Result` as an ordinary argument
-or result does not widen that typed-error boundary.
+Optional and other value wrappers, generic struct or enum typed errors, and
+unsupported generic-class typed errors remain fail-closed. Supporting `Result`
+as an ordinary argument or result does not widen that typed-error boundary.
 
 The implemented multiple-binding path maps every constrained-existential
 metadata argument to its same-type relationship and declaring protocol's

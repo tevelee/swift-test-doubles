@@ -323,6 +323,7 @@ Ordinary class constraints and exact concrete primary-associated-type bindings
 across inheritance, composition, and opaque or class storage are supported.
 That dependent slice includes direct values, recursive `Optional`, `Array`,
 `Set`, `Dictionary`, and `Result` values, proven linked generic classes,
+structs, and enums,
 concrete-class reference bindings directly or through one `Optional`, direct
 setters, initializer arguments, and consuming direct or supported-container
 method arguments. Static requirements,

@@ -69,6 +69,33 @@ private func useLinkedAssociatedClassTypedErrorProbe(
         stub.verify { try $0.oneParameter(equal(1)) }
     }
 
+    @Test func constrainedClassErrorsPreserveMatchingAndDynamicType() throws {
+        typealias Probe = any ExternalConstrainedAssociatedClassTypedErrorProbe<Int>
+        let stub = try Stub<Probe>()
+        stub.when { try $0.load(equal(0)) }.thenReturn(100)
+        stub.when { try $0.load(equal(1)) }.thenThrow(
+            ExternalConstrainedAssociatedClassError(101)
+        )
+        let probe: Probe = stub()
+
+        #expect(try probe.load(0) == 100)
+        let thrownError = #expect(
+            throws: ExternalConstrainedAssociatedClassError<Int>.self
+        ) {
+            _ = try probe.load(1)
+        }
+        let error = try #require(thrownError)
+        #expect(
+            ObjectIdentifier(Swift.type(of: error))
+                == ObjectIdentifier(
+                    ExternalConstrainedAssociatedClassError<Int>.self
+                )
+        )
+        #expect(error.value == 101)
+        stub.verify { try $0.load(equal(0)) }
+        stub.verify { try $0.load(equal(1)) }
+    }
+
     @Test func pairAndNestedClassErrorsPreservePayloads() throws {
         typealias Probe = any ExternalAssociatedClassTypedErrorProbe<Int>
         let stub = try Stub<Probe>()

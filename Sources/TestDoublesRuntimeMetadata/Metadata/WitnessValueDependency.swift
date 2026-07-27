@@ -49,6 +49,12 @@ package indirect enum WitnessValueDependency: Equatable, Sendable {
         constructor: GenericClassID,
         arguments: [WitnessValueDependency]
     )
+    /// A linked generic struct or enum whose associated-dependent formal
+    /// witness ABI transports the complete value indirectly.
+    case genericValue(
+        constructor: GenericValueID,
+        arguments: [WitnessValueDependency]
+    )
 
     /// Compatibility construction for synthetic descriptors and focused
     /// descriptor tests that have no declaring protocol metadata.
@@ -85,7 +91,7 @@ package indirect enum WitnessValueDependency: Equatable, Sendable {
             case .result(let success, let failure):
                 success.isAssociatedTypeDependent
                     || failure.isAssociatedTypeDependent
-            case .genericClass(_, let arguments):
+            case .genericClass(_, let arguments), .genericValue(_, let arguments):
                 arguments.contains(where: \.isAssociatedTypeDependent)
         }
     }
@@ -124,6 +130,8 @@ package indirect enum WitnessValueDependency: Equatable, Sendable {
                     || failure.usesOpaqueValueWitnessConvention
             case .genericClass:
                 false
+            case .genericValue:
+                true
         }
     }
 
@@ -140,7 +148,7 @@ package indirect enum WitnessValueDependency: Equatable, Sendable {
             case .result(let success, let failure):
                 success.firstAssociatedTypeName
                     ?? failure.firstAssociatedTypeName
-            case .genericClass(_, let arguments):
+            case .genericClass(_, let arguments), .genericValue(_, let arguments):
                 arguments.lazy.compactMap(\.firstAssociatedTypeName).first
         }
     }
@@ -164,7 +172,7 @@ package indirect enum WitnessValueDependency: Equatable, Sendable {
             case .result(let success, let failure):
                 success.containsReferenceAssociatedType
                     || failure.containsReferenceAssociatedType
-            case .genericClass(_, let arguments):
+            case .genericClass(_, let arguments), .genericValue(_, let arguments):
                 arguments.contains(where: \.containsReferenceAssociatedType)
         }
     }
@@ -210,6 +218,11 @@ package indirect enum WitnessValueDependency: Equatable, Sendable {
                     constructor: constructor,
                     arguments: arguments.map(\.legacyProjection)
                 )
+            case .genericValue(let constructor, let arguments):
+                .genericValue(
+                    constructor: constructor,
+                    arguments: arguments.map(\.legacyProjection)
+                )
         }
     }
 
@@ -225,7 +238,7 @@ package indirect enum WitnessValueDependency: Equatable, Sendable {
                 key.associatedTypeNames + value.associatedTypeNames
             case .result(let success, let failure):
                 success.associatedTypeNames + failure.associatedTypeNames
-            case .genericClass(_, let arguments):
+            case .genericClass(_, let arguments), .genericValue(_, let arguments):
                 arguments.flatMap(\.associatedTypeNames)
         }
     }

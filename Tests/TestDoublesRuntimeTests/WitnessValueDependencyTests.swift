@@ -138,6 +138,40 @@ private protocol SecondDependencyScope {
                     arguments: [first]
                 )
         )
+        let genericStruct = WitnessValueDependency.genericValue(
+            constructor: GenericValueID(
+                name: "Module.ValueBox",
+                descriptorAddress: 3,
+                kind: .struct
+            ),
+            arguments: [first]
+        )
+        #expect(genericStruct.isAssociatedTypeDependent)
+        #expect(genericStruct.associatedTypeUse.names == ["Value"])
+        #expect(genericStruct.usesOpaqueValueWitnessConvention)
+        #expect(genericStruct.usesSupportedReferenceAssociatedTransport)
+        #expect(
+            genericStruct.legacyProjection
+                == .genericValue(
+                    constructor: GenericValueID(
+                        name: "Module.ValueBox",
+                        descriptorAddress: 3,
+                        kind: .struct
+                    ),
+                    arguments: [.associatedType(name: "Value")]
+                )
+        )
+        #expect(
+            genericStruct
+                != .genericValue(
+                    constructor: GenericValueID(
+                        name: "Module.ValueBox",
+                        descriptorAddress: 3,
+                        kind: .enum
+                    ),
+                    arguments: [first]
+                )
+        )
     }
 
     @Test func semanticUseErasesRawDependencyShapeInSourceOrder() {
@@ -168,6 +202,17 @@ private protocol SecondDependencyScope {
                 constructor: GenericClassID(
                     name: "Module.OtherBox",
                     descriptorAddress: 2
+                ),
+                arguments: [value]
+            ).associatedTypeUse
+                == value.associatedTypeUse
+        )
+        #expect(
+            WitnessValueDependency.genericValue(
+                constructor: GenericValueID(
+                    name: "Module.ValueBox",
+                    descriptorAddress: 3,
+                    kind: .struct
                 ),
                 arguments: [value]
             ).associatedTypeUse

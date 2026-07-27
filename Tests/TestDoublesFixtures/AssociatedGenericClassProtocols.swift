@@ -152,6 +152,26 @@ public struct RealExternalGenericStructAssociatedProbe:
     }
 }
 
+public protocol ExternalConstrainedGenericStructAssociatedProbe<Element> {
+    associatedtype Element
+
+    func transform(
+        _ value: ExternalSecondParameterConstrainedPair<Element, String>
+    ) -> ExternalSecondParameterConstrainedPair<Element, String>
+}
+
+public struct RealExternalConstrainedGenericStructAssociatedProbe:
+    ExternalConstrainedGenericStructAssociatedProbe
+{
+    public init() {}
+
+    public func transform(
+        _ value: ExternalSecondParameterConstrainedPair<Int, String>
+    ) -> ExternalSecondParameterConstrainedPair<Int, String> {
+        value
+    }
+}
+
 public protocol ExternalGenericEnumAssociatedProbe<Element> {
     associatedtype Element
 

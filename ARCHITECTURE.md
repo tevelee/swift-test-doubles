@@ -107,7 +107,8 @@ Swift layers:
 
 The contract deliberately does not name method descriptors, protocol
 descriptors, witness tables, frames, ABI layouts, Echo types, or C types.
-In particular, it does not enumerate supported containers or generic classes:
+In particular, it does not enumerate supported containers or generic nominal
+values:
 those are source-schema input on one side of the boundary and Metadata's
 validated runtime capability on the other.
 

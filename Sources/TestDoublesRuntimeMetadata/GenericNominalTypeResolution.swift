@@ -21,6 +21,37 @@ package struct ResolvedGenericClassType: Sendable {
     }
 }
 
+package enum GenericValueKind: String, Equatable, Sendable {
+    case `struct`
+    case `enum`
+}
+
+package struct GenericValueID: Equatable, Sendable {
+    package let name: String
+    package let descriptorAddress: UInt
+    package let kind: GenericValueKind
+
+    package init(
+        name: String,
+        descriptorAddress: UInt,
+        kind: GenericValueKind
+    ) {
+        self.name = name
+        self.descriptorAddress = descriptorAddress
+        self.kind = kind
+    }
+}
+
+package struct ResolvedGenericValueType: Sendable {
+    package let type: Any.Type
+    package let constructor: GenericValueID
+
+    package init(type: Any.Type, constructor: GenericValueID) {
+        self.type = type
+        self.constructor = constructor
+    }
+}
+
 /// Instantiates a public generic nominal type without requiring its source or
 /// a macro-generated registry. `resolvedGenericAccessorType` supplies plain
 /// type-metadata key arguments when the context needs nothing else, or the
@@ -240,6 +271,50 @@ package func genericClassType(
             descriptorAddress: UInt(bitPattern: descriptor.ptr)
         )
     )
+}
+
+/// Reconstructs metadata for a linked, top-level generic struct or enum whose
+/// formal associated-type substitution keeps the complete value opaque.
+///
+/// The protocol witness ABI passes and returns these values indirectly, even
+/// if a concrete specialization would fit in registers. Restricting this to
+/// one or two type parameters keeps the reconstruction contract aligned with
+/// the established associated-dependent class slice.
+package func genericValueType(
+    named constructorName: String,
+    arguments: [Any.Type]
+) -> ResolvedGenericValueType? {
+    guard (1 ... 2).contains(arguments.count) else { return nil }
+
+    for (symbolKind, valueKind) in [("V", GenericValueKind.struct), ("O", .enum)] {
+        guard
+            let descriptor = genericNominalDescriptor(
+                named: constructorName,
+                kind: symbolKind
+            ),
+            let context = descriptor.genericContext,
+            context.numParams == arguments.count,
+            context.numExtraArguments == 0,
+            let type = resolvedGenericAccessorType(
+                descriptor: descriptor,
+                context: context,
+                arguments: arguments
+            ),
+            reflect(type).kind == (valueKind == .struct ? .struct : .enum)
+        else {
+            continue
+        }
+
+        return ResolvedGenericValueType(
+            type: type,
+            constructor: GenericValueID(
+                name: constructorName,
+                descriptorAddress: UInt(bitPattern: descriptor.ptr),
+                kind: valueKind
+            )
+        )
+    }
+    return nil
 }
 
 private func genericNominalDescriptor(

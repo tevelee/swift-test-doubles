@@ -456,8 +456,8 @@ What's supported:
 - Dynamic `Self` results and automatically discovered direct or single-optional
   `Self` arguments for nonthrowing instance methods. Bound primary associated
   types cover recursive `Optional`, `Array`, `Set`, `Dictionary`, and `Result`
-  values, proven linked generic classes, and the documented concrete-reference
-  slice. Native Swift closures work as arguments and results.
+  values, proven linked generic classes, structs, and enums, and the documented
+  concrete-reference slice. Native Swift closures work as arguments and results.
 - Borrowing property and subscript access through Swift 6.3 `read` accessors
   and Stub-side Swift 6.4 `yielding borrow`, compound assignment and `inout`
   access through `_modify`, concurrent invocation of generated values, behavior

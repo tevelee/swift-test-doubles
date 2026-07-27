@@ -27,13 +27,20 @@ private func useLinkedGenericEnumAssociatedProbe(
 }
 
 @inline(never)
+private func useLinkedConstrainedGenericStructAssociatedProbe(
+    _ value: any ExternalConstrainedGenericStructAssociatedProbe<Int>
+) -> Int {
+    value.transform(ExternalSecondParameterConstrainedPair(1, "one")).first
+}
+
+@inline(never)
 private func useLinkedConstrainedGenericClassAssociatedProbe(
     _ value: any ExternalConstrainedGenericClassAssociatedProbe<Int>
 ) -> Int {
     value.transform(ExternalConstrainedAssociatedBox(1)).value
 }
 
-@Suite struct GenericClassAssociatedTypeTests {
+@Suite struct GenericNominalAssociatedTypeTests {
     @Test func automaticDiscoverySupportsLinkedGenericClasses() throws {
         #expect(
             useLinkedGenericClassAssociatedProbe(
@@ -140,7 +147,7 @@ private func useLinkedConstrainedGenericClassAssociatedProbe(
         }
     }
 
-    @Test func automaticDiscoveryRejectsGenericStructsAndEnums() {
+    @Test func automaticDiscoverySupportsGenericStructsAndEnums() throws {
         #expect(
             useLinkedGenericStructAssociatedProbe(
                 RealExternalGenericStructAssociatedProbe()
@@ -152,30 +159,74 @@ private func useLinkedConstrainedGenericClassAssociatedProbe(
             ) == 1
         )
 
-        for operation in [
-            {
-                _ = try Stub<any ExternalGenericStructAssociatedProbe<Int>>()
-            },
-            {
-                _ = try Stub<any ExternalGenericEnumAssociatedProbe<Int>>()
-            }
-        ] {
-            expectUnsupportedProtocolShape(
-                containing: "Generic structs, enums, and other constructors"
-            ) {
-                try operation()
+        let structStub = try Stub<any ExternalGenericStructAssociatedProbe<Int>>()
+        try assertGenericValueDescriptor(
+            #require(structStub.recorder.runtimeMethod(for: 0)),
+            type: ExternalAssociatedValue<Int>.self,
+            associatedTypeNames: ["Element"]
+        )
+        let structPlaceholder = ExternalAssociatedValue(0)
+        structStub.when(returning: structPlaceholder) {
+            $0.transform(any(using: structPlaceholder))
+        }.then { (value: ExternalAssociatedValue<Int>) in
+            ExternalAssociatedValue(value.value + 1)
+        }
+        #expect(
+            structStub().transform(ExternalAssociatedValue(41)).value == 42
+        )
+
+        let enumStub = try Stub<any ExternalGenericEnumAssociatedProbe<Int>>()
+        try assertGenericValueDescriptor(
+            #require(enumStub.recorder.runtimeMethod(for: 0)),
+            type: ExternalAssociatedChoice<Int>.self,
+            associatedTypeNames: ["Element"]
+        )
+        let enumPlaceholder = ExternalAssociatedChoice<Int>.value(0)
+        enumStub.when(returning: enumPlaceholder) {
+            $0.transform(any(using: enumPlaceholder))
+        }.then { (value: ExternalAssociatedChoice<Int>) in
+            switch value {
+                case .value(let element): .value(element + 1)
             }
         }
+        let enumResult = enumStub().transform(.value(41))
+        switch enumResult {
+            case .value(let element): #expect(element == 42)
+        }
+
+        #expect(
+            useLinkedConstrainedGenericStructAssociatedProbe(
+                RealExternalConstrainedGenericStructAssociatedProbe()
+            ) == 1
+        )
+        let constrainedStructStub = try Stub<
+            any ExternalConstrainedGenericStructAssociatedProbe<Int>
+        >()
+        try assertGenericValueDescriptor(
+            #require(constrainedStructStub.recorder.runtimeMethod(for: 0)),
+            type: ExternalSecondParameterConstrainedPair<Int, String>.self,
+            associatedTypeNames: ["Element"]
+        )
+        let constrainedPlaceholder = ExternalSecondParameterConstrainedPair(
+            0,
+            "zero"
+        )
+        constrainedStructStub.when(returning: constrainedPlaceholder) {
+            $0.transform(any(using: constrainedPlaceholder))
+        }.then { (value: ExternalSecondParameterConstrainedPair<Int, String>) in
+            ExternalSecondParameterConstrainedPair(value.first + 1, value.second)
+        }
+        #expect(
+            constrainedStructStub().transform(
+                ExternalSecondParameterConstrainedPair(41, "answer")
+            ).first == 42
+        )
     }
 
     @Test func automaticDiscoverySupportsConstrainedGenericClasses() throws {
-        // genericClassType used to decline any constrained class outright,
-        // so a generic class embedding an associated type behind a
-        // conformance requirement (Value: Hashable here) fell into the same
-        // "Generic structs, enums, constrained classes" fail-closed bucket
-        // as actual structs and enums. It now resolves the same witness-table
-        // key-argument path constrainedGenericNominalType uses for a
-        // standalone constrained type.
+        // A constrained generic class must resolve the conformance-witness key
+        // argument alongside its type metadata. This uses the same resolver
+        // path as other constrained generic nominal metadata.
         #expect(
             useLinkedConstrainedGenericClassAssociatedProbe(
                 RealExternalConstrainedGenericClassAssociatedProbe()
@@ -234,4 +285,41 @@ private func assertGenericClassDescriptor<Value>(
     )
     #expect(argument.value.convention == .concrete, sourceLocation: sourceLocation)
     #expect(method.result.convention == .concrete, sourceLocation: sourceLocation)
+}
+
+private func assertGenericValueDescriptor<Value>(
+    _ method: RuntimeMethod,
+    type: Value.Type,
+    associatedTypeNames: [String],
+    sourceLocation: SourceLocation = #_sourceLocation
+) throws {
+    let argument = try #require(
+        method.arguments.first,
+        sourceLocation: sourceLocation
+    )
+    #expect(method.arguments.count == 1, sourceLocation: sourceLocation)
+    #expect(
+        ObjectIdentifier(argument.value.type) == ObjectIdentifier(type),
+        sourceLocation: sourceLocation
+    )
+    #expect(
+        ObjectIdentifier(method.result.type) == ObjectIdentifier(type),
+        sourceLocation: sourceLocation
+    )
+    #expect(
+        argument.value.associatedTypeUse.names == associatedTypeNames,
+        sourceLocation: sourceLocation
+    )
+    #expect(
+        method.result.associatedTypeUse.names == associatedTypeNames,
+        sourceLocation: sourceLocation
+    )
+    #expect(
+        argument.value.convention == .associatedType(name: "Element"),
+        sourceLocation: sourceLocation
+    )
+    #expect(
+        method.result.convention == .associatedType(name: "Element"),
+        sourceLocation: sourceLocation
+    )
 }

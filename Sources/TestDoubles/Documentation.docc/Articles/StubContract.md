@@ -17,7 +17,7 @@ For construction examples and requirement-order recipes, see
 | Effectful getters | Automatic discovery plus complete ``Stub/GetterEffect`` hints, or explicit requirements | Swift metadata omits getter throwing behavior. |
 | Swift 6.3 `read` accessors | Configure and verify them like synchronous nonthrowing getters | Stub yields the configured result; Spy forwards the target coroutine when no registration matches; Dummy remains fail-closed. |
 | Static requirements, initializers, and dynamic `Self` | Dedicated builders support `Self` results; automatic discovery supports direct and single-`Optional` arguments for bounded nonthrowing instance methods | Use `Stub.withValue(_:)` when passing a generated metatype to code under test. |
-| Bounded primary associated types | Supported for the documented direct, recursive standard-library container, linked generic-class, concrete-reference, setter, initializer, and associated-error slices | See <doc:BoundAssociatedTypes> for exact supported and rejected shapes. |
+| Bounded primary associated types | Supported for the documented direct, recursive standard-library container, linked generic-nominal, concrete-reference, setter, initializer, and associated-error slices | See <doc:BoundAssociatedTypes> for exact supported and rejected shapes. |
 | Function arguments and results | Automatic for concrete native Swift closures, C function pointers, blocks, and documented structural containers; explicit compiler-typed adapter otherwise | See <doc:FunctionValues>; top-level nonescaping, thin, declaration-level consuming or `inout`, dependent, and parameter-pack closure shapes remain fail-closed. |
 | Unsupported dependent shapes, native Swift-only superclasses, and device-only execution policy | Use ``ManualStub`` or a hand-written fake | These stay fail-closed instead of guessing at ABI behavior. |
 
@@ -316,12 +316,15 @@ constraints on each type. Declarations may belong to inherited bases, appear
 alongside inheritance, or span multiple composed roots. Direct dependent
 arguments and results, dependent setters and initializer arguments, and
 recursive `Optional`, `Array`, `Set`, `Dictionary`, and `Result` values are
-supported. Automatic discovery additionally accepts linked,
-public, top-level generic Swift classes with one or two type parameters, each
-optionally carrying a single protocol conformance requirement, when every
+supported. Automatic discovery additionally accepts linked, public, top-level
+generic Swift classes, structs, and enums with one or two type parameters, each
+optionally carrying a single protocol-conformance requirement, when every
 argument recursively resolves and reconstructed metadata proves the exact
-class descriptor. No source-less explicit generic-class schema is available. An `AnyObject`-constrained associated type bound to a concrete
-class uses the documented direct or single-`Optional` reference slice. Direct
+nominal descriptor. Classes retain their fixed reference transport; structs and
+enums use the formal opaque, indirect witness-value convention. No source-less
+explicit generic-nominal schema is available. An `AnyObject`-constrained
+associated type bound to a concrete class uses the documented direct or
+single-`Optional` reference slice. Direct
 and supported container method arguments may be consuming.
 Methods may combine these values with `async`, untyped `throws`, and a direct
 associated typed error. Automatic discovery also accepts a typed error whose
@@ -402,8 +405,8 @@ error channel.
   <doc:BoundAssociatedTypes>, including unbound associated types without
   complete caller bindings, caller-bound dependent inputs, nested dependent
   types outside the supported recursive containers and proven linked generic
-  classes, broader same-type constraints, reference-associated values beyond a
-  direct value or one `Optional` layer, and associated-dependent typed errors
+  nominal values, broader same-type constraints, reference-associated values
+  beyond a direct value or one `Optional` layer, and associated-dependent typed errors
   whose outer shape is optional, another value wrapper, a generic struct or
   enum, or an unsupported generic class.
 - Superclass-constrained existentials with a native Swift-only base class, a
