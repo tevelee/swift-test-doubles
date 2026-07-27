@@ -212,8 +212,9 @@ jobs:
         id: android-toolchain
         run: |
           . Scripts/android-toolchain.sh
+          swift_sdk_cache_root="$HOME/.swiftpm/swift-sdks-cache"
+          swift_sdk_cache_path="$swift_sdk_cache_root/${ANDROID_SWIFT_SDK_ID}.artifactbundle"
           swift_sdks_path="$HOME/.swiftpm/swift-sdks"
-          swift_sdk_cache_path="$swift_sdks_path/${ANDROID_SWIFT_SDK_ID}.artifactbundle"
           android_ndk_home="$RUNNER_TEMP/$ANDROID_NDK_DIRECTORY_NAME"
           {
             echo "ANDROID_NDK_DIRECTORY_NAME=$ANDROID_NDK_DIRECTORY_NAME"
@@ -222,8 +223,10 @@ jobs:
             echo "ANDROID_NDK_SHA1=$ANDROID_NDK_SHA1"
             echo "ANDROID_SWIFT_SDK_URL=$ANDROID_SWIFT_SDK_URL"
             echo "ANDROID_SWIFT_SDK_CHECKSUM=$ANDROID_SWIFT_SDK_CHECKSUM"
+            echo "ANDROID_SWIFT_SDK_CACHE_ROOT=$swift_sdk_cache_root"
+            echo "ANDROID_SWIFT_SDK_CACHE_PATH=$swift_sdk_cache_path"
             echo "ANDROID_SWIFT_SDKS_PATH=$swift_sdks_path"
-            echo "ANDROID_SWIFT_SDK_DIRECTORY=$swift_sdk_cache_path/swift-android"
+            echo "ANDROID_SWIFT_SDK_DIRECTORY=$swift_sdks_path/${ANDROID_SWIFT_SDK_ID}.artifactbundle/swift-android"
           } >> "$GITHUB_ENV"
           {
             echo "apt_cache_epoch=$(date -u +%G-%V)"
@@ -257,15 +260,20 @@ jobs:
         with:
           path: ${{ steps.android-toolchain.outputs.swift_sdk_cache_path }}
           key: >-
-            swift-android-sdk-v1-${{ runner.os }}-${{
+            swift-android-sdk-v2-${{ runner.os }}-${{
             steps.android-toolchain.outputs.swift_version }}-${{
             steps.android-toolchain.outputs.swift_sdk_checksum }}
       - name: Install Swift Android SDK
         if: steps.swift-android-sdk-cache.outputs.cache-hit != 'true'
         run: >-
-          swift sdk install --swift-sdks-path "$ANDROID_SWIFT_SDKS_PATH"
+          swift sdk install --swift-sdks-path "$ANDROID_SWIFT_SDK_CACHE_ROOT"
           "$ANDROID_SWIFT_SDK_URL"
           --checksum "$ANDROID_SWIFT_SDK_CHECKSUM"
+      - name: Prepare writable Swift Android SDK
+        run: |
+          mkdir -p "$ANDROID_SWIFT_SDKS_PATH"
+          cp -a "$ANDROID_SWIFT_SDK_CACHE_PATH" "$ANDROID_SWIFT_SDKS_PATH/"
+          chmod -R u+w "$ANDROID_SWIFT_SDKS_PATH/${ANDROID_SWIFT_SDK_ID}.artifactbundle"
       - name: Restore Android NDK cache
         id: android-ndk-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -321,8 +329,9 @@ jobs:
         id: android-runtime-toolchain
         run: |
           . Scripts/android-toolchain.sh
+          swift_sdk_cache_root="$RUNNER_TEMP/test-doubles-swift-sdk-cache"
+          swift_sdk_cache_path="$swift_sdk_cache_root/${ANDROID_SWIFT_SDK_ID}.artifactbundle"
           swift_sdks_path="$RUNNER_TEMP/test-doubles-swift-sdks"
-          swift_sdk_cache_path="$swift_sdks_path/${ANDROID_SWIFT_SDK_ID}.artifactbundle"
           android_ndk_home="$ANDROID_HOME/ndk/27.3.13750724"
           android_runtime_build_path="$RUNNER_TEMP/test-doubles-android-runtime-build"
           {
@@ -330,6 +339,8 @@ jobs:
             echo "ANDROID_RUNTIME_BUILD_PATH=$android_runtime_build_path"
             echo "ANDROID_SWIFT_HOST_IMAGE=$ANDROID_SWIFT_HOST_IMAGE"
             echo "ANDROID_SWIFT_SDK_ID=$ANDROID_SWIFT_SDK_ID"
+            echo "ANDROID_SWIFT_SDK_CACHE_ROOT=$swift_sdk_cache_root"
+            echo "ANDROID_SWIFT_SDK_CACHE_PATH=$swift_sdk_cache_path"
             echo "ANDROID_SWIFT_SDKS_PATH=$swift_sdks_path"
             echo "ANDROID_SWIFT_SDK_URL=$ANDROID_SWIFT_SDK_URL"
             echo "ANDROID_SWIFT_SDK_CHECKSUM=$ANDROID_SWIFT_SDK_CHECKSUM"
@@ -345,21 +356,26 @@ jobs:
         with:
           path: ${{ steps.android-runtime-toolchain.outputs.swift_sdk_cache_path }}
           key: >-
-            swift-android-runtime-sdk-v1-${{ runner.os }}-${{
+            swift-android-runtime-sdk-v2-${{ runner.os }}-${{
             steps.android-runtime-toolchain.outputs.swift_version }}-${{
             steps.android-runtime-toolchain.outputs.swift_sdk_checksum }}
       - name: Install Swift Android SDK
         if: steps.swift-android-runtime-sdk-cache.outputs.cache-hit != 'true'
         run: |
-          mkdir -p "$ANDROID_SWIFT_SDKS_PATH"
+          mkdir -p "$ANDROID_SWIFT_SDK_CACHE_ROOT"
           docker run --rm \
             --user "$(id -u):$(id -g)" \
-            --volume "$ANDROID_SWIFT_SDKS_PATH:/swift-sdks" \
+            --volume "$ANDROID_SWIFT_SDK_CACHE_ROOT:/swift-sdks" \
             --env HOME=/tmp/test-doubles-swift-home \
             --entrypoint swift \
             "$ANDROID_SWIFT_HOST_IMAGE" \
             sdk install --swift-sdks-path /swift-sdks "$ANDROID_SWIFT_SDK_URL" \
             --checksum "$ANDROID_SWIFT_SDK_CHECKSUM"
+      - name: Prepare writable Swift Android SDK
+        run: |
+          mkdir -p "$ANDROID_SWIFT_SDKS_PATH"
+          cp -a "$ANDROID_SWIFT_SDK_CACHE_PATH" "$ANDROID_SWIFT_SDKS_PATH/"
+          chmod -R u+w "$ANDROID_SWIFT_SDKS_PATH/${ANDROID_SWIFT_SDK_ID}.artifactbundle"
       - name: Build and run AndroidRuntimeDemo on an emulator
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
