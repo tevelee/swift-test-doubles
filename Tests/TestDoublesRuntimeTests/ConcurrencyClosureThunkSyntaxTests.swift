@@ -26,14 +26,22 @@ private typealias NonsendingSyntaxClosure =
 
         #expect(parsed.parameters[0].isSending)
         #expect(parsed.hasSendingResult)
-        #expect(FunctionSignatureMatcher.direct(parsed, matches: function))
+        let matchesSendingClosure = FunctionSignatureMatcher.direct(
+            parsed,
+            matches: function
+        )
+        #expect(matchesSendingClosure)
 
         let ordinary = try #require(
             FunctionTypeInfo(
                 reflecting: (@Sendable (String) -> String).self
             )
         )
-        #expect(FunctionSignatureMatcher.direct(parsed, matches: ordinary) == false)
+        let matchesOrdinaryClosure = FunctionSignatureMatcher.direct(
+            parsed,
+            matches: ordinary
+        )
+        #expect(matchesOrdinaryClosure == false)
     }
 
     @Test func sendingResultCannotUseTheDynamicBridgeWhenRawFlagsOmitIt() throws {
@@ -41,8 +49,10 @@ private typealias NonsendingSyntaxClosure =
             FunctionTypeInfo(reflecting: SendingResultOnlySyntaxClosure.self)
         )
 
-        #expect(runtimeFunctionHasSendingResult(function))
-        #expect(hasOnlyDynamicallySupportedExtendedFlags(function) == false)
+        let hasSendingResult = runtimeFunctionHasSendingResult(function)
+        let supportsDynamicBridge = hasOnlyDynamicallySupportedExtendedFlags(function)
+        #expect(hasSendingResult)
+        #expect(supportsDynamicBridge == false)
     }
 
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, watchOS 11, *)
@@ -55,7 +65,11 @@ private typealias NonsendingSyntaxClosure =
             FunctionTypeInfo(reflecting: IsolatedSyntaxClosure.self)
         )
 
-        #expect(FunctionSignatureMatcher.direct(parsed, matches: function))
+        let matchesIsolatedClosure = FunctionSignatureMatcher.direct(
+            parsed,
+            matches: function
+        )
+        #expect(matchesIsolatedClosure)
     }
 
     @Test func nonsendingRequiresTheImplicitActorParameter() throws {
@@ -68,6 +82,10 @@ private typealias NonsendingSyntaxClosure =
             FunctionTypeInfo(reflecting: NonsendingSyntaxClosure.self)
         )
 
-        #expect(FunctionSignatureMatcher.direct(parsed, matches: function))
+        let matchesNonsendingClosure = FunctionSignatureMatcher.direct(
+            parsed,
+            matches: function
+        )
+        #expect(matchesNonsendingClosure)
     }
 }
