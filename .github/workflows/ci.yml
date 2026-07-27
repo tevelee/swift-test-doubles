@@ -47,7 +47,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Check generated fixed-arity sources
@@ -69,7 +69,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Restore build cache
@@ -118,7 +118,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Restore build cache
@@ -165,7 +165,7 @@ jobs:
       image: swift:6.3.3-noble@sha256:66520bcba471018a34fd54ba09be97ba4abebd950a96ff5cb8c2bf50a2d33259
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Restore build cache
@@ -203,7 +203,7 @@ jobs:
       image: swift:6.3.3-noble@sha256:66520bcba471018a34fd54ba09be97ba4abebd950a96ff5cb8c2bf50a2d33259
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Load Android toolchain configuration
@@ -306,7 +306,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Load WASM toolchain configuration
@@ -430,7 +430,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Select Xcode 26.4.1
@@ -503,7 +503,7 @@ jobs:
     runs-on: macos-26-intel
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Restore build cache
@@ -562,7 +562,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Restore build cache
@@ -592,7 +592,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Restore build cache
