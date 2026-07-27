@@ -1,9 +1,11 @@
 # Parameter-Pack Protocol Requirements — Design & Scoping Notes
 
-Status: **not implemented, very-high-effort**. This is a from-scratch feature, not an
-extension of existing pack support. Below is what's already there, what's actually
-missing, why it's a large project, and a proposed incremental path — written so a future
-session can pick this up without re-deriving the scope.
+Status: **fails closed with a specific diagnostic; full support gated on an API design
+question, not on runtime effort.** An earlier revision of this doc estimated the runtime
+side as very-high-effort based on a mistaken reading of the pack calling convention;
+measuring the actual lowered witness disproved that (see "The witness ABI, measured").
+The runtime work is now small and fully specified. What's genuinely unresolved is how
+pack requirements should be *expressed* in the stubbing API.
 
 ## What already exists (don't re-solve this part)
 
@@ -55,72 +57,102 @@ for any pack shape this feature doesn't yet cover. The error message itself coul
 specific (mention parameter packs by name instead of quoting `'repeat A1'` verbatim), but
 that's a copy tweak, not the substance of this item.
 
-## Why this is a large project (grounded in the actual upstream ABI)
+## The witness ABI, measured (this corrects an earlier assumption in this doc)
 
-Fetched and read `lib/IRGen/GenPack.{h,cpp}` from `swiftlang/swift` (1,459 lines in the
-`.cpp` alone) — this is real, substantial infrastructure, not a small ABI corner:
+An earlier revision of this section, written from reading `lib/IRGen/GenPack.{h,cpp}`
+upstream, claimed the central blocker was **dynamic register arity** — that a pack
+requirement "needs the *trampoline itself* to iterate a runtime-determined number of
+stack/register slots." **That is wrong**, and it materially overstated the cost. Compiling
+an actual pack requirement and reading its lowered witness shows the opposite.
 
-- **`GenericPackShapeHeader`/`GenericPackShapeDescriptor`**
-  (`include/swift/ABI/GenericContext.h:264-303`): packs interleave with ordinary generic
-  arguments in the ordinary generic-argument vector, distinguished by a *separate*
-  trailing table of shape descriptors (kind: metadata pack vs. witness-table pack, index,
-  shape-equivalence class). Decoding a pack-shaped generic signature means walking two
-  parallel structures, not just reading one flat argument list the way
-  `GenericNominalTypeResolution.swift` does today for ordinary generics.
-- **Dynamic, not static, arity.** A pack's length is a *runtime value* (`PackLength`),
-  not something bakeable into a fixed-arity Swift closure the way every other requirement
-  kind in this codebase is handled (`StubRequirementKind`, `CallableRequirementDescriptor`,
-  the whole call-frame/trampoline argument model all assume a fixed, compile-time-known
-  argument count per requirement). A pack-shaped requirement needs the *trampoline itself*
-  to iterate a runtime-determined number of stack/register slots and build a
-  correspondingly-sized `[Any]` — a structurally different code path from every other
-  argument-decoding path in `RuntimeArgumentDecoder`/`TrampolineCallFrame`.
-- **Metadata packs and witness-table packs are heap- or stack-allocated on demand**
-  (`GenPack.h`'s `cleanupTypeMetadataPack`, `cleanupWitnessTablePack`,
-  `cleanupStackAllocPacks`, `deallocatePack` — allocation/cleanup is a first-class,
-  non-trivial part of the ABI, not a fixed struct layout to memcpy). Fabricating a
-  witness that needs to *hand back* pack metadata (e.g. an associated-type-in-a-pack
-  scenario) would mean replicating this allocation/cleanup discipline, including its
-  interaction with `swift_task_alloc`-style stack discipline this repo already leans on
-  elsewhere for coroutines.
-- **IRGen lowering is spread across parameter passing, pack expansion inside tuples,
-  and structural pack component indexing** (`emitIndexOfStructuralPackComponent`,
-  `bindOpenedElementArchetypesAtIndex`, `emitWitnessTablePackRef`) — a full calling
-  convention on its own, layered on top of (not instead of) the ordinary Swift calling
-  convention this repo already reverse-engineers.
+For `protocol P { func f<each T>(_ args: repeat each T) -> Int }`, the witness lowers to
+(`swiftc -emit-sil` / `-emit-ir`, Swift 6.3.3, arm64):
 
-None of this is a "flip a flag" addition. It's a second, parallel argument-passing model
-that has to compose with everything the trampoline already does (indirect results,
-`swiftself`/`swifterror`/`swiftasync`, generic requirement arguments, coroutine yields).
+```
+sil @...TW : $@convention(witness_method: P) <each τ_0_0>
+  (@pack_guaranteed Pack{repeat each τ_0_0}, @in_guaranteed S) -> Int
 
-## Proposed incremental path (if this is ever picked up)
+define swiftcc i64 @"...TW"(
+    ptr noalias %0,                     ; pack buffer
+    i64 %1,                             ; pack length (shape)
+    ptr %"each τ_0_0",                  ; metadata pack
+    ptr noalias nocapture swiftself %2, ; self, indirect
+    ptr %Self, ptr %SelfWitnessTable) 
+```
 
-Rather than "implement full pack support" as one undertaking, split it:
+The physical arity is **fixed at six**, all in registers the trampoline already captures
+today. The dynamism lives entirely *behind* the pack pointer. The witness body shows
+exactly how to walk it:
 
-1. **Demangling/signature-discovery support first, dispatch later.** Extend
-   `DemangledTypeSyntax`/`WitnessSignatureParser` to *parse* a `"repeat <T>"` parameter
-   spelling into a distinct case (instead of failing at `DemangledTypeSyntax(spelling)`
-   returning `nil`), so discovery can at least produce a structured, better error message
-   ("requirement N has a parameter-pack parameter, which isn't supported yet") instead of
-   the current generic "could not resolve runtime metadata" message. This is a small,
-   safe, immediately shippable improvement independent of the rest.
-2. **Fixed small pack arities as a deliberately bounded first slice.** Rather than
-   general dynamic-arity dispatch, support only pack requirements the *conforming type*
-   instantiates at a small, fixed length (e.g. 0-4 elements) discovered per-conformance,
-   reusing the existing fixed-arity trampoline machinery N times instead of building
-   genuine dynamic iteration. This sidesteps the hardest part (arbitrary runtime arity)
-   at the cost of a documented, fail-closed ceiling — consistent with how this repo
-   already bounds generic-accessor argument counts (`GenericNominalTypeResolution.swift`'s
-   3-direct-argument cap) as a pragmatic, not ABI-mandated, limit.
-3. **General dynamic-arity pack dispatch is the real "very high effort" remainder** —
-   requires the trampoline to allocate and iterate a pack of unknown-at-compile-time
-   length, which is new territory for this codebase's whole architecture (every other
-   requirement kind assumes the call frame's shape is knowable once the requirement is
-   discovered). This should stay unimplemented until steps 1-2 prove out real demand.
+```llvm
+%9  = and i64 %8, -2                            ; mask the metadata pack's low tag bit
+%11 = getelementptr inbounds ptr, ptr %10, i64 %5 ; metadataPack[i]
+%12 = load ptr, ptr %11                          ; -> element i's type metadata
+%13 = getelementptr inbounds ptr, ptr %0, i64 %5  ; packBuffer[i]
+%14 = load ptr, ptr %13                          ; -> element i's ADDRESS
+```
+
+So decoding a pack argument into `[Any]` is a plain loop over two parallel pointer
+arrays, given the count that arrives in an ordinary register:
+
+- **pack buffer**: array of pointers, element *i*'s address at `buffer[i]`
+- **metadata pack**: pointer tagged in bit 0 (mask `& ~1`, matching `maskMetadataPackPointer`
+  in `GenPack.h`), then `metadataArray[i]` is element *i*'s `Any.Type`
+- **count**: a direct `i64` register argument
+
+Everything needed to box each element already exists in this codebase (`boxValue(type:source:)`
+takes exactly a type plus a source address). **The trampoline needs no changes at all.**
+
+What remains genuinely true from the original analysis: `GenericPackShapeHeader`/
+`GenericPackShapeDescriptor` (`include/swift/ABI/GenericContext.h:264-303`) do interleave
+packs with ordinary generic arguments behind a separate shape-descriptor table, and
+metadata/witness-table packs are allocated and cleaned up dynamically
+(`cleanupTypeMetadataPack`, `deallocatePack`, et al). Those matter for the harder
+directions — fabricating a witness that must *produce* a pack, or resolving a pack-shaped
+generic nominal type — but not for the common case of *receiving* a pack argument.
+
+## Revised incremental path
+
+The earlier "step 2" here proposed supporting *fixed small pack arities* "the conforming
+type instantiates at a small, fixed length." That idea was incoherent as well as
+unnecessary: the pack length is chosen by each **call site**, not by the conforming type,
+so there is no per-conformance fixed length to discover. And since arity is not a
+trampoline problem at all (see above), there is nothing to sidestep — a loop over the
+pack buffer handles any length uniformly.
+
+The real remaining work is not in the ABI layer:
+
+1. **Signature discovery ✅ (shipped).** A pack parameter now fails closed with a specific
+   diagnostic naming it, rather than a generic "could not resolve runtime metadata."
+2. **Argument decoding — small, and now fully specified.** Walk `count`, `packBuffer[i]`,
+   `maskedMetadataPack[i]`, box each element with the existing `boxValue(type:source:)`.
+   No new ABI reverse-engineering required; the loop above is the whole algorithm.
+3. **The actual hard part is the user-facing API, not the runtime.** Everything downstream
+   of decoding assumes a requirement has a statically-known argument list:
+   - `when { $0.f(...) }` recording works by *calling* the requirement with placeholder
+     values and observing which slots were touched. What does a user write to record a
+     call to a pack requirement, and how does the builder know the intended arity?
+   - Matchers (`ParameterMatcher`) compare positionally against a fixed expected list; a
+     pack invocation may have a different length per call.
+   - `Stub.Requirement` factories (`.method(...)`, `signatureOf:`) describe a fixed
+     parameter list; there is no spelling today for "a pack here."
+   - Verification counts (`.exactly(1) { $0.f(...) }`) must decide whether calls with
+     different pack lengths are the same requirement invoked differently, or distinct.
+
+   These are API-design questions with real product consequences, not ABI questions.
+4. **Producing a pack (a requirement whose *result* or associated type is pack-shaped)**
+   remains genuinely hard, and is where the `GenericPackShapeDescriptor` walking and
+   pack allocation/cleanup discipline noted above actually bite. Distinct, later problem.
 
 ## Recommendation
 
-Do not attempt this now. Step 1 above (better diagnostics) is the only piece worth
-doing without a concrete driving use case, and it's small enough to fold into ordinary
-signature-discovery hardening rather than treated as part of "pack support." The rest is
-correctly scoped as future work, gated on someone actually needing it.
+Step 1 is shipped. Step 2 is now a well-understood, contained piece of work — but it is
+**not independently useful**: decoded pack arguments have nowhere to go until step 3
+decides how packs are expressed in the stubbing API. Implementing decoding alone would
+add an untested, unreachable code path.
+
+So the gating question for this item is a **design** question — "what does stubbing a
+pack requirement look like to a user?" — not an engineering-effort question. That should
+be answered (ideally against a real use case) before more code is written. The effort
+estimate for the runtime side, at least, should be revised sharply downward from the
+original "very high."
