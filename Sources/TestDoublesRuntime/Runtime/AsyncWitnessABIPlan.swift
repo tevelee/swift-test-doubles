@@ -1,4 +1,4 @@
-import Echo
+import EchoRuntimeReflection
 import TestDoublesRuntimeMetadata
 import TestDoublesRuntimeSupport
 
@@ -182,7 +182,9 @@ package func asyncForwardingStackPlan(
         visibleArgumentLocation.byteCount == MemoryLayout<UInt>.size,
         method.arguments[spilledArgumentIndex].value.dependency
             .isAssociatedTypeDependent == false,
-        reflect(method.arguments[spilledArgumentIndex].value.type).vwt.size
+        ValueLayoutInfo(
+            reflecting: method.arguments[spilledArgumentIndex].value.type
+        ).size
             == MemoryLayout<UInt>.size,
         case .integer(words: 1) =
             method.arguments[spilledArgumentIndex].value.layout
