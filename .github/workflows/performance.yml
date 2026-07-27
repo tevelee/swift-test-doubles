@@ -60,6 +60,8 @@ jobs:
           mkdir -p baseline/Benchmarks baseline/Scripts
           rsync -a --delete candidate/Benchmarks/ baseline/Benchmarks/
           cp candidate/Scripts/run-benchmarks.sh baseline/Scripts/run-benchmarks.sh
+          cp baseline/Package.resolved baseline/Benchmarks/Package.resolved
+          cp candidate/Package.resolved candidate/Benchmarks/Package.resolved
       - name: Build benchmark drivers
         run: |
           swift build \
