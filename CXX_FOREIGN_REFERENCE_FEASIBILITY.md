@@ -1,9 +1,11 @@
 # Copyable C++ Foreign Reference Support — Feasibility Finding
 
-Status: **blocked**, verified by reproduction, not implementable today. This is not a
-TestDoubles design limitation — it's an incompatibility in the vendored `Echo`
-dependency that surfaces the moment a real consumer needs both C++ interop and
-TestDoubles in the same build.
+Status: **unblocked, pending a one-line dependency fix.** The blocker is real and
+reproducible, but it is *not* external: it lives in `github.com/tevelee/Echo`, this
+project's own fork of Echo. A minimal fix has been written and verified end to end (see
+"The fix" below); it just needs to land in that fork and be picked up by a version bump
+here. The TestDoubles-side feature work is then a well-scoped, medium-effort addition
+rather than a research problem.
 
 ## What was checked
 
@@ -62,31 +64,68 @@ directly, then conclusively with a probe package depending on the real local
 `swift-test-doubles` checkout via a path dependency, with `.interoperabilityMode(.Cxx)`
 on the consuming executable target. Both fail identically at `CEcho`.
 
-## Why this isn't fixable inside TestDoubles
+## Why it can't be fixed inside *this* repository
 
 TestDoubles' own Swift code never needs to `import` a consumer's C++ header — witness
 fabrication operates entirely on type-erased `Any.Type`/`UnsafeRawPointer`, so nothing
 here requires `.interoperabilityMode(.Cxx)` on TestDoubles' own targets. The break is
-purely that **Echo**, a vendored dependency pinned via `Package.resolved` (currently
-`0.1.16`), ships a C shim that isn't valid under C++ parsing rules. That's upstream of
-this repository. Patching it would mean either:
+purely that **Echo** ships a C shim that isn't valid under C++ parsing rules. Isolating
+the Echo import behind some boundary that never gets reparsed isn't possible with
+SwiftPM's current module system, because the reparse follows the *importing* target, not
+the *declaring* one. So the change has to happen in Echo.
 
-- Forking or patching Echo's `Builtins.def`/`KnownMetadata.h` (e.g. wrapping the
-  `BUILTIN` macro's declarations in `#ifdef __cplusplus extern "C" { ... } #endif`, or
-  giving them a real type instead of `void`) and getting that upstream or vendored in, or
-- Isolating every Echo import behind a boundary that never gets reparsed under a
-  C++-interop target's language mode — not possible with SwiftPM's current module system,
-  since the reparse follows the *importing* target, not the *declaring* one.
+The good news: `Package.swift` depends on `https://github.com/tevelee/Echo.git` — this
+project's own fork — so "upstream" here is a repository this project controls, not a
+third party.
 
-Neither is something to do unilaterally inside this repository: the first changes a
-pinned external dependency's public C shim (needs to happen in Echo, or as a deliberate,
-visible fork with its own maintenance cost); the second isn't achievable with today's
-SwiftPM/Clang-importer model at all.
+## The fix
 
-## What would still need to be built, if the blocker were lifted
+Two lines of real change in `Sources/CEcho`, verified end to end:
 
-For completeness — this is what's *actually* missing on the TestDoubles side, so the
-work is scoped even though it isn't happening now:
+```diff
+--- a/Sources/CEcho/include/KnownMetadata.h
++++ b/Sources/CEcho/include/KnownMetadata.h
+ #define BUILTIN(NAME, SYMBOL) \
+-extern void $s##SYMBOL##N;
++extern char $s##SYMBOL##N;
+
+--- a/Sources/CEcho/KnownMetadata.c
++++ b/Sources/CEcho/KnownMetadata.c
+ void *getBuiltin##NAME##Metadata(void) { \
+-  return &$s##SYMBOL##N + sizeof(void*); \
++  return (void *)(&$s##SYMBOL##N + sizeof(void*)); \
+ }
+```
+
+Both of the original constructs are GNU C extensions that C++ rejects: `extern void x;`
+(a variable of incomplete type `void`) and `void*` pointer arithmetic (`&x + n`, which
+GNU C treats as byte arithmetic). Declaring the symbol `char` fixes both at once — the
+address is identical, `char*` arithmetic is byte arithmetic by definition in both
+languages, and the emitted undefined symbol reference is unchanged because an `extern`
+declaration's type never reaches the linker. Only the explicit `(void *)` cast is added,
+since C++ won't implicitly convert `char*` to `void*` on return.
+
+Verified on this machine, all three of:
+
+1. **Echo still builds and its own test suite passes** — 84 tests, no failures.
+2. **The previously-failing C++ scenario now works** — the probe package that used to die
+   at `could not build Objective-C module 'CEcho'` now builds, and at runtime both the
+   imported C++ foreign reference type (`Widget().value()` → `42`) and Echo reflection
+   (`reflect(Int.self).kind` → `struct`) work from the same `.interoperabilityMode(.Cxx)`
+   target.
+3. **TestDoubles is unaffected** — full suite (893 tests) passes against the patched Echo
+   via a local `swift package edit` override, then the override was removed and the pin
+   restored.
+
+The patch has deliberately **not** been pushed to the Echo fork — that's a separate,
+published repository, and landing a change there plus bumping the version pin here is a
+call for the maintainer to make, not something to do as a side effect of this
+investigation.
+
+## What still needs to be built on the TestDoubles side
+
+The dependency fix above only unblocks the build. This is the actual feature work, still
+to do:
 
 1. A new branch in `inspectStubProtocolMetadata`/witness-table fabrication for the
    `.foreignReference` (or whatever Echo's `ForeignReferenceTypeMetadata` kind maps to)
@@ -101,15 +140,20 @@ work is scoped even though it isn't happening now:
    doesn't support them as protocol-conforming types in the same way yet, and doing so
    would compound with the still-unimplemented general noncopyable-value support — see
    `NONCOPYABLE_RECORDER_DESIGN.md`).
-4. New fixtures under a C++-interop-enabled test target — which itself can't be added to
-   this package's existing test suite without hitting the exact `CEcho` blocker above,
-   so any real test coverage would need to live in a separate sibling package until the
-   Echo incompatibility is resolved.
+4. New fixtures under a C++-interop-enabled test target. Note this is only possible
+   *after* the Echo fix lands — before it, such a target cannot build at all, which is
+   why no test coverage for this feature exists or can be added today.
 
 ## Recommendation
 
-Don't implement item 8 now. The most valuable next step is reporting the `CEcho`/C++
-incompatibility to Echo's maintainer (or filing a fork with the minimal fix) — that's
-the actual unblock, and it's small in isolation (an `#ifdef __cplusplus` guard or a
-typed dummy symbol instead of `void`). Once that lands, the TestDoubles-side work above
-is a well-scoped, medium-effort addition, not a research problem.
+Two steps, in order:
+
+1. **Land the two-line `CEcho` fix in `tevelee/Echo` and bump the pin here.** This is
+   worth doing on its own merits, independent of whether the foreign-reference feature
+   ever gets built: today *any* consumer that enables Swift/C++ interop anywhere in its
+   dependency graph cannot use TestDoubles at all, for reasons that have nothing to do
+   with C++ foreign reference types. That's a silent, hard-to-diagnose adoption blocker
+   affecting an entire class of mixed-language projects, and the fix is verified.
+2. **Then** decide whether the foreign-reference feature itself is worth the
+   medium-effort work listed above, which is only a real option once step 1 makes it
+   testable.
