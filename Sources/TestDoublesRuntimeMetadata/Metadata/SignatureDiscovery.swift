@@ -299,6 +299,16 @@ private func resolveWitnessValue(
                 + "Supply explicit Requirement values."
         )
     }
+    if isMethodGenericParameter(valueName) {
+        throw RuntimeConstructionError.unsupportedProtocolShape(
+            protocolName: protocolDescriptor.name,
+            reason:
+                "Requirement \(requirementIndex) has an argument typed by the requirement's own generic parameter ('\(valueName)'). "
+                + "Automatic Stub does not support requirements that declare their own generic parameters, because the argument's "
+                + "type is supplied by each caller at runtime rather than by the protocol. "
+                + "Supply explicit Requirement values."
+        )
+    }
     if let selfShape = dynamicSelfValueShape(valueName) {
         guard isAutoclosure == false else {
             throw RuntimeConstructionError.unsupportedProtocolShape(
@@ -395,6 +405,28 @@ private func resolveWitnessValue(
 
 private enum DynamicSelfValueShape {
     case direct, optional
+}
+
+/// Whether a demangled type spelling names a generic parameter belonging to the
+/// *requirement itself* rather than to the protocol.
+///
+/// `Demangle::genericParameterName` (lib/Demangling/NodePrinter.cpp) prints
+/// depth-0 parameters as bare letters and deeper ones with the depth appended,
+/// so a protocol's `Self` is `"A"` while a method's own first generic parameter
+/// is `"A1"`, its second `"B1"`, and so on. A bare letter-plus-digits spelling is
+/// unambiguous here because every real type demangles module-qualified
+/// (`"MyModule.A1"`), never as a bare identifier.
+func isMethodGenericParameter(_ spelling: String) -> Bool {
+    var characters = Substring(spelling)
+    guard let first = characters.popFirst(),
+        first.isUppercase,
+        first.isLetter,
+        characters.isEmpty == false,
+        characters.allSatisfy(\.isNumber)
+    else {
+        return false
+    }
+    return true
 }
 
 private func dynamicSelfValueShape(

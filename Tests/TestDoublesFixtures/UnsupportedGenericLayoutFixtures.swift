@@ -60,3 +60,19 @@ public struct RealExternalPackRequirementProbe: ExternalPackRequirementProbe {
         return count
     }
 }
+
+/// A requirement that declares its own generic parameter (no pack). Its
+/// argument's type is supplied by each caller at runtime, so automatic
+/// discovery cannot describe it from the protocol alone. Public with a linked
+/// conformer so discovery reaches the requirement rather than failing earlier.
+public protocol ExternalGenericRequirementProbe {
+    func generic<Value>(_ value: Value) -> Int
+}
+
+public struct RealExternalGenericRequirementProbe: ExternalGenericRequirementProbe {
+    public init() {}
+
+    public func generic<Value>(_ value: Value) -> Int {
+        MemoryLayout<Value>.size
+    }
+}
