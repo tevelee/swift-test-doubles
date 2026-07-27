@@ -32,11 +32,13 @@ package struct TypedWitnessAdapterFactory: @unchecked Sendable {
         guard function.convention == .thin else {
             return "The typed adapter must use `@convention(thin)` so its argument and result ABI matches the protocol witness."
         }
-        guard function.effects.isAsync == false else {
-            return "Typed closure adapters for async requirements are not supported yet."
+        guard function.effects.isAsync == method.isAsync else {
+            return method.isAsync
+                ? "An async requirement needs an async typed adapter."
+                : "A synchronous requirement needs a synchronous typed adapter."
         }
-        guard method.isAsync == false else {
-            return "A synchronous typed adapter cannot implement an async requirement."
+        guard method.isAsync == false || method.isThrowing == false else {
+            return "Async typed closure adapters currently support only nonthrowing requirements."
         }
         guard function.effects.isThrowing == method.isThrowing else {
             return "The typed adapter's throwing effect does not match the requirement."

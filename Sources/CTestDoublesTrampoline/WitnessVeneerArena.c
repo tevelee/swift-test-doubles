@@ -401,6 +401,48 @@ void *td_witness_veneer_arena_make_typed(
   return entry;
 }
 
+/// Emits an async-function descriptor whose body is the same direct typed
+/// adapter veneer. Thin async function values store a descriptor, rather than
+/// an entry address, in their sole word. The fabricated witness must preserve
+/// the adapter's required async-context size so Swift allocates a compatible
+/// child context before reaching the veneer.
+void *td_witness_veneer_arena_make_typed_async(
+    TDWitnessVeneerArena *arena, const void *target, uintptr_t invocation,
+    uintptr_t invocationArgumentIndex) {
+  if (!target) {
+    arena->failed = true;
+    return 0;
+  }
+
+  const TDAsyncFunctionPointer *targetDescriptor = target;
+  if (!targetDescriptor->relativeFunction ||
+      !targetDescriptor->expectedContextSize) {
+    arena->failed = true;
+    return 0;
+  }
+
+  uint8_t *entry = td_reserve_veneer(
+      arena, TD_ASYNC_VENEER_DESCRIPTOR_CAPACITY +
+                 TD_TYPED_WITNESS_VENEER_CODE_CAPACITY);
+  if (!entry) {
+    return 0;
+  }
+
+  TDAsyncFunctionPointer *descriptor = (TDAsyncFunctionPointer *)entry;
+  uint8_t *code = entry + TD_ASYNC_VENEER_DESCRIPTOR_CAPACITY;
+  descriptor->relativeFunction = (int32_t)(code - entry);
+  descriptor->expectedContextSize = targetDescriptor->expectedContextSize;
+
+  const uint8_t *targetEntry = (const uint8_t *)target +
+                               targetDescriptor->relativeFunction;
+  if (!td_emit_typed_witness_veneer(code, invocation,
+                                    invocationArgumentIndex, targetEntry)) {
+    arena->failed = true;
+    return 0;
+  }
+  return entry;
+}
+
 bool td_witness_veneer_arena_publish(TDWitnessVeneerArena *arena) {
   if (!arena || arena->published || arena->failed) {
     return false;

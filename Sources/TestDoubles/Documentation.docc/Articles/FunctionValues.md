@@ -147,9 +147,9 @@ protocol requirement is asynchronous.
 ### Explicit compiler adapter
 
 Use an explicit compiler-typed adapter when automatic symbol discovery is
-unavailable but the requirement remains inside the adapter's synchronous,
-concrete slice. The protocol may still come from a separate module; only its
-ordinary Swift interface must be importable.
+unavailable but the requirement remains inside the adapter's concrete slice.
+The protocol may still come from a separate module; only its ordinary Swift
+interface must be importable.
 
 The adapter is a noncapturing `@convention(thin)` function. It repeats the
 requirement's explicit parameters exactly and appends ``Stub/Invocation``:
@@ -188,6 +188,31 @@ uses the `Requirement.method(...throwing:using:)` overload and calls
 typed errors must fit the direct error-result registers; an indirect typed-
 error buffer remains outside this adapter slice.
 
+An async nonthrowing requirement uses an `async` thin adapter and awaits the
+same invocation operation:
+
+```swift
+let adapter: @convention(thin) (
+    @escaping Formatter,
+    FormatterStub.Invocation
+) async -> Formatter = { formatter, invocation in
+    await invocation.call(formatter)
+}
+
+let stub = try FormatterStub(
+    .method(
+        Formatter.self,
+        returning: Formatter.self,
+        isAsync: true,
+        using: adapter
+    )
+)
+```
+
+The fabricated witness keeps the compiler-emitted adapter's async-context
+size and tail-calls its entry point. This lets the adapter await the selected
+stub behavior without retaining the raw witness frame.
+
 ### Remaining boundary
 
 Automatic transport remains fail-closed for top-level nonescaping closure
@@ -207,8 +232,9 @@ This admits a noescape callback that remains scoped to an escaping outer
 invocation, while any uncovered marker—including a top-level noescape
 argument—still rejects the requirement.
 
-The explicit adapter itself remains unavailable for async requirements,
-initializers, `_modify`, dependent closure shapes, and signatures without a free
-general-purpose argument register. A thick Swift closure is deliberately
-rejected as an adapter: its abstraction ABI is not the protocol witness ABI
-even when the printed source signature is identical.
+The explicit adapter supports synchronous effects and async nonthrowing
+requirements. Async throwing effects, initializers, `_modify`, dependent
+closure shapes, and signatures without a free general-purpose argument
+register remain unavailable. A thick Swift closure is deliberately rejected
+as an adapter: its abstraction ABI is not the protocol witness ABI even when
+the printed source signature is identical.

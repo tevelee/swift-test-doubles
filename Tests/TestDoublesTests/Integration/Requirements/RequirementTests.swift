@@ -33,6 +33,10 @@ protocol ClosureAndValueRequirementProbe {
     func apply(_ closure: @escaping RequirementClosure, to value: Int) -> Int
 }
 
+protocol AsyncClosureRequirementProbe {
+    func transform(_ closure: @escaping RequirementClosure) async -> RequirementClosure
+}
+
 typealias ManagedClosure = (String) -> String
 
 protocol ManagedClosureRequirementProbe {
@@ -269,6 +273,38 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
         }
 
         #expect(stub().apply({ $0 * 2 }, to: 20) == 42)
+    }
+
+    @Test func asyncTypedAdapterTransportsClosureArgumentsAcrossSuspension() async throws {
+        let identity: RequirementClosure = { $0 }
+        let adapter:
+            @convention(thin) (
+                @escaping RequirementClosure,
+                Stub<any AsyncClosureRequirementProbe>.Invocation
+            ) async -> RequirementClosure = { closure, invocation in
+                await invocation.call(closure)
+            }
+        let stub = try Stub<any AsyncClosureRequirementProbe>(
+            .method(
+                RequirementClosure.self,
+                returning: RequirementClosure.self,
+                isAsync: true,
+                using: adapter
+            )
+        )
+        await stub.when(returning: identity) {
+            await $0.transform(any(using: identity))
+        }.thenEscaping { (closure: RequirementClosure) async -> RequirementClosure in
+            let transformed = closure(20) + 2
+            await Task.yield()
+            return { _ in transformed }
+        }
+
+        let result = await stub().transform { $0 * 2 }
+        #expect(result(0) == 42)
+        await stub.verify(returning: identity) {
+            await $0.transform(any(using: identity))
+        }
     }
 
     @Test func automaticallyDiscoveredClosureValuesDispatchWithoutRequirements() throws {

@@ -3,7 +3,7 @@ import InternalRuntimeContract
 extension Stub {
     /// Dispatch access passed to a requirement's compiler-typed witness adapter.
     ///
-    /// Use ``call(_:returning:)`` from a nonthrowing adapter and
+    /// Use `call(_:returning:)` from a nonthrowing adapter and
     /// ``callThrowing(_:returning:)`` from a throwing adapter. Arguments are
     /// boxed only after Swift has received them with the requirement's exact
     /// types and escaping conventions.
@@ -29,6 +29,23 @@ extension Stub {
             } catch {
                 fatalError(
                     "[TestDoubles] A nonthrowing typed adapter for '\(methodName)' threw \(error)."
+                )
+            }
+        }
+
+        /// Records or dispatches an asynchronous nonthrowing requirement.
+        public func call<each Argument, Result>(
+            _ arguments: repeat each Argument,
+            returning resultType: Result.Type = Result.self
+        ) async -> Result {
+            do {
+                return try await dispatchAsync(
+                    repeat each arguments,
+                    returning: resultType
+                )
+            } catch {
+                fatalError(
+                    "[TestDoubles] A nonthrowing async typed adapter for '\(methodName)' threw \(error)."
                 )
             }
         }
@@ -71,6 +88,44 @@ extension Stub {
                 RuntimeInvocationRequest(slot: slot, arguments: erased),
                 as: resultType
             )
+        }
+
+        private func dispatchAsync<each Argument, Result>(
+            _ arguments: repeat each Argument,
+            returning resultType: Result.Type
+        ) async throws -> Result {
+            var erased: [Any] = []
+            for argument in repeat each arguments {
+                erased.append(argument)
+            }
+
+            let request = RuntimeInvocationRequest(slot: slot, arguments: erased)
+            switch endpoint.prepareAsyncDispatch(request) {
+                case .recording:
+                    return requireStubbedResult(
+                        endpoint.recordingAccessorResult(at: slot),
+                        as: resultType,
+                        method: methodName
+                    )
+                case .immediate(.success(let result)):
+                    return requireStubbedResult(
+                        result,
+                        as: resultType,
+                        method: methodName
+                    )
+                case .immediate(.failure(let error)):
+                    throw error
+                case .suspending(let handler):
+                    return requireStubbedResult(
+                        try await handler(erased),
+                        as: resultType,
+                        method: methodName
+                    )
+                case .forwarding:
+                    preconditionFailure(
+                        "[TestDoubles] Typed closure adapters cannot dispatch a forwarding Spy fallback."
+                    )
+            }
         }
 
         private var methodName: String { endpoint.methodName(at: slot) }

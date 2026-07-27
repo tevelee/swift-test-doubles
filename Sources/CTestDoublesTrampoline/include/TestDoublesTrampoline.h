@@ -226,6 +226,11 @@ void *td_witness_veneer_arena_make_typed(
     const void *target,
     uintptr_t invocation,
     uintptr_t invocationArgumentIndex);
+void *td_witness_veneer_arena_make_typed_async(
+    TDWitnessVeneerArena *arena,
+    const void *target,
+    uintptr_t invocation,
+    uintptr_t invocationArgumentIndex);
 bool td_witness_veneer_arena_publish(TDWitnessVeneerArena *arena);
 size_t td_witness_veneer_arena_page_count(const TDWitnessVeneerArena *arena);
 void td_witness_veneer_arena_destroy(TDWitnessVeneerArena *arena);

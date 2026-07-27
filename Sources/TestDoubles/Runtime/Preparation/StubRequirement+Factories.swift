@@ -48,6 +48,30 @@ extension Stub.Requirement {
         )
     }
 
+    /// Describes an async nonthrowing method whose signature contains a
+    /// function value.
+    ///
+    /// The noncapturing adapter must use `@convention(thin)`, be `async`,
+    /// repeat the protocol requirement's explicit parameters exactly, and
+    /// append ``Stub/Invocation`` as its final parameter. Call
+    /// `await invocation.call(...)` to preserve the requirement's suspension
+    /// semantics while dispatching through the recorder.
+    public static func method<each Argument, Result, Adapter>(
+        _ arguments: repeat (each Argument).Type,
+        returning result: Result.Type,
+        isAsync: Bool,
+        using adapter: Adapter
+    ) -> Self {
+        Self(
+            kind: .method,
+            arguments: concreteValues(repeat each arguments),
+            result: concreteValue(result),
+            isThrowing: false,
+            isAsync: isAsync,
+            typedWitnessAdapter: typedAdapter(adapter)
+        )
+    }
+
     /// Describes a synchronous typed-throwing method whose signature contains a function value.
     ///
     /// The adapter follows the same `@convention(thin)` contract as the

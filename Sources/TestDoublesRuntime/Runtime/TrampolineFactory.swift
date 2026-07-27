@@ -102,7 +102,8 @@ package enum TrampolineFactory {
         package func makeTyped(
             target: UnsafeRawPointer,
             invocation: UnsafeRawPointer,
-            invocationArgumentIndex: Int
+            invocationArgumentIndex: Int,
+            isAsync: Bool = false
         ) -> UnsafeRawPointer? {
             guard case .building(let rawArena) = state,
                 invocationArgumentIndex >= 0,
@@ -112,12 +113,23 @@ package enum TrampolineFactory {
             else {
                 return nil
             }
-            return td_witness_veneer_arena_make_typed(
-                rawArena,
-                target,
-                UInt(bitPattern: invocation),
-                UInt(invocationArgumentIndex)
-            ).map(UnsafeRawPointer.init)
+            let pointer =
+                if isAsync {
+                    td_witness_veneer_arena_make_typed_async(
+                        rawArena,
+                        target,
+                        UInt(bitPattern: invocation),
+                        UInt(invocationArgumentIndex)
+                    )
+                } else {
+                    td_witness_veneer_arena_make_typed(
+                        rawArena,
+                        target,
+                        UInt(bitPattern: invocation),
+                        UInt(invocationArgumentIndex)
+                    )
+                }
+            return pointer.map(UnsafeRawPointer.init)
         }
 
         package func publish() -> Bool {

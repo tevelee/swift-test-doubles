@@ -100,7 +100,8 @@ package final class FabricatedRuntimeResources: @unchecked Sendable {
             let trampoline = trampolineArena?.makeTyped(
                 target: adapter.target,
                 invocation: adapter.invocation,
-                invocationArgumentIndex: invocationArgumentIndex
+                invocationArgumentIndex: invocationArgumentIndex,
+                isAsync: method.isAsync
             )
         else {
             return nil
