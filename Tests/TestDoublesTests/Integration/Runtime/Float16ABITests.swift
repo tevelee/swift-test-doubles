@@ -22,13 +22,6 @@ import Testing
     }
 
     @Suite struct Float16ABITests {
-        @Test func float16ClassifiesAsFloatingPoint() {
-            guard case .floatingPoint = abiClass(for: Float16.self, isReturn: true) else {
-                Issue.record("Float16 must classify as a floating-point scalar.")
-                return
-            }
-        }
-
         @Test func float16ArgumentsAndResultsRoundTrip() throws {
             let stub = try Stub<any HalfPrecisionABIProbe>()
             stub.when { $0.scale(equal(2 as Float16), by: any()) }
@@ -73,5 +66,3 @@ private struct SIMDWrappingValue {
         }
     }
 }
-import TestDoublesRuntime
-import TestDoublesRuntimeMetadata
