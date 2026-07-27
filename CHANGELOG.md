@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Automatic discovery now supports an associated-dependent typed error whose
+  outer type is a linked, top-level generic class, struct, or enum with one or
+  two type parameters. Reconstructed class errors retain Swift's direct
+  reference transport, while reconstructed value errors use the formal opaque
+  caller-provided error buffer in both synchronous and asynchronous
+  requirements. Optional and other unproven value wrappers stay fail-closed.
+- Automatic discovery and linked type resolution now reconstruct supported
+  generic structs and enums, not only classes, for dependent arguments,
+  results, nested generic arguments, and typed errors. Their formal opaque
+  witness-value convention is preserved even if a concrete specialization
+  would otherwise fit in registers.
+- Runtime performance comparisons now resolve one shared package dependency
+  graph for the baseline and candidate, so an Echo update cannot appear as a
+  TestDoubles performance regression merely because the two measurements used
+  different checkouts.
 - Bound associated-type resolution now accepts a linked, top-level generic
   class with a protocol-constrained type parameter (`Box<Value: Hashable>`),
   not only unconstrained ones, sharing the same witness-table key-argument

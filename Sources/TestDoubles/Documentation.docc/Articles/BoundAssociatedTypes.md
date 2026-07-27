@@ -240,11 +240,11 @@ it must evolve alongside the repository's Swift runtime support matrix.
   registers. An associated error constrained to both `Error` and `AnyObject`
   instead uses its proven direct reference channel.
 - Automatic discovery also supports an associated-dependent typed error whose
-  outer type is a linked, top-level generic class with one or two
-  type parameters. Direct associated arguments and recursively
-  nested class applications are supported. Exact descriptor-based metadata
-  reconstruction proves the class reference layout before construction, so
-  synchronous and async failures use the direct typed-error channel.
+  outer type is a linked, top-level generic class, struct, or enum with one or
+  two type parameters. Direct associated arguments and recursively nested
+  generic-nominal applications are supported. Exact descriptor-based metadata
+  reconstruction proves class reference layout before construction, while
+  generic structs and enums use the formal opaque indirect-error convention.
 - Automatic discovery and explicit requirement descriptions.
 - Complete caller-supplied bindings for unbound associated types used in
   covariant method or getter results, as a direct typed error, or as a direct or
@@ -286,10 +286,10 @@ signature validation possible:
   arguments, more than one protocol-conformance requirement per parameter,
   or source-less explicit generic-nominal schemas.
 - Associated-dependent typed errors whose outer shape is `Optional` or another
-  value wrapper, a generic struct or enum, an unlinked class, or a class with
-  more than two type parameters. Explicit concrete and string-named
-  associated-error schemas cannot describe the supported generic-class source
-  dependency and are rejected when linked validation is available.
+  unproven value wrapper, an unlinked generic nominal, or a generic nominal
+  with more than two type parameters. Explicit concrete and string-named
+  associated-error schemas cannot describe the supported generic-nominal
+  source dependency and are rejected when linked validation is available.
 - Same-type constraints other than concrete primary bindings, superclass
   constraints, and other generic constraints outside the directly witnessed
   protocol-conformance or supported `AnyObject` layout forms.

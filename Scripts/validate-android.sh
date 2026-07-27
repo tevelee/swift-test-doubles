@@ -83,7 +83,7 @@ fi
 echo "Swift host toolchain: $ANDROID_SWIFT_VERSION"
 echo "Swift Android SDK: $ANDROID_SWIFT_SDK_ID"
 echo "Android NDK: $ndk_revision"
-echo "Dependency prerequisite: Echo 0.0.5 or newer with Android ELF metadata support."
+echo "Dependency prerequisite: Echo 0.1.1 or newer with Android ELF metadata support."
 
 readonly target_triples=(
   "x86_64-unknown-linux-android${ANDROID_API_LEVEL}"
