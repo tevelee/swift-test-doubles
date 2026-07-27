@@ -1,25 +1,28 @@
-import Echo
+import EchoRuntimeReflection
 
 enum FunctionSignatureMatcher {
     static func direct(
         _ parsed: LoweredFunctionSyntax,
-        matches metadata: FunctionMetadata
+        matches function: FunctionTypeInfo
     ) -> Bool {
         let parsedGlobalActor = parsed.globalActor.flatMap(resolveRuntimeType)
-        guard parsed.isSendable == metadata.flags.isSendable,
-            parsed.isEscaping == metadata.flags.isEscaping,
-            parsed.isIsolated == (metadata.extendedFlags?.isIsolatedAny == true),
+        guard parsed.isSendable == function.effects.isSendable,
+            parsed.isEscaping == function.effects.isEscaping,
+            parsed.isIsolated == function.effects.isIsolatedAny,
             parsed.globalActor == nil || parsedGlobalActor != nil,
             parsed.globalActor == nil
-                || sameRuntimeType(parsedGlobalActor, metadata.globalActorType),
-            parsed.isAsync == functionIsAsync(metadata),
-            parsed.isThrowing == metadata.flags.throws,
-            thrownError(parsed.thrownError, matches: metadata),
-            type(parsed.result, matches: metadata.resultType)
+                || sameRuntimeType(
+                    parsedGlobalActor,
+                    function.effects.globalActorType
+                ),
+            parsed.isAsync == function.effects.isAsync,
+            parsed.isThrowing == function.effects.isThrowing,
+            thrownError(parsed.thrownError, matches: function),
+            type(parsed.result, matches: function.resultType)
         else {
             return false
         }
-        return parameters(parsed.parameters, match: metadata)
+        return parameters(parsed.parameters, match: function)
     }
 
     /// Generic reabstraction signatures can contain demangler-only
@@ -29,52 +32,63 @@ enum FunctionSignatureMatcher {
     /// selected by accident.
     static func generic(
         _ parsed: LoweredFunctionSyntax,
-        matches metadata: FunctionMetadata
+        matches function: FunctionTypeInfo
     ) -> Bool {
-        if direct(parsed, matches: metadata) { return true }
+        if direct(parsed, matches: function) { return true }
         let parsedGlobalActor = parsed.globalActor.flatMap(resolveRuntimeType)
         return parsed.isSendable
-            == metadata.flags.isSendable
+            == function.effects.isSendable
             && parsed.isEscaping
-                == metadata.flags.isEscaping
+                == function.effects.isEscaping
             && parsed.isIsolated
-                == (metadata.extendedFlags?.isIsolatedAny == true)
+                == function.effects.isIsolatedAny
             && (parsed.globalActor == nil || parsedGlobalActor != nil)
             && (parsed.globalActor == nil
-                || sameRuntimeType(parsedGlobalActor, metadata.globalActorType))
-            && parsed.isAsync == functionIsAsync(metadata)
-            && parsed.isThrowing == metadata.flags.throws
-            && parsed.parameters.count == functionLoweredParameterCount(metadata)
+                || sameRuntimeType(
+                    parsedGlobalActor,
+                    function.effects.globalActorType
+                ))
+            && parsed.isAsync == function.effects.isAsync
+            && parsed.isThrowing == function.effects.isThrowing
+            && parsed.parameters.count
+                == function.parameters.count
+                + (function.effects.isNonisolatedNonsending ? 1 : 0)
     }
 
     private static func parameters(
         _ parsed: [LoweredFunctionParameterSyntax],
-        match metadata: FunctionMetadata
+        match function: FunctionTypeInfo
     ) -> Bool {
         var semanticParameters = parsed[...]
-        if metadata.extendedFlags?.isNonIsolatedNonsending == true {
+        if function.effects.isNonisolatedNonsending {
             guard case .implicitActor? = semanticParameters.first?.type else {
                 return false
             }
             semanticParameters = semanticParameters.dropFirst()
         }
-        let runtimeParameterTypes = safeFunctionParameterTypes(metadata)
-        guard semanticParameters.count == runtimeParameterTypes.count else {
+        guard semanticParameters.count == function.parameters.count else {
             return false
         }
-        return zip(semanticParameters, runtimeParameterTypes).enumerated().allSatisfy {
-            index, pair in
+        return zip(semanticParameters, function.parameters).allSatisfy { pair in
             type(
                 pair.0.type,
                 matches: loweredFunctionParameterType(
-                    metadata,
-                    type: runtimeParameterTypes[index],
-                    at: index
+                    pair.1
                 )
             )
-                && pair.0.ownership == functionParameterOwnership(metadata, at: index)
-                && pair.0.isIsolated == functionParameterIsIsolated(metadata, at: index)
+                && pair.0.ownership == UInt32(pair.1.rawOwnership)
+                && pair.0.isIsolated == pair.1.isIsolated
         }
+    }
+
+    private static func loweredFunctionParameterType(
+        _ parameter: FunctionTypeInfo.Parameter
+    ) -> Any.Type {
+        guard parameter.isVariadic else { return parameter.type }
+        func arrayType<Element>(of type: Element.Type) -> Any.Type {
+            [Element].self
+        }
+        return _openExistential(parameter.type, do: arrayType)
     }
 
     private static func sameRuntimeType(
@@ -91,14 +105,14 @@ enum FunctionSignatureMatcher {
 
     private static func thrownError(
         _ parsed: LoweredTypeSyntax?,
-        matches metadata: FunctionMetadata
+        matches function: FunctionTypeInfo
     ) -> Bool {
-        if functionHasTypedThrows(metadata) {
-            guard let typed = typedThrownErrorType(metadata) else { return false }
+        if function.effects.isTypedThrows {
+            guard let typed = function.effects.typedErrorType else { return false }
             guard let parsed else { return false }
             return type(parsed, matches: typed)
         }
-        guard metadata.flags.throws else { return parsed == nil }
+        guard function.effects.isThrowing else { return parsed == nil }
         guard case .source(let syntax)? = parsed,
             let type = resolveRuntimeType(syntax)
         else {
@@ -116,10 +130,10 @@ enum FunctionSignatureMatcher {
                 guard let type = resolveRuntimeType(syntax) else { return false }
                 return ObjectIdentifier(type) == ObjectIdentifier(runtimeType)
             case .function(let signature):
-                guard let metadata = reflect(runtimeType) as? FunctionMetadata else {
+                guard let function = FunctionTypeInfo(reflecting: runtimeType) else {
                     return false
                 }
-                return direct(signature, matches: metadata)
+                return direct(signature, matches: function)
             case .implicitActor, .substituted:
                 return false
         }

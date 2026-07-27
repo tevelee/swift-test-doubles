@@ -1,5 +1,5 @@
 import CTestDoublesTrampoline
-import Echo
+import EchoRuntimeReflection
 import Foundation
 import TestDoublesRuntimeSupport
 
@@ -16,43 +16,45 @@ package final class ReabstractionThunkRegistry: @unchecked Sendable {
         refresh()
     }
 
-    package func directToGeneric(for metadata: FunctionMetadata) -> UnsafeRawPointer? {
-        lookup(in: directToGenericSnapshot(), metadata: metadata)
-            ?? refreshedLookup(in: directToGenericSnapshot, metadata: metadata)
+    package func directToGeneric(for type: Any.Type) -> UnsafeRawPointer? {
+        guard let function = FunctionTypeInfo(reflecting: type) else { return nil }
+        return lookup(in: directToGenericSnapshot(), function: function)
+            ?? refreshedLookup(in: directToGenericSnapshot, function: function)
     }
 
-    package func genericToDirect(for metadata: FunctionMetadata) -> UnsafeRawPointer? {
-        lookup(in: genericToDirectSnapshot(), metadata: metadata)
-            ?? refreshedLookup(in: genericToDirectSnapshot, metadata: metadata)
+    package func genericToDirect(for type: Any.Type) -> UnsafeRawPointer? {
+        guard let function = FunctionTypeInfo(reflecting: type) else { return nil }
+        return lookup(in: genericToDirectSnapshot(), function: function)
+            ?? refreshedLookup(in: genericToDirectSnapshot, function: function)
     }
 
-    package func hasBothDirections(for metadata: FunctionMetadata) -> Bool {
-        directToGeneric(for: metadata) != nil && genericToDirect(for: metadata) != nil
+    package func hasBothDirections(for type: Any.Type) -> Bool {
+        directToGeneric(for: type) != nil && genericToDirect(for: type) != nil
     }
 
     private func lookup(
         in thunks: [DirectToGenericThunk],
-        metadata: FunctionMetadata
+        function: FunctionTypeInfo
     ) -> UnsafeRawPointer? {
         thunks.first {
-            $0.thunk.isAsyncDescriptor == functionIsAsync(metadata)
+            $0.thunk.isAsyncDescriptor == function.effects.isAsync
                 && FunctionSignatureMatcher.direct(
                     $0.directSignature,
-                    matches: metadata
+                    matches: function
                 )
                 && FunctionSignatureMatcher.generic(
                     $0.genericSignature,
-                    matches: metadata
+                    matches: function
                 )
         }?.thunk.address
     }
 
     private func refreshedLookup(
         in snapshot: () -> [DirectToGenericThunk],
-        metadata: FunctionMetadata
+        function: FunctionTypeInfo
     ) -> UnsafeRawPointer? {
         refresh()
-        return lookup(in: snapshot(), metadata: metadata)
+        return lookup(in: snapshot(), function: function)
     }
 
     private func refresh() {

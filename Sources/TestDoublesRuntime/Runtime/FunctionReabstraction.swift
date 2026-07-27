@@ -9,10 +9,7 @@ import TestDoublesRuntimeMetadata
 /// protocol source annotation or generated forwarding body is required.
 package enum FunctionReabstraction {
     package static func hasLinkedThunks(for type: Any.Type) -> Bool {
-        guard let metadata = reflect(type) as? FunctionMetadata else {
-            return false
-        }
-        return ReabstractionThunkRegistry.shared.hasBothDirections(for: metadata)
+        ReabstractionThunkRegistry.shared.hasBothDirections(for: type)
     }
 
     package static func hasDirectToGenericBridge(_ metadata: FunctionMetadata) -> Bool {
@@ -20,7 +17,9 @@ package enum FunctionReabstraction {
             return false
         }
         return canDynamicallyBoxFunctionArgument(metadata)
-            || ReabstractionThunkRegistry.shared.directToGeneric(for: metadata) != nil
+            || ReabstractionThunkRegistry.shared.directToGeneric(
+                for: metadata.type
+            ) != nil
     }
 
     package static func hasGenericToDirectBridge(_ metadata: FunctionMetadata) -> Bool {
@@ -28,7 +27,9 @@ package enum FunctionReabstraction {
             return false
         }
         return canDynamicallyInitializeFunctionResult(metadata)
-            || ReabstractionThunkRegistry.shared.genericToDirect(for: metadata) != nil
+            || ReabstractionThunkRegistry.shared.genericToDirect(
+                for: metadata.type
+            ) != nil
     }
 
     package static func pointerAuthDiscriminators(
@@ -68,7 +69,10 @@ package enum FunctionReabstraction {
         guard let reason = dynamicFunctionBridgeUnsupportedReason(metadata) else {
             return nil
         }
-        guard ReabstractionThunkRegistry.shared.directToGeneric(for: metadata) == nil
+        guard
+            ReabstractionThunkRegistry.shared.directToGeneric(
+                for: metadata.type
+            ) == nil
         else {
             return nil
         }
@@ -98,7 +102,10 @@ package enum FunctionReabstraction {
         else {
             return nil
         }
-        guard ReabstractionThunkRegistry.shared.genericToDirect(for: metadata) == nil
+        guard
+            ReabstractionThunkRegistry.shared.genericToDirect(
+                for: metadata.type
+            ) == nil
         else {
             return nil
         }
@@ -160,7 +167,7 @@ package enum FunctionReabstraction {
         }
         guard
             let thunk = ReabstractionThunkRegistry.shared.directToGeneric(
-                for: function
+                for: function.type
             )
         else {
             preconditionFailure(
@@ -224,7 +231,7 @@ package enum FunctionReabstraction {
         }
         guard
             let thunk = ReabstractionThunkRegistry.shared.genericToDirect(
-                for: function
+                for: function.type
             )
         else {
             preconditionFailure(

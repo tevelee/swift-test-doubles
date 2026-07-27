@@ -182,11 +182,8 @@ package func resolveRuntimeType(
     if matches.count == 1 {
         return matches[0]
     }
-    let linkedVariants = unique.filter { candidate in
-        guard let metadata = reflect(candidate) as? FunctionMetadata else {
-            return false
-        }
-        return ReabstractionThunkRegistry.shared.hasBothDirections(for: metadata)
+    let linkedVariants = unique.filter {
+        ReabstractionThunkRegistry.shared.hasBothDirections(for: $0)
     }
     if linkedVariants.count == 1 {
         return linkedVariants[0]
