@@ -15,13 +15,14 @@ extension Stub.Requirement {
         )
     }
 
-    /// Describes a synchronous method whose signature contains a function value.
+    /// Describes a method whose signature contains a function value.
     ///
     /// The noncapturing adapter must use `@convention(thin)`, repeat the
     /// protocol requirement's exact explicit argument, result, and
     /// throwing signature, then append ``Stub/Invocation`` as its final
-    /// parameter. Spell `@escaping` on function-valued parameters exactly
-    /// as the protocol does.
+    /// parameter. Spell `@escaping` on function-valued parameters exactly as
+    /// the protocol does. An async adapter and requirement must both set
+    /// `isAsync` to `true`.
     ///
     /// ```swift
     /// let adapter: @convention(thin) (
@@ -36,6 +37,7 @@ extension Stub.Requirement {
         _ arguments: repeat (each Argument).Type,
         returning result: Result.Type,
         isThrowing: Bool = false,
+        isAsync: Bool = false,
         using adapter: Adapter
     ) -> Self {
         Self(
@@ -43,30 +45,6 @@ extension Stub.Requirement {
             arguments: concreteValues(repeat each arguments),
             result: concreteValue(result),
             isThrowing: isThrowing,
-            isAsync: false,
-            typedWitnessAdapter: typedAdapter(adapter)
-        )
-    }
-
-    /// Describes an async nonthrowing method whose signature contains a
-    /// function value.
-    ///
-    /// The noncapturing adapter must use `@convention(thin)`, be `async`,
-    /// repeat the protocol requirement's explicit parameters exactly, and
-    /// append ``Stub/Invocation`` as its final parameter. Call
-    /// `await invocation.call(...)` to preserve the requirement's suspension
-    /// semantics while dispatching through the recorder.
-    public static func method<each Argument, Result, Adapter>(
-        _ arguments: repeat (each Argument).Type,
-        returning result: Result.Type,
-        isAsync: Bool,
-        using adapter: Adapter
-    ) -> Self {
-        Self(
-            kind: .method,
-            arguments: concreteValues(repeat each arguments),
-            result: concreteValue(result),
-            isThrowing: false,
             isAsync: isAsync,
             typedWitnessAdapter: typedAdapter(adapter)
         )

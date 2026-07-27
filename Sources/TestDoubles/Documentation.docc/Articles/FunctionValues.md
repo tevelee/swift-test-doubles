@@ -188,8 +188,8 @@ uses the `Requirement.method(...throwing:using:)` overload and calls
 typed errors must fit the direct error-result registers; an indirect typed-
 error buffer remains outside this adapter slice.
 
-An async nonthrowing requirement uses an `async` thin adapter and awaits the
-same invocation operation:
+An async requirement uses an `async` thin adapter and awaits the matching
+invocation operation:
 
 ```swift
 let adapter: @convention(thin) (

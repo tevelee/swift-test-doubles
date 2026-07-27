@@ -37,9 +37,6 @@ package struct TypedWitnessAdapterFactory: @unchecked Sendable {
                 ? "An async requirement needs an async typed adapter."
                 : "A synchronous requirement needs a synchronous typed adapter."
         }
-        guard method.isAsync == false || method.isThrowing == false else {
-            return "Async typed closure adapters currently support only nonthrowing requirements."
-        }
         guard function.effects.isThrowing == method.isThrowing else {
             return "The typed adapter's throwing effect does not match the requirement."
         }

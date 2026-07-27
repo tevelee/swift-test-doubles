@@ -58,6 +58,14 @@ extension Stub {
             try dispatch(repeat each arguments, returning: resultType)
         }
 
+        /// Records or dispatches an asynchronous untyped-throwing requirement.
+        public func callThrowing<each Argument, Result>(
+            _ arguments: repeat each Argument,
+            returning resultType: Result.Type = Result.self
+        ) async throws -> Result {
+            try await dispatchAsync(repeat each arguments, returning: resultType)
+        }
+
         /// Records or dispatches a synchronous typed-throwing requirement.
         public func call<each Argument, Result, Failure: Error>(
             _ arguments: repeat each Argument,
