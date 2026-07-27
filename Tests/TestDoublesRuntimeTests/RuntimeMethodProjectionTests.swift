@@ -63,5 +63,61 @@ import Testing
         #expect(runtimeMethod.signatureDescription.contains("Module.ErrorBox") == false)
     }
 
+    @Test func semanticProjectionPreservesRequirementSignatures() {
+        let descriptors: [MethodDescriptor] = [
+            MethodDescriptor(
+                kind: .method,
+                name: "transform",
+                index: 0,
+                argumentTypes: [Int.self],
+                returnType: String.self,
+                isThrowing: true,
+                isAsync: true
+            ),
+            MethodDescriptor(
+                kind: .initializer,
+                name: "init(value:)",
+                index: 1,
+                argumentTypes: [String.self],
+                returnType: Any.self,
+                returnConvention: .selfType,
+                isThrowing: true,
+                hasReliableThrowing: false
+            ),
+            MethodDescriptor(
+                kind: .getter,
+                name: "value",
+                index: 2,
+                argumentTypes: [Int.self],
+                returnType: String.self,
+                returnConvention: .associatedType(name: "Element")
+            ),
+            MethodDescriptor(
+                kind: .setter,
+                name: "value(_:)",
+                index: 3,
+                argumentTypes: [String.self, Int.self],
+                returnType: Void.self
+            ),
+            MethodDescriptor(
+                kind: .method,
+                name: "typedFailure",
+                index: 4,
+                argumentTypes: [Int.self],
+                returnType: String.self,
+                typedErrorType: ProjectionError.self,
+                typedErrorDependency: .associatedType(name: "Failure"),
+                isThrowing: true
+            )
+        ]
+
+        for descriptor in descriptors {
+            #expect(
+                descriptor.runtimeMethod.signatureDescription
+                    == descriptor.signatureDescription
+            )
+        }
+    }
+
     private enum ProjectionError: Error {}
 }
