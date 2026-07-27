@@ -76,3 +76,29 @@ public struct RealExternalGenericRequirementProbe: ExternalGenericRequirementPro
         MemoryLayout<Value>.size
     }
 }
+
+/// A requirement-level generic parameter combined with `async`. The reserved
+/// metadata register's interaction with async suspension is unverified
+/// against the compiled ABI, so this shape fails closed.
+public protocol AsyncGenericRequirementProbe {
+    func publishAsync<Event>(_ event: Event) async
+}
+
+public struct RealAsyncGenericRequirementProbe: AsyncGenericRequirementProbe {
+    public init() {}
+
+    public func publishAsync<Event>(_ event: Event) async {}
+}
+
+/// A requirement-level generic parameter combined with typed throws. The
+/// interaction between the reserved metadata register and typed-error
+/// indirect-result transport is unverified, so this shape fails closed.
+public protocol TypedThrowingGenericRequirementProbe {
+    func publishThrows<Event>(_ event: Event) throws(ExternalReferenceFixedFailure)
+}
+
+public struct RealTypedThrowingGenericRequirementProbe: TypedThrowingGenericRequirementProbe {
+    public init() {}
+
+    public func publishThrows<Event>(_ event: Event) throws(ExternalReferenceFixedFailure) {}
+}

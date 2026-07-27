@@ -50,21 +50,21 @@ private func useLinkedGenericRequirementProbe(
         }
     }
 
-    /// Parameter packs are a special case of a broader gap: a requirement that
-    /// declares *any* generic parameter of its own is typed by the caller, not
-    /// by the protocol, so discovery cannot describe it. Both fail closed, each
-    /// naming its own shape.
-    @Test func requirementsWithTheirOwnGenericParameterFailClosedWithASpecificDiagnostic() {
+    /// Parameter packs remain a special case of a broader shape: unlike a
+    /// plain requirement-level generic parameter (see
+    /// `GenericRequirementTests`), packs are variable-length per call site
+    /// and stay unimplemented, so they alone still fail closed.
+    @Test func plainRequirementLevelGenericParametersAreAutomaticallyDiscovered() throws {
         #expect(
             useLinkedGenericRequirementProbe(RealExternalGenericRequirementProbe())
                 == MemoryLayout<Int>.size
         )
 
-        expectUnsupportedProtocolShape(
-            containing: "requirement's own generic parameter"
-        ) {
-            _ = try Stub<any ExternalGenericRequirementProbe>()
-        }
+        let stub = try Stub<any ExternalGenericRequirementProbe>()
+        stub.when { $0.generic(any(using: 0)) }.thenReturn(7)
+
+        let probe: any ExternalGenericRequirementProbe = stub()
+        #expect(probe.generic(123) == 7)
     }
 
     /// `Demangle::genericParameterName` prints depth-0 parameters as bare
