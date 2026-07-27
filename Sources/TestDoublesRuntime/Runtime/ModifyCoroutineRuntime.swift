@@ -1,5 +1,5 @@
 import CTestDoublesTrampoline
-import Echo
+import EchoRuntimeReflection
 import InternalRuntimeContract
 import TestDoublesRuntimeMetadata
 
@@ -58,7 +58,7 @@ private enum ModifyCoroutineRuntime {
 
         func finish(isAborting: Bool) {
             let value: Any
-            if reflect(getter.returnType) is FunctionMetadata {
+            if FunctionTypeInfo(reflecting: getter.returnType) != nil {
                 value = FunctionReabstraction.boxDirectArgument(
                     type: getter.returnType,
                     source: storage
