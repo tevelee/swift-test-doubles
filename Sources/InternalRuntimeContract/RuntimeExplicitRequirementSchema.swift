@@ -77,6 +77,11 @@ package struct RuntimeExplicitRequirementSchema: @unchecked Sendable {
         case dictionary(key: Source, value: Source)
         case result(success: Source, failure: Source)
         case selfType(isOptional: Bool)
+        /// A value typed by the requirement's own generic parameter. `index`
+        /// counts distinct requirement-level generic parameters in
+        /// declaration order; arguments sharing one generic parameter share
+        /// one index.
+        case methodGenericParameter(index: Int)
     }
 
     package let kind: RuntimeRequirementKind

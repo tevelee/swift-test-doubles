@@ -38,6 +38,15 @@ package struct WitnessCallTransportPlan: Sendable {
 
     package let argumentLocations: [[CallFrameArgumentLocation]]
     package let asyncIndirectResultLocation: CallFrameArgumentLocation?
+    /// One location per distinct requirement-level generic parameter,
+    /// ordered by parameter index. Measured against the compiled witness ABI
+    /// (see `REQUIREMENT_GENERIC_SIGNATURES_DESIGN.md`): the metadata
+    /// register for a requirement's own generic parameter always immediately
+    /// follows every visible formal argument and precedes `self`, `Self`, and
+    /// `SelfWitnessTable` — so this reservation is placed first in the
+    /// trailing general-purpose word sequence, ahead of the typed-error and
+    /// dynamic-Self/typed-adapter payloads below.
+    package let genericParameterMetadataLocations: [CallFrameArgumentLocation]
     package let typedErrorDestinationLocation: CallFrameArgumentLocation?
     package let dynamicSelfLocations: DynamicSelfLocations?
     package let typedAdapterInvocationLocation: CallFrameArgumentLocation?
@@ -78,6 +87,13 @@ package struct WitnessCallTransportPlan: Sendable {
             asyncIndirectResultLocation = nil
         }
 
+        let methodGenericParameterCount = method.arguments.reduce(into: 0) {
+            count,
+            argument in
+            if case .methodGenericParameter(let index) = argument.value.convention {
+                count = max(count, index + 1)
+            }
+        }
         let typedErrorWordCount = method.typedErrorUsesIndirectResultSlot ? 1 : 0
         let locationPlan = CallFrameArgumentLocationPlan(
             arguments: method.arguments.map {
@@ -88,23 +104,31 @@ package struct WitnessCallTransportPlan: Sendable {
             },
             initialGeneralPurposeOffset: initialGeneralPurposeOffset
                 + (hasAsyncIndirectResult ? 1 : 0),
-            trailingGeneralPurposeWordCount: typedErrorWordCount
+            trailingGeneralPurposeWordCount: methodGenericParameterCount
+                + typedErrorWordCount
                 + trailingPayload.generalPurposeWordCount,
             architecture: architecture
         )
         argumentLocations = locationPlan.arguments
 
         var trailing = locationPlan.trailingGeneralPurpose[...]
+        genericParameterMetadataLocations = (0 ..< methodGenericParameterCount).map { _ in
+            trailing.removeFirst()
+        }
         if method.typedErrorUsesIndirectResultSlot {
             typedErrorDestinationLocation = trailing.removeFirst()
         } else {
             typedErrorDestinationLocation = nil
         }
+        let genericParameterMetadataStackByteCount =
+            genericParameterMetadataLocations.lazy.filter(\.isStack).count
+            * MemoryLayout<UInt>.size
         let typedErrorStackByteCount =
             typedErrorDestinationLocation?.isStack == true
             ? MemoryLayout<UInt>.size : 0
         decodedStackByteCount =
             locationPlan.argumentStackByteCount
+            + genericParameterMetadataStackByteCount
             + typedErrorStackByteCount
 
         switch trailingPayload {

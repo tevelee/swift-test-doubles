@@ -33,6 +33,10 @@ package enum RuntimeValueConvention: Equatable, Sendable {
     case associatedType(name: String)
     case selfType
     case optionalSelf
+    /// A value typed by the requirement's own generic parameter, resolved per
+    /// call site. `index` counts distinct requirement-level generic
+    /// parameters in declaration order.
+    case methodGenericParameter(index: Int)
 }
 
 /// The semantic ownership intent of a requirement argument.
@@ -244,6 +248,8 @@ private func runtimeValueDescription(_ value: RuntimeValue) -> String {
             "Self"
         case .optionalSelf:
             "Self?"
+        case .methodGenericParameter(let index):
+            "<generic parameter \(index)>"
     }
 }
 

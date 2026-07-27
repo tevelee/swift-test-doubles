@@ -96,7 +96,8 @@ package func discoverMethods(
                 protocolDescriptor: proto,
                 requirementIndex: requirement.dispatchIndex,
                 associatedTypeBindings: associatedTypeBindings,
-                mangledSignature: parsedMangledName
+                mangledSignature: parsedMangledName,
+                isArgument: true
             )
         }
         let result = try resolveWitnessValue(
@@ -104,7 +105,8 @@ package func discoverMethods(
             protocolDescriptor: proto,
             requirementIndex: requirement.dispatchIndex,
             associatedTypeBindings: associatedTypeBindings,
-            mangledSignature: parsedMangledName
+            mangledSignature: parsedMangledName,
+            isArgument: false
         )
 
         let typedError = try resolveTypedError(
@@ -118,7 +120,7 @@ package func discoverMethods(
                 switch result.convention {
                     case .concrete, .associatedType:
                         true
-                    case .selfType, .optionalSelf:
+                    case .selfType, .optionalSelf, .methodGenericParameter:
                         false
                 }
             guard kind == .method,
@@ -252,7 +254,8 @@ private func resolveWitnessValue(
     protocolDescriptor: ProtocolDescriptor,
     requirementIndex: Int,
     associatedTypeBindings: AssociatedTypeBindings,
-    mangledSignature: String
+    mangledSignature: String,
+    isArgument: Bool
 ) throws -> ResolvedWitnessValue {
     let rawName = syntax.canonicalSpelling
     if rawName.hasPrefix("inout ") {
@@ -299,14 +302,21 @@ private func resolveWitnessValue(
                 + "Supply explicit Requirement values."
         )
     }
-    if isMethodGenericParameter(valueName) {
-        throw RuntimeConstructionError.unsupportedProtocolShape(
-            protocolName: protocolDescriptor.name,
-            reason:
-                "Requirement \(requirementIndex) has an argument typed by the requirement's own generic parameter ('\(valueName)'). "
-                + "Automatic Stub does not support requirements that declare their own generic parameters, because the argument's "
-                + "type is supplied by each caller at runtime rather than by the protocol. "
-                + "Supply explicit Requirement values."
+    if let index = methodGenericParameterIndex(valueName) {
+        guard isArgument else {
+            throw RuntimeConstructionError.unsupportedProtocolShape(
+                protocolName: protocolDescriptor.name,
+                reason:
+                    "Requirement \(requirementIndex) returns a value typed by the requirement's own generic parameter ('\(valueName)'). "
+                    + "Automatic Stub does not support producing a value whose type is chosen by the caller. "
+                    + "Supply explicit Requirement values."
+            )
+        }
+        return ResolvedWitnessValue(
+            type: Any.self,
+            convention: .methodGenericParameter(index: index),
+            dependency: .independent,
+            ownership: ownership
         )
     }
     if let selfShape = dynamicSelfValueShape(valueName) {
@@ -417,16 +427,27 @@ private enum DynamicSelfValueShape {
 /// unambiguous here because every real type demangles module-qualified
 /// (`"MyModule.A1"`), never as a bare identifier.
 func isMethodGenericParameter(_ spelling: String) -> Bool {
+    methodGenericParameterIndex(spelling) != nil
+}
+
+/// The requirement-level generic-parameter index a demangled spelling names,
+/// or `nil` if it does not name one.
+///
+/// The leading letter enumerates the requirement's own generic parameters in
+/// declaration order (`A1` is the first, `B1` the second, and so on), so its
+/// zero-based alphabet position is the parameter's index directly.
+func methodGenericParameterIndex(_ spelling: String) -> Int? {
     var characters = Substring(spelling)
     guard let first = characters.popFirst(),
         first.isUppercase,
         first.isLetter,
+        first.isASCII,
         characters.isEmpty == false,
         characters.allSatisfy(\.isNumber)
     else {
-        return false
+        return nil
     }
-    return true
+    return Int(first.asciiValue! - Character("A").asciiValue!)
 }
 
 private func dynamicSelfValueShape(

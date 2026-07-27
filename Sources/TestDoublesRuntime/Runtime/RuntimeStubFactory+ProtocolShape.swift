@@ -189,7 +189,7 @@ extension RuntimeStubFactory {
             let selfArguments = method.arguments.filter {
                 switch $0.value.convention {
                     case .selfType, .optionalSelf: true
-                    case .concrete, .associatedType: false
+                    case .concrete, .associatedType, .methodGenericParameter: false
                 }
             }
             let allowsAutomaticSelfArguments =
@@ -348,6 +348,12 @@ extension RuntimeStubFactory {
                 throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: protocolName,
                     reason: "Requirement \(method.index) contains an unsupported SIMD value. \(reason)"
+                )
+            }
+            if let reason = runtimeMethodGenericParameterUnsupportedReason(for: method) {
+                throw RuntimeConstructionError.unsupportedProtocolShape(
+                    protocolName: protocolName,
+                    reason: "Requirement \(method.index) has a requirement-level generic parameter. \(reason)"
                 )
             }
             if method.kind == .setter {

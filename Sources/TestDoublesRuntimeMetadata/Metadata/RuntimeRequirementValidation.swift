@@ -61,6 +61,53 @@ package func runtimeSIMDUnsupportedReason(
     return nil
 }
 
+/// Whether `method` uses a requirement-level generic parameter in a shape the
+/// runtime cannot yet transport, or `nil` if the requirement (if it uses one
+/// at all) is fully supported.
+///
+/// The physical decode itself (walking the per-call-site metadata register,
+/// see `RuntimeArgumentDecoder.genericParameterMetadataType`) is proven for
+/// any argument count and any number of distinct generic parameters. What
+/// remains unverified against the compiled ABI is how the reserved metadata
+/// register interacts with `async` suspension and indirect typed-error
+/// transport, so both fail closed here rather than risk a silent
+/// misclassification.
+package func runtimeMethodGenericParameterUnsupportedReason(
+    for method: MethodDescriptor
+) -> String? {
+    let usesGenericParameter = method.arguments.contains {
+        if case .methodGenericParameter = $0.value.convention { return true }
+        return false
+    }
+    guard usesGenericParameter else { return nil }
+
+    guard method.kind == .method, method.receiver == .instance else {
+        return "Requirement-level generic parameters are supported only on ordinary instance methods."
+    }
+    guard method.isAsync == false else {
+        return "Async continuation transport has not been proven for requirement-level generic parameters."
+    }
+    guard method.typedErrorType == nil else {
+        return "Typed-throwing transport has not been proven alongside a requirement-level generic parameter."
+    }
+    return nil
+}
+
+/// Forwarding (`Spy`) always rejects a requirement-level generic parameter:
+/// forwarding a call to a real conformance would need to replay the
+/// caller-supplied metadata register into an outgoing call, which is
+/// unverified and out of scope for the first milestone.
+package func runtimeMethodGenericParameterForwardingUnsupportedReason(
+    for method: MethodDescriptor
+) -> String? {
+    let usesGenericParameter = method.arguments.contains {
+        if case .methodGenericParameter = $0.value.convention { return true }
+        return false
+    }
+    guard usesGenericParameter else { return nil }
+    return "Forwarding Spy does not support requirements with their own generic parameter."
+}
+
 package func validateExplicitRequirementsAgainstLinkedConformances(
     _ supplied: [MethodDescriptor],
     layout: ProtocolLayout,

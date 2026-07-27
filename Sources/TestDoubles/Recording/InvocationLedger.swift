@@ -97,7 +97,7 @@ struct RecordedCall: @unchecked Sendable {
                     }
                     self = .optionalSelfPayload(WeakPayload(payload), materializer)
 
-                case .concrete, .associatedType, nil:
+                case .concrete, .associatedType, .methodGenericParameter, nil:
                     self = .strong(value)
             }
         }

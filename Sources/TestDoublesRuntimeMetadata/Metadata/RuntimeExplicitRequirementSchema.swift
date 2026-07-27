@@ -44,13 +44,17 @@ package func makeExplicitMethodDescriptor(
             try resolveExplicitWitnessValue(
                 $0,
                 protocolDescriptor: protocolDescriptor,
-                bindings: bindings
+                bindings: bindings,
+                requirementIndex: index,
+                isArgument: true
             )
         },
         result: try resolveExplicitWitnessValue(
             schema.result,
             protocolDescriptor: protocolDescriptor,
-            bindings: bindings
+            bindings: bindings,
+            requirementIndex: index,
+            isArgument: false
         ),
         protocolName: protocolDescriptor.name,
         typedErrorType: resolvedTypedError.type,
@@ -67,11 +71,27 @@ package func makeExplicitMethodDescriptor(
 private func resolveExplicitWitnessValue(
     _ value: RuntimeExplicitRequirementSchema.Value,
     protocolDescriptor: RuntimeProtocolDescriptor,
-    bindings: AssociatedTypeBindings
+    bindings: AssociatedTypeBindings,
+    requirementIndex: Int,
+    isArgument: Bool
 ) throws -> ResolvedWitnessValue {
     if case .selfType(let isOptional) = value.source {
         return .selfValue(
             isOptional: isOptional,
+            ownership: value.ownership.map(WitnessArgumentOwnership.init)
+        )
+    }
+    if case .methodGenericParameter(let index) = value.source {
+        guard isArgument else {
+            throw RuntimeConstructionError.unsupportedProtocolShape(
+                protocolName: protocolDescriptor.name,
+                reason: "Requirement \(requirementIndex) describes a result typed by the requirement's own generic parameter. Only arguments support this schema."
+            )
+        }
+        return ResolvedWitnessValue(
+            type: Any.self,
+            convention: .methodGenericParameter(index: index),
+            dependency: .independent,
             ownership: value.ownership.map(WitnessArgumentOwnership.init)
         )
     }
@@ -152,6 +172,11 @@ private func resolveExplicitDependentType(
             throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolDescriptor.name,
                 reason: "Dynamic Self is supported only as a direct result, not inside a container value schema."
+            )
+        case .methodGenericParameter:
+            throw RuntimeConstructionError.unsupportedProtocolShape(
+                protocolName: protocolDescriptor.name,
+                reason: "A requirement-level generic parameter is supported only as a direct argument, not inside a container value schema."
             )
     }
 }

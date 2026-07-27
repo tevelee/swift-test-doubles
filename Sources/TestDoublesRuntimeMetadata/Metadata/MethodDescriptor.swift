@@ -352,6 +352,7 @@ package struct MethodDescriptor: Sendable {
             case .associatedType: .indirect
             case .selfType, .optionalSelf:
                 selfIsClassConstrained ? .integer(words: 1) : .indirect
+            case .methodGenericParameter: .indirect
         }
     }
 
@@ -369,6 +370,7 @@ package struct MethodDescriptor: Sendable {
             case .associatedType: .indirect
             case .selfType, .optionalSelf:
                 selfIsClassConstrained ? .integer(words: 1) : .indirect
+            case .methodGenericParameter: .indirect
         }
     }
 }
@@ -410,6 +412,7 @@ extension RuntimeValueConvention {
             case .associatedType(let name): self = .associatedType(name: name)
             case .selfType: self = .selfType
             case .optionalSelf: self = .optionalSelf
+            case .methodGenericParameter(let index): self = .methodGenericParameter(index: index)
         }
     }
 }
@@ -457,6 +460,8 @@ private func witnessValueDescription(
             "Self"
         case .optionalSelf:
             "Self?"
+        case .methodGenericParameter(let index):
+            "<generic parameter \(index)>"
     }
 }
 

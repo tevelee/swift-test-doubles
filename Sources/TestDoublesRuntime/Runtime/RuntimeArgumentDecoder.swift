@@ -3,6 +3,7 @@ import TestDoublesRuntimeMetadata
 
 package struct RuntimeArgumentSpec: Sendable {
     package let type: Any.Type
+    package let convention: WitnessValueConvention
     package let layout: ABIClass
     package let ownership: WitnessArgumentOwnership
 }
@@ -33,6 +34,7 @@ package struct RuntimeArgumentDecodingPlan: Sendable {
 
     package let arguments: [RuntimeArgumentSpec]
     package let argumentLocations: [[CallFrameArgumentLocation]]
+    package let genericParameterMetadataLocations: [CallFrameArgumentLocation]
     package let typedErrorDestinationLocation: CallFrameArgumentLocation?
     package let diagnosticContext: DiagnosticContext
 
@@ -45,12 +47,15 @@ package struct RuntimeArgumentDecodingPlan: Sendable {
             arguments: method.arguments.map {
                 RuntimeArgumentSpec(
                     type: $0.value.type,
+                    convention: $0.value.convention,
                     layout: $0.value.layout,
                     ownership:
                         consumeOwnedArguments ? $0.ownership : .borrowed
                 )
             },
             argumentLocations: transport.argumentLocations,
+            genericParameterMetadataLocations:
+                transport.genericParameterMetadataLocations,
             typedErrorDestinationLocation:
                 transport.typedErrorDestinationLocation,
             diagnosticContext: .witness(method.name)
@@ -186,9 +191,19 @@ package enum RuntimeArgumentDecoder {
                     guard let source = UnsafeMutableRawPointer(bitPattern: address) else {
                         fatalError(plan.diagnosticContext.missingIndirectArgument)
                     }
+                    let runtimeType: Any.Type
+                    if case .methodGenericParameter(let index) = argument.convention {
+                        runtimeType = genericParameterMetadataType(
+                            at: index,
+                            in: plan.genericParameterMetadataLocations,
+                            from: frame
+                        )
+                    } else {
+                        runtimeType = argument.type
+                    }
                     values.append(
                         copyArgument(
-                            type: argument.type,
+                            type: runtimeType,
                             source: source,
                             consuming: consumesArgument
                         ))
@@ -239,6 +254,32 @@ package enum RuntimeArgumentDecoder {
             source: temporary,
             consuming: consuming
         )
+    }
+
+    /// Reads the caller-supplied type metadata for one requirement-level
+    /// generic parameter out of its reserved call-frame register.
+    ///
+    /// Measured against the compiled witness ABI: the metadata pointer
+    /// arrives as an ordinary general-purpose word, identical in shape to
+    /// every other scalar witness argument, so it is read with
+    /// `scalarBits(at:)` like any other pointer-sized value and reinterpreted
+    /// as `Any.Type`.
+    private static func genericParameterMetadataType(
+        at index: Int,
+        in locations: [CallFrameArgumentLocation],
+        from frame: TrampolineCallFrame
+    ) -> Any.Type {
+        precondition(
+            locations.indices.contains(index),
+            "[TestDoubles] Missing call-frame location for requirement-level generic parameter \(index)."
+        )
+        let bits = UInt(frame.scalarBits(at: locations[index]))
+        guard let metadata = UnsafeRawPointer(bitPattern: bits) else {
+            fatalError(
+                "[TestDoubles] Missing runtime metadata for requirement-level generic parameter \(index)."
+            )
+        }
+        return unsafeBitCast(metadata, to: Any.Type.self)
     }
 
     /// Copies an ABI argument into recorder-owned `Any` storage, then consumes

@@ -34,6 +34,8 @@ extension Stub.Requirement.Value.Source {
                 )
             case .selfType(let isOptional):
                 .selfType(isOptional: isOptional)
+            case .methodGenericParameter(let index):
+                .methodGenericParameter(index: index)
         }
     }
 }

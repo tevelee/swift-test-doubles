@@ -184,6 +184,12 @@ struct ProtocolForwardingPlanBuilder<P> {
                 reason: reason
             )
         }
+        if let reason = runtimeMethodGenericParameterForwardingUnsupportedReason(for: method) {
+            throw RuntimeConstructionError.unsupportedProtocolShape(
+                protocolName: protocolName,
+                reason: reason
+            )
+        }
         guard method.typedWitnessAdapterFactory == nil,
             concreteTypes.allSatisfy({ !isRuntimeFunctionType($0) })
         else {
