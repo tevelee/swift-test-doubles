@@ -34,7 +34,13 @@ private func useLinkedGreeter(_ value: any Greeter) -> String {
 @Suite struct CxxForeignReferenceTests {
     /// The previously-impossible scenario: a target with C++ interop enabled
     /// that also depends on TestDoubles now builds and runs both halves.
-    @Test func cxxInteropAndOrdinaryStubbingCoexistInTheSameTarget() {
+    ///
+    /// Swift's C++ interop runtime support (and so any imported foreign
+    /// reference type, including `Widget`) requires these exact per-platform
+    /// floors, newer than this package's own minimum deployment targets.
+    @Test
+    @available(iOS 16.4, macOS 13.3, tvOS 16.4, watchOS 9.4, visionOS 1.0, *)
+    func cxxInteropAndOrdinaryStubbingCoexistInTheSameTarget() {
         let widget = Widget()
         #expect(widget.value() == 42)
         #expect(useLinkedGreeter(RealGreeter()) == "hello")
@@ -46,7 +52,9 @@ private func useLinkedGreeter(_ value: any Greeter) -> String {
         #expect(greeter.greet() == "hello, stub")
     }
 
-    @Test func foreignReferenceSuperclassConstraintFailsClosedWithTheActualBlocker() {
+    @Test
+    @available(iOS 16.4, macOS 13.3, tvOS 16.4, watchOS 9.4, visionOS 1.0, *)
+    func foreignReferenceSuperclassConstraintFailsClosedWithTheActualBlocker() {
         do {
             _ = try Stub<any Widget & Greeter>()
             Issue.record("Expected construction to fail closed")
