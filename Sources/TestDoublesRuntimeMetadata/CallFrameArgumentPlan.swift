@@ -1,4 +1,4 @@
-import Echo
+import EchoRuntimeReflection
 import TestDoublesRuntimeSupport
 
 /// One direct value fragment carried by a general-purpose or vector register.
@@ -17,7 +17,7 @@ package struct CallFrameArgumentShape: Sendable {
     package let pieces: [CallFrameValuePiece]
 
     package init(type: Any.Type, layout: ABIClass) {
-        let valueByteCount = reflect(type).vwt.size
+        let valueByteCount = ValueLayoutInfo(reflecting: type).size
         pieces =
             switch layout {
                 case .void:
