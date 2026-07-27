@@ -377,6 +377,19 @@ jobs:
           mkdir -p "$ANDROID_SWIFT_SDKS_PATH"
           cp -a "$ANDROID_SWIFT_SDK_CACHE_PATH" "$ANDROID_SWIFT_SDKS_PATH/"
           chmod -R u+w "$ANDROID_SWIFT_SDKS_PATH/${ANDROID_SWIFT_SDK_ID}.artifactbundle"
+      - name: Pull Swift Android host image
+        # Pulled here, before the emulator boots, because the AVD's QEMU
+        # networking (NAT/iptables for the guest) degrades the runner's own
+        # outbound connectivity once it's up, which otherwise made the
+        # registry pulls inside pre-emulator-launch-script and script below
+        # fail intermittently. docker image inspect short-circuits later
+        # calls to ensure_android_swift_host_image once it's cached here.
+        run: |
+          . Scripts/android-toolchain.sh
+          ensure_android_swift_host_image || {
+            echo "error: Unable to pull the Swift Android host image: $ANDROID_SWIFT_HOST_IMAGE" >&2
+            exit 1
+          }
       - name: Build and run AndroidRuntimeDemo on an emulator
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
