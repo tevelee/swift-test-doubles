@@ -80,31 +80,32 @@ package enum SwiftErrorTransport {
     }
 
     private static func retainedPointer(to error: any Error) -> UInt {
-        var container = Echo.container(for: error)
-        let metadata = container.metadata
-        guard
-            let errorProtocol = (reflect((any Error).self) as? ExistentialMetadata)?
-                .protocols.first,
-            let witness = swift_conformsToProtocol(
-                metadata: metadata,
-                protocol: errorProtocol
+        withProjectedValue(of: error) { type, source in
+            let metadata = reflect(type)
+            guard
+                let errorProtocol = (reflect((any Error).self) as? ExistentialMetadata)?
+                    .protocols.first,
+                let witness = swift_conformsToProtocol(
+                    metadata: metadata,
+                    protocol: errorProtocol
+                )
+            else {
+                fatalError(
+                    "[TestDoubles] Cannot find Error witness table for thrown value of type \(metadata.type)."
+                )
+            }
+            let allocated = td_swift_alloc_error(
+                metadata.ptr,
+                witness.ptr,
+                nil,
+                false
             )
-        else {
-            fatalError(
-                "[TestDoubles] Cannot find Error witness table for thrown value of type \(metadata.type)."
+            ValueOperations.initializeCopy(
+                of: metadata.type,
+                from: source,
+                to: allocated.value
             )
+            return UInt(bitPattern: allocated.error)
         }
-        let allocated = td_swift_alloc_error(
-            metadata.ptr,
-            witness.ptr,
-            nil,
-            false
-        )
-        ValueOperations.initializeCopy(
-            of: metadata.type,
-            from: container.projectValue(),
-            to: allocated.value
-        )
-        return UInt(bitPattern: allocated.error)
     }
 }

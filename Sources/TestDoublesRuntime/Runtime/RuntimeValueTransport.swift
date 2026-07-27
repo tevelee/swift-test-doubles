@@ -10,32 +10,32 @@ package enum RuntimeValueTransport {
         expectedType: Any.Type?,
         to destination: UnsafeMutableRawPointer
     ) {
-        var container = Echo.container(for: result)
-        let actual = container.metadata
-        let type = expectedType ?? actual.type
-        if let expectedType, actual.type != expectedType {
-            func copyCastedResult<T>(_ type: T.Type) {
-                guard let value = result as? T else {
-                    preconditionFailure(
-                        "[TestDoubles] Type mismatch: expected \(expectedType), got \(actual.type)."
-                    )
+        withProjectedValue(of: result) { actualType, source in
+            let type = expectedType ?? actualType
+            if let expectedType, actualType != expectedType {
+                func copyCastedResult<T>(_ type: T.Type) {
+                    guard let value = result as? T else {
+                        preconditionFailure(
+                            "[TestDoubles] Type mismatch: expected \(expectedType), got \(actualType)."
+                        )
+                    }
+                    withUnsafePointer(to: value) {
+                        ValueOperations.initializeCopy(
+                            of: type,
+                            from: UnsafeRawPointer($0),
+                            to: destination
+                        )
+                    }
                 }
-                withUnsafePointer(to: value) {
-                    ValueOperations.initializeCopy(
-                        of: type,
-                        from: UnsafeRawPointer($0),
-                        to: destination
-                    )
-                }
+                _openExistential(expectedType, do: copyCastedResult)
+                return
             }
-            _openExistential(expectedType, do: copyCastedResult)
-            return
+            ValueOperations.initializeCopy(
+                of: type,
+                from: source,
+                to: destination
+            )
         }
-        ValueOperations.initializeCopy(
-            of: type,
-            from: container.projectValue(),
-            to: destination
-        )
     }
 
     package static func initializeDirectValue(
@@ -234,7 +234,11 @@ package enum RuntimeValueTransport {
         transport: RuntimeResultTransportPlan,
         _ body: (UnsafeMutableRawPointer) -> Void
     ) {
-        let type = expectedType ?? Echo.container(for: result).metadata.type
+        let type =
+            expectedType
+            ?? withProjectedValue(of: result) { type, _ in
+                type
+            }
         let temporary = ValueStorage(
             type: type,
             minimumByteCount: 16
