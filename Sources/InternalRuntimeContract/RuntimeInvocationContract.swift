@@ -1,8 +1,6 @@
 /// A runtime-decoded invocation routed to the public semantic endpoint.
-///
-/// `slot` is the dense dispatch identity assigned during witness fabrication.
-/// It deliberately is not a witness-table index: the public endpoint resolves
-/// the slot against its own method catalog while the runtime retains ABI plans.
+/// `slot` is a dense dispatch identity, not a witness-table index -- the
+/// endpoint resolves it against its own method catalog.
 package struct RuntimeInvocationRequest: @unchecked Sendable {
     package let slot: Int
     package let arguments: [Any]
@@ -38,10 +36,8 @@ package enum RuntimeRecordingResult: @unchecked Sendable {
     case synthesize
 }
 
-/// An opaque generated-value payload.
-///
-/// The public layer uses this only to preserve dynamic-`Self` identities
-/// during recording. Its concrete storage and the resources it owns remain
+/// An opaque generated-value payload, used only to preserve dynamic-`Self`
+/// identities during recording. Storage and owned resources stay
 /// implementation details of the ABI runtime.
 package protocol RuntimePayload: AnyObject {}
 
@@ -73,10 +69,8 @@ package enum RuntimeAsyncDispatch: @unchecked Sendable {
     case forwarding
 }
 
-/// Semantic policy invoked by the ABI runtime.
-///
-/// This contract intentionally transports only dispatch slots and boxed Swift
-/// values. Runtime metadata, ABI plans, frame storage, and Echo types remain
+/// Semantic policy invoked by the ABI runtime. Transports only dispatch
+/// slots and boxed Swift values; metadata, ABI plans, and frame storage stay
 /// implementation details of `TestDoublesRuntime`.
 package protocol RuntimeInvocationEndpoint: AnyObject, Sendable {
     func prepareDispatch(

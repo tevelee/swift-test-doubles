@@ -1,8 +1,5 @@
 /// A caller-supplied concrete binding for one associated type declaration.
-///
-/// The declaring protocol metatype, associated-type name, and concrete type
-/// are source-level values. Descriptor lookup and identity validation belong
-/// to the runtime target.
+/// Descriptor lookup and identity validation belong to the runtime target.
 package struct RuntimeAssociatedTypeBindingRequest: @unchecked Sendable {
     package let declaringProtocol: Any.Type
     package let name: String
@@ -39,11 +36,9 @@ package struct RuntimeProtocolShapeRequest: @unchecked Sendable {
     }
 }
 
-/// Source-level selection of the requirements used to prepare a runtime stub.
-///
-/// Explicit schemas and declaring protocol metatypes are semantic inputs. The
-/// runtime resolves them against its private protocol layout before it assigns
-/// dispatch slots or reads witness metadata.
+/// Source-level selection of the requirements used to prepare a runtime
+/// stub, resolved against the private protocol layout before dispatch slots
+/// or witness metadata are read.
 package enum RuntimeExplicitRequirementInput: @unchecked Sendable {
     case automatic
     case flat([RuntimeExplicitRequirementSchema])
@@ -85,11 +80,8 @@ package struct RuntimeGetterEffectGroup: @unchecked Sendable {
     }
 }
 
-/// The complete source-level input to runtime stub preparation.
-///
-/// This is intentionally free of layouts, descriptors, witness tables, and
-/// ABI transport plans. Runtime preparation returns only semantic methods and
-/// an opaque materialization plan to the public layer.
+/// The complete source-level input to runtime stub preparation. Free of
+/// layouts, descriptors, witness tables, and ABI transport plans.
 package struct RuntimeStubPreparationRequest: @unchecked Sendable {
     package let shape: RuntimeProtocolShapeRequest
     package let requirements: RuntimeExplicitRequirementInput

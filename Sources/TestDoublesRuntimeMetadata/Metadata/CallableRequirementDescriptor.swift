@@ -52,11 +52,8 @@ package enum WitnessValueConvention: Equatable, Sendable {
     case associatedType(name: String)
     case selfType
     case optionalSelf
-    /// A value typed by the requirement's own generic parameter (e.g. the `T`
-    /// in `func f<T>(_ value: T)`), resolved from a per-call-site metadata
-    /// register rather than a type known at discovery time. `index` counts
-    /// distinct requirement-level generic parameters in declaration order, so
-    /// two arguments sharing the same generic parameter share one index.
+    /// Typed by the requirement's own generic parameter; `index` identifies
+    /// which one, so shared parameters share an index.
     case methodGenericParameter(index: Int)
 }
 

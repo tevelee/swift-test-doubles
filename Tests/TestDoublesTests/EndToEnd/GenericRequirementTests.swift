@@ -2,10 +2,9 @@ import Testing
 import TestDoubles
 import TestDoublesFixtures
 
-/// End-to-end coverage for requirement-level generic parameters
-/// (`func f<T>(...)`) using real-world-shaped protocols: an event bus, a
-/// generic equality check, and a type-erased cache. See
-/// `REQUIREMENT_GENERIC_SIGNATURES_DESIGN.md` for the ABI background.
+/// End-to-end coverage for requirement-level generic parameters (`func
+/// f<T>(...)`) using an event bus, a generic equality check, and a
+/// type-erased cache.
 @Suite struct GenericRequirementTests {
     private struct UserRegistered: Equatable {
         let userID: Int
@@ -29,12 +28,7 @@ import TestDoublesFixtures
         }
     }
 
-    /// `any()` matches any value regardless of type, by design, the same way
-    /// it does at an ordinary fixed-type argument position — it never claimed
-    /// to discriminate types. At a requirement-level generic parameter,
-    /// distinguishing which caller-supplied type a call used takes a matcher
-    /// that itself performs a typed comparison, such as `equal(_:)`, whose
-    /// internal cast naturally rejects a call carrying a different type.
+    /// `equal(_:)` discriminates by type via its internal cast; `any()` does not.
     @Test func automaticStubDistinguishesDifferentEventTypesAtTheSameRequirement() throws {
         let stub = try Stub<any EventBus>()
         stub.when { $0.publish(equal(UserRegistered(userID: 1))) }.thenReturn(())

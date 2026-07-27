@@ -2,11 +2,8 @@ import InternalRuntimeContract
 import TestDoublesRuntimeMetadata
 
 /// Builds an opaque fabricated existential from validated semantic inputs.
-///
-/// The factory owns the complete ABI construction transaction. Callers supply
-/// only metadata already validated by their policy layer and an opaque
-/// semantic endpoint; witness tables, resource owners, payloads, and
-/// conformance references never leave this boundary.
+/// Owns the complete ABI construction transaction: witness tables, resource
+/// owners, payloads, and conformance references never leave this boundary.
 package enum RuntimeStubFactory {
     /// A materializable existential value whose ABI storage remains private to
     /// the runtime target.

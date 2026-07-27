@@ -2,21 +2,12 @@ import Testing
 import TestDoubles
 import TestDoublesCxxInteropFixtures
 
-/// End-to-end coverage for building and using TestDoubles from a target with
-/// `.interoperabilityMode(.Cxx)` enabled. See
-/// CXX_FOREIGN_REFERENCE_FEASIBILITY.md for background: Echo 0.1.17 fixed the
-/// `CEcho` build blocker that made this target impossible to build at all.
+/// End-to-end coverage for using TestDoubles from a `.interoperabilityMode(.Cxx)` target.
 ///
-/// Full support for a protocol constrained to a C++ foreign reference
-/// superclass (`Stub<any Widget & Greeter>()`, matching the existing
-/// NSObject superclass-constrained existential-composition convention) is
-/// not implemented: automatic Stub construction has no generic way to
-/// default-construct an arbitrary foreign reference instance, or to attach
-/// the fabricated runtime resources' lifetime to one (no
-/// associated-object-equivalent mechanism exists for a non-Objective-C
-/// reference type). Both gaps are unverified new design questions surfaced
-/// while attempting this item, not yet resolved. That shape fails closed
-/// with a diagnostic naming the actual blocker.
+/// A protocol constrained to a C++ foreign reference superclass
+/// (`Stub<any Widget & Greeter>()`) isn't supported: there's no generic way
+/// to default-construct an arbitrary foreign reference instance or attach
+/// fabricated resources' lifetime to one. That shape fails closed instead.
 protocol Greeter {
     func greet() -> String
 }
@@ -32,12 +23,7 @@ private func useLinkedGreeter(_ value: any Greeter) -> String {
 }
 
 @Suite struct CxxForeignReferenceTests {
-    /// The previously-impossible scenario: a target with C++ interop enabled
-    /// that also depends on TestDoubles now builds and runs both halves.
-    ///
-    /// Swift's C++ interop runtime support (and so any imported foreign
-    /// reference type, including `Widget`) requires these exact per-platform
-    /// floors, newer than this package's own minimum deployment targets.
+    /// C++ interop and ordinary TestDoubles stubbing coexist in one target.
     @Test
     @available(iOS 16.4, macOS 13.3, tvOS 16.4, watchOS 9.4, visionOS 1.0, *)
     func cxxInteropAndOrdinaryStubbingCoexistInTheSameTarget() {

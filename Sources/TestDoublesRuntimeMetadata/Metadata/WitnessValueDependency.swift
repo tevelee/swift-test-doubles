@@ -26,11 +26,8 @@ package enum AssociatedTypeReference: Equatable, Sendable {
 }
 
 /// The structural positions at which a witness value depends on associated
-/// metadata.
-///
-/// Keeping the complete source shape prevents equal concrete substitutions
-/// from erasing either generic-argument positions or declaring-protocol
-/// identity during explicit requirement validation.
+/// metadata. Keeps the full source shape so equal concrete substitutions
+/// can't erase generic-argument positions or declaring-protocol identity.
 package indirect enum WitnessValueDependency: Equatable, Sendable {
     case independent
     case associatedType(AssociatedTypeReference)

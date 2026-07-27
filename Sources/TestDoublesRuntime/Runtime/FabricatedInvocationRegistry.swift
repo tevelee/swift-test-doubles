@@ -33,12 +33,9 @@ package final class RuntimeFabricatedInvocation: @unchecked Sendable {
     }
 }
 
-/// Owns one process-global invocation-registry entry.
-///
-/// Explicit cancellation lets ``FabricatedRuntimeResources`` remove callable
-/// registry entries before destroying its executable trampoline arena. The
-/// fallback `deinit` cleanup keeps a registration scoped even when construction
-/// exits through a new failure path.
+/// Owns one process-global invocation-registry entry. Explicit cancellation
+/// lets ``FabricatedRuntimeResources`` remove entries before destroying its
+/// trampoline arena; `deinit` is the fallback for other failure paths.
 package final class FabricatedInvocationRegistration: @unchecked Sendable {
     private let key: UnsafeRawPointer
     private let identifier: UInt64

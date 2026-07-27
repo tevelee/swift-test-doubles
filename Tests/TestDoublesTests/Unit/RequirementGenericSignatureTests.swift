@@ -50,10 +50,7 @@ private func useLinkedGenericRequirementProbe(
         }
     }
 
-    /// Parameter packs remain a special case of a broader shape: unlike a
-    /// plain requirement-level generic parameter (see
-    /// `GenericRequirementTests`), packs are variable-length per call site
-    /// and stay unimplemented, so they alone still fail closed.
+    /// Packs (variable-length per call site) still fail closed separately.
     @Test func plainRequirementLevelGenericParametersAreAutomaticallyDiscovered() throws {
         #expect(
             useLinkedGenericRequirementProbe(RealExternalGenericRequirementProbe())

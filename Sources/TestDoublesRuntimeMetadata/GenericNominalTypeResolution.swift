@@ -85,22 +85,15 @@ package func genericNominalType(named name: String) -> Any.Type? {
 }
 
 /// Resolves a generic context's accessor with its ordered key arguments.
-/// Shared by `genericNominalType` (any kind) and `genericClassType` (classes
-/// only, for dependent-type resolution's linked-class path).
+/// Shared by `genericNominalType` and `genericClassType`.
 ///
-/// Key arguments are laid out per swiftlang/swift's
-/// docs/ABI/TypeMetadata.rst: every parameter's own type metadata first (one
-/// per parameter, in declaration order), then every requirement's witness
-/// table in requirement-descriptor order. Echo's `GenericArgument` API
-/// preserves that ABI distinction and passes the resulting contiguous layout
-/// to the metadata accessor.
+/// Key argument layout follows swiftlang/swift's docs/ABI/TypeMetadata.rst:
+/// each parameter's type metadata first, then each requirement's witness
+/// table, in requirement-descriptor order.
 ///
-/// Fails closed -- returns nil -- whenever a key requirement is a
-/// same-type/base-class/layout constraint rather than a protocol conformance,
-/// whenever a requirement can't be attributed to a specific depth-0
-/// parameter, whenever the resolved argument doesn't actually conform, or
-/// whenever the context contains a pack parameter. Integer value parameters
-/// are accepted only when the context carries matching `.int` descriptors.
+/// Fails closed (`nil`) for non-protocol key requirements, requirements not
+/// attributable to a depth-0 parameter, non-conforming arguments, or pack
+/// parameters. Integer value parameters need matching `.int` descriptors.
 private func resolvedGenericAccessorType(
     descriptor: any TypeContextDescriptor,
     context: GenericContext,

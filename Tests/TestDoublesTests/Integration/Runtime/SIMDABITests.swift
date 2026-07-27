@@ -73,8 +73,7 @@ struct RealWideSIMDABIProbe: WideSIMDABIProbe {
     func echo(_ value: SIMD8<Float>) -> SIMD8<Float> { value }
 }
 
-/// A result using all four vector-register return slots the trampoline
-/// captures (`TrampolineCallFrame.floatingPointReturnCount`).
+/// Uses all four vector-register return slots the trampoline captures.
 protocol FourRegisterReturnSIMDABIProbe {
     func widen(_ value: SIMD4<Float>) -> SIMD16<Float>
 }
@@ -86,9 +85,7 @@ struct RealFourRegisterReturnSIMDABIProbe: FourRegisterReturnSIMDABIProbe {
     }
 }
 
-/// Wider than four vector registers: Swift itself already falls back to an
-/// indirect `sret` return here (verified against compiled witness IR), so
-/// this stays unsupported the same way a non-SIMD oversized aggregate does.
+/// Wider than four registers: Swift itself already returns this via `sret`.
 protocol OverflowingReturnSIMDABIProbe {
     func echo(_ value: SIMD16<Double>) -> SIMD16<Double>
 }
@@ -289,9 +286,6 @@ struct RealNestedSIMDABIProbe: NestedSIMDABIProbe {
         }
     }
 
-    /// A vector wider than one 128-bit register (`SIMD8<Float>`, two
-    /// registers) round-trips exactly, verified against compiled witness IR
-    /// on both arm64 and x86_64 (see `concreteSIMDRegisterByteCount`).
     @Test func widerThan128BitVectorRoundTripsAcrossTwoRegisters() throws {
         _ = RealWideSIMDABIProbe()
         let input = SIMD8<Float>(1, 2, 3, 4, 5, 6, 7, 8)
@@ -309,8 +303,6 @@ struct RealNestedSIMDABIProbe: NestedSIMDABIProbe {
         #expect(spy().echo(input) == input)
     }
 
-    /// A result spanning all four vector-register return slots round-trips
-    /// exactly, matching the trampoline's `floatingPointReturnCount` ceiling.
     @Test func fourRegisterReturnRoundTripsAcrossAllCapturedSlots() throws {
         _ = RealFourRegisterReturnSIMDABIProbe()
         let input = SIMD4<Float>(1, 2, 3, 4)
@@ -331,9 +323,6 @@ struct RealNestedSIMDABIProbe: NestedSIMDABIProbe {
         #expect(spy().widen(input) == expected)
     }
 
-    /// A result wider than four vector registers still fails closed: Swift
-    /// itself already returns it indirectly, matching the general oversized-
-    /// aggregate boundary rather than a SIMD-specific one.
     @Test func returnWiderThanFourRegistersFailsClosed() {
         _ = RealOverflowingReturnSIMDABIProbe()
         expectUnsupportedProtocolShape(containing: "complete 128-bit lane payloads") {

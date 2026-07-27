@@ -2,11 +2,9 @@ import Foundation
 
 /// A validated source-level type spelling emitted by Swift's demangler.
 ///
-/// The node intentionally models only the function structure consumed by the
-/// runtime bridge. Other concrete, tuple, collection, existential, and generic
-/// spellings remain canonical leaf nodes and are interpreted by runtime type
-/// resolution. This keeps syntax validation separate from metadata lookup
-/// without claiming support for a broader Swift grammar.
+/// Only the function structure consumed by the runtime bridge is modeled;
+/// other spellings stay canonical leaf nodes interpreted by runtime type
+/// resolution, keeping syntax validation separate from metadata lookup.
 package indirect enum DemangledTypeSyntax: Equatable {
     case concrete(String)
     case function(DemangledFunctionTypeSyntax)

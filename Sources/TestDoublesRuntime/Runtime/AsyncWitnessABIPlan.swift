@@ -19,15 +19,11 @@ package struct AsyncWitnessStackPlan: Equatable, Sendable {
     }
 }
 
-/// The bounded outgoing async forwarding stack shape proven against Swift 6.3.
+/// The bounded outgoing async forwarding stack shape, proven against Swift 6.3.
 ///
-/// `visibleArgumentLocations` identifies the words that must be copied while
-/// the outer witness-entry frame is still live. `outgoingStackByteCount` is the
-/// area the forwarding helper creates before entering the real target witness.
-/// The target witness transfers that area to its compiler-selected continuation
-/// stack before resuming the helper. The completion adjustment is therefore
-/// zero for every supported architecture and records that the helper must not
-/// remove the area a second time.
+/// The target witness transfers `outgoingStackByteCount` to its own
+/// continuation stack before resuming the helper, so the completion
+/// adjustment is always zero -- the helper must not remove that area twice.
 package struct AsyncForwardingStackPlan: Equatable, Sendable {
     package static let maximumVisibleStackWordCount = Int(
         TD_ASYNC_WITNESS_MAX_VISIBLE_STACK_WORDS

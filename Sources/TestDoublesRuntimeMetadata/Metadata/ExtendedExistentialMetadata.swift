@@ -45,12 +45,8 @@ package struct StubProtocolMetadata {
     package let associatedTypeBindings: [AssociatedTypeBinding]
 }
 
-/// Whether an accepted extended existential shape is copied through the
-/// value witnesses the Swift runtime instantiates on demand, instead of one
-/// of the fixed tables it pre-builds for small witness-table counts.
-///
-/// The runtime pre-builds opaque-existential tables for zero and one witness
-/// tables and class-existential tables for up to two.
+/// Whether this shape is copied through runtime-instantiated value witnesses
+/// rather than a fixed table (pre-built for 0-1 opaque, 0-2 class witness tables).
 package func extendedExistentialUsesRuntimeInstantiatedValueWitnesses(
     isClassConstrained: Bool,
     numberOfWitnessTables: Int

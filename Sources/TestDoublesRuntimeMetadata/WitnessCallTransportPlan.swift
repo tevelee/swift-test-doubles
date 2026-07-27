@@ -38,14 +38,10 @@ package struct WitnessCallTransportPlan: Sendable {
 
     package let argumentLocations: [[CallFrameArgumentLocation]]
     package let asyncIndirectResultLocation: CallFrameArgumentLocation?
-    /// One location per distinct requirement-level generic parameter,
-    /// ordered by parameter index. Measured against the compiled witness ABI
-    /// (see `REQUIREMENT_GENERIC_SIGNATURES_DESIGN.md`): the metadata
-    /// register for a requirement's own generic parameter always immediately
-    /// follows every visible formal argument and precedes `self`, `Self`, and
-    /// `SelfWitnessTable` — so this reservation is placed first in the
-    /// trailing general-purpose word sequence, ahead of the typed-error and
-    /// dynamic-Self/typed-adapter payloads below.
+    /// One location per distinct requirement-level generic parameter, in
+    /// parameter-index order. Always immediately follows the visible formal
+    /// arguments and precedes `self`/`Self`/`SelfWitnessTable`, so it's
+    /// reserved first in the trailing word sequence below.
     package let genericParameterMetadataLocations: [CallFrameArgumentLocation]
     package let typedErrorDestinationLocation: CallFrameArgumentLocation?
     package let dynamicSelfLocations: DynamicSelfLocations?

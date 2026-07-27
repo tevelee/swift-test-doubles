@@ -1,11 +1,7 @@
 import Testing
 import TestDoubles
 
-/// End-to-end coverage for multi-register SIMD arguments/results using a
-/// real-world-shaped protocol: a batch audio gain processor, the kind of API
-/// that genuinely passes an 8-wide sample vector (two 128-bit registers) in
-/// hot DSP code. See ABI_VALIDATION_NOTES.md Section 3 for the ABI
-/// background.
+/// End-to-end coverage for multi-register SIMD (an 8-wide audio batch).
 protocol AudioGainProcessor {
     func applyGain(_ samples: SIMD8<Float>, gain: Float) -> SIMD8<Float>
 }

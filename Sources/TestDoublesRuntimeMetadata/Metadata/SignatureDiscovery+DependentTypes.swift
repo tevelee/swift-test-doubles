@@ -32,12 +32,10 @@ func resolveSupportedDependentType(
     return resolved.dependency.isAssociatedTypeDependent ? resolved : nil
 }
 
-// Only the verbose "Dictionary<K, V>" form is handled: `swift_demangle`
-// (the only demangling entry point this codebase uses) always runs with
-// SynthesizeSugarOnTypes = false, so it never emits the "[K: V]" sugar --
-// confirmed by calling the actual exported swift_demangle C function
-// directly (not the swift-demangle CLI tool, which enables sugar by
-// default and would give a false negative here).
+// Only the verbose "Dictionary<K, V>" form is handled: the exported
+// swift_demangle C function this codebase calls always runs with
+// SynthesizeSugarOnTypes = false, unlike the swift-demangle CLI, so it
+// never emits "[K: V]" sugar.
 private func dictionaryComponents(in name: String) -> (key: String, value: String)? {
     for constructor in ["Dictionary", "Swift.Dictionary"] {
         let prefix = "\(constructor)<"

@@ -1,12 +1,10 @@
 import Echo
 
 /// A validated view of an existential's root protocols and their inheritance
-/// graphs.
-///
-/// Protocol witness-table slots are local to the descriptor that declares
-/// them, while trampoline dispatch identifiers are dense across the complete
-/// inheritance graph. Keeping both coordinates explicit prevents an inherited
-/// requirement from accidentally being installed into the root table.
+/// graphs. Witness-table slots are local to their declaring descriptor while
+/// trampoline dispatch identifiers are dense across the graph; keeping both
+/// explicit prevents an inherited requirement from being installed into the
+/// root table by accident.
 package struct ProtocolLayout {
     package struct DescriptorID: Hashable {
         package let rawValue: UInt

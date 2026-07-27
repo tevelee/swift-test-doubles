@@ -430,12 +430,9 @@ func isMethodGenericParameter(_ spelling: String) -> Bool {
     methodGenericParameterIndex(spelling) != nil
 }
 
-/// The requirement-level generic-parameter index a demangled spelling names,
-/// or `nil` if it does not name one.
-///
-/// The leading letter enumerates the requirement's own generic parameters in
-/// declaration order (`A1` is the first, `B1` the second, and so on), so its
-/// zero-based alphabet position is the parameter's index directly.
+/// The requirement-level generic-parameter index a demangled spelling names
+/// (the leading letter's zero-based alphabet position), or `nil` if it
+/// doesn't name one.
 func methodGenericParameterIndex(_ spelling: String) -> Int? {
     var characters = Substring(spelling)
     guard let first = characters.popFirst(),

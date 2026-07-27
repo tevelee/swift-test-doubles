@@ -2,11 +2,7 @@ import EchoRuntimeReflection
 import TestDoublesRuntimeSupport
 
 /// One direct value fragment carried by a general-purpose or vector register.
-///
-/// `byteCount` records the occupied width independently of the register bank.
-/// The current supported boundary uses at most one scalar word per fragment;
-/// preserving the width here lets later ABI work reason about wider vector
-/// lanes without changing argument-location bookkeeping.
+/// `byteCount` records occupied width independently of the register bank.
 package struct CallFrameValuePiece: Equatable, Sendable {
     package let register: DirectValueRegister
     package let valueOffset: Int

@@ -236,34 +236,18 @@ private var swiftGetTypeByMangledNameInContextForValueLayout: SwiftGetTypeByMang
     RuntimeSymbols.function(named: "swift_getTypeByMangledNameInContext")
 }
 
-/// The maximum vector registers this boundary transports directly, matching
-/// `TrampolineCallFrame.floatingPointReturnCount`: a return wider than this
-/// already falls back to Swift's own indirect `sret` convention (verified
-/// against compiled witness IR), so this cap mirrors a real ABI boundary
-/// rather than introducing a new, narrower one.
+/// Matches `TrampolineCallFrame.floatingPointReturnCount`: wider results
+/// already use Swift's own indirect `sret` convention.
 private let maximumDirectSIMDRegisterCount = 4
 
-/// Whether `type` is a concrete SIMD shape proven to use one or more complete
-/// 128-bit vector registers (up to `maximumDirectSIMDRegisterCount`) for both
-/// arguments and results on arm64 and x86_64, and if so, its total byte count
-/// (a multiple of 16).
+/// Whether `type` is a concrete SIMD shape using one or more complete
+/// 128-bit vector registers, and if so, its total byte count.
 ///
-/// Computed generically instead of enumerated: any concrete `SIMD` type whose
-/// total storage is an exact multiple of 16 bytes, with every one of those
-/// bytes backing a real lane, qualifies, regardless of width or scalar.
-/// Verified against compiled witness IR on both architectures: a multi-register
-/// vector (e.g. `SIMD8<Float>`, 32 bytes) lowers to that many consecutive full
-/// vector-register arguments/results identically on arm64 and x86_64.
-///
-/// Narrower (sub-16-byte) vectors are intentionally excluded: Swift
-/// scalarizes them differently per architecture (`SIMD2<Float>` is one
-/// `<2 x float>` vector register on arm64 but two separate scalar `float`
-/// registers on x86_64), which this uniform, architecture-independent part
-/// computation cannot represent. Extending that case needs
-/// architecture-aware part computation, a larger change this boundary does
-/// not attempt. Padded vectors are excluded as well (`scalarCount *
-/// scalarStride` falls short of the storage size) so this boundary
-/// transports only complete lane payloads with no unspecified bytes.
+/// Sub-16-byte vectors are excluded: Swift scalarizes them differently per
+/// architecture (`SIMD2<Float>` is one vector register on arm64 but two
+/// scalar registers on x86_64), which this architecture-independent part
+/// computation can't represent. Padded vectors (`scalarCount * scalarStride`
+/// short of the storage size) are excluded too.
 package func concreteSIMDRegisterByteCount(for type: Any.Type) -> Int? {
     guard let simdType = type as? any SIMD.Type else { return nil }
     return _openExistential(simdType, do: openedConcreteSIMDRegisterByteCount)
@@ -357,15 +341,9 @@ private func containsFunctionStorage(_ type: Any.Type) -> Bool {
 
 package func directReturnParts(for type: Any.Type) -> [DirectValuePart]? {
     if let byteCount = concreteSIMDRegisterByteCount(for: type) {
-        let parts = stride(from: 0, to: byteCount, by: 16).map {
+        return stride(from: 0, to: byteCount, by: 16).map {
             DirectValuePart(register: .fp, offset: $0, byteCount: 16)
         }
-        // A vector wider than four registers already falls back to Swift's
-        // own indirect `sret` convention (verified against compiled witness
-        // IR); this cap matches that boundary rather than introducing a new
-        // one, the same way the general aggregate cap below already does.
-        guard parts.count <= 4 else { return nil }
-        return parts
     }
     var visited: Set<UInt> = []
     var parts: [DirectValuePart] = []

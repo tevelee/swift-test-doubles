@@ -1,8 +1,6 @@
 /// An opaque typed-witness adapter factory supplied by the semantic layer.
-///
-/// The value intentionally erases the runtime factory's concrete type so
-/// source-level requirement construction does not import ABI metadata types.
-/// Only the runtime may recover the payload using ``payload(as:)``.
+/// Erases the concrete type so source-level requirement construction avoids
+/// importing ABI metadata types; only the runtime recovers it via ``payload(as:)``.
 package struct RuntimeTypedWitnessAdapterToken: @unchecked Sendable {
     private let erasedPayload: Any
 
@@ -15,11 +13,9 @@ package struct RuntimeTypedWitnessAdapterToken: @unchecked Sendable {
     }
 }
 
-/// A source-level factory for a compiler-emitted typed witness adapter.
-///
-/// The semantic layer supplies the adapter's Swift type, entry point, and a
-/// typed invocation object. Metadata owns conversion into the ABI adapter
-/// object used while fabricating a witness table.
+/// A source-level factory for a compiler-emitted typed witness adapter. The
+/// semantic layer supplies the adapter's type, entry point, and invocation
+/// object; Metadata converts it into the ABI adapter object.
 package struct RuntimeTypedWitnessAdapterSource: @unchecked Sendable {
     package let functionType: Any.Type
     package let invocationType: Any.Type
@@ -48,10 +44,9 @@ package struct RuntimeTypedWitnessAdapterSource: @unchecked Sendable {
 }
 
 /// Source-level requirement data normalized for runtime metadata resolution.
-///
-/// Public factories build this dependency-free schema. The metadata runtime
-/// resolves associated types, class constraints, and ABI transport when it
-/// turns the schema into its private method descriptor.
+/// Public factories build this dependency-free schema; the metadata runtime
+/// resolves associated types, class constraints, and ABI transport when
+/// turning it into a private method descriptor.
 package struct RuntimeExplicitRequirementSchema: @unchecked Sendable {
     /// One source-level value in an explicit requirement.
     package struct Value: Sendable {
@@ -77,10 +72,7 @@ package struct RuntimeExplicitRequirementSchema: @unchecked Sendable {
         case dictionary(key: Source, value: Source)
         case result(success: Source, failure: Source)
         case selfType(isOptional: Bool)
-        /// A value typed by the requirement's own generic parameter. `index`
-        /// counts distinct requirement-level generic parameters in
-        /// declaration order; arguments sharing one generic parameter share
-        /// one index.
+        /// Typed by the requirement's own generic parameter.
         case methodGenericParameter(index: Int)
     }
 

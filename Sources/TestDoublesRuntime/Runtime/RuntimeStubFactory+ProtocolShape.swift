@@ -63,12 +63,8 @@ extension RuntimeStubFactory {
                     reason: "The superclass-constrained existential metadata does not contain a superclass type."
                 )
             }
-            // A C++ foreign reference superclass constraint (e.g.
-            // `Stub<any Widget & P>()`) is a real, distinct shape from an
-            // NSObject superclass constraint, not a variant of "not
-            // NSObject" -- give it its own diagnostic naming the actual
-            // blocker (construction and resource-lifetime attachment, not
-            // ownership rules) rather than suggesting NSObject as the fix.
+            // Distinct from an NSObject superclass constraint; name the real
+            // blocker instead of suggesting NSObject as the fix.
             if reflect(superclass).kind == .foreignReferenceType {
                 let superclassName = runtimeTypeName(superclass)
                 throw RuntimeConstructionError.unsupportedProtocolShape(

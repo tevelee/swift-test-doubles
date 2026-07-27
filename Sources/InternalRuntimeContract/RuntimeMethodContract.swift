@@ -1,8 +1,6 @@
-/// The semantic category of a protocol requirement.
-///
-/// This is intentionally independent of a witness-table representation. The
-/// public recorder uses it to choose behavior and produce diagnostics; the ABI
-/// runtime maps it to the corresponding low-level requirement kind.
+/// The semantic category of a protocol requirement, independent of its
+/// witness-table representation. The public recorder uses it for behavior
+/// and diagnostics; the ABI runtime maps it to the low-level requirement kind.
 package enum RuntimeRequirementKind: String, Hashable, Sendable {
     case method
     case initializer
@@ -24,18 +22,14 @@ package enum RuntimeRequirementOrigin: Equatable, Sendable {
 }
 
 /// The source-level convention of a value in a requirement signature.
-///
-/// This describes user-visible type relationships only. Layout, indirection,
-/// and dependent-witness transport are deliberately runtime implementation
-/// details.
+/// Describes user-visible type relationships only; layout, indirection, and
+/// dependent-witness transport are runtime implementation details.
 package enum RuntimeValueConvention: Equatable, Sendable {
     case concrete
     case associatedType(name: String)
     case selfType
     case optionalSelf
-    /// A value typed by the requirement's own generic parameter, resolved per
-    /// call site. `index` counts distinct requirement-level generic
-    /// parameters in declaration order.
+    /// Typed by the requirement's own generic parameter.
     case methodGenericParameter(index: Int)
 }
 
@@ -45,12 +39,9 @@ package enum RuntimeArgumentOwnership: String, Equatable, Sendable {
     case owned
 }
 
-/// The associated types used by one source-level requirement value.
-///
-/// This ordered summary intentionally omits the type expression that contains
-/// each use and all witness transport details. The metadata runtime keeps that
-/// information in its private descriptor graph; recording and diagnostics
-/// need only know whether a value is dependent and which names it uses.
+/// The associated types used by one source-level requirement value. Omits
+/// the containing type expression and witness transport details; recording
+/// and diagnostics only need dependence and names.
 package struct RuntimeAssociatedTypeUse: Equatable, Sendable {
     /// Associated-type names in source order, with later duplicates removed.
     package let names: [String]
@@ -106,11 +97,8 @@ package struct RuntimeArgument: @unchecked Sendable {
 }
 
 /// A package-only, ABI-free projection of a requirement used by the public
-/// recording and diagnostics layers.
-///
-/// The dense `slot` is an endpoint dispatch identity, not a witness-table
-/// index. Witness-table coordinates remain entirely within Metadata and
-/// execution, where they are required to fabricate ABI entries.
+/// recording and diagnostics layers. `slot` is a dense dispatch identity,
+/// not a witness-table index -- those stay within Metadata and execution.
 package struct RuntimeMethod: @unchecked Sendable {
     package let kind: RuntimeRequirementKind
     package let receiver: RuntimeRequirementReceiver

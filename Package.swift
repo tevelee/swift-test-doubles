@@ -3,15 +3,9 @@
 import Foundation
 import PackageDescription
 
-// `swift build --build-tests` links every test target into one shared
-// XCTest bundle, so the WASI SDK build (Scripts/validate-wasm.sh) compiles
-// this target too even though it only ever runs `WasmPlatformTests`.
-// `.interoperabilityMode(.Cxx)` reparses every header the compilation unit
-// sees as C++, including transitively through the WASI SDK's own libc
-// shims, which produced a module-cache cyclic-dependency failure specific to
-// that combination. Scripts/validate-wasm.sh sets this to exclude the
-// target from that one build; every other CI lane (plain `swift test`,
-// Xcode) includes it.
+// The C++ interop target breaks the WASI SDK's module cache when
+// `--build-tests` compiles it alongside everything else; validate-wasm.sh
+// sets this to exclude it from that one build.
 let includesCxxInteropTarget =
     ProcessInfo.processInfo.environment["TESTDOUBLES_SKIP_CXX_INTEROP"] == nil
 
@@ -209,12 +203,7 @@ private func allTargets(includesCxxInteropTarget: Bool) -> [Target] {
         )
     ]
     if includesCxxInteropTarget {
-        // A minimal C++ foreign reference type fixture, kept in its own
-        // target because only a target with `.interoperabilityMode(.Cxx)`
-        // can import it. Proves the Echo 0.1.17 CEcho build fix
-        // (CXX_FOREIGN_REFERENCE_FEASIBILITY.md) end to end: before it, any
-        // target enabling C++ interop anywhere in its dependency graph could
-        // not depend on TestDoubles at all.
+        // Separate target: only one with `.interoperabilityMode(.Cxx)` can import it.
         targets.append(
             .target(
                 name: "TestDoublesCxxInteropFixtures",

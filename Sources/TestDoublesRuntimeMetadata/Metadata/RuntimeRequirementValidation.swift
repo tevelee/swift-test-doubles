@@ -67,16 +67,9 @@ package func runtimeSIMDUnsupportedReason(
 }
 
 /// Whether `method` uses a requirement-level generic parameter in a shape the
-/// runtime cannot yet transport, or `nil` if the requirement (if it uses one
-/// at all) is fully supported.
-///
-/// The physical decode itself (walking the per-call-site metadata register,
-/// see `RuntimeArgumentDecoder.genericParameterMetadataType`) is proven for
-/// any argument count and any number of distinct generic parameters. What
-/// remains unverified against the compiled ABI is how the reserved metadata
-/// register interacts with `async` suspension and indirect typed-error
-/// transport, so both fail closed here rather than risk a silent
-/// misclassification.
+/// runtime cannot yet transport, or `nil` otherwise. The metadata-register
+/// interaction with `async` suspension and indirect typed-error transport is
+/// unverified, so both fail closed.
 package func runtimeMethodGenericParameterUnsupportedReason(
     for method: MethodDescriptor
 ) -> String? {
@@ -98,10 +91,8 @@ package func runtimeMethodGenericParameterUnsupportedReason(
     return nil
 }
 
-/// Forwarding (`Spy`) always rejects a requirement-level generic parameter:
-/// forwarding a call to a real conformance would need to replay the
-/// caller-supplied metadata register into an outgoing call, which is
-/// unverified and out of scope for the first milestone.
+/// Forwarding would need to replay the caller-supplied metadata register
+/// into an outgoing call, which is unverified, so `Spy` always rejects it.
 package func runtimeMethodGenericParameterForwardingUnsupportedReason(
     for method: MethodDescriptor
 ) -> String? {

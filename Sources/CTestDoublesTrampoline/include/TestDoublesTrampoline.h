@@ -44,18 +44,12 @@
 #define TD_READ_CONTEXT_STATE_OFFSET 0
 #define TD_READ_CONTEXT_SIZE 16
 
-// Pointer-authentication discriminators.
-//
-// Every value below is a verbatim copy of the correspondingly named entry in
+// Pointer-authentication discriminators: verbatim copies of
 // swiftlang/swift's `SpecialPointerAuthDiscriminators`
-// (include/swift/ABI/MetadataValues.h). The Swift names are preserved so this
-// stays cross-checkable against the compiler; the header comments list the key
-// and diversity each one is signed with, taken from the matching
-// `__ptrauth_swift_*` macro in include/swift/Runtime/Config.h.
-//
-// `TD_PTRAUTH_OPAQUE_MODIFY_RESUME_FUNCTION` in particular is verified against
-// the live compiler by Scripts/check-swift-abi-constants.sh; keep that script's
-// `#define` grep in sync when renaming.
+// (include/swift/ABI/MetadataValues.h), named to match so they stay
+// cross-checkable. `TD_PTRAUTH_OPAQUE_MODIFY_RESUME_FUNCTION` is verified
+// live by Scripts/check-swift-abi-constants.sh -- keep its `#define` grep in
+// sync when renaming.
 
 // OpaqueModifyResumeFunction: the resume function of a caller-allocated
 // (legacy yield_once) `_modify` coroutine yielding one opaque inout value.

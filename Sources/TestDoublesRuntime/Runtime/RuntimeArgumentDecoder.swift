@@ -258,12 +258,6 @@ package enum RuntimeArgumentDecoder {
 
     /// Reads the caller-supplied type metadata for one requirement-level
     /// generic parameter out of its reserved call-frame register.
-    ///
-    /// Measured against the compiled witness ABI: the metadata pointer
-    /// arrives as an ordinary general-purpose word, identical in shape to
-    /// every other scalar witness argument, so it is read with
-    /// `scalarBits(at:)` like any other pointer-sized value and reinterpreted
-    /// as `Any.Type`.
     private static func genericParameterMetadataType(
         at index: Int,
         in locations: [CallFrameArgumentLocation],

@@ -112,27 +112,11 @@ extension Stub {
             }
 
             /// Describes a value typed by the requirement's own generic
-            /// parameter, e.g. the `value` in `func f<T>(_ value: T)`.
+            /// parameter, e.g. `value` in `func f<T>(_ value: T)`. Arguments
+            /// sharing one generic parameter use the same `index`.
             ///
-            /// The concrete type is supplied by each caller at runtime and is
-            /// not known when the `Requirement` is constructed. `index`
-            /// distinguishes a requirement's distinct generic parameters in
-            /// declaration order: two arguments sharing the same generic
-            /// parameter (e.g. `func f<T>(_ a: T, _ b: T)`) use the same
-            /// index. Only automatic Stub construction can validate the
-            /// requirement's real generic-parameter arity, so keep the index
-            /// synchronized with the protocol declaration.
-            ///
-            /// - Note: `any()` matches any value regardless of type, same as
-            ///   at an ordinary fixed-type argument — it does not discriminate
-            ///   between different caller-supplied types at this position. Use
-            ///   `equal(_:)` or another typed matcher to distinguish calls
-            ///   that use different concrete types for this parameter.
-            ///
-            /// - Warning: Requirement-level generic parameters are supported
-            ///   only for plain, synchronous, non-throwing instance methods.
-            ///   Combining one with `async`, typed throws, or a `consuming`
-            ///   ownership currently fails closed.
+            /// - Note: `any()` doesn't discriminate by type here; use
+            ///   `equal(_:)` to distinguish calls with different types.
             public static func methodGenericParameter(index: Int = 0) -> Self {
                 Self(source: .methodGenericParameter(index: index), ownership: nil)
             }

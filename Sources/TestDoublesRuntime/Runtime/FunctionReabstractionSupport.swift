@@ -4,14 +4,10 @@ import EchoRuntimeReflection
 import Foundation
 import TestDoublesRuntimeMetadata
 
-// WASI has neither this trampoline's arm64/x86_64 assembly nor executable
-// memory to publish a fabricated veneer into (witness veneer allocation
-// always fails first there — see WitnessVeneerArena.c), so these three give
-// themselves real, unreachable-in-practice bodies on that platform instead of
-// only declaring an externally-linked entry point. A real Swift async
-// function body lets the compiler synthesize the matching async ABI thunk
-// itself, the same way td_swift_async_dispatch does in TrampolineHandler.swift,
-// rather than requiring one to be hand-assembled.
+// WASI has neither this trampoline's assembly nor executable memory for a
+// fabricated veneer, so these three get real (unreachable-in-practice)
+// bodies here instead of an externally-linked entry point -- a real Swift
+// async body lets the compiler synthesize the ABI thunk itself.
 #if os(WASI)
     @_silgen_name("td_swift_invoke_async_function")
     // swiftlint:disable:next unavailable_function
