@@ -1,11 +1,11 @@
 # Copyable C++ Foreign Reference Support — Feasibility Finding
 
-Status: **unblocked, pending a one-line dependency fix.** The blocker is real and
-reproducible, but it is *not* external: it lives in `github.com/tevelee/Echo`, this
-project's own fork of Echo. A minimal fix has been written and verified end to end (see
-"The fix" below); it just needs to land in that fork and be picked up by a version bump
-here. The TestDoubles-side feature work is then a well-scoped, medium-effort addition
-rather than a research problem.
+Status: **build blocker resolved; the feature itself is still unbuilt.** Consuming C++
+interop alongside TestDoubles used to be impossible for reasons unrelated to foreign
+reference types. That is fixed: Echo `0.1.17` makes the `CEcho` shim parse as C++, and
+this package now pins it. What remains is the actual foreign-reference feature work
+listed under "What still needs to be built" below — now a well-scoped, medium-effort
+addition rather than a research problem, and testable for the first time.
 
 ## What was checked
 
@@ -78,9 +78,9 @@ The good news: `Package.swift` depends on `https://github.com/tevelee/Echo.git` 
 project's own fork — so "upstream" here is a repository this project controls, not a
 third party.
 
-## The fix
+## The fix (landed in Echo 0.1.17)
 
-Two lines of real change in `Sources/CEcho`, verified end to end:
+Two lines of real change in `Sources/CEcho`:
 
 ```diff
 --- a/Sources/CEcho/include/KnownMetadata.h
@@ -105,22 +105,22 @@ languages, and the emitted undefined symbol reference is unchanged because an `e
 declaration's type never reaches the linker. Only the explicit `(void *)` cast is added,
 since C++ won't implicitly convert `char*` to `void*` on return.
 
-Verified on this machine, all three of:
+Verified before release:
 
-1. **Echo still builds and its own test suite passes** — 84 tests, no failures.
-2. **The previously-failing C++ scenario now works** — the probe package that used to die
-   at `could not build Objective-C module 'CEcho'` now builds, and at runtime both the
-   imported C++ foreign reference type (`Widget().value()` → `42`) and Echo reflection
-   (`reflect(Int.self).kind` → `struct`) work from the same `.interoperabilityMode(.Cxx)`
-   target.
-3. **TestDoubles is unaffected** — full suite (893 tests) passes against the patched Echo
-   via a local `swift package edit` override, then the override was removed and the pin
-   restored.
+1. **Echo's own test suite passes** — 84 tests on both Swift 6.2 (that checkout's default)
+   and Swift 6.3.3 (this package's pinned toolchain).
+2. **TestDoubles is unaffected** — full suite (893 tests), lint, and the wasm32 validation
+   all pass against Echo `0.1.17`.
+3. **The previously-impossible scenario now works end to end** — a probe package that
+   enables `.interoperabilityMode(.Cxx)` and depends on TestDoubles used to fail at
+   `could not build Objective-C module 'CEcho'` before reaching any of its own code. It
+   now builds and runs, exercising both halves in one target: the imported C++ foreign
+   reference type (`Widget().value()` → `42`) and runtime stub fabrication
+   (`Stub<any Greeter>` returning a configured `7`).
 
-The patch has deliberately **not** been pushed to the Echo fork — that's a separate,
-published repository, and landing a change there plus bumping the version pin here is a
-call for the maintainer to make, not something to do as a side effect of this
-investigation.
+Note that (3) demonstrates the *build* blocker is gone and that ordinary TestDoubles
+stubbing works from a C++-interop target. It does **not** mean C++ foreign reference
+types can be used as stub `Self` types yet — that's the unbuilt feature work below.
 
 ## What still needs to be built on the TestDoubles side
 
@@ -144,16 +144,14 @@ to do:
    *after* the Echo fix lands — before it, such a target cannot build at all, which is
    why no test coverage for this feature exists or can be added today.
 
-## Recommendation
+## Status and next step
 
-Two steps, in order:
+**Done:** the `CEcho` fix shipped as Echo `0.1.17` and this package pins it. That was
+worth doing on its own merits, independent of the foreign-reference feature: before it,
+*any* consumer enabling Swift/C++ interop anywhere in its dependency graph could not use
+TestDoubles at all, failing on a header with no apparent connection to their own code —
+a silent, hard-to-diagnose adoption blocker for every mixed-language project.
 
-1. **Land the two-line `CEcho` fix in `tevelee/Echo` and bump the pin here.** This is
-   worth doing on its own merits, independent of whether the foreign-reference feature
-   ever gets built: today *any* consumer that enables Swift/C++ interop anywhere in its
-   dependency graph cannot use TestDoubles at all, for reasons that have nothing to do
-   with C++ foreign reference types. That's a silent, hard-to-diagnose adoption blocker
-   affecting an entire class of mixed-language projects, and the fix is verified.
-2. **Then** decide whether the foreign-reference feature itself is worth the
-   medium-effort work listed above, which is only a real option once step 1 makes it
-   testable.
+**Open:** whether the foreign-reference feature itself is worth the medium-effort work
+listed above. It's now a real option rather than a blocked one, and testable for the
+first time, but it remains unbuilt and unscheduled.
