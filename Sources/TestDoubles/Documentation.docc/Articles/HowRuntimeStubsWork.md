@@ -26,9 +26,11 @@ and associated-type bindings to Runtime; it receives semantic methods for the
 recorder plus a materializable plan whose descriptors and layouts stay private.
 Execution asks a package-scoped semantic endpoint what the recorder decided,
 but neither runtime target depends on recorder or public test-double types.
-Echo reflection and the C and assembly trampoline sit below those runtime
-layers. This keeps public test semantics independent from the compiler-coupled
-machinery.
+Echo sits below those runtime layers in two deliberately distinct forms:
+semantic function and value-layout reflection, and low-level temporary value
+storage. Raw metadata stays behind those APIs unless discovery or witness-table
+fabrication genuinely needs it. Together with the C and assembly trampoline,
+this keeps public test semantics independent from compiler-coupled machinery.
 
 The complete path looks like this:
 

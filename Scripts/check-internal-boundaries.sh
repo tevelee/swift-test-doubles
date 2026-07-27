@@ -58,7 +58,7 @@ check_public_runtime_imports() {
 }
 
 check_absent \
-  "${import_prefix}import[[:space:]]+(Echo|CTestDoublesTrampoline)\\b" \
+  "${import_prefix}import[[:space:]]+(Echo|EchoRuntimeReflection|EchoRuntimeSupport|CTestDoublesTrampoline)\\b" \
   'The public TestDoubles target must not import low-level dependencies:' \
   Sources/TestDoubles
 
@@ -90,7 +90,7 @@ check_absent \
   Sources/TestDoubles
 
 check_absent \
-  "${import_prefix}import[[:space:]]+(TestDoublesRuntime|TestDoublesRuntimeMetadata|TestDoublesRuntimeSupport|Echo|CTestDoublesTrampoline)\\b" \
+  "${import_prefix}import[[:space:]]+(TestDoublesRuntime|TestDoublesRuntimeMetadata|TestDoublesRuntimeSupport|Echo|EchoRuntimeReflection|EchoRuntimeSupport|CTestDoublesTrampoline)\\b" \
   'ManualStub must remain a source-level semantic API:' \
   Sources/TestDoubles/Doubles/ManualStub.swift
 

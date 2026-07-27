@@ -17,7 +17,9 @@ TestDoubles (public product)
         │           ├── TestDoublesRuntimeMetadata
         │           ├── TestDoublesRuntimeSupport
         │           ├── CTestDoublesTrampoline (C and assembly boundary)
-        │           └── Echo (Swift runtime reflection and metadata)
+        │           ├── Echo (raw runtime metadata and witness primitives)
+        │           ├── EchoRuntimeReflection (semantic function and layout facts)
+        │           └── EchoRuntimeSupport (low-level value storage)
         │
         ├── TestDoublesRuntimeSupport (shared low-level support)
         │           └── CTestDoublesTrampoline
@@ -40,18 +42,22 @@ TestDoubles
 │   │   ├── TestDoublesRuntimeSupport
 │   │   │   └── CTestDoublesTrampoline
 │   │   ├── CTestDoublesTrampoline
-│   │   └── Echo
+│   │   ├── Echo
+│   │   └── EchoRuntimeReflection
 │   ├── TestDoublesRuntimeSupport
 │   ├── CTestDoublesTrampoline
-│   └── Echo
+│   ├── Echo
+│   ├── EchoRuntimeReflection
+│   └── EchoRuntimeSupport
 ├── TestDoublesRuntimeSupport
 └── IssueReporting
 ```
 
 `TestDoublesRuntimeSupport` is deliberately below both runtime halves. It
 prevents symbol lookup, construction errors, and architecture facts from
-creating a metadata-to-execution cycle. `Echo` is a package dependency of the
-metadata and execution targets, never of the public target or the contract.
+creating a metadata-to-execution cycle. The `Echo` product family is a package
+dependency of the metadata and execution targets, never of the public target
+or the contract.
 
 ### Responsibility map
 
@@ -63,7 +69,9 @@ metadata and execution targets, never of the public target or the contract.
 | `TestDoublesRuntimeMetadata` | Existential and protocol inspection, layouts, descriptor/schema resolution, and requirement validation | Fabricated invocation registry, endpoint retention, or trampoline execution |
 | `TestDoublesRuntime` | Witness fabrication, ABI decode/encode, forwarding, coroutine dispatch, and resource lifetime | Public recorder policy or independent metadata discovery |
 | `CTestDoublesTrampoline` | C frame layouts, executable veneers, assembly entries, and ABI constants | Swift semantic dispatch policy |
-| `Echo` | Swift runtime reflection primitives used by metadata and prepared-call value operations | Test-double semantics or the public API |
+| `Echo` | Raw Swift runtime metadata, descriptors, containers, witness tables, image inspection, and value-witness primitives | Test-double semantics or the public API |
+| `EchoRuntimeReflection` | Stable semantic projections of function effects, parameter facts, and value layouts | Raw metadata pointers, witness tables, or TestDoubles policy |
+| `EchoRuntimeSupport` | Low-level temporary value storage allocation, ownership state, transfer, and destruction | Protocol discovery, ABI classification policy, or recorder semantics |
 
 `TestDoubles` owns the public API and test semantics:
 
@@ -139,14 +147,18 @@ consumes the metadata target's descriptors rather than reimplementing
 protocol-shape discovery or schema resolution.
 
 `CTestDoublesTrampoline` owns only the machine boundary: shared C frame
-layouts, executable veneers, assembly entries, and ABI constants. `Echo` owns
-generic Swift runtime reflection primitives such as metadata wrappers,
-descriptors, witness tables, image inspection, relative pointers, and value
-witness operations. Metadata uses Echo for discovery and structural
-interpretation; execution uses it only for prepared-call value operations and
-fabricated or forwarded storage. The runtime targets are the only targets that
-import Echo; runtime support and the runtime targets may import the C
-trampoline target.
+layouts, executable veneers, assembly entries, and ABI constants. The `Echo`
+product family owns generic Swift runtime facts: raw `Echo` supplies metadata
+wrappers, descriptors, witness tables, image inspection, relative pointers,
+and value-witness primitives; `EchoRuntimeReflection` supplies stable semantic
+function and layout projections; `EchoRuntimeSupport` supplies ownership-aware
+temporary value storage. Metadata uses raw Echo for discovery and structural
+interpretation plus semantic projections where that is sufficient. Execution
+uses semantic function/layout facts and low-level storage, while retaining raw
+Echo only for prepared-call operations that genuinely require metadata,
+containers, or witness tables. The runtime targets are the only targets that
+import an Echo product; runtime support and the runtime targets may import the
+C trampoline target.
 
 `ManualStub` is deliberately outside the generated-runtime path. It is an
 ordinary Swift forwarding and recording API and must not import or name the
@@ -251,8 +263,8 @@ lockstep.
 The public target directly depends on `InternalRuntimeContract`, Runtime,
 RuntimeSupport, and IssueReporting. Metadata remains behind Runtime.
 `InternalRuntimeContract` is dependency-free; the runtime targets are the only
-targets that import Echo, while the support and runtime targets may import the
-C trampoline. Neither internal dependency is re-exported. Runtime APIs
+targets that import an Echo product, while the support and runtime targets may
+import the C trampoline. Neither internal dependency is re-exported. Runtime APIs
 used across the internal boundary use explicit `package` access; none become
 part of the product API by accident.
 
