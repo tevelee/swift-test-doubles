@@ -57,6 +57,7 @@ jobs:
             should_benchmark=true
           else
             for path in \
+              .github/workflows/performance.yml \
               Sources \
               Package.swift \
               Benchmarks/Sources \
