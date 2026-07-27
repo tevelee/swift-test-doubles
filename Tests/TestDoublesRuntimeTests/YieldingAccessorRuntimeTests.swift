@@ -1,5 +1,4 @@
 import Testing
-@testable import TestDoubles
 @testable import TestDoublesRuntime
 
 private final class AccessorFinishRecorder {

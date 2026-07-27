@@ -1,5 +1,5 @@
 import Testing
-@testable import TestDoubles
+@testable import TestDoublesRuntime
 
 private struct DynamicFunctionABIPair: Sendable {
     let first: Int
@@ -125,5 +125,4 @@ private struct DynamicFunctionABIPair: Sendable {
         )
     }
 }
-import TestDoublesRuntime
 import TestDoublesRuntimeMetadata

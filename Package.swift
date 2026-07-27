@@ -94,6 +94,14 @@ let package = Package(
             ]
         ),
         .testTarget(
+            name: "TestDoublesRuntimeIntegrationTests",
+            dependencies: [
+                "TestDoubles",
+                "TestDoublesRuntime"
+            ],
+            path: "Tests/TestDoublesRuntimeIntegrationTests"
+        ),
+        .testTarget(
             name: "TestDoublesReadTests",
             dependencies: [
                 "TestDoubles",
@@ -113,7 +121,8 @@ let package = Package(
                 "TestDoublesRuntime",
                 "TestDoublesRuntimeMetadata",
                 "TestDoublesRuntimeSupport",
-                "TestDoublesFixtures"
+                "TestDoublesFixtures",
+                .product(name: "Echo", package: "Echo")
             ],
             path: "Tests/TestDoublesRuntimeTests"
         ),
