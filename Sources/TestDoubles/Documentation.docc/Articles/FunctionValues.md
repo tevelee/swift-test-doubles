@@ -186,7 +186,9 @@ Untyped throwing adapters declare `throws` and use
 uses the `Requirement.method(...throwing:using:)` overload and calls
 `Invocation.call(...returning:throwing:)` with the same error type. Concrete
 typed errors must fit the direct error-result registers; an indirect typed-
-error buffer remains outside this adapter slice.
+error buffer remains outside this adapter slice. The same forms work for async
+requirements: declare `async throws` or `async throws(Failure)` and use
+`try await` with the matching invocation operation.
 
 An async requirement uses an `async` thin adapter and awaits the matching
 invocation operation:

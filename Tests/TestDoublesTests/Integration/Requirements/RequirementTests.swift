@@ -41,6 +41,12 @@ protocol AsyncThrowingClosureRequirementProbe {
     func transform(_ closure: @escaping RequirementClosure) async throws -> RequirementClosure
 }
 
+protocol AsyncTypedThrowingClosureRequirementProbe {
+    func transform(
+        _ closure: @escaping RequirementClosure
+    ) async throws(ClosureRequirementError) -> RequirementClosure
+}
+
 typealias ManagedClosure = (String) -> String
 
 protocol ManagedClosureRequirementProbe {
@@ -358,6 +364,76 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
                 RequirementClosure.self,
                 returning: RequirementClosure.self,
                 isThrowing: true,
+                isAsync: true,
+                using: adapter
+            )
+        )
+        await stub.when(returning: identity) {
+            try await $0.transform(any(using: identity))
+        }.thenThrow(ClosureRequirementError.failed)
+
+        await #expect(throws: ClosureRequirementError.failed) {
+            _ = try await stub().transform { $0 }
+        }
+    }
+
+    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
+    @Test func asyncTypedThrowingAdapterTransportsClosureArgumentsAcrossSuspension() async throws {
+        let identity: RequirementClosure = { $0 }
+        let adapter:
+            @convention(thin) (
+                @escaping RequirementClosure,
+                Stub<any AsyncTypedThrowingClosureRequirementProbe>.Invocation
+            ) async throws(ClosureRequirementError) -> RequirementClosure = { closure, invocation in
+                try await invocation.call(
+                    closure,
+                    returning: RequirementClosure.self,
+                    throwing: ClosureRequirementError.self
+                )
+            }
+        let stub = try Stub<any AsyncTypedThrowingClosureRequirementProbe>(
+            .method(
+                RequirementClosure.self,
+                returning: RequirementClosure.self,
+                throwing: ClosureRequirementError.self,
+                isAsync: true,
+                using: adapter
+            )
+        )
+        await stub.when(returning: identity) {
+            try await $0.transform(any(using: identity))
+        }.thenEscaping { (closure: RequirementClosure) async throws -> RequirementClosure in
+            let transformed = closure(20) + 2
+            await Task.yield()
+            return { _ in transformed }
+        }
+
+        let result = try await stub().transform { $0 * 2 }
+        #expect(result(0) == 42)
+        await stub.verify(returning: identity) {
+            try await $0.transform(any(using: identity))
+        }
+    }
+
+    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
+    @Test func asyncTypedThrowingAdapterPropagatesTypedErrors() async throws {
+        let identity: RequirementClosure = { $0 }
+        let adapter:
+            @convention(thin) (
+                @escaping RequirementClosure,
+                Stub<any AsyncTypedThrowingClosureRequirementProbe>.Invocation
+            ) async throws(ClosureRequirementError) -> RequirementClosure = { closure, invocation in
+                try await invocation.call(
+                    closure,
+                    returning: RequirementClosure.self,
+                    throwing: ClosureRequirementError.self
+                )
+            }
+        let stub = try Stub<any AsyncTypedThrowingClosureRequirementProbe>(
+            .method(
+                RequirementClosure.self,
+                returning: RequirementClosure.self,
+                throwing: ClosureRequirementError.self,
                 isAsync: true,
                 using: adapter
             )

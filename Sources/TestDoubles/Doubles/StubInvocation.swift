@@ -83,6 +83,26 @@ extension Stub {
             }
         }
 
+        /// Records or dispatches an asynchronous typed-throwing requirement.
+        public func call<each Argument, Result, Failure: Error>(
+            _ arguments: repeat each Argument,
+            returning resultType: Result.Type = Result.self,
+            throwing failureType: Failure.Type
+        ) async throws(Failure) -> Result {
+            do {
+                return try await dispatchAsync(
+                    repeat each arguments,
+                    returning: resultType
+                )
+            } catch let failure as Failure {
+                throw failure
+            } catch {
+                preconditionFailure(
+                    "[TestDoubles] Async typed adapter for '\(methodName)' expected \(Failure.self), got \(type(of: error))."
+                )
+            }
+        }
+
         private func dispatch<each Argument, Result>(
             _ arguments: repeat each Argument,
             returning resultType: Result.Type

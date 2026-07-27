@@ -71,6 +71,29 @@ extension Stub.Requirement {
         )
     }
 
+    /// Describes an async typed-throwing method whose signature contains a function value.
+    ///
+    /// The adapter follows the same `@convention(thin)` contract as the
+    /// synchronous `throwing:using:` overload, must declare `async throws(Failure)`,
+    /// and calls `try await invocation.call(...throwing: Failure.self)`.
+    public static func method<each Argument, Result, Failure: Error, Adapter>(
+        _ arguments: repeat (each Argument).Type,
+        returning result: Result.Type,
+        throwing error: Failure.Type,
+        isAsync: Bool,
+        using adapter: Adapter
+    ) -> Self {
+        Self(
+            kind: .method,
+            arguments: concreteValues(repeat each arguments),
+            result: concreteValue(result),
+            typedErrorType: error,
+            isThrowing: true,
+            isAsync: isAsync,
+            typedWitnessAdapter: typedAdapter(adapter)
+        )
+    }
+
     /// Describes a synchronous method with a concrete typed error.
     public static func method<each Argument, Result, Failure: Error>(
         _ arguments: repeat (each Argument).Type,
