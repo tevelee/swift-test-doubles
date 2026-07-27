@@ -24,7 +24,7 @@ Echo already has a typed wrapper for this metadata kind
 (`.build/checkouts/Echo/Sources/Echo/Metadata/ExtendedExistentialMetadata.swift:387`,
 `public struct ForeignReferenceTypeMetadata: Metadata, LayoutWrapper`), and TestDoubles
 already has a slot in its metadata-kind dispatch where a new case could go
-(`Sources/TestDoubles/Metadata/ExtendedExistentialMetadata.swift`'s
+(`Sources/TestDoublesRuntimeMetadata/Metadata/ExtendedExistentialMetadata.swift`'s
 `inspectStubProtocolMetadata` switch, and the `.foreignClass`/`.class`/`.objcClassWrapper`
 groupings already present in `RuntimeValueLayout.swift` and
 `FunctionPointerAuthentication.swift`). So the Swift-side pieces to *recognize* the kind
