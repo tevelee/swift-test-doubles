@@ -127,7 +127,15 @@ field offsets stable while preserving every SIMD lane bit. Construction checks
 the location plan for both architectures and rejects any supported vector that
 would become a stack argument. It also rejects every shape that would require
 scalarized lanes, padding interpretation, aggregate decomposition, associated
-metadata substitution, forwarding, or async continuation transport.
+metadata substitution, or async continuation transport.
+
+Synchronous Spy forwarding uses the same frame. The target-call bridge reloads
+complete `q0` through `q7` registers on arm64 and complete `xmm0` through `xmm7`
+registers on x86_64, then saves both 64-bit halves of each possible vector result
+before the outer entry returns to the caller. Scalar and vector register cursors
+remain independent, so a method may mix them or use all eight vector argument
+registers. Vector spills are not copied to the target and therefore fail during
+construction.
 
 Capture mode normally encodes a synthesized recording result so the `when` or
 `verify` closure can return safely. `when(returning:_:)` and
@@ -286,9 +294,10 @@ result is, but configuration must finish before matching invocations begin.
 
 The implementation has focused arm64 and x86_64 coverage for integer and
 floating-point registers, synchronous stack arguments, mixed aggregates,
-indirect results, throwing calls, bounded one-register 128-bit SIMD values,
-async continuations, one-word async Stub ingress, bounded one-word async Spy
-forwarding, and owned setter inputs. Direct concrete
+indirect results, throwing calls, bounded one-register 128-bit SIMD values in
+both stubs and synchronous forwarding spies,
+async continuations, multiword complete-GP async Stub ingress, bounded one-word
+async Spy forwarding, and owned setter inputs. Direct concrete
 native function values use canonical function metadata plus compiler-emitted
 partial-apply reabstraction thunks found in the linked client or a bounded
 runtime-built arm64/x86_64 bridge. Arguments are wrapped from direct witness ABI

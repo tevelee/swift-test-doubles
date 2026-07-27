@@ -364,9 +364,12 @@ available but are no longer required just to name a SIMD type. SIMD values
 still cannot be synthesized as matcher or result placeholders, so pass them
 through `any(using:)` and `when(returning:_:)` when recording needs a
 placeholder.
-Smaller or padded vectors, vectors wider than 128 bits, a ninth vector-register
-argument, nested or associated-dependent SIMD, async methods, accessors,
-initializers, static requirements, and forwarding spies remain fail-closed.
+Forwarding spies support that same register-only SIMD boundary for ordinary
+synchronous instance methods, including mixed scalar/vector arguments and all
+eight vector argument registers. Smaller or padded vectors, vectors wider than
+128 bits, a ninth vector-register argument, nested or associated-dependent SIMD,
+async methods, accessors, initializers, static requirements, and vector spills
+remain fail-closed.
 In particular, `SIMD2<Float>` is intentionally unsupported because Swift 6.3
 uses different physical argument shapes on arm64 and x86_64.
 Automatically discovered or explicitly described typed-throwing methods support

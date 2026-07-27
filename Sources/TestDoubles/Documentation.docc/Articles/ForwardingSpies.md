@@ -95,6 +95,13 @@ This includes inherited requirements and concretely bound associated-type
 values. Getter effects cover ordinary untyped `throws`; typed-throwing getters
 remain unsupported.
 
+Ordinary synchronous instance methods may also forward concrete, copyable
+128-bit SIMD values when each value occupies one complete vector register on
+both arm64 and x86_64. Mixed scalar and vector arguments and all eight vector
+argument registers are supported. The forwarding bridge preserves all lane
+bits in arguments and results. Smaller, padded, wider, nested, dependent, and
+async SIMD shapes, plus any vector spill, remain fail-closed.
+
 Compound assignment and `inout` access use the target's `_modify` coroutine.
 Both legacy direct witnesses and descriptor-based public Swift 6.3 witnesses
 are supported. A matching getter registration keeps the configured
@@ -124,6 +131,8 @@ when the protocol requires any of these forwarding shapes:
 - Direct or optional dynamic `Self` results
 - Function-valued arguments or results
 - Arguments that spill to the stack or leave no registers for target metadata
+- SIMD outside the single-register 128-bit synchronous boundary, including a
+  ninth vector argument
 - `read` coroutine descriptors outside the supported Swift 6.3 `read2` and
   Swift 6.4 `yielding borrow` `yield_once_2` shape
 

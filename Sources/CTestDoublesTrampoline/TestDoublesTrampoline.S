@@ -51,6 +51,14 @@
     str d1, [\frame, #480]
     str d2, [\frame, #488]
     str d3, [\frame, #496]
+    umov x9, v0.d[1]
+    str x9, [\frame, #TD_FRAME_RETURN_FP_HIGH_OFFSET]
+    umov x9, v1.d[1]
+    str x9, [\frame, #520]
+    umov x9, v2.d[1]
+    str x9, [\frame, #528]
+    umov x9, v3.d[1]
+    str x9, [\frame, #536]
     str x21, [\frame, #TD_FRAME_RETURN_ERROR_OFFSET]
 .endm
 
@@ -940,14 +948,14 @@ SYMBOL(td_swift_read_coro_free):
 // above for the full rationale (shared by both the sync invoke_function/
 // invoke_witness pair below and the async pair further down).
 .macro td_load_frame_argument_registers frame
-    movsd TD_FRAME_FP_OFFSET(\frame), %xmm0
-    movsd 160(\frame), %xmm1
-    movsd 176(\frame), %xmm2
-    movsd 192(\frame), %xmm3
-    movsd 208(\frame), %xmm4
-    movsd 224(\frame), %xmm5
-    movsd 240(\frame), %xmm6
-    movsd 256(\frame), %xmm7
+    movdqu TD_FRAME_FP_OFFSET(\frame), %xmm0
+    movdqu 160(\frame), %xmm1
+    movdqu 176(\frame), %xmm2
+    movdqu 192(\frame), %xmm3
+    movdqu 208(\frame), %xmm4
+    movdqu 224(\frame), %xmm5
+    movdqu 240(\frame), %xmm6
+    movdqu 256(\frame), %xmm7
     movq TD_FRAME_GP_OFFSET(\frame), %rdi
     movq 24(\frame), %rsi
     movq 32(\frame), %rdx
@@ -979,6 +987,10 @@ SYMBOL(td_swift_read_coro_free):
     movsd %xmm1, 480(\frame)
     movsd %xmm2, 488(\frame)
     movsd %xmm3, 496(\frame)
+    movhps %xmm0, TD_FRAME_RETURN_FP_HIGH_OFFSET(\frame)
+    movhps %xmm1, 520(\frame)
+    movhps %xmm2, 528(\frame)
+    movhps %xmm3, 536(\frame)
     movq %r12, TD_FRAME_RETURN_ERROR_OFFSET(\frame)
 .endm
 

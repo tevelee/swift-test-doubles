@@ -18,10 +18,28 @@ struct RealConcreteSIMDABIProbe: ConcreteSIMDABIProbe {
         scale: Double,
         bits: SIMD2<UInt64>
     ) -> SIMD2<UInt64> {
-        bits
+        mixedSIMDResult(vector, tag: tag, scale: scale, bits: bits)
     }
 
     func bytes(_ value: SIMD16<UInt8>) -> SIMD16<UInt8> { value }
+}
+
+private func mixedSIMDResult(
+    _ vector: SIMD4<Float>,
+    tag: Int,
+    scale: Double,
+    bits: SIMD2<UInt64>
+) -> SIMD2<UInt64> {
+    let lowLanes =
+        UInt64(vector[0].bitPattern)
+        | UInt64(vector[1].bitPattern) << 32
+    let highLanes =
+        UInt64(vector[2].bitPattern)
+        | UInt64(vector[3].bitPattern) << 32
+    return SIMD2<UInt64>(
+        bits[0] ^ lowLanes ^ UInt64(bitPattern: Int64(tag)),
+        bits[1] ^ highLanes ^ scale.bitPattern
+    )
 }
 
 private func makeConcreteSIMDStub() throws -> Stub<any ConcreteSIMDABIProbe> {
@@ -75,6 +93,50 @@ struct RealSpilledSIMDABIProbe: SpilledSIMDABIProbe {
     ) {}
 }
 
+protocol FullVectorRegisterBankSIMDABIProbe {
+    func fold(
+        _ v0: SIMD4<Float>, _ v1: SIMD4<Float>,
+        _ v2: SIMD4<Float>, _ v3: SIMD4<Float>,
+        _ v4: SIMD4<Float>, _ v5: SIMD4<Float>,
+        _ v6: SIMD4<Float>, _ v7: SIMD4<Float>
+    ) -> SIMD4<UInt32>
+}
+
+struct RealFullVectorRegisterBankSIMDABIProbe:
+    FullVectorRegisterBankSIMDABIProbe
+{
+    func fold(
+        _ v0: SIMD4<Float>, _ v1: SIMD4<Float>,
+        _ v2: SIMD4<Float>, _ v3: SIMD4<Float>,
+        _ v4: SIMD4<Float>, _ v5: SIMD4<Float>,
+        _ v6: SIMD4<Float>, _ v7: SIMD4<Float>
+    ) -> SIMD4<UInt32> {
+        foldedSIMDBits([v0, v1, v2, v3, v4, v5, v6, v7])
+    }
+}
+
+private func foldedSIMDBits(
+    _ vectors: [SIMD4<Float>]
+) -> SIMD4<UInt32> {
+    precondition(vectors.count == 8)
+    var result = SIMD4<UInt32>(repeating: 0)
+    for vector in vectors {
+        for lane in 0 ..< 4 {
+            result[lane] ^= vector[lane].bitPattern
+        }
+    }
+    return result
+}
+
+private func fullWidthSIMDInput(_ index: UInt32) -> SIMD4<Float> {
+    SIMD4<Float>(
+        Float(bitPattern: 0x3f00_0000 | index),
+        Float(bitPattern: 0x4000_0010 | index),
+        Float(bitPattern: 0xbf00_0100 | index),
+        Float(bitPattern: 0xc000_1000 | index)
+    )
+}
+
 protocol AsyncSIMDABIProbe: Sendable {
     func echo(_ value: SIMD4<Float>) async -> SIMD4<Float>
 }
@@ -90,6 +152,18 @@ protocol AssociatedSIMDABIProbe<Vector> {
 
 struct RealAssociatedSIMDABIProbe: AssociatedSIMDABIProbe {
     func echo(_ value: SIMD4<Float>) -> SIMD4<Float> { value }
+}
+
+struct NestedSIMDABIValue {
+    let value: SIMD4<Float>
+}
+
+protocol NestedSIMDABIProbe {
+    func echo(_ value: NestedSIMDABIValue) -> NestedSIMDABIValue
+}
+
+struct RealNestedSIMDABIProbe: NestedSIMDABIProbe {
+    func echo(_ value: NestedSIMDABIValue) -> NestedSIMDABIValue { value }
 }
 
 @Suite struct SIMDABITests {
@@ -170,6 +244,11 @@ struct RealAssociatedSIMDABIProbe: AssociatedSIMDABIProbe {
                 .method(signatureOf: DivergentSIMDABIProbe.echo)
             )
         }
+        expectUnsupportedProtocolShape(containing: "identical arm64/x86_64") {
+            _ = try Spy<any DivergentSIMDABIProbe>(
+                forwardingTo: RealDivergentSIMDABIProbe()
+            )
+        }
     }
 
     @Test func paddedVectorFailsClosed() {
@@ -179,6 +258,11 @@ struct RealAssociatedSIMDABIProbe: AssociatedSIMDABIProbe {
                 .method(signatureOf: PaddedSIMDABIProbe.echo)
             )
         }
+        expectUnsupportedProtocolShape(containing: "complete 128-bit lane payloads") {
+            _ = try Spy<any PaddedSIMDABIProbe>(
+                forwardingTo: RealPaddedSIMDABIProbe()
+            )
+        }
     }
 
     @Test func vectorWiderThan128BitsFailsClosed() {
@@ -186,6 +270,11 @@ struct RealAssociatedSIMDABIProbe: AssociatedSIMDABIProbe {
         expectUnsupportedProtocolShape(containing: "complete 128-bit lane payloads") {
             _ = try Stub<any WideSIMDABIProbe>(
                 .method(signatureOf: WideSIMDABIProbe.echo)
+            )
+        }
+        expectUnsupportedProtocolShape(containing: "complete 128-bit lane payloads") {
+            _ = try Spy<any WideSIMDABIProbe>(
+                forwardingTo: RealWideSIMDABIProbe()
             )
         }
     }
@@ -204,6 +293,11 @@ struct RealAssociatedSIMDABIProbe: AssociatedSIMDABIProbe {
                 )
             )
         }
+        expectUnsupportedProtocolShape(containing: "spills") {
+            _ = try Spy<any SpilledSIMDABIProbe>(
+                forwardingTo: RealSpilledSIMDABIProbe()
+            )
+        }
     }
 
     @Test func asyncSIMDFailsClosed() {
@@ -213,12 +307,30 @@ struct RealAssociatedSIMDABIProbe: AssociatedSIMDABIProbe {
                 .method(signatureOf: AsyncSIMDABIProbe.echo)
             )
         }
+        expectUnsupportedProtocolShape(containing: "Async continuation") {
+            _ = try Spy<any AsyncSIMDABIProbe>(
+                forwardingTo: RealAsyncSIMDABIProbe()
+            )
+        }
     }
 
     @Test func associatedDependentSIMDFailsClosed() {
         _ = RealAssociatedSIMDABIProbe()
         expectUnsupportedProtocolShape(containing: "Associated-dependent SIMD") {
             _ = try Stub<any AssociatedSIMDABIProbe<SIMD4<Float>>>()
+        }
+        expectUnsupportedProtocolShape(containing: "Associated-dependent SIMD") {
+            _ = try Spy<any AssociatedSIMDABIProbe<SIMD4<Float>>>(
+                forwardingTo: RealAssociatedSIMDABIProbe()
+            )
+        }
+    }
+
+    @Test func SIMDStorageNestedInStructFailsClosedForForwarding() {
+        expectUnsupportedProtocolShape(containing: "nested in an aggregate") {
+            _ = try Spy<any NestedSIMDABIProbe>(
+                forwardingTo: RealNestedSIMDABIProbe()
+            )
         }
     }
 
@@ -248,10 +360,80 @@ struct RealAssociatedSIMDABIProbe: AssociatedSIMDABIProbe {
         )
     }
 
-    @Test func forwardingSIMDFailsClosed() {
-        let target: any ConcreteSIMDABIProbe = RealConcreteSIMDABIProbe()
-        #expect(throws: StubError.self) {
-            _ = try Spy<any ConcreteSIMDABIProbe>(forwardingTo: target)
+    @Test func forwardingMixedSIMDArgumentsAndResultPreserveEveryLaneBit() throws {
+        let spy = try Spy<any ConcreteSIMDABIProbe>(
+            forwardingTo: RealConcreteSIMDABIProbe()
+        )
+        let input = SIMD4<Float>(
+            Float(bitPattern: 0x8000_0000),
+            Float(bitPattern: 0x3f80_0001),
+            Float(bitPattern: 0x7f7f_ffff),
+            Float(bitPattern: 0xff7f_fffe)
+        )
+        let tag = 0x0123_4567
+        let scale = Double(bitPattern: 0xc004_0000_0000_0001)
+        let bits = SIMD2<UInt64>(
+            0x0123_4567_89ab_cdef,
+            0xfedc_ba98_7654_3210
+        )
+        let expected = mixedSIMDResult(
+            input,
+            tag: tag,
+            scale: scale,
+            bits: bits
+        )
+
+        #expect(
+            spy().mix(input, tag: tag, scale: scale, bits: bits)
+                == expected
+        )
+        spy.verify(returning: SIMD2<UInt64>(repeating: 0)) {
+            $0.mix(
+                equal(input),
+                tag: equal(tag),
+                scale: equal(scale),
+                bits: equal(bits)
+            )
+        }
+    }
+
+    @Test func forwardingIntegerSIMDArgumentAndResultPreserveAllBytes() throws {
+        let spy = try Spy<any ConcreteSIMDABIProbe>(
+            forwardingTo: RealConcreteSIMDABIProbe()
+        )
+        let input = SIMD16<UInt8>(
+            0x00, 0x11, 0x22, 0x33,
+            0x44, 0x55, 0x66, 0x77,
+            0x88, 0x99, 0xaa, 0xbb,
+            0xcc, 0xdd, 0xee, 0xff
+        )
+
+        #expect(spy().bytes(input) == input)
+        spy.verify(returning: SIMD16<UInt8>(repeating: 0)) {
+            $0.bytes(equal(input))
+        }
+    }
+
+    @Test func forwardingUsesAllEightVectorArgumentRegisters() throws {
+        let spy = try Spy<any FullVectorRegisterBankSIMDABIProbe>(
+            forwardingTo: RealFullVectorRegisterBankSIMDABIProbe()
+        )
+        let vectors = (0 ..< 8).map { fullWidthSIMDInput(UInt32($0 + 1)) }
+        let expected = foldedSIMDBits(vectors)
+
+        #expect(
+            spy().fold(
+                vectors[0], vectors[1], vectors[2], vectors[3],
+                vectors[4], vectors[5], vectors[6], vectors[7]
+            ) == expected
+        )
+        spy.verify(returning: SIMD4<UInt32>(repeating: 0)) {
+            $0.fold(
+                equal(vectors[0]), equal(vectors[1]),
+                equal(vectors[2]), equal(vectors[3]),
+                equal(vectors[4]), equal(vectors[5]),
+                equal(vectors[6]), equal(vectors[7])
+            )
         }
     }
 }
