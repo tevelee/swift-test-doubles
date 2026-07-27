@@ -11,3 +11,12 @@ import Testing
         }
     }
 #endif
+
+@Suite struct RuntimeTypeClassificationTests {
+    @Test func semanticRuntimeClassificationUsesMetadata() {
+        #expect(isRuntimeFunctionType(((Int) -> Int).self))
+        #expect(isRuntimeFunctionType(Int.self) == false)
+        #expect(isRuntimeExistentialType((any Equatable).self))
+        #expect(isRuntimeExistentialType(Int.self) == false)
+    }
+}

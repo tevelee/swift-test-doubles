@@ -168,7 +168,7 @@ struct ProtocolForwardingPlanBuilder<P> {
             )
         }
         guard method.typedWitnessAdapterFactory == nil,
-            concreteTypes.allSatisfy({ reflect($0).kind != .function })
+            concreteTypes.allSatisfy({ !isRuntimeFunctionType($0) })
         else {
             throw RuntimeConstructionError.forwardingUnsupported(
                 protocolName: protocolName,

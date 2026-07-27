@@ -1,4 +1,3 @@
-import Echo
 import EchoRuntimeSupport
 import InternalRuntimeContract
 import TestDoublesRuntimeMetadata
@@ -102,7 +101,7 @@ package enum RecordingResultEncoder {
                 frame.storeGeneralPurposeReturn(destinationWord)
             }
         #endif
-        if reflect(returnType) is ExistentialMetadata,
+        if isRuntimeExistentialType(returnType),
             let index = method.arguments.firstIndex(where: {
                 $0.value.type == returnType
             }),
