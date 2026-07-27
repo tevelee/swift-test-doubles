@@ -1,17 +1,17 @@
 import CTestDoublesTrampoline
-import Echo
+import EchoRuntimeReflection
 import TestDoublesRuntimeMetadata
 
 func canDynamicallyBoxFunctionArgument(
-    _ metadata: FunctionMetadata
+    _ function: FunctionTypeInfo
 ) -> Bool {
-    FunctionBridgeAnalysis(metadata).validated(for: .directToGeneric) != nil
+    FunctionBridgeAnalysis(function).validated(for: .directToGeneric) != nil
 }
 
 func dynamicFunctionBridgeUnsupportedReason(
-    _ metadata: FunctionMetadata
+    _ function: FunctionTypeInfo
 ) -> String? {
-    FunctionBridgeAnalysis(metadata).unsupportedReason(for: .directToGeneric)
+    FunctionBridgeAnalysis(function).unsupportedReason(for: .directToGeneric)
 }
 
 private enum DynamicTypedInvocationOutcome<Result, Failure: Error> {
@@ -380,9 +380,8 @@ private func moveDirectResult<Result>(
     from buffer: ManagedValueBuffer,
     as _: Result.Type
 ) -> Result {
-    let metadata = reflect(Result.self)
     guard
-        metadata is FunctionMetadata
+        FunctionTypeInfo(reflecting: Result.self) != nil
             || FunctionReabstraction.requiresStructuralReabstraction(Result.self)
     else {
         return buffer.moveInitializedValue(as: Result.self)

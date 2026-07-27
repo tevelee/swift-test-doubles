@@ -1,5 +1,6 @@
 import CTestDoublesTrampoline
 import Echo
+import EchoRuntimeReflection
 import Foundation
 import TestDoublesRuntimeMetadata
 
@@ -204,35 +205,19 @@ package func decodeDirectResult(
 /// continue to reject every other extended flag because those bits alter
 /// isolation, ownership, or invocation semantics.
 package func hasOnlyDynamicallySupportedExtendedFlags(
-    _ metadata: FunctionMetadata
+    _ function: FunctionTypeInfo
 ) -> Bool {
-    guard let flags = metadata.extendedFlags else { return true }
-
-    let invertedProtocols = flags.invertedProtocols
-    guard flags.isIsolatedAny == false,
-        flags.isNonIsolatedNonsending == false,
-        flags.hasSendingResult == false,
-        invertedProtocols.isEmpty,
-        invertedProtocols.hasUnknownProtocols == false
-    else {
-        return false
-    }
-
-    // Echo exposes the currently understood semantics above. Keep this exact
-    // bit comparison as a fail-closed gate for reserved flags and future ABI
-    // extensions that Echo cannot name yet.
-    let supportedBits: UInt32 = flags.isTypedThrows ? 0x1 : 0
-    return flags.bits == supportedBits
-}
-
-package func isDynamicFunctionAsync(_ metadata: FunctionMetadata) -> Bool {
-    metadata.flags.isAsync
+    // Keep this exact bit comparison as a fail-closed gate for future ABI
+    // extensions that Echo cannot interpret yet. The semantic reflection
+    // surface retains the raw discriminator precisely for this rejection.
+    let supportedBits: UInt32 = function.effects.isTypedThrows ? 0x1 : 0
+    return function.effects.rawExtendedFlags ?? 0 == supportedBits
 }
 
 package func typedThrowingFunctionRuntimeUnsupportedReason(
-    _ metadata: FunctionMetadata
+    _ function: FunctionTypeInfo
 ) -> String? {
-    guard functionHasTypedThrows(metadata) else { return nil }
+    guard function.effects.isTypedThrows else { return nil }
 
     // Echo's typed-throws field is not a usable `Any.Type` on the Swift 6.3
     // Linux x86_64 release runtime. Reading it can produce an invalid metadata
@@ -241,7 +226,7 @@ package func typedThrowingFunctionRuntimeUnsupportedReason(
     #if os(Linux) && arch(x86_64)
         return "Typed-throws closure values are unavailable on Linux x86_64 because the Swift runtime does not expose their error metadata in a stable ABI form."
     #else
-        guard typedThrownErrorType(metadata) != nil else {
+        guard function.effects.typedErrorType != nil else {
             return "Typed-throws closure error metadata could not be resolved safely."
         }
         guard
@@ -260,10 +245,10 @@ package func typedThrowingFunctionRuntimeUnsupportedReason(
 }
 
 package func dynamicDirectTypedErrorUsesIndirectResultSlot(
-    _ metadata: FunctionMetadata
+    _ function: FunctionTypeInfo
 ) -> Bool {
-    guard let errorType = typedThrownErrorType(metadata) else { return false }
-    return abiClassIsIndirect(abiClass(for: metadata.resultType, isReturn: true))
+    guard let errorType = function.effects.typedErrorType else { return false }
+    return abiClassIsIndirect(abiClass(for: function.resultType, isReturn: true))
         || typedErrorLayoutRequiresIndirectSlot(
             abiClass(for: errorType, isReturn: true)
         )
@@ -274,11 +259,11 @@ package func dynamicDirectTypedErrorUsesIndirectResultSlot(
 /// distinct buffer in the generic function convention. Zero-size errors omit
 /// the physical slot because there is no payload to initialize.
 package func dynamicGenericTypedErrorUsesIndirectResultSlot(
-    _ metadata: FunctionMetadata
+    _ function: FunctionTypeInfo
 ) -> Bool {
-    guard let errorType = typedThrownErrorType(metadata) else { return false }
-    return dynamicDirectTypedErrorUsesIndirectResultSlot(metadata)
-        || reflect(errorType).vwt.size > 0
+    guard let errorType = function.effects.typedErrorType else { return false }
+    return dynamicDirectTypedErrorUsesIndirectResultSlot(function)
+        || ValueLayoutInfo(reflecting: errorType).size > 0
 }
 
 package func abiClassIsIndirect(_ abi: ABIClass) -> Bool {
@@ -357,19 +342,4 @@ final class ReabstractionContext: @unchecked Sendable {
             "[TestDoubles] Swift changed native partial-apply context layout."
         )
     }
-}
-
-extension FunctionMetadata {
-    /// Compatibility spelling for the isolated-any query used by the existing
-    /// reabstraction implementation.
-    var isIsolatedAny: Bool {
-        extendedFlags?.isIsolatedAny == true
-    }
-
-    /// Compatibility spelling for the nonisolated-nonsending query used by
-    /// the existing function-pointer authentication implementation.
-    var isNonisolatedNonsending: Bool {
-        extendedFlags?.isNonIsolatedNonsending == true
-    }
-
 }

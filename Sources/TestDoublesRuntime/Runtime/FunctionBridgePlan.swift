@@ -1,8 +1,6 @@
-import Echo
+import EchoRuntimeReflection
 import TestDoublesRuntimeMetadata
 import TestDoublesRuntimeSupport
-
-private let unsupportedDynamicValueFlags = UInt32(0x0080_0000)
 
 package enum FunctionBridgeDirection: Sendable, Equatable {
     case directToGeneric
@@ -13,7 +11,7 @@ package enum FunctionBridgeDirection: Sendable, Equatable {
 /// both bridge directions.
 package struct FunctionBridgeAnalysis: @unchecked Sendable {
     let architecture: RuntimeArchitecture
-    let metadata: FunctionMetadata
+    let function: FunctionTypeInfo
     let parameterTypes: [Any.Type]
     let directArgumentPlan: DynamicFunctionArgumentPlan?
     let resultType: Any.Type
@@ -22,6 +20,7 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
     let typedErrorLayout: ABIClass?
     let isAsync: Bool
     let isThrowing: Bool
+    let isSendable: Bool
     let directTypedErrorUsesIndirectResultSlot: Bool
     let genericTypedErrorUsesIndirectResultSlot: Bool
     let asyncDirectResultUsesGeneralPurposeSlot: Bool
@@ -29,31 +28,32 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
     let genericUsesStackArgument: Bool
 
     package init(
-        _ metadata: FunctionMetadata,
+        _ function: FunctionTypeInfo,
         architecture: RuntimeArchitecture = .current
     ) {
         self.architecture = architecture
-        self.metadata = metadata
-        parameterTypes = safeFunctionParameterTypes(metadata)
-        resultType = metadata.resultType
-        resultLayout = abiClass(for: metadata.resultType, isReturn: true)
-        let typedErrorType = typedThrownErrorType(metadata)
+        self.function = function
+        parameterTypes = function.parameters.map(\.type)
+        resultType = function.resultType
+        resultLayout = abiClass(for: function.resultType, isReturn: true)
+        let typedErrorType = function.effects.typedErrorType
         self.typedErrorType = typedErrorType
         typedErrorLayout = typedErrorType.map {
             abiClass(for: $0, isReturn: true)
         }
-        isAsync = isDynamicFunctionAsync(metadata)
-        isThrowing = metadata.flags.throws
+        isAsync = function.effects.isAsync
+        isThrowing = function.effects.isThrowing
+        isSendable = function.effects.isSendable
         directTypedErrorUsesIndirectResultSlot =
-            dynamicDirectTypedErrorUsesIndirectResultSlot(metadata)
+            dynamicDirectTypedErrorUsesIndirectResultSlot(function)
         genericTypedErrorUsesIndirectResultSlot =
-            dynamicGenericTypedErrorUsesIndirectResultSlot(metadata)
+            dynamicGenericTypedErrorUsesIndirectResultSlot(function)
         asyncDirectResultUsesGeneralPurposeSlot =
             isAsync && abiClassIsIndirect(resultLayout)
         genericArgumentCount =
-            metadata.flags.numParams
+            function.parameters.count
             + (genericTypedErrorUsesIndirectResultSlot ? 1 : 0)
-            + (isAsync && metadata.resultType != Void.self ? 1 : 0)
+            + (isAsync && function.resultType != Void.self ? 1 : 0)
         genericUsesStackArgument =
             genericArgumentCount
             > architecture.generalPurposeArgumentRegisterCount
@@ -68,10 +68,10 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
     }
 
     package func unsupportedReason(for direction: FunctionBridgeDirection) -> String? {
-        guard metadata.flags.convention == .swift else {
+        guard function.convention == .swift else {
             return "Only native Swift functions need this bridge."
         }
-        if direction == .directToGeneric, metadata.flags.numParams > 6 {
+        if direction == .directToGeneric, function.parameters.count > 6 {
             return "The dynamic bridge currently supports at most six parameters."
         }
         if direction == .genericToDirect,
@@ -89,28 +89,26 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
         {
             return "The x86_64 async typed-error return bridge cannot mix a full direct register bank with generic stack transport."
         }
-        guard metadata.flags.isDifferentiable == false else {
+        guard function.effects.isDifferentiable == false else {
             return "Differentiable functions require derivative metadata."
         }
-        guard metadata.globalActorType == nil else {
+        guard function.effects.globalActorType == nil else {
             return "Global-actor functions require an executor-preserving bridge."
         }
-        guard hasOnlyDynamicallySupportedExtendedFlags(metadata) else {
+        guard hasOnlyDynamicallySupportedExtendedFlags(function) else {
             return "Extended isolation, sending, or invertible-protocol flags require compiler reabstraction."
         }
-        if let reason = typedThrowingFunctionRuntimeUnsupportedReason(metadata) {
+        if let reason = typedThrowingFunctionRuntimeUnsupportedReason(function) {
             return reason
         }
-        guard reflect(resultType).vwt.flags.bits & unsupportedDynamicValueFlags == 0 else {
+        guard ValueLayoutInfo(reflecting: resultType).isCopyable else {
             return "The result is noncopyable."
         }
         if let typedErrorType {
             guard typedErrorType is any Error.Type else {
                 return "The typed-throws result does not conform to Error."
             }
-            guard
-                reflect(typedErrorType).vwt.flags.bits & unsupportedDynamicValueFlags == 0
-            else {
+            guard ValueLayoutInfo(reflecting: typedErrorType).isCopyable else {
                 return "The typed error is noncopyable."
             }
             if direction == .genericToDirect,
@@ -121,9 +119,7 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
             }
         }
         guard
-            parameterTypes.allSatisfy({
-                reflect($0).vwt.flags.bits & unsupportedDynamicValueFlags == 0
-            })
+            parameterTypes.allSatisfy({ ValueLayoutInfo(reflecting: $0).isCopyable })
         else {
             return "A parameter is noncopyable."
         }
@@ -146,9 +142,7 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
                     return "A nested function parameter cannot cross into generic storage."
             }
         }
-        if metadata.flags.hasParamFlags,
-            metadata.paramFlags.contains(where: { $0.bits != 0 })
-        {
+        if function.parameters.contains(where: { $0.rawFlags != 0 }) {
             return "Ownership, variadic, autoclosure, derivative, isolated, or sending parameter flags require compiler reabstraction."
         }
         guard directArgumentPlan != nil else {
@@ -202,7 +196,7 @@ package struct FunctionBridgePlan: @unchecked Sendable {
         self.direction = direction
     }
 
-    package var metadata: FunctionMetadata { analysis.metadata }
+    package var function: FunctionTypeInfo { analysis.function }
     package var parameterTypes: [Any.Type] { analysis.parameterTypes }
     package var resultType: Any.Type { analysis.resultType }
     package var resultLayout: ABIClass { analysis.resultLayout }
@@ -210,6 +204,7 @@ package struct FunctionBridgePlan: @unchecked Sendable {
     package var typedErrorLayout: ABIClass? { analysis.typedErrorLayout }
     package var isAsync: Bool { analysis.isAsync }
     package var isThrowing: Bool { analysis.isThrowing }
+    package var isSendable: Bool { analysis.isSendable }
     package var directTypedErrorUsesIndirectResultSlot: Bool {
         analysis.directTypedErrorUsesIndirectResultSlot
     }

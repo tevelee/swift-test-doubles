@@ -21,8 +21,7 @@ func dynamicallyBoxFunctionArgument(
         discriminator: discriminator,
         plan: plan
     )
-    let metadata = plan.metadata
-    let isSendable = metadata.flags.bits & 0x4000_0000 != 0
+    let isSendable = plan.isSendable
     let isThrowing = plan.isThrowing
     let isAsync = plan.isAsync
 
@@ -222,7 +221,7 @@ func dynamicallyBoxFunctionArgument(
                 )
         }
     }
-    return _openExistential(metadata.resultType, do: boxResult)
+    return _openExistential(plan.resultType, do: boxResult)
     // swiftlint:enable nesting
 }
 

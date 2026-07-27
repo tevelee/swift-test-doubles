@@ -1,5 +1,6 @@
 import CTestDoublesTrampoline
 import Echo
+import EchoRuntimeReflection
 import Foundation
 import TestDoublesRuntimeMetadata
 
@@ -12,44 +13,47 @@ package enum FunctionReabstraction {
         ReabstractionThunkRegistry.shared.hasBothDirections(for: type)
     }
 
-    package static func hasDirectToGenericBridge(_ metadata: FunctionMetadata) -> Bool {
-        guard typedThrowingFunctionRuntimeUnsupportedReason(metadata) == nil else {
+    package static func hasDirectToGenericBridge(_ function: FunctionTypeInfo) -> Bool {
+        guard typedThrowingFunctionRuntimeUnsupportedReason(function) == nil else {
             return false
         }
-        return canDynamicallyBoxFunctionArgument(metadata)
+        return canDynamicallyBoxFunctionArgument(function)
             || ReabstractionThunkRegistry.shared.directToGeneric(
-                for: metadata.type
+                for: function.type
             ) != nil
     }
 
-    package static func hasGenericToDirectBridge(_ metadata: FunctionMetadata) -> Bool {
-        guard typedThrowingFunctionRuntimeUnsupportedReason(metadata) == nil else {
+    package static func hasGenericToDirectBridge(_ function: FunctionTypeInfo) -> Bool {
+        guard typedThrowingFunctionRuntimeUnsupportedReason(function) == nil else {
             return false
         }
-        return canDynamicallyInitializeFunctionResult(metadata)
+        return canDynamicallyInitializeFunctionResult(function)
             || ReabstractionThunkRegistry.shared.genericToDirect(
-                for: metadata.type
+                for: function.type
             ) != nil
     }
 
     package static func pointerAuthDiscriminators(
         for type: Any.Type
     ) -> (direct: UInt16, generic: UInt16)? {
-        guard let function = reflect(type) as? FunctionMetadata,
+        guard let function = FunctionTypeInfo(reflecting: type),
             let direct = directFunctionDiscriminator(for: function)
         else { return nil }
         return (
             direct,
             td_generic_function_discriminator(
-                UInt16(functionLoweredParameterCount(function)),
+                UInt16(function.parameters.count),
                 function.resultType != Void.self
             )
         )
     }
 
     package static func automaticArgumentUnsupportedReason(for type: Any.Type) -> String? {
-        guard let metadata = reflect(type) as? FunctionMetadata else { return nil }
-        switch metadata.flags.convention {
+        guard let function = FunctionTypeInfo(reflecting: type) else { return nil }
+        guard let convention = function.convention else {
+            return "The closure has an unknown calling convention."
+        }
+        switch convention {
             case .c, .block:
                 return nil
             case .thin:
@@ -57,21 +61,21 @@ package enum FunctionReabstraction {
             case .swift:
                 break
         }
-        if let reason = typedThrowingFunctionRuntimeUnsupportedReason(metadata) {
+        if let reason = typedThrowingFunctionRuntimeUnsupportedReason(function) {
             return reason
         }
-        if let reason = automaticClosureUnsupportedReason(metadata) {
+        if let reason = automaticClosureUnsupportedReason(function) {
             return reason
         }
-        guard directFunctionDiscriminator(for: metadata) != nil else {
+        guard directFunctionDiscriminator(for: function) != nil else {
             return "The closure's pointer-authentication type spelling cannot be reconstructed safely."
         }
-        guard let reason = dynamicFunctionBridgeUnsupportedReason(metadata) else {
+        guard let reason = dynamicFunctionBridgeUnsupportedReason(function) else {
             return nil
         }
         guard
             ReabstractionThunkRegistry.shared.directToGeneric(
-                for: metadata.type
+                for: function.type
             ) == nil
         else {
             return nil
@@ -80,8 +84,11 @@ package enum FunctionReabstraction {
     }
 
     package static func automaticResultUnsupportedReason(for type: Any.Type) -> String? {
-        guard let metadata = reflect(type) as? FunctionMetadata else { return nil }
-        switch metadata.flags.convention {
+        guard let function = FunctionTypeInfo(reflecting: type) else { return nil }
+        guard let convention = function.convention else {
+            return "The closure has an unknown calling convention."
+        }
+        switch convention {
             case .c, .block:
                 return nil
             case .thin:
@@ -89,22 +96,22 @@ package enum FunctionReabstraction {
             case .swift:
                 break
         }
-        if let reason = typedThrowingFunctionRuntimeUnsupportedReason(metadata) {
+        if let reason = typedThrowingFunctionRuntimeUnsupportedReason(function) {
             return reason
         }
-        if let reason = automaticClosureUnsupportedReason(metadata) {
+        if let reason = automaticClosureUnsupportedReason(function) {
             return reason
         }
-        guard directFunctionDiscriminator(for: metadata) != nil else {
+        guard directFunctionDiscriminator(for: function) != nil else {
             return "The closure's pointer-authentication type spelling cannot be reconstructed safely."
         }
-        guard let reason = dynamicFunctionReturnBridgeUnsupportedReason(metadata)
+        guard let reason = dynamicFunctionReturnBridgeUnsupportedReason(function)
         else {
             return nil
         }
         guard
             ReabstractionThunkRegistry.shared.genericToDirect(
-                for: metadata.type
+                for: function.type
             ) == nil
         else {
             return nil
@@ -116,12 +123,12 @@ package enum FunctionReabstraction {
     /// can appear incidentally in a debug binary, but it is not a portable
     /// runtime contract and can disappear under release optimization.
     private static func automaticClosureUnsupportedReason(
-        _ metadata: FunctionMetadata
+        _ function: FunctionTypeInfo
     ) -> String? {
-        guard metadata.globalActorType == nil else {
+        guard function.effects.globalActorType == nil else {
             return "Global-actor functions require an executor-preserving bridge."
         }
-        guard hasOnlyDynamicallySupportedExtendedFlags(metadata) else {
+        guard hasOnlyDynamicallySupportedExtendedFlags(function) else {
             return "Extended isolation, sending, or invertible-protocol flags require compiler reabstraction."
         }
         return nil
@@ -131,12 +138,17 @@ package enum FunctionReabstraction {
         type: Any.Type,
         source: UnsafeMutableRawPointer
     ) -> Any {
-        guard let function = reflect(type) as? FunctionMetadata else {
+        guard let function = FunctionTypeInfo(reflecting: type) else {
             preconditionFailure(
                 "[TestDoubles] Expected function metadata for argument \(type)."
             )
         }
-        switch function.flags.convention {
+        guard let convention = function.convention else {
+            preconditionFailure(
+                "[TestDoubles] Function argument \(type) has an unknown calling convention."
+            )
+        }
+        switch convention {
             case .c, .block:
                 return boxValue(type: type, source: source)
             case .thin:
@@ -177,11 +189,11 @@ package enum FunctionReabstraction {
         let state = ReabstractionContext(
             function: code,
             context: context,
-            isIsolatedAny: function.isIsolatedAny
+            isIsolatedAny: function.effects.isIsolatedAny
         )
         state.validateStoredLayout()
         let discriminator = td_generic_function_discriminator(
-            UInt16(functionLoweredParameterCount(function)),
+            UInt16(function.parameters.count),
             function.resultType != Void.self
         )
         let signedThunk = td_sign_function_pointer(thunk, discriminator) ?? thunk
@@ -211,7 +223,7 @@ package enum FunctionReabstraction {
         let context = (source + MemoryLayout<UInt>.size)
             .load(as: UnsafeRawPointer?.self)
 
-        guard let function = reflect(type) as? FunctionMetadata,
+        guard let function = FunctionTypeInfo(reflecting: type),
             let discriminator = directFunctionDiscriminator(for: function)
         else {
             preconditionFailure(
@@ -241,7 +253,7 @@ package enum FunctionReabstraction {
         let state = ReabstractionContext(
             function: code,
             context: context,
-            isIsolatedAny: function.isIsolatedAny
+            isIsolatedAny: function.effects.isIsolatedAny
         )
         state.validateStoredLayout()
         let signedThunk = td_sign_function_pointer(thunk, discriminator) ?? thunk

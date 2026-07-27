@@ -1,4 +1,4 @@
-import Echo
+import EchoRuntimeReflection
 import Testing
 
 @testable import TestDoublesRuntime
@@ -12,8 +12,8 @@ struct FunctionBridgePlanTests {
     @Test
     func validatedPlansContainCompleteDirectionalTransport() throws {
         typealias Function = (Int, Double) -> String
-        let metadata = try #require(reflect(Function.self) as? FunctionMetadata)
-        let analysis = FunctionBridgeAnalysis(metadata)
+        let function = try #require(FunctionTypeInfo(reflecting: Function.self))
+        let analysis = FunctionBridgeAnalysis(function)
 
         let argumentPlan = try #require(
             analysis.validated(for: .directToGeneric)
@@ -41,8 +41,8 @@ struct FunctionBridgePlanTests {
             Int,
             Int
         ) -> Int
-        let metadata = try #require(reflect(Function.self) as? FunctionMetadata)
-        let analysis = FunctionBridgeAnalysis(metadata)
+        let function = try #require(FunctionTypeInfo(reflecting: Function.self))
+        let analysis = FunctionBridgeAnalysis(function)
 
         #expect(analysis.validated(for: .directToGeneric) == nil)
         #expect(
@@ -62,10 +62,10 @@ struct FunctionBridgePlanTests {
             Int,
             Int
         ) async throws(FunctionBridgePlanError) -> Int
-        let metadata = try #require(reflect(Function.self) as? FunctionMetadata)
+        let function = try #require(FunctionTypeInfo(reflecting: Function.self))
 
         #if os(Linux) && arch(x86_64)
-            let analysis = FunctionBridgeAnalysis(metadata)
+            let analysis = FunctionBridgeAnalysis(function)
             #expect(analysis.validated(for: .directToGeneric) == nil)
             #expect(analysis.validated(for: .genericToDirect) == nil)
             #expect(
@@ -77,7 +77,7 @@ struct FunctionBridgePlanTests {
         #endif
 
         let x86Analysis = FunctionBridgeAnalysis(
-            metadata,
+            function,
             architecture: .x86_64
         )
         #expect(x86Analysis.validated(for: .directToGeneric) != nil)
@@ -88,7 +88,7 @@ struct FunctionBridgePlanTests {
         )
 
         let armAnalysis = FunctionBridgeAnalysis(
-            metadata,
+            function,
             architecture: .arm64
         )
         #expect(armAnalysis.validated(for: .directToGeneric) != nil)

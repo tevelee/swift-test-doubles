@@ -1,5 +1,6 @@
 import CTestDoublesTrampoline
 import Echo
+import EchoRuntimeReflection
 import Foundation
 import TestDoublesRuntimeSupport
 
@@ -194,11 +195,8 @@ package func resolveRuntimeType(
         // candidate long enough for StubRequirementValidation to reject the
         // protocol before a trampoline can be prepared. Choosing an escaping
         // variant is safe here because every subsequent path fails closed.
-        if let typedThrowing = unique.first(where: { candidate in
-            guard let metadata = reflect(candidate) as? FunctionMetadata else {
-                return false
-            }
-            return functionHasTypedThrows(metadata)
+        if let typedThrowing = unique.first(where: {
+            FunctionTypeInfo(reflecting: $0)?.effects.isTypedThrows == true
         }) {
             return typedThrowing
         }

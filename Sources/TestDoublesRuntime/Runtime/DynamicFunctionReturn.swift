@@ -1,17 +1,18 @@
 import CTestDoublesTrampoline
 import Echo
+import EchoRuntimeReflection
 import TestDoublesRuntimeMetadata
 
 package func canDynamicallyInitializeFunctionResult(
-    _ metadata: FunctionMetadata
+    _ function: FunctionTypeInfo
 ) -> Bool {
-    FunctionBridgeAnalysis(metadata).validated(for: .genericToDirect) != nil
+    FunctionBridgeAnalysis(function).validated(for: .genericToDirect) != nil
 }
 
 package func dynamicFunctionReturnBridgeUnsupportedReason(
-    _ metadata: FunctionMetadata
+    _ function: FunctionTypeInfo
 ) -> String? {
-    FunctionBridgeAnalysis(metadata).unsupportedReason(for: .genericToDirect)
+    FunctionBridgeAnalysis(function).unsupportedReason(for: .genericToDirect)
 }
 
 package func initializeDynamicFunctionResult(
@@ -112,7 +113,7 @@ func tdSwiftDynamicFunctionHandler(
 private final class DynamicFunctionReturnContext: @unchecked Sendable {
     private let function: UnsafeRawPointer
     private let functionContext: UnsafeRawPointer?
-    private let metadata: FunctionMetadata
+    private let signature: FunctionTypeInfo
     private let plan: FunctionBridgePlan
     private let argumentDecodingPlan: DynamicFunctionArgumentDecodingPlan
     private var parameterTypes: [Any.Type] { plan.parameterTypes }
@@ -138,16 +139,16 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
     }
 
     init(source: UnsafeMutableRawPointer, plan: FunctionBridgePlan) {
-        let metadata = plan.metadata
+        let signature = plan.function
         guard let function = source.load(as: UnsafeRawPointer?.self) else {
             preconditionFailure(
-                "[TestDoubles] Generic function value \(metadata.type) has no entry point."
+                "[TestDoubles] Generic function value \(signature.type) has no entry point."
             )
         }
-        self.function = function
+        self.signature = signature
         functionContext = (source + MemoryLayout<UInt>.size)
             .load(as: UnsafeRawPointer?.self)
-        self.metadata = metadata
+        self.function = function
         self.plan = plan
         argumentDecodingPlan = DynamicFunctionArgumentDecodingPlan(
             parameterTypes: plan.parameterTypes,
@@ -195,13 +196,13 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
             case .success(let result):
                 RuntimeValueTransport.encodeReturn(
                     result,
-                    expectedType: metadata.resultType,
-                    layout: abiClass(for: metadata.resultType, isReturn: true),
+                    expectedType: signature.resultType,
+                    layout: abiClass(for: signature.resultType, isReturn: true),
                     context: "dynamic function return",
                     isAsync: isAsync,
                     into: frame
                 )
-                if metadata.flags.throws {
+                if signature.effects.isThrowing {
                     frame.storeReturnError(0)
                 }
             case .failure(let error):
@@ -236,7 +237,7 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
         precondition(arguments.count == parameterTypes.count)
         var argumentContainers = arguments.map(Echo.container(for:))
         let call = ManagedDynamicCall(
-            resultType: metadata.resultType,
+            resultType: signature.resultType,
             errorType: typedErrorType
         )
         defer { _fixLifetime(arguments) }
@@ -248,7 +249,7 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
                 at: index
             )
         }
-        let hasResult = metadata.resultType != Void.self
+        let hasResult = signature.resultType != Void.self
         if hasResult {
             frame.storeIndirectResultAddress(UInt(bitPattern: call.result.storage))
         }
@@ -277,13 +278,13 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
         precondition(arguments.count == parameterTypes.count)
         var argumentContainers = arguments.map(Echo.container(for:))
         let call = ManagedDynamicCall(
-            resultType: metadata.resultType,
+            resultType: signature.resultType,
             errorType: typedErrorType
         )
         defer { _fixLifetime(arguments) }
 
         let frame = call.frame
-        let hasResult = metadata.resultType != Void.self
+        let hasResult = signature.resultType != Void.self
         let initialGeneralPurposeOffset: Int
         if hasResult {
             let resultAddress = UInt(bitPattern: call.result.storage)
@@ -314,7 +315,7 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
             functionContext,
             discriminator,
             call.rawFrame,
-            metadata.flags.throws,
+            signature.effects.isThrowing,
             plan.genericUsesStackArgument
         )
         return outcome(from: call, hasResult: hasResult)
@@ -349,7 +350,7 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
 
         call.result.markInitialized()
         let result = boxValue(
-            type: metadata.resultType,
+            type: signature.resultType,
             source: call.result.storage
         )
         call.result.destroyInitializedValue()

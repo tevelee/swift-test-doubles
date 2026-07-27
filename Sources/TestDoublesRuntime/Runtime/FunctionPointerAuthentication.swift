@@ -1,11 +1,12 @@
 import CTestDoublesTrampoline
 import Echo
+import EchoRuntimeReflection
 import TestDoublesRuntimeMetadata
 
 package func directFunctionDiscriminator(
-    for metadata: FunctionMetadata
+    for function: FunctionTypeInfo
 ) -> UInt16? {
-    guard let spelling = pointerAuthFunctionSpelling(metadata) else {
+    guard let spelling = pointerAuthFunctionSpelling(function) else {
         return nil
     }
     let bytes = Array(spelling.utf8)
@@ -15,38 +16,43 @@ package func directFunctionDiscriminator(
 }
 
 private func pointerAuthFunctionSpelling(
-    _ metadata: FunctionMetadata
+    _ function: FunctionTypeInfo
 ) -> String? {
-    let runtimeParameterTypes = safeFunctionParameterTypes(metadata)
-    let parameters = runtimeParameterTypes.indices.compactMap { index in
-        if functionParameterOwnership(metadata, at: index) == 1 {
+    let parameters = function.parameters.compactMap { parameter in
+        if parameter.rawOwnership == 1 {
             return "-indirect"
         }
         return pointerAuthTypeSpelling(
-            loweredFunctionParameterType(
-                metadata,
-                type: runtimeParameterTypes[index],
-                at: index
-            )
+            loweredFunctionParameterType(parameter)
         )
     }
-    guard parameters.count == runtimeParameterTypes.count else { return nil }
-    var spelling = "function:\(functionLoweredParameterCount(metadata)):"
-    if metadata.isNonisolatedNonsending {
+    guard parameters.count == function.parameters.count else { return nil }
+    var spelling = "function:\(function.parameters.count):"
+    if function.effects.isNonisolatedNonsending {
         spelling += "-:"
     }
     for parameter in parameters {
         spelling += "\(parameter):"
     }
-    if metadata.resultType == Void.self {
+    if function.resultType == Void.self {
         spelling += "0:"
     } else {
-        guard let result = pointerAuthTypeSpelling(metadata.resultType) else {
+        guard let result = pointerAuthTypeSpelling(function.resultType) else {
             return nil
         }
         spelling += "1:\(result):"
     }
     return spelling
+}
+
+private func loweredFunctionParameterType(
+    _ parameter: FunctionTypeInfo.Parameter
+) -> Any.Type {
+    guard parameter.isVariadic else { return parameter.type }
+    func arrayType<Element>(of type: Element.Type) -> Any.Type {
+        [Element].self
+    }
+    return _openExistential(parameter.type, do: arrayType)
 }
 
 package func pointerAuthTypeSpelling(_ type: Any.Type) -> String? {
@@ -59,7 +65,7 @@ package func pointerAuthTypeSpelling(_ type: Any.Type) -> String? {
         case .tuple:
             return "-"
         case .function:
-            guard let function = metadata as? FunctionMetadata,
+            guard let function = FunctionTypeInfo(reflecting: type),
                 let spelling = pointerAuthFunctionSpelling(function)
             else {
                 return nil

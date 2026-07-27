@@ -1,4 +1,5 @@
 import Echo
+import EchoRuntimeReflection
 import TestDoublesRuntimeMetadata
 
 extension FunctionReabstraction {
@@ -14,7 +15,7 @@ extension FunctionReabstraction {
         type: Any.Type,
         source: UnsafeMutableRawPointer
     ) -> Any {
-        if reflect(type) is FunctionMetadata {
+        if FunctionTypeInfo(reflecting: type) != nil {
             return boxDirectArgument(type: type, source: source)
         }
         guard requiresStructuralReabstraction(type) else {
@@ -35,9 +36,8 @@ extension FunctionReabstraction {
         expectedType: Any.Type,
         at destination: UnsafeMutableRawPointer
     ) -> Bool {
-        let metadata = reflect(expectedType)
         let isNativeFunction =
-            (metadata as? FunctionMetadata)?.flags.convention == .swift
+            FunctionTypeInfo(reflecting: expectedType)?.convention == .swift
         guard isNativeFunction || requiresStructuralReabstraction(expectedType) else {
             return false
         }
@@ -78,10 +78,10 @@ extension FunctionReabstraction {
         _ type: Any.Type,
         visited: Set<ObjectIdentifier>
     ) -> Bool {
-        let metadata = reflect(type)
-        if let function = metadata as? FunctionMetadata {
-            return function.flags.convention == .swift
+        if let function = FunctionTypeInfo(reflecting: type) {
+            return function.convention == .swift
         }
+        let metadata = reflect(type)
         if let tuple = metadata as? TupleMetadata {
             return tuple.safelyInitializedElements.contains {
                 requiresStructuralReabstraction($0.type, visited: visited)
@@ -101,9 +101,9 @@ extension FunctionReabstraction {
         direction: ReabstractionDirection,
         visited: Set<ObjectIdentifier>
     ) -> Bool {
-        let metadata = reflect(type)
-        if let function = metadata as? FunctionMetadata {
-            switch function.flags.convention {
+        if let function = FunctionTypeInfo(reflecting: type) {
+            guard let convention = function.convention else { return false }
+            switch convention {
                 case .c, .block:
                     return true
                 case .thin:
@@ -120,6 +120,7 @@ extension FunctionReabstraction {
                     }
             }
         }
+        let metadata = reflect(type)
         if let tuple = metadata as? TupleMetadata {
             return tuple.safelyInitializedElements.allSatisfy {
                 canReabstract(
@@ -174,9 +175,8 @@ extension FunctionReabstraction {
         direction: ReabstractionDirection,
         at destination: UnsafeMutableRawPointer
     ) {
-        let metadata = reflect(type)
-        if let function = metadata as? FunctionMetadata,
-            function.flags.convention == .swift
+        if let function = FunctionTypeInfo(reflecting: type),
+            function.convention == .swift
         {
             switch direction {
                 case .directToGeneric:
@@ -194,6 +194,7 @@ extension FunctionReabstraction {
             }
             return
         }
+        let metadata = reflect(type)
         if let tuple = metadata as? TupleMetadata {
             zero(metadata, at: destination)
             for element in tuple.safelyInitializedElements {

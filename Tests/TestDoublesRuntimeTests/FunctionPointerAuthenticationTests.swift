@@ -1,4 +1,4 @@
-import Echo
+import EchoRuntimeReflection
 import Testing
 
 @testable import TestDoublesRuntime
@@ -33,21 +33,19 @@ struct FunctionPointerAuthenticationTests {
 
     @Test
     func functionIntrospectionHandlesNullaryAndMixedParameters() throws {
-        let nullary = try #require(
-            reflect((() -> Int).self) as? FunctionMetadata
-        )
-        #expect(safeFunctionParameterTypes(nullary).isEmpty)
-        #expect(functionLoweredParameterCount(nullary) == 0)
+        let nullary = try #require(FunctionTypeInfo(reflecting: (() -> Int).self))
+        #expect(nullary.parameters.isEmpty)
+        #expect(nullary.parameters.count == 0)
 
         let mixed = try #require(
-            reflect(((Int, Double) async -> String).self) as? FunctionMetadata
+            FunctionTypeInfo(reflecting: ((Int, Double) async -> String).self)
         )
-        let parameters = safeFunctionParameterTypes(mixed)
+        let parameters = mixed.parameters
         #expect(parameters.count == 2)
-        #expect(ObjectIdentifier(parameters[0]) == ObjectIdentifier(Int.self))
-        #expect(ObjectIdentifier(parameters[1]) == ObjectIdentifier(Double.self))
-        #expect(functionLoweredParameterCount(mixed) == 2)
-        #expect(functionIsAsync(mixed))
+        #expect(ObjectIdentifier(parameters[0].type) == ObjectIdentifier(Int.self))
+        #expect(ObjectIdentifier(parameters[1].type) == ObjectIdentifier(Double.self))
+        #expect(mixed.parameters.count == 2)
+        #expect(mixed.effects.isAsync)
     }
 }
 import TestDoublesRuntimeMetadata

@@ -143,7 +143,11 @@ let package = Package(
                 "TestDoublesRuntimeMetadata",
                 "TestDoublesRuntimeSupport",
                 "TestDoublesFixtures",
-                .product(name: "Echo", package: "Echo")
+                .product(name: "Echo", package: "Echo"),
+                .product(
+                    name: "EchoRuntimeReflection",
+                    package: "Echo"
+                )
             ],
             path: "Tests/TestDoublesRuntimeTests"
         ),
