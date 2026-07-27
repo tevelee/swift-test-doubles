@@ -368,15 +368,7 @@ jobs:
           emulator-options: >-
             -no-window -gpu swiftshader_indirect -no-snapshot -noaudio
             -no-boot-anim -camera-back none
-          pre-emulator-launch-script: |
-            docker run --rm \
-              --user "$(id -u):$(id -g)" \
-              --volume "$ANDROID_SWIFT_SDKS_PATH:/swift-sdks" \
-              --volume "$ANDROID_NDK_HOME:/android-ndk:ro" \
-              --env ANDROID_NDK_HOME=/android-ndk \
-              --entrypoint bash \
-              "$ANDROID_SWIFT_HOST_IMAGE" \
-              -lc 'cd "/swift-sdks/${ANDROID_SWIFT_SDK_ID}.artifactbundle/swift-android" && ./scripts/setup-android-sdk.sh'
+          pre-emulator-launch-script: Scripts/configure-android-swift-sdk.sh
           script: Scripts/validate-android-runtime-demo.sh
 
   wasm:
