@@ -1,5 +1,4 @@
 import CTestDoublesTrampoline
-import Echo
 import TestDoublesRuntimeMetadata
 
 /// Owns one dynamic call frame and its optional result/error value buffers.

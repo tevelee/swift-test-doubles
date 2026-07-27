@@ -1,4 +1,3 @@
-import Echo
 import TestDoublesRuntimeMetadata
 import TestDoublesRuntimeSupport
 

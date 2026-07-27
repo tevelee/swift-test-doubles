@@ -1,5 +1,4 @@
 import CTestDoublesTrampoline
-import Echo
 import InternalRuntimeContract
 import TestDoublesRuntimeMetadata
 

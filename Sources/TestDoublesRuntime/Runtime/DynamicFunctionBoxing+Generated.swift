@@ -3,7 +3,6 @@
 // variadic function type to Any.
 // swiftlint:disable file_length
 
-import Echo
 import TestDoublesRuntimeMetadata
 
 func dynamicallyBoxFunctionArgument(
