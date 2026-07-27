@@ -103,16 +103,19 @@ the storage yielded by the target, keeps the target alive for the entire
 access, and resumes or aborts the target exactly once. Mutations and target
 writeback therefore persist on both normal completion and unwind.
 
-Swift 6.3 `read` property and subscript accessors are supported within the
+Swift 6.3 `read` and Swift 6.4 `yielding borrow` property and subscript accessors
+are supported within the
 synchronous, nonthrowing, borrowed-value ABI used by ``Stub``. A matching
 registration still wins without entering the target. Otherwise the spy enters
 the target's coroutine, relays its yielded value and borrow lifetime, and
 resumes the target exactly once when the caller ends or unwinds the borrow.
 Swift 6.4 protocols add a paired legacy `read` witness beside the
-yielding-borrow witness. ``Spy`` construction currently rejects that pair
-because forwarding the legacy `yield_once` target coroutine has not been
-validated. A ``Stub`` can configure and verify the logical accessor through the
-supported yielding-borrow witness.
+yielding-borrow witness. ``Spy`` explicitly forwards through the adjacent
+`yield_once_2` yielding-borrow witness; source calls compiled with Swift 6.4 use
+that modern entry. The fabricated witness table deliberately leaves the legacy
+`yield_once` compatibility slot unavailable, so older binary clients that
+dispatch through that slot cannot access that property or subscript on a
+generated double.
 
 Construction fails with ``StubError/unsupportedProtocolShape(protocolName:reason:)``
 when the protocol requires any of these forwarding shapes:
@@ -121,9 +124,8 @@ when the protocol requires any of these forwarding shapes:
 - Direct or optional dynamic `Self` results
 - Function-valued arguments or results
 - Arguments that spill to the stack or leave no registers for target metadata
-- `read` coroutine descriptors outside the supported Swift 6.3 `yield_once_2`
-  shape, including Swift 6.4's paired legacy `read` and yielding-borrow
-  witnesses
+- `read` coroutine descriptors outside the supported Swift 6.3 `read2` and
+  Swift 6.4 `yielding borrow` `yield_once_2` shape
 
 Use a small hand-written spy when the protocol needs one of the other shapes;
 construction fails before a generated value can be invoked.

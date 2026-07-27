@@ -60,12 +60,22 @@ struct ProtocolForwardingPlanBuilder<P> {
     let layout: ProtocolLayout
 
     func build() throws -> ProtocolForwardingPlans {
-        try validateReadCoroutineBoundary()
-
         var readRequirements: [Int: ProtocolLayout.ReadCoroutineRequirement] = [:]
         var modifyRequirements: [Int: ProtocolLayout.ModifyCoroutineRequirement] = [:]
         for node in layout.nodes {
-            for requirement in node.readCoroutineRequirements {
+            for requirement in try Self.validatedReadRequirements(
+                node.readCoroutineRequirements,
+                protocolName: node.descriptor.name
+            ) {
+                guard
+                    readRequirements[requirement.recorderDispatchIndex] == nil
+                else {
+                    throw RuntimeConstructionError.unsupportedProtocolShape(
+                        protocolName: node.descriptor.name,
+                        reason:
+                            "Multiple yielding-borrow read witnesses map to recorder dispatch \(requirement.recorderDispatchIndex)."
+                    )
+                }
                 readRequirements[requirement.recorderDispatchIndex] = requirement
             }
             for requirement in node.modifyCoroutineRequirements {
@@ -132,21 +142,28 @@ struct ProtocolForwardingPlanBuilder<P> {
         )
     }
 
-    private func validateReadCoroutineBoundary() throws {
-        guard
-            layout.nodes.allSatisfy({
-                $0.readCoroutineRequirements.allSatisfy { $0.abi == .yieldOnce2 }
-            })
-        else {
-            let protocolName =
-                layout.nodes.first(where: {
-                    $0.readCoroutineRequirements.contains { $0.abi == .yieldOnce }
-                })?.descriptor.name ?? String(reflecting: P.self)
-            throw RuntimeConstructionError.forwardingUnsupported(
-                protocolName: protocolName,
-                reason: .pairedLegacyReadAndYieldingBorrow
-            )
+    static func validatedReadRequirements(
+        _ requirements: [ProtocolLayout.ReadCoroutineRequirement],
+        protocolName: String
+    ) throws -> [ProtocolLayout.ReadCoroutineRequirement] {
+        for legacy in requirements where legacy.abi == .yieldOnce {
+            guard
+                requirements.contains(where: {
+                    $0.abi == .yieldOnce2
+                        && $0.witnessIndex == legacy.witnessIndex + 1
+                        && $0.recorderDispatchIndex
+                            == legacy.recorderDispatchIndex
+                        && $0.receiver.rawValue == legacy.receiver.rawValue
+                })
+            else {
+                throw RuntimeConstructionError.unsupportedProtocolShape(
+                    protocolName: protocolName,
+                    reason:
+                        "The legacy read witness at index \(legacy.witnessIndex) is missing its adjacent yielding-borrow witness for recorder dispatch \(legacy.recorderDispatchIndex)."
+                )
+            }
         }
+        return requirements.filter { $0.abi == .yieldOnce2 }
     }
 
     private func validate(

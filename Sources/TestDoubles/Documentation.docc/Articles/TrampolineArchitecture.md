@@ -338,8 +338,12 @@ supported layout. Automatic nonthrowing instance methods may take direct or
 single-optional `Self` arguments with borrowed/default or consuming ownership;
 explicit schemas, Spies, superclass constraints, throwing effects, `inout`,
 accessors, static methods, and wider wrappers remain unsupported. Swift 6.3
-read forwarding is supported, while Swift 6.4's paired legacy and
-yielding-borrow Spy path remains fail-closed.
+`read` and Swift 6.4 `yielding borrow` forwarding use the supported
+`yield_once_2` descriptor. For Swift 6.4's paired witnesses, forwarding selects
+the adjacent yielding-borrow target explicitly. Source calls compiled with
+Swift 6.4 use that modern entry; the fabricated legacy `yield_once` slot remains
+unavailable to older binary clients for that accessor rather than exposing an
+unsafe descriptor.
 Ordinary unbound existentials may receive complete caller-supplied bindings for
 covariant associated results; this is an injection into the existing dependent
 result path, not a new trampoline convention.
