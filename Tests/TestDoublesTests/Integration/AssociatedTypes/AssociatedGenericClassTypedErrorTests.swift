@@ -215,37 +215,120 @@ private func useLinkedAssociatedClassTypedErrorProbe(
         }
     }
 
-    @Test func valueWrappedStructAndEnumErrorsRemainUnsupported() {
-        _ = RealExternalOptionalAssociatedClassErrorProbe()
-        _ = RealExternalValueWrappedAssociatedClassErrorProbe()
+    @Test func genericStructAndEnumErrorsPreserveSyncAndAsyncPayloads() async throws {
         _ = RealExternalGenericStructAssociatedErrorProbe()
         _ = RealExternalGenericEnumAssociatedErrorProbe()
+
+        typealias StructProbe = any ExternalGenericStructAssociatedErrorProbe<Int>
+        let structStub = try Stub<StructProbe>()
+        try assertTypedError(
+            #require(structStub.recorder.runtimeMethod(for: 0)),
+            type: ExternalAssociatedGenericStructError<Int>.self,
+            associatedTypeNames: ["Element"]
+        )
+        try assertTypedError(
+            #require(structStub.recorder.runtimeMethod(for: 1)),
+            type: ExternalAssociatedGenericStructError<Int>.self,
+            associatedTypeNames: ["Element"]
+        )
+        structStub.when { try $0.load() }.thenThrow(
+            ExternalAssociatedGenericStructError(101)
+        )
+        await structStub.when { try await $0.asynchronouslyLoad(equal(2)) }.then {
+            (_: Int) async throws -> Int in
+            await Task.yield()
+            throw ExternalAssociatedGenericStructError(102)
+        }
+        let structProbe: StructProbe = structStub()
+
+        let thrownStruct = #expect(
+            throws: ExternalAssociatedGenericStructError<Int>.self
+        ) {
+            _ = try structProbe.load()
+        }
+        #expect(try #require(thrownStruct).value == 101)
+        let thrownAsyncStruct = await #expect(
+            throws: ExternalAssociatedGenericStructError<Int>.self
+        ) {
+            _ = try await structProbe.asynchronouslyLoad(2)
+        }
+        #expect(try #require(thrownAsyncStruct).value == 102)
+
+        typealias EnumProbe = any ExternalGenericEnumAssociatedErrorProbe<Int>
+        let enumStub = try Stub<EnumProbe>()
+        try assertTypedError(
+            #require(enumStub.recorder.runtimeMethod(for: 0)),
+            type: ExternalAssociatedGenericEnumError<Int>.self,
+            associatedTypeNames: ["Element"]
+        )
+        try assertTypedError(
+            #require(enumStub.recorder.runtimeMethod(for: 1)),
+            type: ExternalAssociatedGenericEnumError<Int>.self,
+            associatedTypeNames: ["Element"]
+        )
+        enumStub.when { try $0.load() }.thenThrow(
+            ExternalAssociatedGenericEnumError<Int>.value(201)
+        )
+        await enumStub.when { try await $0.asynchronouslyLoad(equal(2)) }.then {
+            (_: Int) async throws -> Int in
+            await Task.yield()
+            throw ExternalAssociatedGenericEnumError.value(202)
+        }
+        let enumProbe: EnumProbe = enumStub()
+
+        let thrownEnum = #expect(
+            throws: ExternalAssociatedGenericEnumError<Int>.self
+        ) {
+            _ = try enumProbe.load()
+        }
+        guard case .value(let syncEnumValue) = try #require(thrownEnum) else {
+            Issue.record("Expected the generic enum error's value case.")
+            return
+        }
+        #expect(syncEnumValue == 201)
+        let thrownAsyncEnum = await #expect(
+            throws: ExternalAssociatedGenericEnumError<Int>.self
+        ) {
+            _ = try await enumProbe.asynchronouslyLoad(2)
+        }
+        guard case .value(let asyncEnumValue) = try #require(thrownAsyncEnum) else {
+            Issue.record("Expected the generic enum error's value case.")
+            return
+        }
+        #expect(asyncEnumValue == 202)
+
+        typealias WrappedClassProbe = any ExternalValueWrappedAssociatedClassErrorProbe<Int>
+        let wrappedClassStub = try Stub<WrappedClassProbe>()
+        wrappedClassStub.when { try $0.load() }.thenThrow(
+            ExternalAssociatedClassError(ExternalAssociatedErrorValue(303))
+        )
+        let wrappedClassProbe: WrappedClassProbe = wrappedClassStub()
+        let thrownWrappedClass = #expect(
+            throws: ExternalAssociatedClassError<ExternalAssociatedErrorValue<Int>>.self
+        ) {
+            _ = try wrappedClassProbe.load()
+        }
+        #expect(try #require(thrownWrappedClass).value.value == 303)
+
+        structStub.verify { try $0.load() }
+        await structStub.verify { try await $0.asynchronouslyLoad(equal(2)) }
+        enumStub.verify { try $0.load() }
+        await enumStub.verify { try await $0.asynchronouslyLoad(equal(2)) }
+    }
+
+    @Test func optionalErrorsRemainUnsupported() {
+        _ = RealExternalOptionalAssociatedClassErrorProbe()
 
         let operations: [() throws -> Void] = [
             {
                 _ = try Stub<
                     any ExternalOptionalAssociatedClassErrorProbe<Int>
                 >()
-            },
-            {
-                _ = try Stub<
-                    any ExternalValueWrappedAssociatedClassErrorProbe<Int>
-                >()
-            },
-            {
-                _ = try Stub<
-                    any ExternalGenericStructAssociatedErrorProbe<Int>
-                >()
-            },
-            {
-                _ = try Stub<
-                    any ExternalGenericEnumAssociatedErrorProbe<Int>
-                >()
             }
         ]
         for operation in operations {
             expectUnsupportedProtocolShape(
-                containing: "Optional and other value wrappers"
+                containing: "Optional and other unproven value wrappers"
             ) {
                 try operation()
             }

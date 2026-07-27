@@ -328,10 +328,12 @@ single-`Optional` reference slice. Direct
 and supported container method arguments may be consuming.
 Methods may combine these values with `async`, untyped `throws`, and a direct
 associated typed error. Automatic discovery also accepts a typed error whose
-outer shape is one of those proven generic classes and whose arguments are
-direct associated, concrete, or recursively nested proven class types. This
-generic-class error shape has no explicit source-less schema. Effectful getters
-must be described explicitly. Both automatic discovery and explicit
+outer shape is one of those proven generic classes, structs, or enums and whose
+arguments are direct associated, concrete, or recursively nested proven generic
+nominals. Class errors use their fixed reference transport; struct and enum
+errors use a caller-provided opaque error buffer. These generic-nominal error
+shapes have no explicit source-less schema. Effectful getters must be described
+explicitly. Both automatic discovery and explicit
 ``Stub/Requirement`` construction are supported. See
 <doc:BoundAssociatedTypes> for its ABI findings and intentionally narrow limits.
 An unbound existential may instead receive a complete set of caller-supplied
@@ -407,8 +409,8 @@ error channel.
   types outside the supported recursive containers and proven linked generic
   nominal values, broader same-type constraints, reference-associated values
   beyond a direct value or one `Optional` layer, and associated-dependent typed errors
-  whose outer shape is optional, another value wrapper, a generic struct or
-  enum, or an unsupported generic class.
+  whose outer shape is optional, another value wrapper, or an unsupported
+  generic nominal.
 - Superclass-constrained existentials with a native Swift-only base class, a
   bound-associated-type extended layout, no usable `NSObject` default
   initializer, an initializer requirement, or a dynamic `Self` result.

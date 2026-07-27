@@ -199,6 +199,9 @@ public protocol ExternalGenericStructAssociatedErrorProbe<Element> {
     associatedtype Element
 
     func load() throws(ExternalAssociatedGenericStructError<Element>) -> Int
+    func asynchronouslyLoad(
+        _ code: Int
+    ) async throws(ExternalAssociatedGenericStructError<Element>) -> Int
 }
 
 public struct RealExternalGenericStructAssociatedErrorProbe:
@@ -207,12 +210,22 @@ public struct RealExternalGenericStructAssociatedErrorProbe:
     public init() {}
 
     public func load() throws(ExternalAssociatedGenericStructError<Int>) -> Int { 1 }
+
+    public func asynchronouslyLoad(
+        _ code: Int
+    ) async throws(ExternalAssociatedGenericStructError<Int>) -> Int {
+        if code != 0 { throw ExternalAssociatedGenericStructError(code) }
+        return 10
+    }
 }
 
 public protocol ExternalGenericEnumAssociatedErrorProbe<Element> {
     associatedtype Element
 
     func load() throws(ExternalAssociatedGenericEnumError<Element>) -> Int
+    func asynchronouslyLoad(
+        _ code: Int
+    ) async throws(ExternalAssociatedGenericEnumError<Element>) -> Int
 }
 
 public struct RealExternalGenericEnumAssociatedErrorProbe:
@@ -221,4 +234,11 @@ public struct RealExternalGenericEnumAssociatedErrorProbe:
     public init() {}
 
     public func load() throws(ExternalAssociatedGenericEnumError<Int>) -> Int { 1 }
+
+    public func asynchronouslyLoad(
+        _ code: Int
+    ) async throws(ExternalAssociatedGenericEnumError<Int>) -> Int {
+        if code != 0 { throw .value(code) }
+        return 20
+    }
 }

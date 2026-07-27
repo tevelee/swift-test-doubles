@@ -28,7 +28,7 @@ func resolveTypedError(
             associatedTypeBindings.dependency(for: binding)
         )
     }
-    if let resolved = try resolveSupportedAssociatedTypedErrorClass(
+    if let resolved = try resolveSupportedAssociatedTypedErrorNominal(
         name,
         protocolDescriptor: protocolDescriptor,
         requirementIndex: requirementIndex,
@@ -69,7 +69,7 @@ func resolveTypedError(
     return (type, .independent)
 }
 
-private func resolveSupportedAssociatedTypedErrorClass(
+private func resolveSupportedAssociatedTypedErrorNominal(
     _ spelling: String,
     protocolDescriptor: ProtocolDescriptor,
     requirementIndex: Int,
@@ -84,7 +84,7 @@ private func resolveSupportedAssociatedTypedErrorClass(
     else {
         return nil
     }
-    let resolved = try resolveAssociatedTypedErrorClassComponent(
+    let resolved = try resolveAssociatedTypedErrorNominalComponent(
         spelling,
         protocolDescriptor: protocolDescriptor,
         requirementIndex: requirementIndex,
@@ -93,7 +93,7 @@ private func resolveSupportedAssociatedTypedErrorClass(
     return resolved.dependency.isAssociatedTypeDependent ? resolved : nil
 }
 
-private func resolveAssociatedTypedErrorClassComponent(
+private func resolveAssociatedTypedErrorNominalComponent(
     _ spelling: String,
     protocolDescriptor: ProtocolDescriptor,
     requirementIndex: Int,
@@ -113,33 +113,43 @@ private func resolveAssociatedTypedErrorClassComponent(
         let argumentSpellings = topLevelComponents(in: application.arguments)
     {
         let arguments = try argumentSpellings.map {
-            try resolveAssociatedTypedErrorClassComponent(
+            try resolveAssociatedTypedErrorNominalComponent(
                 $0,
                 protocolDescriptor: protocolDescriptor,
                 requirementIndex: requirementIndex,
                 associatedTypeBindings: associatedTypeBindings
             )
         }
-        guard
-            let resolved = genericClassType(
-                named: application.constructor,
-                arguments: arguments.map(\.type)
-            )
-        else {
-            throw RuntimeConstructionError.unsupportedProtocolShape(
-                protocolName: protocolDescriptor.name,
-                reason:
-                    "Requirement \(requirementIndex) embeds an associated type inside unsupported typed error '\(spelling)'. "
-                    + "Only a direct associated typed error or a linked, top-level generic class with one or two type parameters is supported. "
-                    + "Optional and other value wrappers, generic structs or enums, and source-less constructors remain unsupported."
+        if let resolved = genericClassType(
+            named: application.constructor,
+            arguments: arguments.map(\.type)
+        ) {
+            return ResolvedDependentType(
+                type: resolved.type,
+                dependency: .genericClass(
+                    constructor: resolved.constructor,
+                    arguments: arguments.map(\.dependency)
+                )
             )
         }
-        return ResolvedDependentType(
-            type: resolved.type,
-            dependency: .genericClass(
-                constructor: resolved.constructor,
-                arguments: arguments.map(\.dependency)
+        if let resolved = genericValueType(
+            named: application.constructor,
+            arguments: arguments.map(\.type)
+        ) {
+            return ResolvedDependentType(
+                type: resolved.type,
+                dependency: .genericValue(
+                    constructor: resolved.constructor,
+                    arguments: arguments.map(\.dependency)
+                )
             )
+        }
+        throw RuntimeConstructionError.unsupportedProtocolShape(
+            protocolName: protocolDescriptor.name,
+            reason:
+                "Requirement \(requirementIndex) embeds an associated type inside unsupported typed error '\(spelling)'. "
+                + "Only a direct associated typed error or a linked, top-level generic class, struct, or enum with one or two type parameters is supported. "
+                + "Optional and other unproven value wrappers, and source-less constructors remain unsupported."
         )
     }
     if referencesAssociatedType(
@@ -151,7 +161,7 @@ private func resolveAssociatedTypedErrorClassComponent(
             protocolName: protocolDescriptor.name,
             reason:
                 "Requirement \(requirementIndex) embeds an associated type inside unsupported typed-error component '\(spelling)'. "
-                + "Only direct associated-type arguments and nested linked generic classes are supported."
+                + "Only direct associated-type arguments and nested linked generic nominals are supported."
         )
     }
     guard let syntax = DemangledTypeSyntax(spelling),

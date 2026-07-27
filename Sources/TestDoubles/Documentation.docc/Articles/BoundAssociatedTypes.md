@@ -351,12 +351,16 @@ constrained to `Error & AnyObject` has a formally direct reference channel.
 Swift 6.3 and 6.4 lower `BoxError<Element>` differently: once the exact outer
 generic class descriptor is reconstructed, its reference layout fixes the
 formal error transport and no opaque error slot is needed. The same rule holds
-for proven one- and two-parameter class errors and recursively nested class
-applications.
+for proven one- and two-parameter class errors and recursively nested generic
+nominal applications. A reconstructed generic struct or enum error instead
+uses the formal opaque convention, so its typed-error destination is the
+separate caller-provided indirect buffer. That remains stable even when a
+concrete specialization would fit in registers, and composes with `async`
+requirements.
 
-Optional and other value wrappers, generic struct or enum typed errors, and
-unsupported generic-class typed errors remain fail-closed. Supporting `Result`
-as an ordinary argument or result does not widen that typed-error boundary.
+Optional and other unproven value wrappers and unsupported generic-nominal
+typed errors remain fail-closed. Supporting `Result` as an ordinary argument
+or result does not widen that typed-error boundary.
 
 The implemented multiple-binding path maps every constrained-existential
 metadata argument to its same-type relationship and declaring protocol's
