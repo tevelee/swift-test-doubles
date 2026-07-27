@@ -290,6 +290,15 @@ private func resolveWitnessValue(
     } else {
         ownership = nil
     }
+    if valueName.hasPrefix("repeat ") {
+        throw RuntimeConstructionError.unsupportedProtocolShape(
+            protocolName: protocolDescriptor.name,
+            reason:
+                "Requirement \(requirementIndex) has a parameter-pack argument ('\(valueName)'). "
+                + "Automatic Stub does not support requirements whose own generic signature uses a parameter pack. "
+                + "Supply explicit Requirement values."
+        )
+    }
     if let selfShape = dynamicSelfValueShape(valueName) {
         guard isAutoclosure == false else {
             throw RuntimeConstructionError.unsupportedProtocolShape(
