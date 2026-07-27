@@ -18,6 +18,7 @@ For construction examples and requirement-order recipes, see
 | Swift 6.3 `read` accessors | Configure and verify them like synchronous nonthrowing getters | Stub yields the configured result; Spy forwards the target coroutine when no registration matches; Dummy remains fail-closed. |
 | Static requirements, initializers, and dynamic `Self` | Dedicated builders support `Self` results; automatic discovery supports direct and single-`Optional` arguments for bounded instance methods | Use `Stub.withValue(_:)` when passing a generated metatype to code under test. |
 | Bounded primary associated types | Supported for the documented direct, recursive standard-library container, linked generic-nominal, concrete-reference, setter, initializer, and associated-error slices | See <doc:BoundAssociatedTypes> for exact supported and rejected shapes. |
+| Copyable `InlineArray` values | Automatic metadata discovery and ABI transport for canonical nonnegative integer counts | Small integer arrays use general-purpose registers, homogeneous floating-point arrays use floating-point registers, zero-count values use no registers, and large values use indirect storage. |
 | Function arguments and results | Automatic for concrete native Swift closures, C function pointers, blocks, and documented structural containers; explicit compiler-typed adapter otherwise | See <doc:FunctionValues>; top-level nonescaping, thin, declaration-level consuming or `inout`, dependent, and parameter-pack closure shapes remain fail-closed. |
 | Unsupported dependent shapes, native Swift-only superclasses, and device-only execution policy | Use ``ManualStub`` or a hand-written fake | These stay fail-closed instead of guessing at ABI behavior. |
 
@@ -347,12 +348,23 @@ and strings. These source-level types share runtime calling-convention
 machinery; they do not each need a dedicated stubbing API.
 Automatic and linked mangled-type discovery also reconstruct metadata for
 other public, top-level generic nominal types whose parameters carry protocol
-conformance requirements, not only unconstrained ones -- a `struct Box<T:
-Codable>` resolves the same way `Array` or `Optional` already do, one witness
-table per constrained parameter, up to four key arguments (type metadata plus
-witness tables combined) in total. A parameter constrained by more than one
-protocol at once, a same-type or base-class requirement, or a type that
-doesn't actually conform remains fail-closed.
+conformance requirements, not only unconstrained ones. A `struct Box<T:
+Codable>` resolves the same way `Array` or `Optional` already do. Ordinary type
+parameters have no self-imposed arity limit, and every key protocol requirement
+contributes its witness table in descriptor order, including multiple
+constraints on one parameter.
+
+On platforms that provide Swift 6.3 `InlineArray`, discovery also accepts its
+integer value argument when the generic context identifies that argument as
+`.int` and the source spelling is a canonical nonnegative decimal integer.
+Copyable element types cross the same runtime boundary as other supported
+values: small integer storage uses general-purpose registers, homogeneous
+floating-point storage uses floating-point registers, zero-count storage uses
+no registers, and larger storage falls back to indirect transport. Metadata
+packs, witness packs, non-integer value descriptors, negative, noncanonical, or
+overflowing integer spellings, noncopyable `InlineArray` elements, same-type
+requirements, base-class requirements, layout requirements, and missing
+conformances remain fail-closed.
 Synchronous instance methods also accept a bounded set of direct, unpadded
 128-bit SIMD values whose complete lane payload uses one vector register for
 both arguments and results on arm64 and x86_64: `SIMD4<Float>`,

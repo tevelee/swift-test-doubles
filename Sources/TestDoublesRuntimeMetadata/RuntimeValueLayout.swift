@@ -1,6 +1,7 @@
 // Swift ABI classification used by the runtime trampoline.
 import Echo
 import Foundation
+import TestDoublesRuntimeSupport
 
 package enum ABIClass: Sendable {
     case void
@@ -104,6 +105,137 @@ package func abiClass(for type: Any.Type, isReturn: Bool = false) -> ABIClass {
     return .integer(words: size > 8 ? 2 : 1)
 }
 
+/// Whether an `InlineArray` specialization's fixed storage contains values
+/// that can safely cross the recorder's `Any` boundary.
+package func inlineArrayHasCopyableElements(_ type: Any.Type) -> Bool {
+    guard let storage = inlineArrayStorage(in: type) else { return false }
+    return reflect(storage.elementType).vwt.flags.isCopyable
+}
+
+private struct InlineArrayStorage {
+    let type: Any.Type
+    let elementType: Any.Type
+}
+
+private func inlineArrayStorage(in type: Any.Type) -> InlineArrayStorage? {
+    guard let metadata = reflectStruct(type),
+        metadata.descriptor.name == "InlineArray",
+        (metadata.descriptor.parent as? ModuleDescriptor)?.name == "Swift"
+    else {
+        return nil
+    }
+
+    let arguments = metadata.genericArguments
+    guard arguments.count == 2,
+        case .value(let count) = arguments[0],
+        let realizedCount = Int(exactly: count),
+        case .metadata(let elementType) = arguments[1]
+    else {
+        return nil
+    }
+
+    let fields = metadata.descriptor.fields.records
+    guard fields.count == 1,
+        let field = fields.first,
+        field.name == "_storage",
+        field.hasMangledTypeName,
+        let fieldType = runtimeFieldType(
+            field.mangledTypeName,
+            in: metadata,
+            genericArgumentWords: [
+                count,
+                UInt(
+                    bitPattern: unsafeBitCast(
+                        elementType,
+                        to: UnsafeRawPointer.self
+                    )
+                )
+            ]
+        )
+    else {
+        return nil
+    }
+
+    switch realizedCount {
+        case 0:
+            guard ObjectIdentifier(fieldType) == ObjectIdentifier(Void.self)
+            else {
+                return nil
+            }
+        case 1:
+            guard
+                ObjectIdentifier(fieldType) == ObjectIdentifier(elementType)
+            else {
+                return nil
+            }
+        default:
+            guard let fixedArray = reflect(fieldType) as? FixedArrayMetadata,
+                fixedArray.count == realizedCount,
+                ObjectIdentifier(fixedArray.elementType)
+                    == ObjectIdentifier(elementType)
+            else {
+                return nil
+            }
+    }
+    return InlineArrayStorage(type: fieldType, elementType: elementType)
+}
+
+/// Resolves a field type directly against one concrete metadata instance.
+///
+/// Echo's general field-name cache is keyed by the descriptor's shared
+/// symbolic mangling, so a value-generic field can otherwise reuse the first
+/// specialization's `Builtin.FixedArray` metadata for later InlineArray
+/// counts or element types.
+private func runtimeFieldType(
+    _ mangledName: UnsafeRawPointer,
+    in metadata: StructMetadata,
+    genericArgumentWords: [UInt]
+) -> Any.Type? {
+    guard let swiftGetTypeByMangledNameInContextForValueLayout else {
+        return nil
+    }
+    let length = symbolicMangledNameLength(mangledName)
+    return genericArgumentWords.withUnsafeBufferPointer { words in
+        guard
+            let pointer = swiftGetTypeByMangledNameInContextForValueLayout(
+                mangledName.assumingMemoryBound(to: UInt8.self),
+                UInt(length),
+                metadata.descriptor.ptr,
+                words.baseAddress.map(UnsafeRawPointer.init)
+            )
+        else {
+            return nil
+        }
+        return unsafeBitCast(pointer, to: Any.Type.self)
+    }
+}
+
+private func symbolicMangledNameLength(_ base: UnsafeRawPointer) -> Int {
+    var end = base
+    while end.load(as: UInt8.self) != 0 {
+        let current = end.load(as: UInt8.self)
+        end += 1
+        if current >= 0x1 && current <= 0x17 {
+            end += 4
+        } else if current >= 0x18 && current <= 0x1F {
+            end += MemoryLayout<Int>.size
+        }
+    }
+    return end - base
+}
+
+private typealias SwiftGetTypeByMangledNameInContextForValueLayout =
+    @convention(c) (
+        UnsafePointer<UInt8>,
+        UInt,
+        UnsafeRawPointer?,
+        UnsafeRawPointer?
+    ) -> UnsafeRawPointer?
+
+private var swiftGetTypeByMangledNameInContextForValueLayout: SwiftGetTypeByMangledNameInContextForValueLayout? {
+    RuntimeSymbols.function(named: "swift_getTypeByMangledNameInContext")
+}
+
 /// Whether `type` is a concrete SIMD shape proven to use one complete 128-bit
 /// vector register for both arguments and results on arm64 and x86_64, and if
 /// so, the byte count of that register (always 16).
@@ -150,6 +282,18 @@ private func containsFunctionStorage(
     let metadata = reflect(type)
     if metadata.kind == .function {
         return true
+    }
+    if let fixedArray = metadata as? FixedArrayMetadata {
+        return containsFunctionStorage(
+            fixedArray.elementType,
+            visited: &visited
+        )
+    }
+    if let fixedArray = inlineArrayStorage(in: type) {
+        return containsFunctionStorage(
+            fixedArray.type,
+            visited: &visited
+        )
     }
     if let tuple = metadata as? TupleMetadata {
         return tuple.elements.contains {
@@ -309,6 +453,46 @@ private func appendDirectValueParts(
             }
         }
         return true
+    }
+
+    if let fixedArray = metadata as? FixedArrayMetadata {
+        guard fixedArray.count >= 0,
+            fixedArray.elementMetadata.vwt.flags.isCopyable
+        else {
+            return false
+        }
+        if fixedArray.realizedCount == 0
+            || fixedArray.elementMetadata.vwt.size == 0
+        {
+            return true
+        }
+        for index in 0 ..< fixedArray.realizedCount {
+            guard
+                appendDirectValueParts(
+                    for: fixedArray.elementType,
+                    baseOffset:
+                        baseOffset
+                        + index * fixedArray.elementMetadata.vwt.stride,
+                    parts: &parts,
+                    visited: &visited
+                ),
+                parts.count <= 4,
+                parts.filter({ $0.register == .gp }).count <= 4,
+                parts.filter({ $0.register == .fp }).count <= 4
+            else {
+                return false
+            }
+        }
+        return true
+    }
+
+    if let fixedArray = inlineArrayStorage(in: type) {
+        return appendDirectValueParts(
+            for: fixedArray.type,
+            baseOffset: baseOffset,
+            parts: &parts,
+            visited: &visited
+        )
     }
 
     guard let structMetadata = reflectStruct(type) else {

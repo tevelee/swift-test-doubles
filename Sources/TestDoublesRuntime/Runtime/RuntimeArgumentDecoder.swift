@@ -109,7 +109,24 @@ package enum RuntimeArgumentDecoder {
             switch argument.layout {
                 case .void:
                     precondition(locations.isEmpty)
-                    values.append(())
+                    if argument.type == Void.self {
+                        values.append(())
+                    } else {
+                        let storage = ValueStorage.allocate(for: argument.type)
+                        defer { storage.deallocate() }
+                        storage.initializeMemory(
+                            as: UInt8.self,
+                            repeating: 0,
+                            count: ValueStorage.byteCount(for: argument.type)
+                        )
+                        values.append(
+                            copyArgument(
+                                type: argument.type,
+                                source: storage,
+                                consuming: consumesArgument
+                            )
+                        )
+                    }
 
                 case .floatingPoint:
                     precondition(locations.count == 1)

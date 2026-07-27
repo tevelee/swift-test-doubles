@@ -63,8 +63,6 @@ package func genericNominalType(named name: String) -> Any.Type? {
     guard let argumentNames = topLevelComponents(in: application.arguments) else {
         return nil
     }
-    let arguments = argumentNames.compactMap(resolveRuntimeType)
-    guard arguments.count == argumentNames.count else { return nil }
 
     for kind in ["V", "O", "C"] {
         guard
@@ -76,8 +74,10 @@ package func genericNominalType(named name: String) -> Any.Type? {
             let type = resolvedGenericAccessorType(
                 descriptor: descriptor,
                 context: context,
-                arguments: arguments
-            )
+                argumentSpellings: argumentNames
+            ),
+            application.constructor != "Swift.InlineArray"
+                || inlineArrayHasCopyableElements(type)
         else { continue }
         return type
     }
@@ -99,16 +99,49 @@ package func genericNominalType(named name: String) -> Any.Type? {
 /// same-type/base-class/layout constraint rather than a protocol conformance,
 /// whenever a requirement can't be attributed to a specific depth-0
 /// parameter, whenever the resolved argument doesn't actually conform, or
-/// whenever the context contains a pack or value parameter.
+/// whenever the context contains a pack parameter. Integer value parameters
+/// are accepted only when the context carries matching `.int` descriptors.
+private func resolvedGenericAccessorType(
+    descriptor: any TypeContextDescriptor,
+    context: GenericContext,
+    argumentSpellings: [String]
+) -> Any.Type? {
+    guard
+        let parameterArguments = genericParameterArguments(
+            context: context,
+            spellings: argumentSpellings
+        )
+    else {
+        return nil
+    }
+    return resolvedGenericAccessorType(
+        descriptor: descriptor,
+        context: context,
+        parameterArguments: parameterArguments
+    )
+}
+
 private func resolvedGenericAccessorType(
     descriptor: any TypeContextDescriptor,
     context: GenericContext,
     arguments: [Any.Type]
 ) -> Any.Type? {
+    resolvedGenericAccessorType(
+        descriptor: descriptor,
+        context: context,
+        parameterArguments: arguments.map(GenericArgument.metadata)
+    )
+}
+
+private func resolvedGenericAccessorType(
+    descriptor: any TypeContextDescriptor,
+    context: GenericContext,
+    parameterArguments: [GenericArgument]
+) -> Any.Type? {
     guard
         let genericArguments = genericAccessorArguments(
             context: context,
-            arguments: arguments
+            parameterArguments: parameterArguments
         )
     else {
         return nil
@@ -119,17 +152,88 @@ private func resolvedGenericAccessorType(
     ).type
 }
 
+/// Interprets source-level generic arguments only after the target
+/// descriptor's parameter kinds are known. Ordinary parameters recursively
+/// resolve as types. Value parameters accept canonical nonnegative decimal
+/// integers whose descriptor is `.int`. Packs and unknown future value
+/// representations remain fail-closed.
+private func genericParameterArguments(
+    context: GenericContext,
+    spellings: [String]
+) -> [GenericArgument]? {
+    let parameters = context.parameters
+    guard parameters.count == spellings.count,
+        parameters.allSatisfy(\.hasKeyArgument)
+    else {
+        return nil
+    }
+
+    let valueDescriptors = context.genericValueDescriptors
+    guard
+        valueDescriptors.count
+            == parameters.filter({ $0.kind == .value }).count
+    else {
+        return nil
+    }
+
+    var valueDescriptorIndex = 0
+    var arguments: [GenericArgument] = []
+    arguments.reserveCapacity(parameters.count)
+    for (parameter, spelling) in zip(parameters, spellings) {
+        switch parameter.kind {
+            case .type:
+                guard let type = resolveRuntimeType(spelling) else {
+                    return nil
+                }
+                arguments.append(.metadata(type))
+            case .value:
+                guard valueDescriptors.indices.contains(valueDescriptorIndex),
+                    valueDescriptors[valueDescriptorIndex].type == .int,
+                    let value = nonnegativeIntegerValue(spelling)
+                else {
+                    return nil
+                }
+                valueDescriptorIndex += 1
+                arguments.append(.value(value))
+            case .typePack:
+                return nil
+        }
+    }
+    guard valueDescriptorIndex == valueDescriptors.count else { return nil }
+    return arguments
+}
+
+private func nonnegativeIntegerValue(_ spelling: String) -> UInt? {
+    let bytes = spelling.utf8
+    guard bytes.isEmpty == false,
+        bytes.allSatisfy({ $0 >= 48 && $0 <= 57 }),
+        bytes.count == 1 || bytes.first != 48,
+        let value = UInt(spelling),
+        value <= UInt(Int.max)
+    else {
+        return nil
+    }
+    return value
+}
+
 /// Builds the complete, ordered ABI key used by
 /// `resolvedGenericAccessorType`. Every ordinary type parameter and every key
 /// protocol requirement contributes one argument; arity is bounded only by
 /// the generic context's exact `numKeyArguments` count.
 private func genericAccessorArguments(
     context: GenericContext,
-    arguments: [Any.Type]
+    parameterArguments: [GenericArgument]
 ) -> [GenericArgument]? {
     let parameters = context.parameters
-    guard parameters.count == arguments.count,
-        parameters.allSatisfy({ $0.kind == .type && $0.hasKeyArgument })
+    guard parameters.count == parameterArguments.count,
+        zip(parameters, parameterArguments).allSatisfy({
+            return switch ($0.0.kind, $0.1) {
+                case (.type, .metadata(_)), (.value, .value(_)):
+                    true
+                default:
+                    false
+            }
+        })
     else {
         return nil
     }
@@ -144,19 +248,20 @@ private func genericAccessorArguments(
         return nil
     }
 
-    var genericArguments = arguments.map(GenericArgument.metadata)
+    var genericArguments = parameterArguments
     for requirement in requirements {
         guard
             let index = depthZeroGenericParameterIndex(
                 mangledName: requirement.paramMangledName
             ),
-            arguments.indices.contains(index)
+            parameterArguments.indices.contains(index),
+            case .metadata(let type) = parameterArguments[index]
         else {
             return nil
         }
         guard
             let witnessTable = swift_conformsToProtocol(
-                type: arguments[index],
+                type: type,
                 protocol: requirement.protocol
             )
         else {
