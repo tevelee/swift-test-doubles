@@ -94,12 +94,25 @@ let package = Package(
             ]
         ),
         .testTarget(
+            name: "TestDoublesInternalTests",
+            dependencies: [
+                "TestDoubles",
+                "InternalRuntimeContract"
+            ],
+            path: "Tests/TestDoublesInternalTests"
+        ),
+        .testTarget(
             name: "TestDoublesRuntimeIntegrationTests",
             dependencies: [
                 "TestDoubles",
                 "TestDoublesRuntime"
             ],
             path: "Tests/TestDoublesRuntimeIntegrationTests"
+        ),
+        .testTarget(
+            name: "InternalRuntimeContractTests",
+            dependencies: ["InternalRuntimeContract"],
+            path: "Tests/InternalRuntimeContractTests"
         ),
         .testTarget(
             name: "TestDoublesReadTests",

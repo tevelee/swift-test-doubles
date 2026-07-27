@@ -2,7 +2,7 @@ import InternalRuntimeContract
 import Testing
 @testable import TestDoubles
 
-@Suite struct RuntimeContractEndpointTests {
+@Suite struct StubRecorderInvocationEndpointTests {
     @Test func semanticMethodProjectionDrivesForwardingAndCapture() {
         let recorder = StubRecorder(
             methods: [method(slot: 0, name: "load()")],
@@ -106,31 +106,11 @@ import Testing
             ))
     }
 
-    @Test func semanticAssociatedTypeUseRetainsOrderedNamesOnly() {
-        let associatedTypeUse = RuntimeAssociatedTypeUse(
-            names: ["Element", "Failure", "Element"]
-        )
-        let method = method(
-            slot: 0,
-            name: "result()",
-            resultAssociatedTypeUse: associatedTypeUse
-        )
-
-        #expect(associatedTypeUse.names == ["Element", "Failure"])
-        #expect(associatedTypeUse.isDependent)
-        #expect(method.returnAssociatedTypeUse == associatedTypeUse)
-        #expect(
-            method.signatureDescription
-                == "method () -> Swift.String [associated Element, Failure]"
-        )
-    }
-
     private func method(
         slot: Int,
         name: String,
         kind: RuntimeRequirementKind = .method,
-        resultConvention: RuntimeValueConvention = .concrete,
-        resultAssociatedTypeUse: RuntimeAssociatedTypeUse = .none
+        resultConvention: RuntimeValueConvention = .concrete
     ) -> RuntimeMethod {
         RuntimeMethod(
             kind: kind,
@@ -142,7 +122,7 @@ import Testing
             result: RuntimeValue(
                 type: String.self,
                 convention: resultConvention,
-                associatedTypeUse: resultAssociatedTypeUse
+                associatedTypeUse: .none
             ),
             typedErrorType: nil,
             typedErrorAssociatedTypeUse: nil,

@@ -1,5 +1,3 @@
-import TestDoublesRuntime
-import TestDoublesRuntimeMetadata
 import InternalRuntimeContract
 import Testing
 @testable import TestDoubles
@@ -19,27 +17,43 @@ private protocol AsyncFailureProbe {
 
     private func makeMethod(
         name: String,
-        kind: StubRequirementKind = .method,
-        receiver: StubRequirementReceiver = .instance,
-        origin: MethodDescriptor.Origin = .automatic,
+        kind: RuntimeRequirementKind = .method,
+        receiver: RuntimeRequirementReceiver = .instance,
+        origin: RuntimeRequirementOrigin = .automatic,
         argumentTypes: [Any.Type] = [],
         returnType: Any.Type = String.self,
-        returnConvention: WitnessValueConvention = .concrete,
+        returnConvention: RuntimeValueConvention = .concrete,
         isThrowing: Bool = false,
         isAsync: Bool = false
     ) -> RuntimeMethod {
-        MethodDescriptor(
+        RuntimeMethod(
             kind: kind,
             receiver: receiver,
             origin: origin,
             name: name,
-            index: 0,
-            argumentTypes: argumentTypes,
-            returnType: returnType,
-            returnConvention: returnConvention,
+            slot: 0,
+            arguments: argumentTypes.map {
+                RuntimeArgument(
+                    value: RuntimeValue(
+                        type: $0,
+                        convention: .concrete,
+                        associatedTypeUse: .none
+                    ),
+                    ownership: .borrowed
+                )
+            },
+            result: RuntimeValue(
+                type: returnType,
+                convention: returnConvention,
+                associatedTypeUse: .none
+            ),
+            typedErrorType: nil,
+            typedErrorAssociatedTypeUse: nil,
+            selfIsClassConstrained: false,
             isThrowing: isThrowing,
-            isAsync: isAsync
-        ).runtimeMethod
+            isAsync: isAsync,
+            hasReliableThrowing: true
+        )
     }
 
     @Test func missingStubDiagnosticListsArgumentsAndSuggestion() {
@@ -159,7 +173,6 @@ private protocol AsyncFailureProbe {
             entries: [entry]
         )
 
-        // Per-argument breakdown: the first matcher rejected, the second accepted.
         #expect(
             message.contains(
                 "arg0 rejected: expected equal(new_checkout), got \"dark_mode\""
