@@ -182,7 +182,7 @@ capacity before allocating executable memory. Eight general-purpose argument
 registers are available on arm64 and six on x86-64.
 
 Untyped throwing adapters declare `throws` and use
-``Stub/Invocation/callThrowing(_:returning:)``. A concrete typed-throws adapter
+`Stub.Invocation.callThrowing(_:returning:)`. A concrete typed-throws adapter
 uses the `Requirement.method(...throwing:using:)` overload and calls
 `Invocation.call(...returning:throwing:)` with the same error type. Concrete
 typed errors must fit the direct error-result registers; an indirect typed-

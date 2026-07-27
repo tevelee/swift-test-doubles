@@ -4,7 +4,7 @@ extension Stub {
     /// Dispatch access passed to a requirement's compiler-typed witness adapter.
     ///
     /// Use `call(_:returning:)` from a nonthrowing adapter and
-    /// ``callThrowing(_:returning:)`` from a throwing adapter. Arguments are
+    /// `callThrowing(_:returning:)` from a throwing adapter. Arguments are
     /// boxed only after Swift has received them with the requirement's exact
     /// types and escaping conventions.
     public final class Invocation: @unchecked Sendable {
