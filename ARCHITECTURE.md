@@ -19,7 +19,7 @@ TestDoubles (public product)
         │           ├── CTestDoublesTrampoline (C and assembly boundary)
         │           ├── Echo (raw runtime metadata and witness primitives)
         │           ├── EchoRuntimeReflection (semantic function and layout facts)
-        │           └── EchoRuntimeSupport (low-level value storage)
+        │           └── EchoRuntimeSupport (low-level value storage and operations)
         │
         ├── TestDoublesRuntimeSupport (shared low-level support)
         │           └── CTestDoublesTrampoline
@@ -71,7 +71,7 @@ or the contract.
 | `CTestDoublesTrampoline` | C frame layouts, executable veneers, assembly entries, and ABI constants | Swift semantic dispatch policy |
 | `Echo` | Raw Swift runtime metadata, descriptors, containers, witness tables, image inspection, and value-witness primitives | Test-double semantics or the public API |
 | `EchoRuntimeReflection` | Stable semantic projections of function effects, parameter facts, and value layouts | Raw metadata pointers, witness tables, or TestDoubles policy |
-| `EchoRuntimeSupport` | Low-level temporary value storage allocation, ownership state, transfer, and destruction | Protocol discovery, ABI classification policy, or recorder semantics |
+| `EchoRuntimeSupport` | Low-level temporary value allocation, copy, ownership state, transfer, and destruction | Protocol discovery, ABI classification policy, or recorder semantics |
 
 `TestDoubles` owns the public API and test semantics:
 
@@ -152,7 +152,7 @@ product family owns generic Swift runtime facts: raw `Echo` supplies metadata
 wrappers, descriptors, witness tables, image inspection, relative pointers,
 and value-witness primitives; `EchoRuntimeReflection` supplies stable semantic
 function and layout projections; `EchoRuntimeSupport` supplies ownership-aware
-temporary value storage. Metadata uses raw Echo for discovery and structural
+temporary value storage plus copy and destruction operations. Metadata uses raw Echo for discovery and structural
 interpretation plus semantic projections where that is sufficient. Execution
 uses semantic function/layout facts and low-level storage, while retaining raw
 Echo only for prepared-call operations that genuinely require metadata,

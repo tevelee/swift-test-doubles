@@ -1,4 +1,5 @@
 import Echo
+import EchoRuntimeSupport
 import TestDoublesRuntimeMetadata
 
 /// Moves Swift values across the captured trampoline frame according to a
@@ -11,7 +12,7 @@ package enum RuntimeValueTransport {
     ) {
         var container = Echo.container(for: result)
         let actual = container.metadata
-        let metadata = expectedType.map(reflect) ?? actual
+        let type = expectedType ?? actual.type
         if let expectedType, actual.type != expectedType {
             func copyCastedResult<T>(_ type: T.Type) {
                 guard let value = result as? T else {
@@ -20,18 +21,20 @@ package enum RuntimeValueTransport {
                     )
                 }
                 withUnsafePointer(to: value) {
-                    metadata.vwt.initializeWithCopy(
-                        destination,
-                        UnsafeMutableRawPointer(mutating: $0)
+                    ValueOperations.initializeCopy(
+                        of: type,
+                        from: UnsafeRawPointer($0),
+                        to: destination
                     )
                 }
             }
             _openExistential(expectedType, do: copyCastedResult)
             return
         }
-        metadata.vwt.initializeWithCopy(
-            destination,
-            UnsafeMutableRawPointer(mutating: container.projectValue())
+        ValueOperations.initializeCopy(
+            of: type,
+            from: container.projectValue(),
+            to: destination
         )
     }
 

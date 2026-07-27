@@ -1,6 +1,6 @@
 import CTestDoublesTrampoline
-import Echo
 import EchoRuntimeReflection
+import EchoRuntimeSupport
 import Foundation
 import TestDoublesRuntimeMetadata
 
@@ -217,7 +217,11 @@ package enum FunctionReabstraction {
         at destination: UnsafeMutableRawPointer
     ) {
         guard let code = source.load(as: UnsafeRawPointer?.self) else {
-            reflect(type).vwt.initializeWithCopy(destination, source)
+            ValueOperations.initializeCopy(
+                of: type,
+                from: source,
+                to: destination
+            )
             return
         }
         let context = (source + MemoryLayout<UInt>.size)

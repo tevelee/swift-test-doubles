@@ -23,11 +23,10 @@ extension FunctionReabstraction {
             return boxValue(type: type, source: source)
         }
 
-        let metadata = reflect(type)
         let temporary = ValueStorage.allocate(for: type)
         initializeGenericValue(source, type: type, at: temporary)
         let value = boxValue(type: type, source: temporary)
-        metadata.vwt.destroy(temporary)
+        ValueOperations.destroy(type, at: temporary)
         temporary.deallocate()
         return value
     }
@@ -219,7 +218,11 @@ extension FunctionReabstraction {
         {
             return
         }
-        metadata.vwt.initializeWithCopy(destination, source)
+        ValueOperations.initializeCopy(
+            of: type,
+            from: source,
+            to: destination
+        )
     }
 
     fileprivate static func initializeBoxedDirectFunction(
@@ -235,9 +238,10 @@ extension FunctionReabstraction {
                 )
             }
             withUnsafeMutablePointer(to: &typed) {
-                reflect(type).vwt.initializeWithCopy(
-                    destination,
-                    UnsafeMutableRawPointer($0)
+                ValueOperations.initializeCopy(
+                    of: type,
+                    from: UnsafeRawPointer($0),
+                    to: destination
                 )
             }
         }

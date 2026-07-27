@@ -315,9 +315,12 @@ package enum PlaceholderValue {
 
     private static func initialize<T>(_ value: T, at destination: UnsafeMutableRawPointer) {
         var value = value
-        let metadata = reflect(T.self)
         withUnsafeMutablePointer(to: &value) {
-            metadata.vwt.initializeWithCopy(destination, UnsafeMutableRawPointer($0))
+            ValueOperations.initializeCopy(
+                of: T.self,
+                from: UnsafeRawPointer($0),
+                to: destination
+            )
         }
     }
 }

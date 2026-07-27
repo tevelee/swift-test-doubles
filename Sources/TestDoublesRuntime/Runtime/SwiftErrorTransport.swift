@@ -1,5 +1,6 @@
 import CTestDoublesTrampoline
 import Echo
+import EchoRuntimeSupport
 import TestDoublesRuntimeMetadata
 
 /// Owns the retain/release contract for Swift's heap-allocated error objects.
@@ -99,9 +100,10 @@ package enum SwiftErrorTransport {
             nil,
             false
         )
-        metadata.vwt.initializeWithCopy(
-            allocated.value,
-            UnsafeMutableRawPointer(mutating: container.projectValue())
+        ValueOperations.initializeCopy(
+            of: metadata.type,
+            from: container.projectValue(),
+            to: allocated.value
         )
         return UInt(bitPattern: allocated.error)
     }

@@ -1,4 +1,3 @@
-import Echo
 import EchoRuntimeSupport
 import TestDoublesRuntimeMetadata
 
@@ -238,7 +237,7 @@ package enum RuntimeArgumentDecoder {
             source: source
         )
         if consuming {
-            reflect(type).vwt.destroy(source)
+            ValueOperations.destroy(type, at: source)
         }
         return value
     }
