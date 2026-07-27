@@ -75,13 +75,20 @@ import Testing
         }
     }
 
-    @Test func wrappedAssociatedTypedErrorsRemainUnsupported() {
+    @Test func linkedGenericValueAssociatedTypedErrorsRoundTrip() throws {
         _ = RealWrappedAssociatedTypedThrowingProbe()
+        typealias Error = WrappedAssociatedTypedError<ThrowingProbeError>
+        typealias Probe = any WrappedAssociatedTypedThrowingProbe<ThrowingProbeError>
 
-        expectUnsupportedProtocolShape(containing: "Only a direct associated typed error") {
-            _ = try Stub<
-                any WrappedAssociatedTypedThrowingProbe<ThrowingProbeError>
-            >()
+        let stub = try Stub<Probe>()
+        let method = try #require(stub.recorder.runtimeMethod(for: 0))
+        #expect(method.typedErrorType.map(ObjectIdentifier.init) == ObjectIdentifier(Error.self))
+
+        stub.when { try $0.load() }.thenThrow(Error())
+        let error = #expect(throws: Error.self) {
+            _ = try stub().load()
         }
+
+        #expect(error != nil)
     }
 }
