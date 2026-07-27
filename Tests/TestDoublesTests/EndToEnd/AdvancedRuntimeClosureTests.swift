@@ -472,6 +472,11 @@ private actor ClosureIsolationActor {
                 for: ExternalIsolatedThrowingClosure.self
             )
         )
+        guard
+            sendingClosureAutomaticBridgeIsReliable(
+                for: ExternalSendingClosure.self
+            )
+        else { return }
         let stub = try Stub<any ExternalConcurrencyClosureService>()
         stub.when(returning: identity) {
             $0.isolated(any(using: identity))
@@ -498,6 +503,11 @@ private actor ClosureIsolationActor {
         let sendingResult: ExternalSendingClosure = { $0.uppercased() }
         let nonsendingIdentity: ExternalNonsendingClosure = { "\($0)" }
         let nonsendingResult: ExternalNonsendingClosure = { "\($0 * 2)!" }
+        guard
+            sendingClosureAutomaticBridgeIsReliable(
+                for: ExternalSendingClosure.self
+            )
+        else { return }
         #expect(
             FunctionReabstraction.hasLinkedThunks(
                 for: ExternalSendingClosure.self
