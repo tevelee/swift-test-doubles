@@ -221,6 +221,7 @@ jobs:
             echo "ANDROID_NDK_HOME=$android_ndk_home"
             echo "ANDROID_NDK_URL=$ANDROID_NDK_URL"
             echo "ANDROID_NDK_SHA1=$ANDROID_NDK_SHA1"
+            echo "ANDROID_SWIFT_SDK_ID=$ANDROID_SWIFT_SDK_ID"
             echo "ANDROID_SWIFT_SDK_URL=$ANDROID_SWIFT_SDK_URL"
             echo "ANDROID_SWIFT_SDK_CHECKSUM=$ANDROID_SWIFT_SDK_CHECKSUM"
             echo "ANDROID_SWIFT_SDK_CACHE_ROOT=$swift_sdk_cache_root"
