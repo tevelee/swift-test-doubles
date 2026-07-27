@@ -235,90 +235,92 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
         _ arguments: [Any]
     ) -> DynamicGenericFunctionOutcome {
         precondition(arguments.count == parameterTypes.count)
-        var argumentContainers = arguments.map(Echo.container(for:))
-        let call = ManagedDynamicCall(
-            resultType: signature.resultType,
-            errorType: typedErrorType
-        )
-        defer { _fixLifetime(arguments) }
+        return withProjectedValues(of: arguments) { projectedArguments in
+            let call = ManagedDynamicCall(
+                resultType: signature.resultType,
+                errorType: typedErrorType
+            )
+            defer { _fixLifetime(arguments) }
 
-        let frame = call.frame
-        for index in argumentContainers.indices {
-            frame.storeDynamicGeneralPurposeArgument(
-                UInt(bitPattern: argumentContainers[index].projectValue()),
-                at: index
+            let frame = call.frame
+            for index in projectedArguments.indices {
+                frame.storeDynamicGeneralPurposeArgument(
+                    UInt(bitPattern: projectedArguments[index].storage),
+                    at: index
+                )
+            }
+            let hasResult = signature.resultType != Void.self
+            if hasResult {
+                frame.storeIndirectResultAddress(UInt(bitPattern: call.result.storage))
+            }
+            if let error = call.error, genericTypedErrorUsesIndirectResultSlot {
+                frame.storeDynamicGeneralPurposeArgument(
+                    UInt(bitPattern: error.storage),
+                    at: parameterTypes.count
+                )
+            }
+            let discriminator = td_generic_function_discriminator(
+                UInt16(parameterTypes.count),
+                hasResult
             )
-        }
-        let hasResult = signature.resultType != Void.self
-        if hasResult {
-            frame.storeIndirectResultAddress(UInt(bitPattern: call.result.storage))
-        }
-        if let error = call.error, genericTypedErrorUsesIndirectResultSlot {
-            frame.storeDynamicGeneralPurposeArgument(
-                UInt(bitPattern: error.storage),
-                at: parameterTypes.count
+            td_swift_invoke_function(
+                function,
+                functionContext,
+                discriminator,
+                call.rawFrame
             )
+            return outcome(from: call, hasResult: hasResult)
         }
-        let discriminator = td_generic_function_discriminator(
-            UInt16(parameterTypes.count),
-            hasResult
-        )
-        td_swift_invoke_function(
-            function,
-            functionContext,
-            discriminator,
-            call.rawFrame
-        )
-        return outcome(from: call, hasResult: hasResult)
     }
 
     private func invokeGenericAsyncFunction(
         _ arguments: [Any]
     ) async -> DynamicGenericFunctionOutcome {
         precondition(arguments.count == parameterTypes.count)
-        var argumentContainers = arguments.map(Echo.container(for:))
-        let call = ManagedDynamicCall(
-            resultType: signature.resultType,
-            errorType: typedErrorType
-        )
-        defer { _fixLifetime(arguments) }
+        return await withProjectedValues(of: arguments) { projectedArguments in
+            let call = ManagedDynamicCall(
+                resultType: signature.resultType,
+                errorType: typedErrorType
+            )
+            defer { _fixLifetime(arguments) }
 
-        let frame = call.frame
-        let hasResult = signature.resultType != Void.self
-        let initialGeneralPurposeOffset: Int
-        if hasResult {
-            let resultAddress = UInt(bitPattern: call.result.storage)
-            frame.storeIndirectResultAddress(resultAddress)
-            frame.storeDynamicGeneralPurposeArgument(resultAddress, at: 0)
-            initialGeneralPurposeOffset = 1
-        } else {
-            initialGeneralPurposeOffset = 0
-        }
-        for index in argumentContainers.indices {
-            frame.storeDynamicGeneralPurposeArgument(
-                UInt(bitPattern: argumentContainers[index].projectValue()),
-                at: initialGeneralPurposeOffset + index
+            let frame = call.frame
+            let hasResult = signature.resultType != Void.self
+            let initialGeneralPurposeOffset: Int
+            if hasResult {
+                let resultAddress = UInt(bitPattern: call.result.storage)
+                frame.storeIndirectResultAddress(resultAddress)
+                frame.storeDynamicGeneralPurposeArgument(resultAddress, at: 0)
+                initialGeneralPurposeOffset = 1
+            } else {
+                initialGeneralPurposeOffset = 0
+            }
+            for index in projectedArguments.indices {
+                frame.storeDynamicGeneralPurposeArgument(
+                    UInt(bitPattern: projectedArguments[index].storage),
+                    at: initialGeneralPurposeOffset + index
+                )
+            }
+            if let error = call.error, genericTypedErrorUsesIndirectResultSlot {
+                frame.storeDynamicGeneralPurposeArgument(
+                    UInt(bitPattern: error.storage),
+                    at: initialGeneralPurposeOffset + parameterTypes.count
+                )
+            }
+            let discriminator = td_generic_function_discriminator(
+                UInt16(parameterTypes.count),
+                hasResult
             )
-        }
-        if let error = call.error, genericTypedErrorUsesIndirectResultSlot {
-            frame.storeDynamicGeneralPurposeArgument(
-                UInt(bitPattern: error.storage),
-                at: initialGeneralPurposeOffset + parameterTypes.count
+            await tdSwiftInvokeAsyncFunction(
+                function,
+                functionContext,
+                discriminator,
+                call.rawFrame,
+                signature.effects.isThrowing,
+                plan.genericUsesStackArgument
             )
+            return outcome(from: call, hasResult: hasResult)
         }
-        let discriminator = td_generic_function_discriminator(
-            UInt16(parameterTypes.count),
-            hasResult
-        )
-        await tdSwiftInvokeAsyncFunction(
-            function,
-            functionContext,
-            discriminator,
-            call.rawFrame,
-            signature.effects.isThrowing,
-            plan.genericUsesStackArgument
-        )
-        return outcome(from: call, hasResult: hasResult)
     }
 
     private func outcome(
