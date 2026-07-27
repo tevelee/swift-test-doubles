@@ -101,15 +101,15 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
         if let reason = typedThrowingFunctionRuntimeUnsupportedReason(function) {
             return reason
         }
-        guard ValueLayoutInfo(reflecting: resultType).isCopyable else {
-            return "The result is noncopyable."
+        if let reason = noncopyableDiagnosis(for: resultType, role: "The result") {
+            return reason
         }
         if let typedErrorType {
             guard typedErrorType is any Error.Type else {
                 return "The typed-throws result does not conform to Error."
             }
-            guard ValueLayoutInfo(reflecting: typedErrorType).isCopyable else {
-                return "The typed error is noncopyable."
+            if let reason = noncopyableDiagnosis(for: typedErrorType, role: "The typed error") {
+                return reason
             }
             if direction == .genericToDirect,
                 FunctionReabstraction.canBoxDirectResult(of: typedErrorType) == false
@@ -118,10 +118,10 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
                 return "The typed error cannot cross generic storage recursively."
             }
         }
-        guard
-            parameterTypes.allSatisfy({ ValueLayoutInfo(reflecting: $0).isCopyable })
-        else {
-            return "A parameter is noncopyable."
+        for parameterType in parameterTypes {
+            if let reason = noncopyableDiagnosis(for: parameterType, role: "A parameter") {
+                return reason
+            }
         }
         let parametersCanCrossBoundary: Bool
         switch direction {
@@ -159,6 +159,20 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
                 }
         }
         return nil
+    }
+
+    /// Distinguishes an ordinary noncopyable value from a lifetime-dependent one
+    /// (`isAddressableForDependencies`, e.g. `~Escapable`/`Span`-shaped values):
+    /// the latter can never be held past the call that produced it, which an
+    /// ordinary noncopyable-but-movable value at least admits in principle. Both
+    /// still fail closed today -- this only sharpens which case a caller hit.
+    private func noncopyableDiagnosis(for type: Any.Type, role: String) -> String? {
+        let layout = ValueLayoutInfo(reflecting: type)
+        guard layout.isCopyable == false else { return nil }
+        if layout.isAddressableForDependencies {
+            return "\(role) is lifetime-dependent (addressable for dependencies) and noncopyable. Runtime recording cannot box a value into `Any` or retain it past the call for a type shaped like this."
+        }
+        return "\(role) is noncopyable."
     }
 
     package func validated(
