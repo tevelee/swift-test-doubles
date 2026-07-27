@@ -139,7 +139,7 @@ private func runtimeContainsSIMDStorage(
     }
     let metadata = reflect(type)
     if let tupleMetadata = metadata as? TupleMetadata {
-        return tupleMetadata.safelyInitializedElements.contains {
+        return tupleMetadata.elements.contains {
             runtimeContainsSIMDStorage($0.type, visited: &visited)
         }
     }

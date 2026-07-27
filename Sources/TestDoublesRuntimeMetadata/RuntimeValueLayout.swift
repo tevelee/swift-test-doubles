@@ -152,7 +152,7 @@ private func containsFunctionStorage(
         return true
     }
     if let tuple = metadata as? TupleMetadata {
-        return tuple.safelyInitializedElements.contains {
+        return tuple.elements.contains {
             containsFunctionStorage($0.type, visited: &visited)
         }
     }
@@ -296,7 +296,7 @@ private func appendDirectValueParts(
     }
 
     if let tupleMetadata = metadata as? TupleMetadata {
-        for element in tupleMetadata.safelyInitializedElements {
+        for element in tupleMetadata.elements {
             guard
                 appendDirectValueParts(
                     for: element.type,

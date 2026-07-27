@@ -91,7 +91,7 @@ package enum PlaceholderValue {
         }
         if let tupleMetadata = metadata as? TupleMetadata {
             var elements: [AggregateElement] = []
-            for element in tupleMetadata.safelyInitializedElements {
+            for element in tupleMetadata.elements {
                 guard let plan = initializationPlan(for: element.type, visited: &visited) else {
                     return nil
                 }

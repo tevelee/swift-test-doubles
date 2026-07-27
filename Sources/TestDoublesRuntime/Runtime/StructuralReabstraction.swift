@@ -84,7 +84,7 @@ extension FunctionReabstraction {
         }
         let metadata = reflect(type)
         if let tuple = metadata as? TupleMetadata {
-            return tuple.safelyInitializedElements.contains {
+            return tuple.elements.contains {
                 requiresStructuralReabstraction($0.type, visited: visited)
             }
         }
@@ -123,7 +123,7 @@ extension FunctionReabstraction {
         }
         let metadata = reflect(type)
         if let tuple = metadata as? TupleMetadata {
-            return tuple.safelyInitializedElements.allSatisfy {
+            return tuple.elements.allSatisfy {
                 canReabstract(
                     $0.type,
                     direction: direction,
@@ -198,7 +198,7 @@ extension FunctionReabstraction {
         let metadata = reflect(type)
         if let tuple = metadata as? TupleMetadata {
             zero(metadata, at: destination)
-            for element in tuple.safelyInitializedElements {
+            for element in tuple.elements {
                 initializeReabstractedValue(
                     source + element.offset,
                     type: element.type,
