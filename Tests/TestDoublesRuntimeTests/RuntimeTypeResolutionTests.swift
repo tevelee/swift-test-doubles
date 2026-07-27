@@ -292,14 +292,93 @@ import TestDoublesFixtures
         )
     }
 
+    @Test func genericNominalsResolveMoreThanFourOrdinaryTypeArguments() {
+        let resolved = resolveRuntimeType(
+            "TestDoublesFixtures.ExternalSixParameterBox<Swift.Int, Swift.String, Swift.Bool, Swift.Double, Swift.Float, Swift.UInt>"
+        )
+
+        #expect(resolved != nil)
+        if let resolved {
+            #expect(
+                ObjectIdentifier(resolved)
+                    == ObjectIdentifier(
+                        ExternalSixParameterBox<
+                            Int,
+                            String,
+                            Bool,
+                            Double,
+                            Float,
+                            UInt
+                        >.self
+                    )
+            )
+        }
+    }
+
+    @Test func oneParameterResolvesMultipleProtocolWitnesses() {
+        let resolved = resolveRuntimeType(
+            "TestDoublesFixtures.ExternalMultiplyConstrainedBox<Swift.Int>"
+        )
+
+        #expect(resolved != nil)
+        if let resolved {
+            #expect(
+                ObjectIdentifier(resolved)
+                    == ObjectIdentifier(
+                        ExternalMultiplyConstrainedBox<Int>.self
+                    )
+            )
+        }
+    }
+
+    @Test func severalParametersResolveAllProtocolWitnessesInDescriptorOrder() {
+        let resolved = resolveRuntimeType(
+            "TestDoublesFixtures.ExternalSeveralConstrainedArguments<Swift.String, Swift.Bool, Swift.Int>"
+        )
+
+        #expect(resolved != nil)
+        if let resolved {
+            #expect(
+                ObjectIdentifier(resolved)
+                    == ObjectIdentifier(
+                        ExternalSeveralConstrainedArguments<
+                            String,
+                            Bool,
+                            Int
+                        >.self
+                    )
+            )
+        }
+    }
+
+    @Test func missingOneOfSeveralProtocolConformancesFailsSafely() {
+        #expect(
+            resolveRuntimeType(
+                "TestDoublesFixtures.ExternalMultiplyConstrainedBox<Swift.String>"
+            ) == nil
+        )
+    }
+
     @Test
     @available(macOS 14.0, *)
-    func genericPackContextsRemainUnsupported() {
+    func metadataPackContextsRemainUnsupported() {
         _ = ExternalGenericPack<Int>.self
 
         #expect(
             resolveRuntimeType(
                 "TestDoublesFixtures.ExternalGenericPack<Swift.Int>"
+            ) == nil
+        )
+    }
+
+    @Test
+    @available(macOS 14.0, *)
+    func witnessTablePackContextsRemainUnsupported() {
+        _ = ExternalConstrainedGenericPack<Int>.self
+
+        #expect(
+            resolveRuntimeType(
+                "TestDoublesFixtures.ExternalConstrainedGenericPack<Swift.Int>"
             ) == nil
         )
     }

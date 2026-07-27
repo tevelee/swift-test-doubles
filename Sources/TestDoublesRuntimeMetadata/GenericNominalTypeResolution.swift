@@ -95,8 +95,7 @@ package func genericNominalType(named name: String) -> Any.Type? {
 /// preserves that ABI distinction and passes the resulting contiguous layout
 /// to the metadata accessor.
 ///
-/// Fails closed -- returns nil -- whenever a parameter carries more than one
-/// protocol requirement, whenever a key requirement is a
+/// Fails closed -- returns nil -- whenever a key requirement is a
 /// same-type/base-class/layout constraint rather than a protocol conformance,
 /// whenever a requirement can't be attributed to a specific depth-0
 /// parameter, whenever the resolved argument doesn't actually conform, or
@@ -121,17 +120,15 @@ private func resolvedGenericAccessorType(
 }
 
 /// Builds the complete, ordered ABI key used by
-/// `resolvedGenericAccessorType`. The temporary four-parameter and
-/// one-protocol-per-parameter limits preserve the behavior of the legacy
-/// fixed-arity accessor wrappers while all calls use Echo's typed argument
-/// representation.
+/// `resolvedGenericAccessorType`. Every ordinary type parameter and every key
+/// protocol requirement contributes one argument; arity is bounded only by
+/// the generic context's exact `numKeyArguments` count.
 private func genericAccessorArguments(
     context: GenericContext,
     arguments: [Any.Type]
 ) -> [GenericArgument]? {
     let parameters = context.parameters
-    guard arguments.count <= 4,
-        parameters.count == arguments.count,
+    guard parameters.count == arguments.count,
         parameters.allSatisfy({ $0.kind == .type && $0.hasKeyArgument })
     else {
         return nil
@@ -148,14 +145,12 @@ private func genericAccessorArguments(
     }
 
     var genericArguments = arguments.map(GenericArgument.metadata)
-    var constrainedParameterIndices = Set<Int>()
     for requirement in requirements {
         guard
             let index = depthZeroGenericParameterIndex(
                 mangledName: requirement.paramMangledName
             ),
-            arguments.indices.contains(index),
-            constrainedParameterIndices.insert(index).inserted
+            arguments.indices.contains(index)
         else {
             return nil
         }
