@@ -33,13 +33,17 @@ Scripts/run-benchmarks.sh compare baseline.json candidate.json \
 
 For a robust hosted-runner result, pass an odd number of consecutive pairs. The
 comparison normalizes each pair against its own control measurement, then gates
-on the median normalized change for each workload:
+on the median normalized change for each workload. CI uses five alternating
+pairs and runs only when a measured runtime source changes, rather than for a
+lockfile-only dependency update:
 
 ```sh
 Scripts/run-benchmarks.sh compare \
   baseline-1.json candidate-1.json \
   baseline-2.json candidate-2.json \
   baseline-3.json candidate-3.json \
+  baseline-4.json candidate-4.json \
+  baseline-5.json candidate-5.json \
   --max-regression-percent 20
 ```
 

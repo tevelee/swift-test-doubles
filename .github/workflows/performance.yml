@@ -6,7 +6,6 @@ on:
     paths:
       - .github/workflows/performance.yml
       - Benchmarks/**
-      - Package.resolved
       - Package.swift
       - Scripts/run-benchmarks.sh
       - Sources/**
@@ -14,7 +13,6 @@ on:
     paths:
       - .github/workflows/performance.yml
       - Benchmarks/**
-      - Package.resolved
       - Package.swift
       - Scripts/run-benchmarks.sh
       - Sources/**
@@ -51,11 +49,38 @@ jobs:
         with:
           path: candidate
           persist-credentials: false
+      - name: Check whether runtime sources changed
+        id: relevance
+        run: |
+          should_benchmark=false
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            should_benchmark=true
+          else
+            for path in \
+              Sources \
+              Package.swift \
+              Benchmarks/Sources \
+              Benchmarks/Package.swift \
+              Scripts/run-benchmarks.sh
+            do
+              if ! git diff --no-index --quiet "baseline/$path" "candidate/$path"; then
+                should_benchmark=true
+                break
+              fi
+            done
+          fi
+          echo "should_benchmark=$should_benchmark" >> "$GITHUB_OUTPUT"
+      - name: Skip irrelevant performance comparison
+        if: steps.relevance.outputs.should_benchmark != 'true'
+        run: echo 'No measured runtime sources changed; skipping performance comparison.'
       - name: Select Xcode 26.4.1
+        if: steps.relevance.outputs.should_benchmark == 'true'
         run: sudo xcode-select --switch /Applications/Xcode_26.4.1.app/Contents/Developer
       - name: Show toolchain
+        if: steps.relevance.outputs.should_benchmark == 'true'
         run: swift --version
       - name: Install the candidate benchmark driver on the baseline
+        if: steps.relevance.outputs.should_benchmark == 'true'
         run: |
           mkdir -p baseline/Benchmarks baseline/Scripts
           rsync -a --delete candidate/Benchmarks/ baseline/Benchmarks/
@@ -65,6 +90,7 @@ jobs:
           cp candidate/Package.resolved baseline/Benchmarks/Package.resolved
           cp candidate/Package.resolved candidate/Benchmarks/Package.resolved
       - name: Build benchmark drivers
+        if: steps.relevance.outputs.should_benchmark == 'true'
         run: |
           swift build \
             --package-path baseline/Benchmarks \
@@ -77,6 +103,7 @@ jobs:
             --configuration release \
             --product TestDoublesBenchmarks
       - name: Run paired benchmark trials
+        if: steps.relevance.outputs.should_benchmark == 'true'
         run: |
           benchmark_baseline() {
             baseline/Scripts/run-benchmarks.sh \
@@ -86,7 +113,7 @@ jobs:
           }
           benchmark_candidate() {
             candidate/Scripts/run-benchmarks.sh \
-              --suite all \
+              --suite comparable \
               --output "$RUNNER_TEMP/candidate-$1.json"
           }
 
@@ -96,7 +123,12 @@ jobs:
           benchmark_baseline 2
           benchmark_baseline 3
           benchmark_candidate 3
+          benchmark_candidate 4
+          benchmark_baseline 4
+          benchmark_baseline 5
+          benchmark_candidate 5
       - name: Compare performance
+        if: steps.relevance.outputs.should_benchmark == 'true'
         run: >-
           candidate/Scripts/run-benchmarks.sh compare
           "$RUNNER_TEMP/baseline-1.json"
@@ -105,9 +137,13 @@ jobs:
           "$RUNNER_TEMP/candidate-2.json"
           "$RUNNER_TEMP/baseline-3.json"
           "$RUNNER_TEMP/candidate-3.json"
+          "$RUNNER_TEMP/baseline-4.json"
+          "$RUNNER_TEMP/candidate-4.json"
+          "$RUNNER_TEMP/baseline-5.json"
+          "$RUNNER_TEMP/candidate-5.json"
           --max-regression-percent 20
       - name: Upload benchmark results
-        if: always()
+        if: always() && steps.relevance.outputs.should_benchmark == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: runtime-benchmarks
