@@ -50,7 +50,11 @@ let package = Package(
                 "InternalRuntimeContract",
                 "TestDoublesRuntimeSupport",
                 "CTestDoublesTrampoline",
-                .product(name: "Echo", package: "Echo")
+                .product(name: "Echo", package: "Echo"),
+                .product(
+                    name: "EchoRuntimeReflection",
+                    package: "Echo"
+                )
             ]
         ),
         .target(

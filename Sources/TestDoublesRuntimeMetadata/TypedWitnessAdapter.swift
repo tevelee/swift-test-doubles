@@ -1,4 +1,4 @@
-import Echo
+import EchoRuntimeReflection
 import InternalRuntimeContract
 
 /// Type-erased construction of a compiler-emitted thin witness adapter.
@@ -26,41 +26,41 @@ package struct TypedWitnessAdapterFactory: @unchecked Sendable {
     }
 
     package func incompatibility(with method: MethodDescriptor) -> String? {
-        guard let metadata = reflect(functionType) as? FunctionMetadata else {
+        guard let function = FunctionTypeInfo(reflecting: functionType) else {
             return "The typed adapter must be a Swift function."
         }
-        guard metadata.flags.convention == .thin else {
+        guard function.convention == .thin else {
             return "The typed adapter must use `@convention(thin)` so its argument and result ABI matches the protocol witness."
         }
-        guard metadata.flags.isAsync == false else {
+        guard function.effects.isAsync == false else {
             return "Typed closure adapters for async requirements are not supported yet."
         }
         guard method.isAsync == false else {
             return "A synchronous typed adapter cannot implement an async requirement."
         }
-        guard metadata.flags.throws == method.isThrowing else {
+        guard function.effects.isThrowing == method.isThrowing else {
             return "The typed adapter's throwing effect does not match the requirement."
         }
         guard method.typedErrorUsesIndirectResultSlot == false else {
             return "Typed closure adapters do not support a caller-provided indirect typed-error buffer."
         }
-        guard metadata.paramTypes.count == method.argumentTypes.count + 1 else {
+        guard function.parameters.count == method.argumentTypes.count + 1 else {
             return "The typed adapter must append one Stub.Invocation parameter after the requirement's \(method.argumentTypes.count) argument(s)."
         }
-        for (offset, pair) in zip(metadata.paramTypes.dropLast(), method.argumentTypes)
+        for (offset, pair) in zip(function.parameters.dropLast(), method.argumentTypes)
             .enumerated()
         {
-            guard ObjectIdentifier(pair.0) == ObjectIdentifier(pair.1) else {
-                return "Typed adapter argument \(offset) is \(runtimeTypeName(pair.0)), expected \(runtimeTypeName(pair.1))."
+            guard ObjectIdentifier(pair.0.type) == ObjectIdentifier(pair.1) else {
+                return "Typed adapter argument \(offset) is \(runtimeTypeName(pair.0.type)), expected \(runtimeTypeName(pair.1))."
             }
         }
-        guard let lastParameter = metadata.paramTypes.last,
-            ObjectIdentifier(lastParameter) == ObjectIdentifier(invocationType)
+        guard let lastParameter = function.parameters.last,
+            ObjectIdentifier(lastParameter.type) == ObjectIdentifier(invocationType)
         else {
             return "The typed adapter's final parameter must be \(runtimeTypeName(invocationType))."
         }
-        guard ObjectIdentifier(metadata.resultType) == ObjectIdentifier(method.returnType) else {
-            return "The typed adapter returns \(runtimeTypeName(metadata.resultType)), expected \(runtimeTypeName(method.returnType))."
+        guard ObjectIdentifier(function.resultType) == ObjectIdentifier(method.returnType) else {
+            return "The typed adapter returns \(runtimeTypeName(function.resultType)), expected \(runtimeTypeName(method.returnType))."
         }
         guard invocationArgumentIndex(for: method) != nil else {
             return "The requirement's explicit arguments leave no general-purpose argument register for its Stub.Invocation adapter parameter on this architecture."
