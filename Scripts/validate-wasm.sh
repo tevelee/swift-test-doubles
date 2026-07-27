@@ -10,6 +10,15 @@ source "$script_directory/wasm-toolchain.sh"
 repository_root="$(cd "$script_directory/.." && pwd)"
 readonly repository_root
 
+# `.interoperabilityMode(.Cxx)` on TestDoublesCxxInteropTests reparses every
+# header the WASI SDK build sees as C++, including the SDK's own libc shims,
+# which produces a module-cache cyclic-dependency failure specific to that
+# combination. `swift build --build-tests` below links every test target
+# into one shared bundle regardless of which one actually runs, so this
+# excludes the target from the package graph for every invocation in this
+# script (see Package.swift).
+export TESTDOUBLES_SKIP_CXX_INTEROP=1
+
 fail() {
   echo "error: $*" >&2
   exit 1

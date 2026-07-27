@@ -1,6 +1,19 @@
 // swift-tools-version: 6.3
 
+import Foundation
 import PackageDescription
+
+// `swift build --build-tests` links every test target into one shared
+// XCTest bundle, so the WASI SDK build (Scripts/validate-wasm.sh) compiles
+// this target too even though it only ever runs `WasmPlatformTests`.
+// `.interoperabilityMode(.Cxx)` reparses every header the compilation unit
+// sees as C++, including transitively through the WASI SDK's own libc
+// shims, which produced a module-cache cyclic-dependency failure specific to
+// that combination. Scripts/validate-wasm.sh sets this to exclude the
+// target from that one build; every other CI lane (plain `swift test`,
+// Xcode) includes it.
+let includesCxxInteropTarget =
+    ProcessInfo.processInfo.environment["TESTDOUBLES_SKIP_CXX_INTEROP"] == nil
 
 let package = Package(
     name: "swift-test-doubles",
@@ -24,7 +37,14 @@ let package = Package(
             from: "2.0.0"
         )
     ],
-    targets: [
+    targets: allTargets(includesCxxInteropTarget: includesCxxInteropTarget),
+    // Tools version 6.3 already defaults to this; pinned explicitly so a
+    // future tools-version bump can't silently change the language mode.
+    swiftLanguageModes: [.v6]
+)
+
+private func allTargets(includesCxxInteropTarget: Bool) -> [Target] {
+    var targets: [Target] = [
         .target(
             name: "TestDoubles",
             dependencies: [
@@ -165,26 +185,6 @@ let package = Package(
                 "TestDoubles"
             ]
         ),
-        // A minimal C++ foreign reference type fixture, kept in its own
-        // target because only a target with `.interoperabilityMode(.Cxx)`
-        // can import it. Proves the Echo 0.1.17 CEcho build fix
-        // (CXX_FOREIGN_REFERENCE_FEASIBILITY.md) end to end: before it, any
-        // target enabling C++ interop anywhere in its dependency graph could
-        // not depend on TestDoubles at all.
-        .target(
-            name: "TestDoublesCxxInteropFixtures",
-            path: "Tests/TestDoublesCxxInteropFixtures",
-            publicHeadersPath: "include"
-        ),
-        .testTarget(
-            name: "TestDoublesCxxInteropTests",
-            dependencies: [
-                "TestDoubles",
-                "TestDoublesCxxInteropFixtures"
-            ],
-            path: "Tests/TestDoublesCxxInteropTests",
-            swiftSettings: [.interoperabilityMode(.Cxx)]
-        ),
         // A standalone executable, not a test target: SwiftPM links every
         // test target into one shared binary, and the rest of the test
         // suite intentionally isn't wasm-safe (see AsyncStackSpyForwardingTests.swift
@@ -207,8 +207,30 @@ let package = Package(
                 "TestDoubles"
             ]
         )
-    ],
-    // Tools version 6.3 already defaults to this; pinned explicitly so a
-    // future tools-version bump can't silently change the language mode.
-    swiftLanguageModes: [.v6]
-)
+    ]
+    if includesCxxInteropTarget {
+        // A minimal C++ foreign reference type fixture, kept in its own
+        // target because only a target with `.interoperabilityMode(.Cxx)`
+        // can import it. Proves the Echo 0.1.17 CEcho build fix
+        // (CXX_FOREIGN_REFERENCE_FEASIBILITY.md) end to end: before it, any
+        // target enabling C++ interop anywhere in its dependency graph could
+        // not depend on TestDoubles at all.
+        targets.append(
+            .target(
+                name: "TestDoublesCxxInteropFixtures",
+                path: "Tests/TestDoublesCxxInteropFixtures",
+                publicHeadersPath: "include"
+            ))
+        targets.append(
+            .testTarget(
+                name: "TestDoublesCxxInteropTests",
+                dependencies: [
+                    "TestDoubles",
+                    "TestDoublesCxxInteropFixtures"
+                ],
+                path: "Tests/TestDoublesCxxInteropTests",
+                swiftSettings: [.interoperabilityMode(.Cxx)]
+            ))
+    }
+    return targets
+}
