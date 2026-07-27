@@ -165,6 +165,26 @@ let package = Package(
                 "TestDoubles"
             ]
         ),
+        // A minimal C++ foreign reference type fixture, kept in its own
+        // target because only a target with `.interoperabilityMode(.Cxx)`
+        // can import it. Proves the Echo 0.1.17 CEcho build fix
+        // (CXX_FOREIGN_REFERENCE_FEASIBILITY.md) end to end: before it, any
+        // target enabling C++ interop anywhere in its dependency graph could
+        // not depend on TestDoubles at all.
+        .target(
+            name: "TestDoublesCxxInteropFixtures",
+            path: "Tests/TestDoublesCxxInteropFixtures",
+            publicHeadersPath: "include"
+        ),
+        .testTarget(
+            name: "TestDoublesCxxInteropTests",
+            dependencies: [
+                "TestDoubles",
+                "TestDoublesCxxInteropFixtures"
+            ],
+            path: "Tests/TestDoublesCxxInteropTests",
+            swiftSettings: [.interoperabilityMode(.Cxx)]
+        ),
         // A standalone executable, not a test target: SwiftPM links every
         // test target into one shared binary, and the rest of the test
         // suite intentionally isn't wasm-safe (see AsyncStackSpyForwardingTests.swift
