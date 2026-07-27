@@ -14,7 +14,9 @@ package enum FunctionReabstraction {
     }
 
     package static func hasDirectToGenericBridge(_ function: FunctionTypeInfo) -> Bool {
-        guard typedThrowingFunctionRuntimeUnsupportedReason(function) == nil else {
+        guard typedThrowingFunctionRuntimeUnsupportedReason(function) == nil,
+            automaticClosureUnsupportedReason(function) == nil
+        else {
             return false
         }
         return canDynamicallyBoxFunctionArgument(function)
@@ -24,7 +26,9 @@ package enum FunctionReabstraction {
     }
 
     package static func hasGenericToDirectBridge(_ function: FunctionTypeInfo) -> Bool {
-        guard typedThrowingFunctionRuntimeUnsupportedReason(function) == nil else {
+        guard typedThrowingFunctionRuntimeUnsupportedReason(function) == nil,
+            automaticClosureUnsupportedReason(function) == nil
+        else {
             return false
         }
         return canDynamicallyInitializeFunctionResult(function)
@@ -119,17 +123,19 @@ package enum FunctionReabstraction {
         return "No matching compiler-emitted generic-to-direct closure reabstraction thunk is linked. \(reason)"
     }
 
-    /// These effects alter execution or transport semantics. A compiler thunk
-    /// can appear incidentally in a debug binary, but it is not a portable
-    /// runtime contract and can disappear under release optimization.
+    /// These effects cannot be matched to a compiler thunk with complete type
+    /// identity. Global-actor identity is absent from the public demangler's
+    /// lowered thunk spelling, while unknown extended bits have no semantics
+    /// this runtime can validate.
     private static func automaticClosureUnsupportedReason(
         _ function: FunctionTypeInfo
     ) -> String? {
         guard function.effects.globalActorType == nil else {
-            return "Global-actor functions require an executor-preserving bridge."
+            return "Global-actor functions require an executor-preserving bridge whose actor identity can be verified."
         }
-        guard hasOnlyDynamicallySupportedExtendedFlags(function) else {
-            return "Extended isolation, sending, or invertible-protocol flags require compiler reabstraction."
+        guard hasOnlyExactlyMatchableExtendedFlags(function) else {
+            let rawFlags = function.effects.rawExtendedFlags ?? 0
+            return "Unknown extended function flags \(String(format: "0x%08X", rawFlags)) cannot be matched to a compiler reabstraction thunk safely."
         }
         return nil
     }

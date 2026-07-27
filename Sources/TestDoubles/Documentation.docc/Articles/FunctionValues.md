@@ -51,9 +51,9 @@ ownership-managed values, nested escaping functions and nested nonescaping
 callbacks, `throws`, typed throws with direct or indirect inner errors, `async`,
 `async throws`, `inout`, `borrowing`, `consuming`, isolated, variadic, and
 autoclosure parameters inside a closure type, `sending` parameters and results,
-global-actor closures, `@isolated(any)`, `nonisolated(nonsending)`, and top-level
-public noncopyable nominal parameters. Declaration-level borrowing and escaping
-autoclosure closure parameters are also supported.
+`@isolated(any)`, `nonisolated(nonsending)`, and top-level public noncopyable
+nominal parameters. Declaration-level borrowing and escaping autoclosure
+closure parameters are also supported.
 
 Closure values can cross synchronous, throwing, async, and async-throwing
 methods, static methods, initializers, properties, and subscripts. Read-write
@@ -104,9 +104,13 @@ Actor-isolated, ownership-qualified, variadic, autoclosure-parameter, and other
 extended native closure shapes still require an exact compiler-emitted
 reabstraction pair retained in the linked image. Ordinary
 `async`, `async throws`, and async typed-throws shapes use the dynamic bridge;
-extended async isolation and sending flags remain on the exact-thunk path.
-Construction fails closed if neither that pair nor the bounded dynamic bridge
-is available.
+`@isolated(any)`, `nonisolated(nonsending)`, and sending parameters or results
+remain on the exact-thunk path. The lowered thunk signature must match the
+runtime isolation, implicit-actor, and transfer flags exactly. Construction
+fails closed if neither that pair nor the bounded dynamic bridge is available.
+Global-actor closure values remain unsupported because Swift's public
+demangler does not preserve the actor type in the thunk signature, so the
+runtime cannot prove the thunk's actor identity.
 
 ### Associated-dependent function values
 

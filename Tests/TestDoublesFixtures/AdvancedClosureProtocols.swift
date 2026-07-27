@@ -195,6 +195,9 @@ public typealias ExternalAsyncTypedThrowingClosure =
 @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 public typealias ExternalIsolatedClosure =
     @isolated(any) @Sendable (Int) async -> String
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
+public typealias ExternalIsolatedThrowingClosure =
+    @isolated(any) @Sendable (Int) async throws -> String
 public typealias ExternalMainActorClosure =
     @MainActor @Sendable (Int) -> String
 // swift-format-ignore
@@ -226,6 +229,22 @@ public protocol ExternalExtendedClosureService {
 }
 
 @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
+public protocol ExternalConcurrencyClosureService {
+    func isolated(
+        _ closure: @escaping ExternalIsolatedClosure
+    ) -> ExternalIsolatedClosure
+    func isolatedThrowing(
+        _ closure: @escaping ExternalIsolatedThrowingClosure
+    ) -> ExternalIsolatedThrowingClosure
+    func nonsending(
+        _ closure: @escaping ExternalNonsendingClosure
+    ) -> ExternalNonsendingClosure
+    func sending(
+        _ closure: @escaping ExternalSendingClosure
+    ) -> ExternalSendingClosure
+}
+
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 public struct RealExternalExtendedClosureService:
     ExternalExtendedClosureService
 {
@@ -246,6 +265,29 @@ public struct RealExternalExtendedClosureService:
     public func mainActor(
         _ closure: @escaping ExternalMainActorClosure
     ) -> ExternalMainActorClosure { closure }
+
+    public func nonsending(
+        _ closure: @escaping ExternalNonsendingClosure
+    ) -> ExternalNonsendingClosure { closure }
+
+    public func sending(
+        _ closure: @escaping ExternalSendingClosure
+    ) -> ExternalSendingClosure { closure }
+}
+
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
+public struct RealExternalConcurrencyClosureService:
+    ExternalConcurrencyClosureService
+{
+    public init() {}
+
+    public func isolated(
+        _ closure: @escaping ExternalIsolatedClosure
+    ) -> ExternalIsolatedClosure { closure }
+
+    public func isolatedThrowing(
+        _ closure: @escaping ExternalIsolatedThrowingClosure
+    ) -> ExternalIsolatedThrowingClosure { closure }
 
     public func nonsending(
         _ closure: @escaping ExternalNonsendingClosure

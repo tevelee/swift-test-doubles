@@ -26,7 +26,7 @@ func expectExtendedAutomaticClosureBoundary(
         expectLinuxX86TypedThrowsClosureBoundary(operation, sourceLocation: sourceLocation)
     #else
         expectUnsupportedProtocolShape(
-            containing: "Extended isolation, sending, or invertible-protocol flags require compiler reabstraction",
+            containing: "Global-actor functions require an executor-preserving bridge whose actor identity can be verified",
             sourceLocation: sourceLocation,
             operation
         )

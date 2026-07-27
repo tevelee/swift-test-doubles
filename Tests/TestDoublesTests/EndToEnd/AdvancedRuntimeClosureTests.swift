@@ -1,6 +1,10 @@
 import TestDoubles
 import TestDoublesFixtures
+import TestDoublesRuntime
 import Testing
+
+private typealias SourceLessSendingResultClosure =
+    @Sendable (UInt16, UInt32) -> sending UInt64
 
 private final class ClosureLifetimeToken: @unchecked Sendable {
     let value: String
@@ -54,6 +58,14 @@ private func inheritIsolation(
 }
 
 @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
+private func inheritThrowingIsolation(
+    @_inheritActorContext
+    _ operation: @escaping ExternalIsolatedThrowingClosure
+) -> ExternalIsolatedThrowingClosure {
+    operation
+}
+
+@available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
 private actor ClosureIsolationActor {
     private var invocationCount = 0
 
@@ -61,6 +73,14 @@ private actor ClosureIsolationActor {
         inheritIsolation { [self] value in
             invocationCount += 1
             return "\(value * 3)?"
+        }
+    }
+
+    func makeThrowingResult() -> ExternalIsolatedThrowingClosure {
+        inheritThrowingIsolation { [self] value in
+            invocationCount += 1
+            guard value != 0 else { throw ExternalClosureError.failed }
+            return "\(value * 2)!"
         }
     }
 }
@@ -434,39 +454,61 @@ private actor ClosureIsolationActor {
 
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func isolatedAnyClosureValuesPreserveDynamicActorIsolation() async throws {
-        _ = RealExternalExtendedClosureService()
-        if expectExtendedAutomaticClosureBoundary({
-            _ = try Stub<any ExternalExtendedClosureService>()
-        }) {
-            return
-        }
+        _ = RealExternalConcurrencyClosureService()
         let identity: ExternalIsolatedClosure = { "\($0)" }
         let actor = ClosureIsolationActor()
         let result = await actor.makeResult()
+        let throwingResult = await actor.makeThrowingResult()
+        let throwingIdentity: ExternalIsolatedThrowingClosure = { "\($0)" }
         #expect(result.isolation === actor)
-        let stub = try Stub<any ExternalExtendedClosureService>()
+        #expect(throwingResult.isolation === actor)
+        #expect(
+            FunctionReabstraction.hasLinkedThunks(
+                for: ExternalIsolatedClosure.self
+            )
+        )
+        #expect(
+            FunctionReabstraction.hasLinkedThunks(
+                for: ExternalIsolatedThrowingClosure.self
+            )
+        )
+        let stub = try Stub<any ExternalConcurrencyClosureService>()
         stub.when(returning: identity) {
             $0.isolated(any(using: identity))
         }.then { (_: ExternalIsolatedClosure) in result }
+        stub.when(returning: throwingIdentity) {
+            $0.isolatedThrowing(any(using: throwingIdentity))
+        }.then { (_: ExternalIsolatedThrowingClosure) in throwingResult }
 
         let transformed = stub().isolated(identity)
         #expect(transformed.isolation === actor)
         #expect(await transformed(14) == "42?")
+        let throwing = stub().isolatedThrowing(throwingIdentity)
+        #expect(throwing.isolation === actor)
+        #expect(try await throwing(21) == "42!")
+        await #expect(throws: ExternalClosureError.failed) {
+            try await throwing(0)
+        }
     }
 
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @Test func transferAndNonsendingClosureFlagsRoundTrip() async throws {
-        _ = RealExternalExtendedClosureService()
-        if expectExtendedAutomaticClosureBoundary({
-            _ = try Stub<any ExternalExtendedClosureService>()
-        }) {
-            return
-        }
+        _ = RealExternalConcurrencyClosureService()
         let sendingIdentity: ExternalSendingClosure = { $0 }
         let sendingResult: ExternalSendingClosure = { $0.uppercased() }
         let nonsendingIdentity: ExternalNonsendingClosure = { "\($0)" }
         let nonsendingResult: ExternalNonsendingClosure = { "\($0 * 2)!" }
-        let stub = try Stub<any ExternalExtendedClosureService>()
+        #expect(
+            FunctionReabstraction.hasLinkedThunks(
+                for: ExternalSendingClosure.self
+            )
+        )
+        #expect(
+            FunctionReabstraction.hasLinkedThunks(
+                for: ExternalNonsendingClosure.self
+            )
+        )
+        let stub = try Stub<any ExternalConcurrencyClosureService>()
 
         stub.when(returning: sendingIdentity) {
             $0.sending(any(using: sendingIdentity))
@@ -477,5 +519,27 @@ private actor ClosureIsolationActor {
 
         #expect(stub().sending(sendingIdentity)("answer") == "ANSWER")
         #expect(await stub().nonsending(nonsendingIdentity)(21) == "42!")
+    }
+
+    @Test func sourceLessSendingClosureFailsClosedWithoutExactThunks() {
+        let argumentReason =
+            FunctionReabstraction.automaticArgumentUnsupportedReason(
+                for: SourceLessSendingResultClosure.self
+            )
+        let resultReason =
+            FunctionReabstraction.automaticResultUnsupportedReason(
+                for: SourceLessSendingResultClosure.self
+            )
+
+        #expect(
+            argumentReason?.contains(
+                "No matching compiler-emitted closure reabstraction thunk is linked"
+            ) == true
+        )
+        #expect(
+            resultReason?.contains(
+                "No matching compiler-emitted generic-to-direct closure reabstraction thunk is linked"
+            ) == true
+        )
     }
 }

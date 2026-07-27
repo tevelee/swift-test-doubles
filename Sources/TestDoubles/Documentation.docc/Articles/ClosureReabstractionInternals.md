@@ -55,6 +55,16 @@ extended shapes.
 `@convention(c)` and `@convention(block)` values use their ordinary value
 witnesses and need no native Swift reabstraction.
 
+Exact-thunk lookup compares the concurrency envelope as well as the ordinary
+parameter and result types. `@isolated(any)` must be present in the lowered
+signature, `nonisolated(nonsending)` must carry its implicit actor parameter,
+and every sending parameter and result marker must match runtime metadata.
+This admits source-backed concurrency closures without treating a
+same-arity thunk as arbitrary reabstraction.
+Swift 6.3 can omit the sending-result bit from raw extended metadata, so lookup
+also validates that marker against the canonical runtime type spelling. The
+dynamic bridge rejects a sending result even when the raw bit is absent.
+
 The dynamic path validates the complete shape before retaining a closure or
 publishing an entry point. Unknown extended bits, noncopyable values, parameter
 flags whose invocation semantics are not reproduced, unresolved nested
@@ -228,12 +238,18 @@ The stack word must be one complete GP argument. FP or vector spills, padded or
 split values, multiple spills, dependent values, parameter packs, and
 noncopyable values fail closed before an entry point is published.
 
-Global actors, `@isolated(any)`, `nonisolated(nonsending)`, sending
-parameters/results, ownership-qualified or variadic parameters, differentiable
-functions, noncopyable values, and unknown extended metadata continue to
-require an exact compiler-emitted reabstraction pair. Ordinary async closures,
-including untyped and typed throws, are part of the bounded source-less path;
-extended async executor semantics remain fail-closed without an exact thunk.
+`@isolated(any)`, `nonisolated(nonsending)`, sending parameters/results,
+ownership-qualified or variadic parameters, and other exactly matchable
+extended shapes require a compiler-emitted reabstraction pair. Ordinary async
+closures, including untyped and typed throws, are part of the bounded
+source-less path; extended async executor semantics remain fail-closed without
+an exact thunk.
+
+Global actors remain unsupported because the public demangler omits their actor
+identity from lowered thunk signatures. Differentiable functions, noncopyable
+values, unknown isolation encodings, inverted protocol requirements, and all
+other unknown extended metadata also fail closed even when a same-shaped symbol
+is linked.
 
 See <doc:FunctionValues> for the public support matrix and
 <doc:TrampolineArchitecture> for the surrounding witness-call machinery.

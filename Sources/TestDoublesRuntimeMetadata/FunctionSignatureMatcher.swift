@@ -17,6 +17,7 @@ enum FunctionSignatureMatcher {
                 ),
             parsed.isAsync == function.effects.isAsync,
             parsed.isThrowing == function.effects.isThrowing,
+            parsed.hasSendingResult == runtimeFunctionHasSendingResult(function),
             thrownError(parsed.thrownError, matches: function),
             type(parsed.result, matches: function.resultType)
         else {
@@ -50,9 +51,11 @@ enum FunctionSignatureMatcher {
                 ))
             && parsed.isAsync == function.effects.isAsync
             && parsed.isThrowing == function.effects.isThrowing
+            && parsed.hasSendingResult == runtimeFunctionHasSendingResult(function)
             && parsed.parameters.count
                 == function.parameters.count
                 + (function.effects.isNonisolatedNonsending ? 1 : 0)
+            && parameterEffects(parsed.parameters, match: function)
     }
 
     private static func parameters(
@@ -78,6 +81,27 @@ enum FunctionSignatureMatcher {
             )
                 && pair.0.ownership == UInt32(pair.1.rawOwnership)
                 && pair.0.isIsolated == pair.1.isIsolated
+                && pair.0.isSending == pair.1.isSending
+        }
+    }
+
+    private static func parameterEffects(
+        _ parsed: [LoweredFunctionParameterSyntax],
+        match function: FunctionTypeInfo
+    ) -> Bool {
+        var semanticParameters = parsed[...]
+        if function.effects.isNonisolatedNonsending {
+            guard case .implicitActor? = semanticParameters.first?.type else {
+                return false
+            }
+            semanticParameters = semanticParameters.dropFirst()
+        }
+        guard semanticParameters.count == function.parameters.count else {
+            return false
+        }
+        return zip(semanticParameters, function.parameters).allSatisfy {
+            $0.isIsolated == $1.isIsolated
+                && $0.isSending == $1.isSending
         }
     }
 
@@ -138,4 +162,26 @@ enum FunctionSignatureMatcher {
                 return false
         }
     }
+}
+
+/// Swift 6.3 does not consistently surface the sending-result bit through
+/// function metadata, although the canonical runtime type spelling retains
+/// it. Consult both representations so dynamic bridging cannot erase transfer
+/// semantics and exact-thunk matching can require the result marker.
+package func runtimeFunctionHasSendingResult(
+    _ function: FunctionTypeInfo
+) -> Bool {
+    if let rawFlags = function.effects.rawExtendedFlags,
+        rawFlags & 0x10 != 0
+    {
+        return true
+    }
+    guard
+        case .function(let syntax)? = DemangledTypeSyntax(
+            String(reflecting: function.type)
+        )
+    else {
+        return false
+    }
+    return syntax.hasSendingResult
 }

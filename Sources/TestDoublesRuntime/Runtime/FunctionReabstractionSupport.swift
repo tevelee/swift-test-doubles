@@ -212,6 +212,25 @@ package func hasOnlyDynamicallySupportedExtendedFlags(
     // surface retains the raw discriminator precisely for this rejection.
     let supportedBits: UInt32 = function.effects.isTypedThrows ? 0x1 : 0
     return function.effects.rawExtendedFlags ?? 0 == supportedBits
+        && runtimeFunctionHasSendingResult(function) == false
+}
+
+/// Exact compiler reabstraction can preserve the extended effects whose
+/// lowered thunk spelling is complete enough to match against runtime
+/// metadata. Future isolation values and inverted protocol requirements stay
+/// fail-closed even if an incidentally same-shaped thunk is present.
+package func hasOnlyExactlyMatchableExtendedFlags(
+    _ function: FunctionTypeInfo
+) -> Bool {
+    let rawFlags = function.effects.rawExtendedFlags ?? 0
+    let knownMask: UInt32 = 0x1 | 0xE | 0x10
+    guard rawFlags & ~knownMask == 0 else { return false }
+    switch rawFlags & 0xE {
+        case 0, 0x2, 0x4:
+            return true
+        default:
+            return false
+    }
 }
 
 package func typedThrowingFunctionRuntimeUnsupportedReason(

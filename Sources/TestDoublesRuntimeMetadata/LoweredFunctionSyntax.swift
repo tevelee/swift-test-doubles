@@ -50,16 +50,25 @@ package struct LoweredFunctionSyntax: Equatable {
 
         let rawResult = canonicalSpelling[arrow.upperBound...]
             .trimmingCharacters(in: .whitespaces)
-        guard rawResult.first == "(",
-            let rawResultScanner = DelimitedSyntaxScanner(rawResult),
+        let resultPrefix = "sending "
+        let hasSendingResult = rawResult.hasPrefix(resultPrefix)
+        let resultSpelling =
+            hasSendingResult
+            ? rawResult.dropFirst(resultPrefix.count)
+                .trimmingCharacters(in: .whitespaces)
+            : rawResult
+        guard resultSpelling.first == "(",
+            let rawResultScanner = DelimitedSyntaxScanner(resultSpelling),
             let resultClosing = rawResultScanner.matchingClosingDelimiter(
-                openingAt: rawResult.startIndex
+                openingAt: resultSpelling.startIndex
             )
         else {
             return nil
         }
-        let substitution = rawResult[rawResult.index(after: resultClosing)...]
-            .trimmingCharacters(in: .whitespaces)
+        let substitution = resultSpelling[
+            resultSpelling.index(after: resultClosing)...
+        ]
+        .trimmingCharacters(in: .whitespaces)
         guard
             substitution.isEmpty
                 || (substitution.hasPrefix("for <") && substitution.last == ">")
@@ -67,7 +76,10 @@ package struct LoweredFunctionSyntax: Equatable {
             return nil
         }
         let resultContents = String(
-            rawResult[rawResult.index(after: rawResult.startIndex) ..< resultClosing]
+            resultSpelling[
+                resultSpelling.index(after: resultSpelling.startIndex)
+                    ..< resultClosing
+            ]
         )
         guard let resultScanner = DelimitedSyntaxScanner(resultContents) else {
             return nil
@@ -104,6 +116,7 @@ package struct LoweredFunctionSyntax: Equatable {
         self.parameters = parameters
         self.result = result
         self.thrownError = thrownError
+        self.hasSendingResult = hasSendingResult
     }
 
     package var isEscaping: Bool { prefix.contains("@escaping") }
@@ -111,6 +124,7 @@ package struct LoweredFunctionSyntax: Equatable {
     package var isIsolated: Bool { prefix.contains("@isolated(any)") }
     package var isAsync: Bool { prefix.contains("@async") }
     package var isThrowing: Bool { thrownError != nil }
+    package let hasSendingResult: Bool
     package var isGeneric: Bool {
         canonicalSpelling.contains("@in_guaranteed")
             || canonicalSpelling.contains("@out ")
@@ -139,6 +153,7 @@ package struct LoweredFunctionParameterSyntax: Equatable {
     package let type: LoweredTypeSyntax
     package let ownership: UInt32
     package let isIsolated: Bool
+    package let isSending: Bool
 
     package init?(_ spelling: String) {
         let canonicalSpelling = spelling.trimmingCharacters(in: .whitespaces)
@@ -159,6 +174,7 @@ package struct LoweredFunctionParameterSyntax: Equatable {
         // (docs/SIL/Types.md); swift_demangle's NodePrinter.cpp only ever
         // emits the bare "isolated" keyword this checks alongside.
         self.isIsolated = attributes.contains("isolated")
+        self.isSending = attributes.contains("sending")
     }
 }
 
@@ -189,6 +205,9 @@ package indirect enum LoweredTypeSyntax: Equatable {
             words.removeFirst()
         }
         if words.first == "isolated" {
+            words.removeFirst()
+        }
+        if words.first == "sending" {
             words.removeFirst()
         }
         let spelling = words.joined(separator: " ")
