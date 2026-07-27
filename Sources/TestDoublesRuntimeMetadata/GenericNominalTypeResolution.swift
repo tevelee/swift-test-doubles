@@ -52,7 +52,7 @@ package struct ResolvedGenericValueType: Sendable {
     }
 }
 
-/// Instantiates a public generic nominal type without requiring its source or
+/// Instantiates a linked generic nominal type without requiring its source or
 /// a macro-generated registry. `resolvedGenericAccessorType` supplies plain
 /// type-metadata key arguments when the context needs nothing else, or the
 /// witness-table-extended path when a parameter carries a protocol

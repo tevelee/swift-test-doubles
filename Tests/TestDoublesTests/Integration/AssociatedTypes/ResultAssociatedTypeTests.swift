@@ -64,7 +64,13 @@ struct RealResultAssociatedTypeProbe:
     }
 }
 
-struct ResultAssociatedBox<Value> {}
+struct ResultAssociatedBox<Value> {
+    let value: Value
+
+    init(_ value: Value) {
+        self.value = value
+    }
+}
 
 protocol UnsupportedResultAssociatedTypeProbe<Element> {
     associatedtype Element
@@ -98,10 +104,10 @@ private func useLinkedResultAssociatedTypeProbe(
 }
 
 @inline(never)
-private func useLinkedUnsupportedResultAssociatedTypeProbe(
+private func useLinkedGenericResultAssociatedTypeProbe(
     _ value: any UnsupportedResultAssociatedTypeProbe<Int>
 ) -> Result<ResultAssociatedBox<Int>, ResultAssociatedFailure> {
-    value.transform(.success(ResultAssociatedBox()))
+    value.transform(.success(ResultAssociatedBox(1)))
 }
 
 @Suite struct ResultAssociatedTypeTests {
@@ -272,14 +278,32 @@ private func useLinkedUnsupportedResultAssociatedTypeProbe(
         }
     }
 
-    @Test func automaticDiscoveryRejectsArbitraryGenericResultPayloads() {
-        _ = useLinkedUnsupportedResultAssociatedTypeProbe(
-            RealUnsupportedResultAssociatedTypeProbe()
+    @Test func automaticDiscoverySupportsGenericResultPayloads() throws {
+        #expect(
+            useLinkedGenericResultAssociatedTypeProbe(
+                RealUnsupportedResultAssociatedTypeProbe()
+            ).map(\.value) == .success(1)
         )
 
-        expectUnsupportedProtocolShape(containing: "ResultAssociatedBox") {
-            _ = try Stub<any UnsupportedResultAssociatedTypeProbe<Int>>()
+        let stub = try Stub<any UnsupportedResultAssociatedTypeProbe<Int>>()
+        try assertResultDescriptor(
+            #require(stub.recorder.runtimeMethod(for: 0)),
+            type: Result<ResultAssociatedBox<Int>, ResultAssociatedFailure>.self,
+            associatedTypeNames: ["Element"],
+            convention: .associatedType(name: "Element")
+        )
+        let placeholder = Result<ResultAssociatedBox<Int>, ResultAssociatedFailure>
+            .success(ResultAssociatedBox(0))
+        stub.when(returning: placeholder) {
+            $0.transform(any(using: placeholder))
+        }.then { (value: Result<ResultAssociatedBox<Int>, ResultAssociatedFailure>) in
+            value.map { ResultAssociatedBox($0.value + 1) }
         }
+        let probe: any UnsupportedResultAssociatedTypeProbe<Int> = stub()
+        #expect(
+            probe.transform(.success(ResultAssociatedBox(41))).map(\.value)
+                == .success(42)
+        )
     }
 }
 

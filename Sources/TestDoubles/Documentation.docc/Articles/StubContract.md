@@ -316,7 +316,7 @@ constraints on each type. Declarations may belong to inherited bases, appear
 alongside inheritance, or span multiple composed roots. Direct dependent
 arguments and results, dependent setters and initializer arguments, and
 recursive `Optional`, `Array`, `Set`, `Dictionary`, and `Result` values are
-supported. Automatic discovery additionally accepts linked, public, top-level
+supported. Automatic discovery additionally accepts linked, top-level
 generic Swift classes, structs, and enums with one or two type parameters, each
 optionally carrying a single protocol-conformance requirement, when every
 argument recursively resolves and reconstructed metadata proves the exact

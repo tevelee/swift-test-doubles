@@ -83,7 +83,7 @@ let stub = try SourceStub(
 ```
 
 Automatic discovery also recognizes a bounded generic-nominal shape. The
-class, struct, or enum must be linked, public, and top-level, with one or two
+class, struct, or enum must be linked and top-level, with one or two
 type parameters, each optionally carrying a single protocol-conformance
 requirement, and every argument must resolve recursively from concrete or
 associated metadata:
@@ -218,7 +218,7 @@ it must evolve alongside the repository's Swift runtime support matrix.
   values. Every resolved `Set` element and `Dictionary` key must prove
   `Hashable`, and every resolved `Result` failure must prove `Error`. Method
   arguments in all supported container forms may be consuming.
-- Automatically discovered linked, public, top-level generic Swift classes,
+- Automatically discovered linked, top-level generic Swift classes,
   structs, and enums with one or two type parameters, each optionally carrying
   a single protocol-conformance requirement (`Box<Value: Hashable>`, not only
   `Box<Value>`). Every argument may recursively contain concrete types,
@@ -240,7 +240,7 @@ it must evolve alongside the repository's Swift runtime support matrix.
   registers. An associated error constrained to both `Error` and `AnyObject`
   instead uses its proven direct reference channel.
 - Automatic discovery also supports an associated-dependent typed error whose
-  outer type is a linked, public, top-level generic class with one or two
+  outer type is a linked, top-level generic class with one or two
   type parameters. Direct associated arguments and recursively
   nested class applications are supported. Exact descriptor-based metadata
   reconstruction proves the class reference layout before construction, so
