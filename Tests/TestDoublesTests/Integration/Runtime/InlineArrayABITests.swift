@@ -9,7 +9,15 @@ final class InlineArrayLifetimeToken: Sendable {
     }
 }
 
-@available(macOS 26.0, *)
+@available(
+    macOS 26.0,
+    iOS 26.0,
+    tvOS 26.0,
+    watchOS 26.0,
+    visionOS 26.0,
+    macCatalyst 26.0,
+    *
+)
 protocol InlineArrayABIProbe {
     func integers(_ value: InlineArray<2, Int>) -> InlineArray<2, Int>
     func floatingPoint(
@@ -22,7 +30,15 @@ protocol InlineArrayABIProbe {
     ) -> InlineArray<2, InlineArrayLifetimeToken>
 }
 
-@available(macOS 26.0, *)
+@available(
+    macOS 26.0,
+    iOS 26.0,
+    tvOS 26.0,
+    watchOS 26.0,
+    visionOS 26.0,
+    macCatalyst 26.0,
+    *
+)
 struct RealInlineArrayABIProbe: InlineArrayABIProbe {
     func integers(_ value: InlineArray<2, Int>) -> InlineArray<2, Int> {
         value
@@ -50,7 +66,15 @@ struct RealInlineArrayABIProbe: InlineArrayABIProbe {
 }
 
 @Suite struct InlineArrayABITests {
-    @available(macOS 26.0, *)
+    @available(
+        macOS 26.0,
+        iOS 26.0,
+        tvOS 26.0,
+        watchOS 26.0,
+        visionOS 26.0,
+        macCatalyst 26.0,
+        *
+    )
     @Test func smallIntegerValuesRoundTripThroughGPRegisters() throws {
         _ = RealInlineArrayABIProbe()
         let stub = try Stub<any InlineArrayABIProbe>()
@@ -70,7 +94,15 @@ struct RealInlineArrayABIProbe: InlineArrayABIProbe {
         #expect(result[1] == expected[1])
     }
 
-    @available(macOS 26.0, *)
+    @available(
+        macOS 26.0,
+        iOS 26.0,
+        tvOS 26.0,
+        watchOS 26.0,
+        visionOS 26.0,
+        macCatalyst 26.0,
+        *
+    )
     @Test func homogeneousFloatsRoundTripThroughFPRegisters() throws {
         _ = RealInlineArrayABIProbe()
         let stub = try Stub<any InlineArrayABIProbe>()
@@ -94,7 +126,15 @@ struct RealInlineArrayABIProbe: InlineArrayABIProbe {
         #expect(result[2].bitPattern == expected[2].bitPattern)
     }
 
-    @available(macOS 26.0, *)
+    @available(
+        macOS 26.0,
+        iOS 26.0,
+        tvOS 26.0,
+        watchOS 26.0,
+        visionOS 26.0,
+        macCatalyst 26.0,
+        *
+    )
     @Test func zeroCountValuesRoundTripWithoutRegisters() throws {
         _ = RealInlineArrayABIProbe()
         let stub = try Stub<any InlineArrayABIProbe>()
@@ -110,7 +150,15 @@ struct RealInlineArrayABIProbe: InlineArrayABIProbe {
         }
     }
 
-    @available(macOS 26.0, *)
+    @available(
+        macOS 26.0,
+        iOS 26.0,
+        tvOS 26.0,
+        watchOS 26.0,
+        visionOS 26.0,
+        macCatalyst 26.0,
+        *
+    )
     @Test func largeCopyableValuesUseIndirectArgumentsAndResults() throws {
         _ = RealInlineArrayABIProbe()
         let stub = try Stub<any InlineArrayABIProbe>()
@@ -132,7 +180,15 @@ struct RealInlineArrayABIProbe: InlineArrayABIProbe {
         }
     }
 
-    @available(macOS 26.0, *)
+    @available(
+        macOS 26.0,
+        iOS 26.0,
+        tvOS 26.0,
+        watchOS 26.0,
+        visionOS 26.0,
+        macCatalyst 26.0,
+        *
+    )
     @Test func referenceElementsPreserveOwnershipAndIdentity() throws {
         _ = RealInlineArrayABIProbe()
         let stub = try Stub<any InlineArrayABIProbe>()

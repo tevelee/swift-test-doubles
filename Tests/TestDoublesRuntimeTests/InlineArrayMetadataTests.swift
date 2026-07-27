@@ -4,7 +4,15 @@ import Testing
 @testable import TestDoublesRuntimeMetadata
 
 @Suite struct InlineArrayMetadataTests {
-    @available(macOS 26.0, *)
+    @available(
+        macOS 26.0,
+        iOS 26.0,
+        tvOS 26.0,
+        watchOS 26.0,
+        visionOS 26.0,
+        macCatalyst 26.0,
+        *
+    )
     @Test func integerSpecializationsResolveExactMetadata() {
         expectMetadata(
             named: "Swift.InlineArray<0, Swift.Int>",
@@ -24,7 +32,15 @@ import Testing
         )
     }
 
-    @available(macOS 26.0, *)
+    @available(
+        macOS 26.0,
+        iOS 26.0,
+        tvOS 26.0,
+        watchOS 26.0,
+        visionOS 26.0,
+        macCatalyst 26.0,
+        *
+    )
     @Test func floatingPointSpecializationsResolveExactMetadata() {
         expectMetadata(
             named: "Swift.InlineArray<3, Swift.Float>",
@@ -63,7 +79,15 @@ import Testing
         )
     }
 
-    @available(macOS 26.0, *)
+    @available(
+        macOS 26.0,
+        iOS 26.0,
+        tvOS 26.0,
+        watchOS 26.0,
+        visionOS 26.0,
+        macCatalyst 26.0,
+        *
+    )
     @Test func fixedStorageClassifiesIntegerAndZeroCounts() {
         guard case .void = abiClass(for: InlineArray<0, Int>.self) else {
             Issue.record("Expected an empty InlineArray to have void ABI storage.")
@@ -89,7 +113,15 @@ import Testing
         #expect(twoWords == 2)
     }
 
-    @available(macOS 26.0, *)
+    @available(
+        macOS 26.0,
+        iOS 26.0,
+        tvOS 26.0,
+        watchOS 26.0,
+        visionOS 26.0,
+        macCatalyst 26.0,
+        *
+    )
     @Test func fixedStorageClassifiesHomogeneousFloatingPointElements() {
         guard
             case .aggregate(let parts) = abiClass(
@@ -105,7 +137,15 @@ import Testing
         #expect(parts.allSatisfy { $0.byteCount == 4 })
     }
 
-    @available(macOS 26.0, *)
+    @available(
+        macOS 26.0,
+        iOS 26.0,
+        tvOS 26.0,
+        watchOS 26.0,
+        visionOS 26.0,
+        macCatalyst 26.0,
+        *
+    )
     @Test func largeFixedStorageFallsBackToIndirectTransport() {
         guard case .indirect = abiClass(for: InlineArray<8, Int>.self) else {
             Issue.record("Expected a large InlineArray argument to be indirect.")
