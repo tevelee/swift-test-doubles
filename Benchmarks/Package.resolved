@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tevelee/Echo.git",
       "state" : {
-        "revision" : "cf239b55e0557e11cf66f03baea45aea628c083a",
-        "version" : "0.1.16"
+        "revision" : "4869571989ae1a705744eebf28d92f50e9158c25",
+        "version" : "0.1.17"
       }
     },
     {
