@@ -127,6 +127,10 @@ jobs:
           benchmark_baseline 4
           benchmark_baseline 5
           benchmark_candidate 5
+          benchmark_candidate 6
+          benchmark_baseline 6
+          benchmark_baseline 7
+          benchmark_candidate 7
       - name: Compare performance
         if: steps.relevance.outputs.should_benchmark == 'true'
         run: >-
@@ -141,6 +145,10 @@ jobs:
           "$RUNNER_TEMP/candidate-4.json"
           "$RUNNER_TEMP/baseline-5.json"
           "$RUNNER_TEMP/candidate-5.json"
+          "$RUNNER_TEMP/baseline-6.json"
+          "$RUNNER_TEMP/candidate-6.json"
+          "$RUNNER_TEMP/baseline-7.json"
+          "$RUNNER_TEMP/candidate-7.json"
           --max-regression-percent 20
       - name: Upload benchmark results
         if: always() && steps.relevance.outputs.should_benchmark == 'true'

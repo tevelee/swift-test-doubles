@@ -33,7 +33,7 @@ Scripts/run-benchmarks.sh compare baseline.json candidate.json \
 
 For a robust hosted-runner result, pass an odd number of consecutive pairs. The
 comparison normalizes each pair against its own control measurement, then gates
-on the median normalized change for each workload. CI uses five alternating
+on the median normalized change for each workload. CI uses seven alternating
 pairs and runs only when a measured runtime source changes, rather than for a
 lockfile-only dependency update:
 
@@ -44,11 +44,13 @@ Scripts/run-benchmarks.sh compare \
   baseline-3.json candidate-3.json \
   baseline-4.json candidate-4.json \
   baseline-5.json candidate-5.json \
+  baseline-6.json candidate-6.json \
+  baseline-7.json candidate-7.json \
   --max-regression-percent 20
 ```
 
 The benchmark workflow applies the candidate's benchmark driver to both source
-revisions, builds both before measuring, then executes three paired trials in
+revisions, builds both before measuring, then executes seven paired trials in
 alternating order on the same hosted runner. This keeps harness changes out of
 the runtime comparison and prevents one transient runner state from deciding the
 gate. Timing thresholds do not run as part of ordinary unit tests because
