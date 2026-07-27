@@ -1,3 +1,4 @@
+import EchoRuntimeSupport
 import Testing
 @testable import TestDoublesRuntime
 
@@ -53,6 +54,21 @@ private struct WideTransportError: Error, Equatable {
         let value = WideTransportValue(first: 1, second: 2, third: 3)
 
         #expect(roundTrip(value) == value)
+    }
+
+    @Test func untypedCopiesUseTheDynamicValueType() {
+        let value: Any = WideTransportValue(first: 1, second: 2, third: 3)
+        let storage = ValueStorage(type: WideTransportValue.self)
+
+        RuntimeValueTransport.copyValue(
+            value,
+            expectedType: nil,
+            to: storage.storage
+        )
+        storage.markInitialized()
+
+        let copied = storage.moveInitializedValue(as: WideTransportValue.self)
+        #expect(copied == WideTransportValue(first: 1, second: 2, third: 3))
     }
 
     private func roundTrip<Value>(_ value: Value) -> Value {
