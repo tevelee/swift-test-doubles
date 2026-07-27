@@ -301,6 +301,84 @@ jobs:
       - name: Cross-build Android package
         run: Scripts/validate-android.sh
 
+  android-runtime:
+    name: Swift 6.3 / Android emulator / x86_64 runtime
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Enable KVM for the Android emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
+            sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Load Android runtime configuration
+        id: android-runtime-toolchain
+        run: |
+          . Scripts/android-toolchain.sh
+          swift_sdks_path="$RUNNER_TEMP/test-doubles-swift-sdks"
+          swift_sdk_cache_path="$swift_sdks_path/${ANDROID_SWIFT_SDK_ID}.artifactbundle"
+          android_ndk_home="$ANDROID_HOME/ndk/27.3.13750724"
+          android_runtime_build_path="$RUNNER_TEMP/test-doubles-android-runtime-build"
+          {
+            echo "ANDROID_NDK_HOME=$android_ndk_home"
+            echo "ANDROID_RUNTIME_BUILD_PATH=$android_runtime_build_path"
+            echo "ANDROID_SWIFT_HOST_IMAGE=$ANDROID_SWIFT_HOST_IMAGE"
+            echo "ANDROID_SWIFT_SDK_ID=$ANDROID_SWIFT_SDK_ID"
+            echo "ANDROID_SWIFT_SDKS_PATH=$swift_sdks_path"
+            echo "ANDROID_SWIFT_SDK_URL=$ANDROID_SWIFT_SDK_URL"
+            echo "ANDROID_SWIFT_SDK_CHECKSUM=$ANDROID_SWIFT_SDK_CHECKSUM"
+          } >> "$GITHUB_ENV"
+          {
+            echo "swift_sdk_cache_path=$swift_sdk_cache_path"
+            echo "swift_sdk_checksum=$ANDROID_SWIFT_SDK_CHECKSUM"
+            echo "swift_version=$ANDROID_SWIFT_VERSION"
+          } >> "$GITHUB_OUTPUT"
+      - name: Restore Swift Android SDK cache
+        id: swift-android-runtime-sdk-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ steps.android-runtime-toolchain.outputs.swift_sdk_cache_path }}
+          key: >-
+            swift-android-runtime-sdk-v1-${{ runner.os }}-${{
+            steps.android-runtime-toolchain.outputs.swift_version }}-${{
+            steps.android-runtime-toolchain.outputs.swift_sdk_checksum }}
+      - name: Install Swift Android SDK
+        if: steps.swift-android-runtime-sdk-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$ANDROID_SWIFT_SDKS_PATH"
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            --volume "$ANDROID_SWIFT_SDKS_PATH:/swift-sdks" \
+            --env HOME=/tmp/test-doubles-swift-home \
+            --entrypoint swift \
+            "$ANDROID_SWIFT_HOST_IMAGE" \
+            sdk install --swift-sdks-path /swift-sdks "$ANDROID_SWIFT_SDK_URL" \
+            --checksum "$ANDROID_SWIFT_SDK_CHECKSUM"
+      - name: Build and run AndroidRuntimeDemo on an emulator
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 28
+          arch: x86_64
+          ndk: 27.3.13750724
+          disable-linux-hw-accel: false
+          emulator-options: >-
+            -no-window -gpu swiftshader_indirect -no-snapshot -noaudio
+            -no-boot-anim -camera-back none
+          pre-emulator-launch-script: |
+            docker run --rm \
+              --user "$(id -u):$(id -g)" \
+              --volume "$ANDROID_SWIFT_SDKS_PATH:/swift-sdks" \
+              --volume "$ANDROID_NDK_HOME:/android-ndk:ro" \
+              --env ANDROID_NDK_HOME=/android-ndk \
+              --entrypoint bash \
+              "$ANDROID_SWIFT_HOST_IMAGE" \
+              -lc 'cd "/swift-sdks/${ANDROID_SWIFT_SDK_ID}.artifactbundle/swift-android" && ./scripts/setup-android-sdk.sh'
+          script: Scripts/validate-android-runtime-demo.sh
+
   wasm:
     name: Swift 6.3.1 / WASI SDK / wasm32
     runs-on: macos-26

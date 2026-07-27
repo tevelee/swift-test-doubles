@@ -4,6 +4,7 @@
 # shellcheck disable=SC2034
 
 readonly ANDROID_SWIFT_VERSION="6.3.3"
+readonly ANDROID_SWIFT_HOST_IMAGE="swift:6.3.3-noble@sha256:66520bcba471018a34fd54ba09be97ba4abebd950a96ff5cb8c2bf50a2d33259"
 readonly ANDROID_SWIFT_SDK_ID="swift-6.3.3-RELEASE_android"
 readonly ANDROID_SWIFT_SDK_URL="https://download.swift.org/swift-6.3.3-release/android-sdk/swift-6.3.3-RELEASE/swift-6.3.3-RELEASE_android.artifactbundle.tar.gz"
 readonly ANDROID_SWIFT_SDK_CHECKSUM="d160cc3206dd1886dae3fef2337af5e25ec034692cd0ec225721c56cc69da7f5"

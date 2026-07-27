@@ -176,6 +176,16 @@ let package = Package(
             dependencies: [
                 "TestDoubles"
             ]
+        ),
+        // A small native runtime smoke executable. CI cross-builds it for
+        // Android x86_64, pushes the result to an emulator, and executes it
+        // there. Unlike WasmDemo, this deliberately exercises the fabricated
+        // Stub path, including its executable witness veneer.
+        .executableTarget(
+            name: "AndroidRuntimeDemo",
+            dependencies: [
+                "TestDoubles"
+            ]
         )
     ],
     // Tools version 6.3 already defaults to this; pinned explicitly so a
