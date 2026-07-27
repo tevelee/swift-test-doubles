@@ -292,6 +292,18 @@ import TestDoublesFixtures
         )
     }
 
+    @Test
+    @available(macOS 14.0, *)
+    func genericPackContextsRemainUnsupported() {
+        _ = ExternalGenericPack<Int>.self
+
+        #expect(
+            resolveRuntimeType(
+                "TestDoublesFixtures.ExternalGenericPack<Swift.Int>"
+            ) == nil
+        )
+    }
+
 }
 
 /// Top-level (not function-local) so it has an ordinary resolvable qualified

@@ -53,10 +53,9 @@ package struct ResolvedGenericValueType: Sendable {
 }
 
 /// Instantiates a linked generic nominal type without requiring its source or
-/// a macro-generated registry. `resolvedGenericAccessorType` supplies plain
-/// type-metadata key arguments when the context needs nothing else, or the
-/// witness-table-extended path when a parameter carries a protocol
-/// requirement, before falling back to failing closed.
+/// a macro-generated registry. `resolvedGenericAccessorType` supplies the
+/// context's ordered type-metadata and witness-table key arguments before
+/// falling back to failing closed.
 package func genericNominalType(named name: String) -> Any.Type? {
     guard let application = genericApplication(name) else {
         return nil
@@ -85,95 +84,94 @@ package func genericNominalType(named name: String) -> Any.Type? {
     return nil
 }
 
-/// Resolves a generic context's accessor with the plain type-metadata key
-/// arguments when that's all it needs, or with witness tables added for any
-/// protocol-constrained parameter (`Range<Bound: Comparable>`, a user's own
-/// `Box<T: Codable>`, and so on) otherwise. Shared by `genericNominalType`
-/// (any kind) and `genericClassType` (classes only, for dependent-type
-/// resolution's linked-class path).
+/// Resolves a generic context's accessor with its ordered key arguments.
+/// Shared by `genericNominalType` (any kind) and `genericClassType` (classes
+/// only, for dependent-type resolution's linked-class path).
 ///
 /// Key arguments are laid out per swiftlang/swift's
 /// docs/ABI/TypeMetadata.rst: every parameter's own type metadata first (one
 /// per parameter, in declaration order), then every requirement's witness
-/// table second, grouped by the parameter it constrains -- confirmed against
-/// stdlib/public/runtime/Metadata.cpp's `installGenericArguments`, which
-/// copies the whole key as one flat, contiguous array. Rather than
-/// reconstruct that buffer by hand, this defers entirely to Echo's own
-/// `MetadataAccessFunction` witness-table call convention
-/// (`callAsFunction(_:_:) -> ... (Any.Type, WitnessTable?)...`), which
-/// already implements the identical layout.
+/// table in requirement-descriptor order. Echo's `GenericArgument` API
+/// preserves that ABI distinction and passes the resulting contiguous layout
+/// to the metadata accessor.
 ///
 /// Fails closed -- returns nil -- whenever a parameter carries more than one
-/// protocol requirement (Echo's call convention carries at most one witness
-/// table per key argument), whenever a requirement is a same-type/base-class/
-/// layout constraint rather than a protocol conformance, whenever a
-/// requirement can't be attributed to a specific depth-0 parameter, or
-/// whenever the resolved argument doesn't actually conform.
+/// protocol requirement, whenever a key requirement is a
+/// same-type/base-class/layout constraint rather than a protocol conformance,
+/// whenever a requirement can't be attributed to a specific depth-0
+/// parameter, whenever the resolved argument doesn't actually conform, or
+/// whenever the context contains a pack or value parameter.
 private func resolvedGenericAccessorType(
     descriptor: any TypeContextDescriptor,
     context: GenericContext,
     arguments: [Any.Type]
 ) -> Any.Type? {
-    if context.numKeyArguments == arguments.count {
-        return callGenericAccessor(descriptor.accessor, arguments: arguments)
-    }
     guard
-        let keyArguments = constrainedGenericKeyArguments(
+        let genericArguments = genericAccessorArguments(
             context: context,
             arguments: arguments
         )
     else {
         return nil
     }
-    return callConstrainedGenericAccessor(descriptor.accessor, keyArguments: keyArguments)
+    return descriptor.accessor(
+        .complete,
+        genericArguments: genericArguments
+    ).type
 }
 
-/// Builds the (type, witness table) key-argument list `resolvedGenericAccessorType`
-/// needs once a context has more key arguments than plain type metadata
-/// accounts for. See that function's documentation for the layout this
-/// reconstructs and what it declines.
-private func constrainedGenericKeyArguments(
+/// Builds the complete, ordered ABI key used by
+/// `resolvedGenericAccessorType`. The temporary four-parameter and
+/// one-protocol-per-parameter limits preserve the behavior of the legacy
+/// fixed-arity accessor wrappers while all calls use Echo's typed argument
+/// representation.
+private func genericAccessorArguments(
     context: GenericContext,
     arguments: [Any.Type]
-) -> [(type: Any.Type, witnessTable: WitnessTable?)]? {
+) -> [GenericArgument]? {
     let parameters = context.parameters
-    guard parameters.count == arguments.count,
+    guard arguments.count <= 4,
+        parameters.count == arguments.count,
         parameters.allSatisfy({ $0.kind == .type && $0.hasKeyArgument })
     else {
         return nil
     }
-    let requirements = context.requirements
+    let requirements = context.requirements.filter(\.flags.hasKeyArgument)
     guard
-        requirements.allSatisfy({ !$0.flags.hasKeyArgument || $0.flags.kind == .protocol })
+        requirements.allSatisfy({
+            $0.flags.kind == .protocol
+                && !$0.flags.isPackRequirement
+                && !$0.flags.isValueRequirement
+        })
     else {
         return nil
     }
 
-    var keyArguments: [(type: Any.Type, witnessTable: WitnessTable?)] = []
-    for (index, argument) in arguments.enumerated() {
-        let matching = requirements.filter {
-            $0.flags.kind == .protocol && $0.flags.hasKeyArgument
-                && depthZeroGenericParameterIndex(mangledName: $0.paramMangledName) == index
-        }
-        guard matching.count <= 1 else { return nil }
-        guard let requirement = matching.first else {
-            keyArguments.append((argument, nil))
-            continue
+    var genericArguments = arguments.map(GenericArgument.metadata)
+    var constrainedParameterIndices = Set<Int>()
+    for requirement in requirements {
+        guard
+            let index = depthZeroGenericParameterIndex(
+                mangledName: requirement.paramMangledName
+            ),
+            arguments.indices.contains(index),
+            constrainedParameterIndices.insert(index).inserted
+        else {
+            return nil
         }
         guard
             let witnessTable = swift_conformsToProtocol(
-                type: argument,
+                type: arguments[index],
                 protocol: requirement.protocol
             )
         else {
             return nil
         }
-        keyArguments.append((argument, witnessTable))
+        genericArguments.append(.witnessTable(witnessTable))
     }
 
-    let witnessCount = keyArguments.filter { $0.witnessTable != nil }.count
-    guard context.numKeyArguments == arguments.count + witnessCount else { return nil }
-    return keyArguments
+    guard context.numKeyArguments == genericArguments.count else { return nil }
+    return genericArguments
 }
 
 /// Decodes a direct, depth-0 generic-parameter reference from a generic
@@ -194,44 +192,6 @@ private func depthZeroGenericParameterIndex(mangledName: UnsafeRawPointer) -> In
     if body.isEmpty { return 1 }
     guard let natural = Int(body), natural >= 0 else { return nil }
     return natural + 2
-}
-
-private func callConstrainedGenericAccessor(
-    _ accessor: MetadataAccessFunction,
-    keyArguments: [(type: Any.Type, witnessTable: WitnessTable?)]
-) -> Any.Type? {
-    switch keyArguments.count {
-        case 0:
-            return accessor(.complete).type
-        case 1:
-            return accessor(
-                .complete,
-                (keyArguments[0].type, keyArguments[0].witnessTable)
-            ).type
-        case 2:
-            return accessor(
-                .complete,
-                (keyArguments[0].type, keyArguments[0].witnessTable),
-                (keyArguments[1].type, keyArguments[1].witnessTable)
-            ).type
-        case 3:
-            return accessor(
-                .complete,
-                (keyArguments[0].type, keyArguments[0].witnessTable),
-                (keyArguments[1].type, keyArguments[1].witnessTable),
-                (keyArguments[2].type, keyArguments[2].witnessTable)
-            ).type
-        case 4:
-            return accessor(
-                .complete,
-                (keyArguments[0].type, keyArguments[0].witnessTable),
-                (keyArguments[1].type, keyArguments[1].witnessTable),
-                (keyArguments[2].type, keyArguments[2].witnessTable),
-                (keyArguments[3].type, keyArguments[3].witnessTable)
-            ).type
-        default:
-            return nil
-    }
 }
 
 /// Reconstructs metadata only for a linked, top-level generic Swift class.
@@ -349,35 +309,6 @@ private func genericNominalDescriptor(
                 to: ClassDescriptor.self
             )
         default: nil
-    }
-}
-
-private func callGenericAccessor(
-    _ accessor: MetadataAccessFunction,
-    arguments: [Any.Type]
-) -> Any.Type? {
-    switch arguments.count {
-        case 0: return accessor(.complete).type
-        case 1: return accessor(.complete, arguments[0]).type
-        case 2:
-            return accessor(.complete, arguments[0], arguments[1]).type
-        case 3:
-            return accessor(
-                .complete,
-                arguments[0],
-                arguments[1],
-                arguments[2]
-            ).type
-        case 4:
-            return accessor(
-                .complete,
-                arguments[0],
-                arguments[1],
-                arguments[2],
-                arguments[3]
-            ).type
-        default:
-            return nil
     }
 }
 
