@@ -15,3 +15,22 @@ readonly ANDROID_NDK_MINIMUM_MINOR="3"
 readonly ANDROID_NDK_DIRECTORY_NAME="android-ndk-r27d"
 readonly ANDROID_NDK_URL="https://dl.google.com/android/repository/android-ndk-r27d-linux.zip"
 readonly ANDROID_NDK_SHA1="22105e410cf29afcf163760cc95522b9fb981121"
+
+ensure_android_swift_host_image() {
+  if docker image inspect "$ANDROID_SWIFT_HOST_IMAGE" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  local attempt
+  for attempt in 1 2 3; do
+    echo "Pulling Swift Android host image (attempt $attempt/3): $ANDROID_SWIFT_HOST_IMAGE"
+    if docker pull "$ANDROID_SWIFT_HOST_IMAGE"; then
+      return 0
+    fi
+    if [[ "$attempt" != 3 ]]; then
+      sleep "$((attempt * 5))"
+    fi
+  done
+
+  return 1
+}

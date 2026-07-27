@@ -20,6 +20,7 @@ command -v docker >/dev/null 2>&1 || fail "docker is required to build AndroidRu
 [[ -n "${ANDROID_NDK_HOME:-}" ]] || fail "ANDROID_NDK_HOME is not set."
 [[ -d "$ANDROID_SWIFT_SDKS_PATH" ]] || fail "ANDROID_SWIFT_SDKS_PATH is not a directory: $ANDROID_SWIFT_SDKS_PATH"
 [[ -d "$ANDROID_NDK_HOME" ]] || fail "ANDROID_NDK_HOME is not a directory: $ANDROID_NDK_HOME"
+ensure_android_swift_host_image || fail "Unable to pull the Swift Android host image: $ANDROID_SWIFT_HOST_IMAGE"
 
 readonly build_directory="${ANDROID_RUNTIME_BUILD_PATH:-$repository_root/.build/android-runtime}"
 mkdir -p "$build_directory"
