@@ -1,4 +1,4 @@
-import Echo
+import EchoRuntimeReflection
 import InternalRuntimeContract
 import TestDoublesRuntimeMetadata
 import TestDoublesRuntimeSupport
@@ -79,7 +79,7 @@ package struct FabricatedWitnessDispatch {
             method.arguments.allSatisfy({ $0.ownership == .borrowed }),
             method.returnConvention != .selfType,
             method.returnConvention != .optionalSelf,
-            reflect(method.returnType).kind != .function,
+            FunctionTypeInfo(reflecting: method.returnType) == nil,
             let resumeDiscriminator = YieldingAccessorRuntime.readResumeDiscriminator(for: method)
         else {
             throw RuntimeConstructionError.unsupportedProtocolShape(
@@ -113,7 +113,7 @@ package struct FabricatedWitnessDispatch {
             method.arguments.allSatisfy({ $0.ownership == .borrowed }),
             method.returnConvention != .selfType,
             method.returnConvention != .optionalSelf,
-            reflect(method.returnType).kind != .function,
+            FunctionTypeInfo(reflecting: method.returnType) == nil,
             let resumeDiscriminator = YieldingAccessorRuntime.modifyResumeDiscriminator(for: method)
         else {
             throw RuntimeConstructionError.unsupportedProtocolShape(
