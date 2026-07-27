@@ -58,7 +58,7 @@ private func loweredFunctionParameterType(
 package func pointerAuthTypeSpelling(_ type: Any.Type) -> String? {
     let metadata = reflect(type)
     switch metadata.kind {
-        case .class, .foreignClass, .objcClassWrapper:
+        case .class, .foreignClass, .objcClassWrapper, .foreignReferenceType:
             return "-class"
         case .metatype, .existentialMetatype:
             return "-metatype"
@@ -100,7 +100,7 @@ package func pointerAuthTypeSpelling(_ type: Any.Type) -> String? {
                 return nil
             }
             switch reflect(wrapped).kind {
-                case .class, .foreignClass, .objcClassWrapper,
+                case .class, .foreignClass, .objcClassWrapper, .foreignReferenceType,
                     .metatype, .existentialMetatype:
                     return wrappedSpelling
                 default:

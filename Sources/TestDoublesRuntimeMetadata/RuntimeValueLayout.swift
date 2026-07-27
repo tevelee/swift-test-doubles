@@ -403,7 +403,9 @@ private func appendDirectValueParts(
         return true
     }
 
-    if metadata.kind == .class || metadata.kind == .foreignClass {
+    if metadata.kind == .class || metadata.kind == .foreignClass
+        || metadata.kind == .foreignReferenceType
+    {
         parts.append(DirectValuePart(register: .gp, offset: baseOffset, byteCount: MemoryLayout<UInt>.size))
         return true
     }

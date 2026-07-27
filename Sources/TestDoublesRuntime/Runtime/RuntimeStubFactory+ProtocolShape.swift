@@ -1,3 +1,4 @@
+import Echo
 import InternalRuntimeContract
 import TestDoublesRuntimeMetadata
 import TestDoublesRuntimeSupport
@@ -60,6 +61,22 @@ extension RuntimeStubFactory {
                 throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: request.typeDescription,
                     reason: "The superclass-constrained existential metadata does not contain a superclass type."
+                )
+            }
+            // A C++ foreign reference superclass constraint (e.g.
+            // `Stub<any Widget & P>()`) is a real, distinct shape from an
+            // NSObject superclass constraint, not a variant of "not
+            // NSObject" -- give it its own diagnostic naming the actual
+            // blocker (construction and resource-lifetime attachment, not
+            // ownership rules) rather than suggesting NSObject as the fix.
+            if reflect(superclass).kind == .foreignReferenceType {
+                let superclassName = runtimeTypeName(superclass)
+                throw RuntimeConstructionError.unsupportedProtocolShape(
+                    protocolName: request.typeDescription,
+                    reason: "Requires a genuine instance of the C++ foreign reference superclass '\(superclassName)', "
+                        + "but automatic Stub construction has no generic way to default-construct one or to attach "
+                        + "the fabricated runtime resources' lifetime to an arbitrary foreign-reference instance. "
+                        + "Neither is implemented yet."
                 )
             }
             #if canImport(ObjectiveC)
