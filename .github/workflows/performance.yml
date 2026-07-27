@@ -60,7 +60,9 @@ jobs:
           mkdir -p baseline/Benchmarks baseline/Scripts
           rsync -a --delete candidate/Benchmarks/ baseline/Benchmarks/
           cp candidate/Scripts/run-benchmarks.sh baseline/Scripts/run-benchmarks.sh
-          cp baseline/Package.resolved baseline/Benchmarks/Package.resolved
+          # Both source revisions must resolve the candidate dependency graph.
+          # Otherwise an Echo update is measured as a TestDoubles regression.
+          cp candidate/Package.resolved baseline/Benchmarks/Package.resolved
           cp candidate/Package.resolved candidate/Benchmarks/Package.resolved
       - name: Build benchmark drivers
         run: |
