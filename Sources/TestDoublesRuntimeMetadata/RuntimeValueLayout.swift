@@ -236,18 +236,34 @@ private var swiftGetTypeByMangledNameInContextForValueLayout: SwiftGetTypeByMang
     RuntimeSymbols.function(named: "swift_getTypeByMangledNameInContext")
 }
 
-/// Whether `type` is a concrete SIMD shape proven to use one complete 128-bit
-/// vector register for both arguments and results on arm64 and x86_64, and if
-/// so, the byte count of that register (always 16).
+/// The maximum vector registers this boundary transports directly, matching
+/// `TrampolineCallFrame.floatingPointReturnCount`: a return wider than this
+/// already falls back to Swift's own indirect `sret` convention (verified
+/// against compiled witness IR), so this cap mirrors a real ABI boundary
+/// rather than introducing a new, narrower one.
+private let maximumDirectSIMDRegisterCount = 4
+
+/// Whether `type` is a concrete SIMD shape proven to use one or more complete
+/// 128-bit vector registers (up to `maximumDirectSIMDRegisterCount`) for both
+/// arguments and results on arm64 and x86_64, and if so, its total byte count
+/// (a multiple of 16).
 ///
 /// Computed generically instead of enumerated: any concrete `SIMD` type whose
-/// total storage is exactly 16 bytes with every one of those bytes backing a
-/// real lane qualifies, regardless of width or scalar. Smaller vectors are
-/// intentionally excluded: Swift can scalarize them or use different register
-/// layouts across the two architectures. Padded three-lane vectors are
-/// excluded as well (`scalarCount * scalar stride` falls short of the 16-byte
-/// storage size) so this boundary transports only complete lane payloads with
-/// no unspecified bytes.
+/// total storage is an exact multiple of 16 bytes, with every one of those
+/// bytes backing a real lane, qualifies, regardless of width or scalar.
+/// Verified against compiled witness IR on both architectures: a multi-register
+/// vector (e.g. `SIMD8<Float>`, 32 bytes) lowers to that many consecutive full
+/// vector-register arguments/results identically on arm64 and x86_64.
+///
+/// Narrower (sub-16-byte) vectors are intentionally excluded: Swift
+/// scalarizes them differently per architecture (`SIMD2<Float>` is one
+/// `<2 x float>` vector register on arm64 but two separate scalar `float`
+/// registers on x86_64), which this uniform, architecture-independent part
+/// computation cannot represent. Extending that case needs
+/// architecture-aware part computation, a larger change this boundary does
+/// not attempt. Padded vectors are excluded as well (`scalarCount *
+/// scalarStride` falls short of the storage size) so this boundary
+/// transports only complete lane payloads with no unspecified bytes.
 package func concreteSIMDRegisterByteCount(for type: Any.Type) -> Int? {
     guard let simdType = type as? any SIMD.Type else { return nil }
     return _openExistential(simdType, do: openedConcreteSIMDRegisterByteCount)
@@ -255,7 +271,9 @@ package func concreteSIMDRegisterByteCount(for type: Any.Type) -> Int? {
 
 private func openedConcreteSIMDRegisterByteCount<T: SIMD>(_: T.Type) -> Int? {
     let size = MemoryLayout<T>.size
-    guard size == 16, T().scalarCount * MemoryLayout<T.Scalar>.stride == size
+    guard size >= 16, size.isMultiple(of: 16),
+        size <= maximumDirectSIMDRegisterCount * 16,
+        T().scalarCount * MemoryLayout<T.Scalar>.stride == size
     else {
         return nil
     }
@@ -339,13 +357,15 @@ private func containsFunctionStorage(_ type: Any.Type) -> Bool {
 
 package func directReturnParts(for type: Any.Type) -> [DirectValuePart]? {
     if let byteCount = concreteSIMDRegisterByteCount(for: type) {
-        return [
-            DirectValuePart(
-                register: .fp,
-                offset: 0,
-                byteCount: byteCount
-            )
-        ]
+        let parts = stride(from: 0, to: byteCount, by: 16).map {
+            DirectValuePart(register: .fp, offset: $0, byteCount: 16)
+        }
+        // A vector wider than four registers already falls back to Swift's
+        // own indirect `sret` convention (verified against compiled witness
+        // IR); this cap matches that boundary rather than introducing a new
+        // one, the same way the general aggregate cap below already does.
+        guard parts.count <= 4 else { return nil }
+        return parts
     }
     var visited: Set<UInt> = []
     var parts: [DirectValuePart] = []

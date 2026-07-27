@@ -29,16 +29,18 @@ package func runtimeSIMDUnsupportedReason(
         guard value.dependency.isAssociatedTypeDependent == false else {
             return "Associated-dependent SIMD needs metadata-directed vector substitution."
         }
-        guard concreteSIMDRegisterByteCount(for: value.type) == 16 else {
-            return "Only complete 128-bit lane payloads with one identical arm64/x86_64 vector-register shape are supported."
-        }
-        guard case .aggregate(let parts) = value.layout,
-            parts.count == 1,
-            parts[0].register == .fp,
-            parts[0].offset == 0,
-            parts[0].byteCount == 16
+        guard let registerByteCount = concreteSIMDRegisterByteCount(for: value.type)
         else {
-            return "Its runtime ABI classification is not one 128-bit vector register."
+            return "Only complete 128-bit lane payloads made of whole 128-bit vector registers, with one identical arm64/x86_64 vector-register shape, are supported."
+        }
+        let expectedPartCount = registerByteCount / 16
+        guard case .aggregate(let parts) = value.layout,
+            parts.count == expectedPartCount,
+            parts.enumerated().allSatisfy({ index, part in
+                part.register == .fp && part.offset == index * 16 && part.byteCount == 16
+            })
+        else {
+            return "Its runtime ABI classification is not a sequence of complete 128-bit vector registers."
         }
     }
 
@@ -51,8 +53,11 @@ package func runtimeSIMDUnsupportedReason(
             method.arguments,
             transport.argumentLocations
         ) where argument.value.type is any SIMD.Type {
-            guard locations.count == 1,
-                case .vectorRegister = locations[0].storage
+            guard
+                locations.allSatisfy({
+                    if case .vectorRegister = $0.storage { return true }
+                    return false
+                })
             else {
                 return "Its vector argument spills outside the captured register bank on \(architecture)."
             }
