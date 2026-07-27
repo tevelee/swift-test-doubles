@@ -1,3 +1,4 @@
+import CTestDoublesTrampoline
 import EchoRuntimeReflection
 import TestDoublesRuntimeMetadata
 import TestDoublesRuntimeSupport
@@ -18,26 +19,30 @@ package struct AsyncWitnessStackPlan: Equatable, Sendable {
     }
 }
 
-/// The one outgoing async forwarding stack shape proven against Swift 6.3.
+/// The bounded outgoing async forwarding stack shape proven against Swift 6.3.
 ///
-/// `visibleArgumentLocation` identifies the word that must be copied while the
-/// outer witness-entry frame is still live. `outgoingStackByteCount` is the
+/// `visibleArgumentLocations` identifies the words that must be copied while
+/// the outer witness-entry frame is still live. `outgoingStackByteCount` is the
 /// area the forwarding helper creates before entering the real target witness.
-/// The target witness transfers that area to its compiler-selected
-/// continuation stack before resuming the helper. The completion adjustment is
-/// therefore zero for every supported architecture and records that the helper
-/// must not remove the area a second time.
+/// The target witness transfers that area to its compiler-selected continuation
+/// stack before resuming the helper. The completion adjustment is therefore
+/// zero for every supported architecture and records that the helper must not
+/// remove the area a second time.
 package struct AsyncForwardingStackPlan: Equatable, Sendable {
-    package let visibleArgumentLocation: CallFrameArgumentLocation
+    package static let maximumVisibleStackWordCount = Int(
+        TD_ASYNC_WITNESS_MAX_VISIBLE_STACK_WORDS
+    )
+
+    package let visibleArgumentLocations: [CallFrameArgumentLocation]
     package let outgoingStackByteCount: Int
     package let completionStackAdjustmentByteCount: Int
 
     package init(
-        visibleArgumentLocation: CallFrameArgumentLocation,
+        visibleArgumentLocations: [CallFrameArgumentLocation],
         outgoingStackByteCount: Int,
         completionStackAdjustmentByteCount: Int
     ) {
-        self.visibleArgumentLocation = visibleArgumentLocation
+        self.visibleArgumentLocations = visibleArgumentLocations
         self.outgoingStackByteCount = outgoingStackByteCount
         self.completionStackAdjustmentByteCount = completionStackAdjustmentByteCount
     }
@@ -246,9 +251,10 @@ private func asyncWitnessStackPlan(
 /// Returns the bounded outgoing async forwarding stack plan, or `nil` when a
 /// requirement needs a different physical shape.
 ///
-/// This deliberately accepts only one complete concrete eight-byte value that
-/// spills from the general-purpose bank. Split, padded, indirect, dependent,
-/// vector, accessor, and typed-error shapes remain fail-closed.
+/// This deliberately accepts at most four complete concrete eight-byte values
+/// that spill consecutively from the general-purpose bank. Split, padded,
+/// floating-point, indirect, dependent, vector, accessor, and typed-error
+/// shapes remain fail-closed.
 package func asyncForwardingStackPlan(
     for method: MethodDescriptor,
     architecture: RuntimeArchitecture
@@ -267,54 +273,88 @@ package func asyncForwardingStackPlan(
         architecture: architecture
     )
 
-    var spilledArgumentIndex: Int?
-    var visibleArgumentLocation: CallFrameArgumentLocation?
+    let wordByteCount = MemoryLayout<UInt>.size
+    var visibleArgumentLocations: [CallFrameArgumentLocation] = []
+    var expectedStackOffset = 0
     for (argumentIndex, locations) in transport.argumentLocations.enumerated() {
-        for location in locations {
-            guard case .stack = location.storage else { continue }
-            guard visibleArgumentLocation == nil else { return nil }
-            spilledArgumentIndex = argumentIndex
-            visibleArgumentLocation = location
+        let stackLocations = locations.filter {
+            if case .stack = $0.storage { return true }
+            return false
         }
+        guard stackLocations.isEmpty == false else { continue }
+        let argument = method.arguments[argumentIndex]
+        guard locations.count == 1,
+            stackLocations.count == 1,
+            let location = stackLocations.first,
+            case .stack(let byteOffset) = location.storage,
+            byteOffset == expectedStackOffset,
+            location.valueOffset == 0,
+            location.byteCount == wordByteCount,
+            argument.value.dependency.isAssociatedTypeDependent == false,
+            ValueLayoutInfo(reflecting: argument.value.type).size
+                == wordByteCount,
+            case .integer(words: 1) = argument.value.layout
+        else {
+            return nil
+        }
+        visibleArgumentLocations.append(location)
+        guard
+            visibleArgumentLocations.count
+                <= AsyncForwardingStackPlan.maximumVisibleStackWordCount
+        else {
+            return nil
+        }
+        expectedStackOffset += wordByteCount
     }
-    guard let spilledArgumentIndex,
-        let visibleArgumentLocation,
-        transport.decodedStackByteCount == MemoryLayout<UInt>.size,
-        transport.argumentLocations[spilledArgumentIndex].count == 1,
-        visibleArgumentLocation.storage == .stack(byteOffset: 0),
-        visibleArgumentLocation.valueOffset == 0,
-        visibleArgumentLocation.byteCount == MemoryLayout<UInt>.size,
-        method.arguments[spilledArgumentIndex].value.dependency
-            .isAssociatedTypeDependent == false,
-        ValueLayoutInfo(
-            reflecting: method.arguments[spilledArgumentIndex].value.type
-        ).size
-            == MemoryLayout<UInt>.size,
-        case .integer(words: 1) =
-            method.arguments[spilledArgumentIndex].value.layout
+
+    guard visibleArgumentLocations.isEmpty == false,
+        expectedStackOffset == transport.decodedStackByteCount
     else {
         return nil
     }
-
     let witnessPlan = asyncWitnessStackPlan(
         transport: transport,
         architecture: architecture
     )
-    guard witnessPlan.decodedStackByteCount == MemoryLayout<UInt>.size,
-        witnessPlan.hiddenStackByteCount == 2 * MemoryLayout<UInt>.size
+    guard witnessPlan.decodedStackByteCount == expectedStackOffset,
+        witnessPlan.hiddenStackByteCount == 2 * wordByteCount
     else {
         return nil
     }
 
+    let visibleWordCount = visibleArgumentLocations.count
     switch architecture {
         case .arm64:
-            guard witnessPlan.stackAdjustmentByteCount == 32 else { return nil }
+            let expectedByteCount =
+                visibleWordCount.isMultiple(of: 2)
+                ? (visibleWordCount + 2) * wordByteCount
+                : (visibleWordCount + 3) * wordByteCount
+            guard witnessPlan.stackAdjustmentByteCount == expectedByteCount
+            else {
+                return nil
+            }
         case .x86_64:
-            guard witnessPlan.stackAdjustmentByteCount == 16 else { return nil }
+            let expectedByteCount =
+                (visibleWordCount + 2) / 2 * 2 * wordByteCount
+            guard witnessPlan.stackAdjustmentByteCount == expectedByteCount
+            else {
+                return nil
+            }
     }
     return AsyncForwardingStackPlan(
-        visibleArgumentLocation: visibleArgumentLocation,
+        visibleArgumentLocations: visibleArgumentLocations,
         outgoingStackByteCount: witnessPlan.stackAdjustmentByteCount,
         completionStackAdjustmentByteCount: 0
     )
+}
+
+package func unsupportedAsyncForwardingEgressDiagnostic(
+    architecture: RuntimeArchitecture
+) -> String {
+    "Its target-stack egress on \(architecture) is not a sequence of one through "
+        + "four complete, independent eight-byte general-purpose arguments "
+        + "followed by dynamic-Self metadata and its witness table. Split, padded, "
+        + "floating-point, vector, indirect, dependent, accessor, static, and "
+        + "typed-error shapes remain unsupported. Use compatible values or a "
+        + "hand-written test double."
 }

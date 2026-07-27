@@ -494,16 +494,17 @@ entry bridge removes the compiler-planned, ABI-aligned outgoing stack
 reservation exactly once.
 
 A forwarding ``Spy`` supports the corresponding narrow outgoing path for an
-async instance method, untyped-throwing or not, when exactly one complete
-concrete eight-byte value spills from the general-purpose argument bank.
-Preparation copies that word before the outer entry frame disappears. The
-forwarding state then creates Swift 6.3's target witness stack area from the
-copied value, target metadata, and witness table, including x86_64's live
-implicit slot. The target witness transfers that area to its continuation
-boundary exactly once. A typed throw, a second spill, split or padded values,
-indirect or associated-dependent spilled arguments, vector spills, and async
-accessors remain fail-closed. Typed closure adapters keep their independent
-boundary.
+async instance method, untyped-throwing or not, when one through four complete
+concrete eight-byte values spill consecutively from the general-purpose
+argument bank. Preparation copies every word before the outer entry frame
+disappears. The forwarding state then creates Swift 6.3's target witness stack
+area in declaration order from those values, target metadata, and witness
+table, including x86_64's live implicit slot. The target witness transfers that
+area to its continuation boundary exactly once. Indirect results retain the
+caller's result storage independently. A typed throw, a fifth spill, split or
+padded values, floating-point or vector spills, indirect or
+associated-dependent spilled arguments, and async accessors remain fail-closed.
+Typed closure adapters keep their independent boundary.
 
 A forwarding ``Spy``'s **synchronous** outgoing path supports up to two
 spilled general-purpose words, sourced from any combination of overflowing

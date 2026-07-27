@@ -354,6 +354,13 @@ struct ProtocolForwardingPlanBuilder<P> {
         witnessTable: WitnessTable,
         protocolName: String
     ) throws -> ForwardedCallPlan {
+        let asyncTransport =
+            method.isAsync
+            ? WitnessCallTransportPlan(
+                method: method,
+                trailingPayload: .dynamicSelf
+            )
+            : nil
         let asyncStackPlan =
             method.isAsync
             ? asyncForwardingStackPlan(
@@ -361,11 +368,20 @@ struct ProtocolForwardingPlanBuilder<P> {
                 architecture: .current
             )
             : nil
+        if let asyncTransport,
+            asyncTransport.stackByteCount > 0,
+            asyncStackPlan == nil
+        {
+            throw RuntimeConstructionError.unsupportedProtocolShape(
+                protocolName: protocolName,
+                reason: unsupportedAsyncForwardingEgressDiagnostic(
+                    architecture: .current
+                )
+            )
+        }
         // Only a genuinely synchronous call goes through td_swift_invoke_witness,
-        // the routine able to carry outgoing stack words. An async call
-        // either fits asyncStackPlan's own one-spill model or, falling
-        // through here, must stay register-only: ForwardedAsyncState has no
-        // way to carry spilled words td_swift_invoke_witness never sees.
+        // the routine able to carry outgoing stack words. An async call either
+        // fits asyncStackPlan's bounded multiword model or remains register-only.
         let (dynamicSelfLocations, outgoingStackSources): (WitnessCallTransportPlan.DynamicSelfLocations?, [WitnessCallTransportPlan.OutgoingStackSource]) =
             if asyncStackPlan == nil {
                 try dynamicSelfTransport(for: method, protocolName: protocolName)

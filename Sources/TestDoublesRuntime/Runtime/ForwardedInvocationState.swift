@@ -242,17 +242,42 @@ final class ForwardedAsyncState:
         storedFrame = .allocate(capacity: 1)
         storedFrame.initialize(to: frame.snapshot)
         if let stackPlan = plan.asyncStackPlan {
+            let visibleWords = stackPlan.visibleArgumentLocations.map {
+                frame.scalarBits(at: $0)
+            }
+            precondition(
+                visibleWords.isEmpty == false
+                    && visibleWords.count
+                        <= AsyncForwardingStackPlan
+                        .maximumVisibleStackWordCount,
+                "[TestDoubles] An async forwarding plan exceeded its visible stack-word ceiling."
+            )
+            let paddedVisibleWords =
+                visibleWords
+                + repeatElement(
+                    0,
+                    count:
+                        AsyncForwardingStackPlan.maximumVisibleStackWordCount
+                        - visibleWords.count
+                )
             let storage = UnsafeMutablePointer<
                 TDAsyncWitnessStackArguments
             >.allocate(capacity: 1)
             storage.initialize(
                 to: TDAsyncWitnessStackArguments(
-                    visible: frame.scalarBits(
-                        at: stackPlan.visibleArgumentLocation
+                    visible: (
+                        paddedVisibleWords[0],
+                        paddedVisibleWords[1],
+                        paddedVisibleWords[2],
+                        paddedVisibleWords[3]
                     ),
                     metadata: UInt64(UInt(bitPattern: metadata)),
                     witnessTable: UInt64(
                         UInt(bitPattern: plan.witnessTable)
+                    ),
+                    visibleCount: UInt64(visibleWords.count),
+                    outgoingStackByteCount: UInt64(
+                        stackPlan.outgoingStackByteCount
                     )
                 )
             )

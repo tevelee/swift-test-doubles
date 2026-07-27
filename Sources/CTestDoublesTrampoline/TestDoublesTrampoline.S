@@ -451,23 +451,34 @@ SYMBOL(td_swift_invoke_async_witness):
 #endif
     stp x11, x8, [x0]
     mov x10, x0
-    ldr x9, [x11, #16]
     ldr x17, [x11, #24]
     ldr x20, [x11, #32]
     ldr x12, [x11, #TD_ASYNC_INVOKE_STACK_ARGUMENTS_OFFSET]
 
-    td_load_frame_argument_registers x9
-    mov x22, x10
-
     ldp x29, x30, [sp], #16
     cbz x12, .Ltd_async_witness_no_stack_arm64
-    sub sp, sp, #32
-    ldp x9, x10, [x12]
-    stp x9, x10, [sp]
-    ldr x9, [x12, #16]
-    str x9, [sp, #16]
-    str xzr, [sp, #24]
+    ldr x13, [x12, #TD_ASYNC_WITNESS_STACK_BYTE_COUNT_OFFSET]
+    sub sp, sp, x13
+    ldr x13, [x12, #TD_ASYNC_WITNESS_VISIBLE_COUNT_OFFSET]
+    mov x14, #0
+.Ltd_async_witness_visible_loop_arm64:
+    cmp x14, x13
+    b.eq .Ltd_async_witness_visible_done_arm64
+    ldr x15, [x12, x14, lsl #3]
+    str x15, [sp, x14, lsl #3]
+    add x14, x14, #1
+    b .Ltd_async_witness_visible_loop_arm64
+.Ltd_async_witness_visible_done_arm64:
+    ldr x15, [x12, #TD_ASYNC_WITNESS_METADATA_OFFSET]
+    str x15, [sp, x13, lsl #3]
+    add x14, x13, #1
+    ldr x15, [x12, #TD_ASYNC_WITNESS_TABLE_OFFSET]
+    str x15, [sp, x14, lsl #3]
 .Ltd_async_witness_no_stack_arm64:
+    ldr x9, [x11, #16]
+    td_load_frame_argument_registers x9
+    ldr x8, [x9, #TD_FRAME_INDIRECT_RESULT_OFFSET]
+    mov x22, x10
     br x17
 
 .p2align 2
@@ -1345,11 +1356,9 @@ SYMBOL(td_swift_invoke_async_witness):
     leaq SYMBOL(td_swift_invoke_async_function_complete)(%rip), %rcx
     movq %rcx, 8(%rax)
     movq 16(%r14), %r10
-    movq 24(%r14), %r11
     movq 32(%r14), %r13
     movq %rax, %r14
 
-    td_load_frame_argument_registers %r10
     movq (%r14), %r10
     movq TD_ASYNC_INVOKE_STACK_ARGUMENTS_OFFSET(%r10), %r10
 
@@ -1357,15 +1366,30 @@ SYMBOL(td_swift_invoke_async_witness):
     testq %r10, %r10
     je .Ltd_async_witness_no_stack_x86_64
     movq (%rsp), %rax
-    subq $16, %rsp
+    movq TD_ASYNC_WITNESS_STACK_BYTE_COUNT_OFFSET(%r10), %rcx
+    subq %rcx, %rsp
     movq %rax, (%rsp)
-    movq (%r10), %rax
-    movq %rax, 8(%rsp)
-    movq 8(%r10), %rax
-    movq %rax, 16(%rsp)
-    movq 16(%r10), %rax
-    movq %rax, 24(%rsp)
+    xorq %rax, %rax
+.Ltd_async_witness_visible_loop_x86_64:
+    cmpq TD_ASYNC_WITNESS_VISIBLE_COUNT_OFFSET(%r10), %rax
+    je .Ltd_async_witness_visible_done_x86_64
+    movq TD_ASYNC_WITNESS_VISIBLE_OFFSET(%r10, %rax, 8), %rcx
+    movq %rcx, 8(%rsp, %rax, 8)
+    incq %rax
+    jmp .Ltd_async_witness_visible_loop_x86_64
+.Ltd_async_witness_visible_done_x86_64:
+    movq TD_ASYNC_WITNESS_METADATA_OFFSET(%r10), %rcx
+    movq %rcx, 8(%rsp, %rax, 8)
+    incq %rax
+    movq TD_ASYNC_WITNESS_TABLE_OFFSET(%r10), %rcx
+    movq %rcx, 8(%rsp, %rax, 8)
 .Ltd_async_witness_no_stack_x86_64:
+    movq (%r14), %r10
+    movq 16(%r10), %r10
+    td_load_frame_argument_registers %r10
+    movq TD_FRAME_INDIRECT_RESULT_OFFSET(%r10), %rax
+    movq (%r14), %r11
+    movq 24(%r11), %r11
     jmpq *%r11
 
 #if defined(__APPLE__)

@@ -65,14 +65,25 @@ _Static_assert(offsetof(TDCallFrame, returnError) ==
 _Static_assert(offsetof(TDCallFrame, returnFPHigh) ==
                    TD_FRAME_RETURN_FP_HIGH_OFFSET,
                "returnFPHigh offset changed");
-_Static_assert(sizeof(TDAsyncWitnessStackArguments) == 3 * sizeof(uint64_t),
+_Static_assert(sizeof(TDAsyncWitnessStackArguments) ==
+                   TD_ASYNC_WITNESS_STACK_ARGUMENTS_SIZE,
                "async witness stack arguments size changed");
-_Static_assert(offsetof(TDAsyncWitnessStackArguments, visible) == 0,
+_Static_assert(offsetof(TDAsyncWitnessStackArguments, visible) ==
+                   TD_ASYNC_WITNESS_VISIBLE_OFFSET,
                "async witness visible stack word offset changed");
-_Static_assert(offsetof(TDAsyncWitnessStackArguments, metadata) == 8,
+_Static_assert(offsetof(TDAsyncWitnessStackArguments, metadata) ==
+                   TD_ASYNC_WITNESS_METADATA_OFFSET,
                "async witness metadata stack word offset changed");
-_Static_assert(offsetof(TDAsyncWitnessStackArguments, witnessTable) == 16,
+_Static_assert(offsetof(TDAsyncWitnessStackArguments, witnessTable) ==
+                   TD_ASYNC_WITNESS_TABLE_OFFSET,
                "async witness table stack word offset changed");
+_Static_assert(offsetof(TDAsyncWitnessStackArguments, visibleCount) ==
+                   TD_ASYNC_WITNESS_VISIBLE_COUNT_OFFSET,
+               "async witness visible stack word count offset changed");
+_Static_assert(offsetof(TDAsyncWitnessStackArguments,
+                        outgoingStackByteCount) ==
+                   TD_ASYNC_WITNESS_STACK_BYTE_COUNT_OFFSET,
+               "async witness outgoing stack byte count offset changed");
 _Static_assert(sizeof(TDModifyCoroutineResult) == 2 * sizeof(void *),
                "TDModifyCoroutineResult size changed");
 _Static_assert(sizeof(TDReadCoroutineResult) == 2 * sizeof(void *),

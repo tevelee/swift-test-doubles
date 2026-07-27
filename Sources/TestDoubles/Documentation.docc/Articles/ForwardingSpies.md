@@ -102,6 +102,15 @@ argument registers are supported. The forwarding bridge preserves all lane
 bits in arguments and results. Smaller, padded, wider, nested, dependent, and
 async SIMD shapes, plus any vector spill, remain fail-closed.
 
+Ordinary async instance methods, untyped-throwing or not, may forward one
+through four consecutive complete eight-byte general-purpose stack arguments.
+The bridge copies the words before suspension, then places them in declaration
+order before the target's dynamic-Self metadata and witness table. Immediate
+and suspending targets, untyped errors, and indirect result storage share this
+boundary on arm64 and x86_64. A fifth word and split, padded, floating-point,
+vector, indirect-argument, dependent, accessor, static, and typed-error stack
+shapes remain fail-closed.
+
 Compound assignment and `inout` access use the target's `_modify` coroutine.
 Both legacy direct witnesses and descriptor-based public Swift 6.3 witnesses
 are supported. A matching getter registration keeps the configured
@@ -130,7 +139,8 @@ when the protocol requires any of these forwarding shapes:
 - Static or initializer requirements
 - Direct or optional dynamic `Self` results
 - Function-valued arguments or results
-- Arguments that spill to the stack or leave no registers for target metadata
+- Stack arguments outside the bounded synchronous and async forwarding paths
+  described above
 - SIMD outside the single-register 128-bit synchronous boundary, including a
   ninth vector argument
 - `read` coroutine descriptors outside the supported Swift 6.3 `read2` and

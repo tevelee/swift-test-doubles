@@ -26,6 +26,14 @@
 #define TD_ASYNC_INVOKE_STACK_ARGUMENTS_OFFSET 56
 #define TD_ASYNC_INVOKE_CONTEXT_SIZE 64
 
+#define TD_ASYNC_WITNESS_MAX_VISIBLE_STACK_WORDS 4
+#define TD_ASYNC_WITNESS_VISIBLE_OFFSET 0
+#define TD_ASYNC_WITNESS_METADATA_OFFSET 32
+#define TD_ASYNC_WITNESS_TABLE_OFFSET 40
+#define TD_ASYNC_WITNESS_VISIBLE_COUNT_OFFSET 48
+#define TD_ASYNC_WITNESS_STACK_BYTE_COUNT_OFFSET 56
+#define TD_ASYNC_WITNESS_STACK_ARGUMENTS_SIZE 64
+
 #define TD_ASYNC_COMPLETION_FRAME_SIZE 560
 #define TD_ASYNC_COMPLETION_PARENT_OFFSET 544
 #define TD_ASYNC_COMPLETION_STATE_OFFSET 552
@@ -180,13 +188,17 @@ typedef struct TDAsyncTrampolineResult {
 
 /// The bounded outgoing stack payload for an async forwarding witness call.
 ///
-/// Swift 6.3 places one visible general-purpose spill first, followed by the
-/// target's dynamic-Self metadata and protocol witness table. Assembly adds
-/// the architecture-specific alignment or implicit slot around these words.
+/// Swift 6.3 places up to four visible general-purpose spills first, followed
+/// by the target's dynamic-Self metadata and protocol witness table. Assembly
+/// adds the architecture-specific alignment or implicit slot around these
+/// words. `visibleCount` and `outgoingStackByteCount` are retained with the
+/// copied payload so assembly never reads the vanished caller stack.
 typedef struct TDAsyncWitnessStackArguments {
-  uint64_t visible;
+  uint64_t visible[TD_ASYNC_WITNESS_MAX_VISIBLE_STACK_WORDS];
   uint64_t metadata;
   uint64_t witnessTable;
+  uint64_t visibleCount;
+  uint64_t outgoingStackByteCount;
 } TDAsyncWitnessStackArguments;
 
 /// Authenticated Swift 6.3 yield_once_2 witness entry information.

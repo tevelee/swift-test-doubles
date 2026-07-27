@@ -231,18 +231,20 @@ adjustment once on both immediate and suspending entry exits, never from the
 completion trampoline. Split, padded, floating-point, vector, indirect,
 dependent, accessor, and wider typed-error stack shapes remain fail-closed.
 
-The bounded forwarding counterpart accepts one complete concrete eight-byte
-general-purpose spill for a nonthrowing instance method. Synchronous
-preparation copies that word into retained forwarding state before the outer
-entry removes its caller stack. The async invoke helper then reproduces the
-compiler's outgoing generic-witness layout. arm64 reserves 32 bytes containing
-the visible word, target metadata, witness table, and alignment padding.
-x86_64 moves its live implicit slot down by 16 bytes, then writes those three
-words at offsets 8, 16, and 24. The target's compiler-generated witness thunk
-performs the only transition to the direct-method continuation stack; the
-forwarding completion does not adjust it again. Throwing calls, typed-error
-destinations, a second spill, split or padded values, SIMD, dependent values,
-and async accessors remain outside this slice.
+The bounded forwarding counterpart accepts one through four complete concrete
+eight-byte general-purpose spills for an instance method, untyped-throwing or
+not. Synchronous preparation copies every word into retained forwarding state
+before the outer entry removes its caller stack. The async invoke helper then
+reproduces the compiler's outgoing generic-witness layout in declaration order,
+followed by target metadata and its witness table. arm64 rounds the logical
+sequence up to a 16-byte stack area. x86_64 moves its live implicit slot down by
+the compiler-planned 16-byte-aligned adjustment, preserves it at offset zero,
+and writes the logical sequence from offset eight. The target's
+compiler-generated witness thunk performs the only transition to the
+direct-method continuation stack; forwarding completion does not adjust it
+again. A fifth spill, typed-error destination, split or padded value, floating
+point, SIMD, indirect or dependent argument, and async accessor remain outside
+this slice.
 
 After matcher evaluation, dispatch enters one recorder linearization point that
 atomically commits matcher captures, appends the call, and reserves the next
