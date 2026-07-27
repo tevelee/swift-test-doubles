@@ -360,7 +360,15 @@ import TestDoublesFixtures
     }
 
     @Test
-    @available(macOS 14.0, *)
+    @available(
+        macOS 14.0,
+        iOS 17.0,
+        tvOS 17.0,
+        watchOS 10.0,
+        visionOS 1.0,
+        macCatalyst 17.0,
+        *
+    )
     func metadataPackContextsRemainUnsupported() {
         _ = ExternalGenericPack<Int>.self
 
@@ -372,7 +380,15 @@ import TestDoublesFixtures
     }
 
     @Test
-    @available(macOS 14.0, *)
+    @available(
+        macOS 14.0,
+        iOS 17.0,
+        tvOS 17.0,
+        watchOS 10.0,
+        visionOS 1.0,
+        macCatalyst 17.0,
+        *
+    )
     func witnessTablePackContextsRemainUnsupported() {
         _ = ExternalConstrainedGenericPack<Int>.self
 
