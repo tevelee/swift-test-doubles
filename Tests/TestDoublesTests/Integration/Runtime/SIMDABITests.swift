@@ -73,6 +73,30 @@ struct RealWideSIMDABIProbe: WideSIMDABIProbe {
     func echo(_ value: SIMD8<Float>) -> SIMD8<Float> { value }
 }
 
+/// A result using all four vector-register return slots the trampoline
+/// captures (`TrampolineCallFrame.floatingPointReturnCount`).
+protocol FourRegisterReturnSIMDABIProbe {
+    func widen(_ value: SIMD4<Float>) -> SIMD16<Float>
+}
+
+struct RealFourRegisterReturnSIMDABIProbe: FourRegisterReturnSIMDABIProbe {
+    func widen(_ value: SIMD4<Float>) -> SIMD16<Float> {
+        let half = SIMD8(lowHalf: value, highHalf: value)
+        return SIMD16(lowHalf: half, highHalf: half)
+    }
+}
+
+/// Wider than four vector registers: Swift itself already falls back to an
+/// indirect `sret` return here (verified against compiled witness IR), so
+/// this stays unsupported the same way a non-SIMD oversized aggregate does.
+protocol OverflowingReturnSIMDABIProbe {
+    func echo(_ value: SIMD16<Double>) -> SIMD16<Double>
+}
+
+struct RealOverflowingReturnSIMDABIProbe: OverflowingReturnSIMDABIProbe {
+    func echo(_ value: SIMD16<Double>) -> SIMD16<Double> { value }
+}
+
 protocol SpilledSIMDABIProbe {
     func consume(
         _ v0: SIMD4<Float>, _ v1: SIMD4<Float>,
@@ -265,16 +289,61 @@ struct RealNestedSIMDABIProbe: NestedSIMDABIProbe {
         }
     }
 
-    @Test func vectorWiderThan128BitsFailsClosed() {
+    /// A vector wider than one 128-bit register (`SIMD8<Float>`, two
+    /// registers) round-trips exactly, verified against compiled witness IR
+    /// on both arm64 and x86_64 (see `concreteSIMDRegisterByteCount`).
+    @Test func widerThan128BitVectorRoundTripsAcrossTwoRegisters() throws {
         _ = RealWideSIMDABIProbe()
+        let input = SIMD8<Float>(1, 2, 3, 4, 5, 6, 7, 8)
+        let expected = SIMD8<Float>(8, 7, 6, 5, 4, 3, 2, 1)
+
+        let stub = try Stub<any WideSIMDABIProbe>(
+            .method(signatureOf: WideSIMDABIProbe.echo)
+        )
+        stub.when(returning: SIMD8<Float>()) {
+            $0.echo(equal(input))
+        }.thenReturn(expected)
+        #expect(stub().echo(input) == expected)
+
+        let spy = try Spy<any WideSIMDABIProbe>(forwardingTo: RealWideSIMDABIProbe())
+        #expect(spy().echo(input) == input)
+    }
+
+    /// A result spanning all four vector-register return slots round-trips
+    /// exactly, matching the trampoline's `floatingPointReturnCount` ceiling.
+    @Test func fourRegisterReturnRoundTripsAcrossAllCapturedSlots() throws {
+        _ = RealFourRegisterReturnSIMDABIProbe()
+        let input = SIMD4<Float>(1, 2, 3, 4)
+        let half = SIMD8(lowHalf: input, highHalf: input)
+        let expected = SIMD16(lowHalf: half, highHalf: half)
+
+        let stub = try Stub<any FourRegisterReturnSIMDABIProbe>(
+            .method(signatureOf: FourRegisterReturnSIMDABIProbe.widen)
+        )
+        stub.when(returning: SIMD16<Float>()) {
+            $0.widen(equal(input))
+        }.thenReturn(expected)
+        #expect(stub().widen(input) == expected)
+
+        let spy = try Spy<any FourRegisterReturnSIMDABIProbe>(
+            forwardingTo: RealFourRegisterReturnSIMDABIProbe()
+        )
+        #expect(spy().widen(input) == expected)
+    }
+
+    /// A result wider than four vector registers still fails closed: Swift
+    /// itself already returns it indirectly, matching the general oversized-
+    /// aggregate boundary rather than a SIMD-specific one.
+    @Test func returnWiderThanFourRegistersFailsClosed() {
+        _ = RealOverflowingReturnSIMDABIProbe()
         expectUnsupportedProtocolShape(containing: "complete 128-bit lane payloads") {
-            _ = try Stub<any WideSIMDABIProbe>(
-                .method(signatureOf: WideSIMDABIProbe.echo)
+            _ = try Stub<any OverflowingReturnSIMDABIProbe>(
+                .method(signatureOf: OverflowingReturnSIMDABIProbe.echo)
             )
         }
         expectUnsupportedProtocolShape(containing: "complete 128-bit lane payloads") {
-            _ = try Spy<any WideSIMDABIProbe>(
-                forwardingTo: RealWideSIMDABIProbe()
+            _ = try Spy<any OverflowingReturnSIMDABIProbe>(
+                forwardingTo: RealOverflowingReturnSIMDABIProbe()
             )
         }
     }
