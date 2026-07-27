@@ -334,10 +334,11 @@ support Swift protocol calls, compositions, static concrete results, and real su
 members, but not initializer requirements or dynamic `Self` results. Native
 Swift-only superclasses, superclass-constrained extended existentials, broader
 dependent-value lowering, and `read` requirements in Dummy remain outside the
-supported layout. Automatic nonthrowing instance methods may take direct or
-single-optional `Self` arguments with borrowed/default or consuming ownership;
-explicit schemas, Spies, superclass constraints, throwing effects, `inout`,
-accessors, static methods, and wider wrappers remain unsupported. Swift 6.3
+supported layout. Automatic instance methods may take direct or single-optional
+`Self` arguments with borrowed/default or consuming ownership, including
+untyped and supported typed throwing effects. Explicit schemas, Spies,
+superclass constraints, `inout`, accessors, static methods, and wider wrappers
+remain unsupported. Swift 6.3
 `read` and Swift 6.4 `yielding borrow` forwarding use the supported
 `yield_once_2` descriptor. For Swift 6.4's paired witnesses, forwarding selects
 the adjacent yielding-borrow target explicitly. Source calls compiled with

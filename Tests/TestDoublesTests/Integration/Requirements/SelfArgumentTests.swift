@@ -240,14 +240,6 @@ private final class ConsumingClassAsyncInvocation<
         }
     }
 
-    @Test func throwingSelfArgumentFailsClosedAtConstruction() {
-        _ = RealExternalThrowingSelfArgumentProbe()
-
-        expectUnsupportedProtocolShape(containing: "throwing effects") {
-            _ = try Stub<any ExternalThrowingSelfArgumentProbe>()
-        }
-    }
-
     #if canImport(ObjectiveC)
         @Test func superclassConstrainedSelfArgumentFailsClosed() {
             _ = SuperclassSelfArgumentProbe()

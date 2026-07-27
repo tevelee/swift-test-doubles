@@ -197,7 +197,6 @@ extension RuntimeStubFactory {
                 && method.origin == .automatic
                 && method.kind == .method
                 && method.receiver == .instance
-                && method.isThrowing == false
                 && {
                     if case .superclassConstrained = representation {
                         return false
@@ -243,12 +242,6 @@ extension RuntimeStubFactory {
                     throw RuntimeConstructionError.unsupportedProtocolShape(
                         protocolName: protocolName,
                         reason: "Requirement \(method.index) contains a Self argument outside an automatic instance method. Initializers, accessors, and static Self arguments remain unsupported."
-                    )
-                }
-                guard method.isThrowing == false else {
-                    throw RuntimeConstructionError.unsupportedProtocolShape(
-                        protocolName: protocolName,
-                        reason: "Requirement \(method.index) combines a Self argument with throwing effects. This bounded slice supports only nonthrowing synchronous or async methods."
                     )
                 }
             }

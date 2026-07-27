@@ -182,12 +182,28 @@ public struct RealExternalArraySelfArgumentProbe:
     public func accept(_ value: [Self]) {}
 }
 
-public enum ExternalThrowingSelfArgumentError: Error {
+public enum ExternalThrowingSelfArgumentError: Error, Equatable {
     case rejected
 }
 
 public protocol ExternalThrowingSelfArgumentProbe {
     func accept(_ value: Self) throws
+    func borrow(_ value: borrowing Self) throws
+    func consume(_ value: consuming Self) throws
+    func acceptOptional(_ value: Self?) throws
+    func consumeOptional(_ value: consuming Self?) throws
+    func acceptTyped(
+        _ value: Self
+    ) throws(ExternalThrowingSelfArgumentError)
+    func consumeTyped(
+        _ value: consuming Self
+    ) throws(ExternalThrowingSelfArgumentError)
+    func acceptOptionalTyped(
+        _ value: Self?
+    ) throws(ExternalThrowingSelfArgumentError)
+    func consumeOptionalTyped(
+        _ value: consuming Self?
+    ) throws(ExternalThrowingSelfArgumentError)
 }
 
 public struct RealExternalThrowingSelfArgumentProbe:
@@ -196,6 +212,44 @@ public struct RealExternalThrowingSelfArgumentProbe:
     public init() {}
 
     public func accept(_ value: Self) throws {}
+
+    public func borrow(_ value: borrowing Self) throws {}
+
+    public func consume(_ value: consuming Self) throws {}
+
+    public func acceptOptional(_ value: Self?) throws {}
+
+    public func consumeOptional(_ value: consuming Self?) throws {}
+
+    public func acceptTyped(
+        _ value: Self
+    ) throws(ExternalThrowingSelfArgumentError) {}
+
+    public func consumeTyped(
+        _ value: consuming Self
+    ) throws(ExternalThrowingSelfArgumentError) {}
+
+    public func acceptOptionalTyped(
+        _ value: Self?
+    ) throws(ExternalThrowingSelfArgumentError) {}
+
+    public func consumeOptionalTyped(
+        _ value: consuming Self?
+    ) throws(ExternalThrowingSelfArgumentError) {}
+}
+
+public protocol ExternalThrowingClassSelfArgumentProbe: AnyObject {
+    func consume(_ value: consuming Self) throws
+}
+
+public final class RealExternalThrowingClassSelfArgumentProbe:
+    ExternalThrowingClassSelfArgumentProbe
+{
+    public init() {}
+
+    public func consume(
+        _ value: consuming RealExternalThrowingClassSelfArgumentProbe
+    ) throws {}
 }
 
 public protocol ExternalArgumentOnlySelfProbe {

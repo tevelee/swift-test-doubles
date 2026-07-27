@@ -16,7 +16,7 @@ For construction examples and requirement-order recipes, see
 | Ordinary protocol methods, getters, setters, subscripts, inheritance, and compositions | Automatic discovery from linked conformers or resilient requirement symbols; explicit requirements otherwise | Compositions use one group per declaring protocol. |
 | Effectful getters | Automatic discovery plus complete ``Stub/GetterEffect`` hints, or explicit requirements | Swift metadata omits getter throwing behavior. |
 | Swift 6.3 `read` accessors | Configure and verify them like synchronous nonthrowing getters | Stub yields the configured result; Spy forwards the target coroutine when no registration matches; Dummy remains fail-closed. |
-| Static requirements, initializers, and dynamic `Self` | Dedicated builders support `Self` results; automatic discovery supports direct and single-`Optional` arguments for bounded nonthrowing instance methods | Use `Stub.withValue(_:)` when passing a generated metatype to code under test. |
+| Static requirements, initializers, and dynamic `Self` | Dedicated builders support `Self` results; automatic discovery supports direct and single-`Optional` arguments for bounded instance methods | Use `Stub.withValue(_:)` when passing a generated metatype to code under test. |
 | Bounded primary associated types | Supported for the documented direct, recursive standard-library container, linked generic-nominal, concrete-reference, setter, initializer, and associated-error slices | See <doc:BoundAssociatedTypes> for exact supported and rejected shapes. |
 | Function arguments and results | Automatic for concrete native Swift closures, C function pointers, blocks, and documented structural containers; explicit compiler-typed adapter otherwise | See <doc:FunctionValues>; top-level nonescaping, thin, declaration-level consuming or `inout`, dependent, and parameter-pack closure shapes remain fail-closed. |
 | Unsupported dependent shapes, native Swift-only superclasses, and device-only execution policy | Use ``ManualStub`` or a hand-written fake | These stay fail-closed instead of guessing at ABI behavior. |
@@ -122,16 +122,16 @@ associated with another fabricated witness graph cannot be installed
 accidentally.
 
 Automatic discovery also accepts direct `Self` and one `Optional<Self>` layer
-as arguments to nonthrowing instance methods, including borrowed/default,
-consuming, synchronous, and async forms. The declaring protocol determines the
-ABI: an ordinary protocol uses opaque indirect storage, while a protocol that
-itself requires `AnyObject` uses one direct reference word. A class-constrained
-child does not change an inherited unconstrained base requirement's ABI.
-Configuration and invocation use generic-opening helper functions because an
-existential cannot call a `Self`-taking requirement directly. Explicit schemas,
-Spies, superclass-constrained existentials, throwing methods, accessors,
-initializers, static methods, `inout`, nested optionals, and other wrappers
-remain fail-closed.
+as arguments to instance methods, including borrowed/default, consuming,
+synchronous, async, untyped-throwing, and supported typed-throwing forms. The
+declaring protocol determines the ABI: an ordinary protocol uses opaque
+indirect storage, while a protocol that itself requires `AnyObject` uses one
+direct reference word. A class-constrained child does not change an inherited
+unconstrained base requirement's ABI. Configuration and invocation use
+generic-opening helper functions because an existential cannot call a
+`Self`-taking requirement directly. Explicit schemas, Spies,
+superclass-constrained existentials, accessors, initializers, static methods,
+`inout`, nested optionals, and other wrappers remain fail-closed.
 
 Playback recording keeps a weak reference to a generated `Self` argument so a
 recorder cannot retain its own runtime graph. The original identity is preserved
@@ -420,10 +420,10 @@ error channel.
   function or dynamic `Self`. A Stub supports Swift 6.4 `yielding borrow`
   through its `yield_once_2` witness; use a hand-written double for the other
   shapes.
-- `Self` arguments outside automatic nonthrowing instance methods with a direct
-  value or one `Optional` layer. Explicit schemas, Spies, superclass
-  constraints, accessors, initializers, static methods, throwing effects,
-  `inout`, and wider wrappers remain unsupported.
+- `Self` arguments outside automatic instance methods with a direct value or
+  one `Optional` layer. Explicit schemas, Spies, superclass constraints,
+  accessors, initializers, static methods, `inout`, and wider wrappers remain
+  unsupported.
 - Protocols that relax `Copyable` or `Escapable`. Recorder arguments, matchers,
   captors, and results escape into `Any`-backed storage, so move-only or
   lifetime-dependent values need a different recorder model.
