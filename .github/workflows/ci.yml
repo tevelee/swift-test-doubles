@@ -330,7 +330,7 @@ jobs:
             echo "swift_sdk_cache_path=$swift_sdk_cache_path"
             echo "swift_sdk_checksum=$WASM_SWIFT_SDK_CHECKSUM"
             echo "swift_version=$WASM_SWIFT_VERSION"
-            echo "host_toolchain_dir=$WASM_HOST_TOOLCHAIN_DIR"
+            echo "host_toolchain_archive_path=$HOME/.cache/test-doubles/swift-toolchains/swift-${WASM_SWIFT_VERSION}-RELEASE-osx.pkg"
             echo "host_toolchain_bin=$WASM_HOST_TOOLCHAIN_BIN"
             echo "host_toolchain_checksum=$WASM_HOST_TOOLCHAIN_CHECKSUM"
             echo "brew_cache_epoch=$(date -u +%G-%V)"
@@ -339,9 +339,13 @@ jobs:
         id: host-toolchain-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
-          path: ${{ steps.wasm-toolchain.outputs.host_toolchain_dir }}
+          # The installed toolchain lives under /Library and is root-owned.
+          # Caching that directory makes gtar restore fail before the package
+          # installer can repair its ownership. Cache the verified installer
+          # instead, then install it normally on every runner.
+          path: ${{ steps.wasm-toolchain.outputs.host_toolchain_archive_path }}
           key: >-
-            swift-host-toolchain-v1-${{ runner.os }}-${{
+            swift-host-toolchain-v2-${{ runner.os }}-${{
             steps.wasm-toolchain.outputs.swift_version }}-${{
             steps.wasm-toolchain.outputs.host_toolchain_checksum }}
       - name: Install Swift host toolchain
@@ -350,13 +354,15 @@ jobs:
         # Swift version it bundles, so a wasm build always needs this
         # separately installed swift.org toolchain. The wasm SDK bundle is
         # in turn pinned to this exact host Swift version.
-        if: steps.host-toolchain-cache.outputs.cache-hit != 'true'
         run: |
           . Scripts/wasm-toolchain.sh
-          toolchain_package="$RUNNER_TEMP/swift-toolchain.pkg"
-          curl --fail --location --retry 3 \
-            --output "$toolchain_package" \
-            "$WASM_HOST_TOOLCHAIN_URL"
+          toolchain_package="${{ steps.wasm-toolchain.outputs.host_toolchain_archive_path }}"
+          if test "${{ steps.host-toolchain-cache.outputs.cache-hit }}" != true; then
+            mkdir -p "$(dirname "$toolchain_package")"
+            curl --fail --location --retry 3 \
+              --output "$toolchain_package" \
+              "$WASM_HOST_TOOLCHAIN_URL"
+          fi
           echo "$WASM_HOST_TOOLCHAIN_CHECKSUM  $toolchain_package" | shasum -a 256 --check --strict
           sudo installer -pkg "$toolchain_package" -target /
       - name: Use Swift host toolchain
