@@ -352,12 +352,14 @@ struct AsyncStackSplitValue: Sendable {
             _ a4: Int, _ a5: Int, _ a6: Int, _ a7: Int,
             _ a8: Int, _ a9: Int, _ a10: Int
         ) async -> Int
+        // swiftlint:disable:next function_parameter_count
         func throwing(
             _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int,
             _ a4: Int, _ a5: Int, _ a6: Int, _ a7: Int,
             _ a8: Int, _ a9: Int, _ a10: Int, _ a11: Int,
             _ a12: Int, _ a13: Int
         ) async throws -> Int
+        // swiftlint:disable:next function_parameter_count
         func indirect(
             _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int,
             _ a4: Int, _ a5: Int, _ a6: Int, _ a7: Int,
@@ -373,6 +375,7 @@ struct AsyncStackSplitValue: Sendable {
             _ a8: Int, _ a9: Int, _ a10: Int
         ) async -> Int { 0 }
 
+        // swiftlint:disable:next function_parameter_count
         func throwing(
             _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int,
             _ a4: Int, _ a5: Int, _ a6: Int, _ a7: Int,
@@ -380,6 +383,7 @@ struct AsyncStackSplitValue: Sendable {
             _ a12: Int, _ a13: Int
         ) async throws -> Int { 0 }
 
+        // swiftlint:disable:next function_parameter_count
         func indirect(
             _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int,
             _ a4: Int, _ a5: Int, _ a6: Int, _ a7: Int,
