@@ -1,4 +1,5 @@
 import CTestDoublesTrampoline
+import EchoRuntimeSupport
 import TestDoublesRuntimeMetadata
 
 /// Owns one dynamic call frame and its optional result/error value buffers.
@@ -6,8 +7,8 @@ import TestDoublesRuntimeMetadata
 /// and prevents moved values from being destroyed a second time.
 package final class ManagedDynamicCall: @unchecked Sendable {
     package let rawFrame: UnsafeMutablePointer<TDCallFrame>
-    package let result: ManagedValueBuffer
-    package let error: ManagedValueBuffer?
+    package let result: ValueStorage
+    package let error: ValueStorage?
 
     package var frame: TrampolineCallFrame { TrampolineCallFrame(rawFrame) }
 
@@ -18,8 +19,8 @@ package final class ManagedDynamicCall: @unchecked Sendable {
             repeating: 0,
             count: MemoryLayout<TDCallFrame>.size
         )
-        result = ManagedValueBuffer(type: resultType)
-        error = errorType.map { ManagedValueBuffer(type: $0) }
+        result = ValueStorage(type: resultType)
+        error = errorType.map { ValueStorage(type: $0) }
     }
 
     /// Completes the ownership transition for values returned through the

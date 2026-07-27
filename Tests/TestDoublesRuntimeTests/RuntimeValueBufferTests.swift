@@ -1,3 +1,4 @@
+import EchoRuntimeSupport
 import Testing
 @testable import TestDoublesRuntime
 
@@ -7,11 +8,11 @@ private struct ValueBufferOwnedValue {
     let token: ValueBufferLifetimeToken
 }
 
-@Suite struct RuntimeValueBufferTests {
+@Suite struct ValueStorageTests {
     @Test func borrowedBitsRemainCallerOwned() {
         var value = 42
         withUnsafeMutablePointer(to: &value) { pointer in
-            let buffer = ManagedValueBuffer(
+            let buffer = ValueStorage(
                 borrowingBitsOf: Int.self,
                 at: UnsafeMutableRawPointer(pointer)
             )
@@ -25,7 +26,7 @@ private struct ValueBufferOwnedValue {
     @Test func initializedValueIsDestroyedExactlyOnce() {
         var token: ValueBufferLifetimeToken? = ValueBufferLifetimeToken()
         weak let weakToken = token
-        let buffer = ManagedValueBuffer(type: ValueBufferOwnedValue.self)
+        let buffer = ValueStorage(type: ValueBufferOwnedValue.self)
         buffer.storage.assumingMemoryBound(to: ValueBufferOwnedValue.self)
             .initialize(to: ValueBufferOwnedValue(token: token!))
         buffer.markInitialized()
@@ -42,7 +43,7 @@ private struct ValueBufferOwnedValue {
         weak let weakToken = token
 
         do {
-            let buffer = ManagedValueBuffer(type: ValueBufferOwnedValue.self)
+            let buffer = ValueStorage(type: ValueBufferOwnedValue.self)
             buffer.storage.assumingMemoryBound(to: ValueBufferOwnedValue.self)
                 .initialize(to: ValueBufferOwnedValue(token: token!))
             buffer.markInitialized()
@@ -54,7 +55,7 @@ private struct ValueBufferOwnedValue {
     }
 
     @Test func movedValueLeavesTransferredStorage() {
-        let buffer = ManagedValueBuffer(type: Int.self)
+        let buffer = ValueStorage(type: Int.self)
         buffer.storage.assumingMemoryBound(to: Int.self).initialize(to: 42)
         buffer.markInitialized()
 

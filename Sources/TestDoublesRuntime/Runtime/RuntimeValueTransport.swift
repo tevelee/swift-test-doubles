@@ -235,7 +235,7 @@ package enum RuntimeValueTransport {
         _ body: (UnsafeMutableRawPointer) -> Void
     ) {
         let type = expectedType ?? Echo.container(for: result).metadata.type
-        let temporary = ManagedValueBuffer(
+        let temporary = ValueStorage(
             type: type,
             minimumByteCount: 16
         )

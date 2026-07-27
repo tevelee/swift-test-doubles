@@ -3,6 +3,7 @@
 
 import TestDoublesRuntime
 import TestDoublesRuntimeMetadata
+import EchoRuntimeSupport
 
 enum GeneratedBridgeMatrixError: Error {
     case failure
@@ -11,7 +12,7 @@ enum GeneratedBridgeMatrixError: Error {
 func roundTripGeneratedBridge<Function>(
     _ function: Function
 ) -> Function {
-    let source = ManagedValueBuffer(
+    let source = ValueStorage(
         type: Function.self,
         minimumByteCount: 16
     )

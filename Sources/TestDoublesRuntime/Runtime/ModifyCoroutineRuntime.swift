@@ -1,5 +1,6 @@
 import CTestDoublesTrampoline
 import EchoRuntimeReflection
+import EchoRuntimeSupport
 import InternalRuntimeContract
 import TestDoublesRuntimeMetadata
 
@@ -34,7 +35,7 @@ private enum ModifyCoroutineRuntime {
         let setter: MethodDescriptor
         let endpoint: any RuntimeInvocationEndpoint
         let indices: [Any]
-        let buffer: ManagedValueBuffer
+        let buffer: ValueStorage
         let skipsForwardingSetter: Bool
 
         var yieldedStorage: UnsafeMutableRawPointer? { buffer.storage }
@@ -45,7 +46,7 @@ private enum ModifyCoroutineRuntime {
             setter: MethodDescriptor,
             endpoint: any RuntimeInvocationEndpoint,
             indices: [Any],
-            buffer: ManagedValueBuffer,
+            buffer: ValueStorage,
             skipsForwardingSetter: Bool
         ) {
             self.getter = getter
@@ -242,7 +243,7 @@ private enum ModifyCoroutineRuntime {
         indices: [Any],
         skipsForwardingSetter: Bool
     ) -> any YieldingAccessorState {
-        let buffer = ManagedValueBuffer(type: getter.returnType)
+        let buffer = ValueStorage(type: getter.returnType)
         RuntimeValueTransport.initializeDirectValue(
             result,
             expectedType: getter.returnType,

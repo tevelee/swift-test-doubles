@@ -151,6 +151,10 @@ let package = Package(
                 .product(
                     name: "EchoRuntimeReflection",
                     package: "Echo"
+                ),
+                .product(
+                    name: "EchoRuntimeSupport",
+                    package: "Echo"
                 )
             ],
             path: "Tests/TestDoublesRuntimeTests"

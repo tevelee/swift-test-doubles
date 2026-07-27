@@ -596,6 +596,7 @@ private func dynamicBridgeMatrixSupportSource() -> String {
 
     import TestDoublesRuntime
     import TestDoublesRuntimeMetadata
+    import EchoRuntimeSupport
 
     enum GeneratedBridgeMatrixError: Error {
         case failure
@@ -604,7 +605,7 @@ private func dynamicBridgeMatrixSupportSource() -> String {
     func roundTripGeneratedBridge<Function>(
         _ function: Function
     ) -> Function {
-        let source = ManagedValueBuffer(
+        let source = ValueStorage(
             type: Function.self,
             minimumByteCount: 16
         )

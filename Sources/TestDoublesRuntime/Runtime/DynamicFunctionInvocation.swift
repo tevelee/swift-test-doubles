@@ -1,5 +1,6 @@
 import CTestDoublesTrampoline
 import EchoRuntimeReflection
+import EchoRuntimeSupport
 import TestDoublesRuntimeMetadata
 
 func canDynamicallyBoxFunctionArgument(
@@ -192,8 +193,8 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
         returning _: Result.Type,
         typedErrorType: Any.Type? = nil,
         body: (
-            ManagedValueBuffer,
-            ManagedValueBuffer?,
+            ValueStorage,
+            ValueStorage?,
             TrampolineCallFrame
         ) throws -> Output
     ) rethrows -> Output {
@@ -242,8 +243,8 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
         typedErrorType: Any.Type? = nil,
         isThrowing: Bool = false,
         body: (
-            ManagedValueBuffer,
-            ManagedValueBuffer?,
+            ValueStorage,
+            ValueStorage?,
             TrampolineCallFrame
         ) throws -> Output
     ) async rethrows -> Output {
@@ -301,12 +302,12 @@ final class DynamicFunctionInvocation: @unchecked Sendable {
 }
 
 private final class PreparedDirectArgument: @unchecked Sendable {
-    let buffer: ManagedValueBuffer
+    let buffer: ValueStorage
 
     var storage: UnsafeMutableRawPointer { buffer.storage }
 
     init(value: Any, type: Any.Type) {
-        buffer = ManagedValueBuffer(
+        buffer = ValueStorage(
             type: type,
             minimumByteCount: 16
         )
@@ -377,7 +378,7 @@ private func encodeDynamicArguments(
 }
 
 private func moveDirectResult<Result>(
-    from buffer: ManagedValueBuffer,
+    from buffer: ValueStorage,
     as _: Result.Type
 ) -> Result {
     guard

@@ -1,4 +1,5 @@
 import CTestDoublesTrampoline
+import EchoRuntimeSupport
 import InternalRuntimeContract
 import TestDoublesRuntimeMetadata
 
@@ -30,14 +31,14 @@ enum ReadCoroutineRuntime {
     private final class ConfiguredState: YieldingAccessorState, @unchecked Sendable {
         let kind = YieldingAccessorKind.read
         let yieldedStorage: UnsafeMutableRawPointer?
-        let buffer: ManagedValueBuffer
+        let buffer: ValueStorage
 
         init(
             result: Any,
             method: MethodDescriptor,
             frame: TrampolineCallFrame
         ) {
-            buffer = ManagedValueBuffer(
+            buffer = ValueStorage(
                 type: method.returnType,
                 minimumByteCount: 32
             )

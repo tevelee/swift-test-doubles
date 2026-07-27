@@ -1,4 +1,5 @@
 import Echo
+import EchoRuntimeSupport
 import InternalRuntimeContract
 import TestDoublesRuntimeMetadata
 
@@ -129,7 +130,7 @@ package enum RecordingResultEncoder {
         for method: MethodDescriptor,
         into frame: TrampolineCallFrame
     ) -> Bool {
-        let storage = ManagedValueBuffer(type: type)
+        let storage = ValueStorage(type: type)
         guard PlaceholderValue.initialize(type: type, at: storage.storage) else {
             return false
         }
@@ -145,7 +146,7 @@ package enum RecordingResultEncoder {
         parts: [DirectValuePart],
         into frame: TrampolineCallFrame
     ) {
-        let temporary = ManagedValueBuffer(
+        let temporary = ValueStorage(
             type: type,
             minimumByteCount: 16
         )
