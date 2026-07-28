@@ -146,6 +146,45 @@ extension StubRecorder {
             + signatures.map { "  - \($0)" }.joined(separator: "\n")
     }
 
+    func latestRecordedCallID() -> UInt64? {
+        withLockedPolicy { $0.invocationLedger.latestRecordedCallID }
+    }
+
+    /// Waits for the next matching call recorded after `lastSeenCallID`.
+    ///
+    /// Invocation streams are observational, so their matcher transactions
+    /// intentionally do not commit captures or verification state.
+    func nextMatchingInvocation(
+        after lastSeenCallID: UInt64?,
+        matching recording: RecordedCall
+    ) async -> RecordedCall? {
+        let method = recording.methodIndex
+        let matchers = recording.resolvedMatchers
+
+        while Task.isCancelled == false {
+            let snapshot = withLockedPolicy {
+                $0.invocationLedger.snapshot(for: method)
+            }
+            if let next = matchingCalls(
+                method: method,
+                matchers: matchers,
+                matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly,
+                in: snapshot.calls
+            ).first(where: { match in
+                guard let callID = match.call.id else { return false }
+                guard let lastSeenCallID else { return true }
+                return callID > lastSeenCallID
+            }) {
+                return next.call
+            }
+
+            guard await waitForCall(after: snapshot.generation) == .changed else {
+                return nil
+            }
+        }
+        return nil
+    }
+
     func waitForCallCount(
         recording: RecordedCall,
         minimumCount: Int,
@@ -281,6 +320,33 @@ extension StubRecorder {
                 }
                 if attached == false {
                     timeoutTask.cancel()
+                }
+            }
+        } onCancel: {
+            resolveCallWaiter(waiterID, returning: .cancelled)
+        }
+    }
+
+    private func waitForCall(
+        after generation: InvocationLedgerGeneration
+    ) async -> InvocationLedgerWaitOutcome {
+        let waiterID = withLockedPolicy {
+            $0.invocationLedger.allocateWaiterID()
+        }
+
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                let waiter = InvocationLedgerWaiter(continuation: continuation)
+                let immediateOutcome = withLockedPolicy {
+                    $0.invocationLedger.register(
+                        waiter,
+                        id: waiterID,
+                        after: generation,
+                        isCancelled: Task.isCancelled
+                    )
+                }
+                if let immediateOutcome {
+                    continuation.resume(returning: immediateOutcome)
                 }
             }
         } onCancel: {

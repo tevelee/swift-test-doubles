@@ -99,6 +99,104 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
         #expect(urls == ["https://one.example", "https://two.example"])
     }
 
+    @Test func streamYieldsFutureTypedArgumentsInOrder() async throws {
+        let stub = try Stub<any InvocationAccessAnalytics>()
+        stub.when { $0.track(event: any(), value: any()) }.thenDoNothing()
+        let analytics: any InvocationAccessAnalytics = stub()
+
+        analytics.track(event: "before", value: 0)
+        let stream: InvocationStream<(String, Int)> = stub.invocationStream {
+            $0.track(event: any(), value: any())
+        }
+        analytics.track(event: "add_to_cart", value: 30)
+        analytics.track(event: "purchase", value: 42)
+
+        var iterator = stream.makeAsyncIterator()
+        let first = try #require(await iterator.next())
+        let second = try #require(await iterator.next())
+        #expect(first.0 == "add_to_cart")
+        #expect(first.1 == 30)
+        #expect(second.0 == "purchase")
+        #expect(second.1 == 42)
+
+        // Streaming is observational, just like the existing invocation query.
+        stub.verify(.exactly(3)) { $0.track(event: any(), value: any()) }
+    }
+
+    @Test func streamFiltersFutureCallsWithMatchers() async throws {
+        let stub = try Stub<any InvocationAccessAnalytics>()
+        stub.when { $0.track(event: any(), value: any()) }.thenDoNothing()
+        let analytics: any InvocationAccessAnalytics = stub()
+        let stream: InvocationStream<String> = stub.invocationStream {
+            $0.track(event: any(), value: greaterThan(10))
+        }
+
+        analytics.track(event: "ignored", value: 1)
+        analytics.track(event: "kept", value: 30)
+
+        var iterator = stream.makeAsyncIterator()
+        #expect(await iterator.next() == "kept")
+    }
+
+    @Test func streamSupportsAsyncRequirements() async throws {
+        let stub = try Stub<any InvocationAccessAnalytics>()
+        await stub.when { try await $0.load(url: any()) }.thenReturn("data")
+        let analytics: any InvocationAccessAnalytics = stub()
+        let stream: InvocationStream<String> = await stub.invocationStream {
+            try await $0.load(url: any())
+        }
+
+        _ = try await analytics.load(url: "https://one.example")
+        var iterator = stream.makeAsyncIterator()
+        #expect(await iterator.next() == "https://one.example")
+    }
+
+    @Test func manualStubStreamsFutureCalls() async throws {
+        let stub = ManualStub<ManualInvocationAccessServiceStub>()
+        stub.when { $0.track(event: any(), value: any()) }.thenDoNothing()
+        let service: any ManualInvocationAccessService = stub()
+        let stream: InvocationStream<(String, Int)> = stub.invocationStream {
+            $0.track(event: any(), value: any())
+        }
+
+        service.track(event: "purchase", value: 42)
+        var iterator = stream.makeAsyncIterator()
+        let event = try #require(await iterator.next())
+        #expect(event.0 == "purchase")
+        #expect(event.1 == 42)
+    }
+
+    @Test func streamCancellationFinishesTheAwaitingIterator() async throws {
+        let stub = try Stub<any InvocationAccessAnalytics>()
+        stub.when { $0.track(event: any(), value: any()) }.thenDoNothing()
+        let stream: InvocationStream<(String, Int)> = stub.invocationStream {
+            $0.track(event: any(), value: any())
+        }
+
+        let next = Task {
+            var iterator = stream.makeAsyncIterator()
+            return await iterator.next()
+        }
+        var isWaiting = false
+        for _ in 0 ..< 100 {
+            if stub.recorder.withLockedPolicy({
+                $0.invocationLedger.pendingWaiterCount(for: 0)
+            }) == 1 {
+                isWaiting = true
+                break
+            }
+            await Task.yield()
+        }
+        #expect(isWaiting)
+        next.cancel()
+
+        #expect(await next.value == nil)
+        #expect(
+            stub.recorder.withLockedPolicy {
+                $0.invocationLedger.pendingWaiterCount(for: 0)
+            } == 0)
+    }
+
     @Test func returnsEmptyWhenNothingMatched() throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
         stub.when { $0.track(event: any(), value: any()) }.thenDoNothing()

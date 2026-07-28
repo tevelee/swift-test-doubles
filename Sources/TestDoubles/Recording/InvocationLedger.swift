@@ -266,6 +266,8 @@ struct InvocationLedger {
 
     var allCalls: [RecordedCall] { calls }
 
+    var latestRecordedCallID: UInt64? { calls.last?.id }
+
     mutating func append(
         method: Int,
         name: String,

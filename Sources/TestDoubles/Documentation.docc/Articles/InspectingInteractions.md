@@ -53,6 +53,30 @@ let large: [(String, Int)] = stub.invocations {
 #expect(large == [("purchase", 42)])
 ```
 
+### Observe future interactions as they happen
+
+``InvocationStream`` lets a test await the next matching call without polling
+or guessing at a delay. It begins after the stream is created, so setup calls
+do not replay into the observation:
+
+```swift
+let events: InvocationStream<(String, Int)> = stub.invocationStream {
+    $0.track(event: any(), value: any())
+}
+
+analytics.track(event: "feed_refreshed", value: 1)
+var iterator = events.makeAsyncIterator()
+let call = try #require(await iterator.next())
+
+#expect(call.0 == "feed_refreshed")
+#expect(call.1 == 1)
+```
+
+Matchers work exactly as they do for `verify`, so a stream can observe only
+calls that matter to the test. Reading it does not mark a call verified or
+commit captors. Cancelling a task awaiting `next()` returns `nil` and removes
+its waiter immediately.
+
 ### Dump the whole call log
 
 When a `verify` fails, the useful next question is what actually *did* get

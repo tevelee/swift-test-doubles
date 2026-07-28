@@ -17,6 +17,23 @@ extension ManualStub: TestDouble {}
 // MARK: - Recording
 
 extension TestDouble {
+    func typedInvocationArguments<each Argument>(
+        from call: RecordedCall
+    ) -> (repeat each Argument) {
+        var index = 0
+        func nextArgument<T>(_ type: T.Type) -> T {
+            defer { index += 1 }
+            return typedArgument(
+                type,
+                from: call.args,
+                at: index,
+                method: call.name,
+                context: "Invocation stream"
+            )
+        }
+        return (repeat nextArgument((each Argument).self))
+    }
+
     func recordInvocation<Result>(
         _ call: (Generated) throws -> Result
     ) -> RecordedCall {

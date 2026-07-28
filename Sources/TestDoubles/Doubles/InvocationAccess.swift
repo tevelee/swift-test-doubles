@@ -12,23 +12,75 @@ extension TestDouble {
             matchers: recording.resolvedMatchers,
             matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly
         ).map { call in
-            var index = 0
-            func nextArgument<T>(_ type: T.Type) -> T {
-                defer { index += 1 }
-                return typedArgument(
-                    type,
-                    from: call.args,
-                    at: index,
-                    method: call.name,
-                    context: "Typed invocation access"
-                )
-            }
-            return (repeat nextArgument((each Argument).self))
+            self.typedInvocationArguments(from: call)
         }
     }
 }
 
 extension Stub {
+    /// Returns an asynchronous sequence of future matching invocation arguments.
+    ///
+    /// The stream starts after this method returns, so it cannot replay an
+    /// earlier call by accident. Matchers filter which calls it yields; use
+    /// `any()` for every argument to observe every future call to the
+    /// requirement. Cancellation ends an awaiting iterator without consuming
+    /// behavior or changing verification state.
+    ///
+    /// ```swift
+    /// let events: InvocationStream<(String, Int)> = analytics.invocationStream {
+    ///     $0.track(event: any(), value: any())
+    /// }
+    /// let (event, value) = await events.makeAsyncIterator().next()
+    /// ```
+    public func invocationStream<Result, each Argument>(
+        _ call: (P) throws -> Result
+    ) -> InvocationStream<(repeat each Argument)> {
+        let recording = recordInvocation(call)
+        return InvocationStream(recorder: recorder, recording: recording) { call in
+            self.typedInvocationArguments(from: call)
+        }
+    }
+
+    /// Returns an invocation stream for a requirement whose result needs a
+    /// valid value while recording.
+    public func invocationStream<Result, each Argument>(
+        returning placeholder: Result,
+        _ call: (P) throws -> Result
+    ) -> InvocationStream<(repeat each Argument)> {
+        let recording = recordInvocation(returning: placeholder, call)
+        return InvocationStream(recorder: recorder, recording: recording) { call in
+            self.typedInvocationArguments(from: call)
+        }
+    }
+
+    /// Returns an invocation stream for a future async requirement call.
+    public func invocationStream<Result, each Argument>(
+        _ call: (P) async throws -> Result,
+        isolation: isolated (any Actor)? = #isolation
+    ) async -> InvocationStream<(repeat each Argument)> {
+        let recording = await recordAsyncInvocation(call, isolation: isolation)
+        return InvocationStream(recorder: recorder, recording: recording) { call in
+            self.typedInvocationArguments(from: call)
+        }
+    }
+
+    /// Returns an invocation stream for an async requirement whose result
+    /// needs a valid value while recording.
+    public func invocationStream<Result, each Argument>(
+        returning placeholder: Result,
+        _ call: (P) async throws -> Result,
+        isolation: isolated (any Actor)? = #isolation
+    ) async -> InvocationStream<(repeat each Argument)> {
+        let recording = await recordAsyncInvocation(
+            returning: placeholder,
+            call,
+            isolation: isolation
+        )
+        return InvocationStream(recorder: recorder, recording: recording) { call in
+            self.typedInvocationArguments(from: call)
+        }
+    }
+
     /// Returns a human-readable, ordered log of every recorded invocation,
     /// one call per line, for debugging.
     ///
@@ -121,6 +173,58 @@ extension Stub {
 }
 
 extension ManualStub {
+    /// Returns an asynchronous sequence of future matching invocation arguments.
+    /// See ``Stub/invocationStream(_:)`` for the observation and cancellation
+    /// contract.
+    public func invocationStream<Result, each Argument>(
+        _ call: (T) throws -> Result
+    ) -> InvocationStream<(repeat each Argument)> {
+        let recording = recordInvocation(call)
+        return InvocationStream(recorder: recorder, recording: recording) { call in
+            self.typedInvocationArguments(from: call)
+        }
+    }
+
+    /// Returns a stream for a manual requirement whose result needs a valid
+    /// value while recording.
+    public func invocationStream<Result, each Argument>(
+        returning placeholder: Result,
+        _ call: (T) throws -> Result
+    ) -> InvocationStream<(repeat each Argument)> {
+        let recording = recordInvocation(returning: placeholder, call)
+        return InvocationStream(recorder: recorder, recording: recording) { call in
+            self.typedInvocationArguments(from: call)
+        }
+    }
+
+    /// Returns a stream for a future async manual requirement call.
+    public func invocationStream<Result, each Argument>(
+        _ call: (T) async throws -> Result,
+        isolation: isolated (any Actor)? = #isolation
+    ) async -> InvocationStream<(repeat each Argument)> {
+        let recording = await recordAsyncInvocation(call, isolation: isolation)
+        return InvocationStream(recorder: recorder, recording: recording) { call in
+            self.typedInvocationArguments(from: call)
+        }
+    }
+
+    /// Returns a stream for an async manual requirement whose result needs a
+    /// valid value while recording.
+    public func invocationStream<Result, each Argument>(
+        returning placeholder: Result,
+        _ call: (T) async throws -> Result,
+        isolation: isolated (any Actor)? = #isolation
+    ) async -> InvocationStream<(repeat each Argument)> {
+        let recording = await recordAsyncInvocation(
+            returning: placeholder,
+            call,
+            isolation: isolation
+        )
+        return InvocationStream(recorder: recorder, recording: recording) { call in
+            self.typedInvocationArguments(from: call)
+        }
+    }
+
     /// Returns a human-readable, ordered log of every recorded invocation,
     /// one call per line, for debugging. See
     /// ``Stub/describeInteractions()`` for the format and contract.

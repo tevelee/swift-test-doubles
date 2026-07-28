@@ -267,6 +267,19 @@ let events: [(String, Int)] = analytics.invocations {
 #expect(events == [("add_to_cart", 30), ("add_to_cart", 12), ("purchase", 42)])
 ```
 
+For event-driven code, `invocationStream` yields matching calls made after the
+stream is created, without polling:
+
+```swift
+let events: InvocationStream<(String, Int)> = analytics.invocationStream {
+    $0.track(event: any(), value: any())
+}
+
+var iterator = events.makeAsyncIterator()
+let call = try #require(await iterator.next())
+#expect(call.0 == "purchase")
+```
+
 ### Spy: keep the real thing, override one call
 
 `Spy` forwards to a real implementation, records everything, and lets you
