@@ -24,11 +24,22 @@
                 struct StubbableMacroServiceManualStub: StubbableMacroService, StubConformer {
                     let stub: ManualStub<Self>
 
-                    init(stub: ManualStub<Self>) { self.stub = stub }
+                    init(stub: ManualStub<Self>) {
+                        self.stub = stub
+                    }
 
-                    func fetch(_ identifier: Int) -> String { return stub.call(identifier) }
+                    func fetch(_ identifier: Int) -> String {
+                        return stub.call(identifier)
+                    }
 
-                    var displayName: String { get { return stub.call() } set { stub.call(newValue) } }
+                    var displayName: String {
+                        get {
+                            return stub.call()
+                        }
+                        set {
+                            stub.call(newValue)
+                        }
+                    }
                 }
                 """
             }
@@ -43,9 +54,8 @@
             } diagnostics: {
                 """
                 @Stubbable
-                struct NotAProtocol {}
-                ┬─────────
                 ╰─ 🛑 @Stubbable can only be applied to a protocol declaration.
+                struct NotAProtocol {}
                 """
             }
         }
