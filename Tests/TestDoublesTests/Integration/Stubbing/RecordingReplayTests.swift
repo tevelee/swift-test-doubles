@@ -14,7 +14,7 @@ struct RealRecordingReplayWeatherService: RecordingReplayWeatherService {
     func forecast(for city: String) async throws -> [String] { ["sunny", "cloudy"] }
 }
 
-private struct RecordingReplayFailure: Error, Equatable {}
+private struct RecordingReplayFailure: Error, Codable, Equatable, Sendable {}
 
 private final class SequencedResponder: @unchecked Sendable {
     private let lock = NSLock()
@@ -155,6 +155,87 @@ private final class SequencedResponder: @unchecked Sendable {
 
         let replayedService: any RecordingReplayWeatherService = stub()
         #expect(try replayedService.currentConditions(for: "Berlin") == "sunny in Berlin")
+    }
+
+    @Test func replaysRecordedSuccessesAndErrors() throws {
+        let session = RecordingSession()
+        let spy: Spy<any RecordingReplayWeatherService> = .make(
+            forwardingTo: RealRecordingReplayWeatherService()
+        )
+        spy.when { try $0.currentConditions(for: any()) }
+            .thenRecord(
+                as: "currentConditions",
+                into: session,
+                recordingErrorsAs: RecordingReplayFailure.self
+            ) { city in
+                if city == "missing" { throw RecordingReplayFailure() }
+                return "weather:\(city)"
+            }
+        let recorded: any RecordingReplayWeatherService = spy()
+        #expect(try recorded.currentConditions(for: "Berlin") == "weather:Berlin")
+        #expect(throws: RecordingReplayFailure.self) {
+            try recorded.currentConditions(for: "missing")
+        }
+
+        let stub = try Stub<any RecordingReplayWeatherService>()
+        stub.when { try $0.currentConditions(for: any()) }
+            .thenReplay(
+                as: "currentConditions",
+                from: session.snapshot(),
+                throwing: RecordingReplayFailure.self
+            )
+        let replayed: any RecordingReplayWeatherService = stub()
+        #expect(try replayed.currentConditions(for: "anything") == "weather:Berlin")
+        #expect(throws: RecordingReplayFailure.self) {
+            try replayed.currentConditions(for: "anything")
+        }
+    }
+
+    @Test func redactsRecordedRequestsBeforeInputMatchedReplay() throws {
+        let redactor = FixtureRedactor { _, role, data in
+            role == .request ? Data("\"redacted\"".utf8) : data
+        }
+        let session = RecordingSession(redacting: redactor)
+        let spy: Spy<any RecordingReplayWeatherService> = .make(
+            forwardingTo: RealRecordingReplayWeatherService()
+        )
+        spy.when { try $0.currentConditions(for: any()) }
+            .thenRecord(as: "currentConditions", into: session, recording: { (city: String) in city }) { city in
+                "weather:\(city)"
+            }
+        _ = try (spy() as any RecordingReplayWeatherService).currentConditions(for: "Berlin")
+
+        let stub = try Stub<any RecordingReplayWeatherService>()
+        stub.when { try $0.currentConditions(for: any()) }
+            .thenReplay(
+                as: "currentConditions",
+                from: session.snapshot(),
+                matching: { (city: String) in city },
+                redacting: redactor
+            )
+        #expect(
+            try (stub() as any RecordingReplayWeatherService)
+                .currentConditions(for: "not-a-secret") == "weather:Berlin"
+        )
+    }
+
+    @Test func loadsVersionOneFixturesAndMigratesThemInMemory() throws {
+        let result = try JSONEncoder().encode("legacy result")
+        let legacy = try JSONSerialization.data(
+            withJSONObject: ["entries": ["currentConditions": [result.base64EncodedString()]]]
+        )
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("recording-replay-legacy-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try legacy.write(to: url)
+
+        let stub = try Stub<any RecordingReplayWeatherService>()
+        stub.when { try $0.currentConditions(for: any()) }
+            .thenReplay(as: "currentConditions", from: try InteractionFixture.load(from: url))
+        #expect(
+            try (stub() as any RecordingReplayWeatherService)
+                .currentConditions(for: "Berlin") == "legacy result"
+        )
     }
 
     @Test func thrownErrorsAreNotRecorded() throws {

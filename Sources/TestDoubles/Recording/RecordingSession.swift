@@ -23,11 +23,18 @@ import Foundation
 /// ```
 public final class RecordingSession: @unchecked Sendable {
     private let lock = NSLock()
-    private var entries: [String: [Data]] = [:]
+    private let redactor: FixtureRedactor
+    private var outcomes: [String: [FixtureOutcome]] = [:]
     private var requests: [String: [Data?]] = [:]
 
     /// Creates a session with nothing recorded yet.
-    public init() {}
+    ///
+    /// Pass a redactor to remove or normalize sensitive serialized fields
+    /// before they reach a fixture. Use the same redactor with
+    /// input-matched replay.
+    public init(redacting redactor: FixtureRedactor = .none) {
+        self.redactor = redactor
+    }
 
     func recordSuccess<Value: Encodable>(_ value: Value, as key: String) {
         recordSuccess(value, requestData: nil, as: key)
@@ -46,6 +53,19 @@ public final class RecordingSession: @unchecked Sendable {
         recordSuccess(value, requestData: requestData, as: key)
     }
 
+    func recordFailure<Failure: Error & Encodable>(_ error: Failure, as key: String) {
+        guard let data = try? JSONEncoder().encode(error) else {
+            fatalError(
+                "[TestDoubles] Could not encode a recorded '\(key)' error of type \(Failure.self) as JSON. Recorded errors must round-trip through JSONEncoder."
+            )
+        }
+        append(
+            .failure(redactor.apply(data, as: key, role: .error)),
+            requestData: nil,
+            as: key
+        )
+    }
+
     private func recordSuccess<Value: Encodable>(
         _ value: Value,
         requestData: Data?,
@@ -56,8 +76,17 @@ public final class RecordingSession: @unchecked Sendable {
                 "[TestDoubles] Could not encode a recorded '\(key)' result of type \(Value.self) as JSON. Recorded result types must round-trip through JSONEncoder."
             )
         }
+        let redactedRequest = requestData.map { redactor.apply($0, as: key, role: .request) }
+        append(
+            .success(redactor.apply(data, as: key, role: .result)),
+            requestData: redactedRequest,
+            as: key
+        )
+    }
+
+    private func append(_ outcome: FixtureOutcome, requestData: Data?, as key: String) {
         lock.lock()
-        entries[key, default: []].append(data)
+        outcomes[key, default: []].append(outcome)
         requests[key, default: []].append(requestData)
         lock.unlock()
     }
@@ -69,7 +98,7 @@ public final class RecordingSession: @unchecked Sendable {
     public func snapshot() -> InteractionFixture {
         lock.lock()
         defer { lock.unlock() }
-        return InteractionFixture(entries: entries, requests: requests)
+        return InteractionFixture(outcomes: outcomes, requests: requests)
     }
 
     /// Freezes the calls recorded so far and writes them as JSON to `url`,

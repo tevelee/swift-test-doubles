@@ -28,8 +28,9 @@ try session.save(to: fixtureURL)
 `thenRecord(as:into:calling:)` runs `handler` — typically a direct call to the
 real dependency the spy wraps — and records its result into the session under
 `key`, in addition to returning it as this call's answer like `then` would.
-Only a successful result is captured; a thrown error still propagates to the
-caller but is not recorded.
+Use `thenRecord(as:into:recordingErrorsAs:calling:)` when a typed, `Codable`
+error belongs in the fixture too, then replay it with
+`thenReplay(as:from:throwing:)`.
 
 ### Replaying a fixture
 
@@ -53,6 +54,17 @@ recorded under `key`, in recording order — exactly like a `thenReturn(_:_:_:)`
 chain built from playback: the last recorded response repeats for every call
 after that. `key` must match the one recording used and have at least one
 recorded call, or this halts with a diagnostic naming the missing key.
+
+### Redact requests and migrate old fixtures
+
+Pass a ``FixtureRedactor`` to the recording session to remove secrets or
+normalize unstable fields before values are written. Supply the same redactor
+to `thenReplay(as:from:matching:redacting:)` so the replay request is compared
+against the same normalized representation.
+
+Fixtures are schema-versioned. `InteractionFixture.load(from:)` migrates the
+original result-only JSON format in memory, so fixtures already committed to a
+repository remain loadable as request matching and error recording evolve.
 
 ### Working without a file
 

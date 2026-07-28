@@ -14,8 +14,9 @@ extension StubBuilder where Result: Encodable & Sendable {
     ///     }
     /// ```
     ///
-    /// Only a successful result is captured; a thrown error still propagates
-    /// to the caller but is not recorded. Replay the session's eventual
+    /// A successful result is captured and any error propagates to the caller.
+    /// Use `thenRecord(as:into:recordingErrorsAs:calling:)` when errors also
+    /// belong in the fixture. Replay the session's eventual
     /// ``InteractionFixture`` with ``thenReplay(as:from:)``. `Result` must be
     /// `Encodable` so it can be persisted as JSON.
     public func thenRecord<each Argument>(
@@ -32,7 +33,7 @@ extension StubBuilder where Result: Encodable & Sendable {
     }
 
     /// Records both a successful result and a caller-defined, Codable request
-    /// value. Replay it with ``thenReplay(as:from:matching:)`` to ensure a
+    /// value. Replay it with `thenReplay(as:from:matching:redacting:)` to ensure a
     /// fixture response is selected only for the matching input.
     public func thenRecord<Request: Encodable & Sendable, each Argument>(
         as key: String,
@@ -51,6 +52,50 @@ extension StubBuilder where Result: Encodable & Sendable {
             )
             session.recordSuccess(result, recording: recordedRequest, as: key)
             return result
+        }
+    }
+
+    /// Records successful results and errors of `Failure` into `session`.
+    ///
+    /// Replay the fixture through ``thenReplay(as:from:throwing:)``. Errors
+    /// outside `Failure` still propagate but fail closed rather than being
+    /// silently serialized under the wrong error type.
+    public func thenRecord<Failure: Error & Encodable & Sendable, each Argument>(
+        as key: String,
+        into session: RecordingSession,
+        recordingErrorsAs _: Failure.Type,
+        calling handler: @escaping @Sendable (repeat each Argument) throws -> Result
+    ) {
+        requireOrdinaryResult()
+        addStubBehavior { arguments, methodName in
+            do {
+                let result = try invokeTypedHandler(handler, with: arguments, method: methodName)
+                session.recordSuccess(result, as: key)
+                return result
+            } catch let error as Failure {
+                session.recordFailure(error, as: key)
+                throw error
+            }
+        }
+    }
+
+    /// Async counterpart to `thenRecord(as:into:recordingErrorsAs:calling:)`.
+    public func thenRecord<Failure: Error & Encodable & Sendable, each Argument>(
+        as key: String,
+        into session: RecordingSession,
+        recordingErrorsAs _: Failure.Type,
+        calling handler: @escaping (repeat each Argument) async throws -> Result
+    ) {
+        requireOrdinaryResult()
+        addAsyncStubBehavior { arguments, methodName in
+            do {
+                let result = try await invokeTypedHandler(handler, with: arguments, method: methodName)
+                session.recordSuccess(result, as: key)
+                return result
+            } catch let error as Failure {
+                session.recordFailure(error, as: key)
+                throw error
+            }
         }
     }
 
@@ -105,7 +150,8 @@ extension StubBuilder where Result: Decodable {
     public func thenReplay<Request: Encodable & Sendable, each Argument>(
         as key: String,
         from fixture: InteractionFixture,
-        matching request: @escaping @Sendable (repeat each Argument) -> Request
+        matching request: @escaping @Sendable (repeat each Argument) -> Request,
+        redacting redactor: FixtureRedactor = .none
     ) where Result: Sendable {
         requireOrdinaryResult()
         let cursor = InteractionFixtureReplayCursor()
@@ -121,6 +167,7 @@ extension StubBuilder where Result: Decodable {
             let recorded = fixture.decodedResults(
                 as: key,
                 matching: currentRequest,
+                redacting: redactor,
                 resultType: Result.self
             )
             guard let value = cursor.next(for: recorded.requestData, in: recorded.values) else {
@@ -130,6 +177,41 @@ extension StubBuilder where Result: Decodable {
             }
             recorder.requireReturnValueMatchesRuntimeType(value, for: methodIndex)
             return value
+        }
+    }
+
+    /// Replays successful results and recorded `Failure` values in fixture order.
+    ///
+    /// The recorded requirement must be able to throw `Failure`. For a
+    /// typed-throws requirement, pass its declared error type.
+    public func thenReplay<Failure: Error & Decodable & Sendable>(
+        as key: String,
+        from fixture: InteractionFixture,
+        throwing _: Failure.Type
+    ) where Result: Sendable {
+        requireOrdinaryResult()
+        let outcomes = fixture.decodedOutcomes(
+            as: key,
+            resultType: Result.self,
+            failureType: Failure.self
+        )
+        guard outcomes.isEmpty == false else {
+            fatalError("[TestDoubles] Fixture has no recorded calls under '\(key)'.")
+        }
+        let cursor = InteractionFixtureReplayCursor()
+        let recorder = recorder
+        let methodIndex = recording.methodIndex
+        addStubBehavior { _, _ in
+            guard let outcome = cursor.next(for: Data(), in: outcomes) else {
+                fatalError("[TestDoubles] Fixture has no replayable outcome for '\(key)'.")
+            }
+            switch outcome {
+                case .success(let value):
+                    recorder.requireReturnValueMatchesRuntimeType(value, for: methodIndex)
+                    return value
+                case .failure(let error):
+                    throw error
+            }
         }
     }
 }
