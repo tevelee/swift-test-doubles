@@ -211,6 +211,20 @@ private func makeOrderedVerificationStub() throws -> Stub<any OrderedVerificatio
         #expect(setterExecutions.value == 1)
     }
 
+    @Test func exactMutatingSequenceRejectsUnlistedInteractions() throws {
+        let stub = try makeOrderedVerificationStub()
+        stub.when { $0.value = any() }.thenDoNothing()
+        stub.when { $0.first(any()) }.thenReturn(0)
+        var probe: any OrderedVerificationProbe = stub()
+        probe.value = 1
+        _ = probe.first(2)
+
+        stub.verifyExactlyInOrder(mutating: {
+            $0.value = equal(1)
+            _ = $0.first(equal(2))
+        })
+    }
+
     @Test func mutatingSequenceReportsSetterOrderFailuresAtTheCaller() throws {
         let stub = try makeOrderedVerificationStub()
         stub.when { $0.first(any()) }.thenReturn(0)
@@ -281,6 +295,20 @@ private func makeOrderedVerificationStub() throws -> Stub<any OrderedVerificatio
             _ = try $0.throwing(equal(1))
             _ = await $0.asynchronous(equal(2))
             _ = try await $0.asynchronousThrowing(equal(3))
+        }
+    }
+
+    @Test func exactAsyncSequenceRejectsUnlistedInteractions() async throws {
+        let stub = try makeOrderedVerificationStub()
+        stub.when { $0.first(any()) }.thenReturn(0)
+        await stub.when { await $0.asynchronous(any()) }.thenReturn(0)
+        let probe: any OrderedVerificationProbe = stub()
+        _ = probe.first(1)
+        _ = await probe.asynchronous(2)
+
+        await stub.verifyExactlyInOrder {
+            _ = $0.first(equal(1))
+            _ = await $0.asynchronous(equal(2))
         }
     }
 

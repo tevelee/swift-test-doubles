@@ -190,6 +190,24 @@ extension Stub {
         )
     }
 
+    /// Verifies the complete interaction timeline, including direct mutations.
+    @_disfavoredOverload
+    public func verifyExactlyInOrder(
+        mutating calls: (inout P) throws -> Void,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) {
+        verifyExactlyInOrder(
+            recordings: recordMutatingInvocations(calls),
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
     /// Verifies that calls, including direct property assignments, occurred in the listed relative order.
     ///
     /// Each listed invocation consumes a distinct matching recorded call.
@@ -229,6 +247,24 @@ extension Stub {
         let recordings = await recordAsyncInvocations(calls, isolation: isolation)
         verifyInOrder(
             recordings: recordings,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
+    /// Verifies the complete interaction timeline containing synchronous and asynchronous calls.
+    public func verifyExactlyInOrder(
+        _ calls: (P) async throws -> Void,
+        isolation: isolated (any Actor)? = #isolation,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) async {
+        verifyExactlyInOrder(
+            recordings: await recordAsyncInvocations(calls, isolation: isolation),
             fileID: fileID,
             filePath: filePath,
             line: line,
