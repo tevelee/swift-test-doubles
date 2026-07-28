@@ -300,6 +300,18 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
         spy.verify { type(of: $0).init(value: equal(7)) }
     }
 
+    @Test func forwardsUnmatchedInitializersToTheRealTarget() throws {
+        let spy = try Spy<any InitializerSpyService>(
+            forwardingTo: RealInitializerSpyService(value: 0)
+        )
+        let seed: any InitializerSpyService = spy()
+        let initialized = type(of: seed).init(value: 7)
+
+        #expect(initialized.value() == 7)
+        spy.verify { type(of: $0).init(value: equal(7)) }
+        spy.verify(.never()) { $0.value() }
+    }
+
     @Test func rejectsArgumentsThatCannotPreserveTheOriginalStack() {
         let error = #expect(throws: StubError.self) {
             _ = try Spy<any WideSpyService>(forwardingTo: RealWideSpyService())

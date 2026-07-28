@@ -87,14 +87,6 @@ struct ProtocolForwardingPlanBuilder<P> {
         var modifications: [Int: ForwardedModifyPlan] = [:]
         var reads: [Int: ForwardedReadPlan] = [:]
         for method in methods {
-            // Initializers can be explicitly overridden on a Spy using the
-            // same `when(initializer:)` API as a Stub. Their generated value
-            // must retain this spy's fabricated runtime resources, so an
-            // unmatched initializer is intentionally not delegated to the
-            // target's concrete construction ABI.
-            if method.kind == .initializer {
-                continue
-            }
             let requirement = layout.callableRequirements[method.index]
             let protocolName = requirement.protocolDescriptor.name
             try validate(method, protocolName: protocolName)
@@ -178,12 +170,6 @@ struct ProtocolForwardingPlanBuilder<P> {
         _ method: MethodDescriptor,
         protocolName: String
     ) throws {
-        guard method.kind != .initializer else {
-            throw RuntimeConstructionError.forwardingUnsupported(
-                protocolName: protocolName,
-                reason: .nonInstanceRequirement(index: method.index)
-            )
-        }
         try validateDynamicSelfBoundary(method, protocolName: protocolName)
         let concreteTypes = method.argumentTypes + [method.returnType]
         if let reason = runtimeSIMDUnsupportedReason(for: method) {
@@ -416,7 +402,7 @@ struct ProtocolForwardingPlanBuilder<P> {
         }
         return ForwardedCallPlan(
             function: function,
-            selfValue: target.selfValue,
+            selfValue: target.receiverValue(for: method),
             witnessTable: witnessTable.ptr,
             dynamicSelfLocations: dynamicSelfLocations,
             outgoingStackSources: outgoingStackSources,

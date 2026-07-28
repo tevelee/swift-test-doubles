@@ -40,6 +40,15 @@ error through the target's witness. Both overridden and forwarded calls enter
 the same invocation log, so count, ordered, eventual, and no-more-interactions
 verification work across both paths.
 
+### Forward initializers to the real type
+
+Unmatched initializer calls construct the concrete target type and return that
+new value. The initializer interaction is recorded by the spy, but later calls
+on the initialized value go directly to the concrete target rather than through
+the original spy. Register an initializer override with `when(initializer:)`
+and `thenInitialize()` when a test instead needs the initialized value to
+remain backed by the spy's recorder and overrides.
+
 ### Inspect the forwarding boundary
 
 ``Spy/forwardedInvocations(_:)`` narrows the interaction log to calls that
@@ -112,11 +121,11 @@ Typed-throwing getters cannot be represented by the forwarding trampoline; use
 
 Forwarding uses the same runtime-generated existential and platform boundary as
 ``Stub``. It currently accepts synchronous, throwing, async, and
-async-throwing instance methods, getters, setters, and read-write property and
-subscript mutation when their arguments fit the supported register transport.
-This includes inherited requirements and concretely bound associated-type
-values. Getter effects cover ordinary untyped `throws`; typed-throwing getters
-remain unsupported.
+async-throwing instance and static methods; synchronous initializers; getters,
+setters; and read-write property and subscript mutation when their arguments
+fit the supported register transport. This includes inherited requirements and
+concretely bound associated-type values. Getter effects cover ordinary untyped
+`throws`; typed-throwing getters remain unsupported.
 
 Ordinary synchronous instance methods may also forward concrete, copyable
 128-bit SIMD values when each value occupies one complete vector register on
@@ -159,7 +168,6 @@ generated double.
 Construction fails with ``StubError/unsupportedProtocolShape(protocolName:reason:)``
 when the protocol requires any of these forwarding shapes:
 
-- Static or initializer requirements
 - Direct or optional dynamic `Self` results
 - Function-valued arguments or results
 - Stack arguments outside the bounded synchronous and async forwarding paths
