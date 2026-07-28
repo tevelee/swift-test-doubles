@@ -87,7 +87,8 @@ public struct StubFailableInitializerBuilder {
         let methodName = recording.name
         recorder.addStub(
             method: recording.methodIndex,
-            matchers: recording.resolvedMatchers
+            matchers: recording.resolvedMatchers,
+            matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly
         ) { arguments in
             try invokeTypedHandler(handler, with: arguments, method: methodName)
                 .dispatchOutcome
@@ -104,7 +105,8 @@ public struct StubFailableInitializerBuilder {
         let methodName = recording.name
         recorder.addAsyncStub(
             method: recording.methodIndex,
-            matchers: recording.resolvedMatchers
+            matchers: recording.resolvedMatchers,
+            matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly
         ) { arguments in
             try await invokeTypedHandler(handler, with: arguments, method: methodName)
                 .dispatchOutcome

@@ -183,7 +183,8 @@ extension TestDouble {
 
         let matches = recorder.preparedVerificationMatches(
             method: recording.methodIndex,
-            matchers: recording.resolvedMatchers
+            matchers: recording.resolvedMatchers,
+            matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly
         )
         let actualCount = matches.count
 

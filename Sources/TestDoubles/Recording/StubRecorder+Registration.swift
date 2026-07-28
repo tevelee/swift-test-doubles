@@ -4,6 +4,7 @@ extension StubRecorder {
     func addAsyncStub(
         method: Int,
         matchers: [ParameterMatcher],
+        matchesEmptyArgumentsExactly: Bool = false,
         location: StubSourceLocation? = nil,
         handler: @escaping ([Any]) async throws -> Any
     ) {
@@ -16,6 +17,7 @@ extension StubRecorder {
         addEntry(
             method: method,
             matchers: matchers,
+            matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
             behavior: .suspending(handler),
             location: location
         )
@@ -24,12 +26,14 @@ extension StubRecorder {
     func addReturnValue(
         method: Int,
         matchers: [ParameterMatcher],
+        matchesEmptyArgumentsExactly: Bool = false,
         location: StubSourceLocation? = nil,
         value: Any
     ) {
         addEntry(
             method: method,
             matchers: matchers,
+            matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
             behavior: .fixed(.success(value)),
             location: location
         )
@@ -38,6 +42,7 @@ extension StubRecorder {
     func addFixedResultSequence(
         method: Int,
         matchers: [ParameterMatcher],
+        matchesEmptyArgumentsExactly: Bool = false,
         location: StubSourceLocation? = nil,
         answers: [(QueuedAnswer, RepeatCount)]
     ) -> ConsumableResults {
@@ -45,6 +50,7 @@ extension StubRecorder {
         addEntry(
             method: method,
             matchers: matchers,
+            matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
             behavior: .fixedSequence(sequence),
             location: location
         )
@@ -54,12 +60,14 @@ extension StubRecorder {
     func addStub(
         method: Int,
         matchers: [ParameterMatcher],
+        matchesEmptyArgumentsExactly: Bool = false,
         location: StubSourceLocation? = nil,
         returnValue: @escaping @Sendable ([Any]) throws -> Any
     ) {
         addEntry(
             method: method,
             matchers: matchers,
+            matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
             behavior: .immediate(returnValue),
             location: location
         )
@@ -72,6 +80,7 @@ extension StubRecorder {
     private func addEntry(
         method: Int,
         matchers: [ParameterMatcher],
+        matchesEmptyArgumentsExactly: Bool,
         behavior: StubEntry.Behavior,
         location: StubSourceLocation?
     ) {
@@ -82,11 +91,13 @@ extension StubRecorder {
             )
             let shadowedBy = $0.behaviorRegistry.shadowingSignature(
                 forMethod: method,
-                newMatchers: matchers
+                newMatchers: matchers,
+                newMatchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly
             )
             $0.behaviorRegistry.add(
                 method: method,
                 matchers: matchers,
+                matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
                 diagnosticSignature: newSignature,
                 behavior: behavior
             )

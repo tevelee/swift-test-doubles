@@ -97,7 +97,8 @@ struct RecordedCall: @unchecked Sendable {
                     }
                     self = .optionalSelfPayload(WeakPayload(payload), materializer)
 
-                case .concrete, .associatedType, .methodGenericParameter, nil:
+                case .concrete, .associatedType, .methodGenericParameter,
+                    .methodGenericParameterPack, nil:
                     self = .strong(value)
             }
         }
@@ -131,6 +132,9 @@ struct RecordedCall: @unchecked Sendable {
     let name: String
     private let argumentsStorage: ArgumentsStorage
     let matchers: [ParameterMatcher]
+    /// Empty matchers normally mean a broad fallback. An empty parameter pack
+    /// is the one exception: it must match only another empty pack.
+    let matchesEmptyArgumentsExactly: Bool
     let registrationLocation: StubSourceLocation?
 
     var args: [Any] { argumentsStorage.values }
@@ -144,6 +148,7 @@ struct RecordedCall: @unchecked Sendable {
         argumentConventions: [RuntimeValueConvention]? = nil,
         runtimePayloadRecorder: StubRecorder? = nil,
         matchers: [ParameterMatcher],
+        matchesEmptyArgumentsExactly: Bool = false,
         registrationLocation: StubSourceLocation? = nil
     ) {
         self.id = id
@@ -165,6 +170,7 @@ struct RecordedCall: @unchecked Sendable {
             argumentsStorage = .strong(args)
         }
         self.matchers = matchers
+        self.matchesEmptyArgumentsExactly = matchesEmptyArgumentsExactly
         self.registrationLocation = registrationLocation
     }
 
@@ -175,6 +181,7 @@ struct RecordedCall: @unchecked Sendable {
         name: String,
         argumentsStorage: ArgumentsStorage,
         matchers: [ParameterMatcher],
+        matchesEmptyArgumentsExactly: Bool,
         registrationLocation: StubSourceLocation?
     ) {
         self.id = id
@@ -183,6 +190,7 @@ struct RecordedCall: @unchecked Sendable {
         self.name = name
         self.argumentsStorage = argumentsStorage
         self.matchers = matchers
+        self.matchesEmptyArgumentsExactly = matchesEmptyArgumentsExactly
         self.registrationLocation = registrationLocation
     }
 
@@ -195,6 +203,7 @@ struct RecordedCall: @unchecked Sendable {
             name: name,
             argumentsStorage: argumentsStorage,
             matchers: matchers,
+            matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
             registrationLocation: location
         )
     }

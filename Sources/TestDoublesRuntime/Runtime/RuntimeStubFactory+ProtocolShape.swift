@@ -202,7 +202,9 @@ extension RuntimeStubFactory {
             let selfArguments = method.arguments.filter {
                 switch $0.value.convention {
                     case .selfType, .optionalSelf: true
-                    case .concrete, .associatedType, .methodGenericParameter: false
+                    case .concrete, .associatedType, .methodGenericParameter,
+                        .methodGenericParameterPack:
+                        false
                 }
             }
             let allowsAutomaticSelfArguments =
@@ -367,6 +369,12 @@ extension RuntimeStubFactory {
                 throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: protocolName,
                     reason: "Requirement \(method.index) has a requirement-level generic parameter. \(reason)"
+                )
+            }
+            if let reason = runtimeMethodGenericParameterPackUnsupportedReason(for: method) {
+                throw RuntimeConstructionError.unsupportedProtocolShape(
+                    protocolName: protocolName,
+                    reason: "Requirement \(method.index) has a requirement-level parameter pack. \(reason)"
                 )
             }
             if method.kind == .setter {

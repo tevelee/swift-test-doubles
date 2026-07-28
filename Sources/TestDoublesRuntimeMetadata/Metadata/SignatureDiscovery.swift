@@ -129,7 +129,8 @@ package func discoverMethods(
                 switch result.convention {
                     case .concrete, .associatedType:
                         true
-                    case .selfType, .optionalSelf, .methodGenericParameter:
+                    case .selfType, .optionalSelf, .methodGenericParameter,
+                        .methodGenericParameterPack:
                         false
                 }
             guard kind == .method,
@@ -302,13 +303,36 @@ private func resolveWitnessValue(
     } else {
         ownership = nil
     }
+    if let index = methodGenericParameterPackIndex(valueName) {
+        guard isArgument else {
+            throw RuntimeConstructionError.unsupportedProtocolShape(
+                protocolName: protocolDescriptor.name,
+                reason:
+                    "Requirement \(requirementIndex) returns a parameter pack ('\(valueName)'). "
+                    + "Automatic Stub cannot fabricate a caller-chosen pack result."
+            )
+        }
+        guard ownership != .owned else {
+            throw RuntimeConstructionError.unsupportedProtocolShape(
+                protocolName: protocolDescriptor.name,
+                reason:
+                    "Requirement \(requirementIndex) consumes a parameter pack. "
+                    + "Ownership-aware parameter-pack transport is not implemented."
+            )
+        }
+        return ResolvedWitnessValue(
+            type: Any.self,
+            convention: .methodGenericParameterPack(index: index),
+            dependency: .independent,
+            ownership: ownership
+        )
+    }
     if valueName.hasPrefix("repeat ") {
         throw RuntimeConstructionError.unsupportedProtocolShape(
             protocolName: protocolDescriptor.name,
             reason:
-                "Requirement \(requirementIndex) has a parameter-pack argument ('\(valueName)'). "
-                + "Automatic Stub does not support requirements whose own generic signature uses a parameter pack. "
-                + "Supply explicit Requirement values."
+                "Requirement \(requirementIndex) expands an unsupported parameter-pack value ('\(valueName)'). "
+                + "Automatic Stub supports only one direct borrowed requirement-level parameter pack argument."
         )
     }
     if let index = methodGenericParameterIndex(valueName) {
@@ -478,6 +502,21 @@ func methodGenericParameterIndex(_ spelling: String) -> Int? {
     return index
 }
 
+/// The requirement-level generic-parameter index of a direct parameter-pack
+/// expansion, or `nil` for ordinary values and nested/unsupported expansions.
+func methodGenericParameterPackIndex(_ spelling: String) -> Int? {
+    methodGenericParameterPackName(spelling).flatMap(methodGenericParameterIndex)
+}
+
+private func methodGenericParameterPackName(_ spelling: String) -> String? {
+    let expansion: Substring =
+        spelling.first == "(" && spelling.last == ")"
+        ? spelling.dropFirst().dropLast()
+        : Substring(spelling)
+    guard expansion.hasPrefix("repeat ") else { return nil }
+    return String(expansion.dropFirst("repeat ".count))
+}
+
 /// The fabricated witness reserves metadata words only for unconstrained,
 /// copyable, escapable method generic parameters. Any extra generic signature
 /// requirement can change the hidden witness ABI or permit storage the
@@ -487,10 +526,17 @@ private func unsupportedRequirementLevelGenericSignatureReason(
     arguments: [DemangledTypeSyntax]
 ) -> String? {
     let parameters = Set(
-        arguments.compactMap { argument in
-            methodGenericParameterIndex(argument.canonicalSpelling).map { _ in
-                argument.canonicalSpelling
+        arguments.compactMap { argument -> String? in
+            let spelling = argument.canonicalSpelling
+            if methodGenericParameterIndex(spelling) != nil {
+                return spelling
             }
+            guard let parameter = methodGenericParameterPackName(spelling),
+                methodGenericParameterIndex(parameter) != nil
+            else {
+                return nil
+            }
+            return parameter
         })
     guard parameters.isEmpty == false else { return nil }
 

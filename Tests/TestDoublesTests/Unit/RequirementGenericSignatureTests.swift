@@ -27,6 +27,36 @@ private func useLinkedGenericRequirementProbe(
     value.generic(1)
 }
 
+@available(
+    macOS 14.0,
+    iOS 17.0,
+    tvOS 17.0,
+    watchOS 10.0,
+    visionOS 1.0,
+    macCatalyst 17.0,
+    *
+)
+private func useLinkedConstrainedPackRequirementProbe(
+    _ value: any ExternalConstrainedPackRequirementProbe
+) -> Int {
+    value.pack(ExternalGenericConstraintValue())
+}
+
+@available(
+    macOS 14.0,
+    iOS 17.0,
+    tvOS 17.0,
+    watchOS 10.0,
+    visionOS 1.0,
+    macCatalyst 17.0,
+    *
+)
+private func useLinkedMultiplePackRequirementProbe(
+    _ value: any ExternalMultiplePackRequirementProbe
+) -> Int {
+    value.pack(1, second: "two")
+}
+
 @Suite struct RequirementGenericSignatureTests {
     @Test
     @available(
@@ -38,19 +68,73 @@ private func useLinkedGenericRequirementProbe(
         macCatalyst 17.0,
         *
     )
-    func requirementsWithTheirOwnParameterPackFailClosedWithASpecificDiagnostic() {
+    func requirementsWithTheirOwnParameterPackCaptureEveryElement() throws {
         #expect(
             useLinkedPackRequirementProbe(RealExternalPackRequirementProbe()) == 2
         )
 
-        expectUnsupportedProtocolShape(
-            containing: "parameter-pack argument"
-        ) {
-            _ = try Stub<any ExternalPackRequirementProbe>()
+        let stub = try Stub<any ExternalPackRequirementProbe>()
+        stub.when { $0.pack() }.thenReturn(0)
+        stub.when { $0.pack(1, "two") }.thenReturn(2)
+        stub.when { $0.pack(1, "two", true) }.thenReturn(3)
+
+        let probe: any ExternalPackRequirementProbe = stub()
+        #expect(probe.pack() == 0)
+        #expect(probe.pack(1, "two") == 2)
+        #expect(probe.pack(1, "two", true) == 3)
+
+        let recorded: [(Int, String)] = stub.invocations { $0.pack(1, "two") }
+        #expect(recorded.count == 1)
+        #expect(recorded[0].0 == 1)
+        #expect(recorded[0].1 == "two")
+
+        stub.verify { $0.pack() }
+        stub.verify { $0.pack(1, "two") }
+        stub.verify { $0.pack(1, "two", true) }
+    }
+
+    @Test
+    @available(
+        macOS 14.0,
+        iOS 17.0,
+        tvOS 17.0,
+        watchOS 10.0,
+        visionOS 1.0,
+        macCatalyst 17.0,
+        *
+    )
+    func constrainedAndMultipleRequirementPacksFailClosed() {
+        #expect(
+            useLinkedConstrainedPackRequirementProbe(
+                RealExternalConstrainedPackRequirementProbe()
+            ) == 1
+        )
+        #expect(
+            useLinkedMultiplePackRequirementProbe(
+                RealExternalMultiplePackRequirementProbe()
+            ) == 2
+        )
+
+        expectUnsupportedProtocolShape(containing: "generic signature") {
+            _ = try Stub<any ExternalConstrainedPackRequirementProbe>()
+        }
+        expectUnsupportedProtocolShape(containing: "one standalone") {
+            _ = try Stub<any ExternalMultiplePackRequirementProbe>()
+        }
+        expectUnsupportedProtocolShape(containing: "Async continuation transport") {
+            _ = try Stub<any ExternalAsyncPackRequirementProbe>()
+        }
+        expectUnsupportedProtocolShape(containing: "returns a parameter pack") {
+            _ = try Stub<any ExternalPackResultRequirementProbe>()
+        }
+        expectUnsupportedProtocolShape(containing: "Forwarding Spy does not support") {
+            _ = try Spy<any ExternalPackRequirementProbe>(
+                forwardingTo: RealExternalPackRequirementProbe()
+            )
         }
     }
 
-    /// Packs (variable-length per call site) still fail closed separately.
+    /// Ordinary method generic parameters use a distinct metadata-word ABI.
     @Test func plainRequirementLevelGenericParametersAreAutomaticallyDiscovered() throws {
         #expect(
             useLinkedGenericRequirementProbe(RealExternalGenericRequirementProbe())
@@ -77,6 +161,8 @@ private func useLinkedGenericRequirementProbe(
         #expect(methodGenericParameterIndex("AB1") == 26)
         #expect(methodGenericParameterIndex("BB1") == 27)
         #expect(methodGenericParameterIndex("AZ1") == 650)
+        #expect(methodGenericParameterPackIndex("repeat A1") == 0)
+        #expect(methodGenericParameterPackIndex("(repeat A1)") == 0)
 
         #expect(isMethodGenericParameter("A") == false)
         #expect(isMethodGenericParameter("Self") == false)
@@ -85,6 +171,7 @@ private func useLinkedGenericRequirementProbe(
         #expect(isMethodGenericParameter("MyModule.A1") == false)
         #expect(isMethodGenericParameter("") == false)
         #expect(isMethodGenericParameter("1A") == false)
+        #expect(methodGenericParameterPackIndex("repeat A1, repeat B1") == nil)
         #expect(methodGenericParameterIndex(String(repeating: "Z", count: 32) + "1") == nil)
     }
 }

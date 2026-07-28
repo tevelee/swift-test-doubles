@@ -30,6 +30,51 @@ package struct RuntimeArgumentDecodingPlan: Sendable {
                     "[TestDoubles] Missing typed-error result buffer for \(name)."
             }
         }
+
+        package var missingParameterPackBuffer: String {
+            switch self {
+                case .dynamicFunction:
+                    "[TestDoubles] Missing dynamic function parameter-pack buffer."
+                case .witness(let name):
+                    "[TestDoubles] Missing parameter-pack buffer for \(name)."
+            }
+        }
+
+        package var missingParameterPackMetadata: String {
+            switch self {
+                case .dynamicFunction:
+                    "[TestDoubles] Missing dynamic function parameter-pack metadata."
+                case .witness(let name):
+                    "[TestDoubles] Missing parameter-pack metadata for \(name)."
+            }
+        }
+
+        package var invalidParameterPackLength: String {
+            switch self {
+                case .dynamicFunction:
+                    "[TestDoubles] Dynamic function parameter-pack length exceeds supported addressable storage."
+                case .witness(let name):
+                    "[TestDoubles] Parameter-pack length for \(name) exceeds supported addressable storage."
+            }
+        }
+
+        package func missingParameterPackElement(_ index: Int) -> String {
+            switch self {
+                case .dynamicFunction:
+                    "[TestDoubles] Missing dynamic function parameter-pack element at index \(index)."
+                case .witness(let name):
+                    "[TestDoubles] Missing parameter-pack element \(index) for \(name)."
+            }
+        }
+
+        package func missingParameterPackElementMetadata(_ index: Int) -> String {
+            switch self {
+                case .dynamicFunction:
+                    "[TestDoubles] Missing dynamic function parameter-pack metadata at index \(index)."
+                case .witness(let name):
+                    "[TestDoubles] Missing parameter-pack element metadata \(index) for \(name)."
+            }
+        }
     }
 
     package let arguments: [RuntimeArgumentSpec]
@@ -110,6 +155,16 @@ package enum RuntimeArgumentDecoder {
             plan.arguments,
             plan.argumentLocations
         ) {
+            if case .methodGenericParameterPack = argument.convention {
+                values.append(
+                    contentsOf: decodeMethodGenericParameterPack(
+                        locations: locations,
+                        from: frame,
+                        diagnosticContext: plan.diagnosticContext
+                    )
+                )
+                continue
+            }
             let consumesArgument = argument.ownership == .owned
             switch argument.layout {
                 case .void:
@@ -274,6 +329,57 @@ package enum RuntimeArgumentDecoder {
             )
         }
         return unsafeBitCast(metadata, to: Any.Type.self)
+    }
+
+    /// Decodes Swift 6.3's direct borrowed pack ABI: an array of element
+    /// source addresses, an element count, and a low-bit-tagged metadata-pack
+    /// pointer. The recorder deliberately receives the flattened values, so
+    /// existing variadic `when` and `verify` calls retain their source order.
+    private static func decodeMethodGenericParameterPack(
+        locations: [CallFrameArgumentLocation],
+        from frame: TrampolineCallFrame,
+        diagnosticContext: RuntimeArgumentDecodingPlan.DiagnosticContext
+    ) -> [Any] {
+        precondition(
+            locations.count == 3,
+            "[TestDoubles] Parameter-pack ABI must occupy buffer, count, and metadata-pack words."
+        )
+        let bufferBits = UInt(frame.scalarBits(at: locations[0]))
+        let countBits = UInt64(frame.scalarBits(at: locations[1]))
+        let metadataPackBits = UInt(frame.scalarBits(at: locations[2]))
+        guard let count = Int(exactly: countBits) else {
+            fatalError(diagnosticContext.invalidParameterPackLength)
+        }
+        // A zero-length pack has no element or metadata storage requirement.
+        guard count > 0 else { return [] }
+        guard let buffer = UnsafeRawPointer(bitPattern: bufferBits) else {
+            fatalError(diagnosticContext.missingParameterPackBuffer)
+        }
+        // Metadata-pack pointers use their low bit as a representation tag.
+        guard let metadata = UnsafeRawPointer(bitPattern: metadataPackBits & ~UInt(1)) else {
+            fatalError(diagnosticContext.missingParameterPackMetadata)
+        }
+
+        let wordSize = MemoryLayout<UInt>.stride
+        var values: [Any] = []
+        values.reserveCapacity(count)
+        for index in 0 ..< count {
+            let (byteOffset, didOverflow) = index.multipliedReportingOverflow(by: wordSize)
+            guard didOverflow == false else {
+                fatalError(diagnosticContext.invalidParameterPackLength)
+            }
+            let sourceBits = buffer.load(fromByteOffset: byteOffset, as: UInt.self)
+            let metadataBits = metadata.load(fromByteOffset: byteOffset, as: UInt.self)
+            guard let source = UnsafeMutableRawPointer(bitPattern: sourceBits) else {
+                fatalError(diagnosticContext.missingParameterPackElement(index))
+            }
+            guard let typeMetadata = UnsafeRawPointer(bitPattern: metadataBits) else {
+                fatalError(diagnosticContext.missingParameterPackElementMetadata(index))
+            }
+            let type = unsafeBitCast(typeMetadata, to: Any.Type.self)
+            values.append(copyArgument(type: type, source: source, consuming: false))
+        }
+        return values
     }
 
     /// Copies an ABI argument into recorder-owned `Any` storage, then consumes

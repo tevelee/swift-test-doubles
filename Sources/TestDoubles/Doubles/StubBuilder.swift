@@ -489,6 +489,7 @@ public struct StubBuilder<Result> {
         let sequence = recorder.addFixedResultSequence(
             method: recording.methodIndex,
             matchers: recording.resolvedMatchers,
+            matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly,
             location: recording.registrationLocation,
             answers: answers
         )

@@ -113,8 +113,21 @@ struct StubBehaviorRegistry {
         }
 
         let matchers: [ParameterMatcher]
+        let matchesEmptyArgumentsExactly: Bool
         let diagnosticSignature: String
         let behavior: Behavior
+
+        init(
+            matchers: [ParameterMatcher],
+            matchesEmptyArgumentsExactly: Bool = false,
+            diagnosticSignature: String,
+            behavior: Behavior
+        ) {
+            self.matchers = matchers
+            self.matchesEmptyArgumentsExactly = matchesEmptyArgumentsExactly
+            self.diagnosticSignature = diagnosticSignature
+            self.behavior = behavior
+        }
     }
 
     /// An immutable registration view used while matcher predicates execute
@@ -170,12 +183,14 @@ struct StubBehaviorRegistry {
     mutating func add(
         method: Int,
         matchers: [ParameterMatcher],
+        matchesEmptyArgumentsExactly: Bool = false,
         diagnosticSignature: String,
         behavior: Entry.Behavior
     ) {
         entriesByMethod[method, default: []].append(
             Entry(
                 matchers: matchers,
+                matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
                 diagnosticSignature: diagnosticSignature,
                 behavior: behavior
             ))
@@ -192,7 +207,8 @@ struct StubBehaviorRegistry {
         for (entryIndex, entry) in entries.enumerated() {
             if let matcherTransaction = prepareArgumentsMatch(
                 args,
-                against: entry.matchers
+                against: entry.matchers,
+                matchesEmptyArgumentsExactly: entry.matchesEmptyArgumentsExactly
             ) {
                 return PreparedEntryMatch(
                     entryIndex: entryIndex,
@@ -210,27 +226,41 @@ struct StubBehaviorRegistry {
     /// never be selected.
     func shadowingSignature(
         forMethod method: Int,
-        newMatchers: [ParameterMatcher]
+        newMatchers: [ParameterMatcher],
+        newMatchesEmptyArgumentsExactly: Bool = false
     ) -> String? {
         entriesByMethod[method]?
-            .first { StubBehaviorRegistry.matchesSuperset($0.matchers, of: newMatchers) }?
+            .first {
+                StubBehaviorRegistry.matchesSuperset(
+                    $0.matchers,
+                    matchesEmptyArgumentsExactly: $0.matchesEmptyArgumentsExactly,
+                    of: newMatchers,
+                    matchesEmptyArgumentsExactly: newMatchesEmptyArgumentsExactly
+                )
+            }?
             .diagnosticSignature
     }
 
     /// Whether `earlier` accepts every call `later` would, proven soundly.
     ///
-    /// An empty matcher list is a universal catch-all (it matches any call for
-    /// the method). Otherwise every position of `earlier` must accept a
-    /// superset of the same position in `later`: either it accepts any value,
-    /// or both positions are value matchers with the identical accepted set.
+    /// An empty matcher list is normally a universal catch-all. An explicitly
+    /// empty parameter pack instead accepts only a call with no flattened
+    /// values. Otherwise every position of `earlier` must accept a superset
+    /// of the same position in `later`: either it accepts any value, or both
+    /// positions are value matchers with the identical accepted set.
     /// Opaque predicates yield `nil` identities and never satisfy the rule, so
     /// a real shadow through them is missed rather than a reachable
     /// registration falsely flagged.
     static func matchesSuperset(
         _ earlier: [ParameterMatcher],
-        of later: [ParameterMatcher]
+        matchesEmptyArgumentsExactly earlierMatchesEmptyArgumentsExactly: Bool = false,
+        of later: [ParameterMatcher],
+        matchesEmptyArgumentsExactly laterMatchesEmptyArgumentsExactly: Bool = false
     ) -> Bool {
-        if earlier.isEmpty { return true }
+        if earlier.isEmpty {
+            return earlierMatchesEmptyArgumentsExactly == false
+                || (later.isEmpty && laterMatchesEmptyArgumentsExactly)
+        }
         guard earlier.count == later.count else { return false }
         return zip(earlier, later).allSatisfy { earlierMatcher, laterMatcher in
             earlierMatcher.acceptsAnyValue
@@ -241,17 +271,26 @@ struct StubBehaviorRegistry {
 
     static func argumentsMatch(
         _ args: [Any],
-        against matchers: [ParameterMatcher]
+        against matchers: [ParameterMatcher],
+        matchesEmptyArgumentsExactly: Bool = false
     ) -> Bool {
-        prepareArgumentsMatch(args, against: matchers) != nil
+        prepareArgumentsMatch(
+            args,
+            against: matchers,
+            matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly
+        ) != nil
     }
 
     static func prepareArgumentsMatch(
         _ args: [Any],
-        against matchers: [ParameterMatcher]
+        against matchers: [ParameterMatcher],
+        matchesEmptyArgumentsExactly: Bool = false
     ) -> PreparedMatcherTransaction? {
+        if matchers.isEmpty {
+            return matchesEmptyArgumentsExactly && args.isEmpty == false ? nil : .matched
+        }
         guard args.count == matchers.count else {
-            return matchers.isEmpty ? .matched : nil
+            return nil
         }
         var combined = PreparedMatcherTransaction.matched
         for (value, matcher) in zip(args, matchers) {

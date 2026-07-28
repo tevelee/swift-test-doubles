@@ -335,7 +335,8 @@ extension StubRecorder {
 
     private func recordPlaceholder(method: Int, name: String, args: [Any]) {
         var matchers = MatcherContext.takeMatchers()
-        if runtimeMethod(for: method)?.kind == .setter,
+        let runtimeMethod = runtimeMethod(for: method)
+        if runtimeMethod?.kind == .setter,
             args.count > 1,
             matchers.count == args.count,
             let valueMatcher = matchers.last
@@ -351,7 +352,12 @@ extension StubRecorder {
                 methodIndex: method,
                 name: name,
                 args: args,
-                matchers: matchers
+                matchers: matchers,
+                matchesEmptyArgumentsExactly: args.isEmpty
+                    && runtimeMethod?.argumentConventions.contains {
+                        if case .methodGenericParameterPack = $0 { return true }
+                        return false
+                    } == true
             ),
             to: self
         )

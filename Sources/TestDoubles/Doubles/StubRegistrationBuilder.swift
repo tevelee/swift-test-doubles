@@ -17,6 +17,7 @@ extension StubRegistrationBuilder {
         recorder.addReturnValue(
             method: recording.methodIndex,
             matchers: recording.resolvedMatchers,
+            matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly,
             location: recording.registrationLocation,
             value: value
         )
@@ -131,6 +132,7 @@ extension StubRegistrationBuilder {
         recorder.addStub(
             method: recording.methodIndex,
             matchers: recording.resolvedMatchers,
+            matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly,
             location: recording.registrationLocation
         ) { arguments in
             try behavior(arguments, methodName)
@@ -144,6 +146,7 @@ extension StubRegistrationBuilder {
         recorder.addAsyncStub(
             method: recording.methodIndex,
             matchers: recording.resolvedMatchers,
+            matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly,
             location: recording.registrationLocation
         ) { arguments in
             try await behavior(arguments, methodName)

@@ -108,6 +108,39 @@ package func runtimeMethodGenericParameterUnsupportedReason(
     return nil
 }
 
+/// Validates the only pack ABI this runtime decodes. A pack carries a buffer,
+/// length, and tagged metadata-pack pointer rather than the trailing metadata
+/// words used by ordinary requirement-level generic parameters.
+package func runtimeMethodGenericParameterPackUnsupportedReason(
+    for method: MethodDescriptor
+) -> String? {
+    let packArguments = method.arguments.filter {
+        if case .methodGenericParameterPack = $0.value.convention { return true }
+        return false
+    }
+    guard packArguments.isEmpty == false else { return nil }
+
+    guard method.kind == .method, method.receiver == .instance else {
+        return "Parameter packs are supported only on ordinary instance methods."
+    }
+    guard method.isAsync == false else {
+        return "Async continuation transport has not been proven for parameter packs."
+    }
+    guard method.typedErrorType == nil else {
+        return "Typed-throwing transport has not been proven alongside a parameter pack."
+    }
+    guard packArguments.count == 1, method.arguments.count == 1 else {
+        return "Only one standalone parameter-pack argument is supported."
+    }
+    guard packArguments[0].ownership == .borrowed else {
+        return "Consuming parameter packs need ownership-aware element transport."
+    }
+    guard case .methodGenericParameterPack = method.result.convention else {
+        return nil
+    }
+    return "Parameter-pack results cannot be fabricated."
+}
+
 /// Forwarding would need to replay the caller-supplied metadata register
 /// into an outgoing call, which is unverified, so `Spy` always rejects it.
 package func runtimeMethodGenericParameterForwardingUnsupportedReason(
@@ -117,8 +150,15 @@ package func runtimeMethodGenericParameterForwardingUnsupportedReason(
         if case .methodGenericParameter = $0.value.convention { return true }
         return false
     }
-    guard usesGenericParameter else { return nil }
-    return "Forwarding Spy does not support requirements with their own generic parameter."
+    if usesGenericParameter {
+        return "Forwarding Spy does not support requirements with their own generic parameter."
+    }
+    let usesParameterPack = method.arguments.contains {
+        if case .methodGenericParameterPack = $0.value.convention { return true }
+        return false
+    }
+    guard usesParameterPack else { return nil }
+    return "Forwarding Spy does not support requirements with their own parameter pack."
 }
 
 package func validateExplicitRequirementsAgainstLinkedConformances(

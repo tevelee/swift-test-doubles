@@ -9,7 +9,8 @@ extension TestDouble {
     ) -> [(repeat each Argument)] {
         recorder.verificationMatches(
             method: recording.methodIndex,
-            matchers: recording.resolvedMatchers
+            matchers: recording.resolvedMatchers,
+            matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly
         ).map { call in
             var index = 0
             func nextArgument<T>(_ type: T.Type) -> T {

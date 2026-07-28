@@ -29,7 +29,8 @@ extension StubRecorder {
                     guard call.methodIndex == expectation.methodIndex else { continue }
                     if let transaction = StubBehaviorRegistry.prepareArgumentsMatch(
                         call.args,
-                        against: matchers
+                        against: matchers,
+                        matchesEmptyArgumentsExactly: expectation.matchesEmptyArgumentsExactly
                     ) {
                         preparedMatch = (index, transaction)
                         break
@@ -64,16 +65,26 @@ extension StubRecorder {
 
     func verificationMatches(
         method: Int,
-        matchers: [ParameterMatcher] = []
+        matchers: [ParameterMatcher] = [],
+        matchesEmptyArgumentsExactly: Bool = false
     ) -> [RecordedCall] {
-        preparedVerificationMatches(method: method, matchers: matchers).map(\.call)
+        preparedVerificationMatches(
+            method: method,
+            matchers: matchers,
+            matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly
+        ).map(\.call)
     }
 
     func preparedVerificationMatches(
         method: Int,
-        matchers: [ParameterMatcher] = []
+        matchers: [ParameterMatcher] = [],
+        matchesEmptyArgumentsExactly: Bool = false
     ) -> [PreparedRecordedCallMatch] {
-        matchingCalls(method: method, matchers: matchers)
+        matchingCalls(
+            method: method,
+            matchers: matchers,
+            matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly
+        )
     }
 
     /// Returns the earliest recorded call matching `recording` whose global
@@ -93,7 +104,8 @@ extension StubRecorder {
                 call.methodIndex == recording.methodIndex,
                 let transaction = StubBehaviorRegistry.prepareArgumentsMatch(
                     call.args,
-                    against: matchers
+                    against: matchers,
+                    matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly
                 )
             else {
                 continue
@@ -153,6 +165,7 @@ extension StubRecorder {
             let matches = matchingCalls(
                 method: method,
                 matchers: matchers,
+                matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly,
                 in: snapshot.calls
             )
             if matches.count >= minimumCount {
@@ -175,7 +188,8 @@ extension StubRecorder {
                     // the generation before this task resumed.
                     let finalMatches = matchingCalls(
                         method: method,
-                        matchers: matchers
+                        matchers: matchers,
+                        matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly
                     )
                     if finalMatches.count >= minimumCount {
                         commitSuccessfulVerification(of: finalMatches)
@@ -194,11 +208,13 @@ extension StubRecorder {
 
     private func matchingCalls(
         method: Int,
-        matchers: [ParameterMatcher]
+        matchers: [ParameterMatcher],
+        matchesEmptyArgumentsExactly: Bool = false
     ) -> [PreparedRecordedCallMatch] {
         matchingCalls(
             method: method,
             matchers: matchers,
+            matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
             in: withLockedPolicy { $0.invocationLedger.allCalls }
         )
     }
@@ -206,6 +222,7 @@ extension StubRecorder {
     private func matchingCalls(
         method: Int,
         matchers: [ParameterMatcher],
+        matchesEmptyArgumentsExactly: Bool,
         in calls: [RecordedCall]
     ) -> [PreparedRecordedCallMatch] {
         calls.compactMap { call in
@@ -213,7 +230,8 @@ extension StubRecorder {
                 call.methodIndex == method,
                 let transaction = StubBehaviorRegistry.prepareArgumentsMatch(
                     call.args,
-                    against: matchers
+                    against: matchers,
+                    matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly
                 )
             else {
                 return nil
