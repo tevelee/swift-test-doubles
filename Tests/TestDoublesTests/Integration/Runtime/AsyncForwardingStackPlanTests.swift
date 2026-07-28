@@ -5,14 +5,14 @@ import Testing
 @testable import TestDoubles
 
 struct AsyncForwardingStackPlanTests {
-    @Test func allowsOneThroughFourCompleteVisibleWordsOnBothArchitectures() {
+    @Test func allowsOneThroughEightCompleteVisibleWordsOnBothArchitectures() {
         let cases: [(RuntimeArchitecture, Int, [Int])] = [
-            (.x86_64, 6, [16, 32, 32, 48]),
-            (.arm64, 8, [32, 32, 48, 48])
+            (.x86_64, 6, [16, 32, 32, 48, 48, 64, 64, 80]),
+            (.arm64, 8, [32, 32, 48, 48, 64, 64, 80, 80])
         ]
 
         for (architecture, registerCount, stackByteCounts) in cases {
-            for visibleWordCount in 1 ... 4 {
+            for visibleWordCount in 1 ... 8 {
                 let expectedLocations = (0 ..< visibleWordCount).map {
                     CallFrameArgumentLocation(
                         storage: .stack(byteOffset: $0 * 8),
@@ -38,16 +38,16 @@ struct AsyncForwardingStackPlanTests {
         }
     }
 
-    @Test func fifthVisibleWordAndTypedErrorRemainFailClosed() {
+    @Test func ninthVisibleWordAndTypedErrorRemainFailClosed() {
         #expect(
             asyncForwardingStackPlan(
-                for: method(argumentCount: 11),
+                for: method(argumentCount: 15),
                 architecture: .x86_64
             ) == nil
         )
         #expect(
             asyncForwardingStackPlan(
-                for: method(argumentCount: 13),
+                for: method(argumentCount: 17),
                 architecture: .arm64
             ) == nil
         )

@@ -269,7 +269,11 @@ final class ForwardedAsyncState:
                         paddedVisibleWords[0],
                         paddedVisibleWords[1],
                         paddedVisibleWords[2],
-                        paddedVisibleWords[3]
+                        paddedVisibleWords[3],
+                        paddedVisibleWords[4],
+                        paddedVisibleWords[5],
+                        paddedVisibleWords[6],
+                        paddedVisibleWords[7]
                     ),
                     metadata: UInt64(UInt(bitPattern: metadata)),
                     witnessTable: UInt64(

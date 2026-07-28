@@ -84,12 +84,29 @@ import Testing
             )
         }
 
-        @Test func fifthVisibleSpillRemainsFailClosed() {
-            expectUnsupportedProtocolShape(containing: "one through four") {
-                _ = try Spy<any FifthSpilledAsyncForwardingProbe>(
-                    forwardingTo: RealFifthSpilledAsyncForwardingProbe()
+        @Test func fifthVisibleSpillForwardsInDeclarationOrder() async throws {
+            let spy = try Spy<any FifthSpilledAsyncForwardingProbe>(
+                forwardingTo: RealFifthSpilledAsyncForwardingProbe()
+            )
+            let service: any FifthSpilledAsyncForwardingProbe = spy()
+
+            #if arch(x86_64)
+                #expect(
+                    await service.call(
+                        1, 2, 3, 4, 5, 6,
+                        0x1112_1314, 0x2122_2324,
+                        0x3132_3334, 0x4142_4344, 0x5152_5354
+                    ) == 0x5152_5354
                 )
-            }
+            #else
+                #expect(
+                    await service.call(
+                        1, 2, 3, 4, 5, 6, 7, 8,
+                        0x1112_1314, 0x2122_2324,
+                        0x3132_3334, 0x4142_4344, 0x5152_5354
+                    ) == 0x5152_5354
+                )
+            #endif
         }
 
         @Test func floatingPointSpillRemainsFailClosed() {

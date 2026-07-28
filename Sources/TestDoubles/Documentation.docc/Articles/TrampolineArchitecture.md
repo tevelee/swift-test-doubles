@@ -231,7 +231,7 @@ adjustment once on both immediate and suspending entry exits, never from the
 completion trampoline. Split, padded, floating-point, vector, indirect,
 dependent, accessor, and wider typed-error stack shapes remain fail-closed.
 
-The bounded forwarding counterpart accepts one through four complete concrete
+The bounded forwarding counterpart accepts one through eight complete concrete
 eight-byte general-purpose spills for an instance method, untyped-throwing or
 not. Synchronous preparation copies every word into retained forwarding state
 before the outer entry removes its caller stack. The async invoke helper then
@@ -242,7 +242,7 @@ the compiler-planned 16-byte-aligned adjustment, preserves it at offset zero,
 and writes the logical sequence from offset eight. The target's
 compiler-generated witness thunk performs the only transition to the
 direct-method continuation stack; forwarding completion does not adjust it
-again. A fifth spill, typed-error destination, split or padded value, floating
+again. A ninth spill, typed-error destination, split or padded value, floating
 point, SIMD, indirect or dependent argument, and async accessor remain outside
 this slice.
 

@@ -247,7 +247,7 @@ private func asyncWitnessStackPlan(
 /// Returns the bounded outgoing async forwarding stack plan, or `nil` when a
 /// requirement needs a different physical shape.
 ///
-/// This deliberately accepts at most four complete concrete eight-byte values
+/// This deliberately accepts at most eight complete concrete eight-byte values
 /// that spill consecutively from the general-purpose bank. Split, padded,
 /// floating-point, indirect, dependent, vector, accessor, and typed-error
 /// shapes remain fail-closed.
@@ -348,7 +348,7 @@ package func unsupportedAsyncForwardingEgressDiagnostic(
     architecture: RuntimeArchitecture
 ) -> String {
     "Its target-stack egress on \(architecture) is not a sequence of one through "
-        + "four complete, independent eight-byte general-purpose arguments "
+        + "eight complete, independent eight-byte general-purpose arguments "
         + "followed by dynamic-Self metadata and its witness table. Split, padded, "
         + "floating-point, vector, indirect, dependent, accessor, static, and "
         + "typed-error shapes remain unsupported. Use compatible values or a "
