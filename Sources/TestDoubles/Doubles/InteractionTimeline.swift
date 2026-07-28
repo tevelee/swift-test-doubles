@@ -51,11 +51,13 @@ public struct InteractionTimeline: Sendable, CustomStringConvertible {
         guard events.isEmpty == false else {
             return "[TestDoubles] No interaction timeline events recorded."
         }
-        return (["[TestDoubles] Interaction timeline:"] + events.map { event in
-            let arguments = event.arguments.joined(separator: ", ")
-            let registration = event.registration.map { " via \($0)" } ?? ""
-            return "  #\(event.id) \(event.dispatch.rawValue) \(event.requirement)(\(arguments))\(registration)"
-        }).joined(separator: "\n")
+        return
+            (["[TestDoubles] Interaction timeline:"]
+            + events.map { event in
+                let arguments = event.arguments.joined(separator: ", ")
+                let registration = event.registration.map { " via \($0)" } ?? ""
+                return "  #\(event.id) \(event.dispatch.rawValue) \(event.requirement)(\(arguments))\(registration)"
+            }).joined(separator: "\n")
     }
 }
 

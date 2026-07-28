@@ -111,9 +111,10 @@ extension StubRecorder {
         // recorder lock.
         if let shadow, let location {
             let newScenario = shadow.scenario.map { " while applying scenario '\($0)'" } ?? ""
-            let previousScenario = shadow.shadowedBy.scenarioName.map {
-                " (from scenario '\($0)')"
-            } ?? ""
+            let previousScenario =
+                shadow.shadowedBy.scenarioName.map {
+                    " (from scenario '\($0)')"
+                } ?? ""
             reportIssue(
                 "[TestDoubles] Unreachable stub registration\(newScenario): \(shadow.new) can never "
                     + "match because the earlier registration \(shadow.shadowedBy.signature)\(previousScenario) accepts "

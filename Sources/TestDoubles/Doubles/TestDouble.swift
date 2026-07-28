@@ -274,7 +274,8 @@ extension TestDouble {
             case .satisfied, .cancelled:
                 return
             case .timedOut(let actualCount):
-                var message = "'\(recording.name)': expected at least \(expectedCounts.lowerBound) "
+                var message =
+                    "'\(recording.name)': expected at least \(expectedCounts.lowerBound) "
                     + "call\(expectedCounts.lowerBound == 1 ? "" : "s") within \(timeout), got \(actualCount)"
                 if let nearMisses = recorder.verificationNearMisses(for: recording) {
                     message += "\n\n\(nearMisses)"

@@ -47,9 +47,11 @@ public final class ClosureDouble<Input, Result>: @unchecked Sendable {
     public func callAsFunction(_ input: Input) -> Result {
         let handler: Handler = lock.withLock {
             recordedCalls.append(input)
-            guard let index = entries.firstIndex(where: { entry in
-                entry.matcher?(input) ?? true
-            }) else {
+            guard
+                let index = entries.firstIndex(where: { entry in
+                    entry.matcher?(input) ?? true
+                })
+            else {
                 preconditionFailure(
                     "[TestDoubles] No matching closure behavior is configured. "
                         + "Register one with `when { ... }.thenReturn(...)` or `whenAny()`."
