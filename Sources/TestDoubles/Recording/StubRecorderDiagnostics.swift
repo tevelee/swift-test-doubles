@@ -62,19 +62,80 @@ enum StubRecorderDiagnostics {
         entry: StubRecorder.StubEntry,
         args: [Any]
     ) -> [String] {
-        let matchers = entry.matchers
-        guard matchers.isEmpty == false else { return [] }
-        guard matchers.count == args.count else {
-            return ["    expects \(matchers.count) argument(s), call had \(args.count)"]
+        matcherBreakdown(matchers: entry.matchers, args: args).lines
+    }
+
+    /// Adds the closest same-requirement calls to a failed verification, so a
+    /// count of zero distinguishes "never called" from "called with the
+    /// wrong argument".
+    static func verificationNearMisses(
+        expectation: RecordedCall,
+        calls: [RecordedCall]
+    ) -> String? {
+        let matchers = expectation.resolvedMatchers
+        let nearMisses = calls.compactMap { call -> (call: RecordedCall, breakdown: MatcherBreakdown)? in
+            guard call.methodIndex == expectation.methodIndex else { return nil }
+            let breakdown = matcherBreakdown(matchers: matchers, args: call.args)
+            return breakdown.matchesExactly ? nil : (call, breakdown)
         }
-        return zip(args, matchers).enumerated().map { index, pair in
+        guard nearMisses.isEmpty == false else { return nil }
+
+        let closest = nearMisses.sorted {
+            if $0.breakdown.matchedArgumentCount != $1.breakdown.matchedArgumentCount {
+                return $0.breakdown.matchedArgumentCount > $1.breakdown.matchedArgumentCount
+            }
+            return ($0.call.sequence ?? 0) < ($1.call.sequence ?? 0)
+        }.prefix(3)
+
+        var lines = ["Closest nonmatching calls for '\(expectation.name)':"]
+        for miss in closest {
+            let rendered = miss.call.args.map { String(reflecting: $0) }
+            lines.append("  \(weaveArguments(rendered, intoName: miss.call.name))")
+            lines.append(contentsOf: miss.breakdown.lines)
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private struct MatcherBreakdown {
+        let matchedArgumentCount: Int
+        let matchesExactly: Bool
+        let lines: [String]
+    }
+
+    private static func matcherBreakdown(
+        matchers: [ParameterMatcher],
+        args: [Any]
+    ) -> MatcherBreakdown {
+        guard matchers.isEmpty == false else {
+            return MatcherBreakdown(
+                matchedArgumentCount: 0,
+                matchesExactly: args.isEmpty,
+                lines: []
+            )
+        }
+        guard matchers.count == args.count else {
+            return MatcherBreakdown(
+                matchedArgumentCount: 0,
+                matchesExactly: false,
+                lines: ["    expects \(matchers.count) argument(s), call had \(args.count)"]
+            )
+        }
+
+        var matchedArgumentCount = 0
+        let lines = zip(args, matchers).enumerated().map { index, pair in
             let (arg, matcher) = pair
             if matcher.matches(value: arg) {
+                matchedArgumentCount += 1
                 return "    arg\(index) matched: \(matcher.diagnosticDescription)"
             }
             return "    arg\(index) rejected: expected \(matcher.diagnosticDescription), "
                 + "got \(String(reflecting: arg))"
         }
+        return MatcherBreakdown(
+            matchedArgumentCount: matchedArgumentCount,
+            matchesExactly: matchedArgumentCount == args.count,
+            lines: lines
+        )
     }
 
     static func orderedVerificationFailure(
@@ -249,6 +310,13 @@ extension StubRecorder {
             method: method,
             args: args,
             entries: entries
+        )
+    }
+
+    func verificationNearMisses(for expectation: RecordedCall) -> String? {
+        StubRecorderDiagnostics.verificationNearMisses(
+            expectation: expectation,
+            calls: withLockedPolicy { $0.invocationLedger.allCalls }
         )
     }
 }

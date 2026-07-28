@@ -41,6 +41,22 @@ private func makeVerificationDiagnosticsStub() throws -> Stub<any VerificationDi
         }
     }
 
+    @Test func mismatchExplainsTheClosestNonmatchingArguments() throws {
+        let stub = try makeVerificationDiagnosticsStub()
+        stub.when { $0.synchronous(any()) }.thenDoNothing()
+        stub().synchronous(1)
+        stub().synchronous(3)
+
+        expectReportsIssue {
+            stub.verify { $0.synchronous(equal(2)) }
+        } matching: { issue in
+            issue.description.contains("Closest nonmatching calls for 'requirement_0'")
+                && issue.description.contains("requirement_0(1)")
+                && issue.description.contains("arg0 rejected: expected equal(2), got 1")
+                && issue.description.contains("requirement_0(3)")
+        }
+    }
+
     @Test func asynchronousMismatchReportsWithoutTerminating() async throws {
         let stub = try makeVerificationDiagnosticsStub()
         await stub.when { await $0.asynchronous(any()) }.thenDoNothing()

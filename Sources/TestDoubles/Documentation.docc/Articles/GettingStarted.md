@@ -72,7 +72,9 @@ several registrations match a call, the first one wins, like the cases of a
 a catch-all registered first swallows everything after it. Verification
 defaults to at least one matching call; state a count only when it adds meaning.
 A mismatch is reported as a test issue at the `verify` call's source location
-and does not terminate the process.
+and does not terminate the process. When calls reached the same requirement
+with different arguments, the issue also shows the closest observed calls and
+which matcher rejected each argument.
 
 The zero-argument matcher forms synthesize valid recording placeholders for
 supported value types. Supply a valid value for references, existentials, and

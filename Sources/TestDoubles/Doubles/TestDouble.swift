@@ -206,9 +206,11 @@ extension TestDouble {
         let actualCount = matches.count
 
         guard expectedCounts.contains(actualCount) else {
-            report(
-                "'\(recording.name)': expected \(callCountDescription(for: expectedCounts)), got \(actualCount)"
-            )
+            var message = "'\(recording.name)': expected \(callCountDescription(for: expectedCounts)), got \(actualCount)"
+            if let nearMisses = recorder.verificationNearMisses(for: recording) {
+                message += "\n\n\(nearMisses)"
+            }
+            report(message)
             return
         }
         recorder.commitSuccessfulVerification(of: matches)
@@ -233,9 +235,14 @@ extension TestDouble {
                 return
 
             case .timedOut(let actualCount):
-                reportIssue(
+                var message =
                     "'\(recording.name)': expected \(callCountDescription(for: expectedCounts)) "
-                        + "within \(timeout), got \(actualCount)",
+                    + "within \(timeout), got \(actualCount)"
+                if let nearMisses = recorder.verificationNearMisses(for: recording) {
+                    message += "\n\n\(nearMisses)"
+                }
+                reportIssue(
+                    message,
                     fileID: fileID,
                     filePath: filePath,
                     line: line,
