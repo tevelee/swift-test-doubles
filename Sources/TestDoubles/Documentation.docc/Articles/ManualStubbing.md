@@ -49,6 +49,24 @@ let sut: any MyService = stub()
 stub.verify { $0.fetch(id: any()) }
 ```
 
+### Generate a conformer with the optional command plugin
+
+For ordinary protocol requirements, invoke the `ManualStubGenerator` command
+plugin from the package checkout instead of writing the forwarding struct:
+
+```sh
+swift package plugin --allow-writing-to-package-directory generate-manual-stub \
+  WeatherService Sources/WeatherService.swift \
+  Tests/WeatherServiceManualStub.swift
+```
+
+The plugin emits `WeatherServiceManualStub`. Instance requirements use the
+`ManualStub<WeatherServiceManualStub>` you create in the test. Static
+requirements and values created through generated initializers use the emitted
+`WeatherServiceManualStub.staticStub`, which is independently configurable.
+The plugin uses no parser-library dependency, and clients that do not invoke it
+neither build nor run it.
+
 ### Forward requirements
 
 Non-throwing methods and getters, synchronous or asynchronous, use the base

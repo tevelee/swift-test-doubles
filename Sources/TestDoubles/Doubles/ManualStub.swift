@@ -37,7 +37,7 @@ public protocol StubConformer {
 /// // service.fetch(id: 42) == "Alice"
 /// ```
 @dynamicMemberLookup
-public final class ManualStub<T: StubConformer> {
+public final class ManualStub<T: StubConformer>: @unchecked Sendable {
     let recorder = StubRecorder(methods: [])
 
     /// Creates an empty manual stub. No requirements are validated up

@@ -40,6 +40,18 @@ let package = Package(
 
 private func allTargets(includesCxxInteropTarget: Bool) -> [Target] {
     var targets: [Target] = [
+        .executableTarget(name: "ManualStubGeneratorTool"),
+        .plugin(
+            name: "ManualStubGenerator",
+            capability: .command(
+                intent: .custom(
+                    verb: "generate-manual-stub",
+                    description: "Generate a ManualStub conformer from a protocol declaration."
+                ),
+                permissions: [.writeToPackageDirectory(reason: "Writes the generated Swift conformer you request.")]
+            ),
+            dependencies: ["ManualStubGeneratorTool"]
+        ),
         .target(
             name: "TestDoubles",
             dependencies: [
