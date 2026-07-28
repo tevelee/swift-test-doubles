@@ -87,6 +87,13 @@ struct ProtocolForwardingPlanBuilder<P> {
         var modifications: [Int: ForwardedModifyPlan] = [:]
         var reads: [Int: ForwardedReadPlan] = [:]
         for method in methods {
+            // An initializer's `Self` result must retain the fabricated
+            // existential metadata and witness tables used by the caller.
+            // It can be explicitly overridden with `when(initializer:)`, but
+            // cannot safely return the forwarding target's distinct type.
+            if method.kind == .initializer {
+                continue
+            }
             let requirement = layout.callableRequirements[method.index]
             let protocolName = requirement.protocolDescriptor.name
             try validate(method, protocolName: protocolName)
@@ -170,6 +177,12 @@ struct ProtocolForwardingPlanBuilder<P> {
         _ method: MethodDescriptor,
         protocolName: String
     ) throws {
+        guard method.kind != .initializer else {
+            throw RuntimeConstructionError.forwardingUnsupported(
+                protocolName: protocolName,
+                reason: .nonInstanceRequirement(index: method.index)
+            )
+        }
         try validateDynamicSelfBoundary(method, protocolName: protocolName)
         let concreteTypes = method.argumentTypes + [method.returnType]
         if let reason = runtimeSIMDUnsupportedReason(for: method) {
@@ -442,10 +455,8 @@ struct ProtocolForwardingPlanBuilder<P> {
         _ method: MethodDescriptor,
         protocolName: String
     ) throws {
-        guard
-            method.kind == .initializer
-                || (method.returnConvention != .selfType
-                    && method.returnConvention != .optionalSelf)
+        guard method.returnConvention != .selfType,
+            method.returnConvention != .optionalSelf
         else {
             throw RuntimeConstructionError.forwardingUnsupported(
                 protocolName: protocolName,
