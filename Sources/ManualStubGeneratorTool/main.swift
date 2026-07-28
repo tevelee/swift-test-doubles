@@ -1,7 +1,7 @@
 import Foundation
 
 guard CommandLine.arguments.count == 4 else {
-    fputs("usage: ManualStubGeneratorTool <ProtocolName> <source.swift> <output.swift>\n", stderr)
+    print("usage: ManualStubGeneratorTool <ProtocolName> <source.swift> <output.swift>")
     exit(64)
 }
 
@@ -14,7 +14,7 @@ do {
     let output = try Generator(protocolName: protocolName, source: source).render()
     try output.write(to: outputURL, atomically: true, encoding: .utf8)
 } catch {
-    fputs("ManualStub generation failed: \(error.localizedDescription)\n", stderr)
+    print("ManualStub generation failed: \(error.localizedDescription)")
     exit(65)
 }
 
