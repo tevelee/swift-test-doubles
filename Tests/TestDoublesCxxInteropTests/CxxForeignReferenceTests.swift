@@ -15,6 +15,7 @@ protocol Greeter {
 /// A foreign-reference payload must cross both directions of the fabricated
 /// witness. This is deliberately unconstrained: only superclass-constrained
 /// foreign reference existentials remain unsupported.
+@available(iOS 16.4, macOS 13.3, tvOS 16.4, watchOS 9.4, visionOS 1.0, *)
 protocol WidgetTransporter {
     func replace(_ widget: Widget) -> Widget
 }
@@ -23,6 +24,7 @@ private final class RealGreeter: Greeter {
     func greet() -> String { "hello" }
 }
 
+@available(iOS 16.4, macOS 13.3, tvOS 16.4, watchOS 9.4, visionOS 1.0, *)
 private final class RealWidgetTransporter: WidgetTransporter {
     func replace(_ widget: Widget) -> Widget { widget }
 }
@@ -34,6 +36,7 @@ private func useLinkedGreeter(_ value: any Greeter) -> String {
 }
 
 @inline(never)
+@available(iOS 16.4, macOS 13.3, tvOS 16.4, watchOS 9.4, visionOS 1.0, *)
 private func useLinkedWidgetTransporter(
     _ value: any WidgetTransporter,
     widget: Widget
