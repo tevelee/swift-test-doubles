@@ -31,7 +31,7 @@ real dependency the spy wraps — and records its result into the session under
 Only a successful result is captured; a thrown error still propagates to the
 caller but is not recorded.
 
-## Replaying a fixture
+### Replaying a fixture
 
 Load the persisted fixture and replay it on a plain `Stub`, with no real
 dependency involved:
@@ -54,14 +54,14 @@ chain built from playback: the last recorded response repeats for every call
 after that. `key` must match the one recording used and have at least one
 recorded call, or this halts with a diagnostic naming the missing key.
 
-## Working without a file
+### Working without a file
 
 `RecordingSession/snapshot()` freezes the calls recorded so far into an
 in-memory ``InteractionFixture`` — useful for record-and-replay within one
 test run, without touching disk. Persisting a fixture is only necessary to
 share it across test runs or commit it alongside the test that recorded it.
 
-## Constraints
+### Constraints
 
 Both sides need the requirement's result type to round-trip through
 `JSONEncoder`/`JSONDecoder`: `thenRecord` requires `Result: Encodable &

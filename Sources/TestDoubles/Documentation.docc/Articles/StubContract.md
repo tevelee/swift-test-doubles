@@ -527,16 +527,13 @@ their independent boundary.
 
 Configure and verify a stub serially, keep the ``Stub`` itself on one isolation
 domain, and do not overlap those operations with calls. Recorder state is
-lock-protected for invocation. For a generated value whose protocol is
-`Sendable`, use `stub()` to
-acknowledge explicitly that configured fixed and sequenced behavior payloads,
-matcher and captor state, handler captures, and recorded invocation arguments are
-type-erased and are not compiler-proven `Sendable`. The no-argument forms are
-deprecated when the compiler can see the `Sendable` constraint, but remain
-functional for compatibility. An unconstrained generic wrapper erases that
-marker constraint and therefore cannot produce the warning. Use the explicit
-form whenever a generated value will cross concurrency domains, and configure
-and verify outside concurrent invocation.
+lock-protected for invocation. Configured fixed and sequenced behavior
+payloads, matcher and captor state, handler captures, and recorded invocation
+arguments are type-erased, so ``Stub`` itself does not conform to `Sendable`.
+When `P` conforms to `Sendable`, `stub()` resolves to a `Sendable`-constrained
+overload, so the returned existential may cross isolation domains with the
+compiler checking that guarantee. When `P` does not conform to `Sendable`,
+keep the generated value on the isolation domain that configured it.
 ``ArgumentCaptor`` is conditionally `Sendable` when its captured value is
 `Sendable`.
 

@@ -186,16 +186,31 @@ public class Stub<P> {
 }
 
 extension Stub where P: Sendable {
+    /// Returns the generated protocol existential.
+    ///
+    /// Same as the unconstrained `callAsFunction()`, except the compiler can
+    /// verify the returned value is `Sendable`, so it may cross actor
+    /// isolation boundaries without a diagnostic.
     public func callAsFunction() -> P {
         materializeUnchecked()
     }
 
+    /// Calls `operation` with a generated value and keeps its runtime
+    /// resources alive.
+    ///
+    /// Same as the unconstrained `withValue(_:)`, except the compiler can
+    /// verify the generated value is `Sendable`.
     public func withValue<Result, Failure: Error>(
         _ operation: (P) throws(Failure) -> Result
     ) throws(Failure) -> Result {
         try withMaterializedValue(operation)
     }
 
+    /// Asynchronously calls `operation` with a generated value and keeps its
+    /// runtime resources alive.
+    ///
+    /// Same as the unconstrained async `withValue(_:)`, except the compiler
+    /// can verify the generated value is `Sendable`.
     public func withValue<Result, Failure: Error>(
         _ operation: (P) async throws(Failure) -> Result
     ) async throws(Failure) -> Result {

@@ -129,6 +129,8 @@ isolation. See
 - ``atLeast(_:)``
 - ``lessThan(_:)``
 - ``atMost(_:)``
+- ``inRange(_:)-(Range<Bound>)``
+- ``inRange(_:)-(ClosedRange<Bound>)``
 - ``isNil()``
 - ``notNil()``
 - ``some(_:)``

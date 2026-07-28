@@ -25,6 +25,7 @@ public final class RecordingSession: @unchecked Sendable {
     private let lock = NSLock()
     private var entries: [String: [Data]] = [:]
 
+    /// Creates a session with nothing recorded yet.
     public init() {}
 
     func recordSuccess<Value: Encodable>(_ value: Value, as key: String) {

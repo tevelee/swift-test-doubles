@@ -24,6 +24,7 @@ public final class InvocationOrder: @unchecked Sendable {
     private var cursor: UInt64 = 0
     private var touchedRecorders: [ObjectIdentifier: StubRecorder] = [:]
 
+    /// Creates a session with no verified interactions yet.
     public init() {}
 
     /// Verifies the next in-order interaction on a runtime stub or spy.
