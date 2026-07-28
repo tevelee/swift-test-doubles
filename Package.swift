@@ -52,6 +52,16 @@ let package = Package(
                     condition: .when(traits: ["StubbableMacros"])
                 )
             ]
+        ),
+        .package(
+            url: "https://github.com/pointfreeco/swift-macro-testing",
+            from: "0.6.5",
+            traits: [
+                .trait(
+                    name: "default",
+                    condition: .when(traits: ["StubbableMacros"])
+                )
+            ]
         )
     ],
     targets: allTargets(includesCxxInteropTarget: includesCxxInteropTarget),
@@ -210,15 +220,30 @@ private func allTargets(includesCxxInteropTarget: Bool) -> [Target] {
                 "InternalRuntimeContract",
                 "TestDoublesFixtures",
                 "TestDoublesResilientFixtures",
-                .product(name: "IssueReportingTestSupport", package: "swift-issue-reporting")
+                .product(
+                    name: "IssueReportingTestSupport",
+                    package: "swift-issue-reporting",
+                    // MacroTesting's SnapshotTesting dependency also provides
+                    // this module name through XCTestDynamicOverlay.
+                    moduleAliases: [
+                        "IssueReportingTestSupport": "TestDoublesIssueReportingTestSupport"
+                    ]
+                )
             ]
         ),
         .testTarget(
             name: "TestDoublesMacroTests",
             dependencies: [
-                "TestDoubles",
                 .target(
-                    name: "TestDoublesMacros",
+                    name: "TestDoublesStubbableMacros",
+                    condition: .when(traits: ["StubbableMacros"])
+                ),
+                .product(
+                    name: "MacroTesting",
+                    package: "swift-macro-testing",
+                    moduleAliases: [
+                        "IssueReporting": "MacroTestingIssueReporting"
+                    ],
                     condition: .when(traits: ["StubbableMacros"])
                 )
             ],

@@ -1,25 +1,53 @@
 #if TESTDOUBLES_STUBBABLE_MACROS
-    import TestDoublesMacros
+    import MacroTesting
     import Testing
+    import TestDoublesStubbableMacros
 
-    @Stubbable
-    protocol StubbableMacroService {
-        func fetch(_ identifier: Int) -> String
-        var displayName: String { get set }
-    }
+    @Suite(.macros([StubbableMacro.self]))
+    struct StubbableMacroTests {
+        @Test func generatesAManualStubConformer() {
+            assertMacro {
+                """
+                @Stubbable
+                protocol StubbableMacroService {
+                    func fetch(_ identifier: Int) -> String
+                    var displayName: String { get set }
+                }
+                """
+            } expansion: {
+                """
+                protocol StubbableMacroService {
+                    func fetch(_ identifier: Int) -> String
+                    var displayName: String { get set }
+                }
 
-    @Suite struct StubbableMacroTests {
-        @Test func generatesAConfigurableManualStub() {
-            let stub = ManualStub<StubbableMacroServiceManualStub>()
-            stub.when { $0.fetch(42) }.thenReturn("answer")
-            stub.when { $0.displayName }.thenReturn("Test Double")
+                struct StubbableMacroServiceManualStub: StubbableMacroService, StubConformer {
+                    let stub: ManualStub<Self>
 
-            let service: any StubbableMacroService = stub()
+                    init(stub: ManualStub<Self>) { self.stub = stub }
 
-            #expect(service.fetch(42) == "answer")
-            #expect(service.displayName == "Test Double")
-            stub.verify { $0.fetch(42) }
-            stub.verify { $0.displayName }
+                    func fetch(_ identifier: Int) -> String { return stub.call(identifier) }
+
+                    var displayName: String { get { return stub.call() } set { stub.call(newValue) } }
+                }
+                """
+            }
+        }
+
+        @Test func rejectsNonProtocolDeclarations() {
+            assertMacro {
+                """
+                @Stubbable
+                struct NotAProtocol {}
+                """
+            } diagnostics: {
+                """
+                @Stubbable
+                struct NotAProtocol {}
+                ┬─────────
+                ╰─ 🛑 @Stubbable can only be applied to a protocol declaration.
+                """
+            }
         }
     }
 #endif
