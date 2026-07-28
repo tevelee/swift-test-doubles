@@ -25,6 +25,10 @@ private enum EnhancementFailure: Error, Equatable {
     case expected
 }
 
+private struct RealEnhancementThrowingAsyncLoader: EnhancementThrowingAsyncLoader {
+    func load() async throws -> Int { 0 }
+}
+
 private protocol EnhancementAsyncForwarder {
     func value(for key: String) async -> String
 }
@@ -35,6 +39,10 @@ private struct RealEnhancementAsyncForwarder: EnhancementAsyncForwarder {
 
 private protocol EnhancementClockVerifier: Sendable {
     func notify(_ value: Int)
+}
+
+private struct RealEnhancementClockVerifier: EnhancementClockVerifier {
+    func notify(_: Int) {}
 }
 
 @Suite struct UserFacingEnhancementsTests {
