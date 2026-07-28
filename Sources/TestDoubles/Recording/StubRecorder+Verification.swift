@@ -6,6 +6,12 @@ struct PreparedRecordedCallMatch {
 }
 
 extension StubRecorder {
+    func forwardedCalls() -> [RecordedCall] {
+        withLockedPolicy {
+            $0.invocationLedger.allCalls.filter { $0.origin == .forwarded }
+        }
+    }
+
     func forwardedVerificationMatches(
         method: Int,
         matchers: [ParameterMatcher],
@@ -113,6 +119,45 @@ extension StubRecorder {
             match.matcherTransaction.commitCaptures()
         }
         markVerified(matches.map(\.call))
+        return nil
+    }
+
+    /// Exact ordered verification scoped to the calls that a ``Spy`` actually
+    /// delegated to its target. Overridden calls are intentionally absent.
+    func exactForwardedVerificationFailure(for expectations: [RecordedCall]) -> String? {
+        let calls = forwardedCalls()
+        guard calls.count == expectations.count else {
+            return "Expected only forwarded interactions, but the expected timeline has "
+                + "\(expectations.count) call\(expectations.count == 1 ? "" : "s") and the spy forwarded "
+                + "\(calls.count).\n\n"
+                + StubRecorderDiagnostics.interactionLog(calls)
+        }
+
+        var matches: [PreparedRecordedCallMatch] = []
+        for (index, pair) in zip(expectations, calls).enumerated() {
+            let (expectation, call) = pair
+            guard
+                call.methodIndex == expectation.methodIndex,
+                let transaction = StubBehaviorRegistry.prepareArgumentsMatch(
+                    call.args,
+                    against: expectation.resolvedMatchers,
+                    matchesEmptyArgumentsExactly: expectation.matchesEmptyArgumentsExactly
+                )
+            else {
+                return "Expected only forwarded interactions.\n"
+                    + StubRecorderDiagnostics.exactOrderedVerificationFailure(
+                        expectationIndex: index,
+                        expectation: expectation,
+                        actual: call,
+                        calls: calls
+                    )
+            }
+            matches.append(
+                PreparedRecordedCallMatch(call: call, matcherTransaction: transaction)
+            )
+        }
+
+        commitSuccessfulVerification(of: matches)
         return nil
     }
 
@@ -292,6 +337,73 @@ extension StubRecorder {
                     return .cancelled
             }
         }
+    }
+
+    /// Clock-driven counterpart to eventual verification. The invocation
+    /// waiter and clock sleep race; whichever resolves first cancels the
+    /// other, so activity never resets the supplied timeout.
+    func waitForCallCount(
+        recording: RecordedCall,
+        minimumCount: Int,
+        timeout: Duration,
+        using clock: any StubClock
+    ) async -> EventualCallCountResult {
+        await withTaskGroup(of: EventualCallCountResult.self) { group in
+            group.addTask { [self] in
+                await waitForCallCountUntilCancelled(
+                    recording: recording,
+                    minimumCount: minimumCount
+                )
+            }
+            group.addTask { [self] in
+                do {
+                    try await clock.sleep(for: timeout)
+                } catch {
+                    return .cancelled
+                }
+                let matches = matchingCalls(
+                    method: recording.methodIndex,
+                    matchers: recording.resolvedMatchers,
+                    matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly
+                )
+                if matches.count >= minimumCount {
+                    commitSuccessfulVerification(of: matches)
+                    return .satisfied
+                }
+                return .timedOut(actualCount: matches.count)
+            }
+
+            guard let result = await group.next() else {
+                return .cancelled
+            }
+            group.cancelAll()
+            return result
+        }
+    }
+
+    private func waitForCallCountUntilCancelled(
+        recording: RecordedCall,
+        minimumCount: Int
+    ) async -> EventualCallCountResult {
+        let method = recording.methodIndex
+        let matchers = recording.resolvedMatchers
+        while Task.isCancelled == false {
+            let snapshot = withLockedPolicy { $0.invocationLedger.snapshot(for: method) }
+            let matches = matchingCalls(
+                method: method,
+                matchers: matchers,
+                matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly,
+                in: snapshot.calls
+            )
+            if matches.count >= minimumCount {
+                commitSuccessfulVerification(of: matches)
+                return .satisfied
+            }
+            guard await waitForCall(after: snapshot.generation) == .changed else {
+                return .cancelled
+            }
+        }
+        return .cancelled
     }
 
     private func markVerified(_ calls: [RecordedCall]) {

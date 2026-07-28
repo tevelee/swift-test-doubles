@@ -84,7 +84,8 @@ extension StubRecorder {
         behavior: StubEntry.Behavior,
         location: StubSourceLocation?
     ) {
-        let shadow: (new: String, shadowedBy: String)? = withLockedPolicy {
+        let scenarioName = TestDoubleScenarioContext.name
+        let shadow: (new: String, scenario: String?, shadowedBy: StubBehaviorRegistry.ShadowingRegistration)? = withLockedPolicy {
             let newSignature = $0.methodCatalog.diagnosticSignature(
                 method: method,
                 matchers: matchers
@@ -99,17 +100,23 @@ extension StubRecorder {
                 matchers: matchers,
                 matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
                 diagnosticSignature: newSignature,
+                scenarioName: scenarioName,
+                sourceLocation: location,
                 behavior: behavior
             )
-            return shadowedBy.map { (newSignature, $0) }
+            return shadowedBy.map { (newSignature, scenarioName, $0) }
         }
 
         // Predicates and issue reporting are user-visible work, kept off the
         // recorder lock.
         if let shadow, let location {
+            let newScenario = shadow.scenario.map { " while applying scenario '\($0)'" } ?? ""
+            let previousScenario = shadow.shadowedBy.scenarioName.map {
+                " (from scenario '\($0)')"
+            } ?? ""
             reportIssue(
-                "[TestDoubles] Unreachable stub registration: \(shadow.new) can never "
-                    + "match because the earlier registration \(shadow.shadowedBy) accepts "
+                "[TestDoubles] Unreachable stub registration\(newScenario): \(shadow.new) can never "
+                    + "match because the earlier registration \(shadow.shadowedBy.signature)\(previousScenario) accepts "
                     + "every call it would. Under first-match-wins, register specific "
                     + "matchers before broad fallbacks.",
                 fileID: location.fileID,

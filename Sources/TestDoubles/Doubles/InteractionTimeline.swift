@@ -1,0 +1,80 @@
+/// A chronological, diagnostic view of a test double's observed calls.
+///
+/// The timeline is intentionally observational: reading it neither verifies
+/// calls nor changes behavior-chain consumption. Each event records the
+/// dispatch decision made at the call boundary and the task priority observed
+/// there. Swift does not expose a stable task identity or current actor for
+/// arbitrary synchronous code, so those are deliberately not guessed at.
+public struct InteractionTimeline: Sendable, CustomStringConvertible {
+    /// Whether a call was answered by a configured registration or delegated
+    /// by a ``Spy`` to its target.
+    public enum Dispatch: String, Sendable {
+        case stubbed
+        case forwarded
+    }
+
+    /// One call-boundary event in global process order.
+    public struct Event: Sendable, Identifiable {
+        /// The process-global order shared by all test doubles.
+        public let id: UInt64
+        /// The requirement name, with its ordinary Swift argument labels.
+        public let requirement: String
+        /// Arguments rendered for diagnostics.
+        public let arguments: [String]
+        /// The selected dispatch path.
+        public let dispatch: Dispatch
+        /// The selected registration, when a stubbed behavior answered it.
+        public let registration: String?
+        /// The task priority observed when the call entered the double.
+        public let taskPriorityRawValue: UInt8
+    }
+
+    /// Events in global call order.
+    public let events: [Event]
+
+    init(calls: [RecordedCall]) {
+        events = calls.compactMap { call in
+            guard let sequence = call.sequence else { return nil }
+            return Event(
+                id: sequence,
+                requirement: call.name,
+                arguments: call.args.map { String(reflecting: $0) },
+                dispatch: call.origin == .forwarded ? .forwarded : .stubbed,
+                registration: call.registrationSignature,
+                taskPriorityRawValue: call.taskPriorityRawValue
+            )
+        }
+    }
+
+    /// A compact, human-readable trace suitable for test-failure output.
+    public var description: String {
+        guard events.isEmpty == false else {
+            return "[TestDoubles] No interaction timeline events recorded."
+        }
+        return (["[TestDoubles] Interaction timeline:"] + events.map { event in
+            let arguments = event.arguments.joined(separator: ", ")
+            let registration = event.registration.map { " via \($0)" } ?? ""
+            return "  #\(event.id) \(event.dispatch.rawValue) \(event.requirement)(\(arguments))\(registration)"
+        }).joined(separator: "\n")
+    }
+}
+
+extension StubRecorder {
+    func interactionTimeline() -> InteractionTimeline {
+        InteractionTimeline(calls: withLockedPolicy { $0.invocationLedger.allCalls })
+    }
+}
+
+extension Stub {
+    /// Returns an ordered diagnostic trace of every observed invocation.
+    public func interactionTimeline() -> InteractionTimeline {
+        recorder.interactionTimeline()
+    }
+}
+
+extension ManualStub {
+    /// Returns an ordered diagnostic trace of every observed invocation.
+    public func interactionTimeline() -> InteractionTimeline {
+        recorder.interactionTimeline()
+    }
+}

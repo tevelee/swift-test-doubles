@@ -164,6 +164,7 @@ extension StubRecorder {
                     let waiters = policy.invocationLedger.append(
                         method: methodIndex,
                         name: method.name,
+                        registrationSignature: entry.diagnosticSignature,
                         args: args,
                         argumentConventions: recordingArgumentConventions(for: method),
                         runtimePayloadRecorder: self
@@ -195,13 +196,14 @@ extension StubRecorder {
         switch results.next() {
             case .value(let result):
                 return .behavior(.fixed(result))
-            case .delayed(let result, let delay):
+            case .delayed(let result, let delay, let clock):
                 let cancellableDelay = method.isThrowing
                 return .behavior(
                     .suspending { _ in
                         try await StubRecorder.deliverFixedResult(
                             result,
                             after: delay,
+                            using: clock,
                             cancellableDelay: cancellableDelay
                         )
                     })
@@ -255,12 +257,13 @@ extension StubRecorder {
     private static func deliverFixedResult(
         _ result: Result<Any, any Error>,
         after delay: Duration,
+        using clock: any StubClock,
         cancellableDelay: Bool
     ) async throws -> Any {
         if cancellableDelay {
-            try await ContinuousClock().sleep(for: delay)
+            try await clock.sleep(for: delay)
         } else {
-            await Task { try? await ContinuousClock().sleep(for: delay) }.value
+            await Task { try? await clock.sleep(for: delay) }.value
         }
         return try result.get()
     }

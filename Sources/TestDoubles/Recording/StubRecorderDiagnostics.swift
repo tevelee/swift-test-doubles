@@ -26,6 +26,14 @@ enum StubRecorderDiagnostics {
         } else {
             for entry in entries {
                 lines.append("  \(entry.diagnosticSignature)")
+                if let scenario = entry.scenarioName {
+                    lines.append("    scenario: \(scenario)")
+                }
+                if let location = entry.sourceLocation {
+                    lines.append(
+                        "    registered at \(location.fileID):\(location.line):\(location.column)"
+                    )
+                }
                 lines.append(contentsOf: nearMissBreakdown(entry: entry, args: args))
             }
         }

@@ -18,7 +18,7 @@ struct StubBehaviorRegistry {
     /// requirement rethrows the cancellation, a `Void` requirement returns.
     enum QueuedAnswer {
         case value(FixedResult)
-        case delayed(FixedResult, Duration)
+        case delayed(FixedResult, Duration, any StubClock)
         case never
         case awaitCancellation(FixedResult?)
         case forward
@@ -56,6 +56,32 @@ struct StubBehaviorRegistry {
             defer { lock.unlock() }
             requireNotSealed()
             runs.append(contentsOf: answers.map { Run(answer: $0, repeatCount: .exactly(1)) })
+        }
+
+        /// A snapshot of the queue's finite portion. `nil` means a remaining
+        /// unbounded behavior will answer every later matching invocation.
+        /// This deliberately counts calls, not distinct behavior entries: a
+        /// `times: 1...3` response has three remaining answers.
+        func remainingAnswerCount() -> Int? {
+            lock.lock()
+            defer { lock.unlock() }
+
+            var remaining = 0
+            for index in runs.indices where index >= runIndex {
+                let run = runs[index]
+                switch run.repeatCount {
+                    case .unbounded:
+                        return nil
+                    case .exactly(let count):
+                        let consumed = index == runIndex ? consumedInRun : 0
+                        remaining += Swift.max(0, count - consumed)
+                }
+            }
+            return remaining
+        }
+
+        func isFiniteQueueExhausted() -> Bool {
+            remainingAnswerCount() == 0
         }
 
         /// An unbounded run already answers every call from here on, so a
@@ -115,17 +141,23 @@ struct StubBehaviorRegistry {
         let matchers: [ParameterMatcher]
         let matchesEmptyArgumentsExactly: Bool
         let diagnosticSignature: String
+        let scenarioName: String?
+        let sourceLocation: StubSourceLocation?
         let behavior: Behavior
 
         init(
             matchers: [ParameterMatcher],
             matchesEmptyArgumentsExactly: Bool = false,
             diagnosticSignature: String,
+            scenarioName: String? = nil,
+            sourceLocation: StubSourceLocation? = nil,
             behavior: Behavior
         ) {
             self.matchers = matchers
             self.matchesEmptyArgumentsExactly = matchesEmptyArgumentsExactly
             self.diagnosticSignature = diagnosticSignature
+            self.scenarioName = scenarioName
+            self.sourceLocation = sourceLocation
             self.behavior = behavior
         }
     }
@@ -141,6 +173,11 @@ struct StubBehaviorRegistry {
     struct PreparedEntryMatch {
         let entryIndex: Int
         let matcherTransaction: PreparedMatcherTransaction
+    }
+
+    struct ShadowingRegistration {
+        let signature: String
+        let scenarioName: String?
     }
 
     private var entriesByMethod: [Int: [Entry]] = [:]
@@ -185,6 +222,8 @@ struct StubBehaviorRegistry {
         matchers: [ParameterMatcher],
         matchesEmptyArgumentsExactly: Bool = false,
         diagnosticSignature: String,
+        scenarioName: String? = nil,
+        sourceLocation: StubSourceLocation? = nil,
         behavior: Entry.Behavior
     ) {
         entriesByMethod[method, default: []].append(
@@ -192,6 +231,8 @@ struct StubBehaviorRegistry {
                 matchers: matchers,
                 matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
                 diagnosticSignature: diagnosticSignature,
+                scenarioName: scenarioName,
+                sourceLocation: sourceLocation,
                 behavior: behavior
             ))
         revision &+= 1
@@ -228,8 +269,8 @@ struct StubBehaviorRegistry {
         forMethod method: Int,
         newMatchers: [ParameterMatcher],
         newMatchesEmptyArgumentsExactly: Bool = false
-    ) -> String? {
-        entriesByMethod[method]?
+    ) -> ShadowingRegistration? {
+        let entry = entriesByMethod[method]?
             .first {
                 StubBehaviorRegistry.matchesSuperset(
                     $0.matchers,
@@ -237,8 +278,10 @@ struct StubBehaviorRegistry {
                     of: newMatchers,
                     matchesEmptyArgumentsExactly: newMatchesEmptyArgumentsExactly
                 )
-            }?
-            .diagnosticSignature
+            }
+        return entry.map {
+            ShadowingRegistration(signature: $0.diagnosticSignature, scenarioName: $0.scenarioName)
+        }
     }
 
     /// Whether `earlier` accepts every call `later` would, proven soundly.

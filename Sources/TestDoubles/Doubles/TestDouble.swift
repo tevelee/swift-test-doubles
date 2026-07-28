@@ -163,7 +163,10 @@ extension TestDouble {
         guard let recording = recordings.first else {
             fatalError(
                 "[TestDoubles] The recording closure did not invoke a protocol requirement. "
-                    + "Call exactly one requirement inside `when` or `verify`."
+                    + "Call exactly one requirement inside `when` or `verify`. "
+                    + "If this was a method declared only in a protocol extension, Swift dispatches "
+                    + "it statically and TestDoubles cannot intercept it; declare it as a protocol "
+                    + "requirement instead."
             )
         }
         guard recordings.count == 1 else {
@@ -238,6 +241,41 @@ extension TestDouble {
                 var message =
                     "'\(recording.name)': expected \(callCountDescription(for: expectedCounts)) "
                     + "within \(timeout), got \(actualCount)"
+                if let nearMisses = recorder.verificationNearMisses(for: recording) {
+                    message += "\n\n\(nearMisses)"
+                }
+                reportIssue(
+                    message,
+                    fileID: fileID,
+                    filePath: filePath,
+                    line: line,
+                    column: column
+                )
+        }
+    }
+
+    func verifyCallCount(
+        _ expectedCounts: PartialRangeFrom<Int>,
+        within timeout: Duration,
+        using clock: any StubClock,
+        recording: RecordedCall,
+        isolation: isolated (any Actor)? = #isolation,
+        fileID: StaticString,
+        filePath: StaticString,
+        line: UInt,
+        column: UInt
+    ) async {
+        switch await recorder.waitForCallCount(
+            recording: recording,
+            minimumCount: expectedCounts.lowerBound,
+            timeout: timeout,
+            using: clock
+        ) {
+            case .satisfied, .cancelled:
+                return
+            case .timedOut(let actualCount):
+                var message = "'\(recording.name)': expected at least \(expectedCounts.lowerBound) "
+                    + "call\(expectedCounts.lowerBound == 1 ? "" : "s") within \(timeout), got \(actualCount)"
                 if let nearMisses = recorder.verificationNearMisses(for: recording) {
                     message += "\n\n\(nearMisses)"
                 }

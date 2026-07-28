@@ -138,6 +138,8 @@ struct RecordedCall: @unchecked Sendable {
     let methodIndex: Int
     let name: String
     let origin: InvocationOrigin
+    let registrationSignature: String?
+    let taskPriorityRawValue: UInt8
     private let argumentsStorage: ArgumentsStorage
     let matchers: [ParameterMatcher]
     /// Empty matchers normally mean a broad fallback. An empty parameter pack
@@ -153,6 +155,7 @@ struct RecordedCall: @unchecked Sendable {
         methodIndex: Int,
         name: String,
         origin: InvocationOrigin = .stubbed,
+        registrationSignature: String? = nil,
         args: [Any],
         argumentConventions: [RuntimeValueConvention]? = nil,
         runtimePayloadRecorder: StubRecorder? = nil,
@@ -165,6 +168,8 @@ struct RecordedCall: @unchecked Sendable {
         self.methodIndex = methodIndex
         self.name = name
         self.origin = origin
+        self.registrationSignature = registrationSignature
+        taskPriorityRawValue = Task.currentPriority.rawValue
         if let argumentConventions {
             precondition(
                 argumentConventions.count == args.count,
@@ -190,6 +195,8 @@ struct RecordedCall: @unchecked Sendable {
         methodIndex: Int,
         name: String,
         origin: InvocationOrigin,
+        registrationSignature: String?,
+        taskPriorityRawValue: UInt8,
         argumentsStorage: ArgumentsStorage,
         matchers: [ParameterMatcher],
         matchesEmptyArgumentsExactly: Bool,
@@ -200,6 +207,8 @@ struct RecordedCall: @unchecked Sendable {
         self.methodIndex = methodIndex
         self.name = name
         self.origin = origin
+        self.registrationSignature = registrationSignature
+        self.taskPriorityRawValue = taskPriorityRawValue
         self.argumentsStorage = argumentsStorage
         self.matchers = matchers
         self.matchesEmptyArgumentsExactly = matchesEmptyArgumentsExactly
@@ -214,6 +223,8 @@ struct RecordedCall: @unchecked Sendable {
             methodIndex: methodIndex,
             name: name,
             origin: origin,
+            registrationSignature: registrationSignature,
+            taskPriorityRawValue: taskPriorityRawValue,
             argumentsStorage: argumentsStorage,
             matchers: matchers,
             matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
@@ -285,6 +296,7 @@ struct InvocationLedger {
         method: Int,
         name: String,
         origin: InvocationOrigin = .stubbed,
+        registrationSignature: String? = nil,
         args: [Any],
         argumentConventions: [RuntimeValueConvention]? = nil,
         runtimePayloadRecorder: StubRecorder? = nil
@@ -298,6 +310,7 @@ struct InvocationLedger {
                 methodIndex: method,
                 name: name,
                 origin: origin,
+                registrationSignature: registrationSignature,
                 args: args,
                 argumentConventions: argumentConventions,
                 runtimePayloadRecorder: runtimePayloadRecorder,

@@ -64,8 +64,12 @@ isolation. See
 - ``Spy``
 - ``StubBuilder``
 - ``StubBehaviorChain``
+- ``StubBehaviorQueue``
 - ``StubSuspension``
 - ``Stub/Invocation``
+- ``InteractionTimeline``
+- ``StubClock``
+- ``ManualStubClock``
 - <doc:FunctionValues>
 
 ### Inspecting and Ordering Interactions
@@ -130,6 +134,9 @@ isolation. See
 - ``matching(description:where:)``
 - ``matching(using:description:where:)``
 - ``ArgumentCaptor``
+- ``ClosureDouble``
+- ``VoidClosureDouble``
+- ``CallbackCapture``
 
 ### Value and Optional Matchers
 

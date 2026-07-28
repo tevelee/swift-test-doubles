@@ -1,3 +1,5 @@
+import IssueReporting
+
 /// A runtime-generated test double that records calls and forwards unmatched
 /// instance and static requirements to a real implementation, while allowing
 /// initializer requirements to be explicitly overridden.
@@ -14,6 +16,7 @@
 /// _ = service.displayName(for: "guest") // overridden
 /// _ = service.displayName(for: "admin") // forwarded
 /// ```
+
 public final class Spy<P>: Stub<P> {
     /// Creates a spy that forwards unmatched instance and static requirements to `target`.
     /// Initializer requirements use an explicit `when(initializer:)` override.
@@ -73,6 +76,71 @@ public final class Spy<P>: Stub<P> {
 }
 
 extension Spy {
+    /// Reports a test issue unless this spy delegated no calls to its real
+    /// target. Configured overrides do not count as forwarded.
+    public func verifyNoForwardedInteractions(
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) {
+        let calls = recorder.forwardedCalls()
+        guard calls.isEmpty == false else { return }
+        reportIssue(
+            "[TestDoubles] Expected this spy not to forward any interactions, but it forwarded:\n\n"
+                + StubRecorderDiagnostics.interactionLog(calls),
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
+    /// Verifies that these, and only these, calls reached the real forwarding
+    /// target in the listed order. Calls answered by a `when` override are
+    /// ignored, so this checks the spy's forwarding boundary directly.
+    public func verifyOnlyForwarded(
+        _ calls: (P) throws -> Void,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) {
+        let recordings = recordInvocations(calls)
+        guard let diagnostic = recorder.exactForwardedVerificationFailure(for: recordings) else {
+            return
+        }
+        reportIssue(
+            diagnostic,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
+    /// Async counterpart to ``verifyOnlyForwarded(_:fileID:filePath:line:column:)``.
+    public func verifyOnlyForwarded(
+        _ calls: (P) async throws -> Void,
+        isolation: isolated (any Actor)? = #isolation,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) async {
+        let recordings = await recordAsyncInvocations(calls, isolation: isolation)
+        guard let diagnostic = recorder.exactForwardedVerificationFailure(for: recordings) else {
+            return
+        }
+        reportIssue(
+            diagnostic,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
     /// Returns the arguments of matching calls that were delegated to the
     /// forwarding target, excluding calls answered by a configured override.
     ///

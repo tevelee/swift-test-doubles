@@ -496,8 +496,67 @@ public struct StubBuilder<Result> {
         return StubBehaviorChain(
             recorder: recorder,
             recording: recording,
-            sequence: sequence
+            sequence: sequence,
+            behaviorQueue: StubBehaviorQueue(sequence: sequence)
         )
+    }
+
+    /// Configures a finite, inspectable queue of fixed return values.
+    ///
+    /// Unlike the multi-value `thenReturn` overload, this queue has no
+    /// repeating final value: an extra matching call fails, and
+    /// ``StubBehaviorQueue`` can assert that every queued answer was used.
+    public func thenQueue(_ first: Result, _ rest: Result...) -> StubBehaviorQueue {
+        let values = [first] + rest
+        for value in values {
+            recorder.requireReturnValueMatchesRuntimeType(value, for: recording.methodIndex)
+        }
+        return makeBehaviorChain(
+            values.map { (fixedAnswer(.success($0), after: nil), .exactly(1)) }
+        ).behaviorQueue
+    }
+
+    /// Returns `value` after `delay` measured by `clock` for every matching
+    /// invocation. Use ``ManualStubClock`` to advance time deterministically.
+    public func thenReturn(
+        _ value: Result,
+        after delay: Duration,
+        using clock: any StubClock
+    ) {
+        requireOrdinaryResult()
+        recorder.requireReturnValueMatchesRuntimeType(value, for: recording.methodIndex)
+        _ = makeBehaviorChain([
+            (fixedAnswer(.success(value), after: delay, using: clock), .unbounded)
+        ])
+    }
+
+    /// Throws `error` after `delay` measured by `clock` for every matching
+    /// invocation.
+    public func thenThrow<Failure: Error>(
+        _ error: Failure,
+        after delay: Duration,
+        using clock: any StubClock
+    ) {
+        let method = requireOrdinaryResult()
+        requireValidThrownError(error, for: method)
+        _ = makeBehaviorChain([
+            (fixedAnswer(.failure(error), after: delay, using: clock), .unbounded)
+        ])
+    }
+
+    /// Configures a finite, inspectable queue of errors.
+    public func thenThrowQueue<Failure: Error>(
+        _ first: Failure,
+        _ rest: Failure...
+    ) -> StubBehaviorQueue {
+        let method = requireOrdinaryResult()
+        let errors = [first] + rest
+        for error in errors {
+            requireValidThrownError(error, for: method)
+        }
+        return makeBehaviorChain(
+            errors.map { (fixedAnswer(.failure($0), after: nil), .exactly(1)) }
+        ).behaviorQueue
     }
 }
 
@@ -592,6 +651,8 @@ public struct StubBehaviorChain<Result> {
     let recorder: StubRecorder
     let recording: RecordedCall
     let sequence: StubRecorder.ConsumableResults
+    /// An inspectable view of this registration's queued fixed behaviors.
+    public let behaviorQueue: StubBehaviorQueue
 
     /// Appends a fixed return value to the behavior chain.
     ///

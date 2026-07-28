@@ -53,7 +53,8 @@ extension StubRegistrationBuilder {
     /// registration rather than at the eventual call.
     func fixedAnswer(
         _ result: StubBehaviorRegistry.FixedResult,
-        after delay: Duration?
+        after delay: Duration?,
+        using clock: (any StubClock)? = nil
     ) -> StubRecorder.QueuedAnswer {
         guard let delay else { return .value(result) }
         requireAsyncRequirement(configuring: "after:")
@@ -61,7 +62,7 @@ extension StubRegistrationBuilder {
             delay >= .zero,
             "[TestDoubles] after: requires a nonnegative delay."
         )
-        return .delayed(result, delay)
+        return .delayed(result, delay, clock ?? StubClocks.continuous)
     }
 
     /// Wraps a park-forever behavior as a queued answer. Suspending without
