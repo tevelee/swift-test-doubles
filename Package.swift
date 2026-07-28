@@ -133,6 +133,12 @@ private func allTargets(includesCxxInteropTarget: Bool) -> [Target] {
                     package: "swift-syntax",
                     condition: .when(traits: ["StubbableMacros"])
                 )
+            ],
+            swiftSettings: [
+                .define(
+                    "TESTDOUBLES_STUBBABLE_MACROS",
+                    .when(traits: ["StubbableMacros"])
+                )
             ]
         ),
         .target(
