@@ -442,8 +442,10 @@ struct ProtocolForwardingPlanBuilder<P> {
         _ method: MethodDescriptor,
         protocolName: String
     ) throws {
-        guard method.returnConvention != .selfType,
-            method.returnConvention != .optionalSelf
+        guard
+            method.kind == .initializer
+                || (method.returnConvention != .selfType
+                    && method.returnConvention != .optionalSelf)
         else {
             throw RuntimeConstructionError.forwardingUnsupported(
                 protocolName: protocolName,
