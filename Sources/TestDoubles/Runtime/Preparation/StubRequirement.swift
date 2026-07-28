@@ -113,7 +113,9 @@ extension Stub {
 
             /// Describes a value typed by the requirement's own generic
             /// parameter, e.g. `value` in `func f<T>(_ value: T)`. Arguments
-            /// sharing one generic parameter use the same `index`.
+            /// sharing one generic parameter use the same `index`. When more
+            /// than one parameter is used, indices must be a non-negative,
+            /// dense sequence starting at zero.
             ///
             /// - Note: `any()` doesn't discriminate by type here; use
             ///   `equal(_:)` to distinguish calls with different types.

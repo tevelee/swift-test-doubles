@@ -15,6 +15,11 @@ package func makeExplicitMethodDescriptor(
         protocolDescriptor: protocolDescriptor,
         containsAssociatedTypes: containsAssociatedTypes
     )
+    try validateExplicitMethodGenericParameterIndices(
+        schema: schema,
+        index: index,
+        protocolDescriptor: protocolDescriptor
+    )
 
     let resolvedTypedError: (type: Any.Type?, dependency: WitnessValueDependency)
     if let name = schema.typedErrorAssociatedTypeName {
@@ -68,6 +73,35 @@ package func makeExplicitMethodDescriptor(
     )
 }
 
+private func validateExplicitMethodGenericParameterIndices(
+    schema: RuntimeExplicitRequirementSchema,
+    index: Int,
+    protocolDescriptor: RuntimeProtocolDescriptor
+) throws {
+    let indices = schema.arguments.compactMap { value -> Int? in
+        guard case .methodGenericParameter(let index) = value.source else {
+            return nil
+        }
+        return index
+    }
+    guard indices.isEmpty == false else { return }
+
+    guard indices.allSatisfy({ $0 >= 0 }) else {
+        throw RuntimeConstructionError.unsupportedProtocolShape(
+            protocolName: protocolDescriptor.name,
+            reason: "Requirement \(index) uses a negative requirement-level generic parameter index. Indices must start at 0."
+        )
+    }
+
+    let uniqueIndices = Set(indices)
+    guard uniqueIndices.allSatisfy({ $0 < uniqueIndices.count }) else {
+        throw RuntimeConstructionError.unsupportedProtocolShape(
+            protocolName: protocolDescriptor.name,
+            reason: "Requirement \(index) uses sparse requirement-level generic parameter indices. Indices must form a dense sequence starting at 0."
+        )
+    }
+}
+
 private func resolveExplicitWitnessValue(
     _ value: RuntimeExplicitRequirementSchema.Value,
     protocolDescriptor: RuntimeProtocolDescriptor,
@@ -86,6 +120,12 @@ private func resolveExplicitWitnessValue(
             throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolDescriptor.name,
                 reason: "Requirement \(requirementIndex) describes a result typed by the requirement's own generic parameter. Only arguments support this schema."
+            )
+        }
+        guard value.ownership != .owned else {
+            throw RuntimeConstructionError.unsupportedProtocolShape(
+                protocolName: protocolDescriptor.name,
+                reason: "Requirement \(requirementIndex) consumes a requirement-level generic parameter. Ownership-aware generic metadata transport is not implemented."
             )
         }
         return ResolvedWitnessValue(

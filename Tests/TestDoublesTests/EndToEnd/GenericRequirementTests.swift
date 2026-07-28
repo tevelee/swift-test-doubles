@@ -82,6 +82,94 @@ import TestDoublesFixtures
         }
     }
 
+    @Test func explicitRequirementAcceptsDenseGenericParameterIndices() throws {
+        let stub = try Stub<any GenericCache>(
+            .method(
+                .methodGenericParameter(index: 1),
+                .methodGenericParameter(index: 0),
+                returning: .concrete(Void.self)
+            )
+        )
+        stub.when { $0.store(equal("value"), forKey: equal(7)) }.thenReturn(())
+
+        let cache: any GenericCache = stub()
+        cache.store("value", forKey: 7)
+
+        stub.verify(.exactly(1)) {
+            $0.store(any(using: ""), forKey: equal(7))
+        }
+    }
+
+    @Test func negativeExplicitGenericParameterIndexFailsClosed() {
+        expectUnsupportedProtocolShape(
+            containing: "negative requirement-level generic parameter index"
+        ) {
+            _ = try Stub<any EventBus>(
+                .method(
+                    .methodGenericParameter(index: -1),
+                    returning: .concrete(Void.self)
+                )
+            )
+        }
+    }
+
+    @Test func sparseExplicitGenericParameterIndexFailsClosedWithoutAllocating() {
+        expectUnsupportedProtocolShape(
+            containing: "sparse requirement-level generic parameter indices"
+        ) {
+            _ = try Stub<any EventBus>(
+                .method(
+                    .methodGenericParameter(index: .max),
+                    returning: .concrete(Void.self)
+                )
+            )
+        }
+    }
+
+    @Test func protocolConstrainedGenericParameterFailsClosed() {
+        expectUnsupportedProtocolShape(
+            containing: "Protocol, same-type, and layout constraints"
+        ) {
+            _ = try Stub<any ProtocolConstrainedGenericRequirementProbe>()
+        }
+    }
+
+    @Test func multipleGenericConstraintsFailClosed() {
+        expectUnsupportedProtocolShape(
+            containing: "Protocol, same-type, and layout constraints"
+        ) {
+            _ = try Stub<any MultipleConstrainedGenericRequirementProbe>()
+        }
+    }
+
+    @Test func classConstrainedGenericParameterFailsClosed() {
+        expectUnsupportedProtocolShape(
+            containing: "Class-constrained parameters use a direct reference ABI"
+        ) {
+            _ = try Stub<any ClassConstrainedGenericRequirementProbe>()
+        }
+    }
+
+    @Test func noncopyableGenericParameterFailsClosed() {
+        expectUnsupportedProtocolShape(containing: "~Copyable") {
+            _ = try Stub<any NoncopyableGenericRequirementProbe>()
+        }
+    }
+
+    @Test func nonescapableGenericParameterFailsClosed() {
+        expectUnsupportedProtocolShape(containing: "~Escapable") {
+            _ = try Stub<any NonescapableGenericRequirementProbe>()
+        }
+    }
+
+    @Test func consumingGenericParameterFailsClosed() {
+        expectUnsupportedProtocolShape(
+            containing: "consumes a requirement-level generic parameter"
+        ) {
+            _ = try Stub<any ConsumingGenericRequirementProbe>()
+        }
+    }
+
     @Test func combiningAGenericParameterWithAsyncFailsClosed() {
         expectUnsupportedProtocolShape(
             containing: "Async continuation transport has not been proven"

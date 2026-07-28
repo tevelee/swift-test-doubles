@@ -73,6 +73,10 @@ private func useLinkedGenericRequirementProbe(
         #expect(isMethodGenericParameter("A1"))
         #expect(isMethodGenericParameter("B1"))
         #expect(isMethodGenericParameter("A2"))
+        #expect(methodGenericParameterIndex("Z1") == 25)
+        #expect(methodGenericParameterIndex("AB1") == 26)
+        #expect(methodGenericParameterIndex("BB1") == 27)
+        #expect(methodGenericParameterIndex("AZ1") == 650)
 
         #expect(isMethodGenericParameter("A") == false)
         #expect(isMethodGenericParameter("Self") == false)
@@ -81,5 +85,6 @@ private func useLinkedGenericRequirementProbe(
         #expect(isMethodGenericParameter("MyModule.A1") == false)
         #expect(isMethodGenericParameter("") == false)
         #expect(isMethodGenericParameter("1A") == false)
+        #expect(methodGenericParameterIndex(String(repeating: "Z", count: 32) + "1") == nil)
     }
 }

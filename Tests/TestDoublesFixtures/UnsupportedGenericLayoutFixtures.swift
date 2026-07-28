@@ -77,6 +77,93 @@ public struct RealExternalGenericRequirementProbe: ExternalGenericRequirementPro
     }
 }
 
+public struct ExternalGenericConstraintValue:
+    ExternalFirstGenericConstraint,
+    ExternalSecondGenericConstraint
+{
+    public init() {}
+}
+
+public protocol ProtocolConstrainedGenericRequirementProbe {
+    func generic<Value: ExternalFirstGenericConstraint>(_ value: Value)
+}
+
+public struct RealProtocolConstrainedGenericRequirementProbe:
+    ProtocolConstrainedGenericRequirementProbe
+{
+    public init() {}
+
+    public func generic<Value: ExternalFirstGenericConstraint>(_ value: Value) {}
+}
+
+public protocol MultipleConstrainedGenericRequirementProbe {
+    func generic<Value: ExternalFirstGenericConstraint & ExternalSecondGenericConstraint>(
+        _ value: Value
+    )
+}
+
+public struct RealMultipleConstrainedGenericRequirementProbe:
+    MultipleConstrainedGenericRequirementProbe
+{
+    public init() {}
+
+    public func generic<Value: ExternalFirstGenericConstraint & ExternalSecondGenericConstraint>(
+        _ value: Value
+    ) {}
+}
+
+public final class ExternalGenericReferenceConstraintValue {
+    public init() {}
+}
+
+public protocol ClassConstrainedGenericRequirementProbe {
+    func generic<Value: AnyObject>(_ value: Value)
+}
+
+public struct RealClassConstrainedGenericRequirementProbe:
+    ClassConstrainedGenericRequirementProbe
+{
+    public init() {}
+
+    public func generic<Value: AnyObject>(_ value: Value) {}
+}
+
+public protocol NoncopyableGenericRequirementProbe {
+    func generic<Value: ~Copyable>(_ value: borrowing Value)
+}
+
+public struct RealNoncopyableGenericRequirementProbe:
+    NoncopyableGenericRequirementProbe
+{
+    public init() {}
+
+    public func generic<Value: ~Copyable>(_ value: borrowing Value) {}
+}
+
+public protocol NonescapableGenericRequirementProbe {
+    func generic<Value: ~Escapable>(_ value: borrowing Value)
+}
+
+public struct RealNonescapableGenericRequirementProbe:
+    NonescapableGenericRequirementProbe
+{
+    public init() {}
+
+    public func generic<Value: ~Escapable>(_ value: borrowing Value) {}
+}
+
+public protocol ConsumingGenericRequirementProbe {
+    func generic<Value>(_ value: consuming Value)
+}
+
+public struct RealConsumingGenericRequirementProbe:
+    ConsumingGenericRequirementProbe
+{
+    public init() {}
+
+    public func generic<Value>(_ value: consuming Value) {}
+}
+
 /// A requirement-level generic parameter combined with `async`; unverified, fails closed.
 public protocol AsyncGenericRequirementProbe {
     func publishAsync<Event>(_ event: Event) async

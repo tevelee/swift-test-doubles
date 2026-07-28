@@ -83,13 +83,17 @@ package struct WitnessCallTransportPlan: Sendable {
             asyncIndirectResultLocation = nil
         }
 
-        let methodGenericParameterCount = method.arguments.reduce(into: 0) {
-            count,
-            argument in
-            if case .methodGenericParameter(let index) = argument.value.convention {
-                count = max(count, index + 1)
+        // Construction validates that indices are a non-negative dense range.
+        // Counting distinct values avoids arithmetic on an untrusted explicit
+        // index before that boundary can reject malformed schemas.
+        let methodGenericParameterCount = Set(
+            method.arguments.compactMap { argument -> Int? in
+                guard case .methodGenericParameter(let index) = argument.value.convention else {
+                    return nil
+                }
+                return index
             }
-        }
+        ).count
         let typedErrorWordCount = method.typedErrorUsesIndirectResultSlot ? 1 : 0
         let locationPlan = CallFrameArgumentLocationPlan(
             arguments: method.arguments.map {

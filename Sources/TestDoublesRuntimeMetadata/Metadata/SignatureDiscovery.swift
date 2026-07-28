@@ -61,6 +61,15 @@ package func discoverMethods(
             let demangled = RuntimeSymbols.demangle(mangledName)
             attempted.append(demangled)
             if let candidate = parseWitnessSignature(demangled, kind: abiKind) {
+                if let reason = unsupportedRequirementLevelGenericSignatureReason(
+                    in: demangled,
+                    arguments: candidate.argumentTypes
+                ) {
+                    throw RuntimeConstructionError.unsupportedProtocolShape(
+                        protocolName: proto.name,
+                        reason: "Requirement \(requirement.dispatchIndex) has an unsupported requirement-level generic signature. \(reason)"
+                    )
+                }
                 parsed = candidate
                 parsedMangledName = mangledName
                 break
@@ -312,6 +321,14 @@ private func resolveWitnessValue(
                     + "Supply explicit Requirement values."
             )
         }
+        guard ownership != .owned else {
+            throw RuntimeConstructionError.unsupportedProtocolShape(
+                protocolName: protocolDescriptor.name,
+                reason:
+                    "Requirement \(requirementIndex) consumes a requirement-level generic parameter. "
+                    + "Ownership-aware generic metadata transport is not implemented."
+            )
+        }
         return ResolvedWitnessValue(
             type: Any.self,
             convention: .methodGenericParameter(index: index),
@@ -421,30 +438,87 @@ private enum DynamicSelfValueShape {
 /// *requirement itself* rather than to the protocol.
 ///
 /// `Demangle::genericParameterName` (lib/Demangling/NodePrinter.cpp) prints
-/// depth-0 parameters as bare letters and deeper ones with the depth appended,
-/// so a protocol's `Self` is `"A"` while a method's own first generic parameter
-/// is `"A1"`, its second `"B1"`, and so on. A bare letter-plus-digits spelling is
-/// unambiguous here because every real type demangles module-qualified
-/// (`"MyModule.A1"`), never as a bare identifier.
+/// the index in little-endian base 26 with uppercase letters, then appends a
+/// nonzero depth. A protocol's `Self` is `"A"`, while a method's own first
+/// parameter is `"A1"`, the 27th is `"AB1"`, and so on. Bare spellings are
+/// unambiguous here because real types demangle module-qualified
+/// (`"MyModule.A1"`), never as bare identifiers.
 func isMethodGenericParameter(_ spelling: String) -> Bool {
     methodGenericParameterIndex(spelling) != nil
 }
 
 /// The requirement-level generic-parameter index a demangled spelling names
-/// (the leading letter's zero-based alphabet position), or `nil` if it
-/// doesn't name one.
+/// (in the demangler's little-endian base-26 spelling), or `nil` if it does
+/// not name one or cannot fit in `Int`.
 func methodGenericParameterIndex(_ spelling: String) -> Int? {
-    var characters = Substring(spelling)
-    guard let first = characters.popFirst(),
-        first.isUppercase,
-        first.isLetter,
-        first.isASCII,
-        characters.isEmpty == false,
-        characters.allSatisfy(\.isNumber)
+    let letters = spelling.prefix { $0.isUppercase && $0.isLetter && $0.isASCII }
+    let depth = spelling.dropFirst(letters.count)
+    guard letters.isEmpty == false,
+        depth.isEmpty == false,
+        depth.allSatisfy(\.isNumber)
     else {
         return nil
     }
-    return Int(first.asciiValue! - Character("A").asciiValue!)
+
+    var multiplier = 1
+    var index = 0
+    for (offset, letter) in letters.enumerated() {
+        let digit = Int(letter.asciiValue! - Character("A").asciiValue!)
+        let (term, termOverflow) = digit.multipliedReportingOverflow(by: multiplier)
+        let (next, indexOverflow) = index.addingReportingOverflow(term)
+        guard termOverflow == false, indexOverflow == false else { return nil }
+        index = next
+        guard offset + 1 < letters.count else { continue }
+        let (nextMultiplier, multiplierOverflow) = multiplier.multipliedReportingOverflow(by: 26)
+        guard multiplierOverflow == false else {
+            return nil
+        }
+        multiplier = nextMultiplier
+    }
+    return index
+}
+
+/// The fabricated witness reserves metadata words only for unconstrained,
+/// copyable, escapable method generic parameters. Any extra generic signature
+/// requirement can change the hidden witness ABI or permit storage the
+/// recorder cannot retain, so reject it before transport planning.
+private func unsupportedRequirementLevelGenericSignatureReason(
+    in demangled: String,
+    arguments: [DemangledTypeSyntax]
+) -> String? {
+    let parameters = Set(
+        arguments.compactMap { argument in
+            methodGenericParameterIndex(argument.canonicalSpelling).map { _ in
+                argument.canonicalSpelling
+            }
+        })
+    guard parameters.isEmpty == false else { return nil }
+
+    for parameter in parameters
+    where demangledGenericParameterHasConstraint(
+        parameter,
+        in: demangled
+    ) {
+        if demangled.contains("\(parameter): ~Swift.Copyable") {
+            return "`~Copyable` parameters cannot be copied into the recorder's escaping Any storage."
+        }
+        if demangled.contains("\(parameter): ~Swift.Escapable") {
+            return "`~Escapable` parameters may have lifetime-dependent storage that cannot escape into the recorder."
+        }
+        if demangled.contains("\(parameter): AnyObject") {
+            return "Class-constrained parameters use a direct reference ABI, which is not implemented."
+        }
+        return "Protocol, same-type, and layout constraints can add hidden metadata or witness arguments, which are not implemented."
+    }
+    return nil
+}
+
+private func demangledGenericParameterHasConstraint(
+    _ parameter: String,
+    in demangled: String
+) -> Bool {
+    let prefixes = ["where \(parameter):", "where \(parameter) ==", ", \(parameter):", ", \(parameter) =="]
+    return prefixes.contains { demangled.contains($0) }
 }
 
 private func dynamicSelfValueShape(

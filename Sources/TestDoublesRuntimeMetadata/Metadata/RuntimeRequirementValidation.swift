@@ -73,11 +73,11 @@ package func runtimeSIMDUnsupportedReason(
 package func runtimeMethodGenericParameterUnsupportedReason(
     for method: MethodDescriptor
 ) -> String? {
-    let usesGenericParameter = method.arguments.contains {
+    let genericArguments = method.arguments.filter {
         if case .methodGenericParameter = $0.value.convention { return true }
         return false
     }
-    guard usesGenericParameter else { return nil }
+    guard genericArguments.isEmpty == false else { return nil }
 
     guard method.kind == .method, method.receiver == .instance else {
         return "Requirement-level generic parameters are supported only on ordinary instance methods."
@@ -87,6 +87,23 @@ package func runtimeMethodGenericParameterUnsupportedReason(
     }
     guard method.typedErrorType == nil else {
         return "Typed-throwing transport has not been proven alongside a requirement-level generic parameter."
+    }
+    guard genericArguments.allSatisfy({ $0.ownership == .borrowed }) else {
+        return "Consuming requirement-level generic parameters need ownership-aware metadata transport."
+    }
+
+    let indices = genericArguments.compactMap { argument -> Int? in
+        guard case .methodGenericParameter(let index) = argument.value.convention else {
+            return nil
+        }
+        return index
+    }
+    guard indices.allSatisfy({ $0 >= 0 }) else {
+        return "Requirement-level generic parameter indices must be non-negative."
+    }
+    let uniqueIndices = Set(indices)
+    guard uniqueIndices.allSatisfy({ $0 < uniqueIndices.count }) else {
+        return "Requirement-level generic parameter indices must form a dense sequence starting at 0."
     }
     return nil
 }
