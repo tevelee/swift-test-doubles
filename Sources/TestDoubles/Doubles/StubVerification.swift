@@ -172,7 +172,7 @@ extension Stub {
 
     /// Verifies the complete interaction timeline, in order.
     ///
-    /// Unlike ``verifyInOrder(_:)``, this assertion permits no extra calls
+    /// Unlike ``verifyInOrder(_:fileID:filePath:line:column:)``, this assertion permits no extra calls
     /// before, between, or after the listed interactions.
     public func verifyExactlyInOrder(
         _ calls: (P) throws -> Void,

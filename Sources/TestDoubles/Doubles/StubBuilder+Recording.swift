@@ -106,7 +106,7 @@ extension StubBuilder where Result: Decodable {
         as key: String,
         from fixture: InteractionFixture,
         matching request: @escaping @Sendable (repeat each Argument) -> Request
-    ) {
+    ) where Result: Sendable {
         requireOrdinaryResult()
         let cursor = InteractionFixtureReplayCursor()
         let recorder = recorder
