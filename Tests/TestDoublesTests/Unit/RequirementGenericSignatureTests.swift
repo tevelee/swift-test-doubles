@@ -73,23 +73,35 @@ private func useLinkedMultiplePackRequirementProbe(
             useLinkedPackRequirementProbe(RealExternalPackRequirementProbe()) == 2
         )
 
+        let integerCaptor = ArgumentCaptor<Int>()
+        let textCaptor = ArgumentCaptor<String>()
         let stub = try Stub<any ExternalPackRequirementProbe>()
         stub.when { $0.pack() }.thenReturn(0)
-        stub.when { $0.pack(1, "two") }.thenReturn(2)
+        stub.when {
+            $0.pack(
+                integerCaptor.capture(using: 0),
+                textCaptor.capture(using: "")
+            )
+        }.then { (integer: Int, text: String) in
+            integer + text.count
+        }
         stub.when { $0.pack(1, "two", true) }.thenReturn(3)
 
         let probe: any ExternalPackRequirementProbe = stub()
         #expect(probe.pack() == 0)
-        #expect(probe.pack(1, "two") == 2)
+        #expect(probe.pack(40, "go") == 42)
         #expect(probe.pack(1, "two", true) == 3)
 
-        let recorded: [(Int, String)] = stub.invocations { $0.pack(1, "two") }
+        #expect(integerCaptor.values == [40])
+        #expect(textCaptor.values == ["go"])
+
+        let recorded: [(Int, String)] = stub.invocations { $0.pack(40, "go") }
         #expect(recorded.count == 1)
-        #expect(recorded[0].0 == 1)
-        #expect(recorded[0].1 == "two")
+        #expect(recorded[0].0 == 40)
+        #expect(recorded[0].1 == "go")
 
         stub.verify { $0.pack() }
-        stub.verify { $0.pack(1, "two") }
+        stub.verify { $0.pack(40, "go") }
         stub.verify { $0.pack(1, "two", true) }
     }
 

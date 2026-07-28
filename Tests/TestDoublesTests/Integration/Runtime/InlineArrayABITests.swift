@@ -92,6 +92,18 @@ struct RealInlineArrayABIProbe: InlineArrayABIProbe {
         let result = stub().integers(input)
         #expect(result[0] == expected[0])
         #expect(result[1] == expected[1])
+
+        let recorded: [InlineArray<2, Int>] = stub.invocations(
+            returning: InlineArray<2, Int>(repeating: 0)
+        ) {
+            $0.integers(any(using: InlineArray<2, Int>(repeating: 0)))
+        }
+        #expect(recorded.count == 1)
+        #expect(recorded[0][0] == input[0])
+        #expect(recorded[0][1] == input[1])
+        stub.verify(returning: InlineArray<2, Int>(repeating: 0)) {
+            $0.integers(any(using: InlineArray<2, Int>(repeating: 0)))
+        }
     }
 
     @available(
