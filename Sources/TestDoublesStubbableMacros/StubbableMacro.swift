@@ -46,4 +46,9 @@
     struct TestDoublesStubbablePlugin: CompilerPlugin {
         let providingMacros: [Macro.Type] = [StubbableMacro.self]
     }
+#else
+    @main
+    struct DisabledStubbableMacroPlugin {
+        static func main() {}
+    }
 #endif
