@@ -1,23 +1,23 @@
 import Testing
 @testable import TestDoubles
 
-private protocol EnhancementAsyncLoader {
+protocol EnhancementAsyncLoader {
     func load() async -> Int
 }
 
-private struct RealEnhancementAsyncLoader: EnhancementAsyncLoader {
+struct RealEnhancementAsyncLoader: EnhancementAsyncLoader {
     func load() async -> Int { 0 }
 }
 
-private protocol EnhancementForwarder {
+protocol EnhancementForwarder {
     func value(for key: String) -> String
 }
 
-private struct RealEnhancementForwarder: EnhancementForwarder {
+struct RealEnhancementForwarder: EnhancementForwarder {
     func value(for key: String) -> String { "live-\(key)" }
 }
 
-private protocol EnhancementThrowingAsyncLoader {
+protocol EnhancementThrowingAsyncLoader {
     func load() async throws -> Int
 }
 
@@ -25,23 +25,23 @@ private enum EnhancementFailure: Error, Equatable {
     case expected
 }
 
-private struct RealEnhancementThrowingAsyncLoader: EnhancementThrowingAsyncLoader {
+struct RealEnhancementThrowingAsyncLoader: EnhancementThrowingAsyncLoader {
     func load() async throws -> Int { 0 }
 }
 
-private protocol EnhancementAsyncForwarder {
+protocol EnhancementAsyncForwarder {
     func value(for key: String) async -> String
 }
 
-private struct RealEnhancementAsyncForwarder: EnhancementAsyncForwarder {
+struct RealEnhancementAsyncForwarder: EnhancementAsyncForwarder {
     func value(for key: String) async -> String { "live-\(key)" }
 }
 
-private protocol EnhancementClockVerifier: Sendable {
+protocol EnhancementClockVerifier: Sendable {
     func notify(_ value: Int)
 }
 
-private struct RealEnhancementClockVerifier: EnhancementClockVerifier {
+struct RealEnhancementClockVerifier: EnhancementClockVerifier {
     func notify(_: Int) {}
 }
 
