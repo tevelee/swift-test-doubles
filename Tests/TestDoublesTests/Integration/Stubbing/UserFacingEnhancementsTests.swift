@@ -45,6 +45,33 @@ private struct RealEnhancementClockVerifier: EnhancementClockVerifier {
     func notify(_: Int) {}
 }
 
+@inline(never)
+private func useLinkedAsyncLoader(_ value: any EnhancementAsyncLoader) async -> Int {
+    await value.load()
+}
+
+@inline(never)
+private func useLinkedThrowingAsyncLoader(
+    _ value: any EnhancementThrowingAsyncLoader
+) async throws -> Int {
+    try await value.load()
+}
+
+@inline(never)
+private func useLinkedForwarder(_ value: any EnhancementForwarder) -> String {
+    value.value(for: "linked")
+}
+
+@inline(never)
+private func useLinkedAsyncForwarder(_ value: any EnhancementAsyncForwarder) async -> String {
+    await value.value(for: "linked")
+}
+
+@inline(never)
+private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
+    value.notify(0)
+}
+
 @Suite struct UserFacingEnhancementsTests {
     @Test func closureDoubleRecordsAndInjectsAUnaryClosure() {
         let formatter = ClosureDouble<Int, String>()
@@ -125,6 +152,7 @@ private struct RealEnhancementClockVerifier: EnhancementClockVerifier {
     }
 
     @Test func throwingBehaviorQueuesExposeTheirRemainingAnswers() async throws {
+        #expect(try await useLinkedThrowingAsyncLoader(RealEnhancementThrowingAsyncLoader()) == 0)
         let loader = try Stub<any EnhancementThrowingAsyncLoader>()
         let queue = await loader.when { try await $0.load() }
             .thenThrowQueue(EnhancementFailure.expected, EnhancementFailure.expected)
@@ -139,6 +167,7 @@ private struct RealEnhancementClockVerifier: EnhancementClockVerifier {
     }
 
     @Test func manualClockControlsDelayedAsyncBehavior() async throws {
+        #expect(await useLinkedAsyncLoader(RealEnhancementAsyncLoader()) == 0)
         let loader = try Stub<any EnhancementAsyncLoader>()
         let clock = ManualStubClock()
         await loader.when { await $0.load() }
@@ -154,6 +183,7 @@ private struct RealEnhancementClockVerifier: EnhancementClockVerifier {
     }
 
     @Test func manualClockDrivesDelayedFailuresAndSleepers() async throws {
+        #expect(try await useLinkedThrowingAsyncLoader(RealEnhancementThrowingAsyncLoader()) == 0)
         let loader = try Stub<any EnhancementThrowingAsyncLoader>()
         let clock = ManualStubClock()
         await loader.when { try await $0.load() }
@@ -197,6 +227,7 @@ private struct RealEnhancementClockVerifier: EnhancementClockVerifier {
     }
 
     @Test func spyCanAssertExactlyWhichCallsForwarded() throws {
+        #expect(useLinkedForwarder(RealEnhancementForwarder()) == "live-linked")
         let spy: Spy<any EnhancementForwarder> = .make(forwardingTo: RealEnhancementForwarder())
         spy.when { $0.value(for: equal("override")) }.thenReturn("fixture")
         let service: any EnhancementForwarder = spy()
@@ -210,6 +241,7 @@ private struct RealEnhancementClockVerifier: EnhancementClockVerifier {
     }
 
     @Test func spyCanAssertThatNoCallsWereForwarded() throws {
+        #expect(useLinkedForwarder(RealEnhancementForwarder()) == "live-linked")
         let spy: Spy<any EnhancementForwarder> = .make(forwardingTo: RealEnhancementForwarder())
         spy.when { $0.value(for: any()) }.thenReturn("fixture")
 
@@ -218,6 +250,7 @@ private struct RealEnhancementClockVerifier: EnhancementClockVerifier {
     }
 
     @Test func asyncSpyVerifiesItsForwardingBoundary() async throws {
+        #expect(await useLinkedAsyncForwarder(RealEnhancementAsyncForwarder()) == "live-linked")
         let spy: Spy<any EnhancementAsyncForwarder> = .make(
             forwardingTo: RealEnhancementAsyncForwarder()
         )
@@ -258,6 +291,7 @@ private struct RealEnhancementClockVerifier: EnhancementClockVerifier {
     }
 
     @Test func asyncParameterizedScenariosCanBeBoundAndNamed() async throws {
+        #expect(await useLinkedAsyncLoader(RealEnhancementAsyncLoader()) == 0)
         let scenario: AsyncParameterizedStubScenario<any EnhancementAsyncLoader, Int> = .init(
             named: "async page"
         ) { stub, value in
@@ -273,6 +307,7 @@ private struct RealEnhancementClockVerifier: EnhancementClockVerifier {
     }
 
     @Test func clockDrivenVerificationFinishesWhenTheCallArrives() async throws {
+        useLinkedClockVerifier(RealEnhancementClockVerifier())
         let stub = try Stub<any EnhancementClockVerifier>()
         stub.when { $0.notify(any()) }.thenDoNothing()
         let service: any EnhancementClockVerifier = stub()
