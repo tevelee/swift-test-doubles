@@ -95,7 +95,7 @@ public final class ManualStubClock: StubClock, @unchecked Sendable {
     public func advance(by duration: Duration) {
         precondition(duration >= .zero, "[TestDoubles] Clock advancement must be nonnegative.")
         let ready: [Sleeper] = lock.withLock {
-            elapsed = elapsed + duration
+            elapsed += duration
             let ready = sleepers.values.filter { $0.deadline <= elapsed }
             sleepers = sleepers.filter { $0.value.deadline > elapsed }
             return ready
