@@ -12,6 +12,7 @@ package enum FunctionBridgeDirection: Sendable, Equatable {
 package struct FunctionBridgeAnalysis: @unchecked Sendable {
     let architecture: RuntimeArchitecture
     let function: FunctionTypeInfo
+    let effects: RuntimeFunctionEffectInfo
     let parameterTypes: [Any.Type]
     let directArgumentPlan: DynamicFunctionArgumentPlan?
     let resultType: Any.Type
@@ -33,10 +34,12 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
     ) {
         self.architecture = architecture
         self.function = function
+        let effects = RuntimeFunctionEffectInfo(function)
+        self.effects = effects
         parameterTypes = function.parameters.map(\.type)
         resultType = function.resultType
         resultLayout = abiClass(for: function.resultType, isReturn: true)
-        let typedErrorType = function.effects.typedErrorType
+        let typedErrorType = effects.typedErrorType
         self.typedErrorType = typedErrorType
         typedErrorLayout = typedErrorType.map {
             abiClass(for: $0, isReturn: true)
@@ -45,9 +48,15 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
         isThrowing = function.effects.isThrowing
         isSendable = function.effects.isSendable
         directTypedErrorUsesIndirectResultSlot =
-            dynamicDirectTypedErrorUsesIndirectResultSlot(function)
+            dynamicDirectTypedErrorUsesIndirectResultSlot(
+                function,
+                effects: effects
+            )
         genericTypedErrorUsesIndirectResultSlot =
-            dynamicGenericTypedErrorUsesIndirectResultSlot(function)
+            dynamicGenericTypedErrorUsesIndirectResultSlot(
+                function,
+                effects: effects
+            )
         asyncDirectResultUsesGeneralPurposeSlot =
             isAsync && abiClassIsIndirect(resultLayout)
         genericArgumentCount =
@@ -95,10 +104,13 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
         guard function.effects.globalActorType == nil else {
             return "Global-actor functions require an executor-preserving bridge."
         }
-        guard hasOnlyDynamicallySupportedExtendedFlags(function) else {
+        guard hasOnlyDynamicallySupportedExtendedFlags(function, effects: effects) else {
             return "Extended isolation, sending, or invertible-protocol flags require compiler reabstraction."
         }
-        if let reason = typedThrowingFunctionRuntimeUnsupportedReason(function) {
+        if let reason = typedThrowingFunctionRuntimeUnsupportedReason(
+            function,
+            effects: effects
+        ) {
             return reason
         }
         if let reason = noncopyableDiagnosis(for: resultType, role: "The result") {

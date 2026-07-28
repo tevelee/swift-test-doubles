@@ -15,6 +15,25 @@ private typealias NonsendingSyntaxClosure =
     nonisolated(nonsending) @Sendable (Int) async -> String
 
 @Suite struct ConcurrencyClosureThunkSyntaxTests {
+    @Test func sendingParameterAndResultNeverUsesFalseTypedErrorMetadata() throws {
+        let function = try #require(
+            FunctionTypeInfo(reflecting: SendingSyntaxClosure.self)
+        )
+        let effects = RuntimeFunctionEffectInfo(function)
+        let analysis = FunctionBridgeAnalysis(function)
+
+        #expect(effects.isTypedThrows == false)
+        #expect(effects.typedErrorType == nil)
+        #expect(
+            typedThrowingFunctionRuntimeUnsupportedReason(
+                function,
+                effects: effects
+            ) == nil
+        )
+        #expect(analysis.validated(for: .directToGeneric) == nil)
+        #expect(analysis.unsupportedReason(for: .directToGeneric) != nil)
+    }
+
     @Test func sendingParameterAndResultArePartOfExactThunkIdentity() throws {
         let spelling =
             "@escaping @callee_guaranteed @Sendable "

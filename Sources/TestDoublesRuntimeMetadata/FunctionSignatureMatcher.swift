@@ -5,6 +5,18 @@ enum FunctionSignatureMatcher {
         _ parsed: LoweredFunctionSyntax,
         matches function: FunctionTypeInfo
     ) -> Bool {
+        direct(
+            parsed,
+            matches: function,
+            effects: RuntimeFunctionEffectInfo(function)
+        )
+    }
+
+    private static func direct(
+        _ parsed: LoweredFunctionSyntax,
+        matches function: FunctionTypeInfo,
+        effects: RuntimeFunctionEffectInfo
+    ) -> Bool {
         let parsedGlobalActor = parsed.globalActor.flatMap(resolveRuntimeType)
         guard parsed.isSendable == function.effects.isSendable,
             parsed.isEscaping == function.effects.isEscaping,
@@ -17,8 +29,8 @@ enum FunctionSignatureMatcher {
                 ),
             parsed.isAsync == function.effects.isAsync,
             parsed.isThrowing == function.effects.isThrowing,
-            parsed.hasSendingResult == runtimeFunctionHasSendingResult(function),
-            thrownError(parsed.thrownError, matches: function),
+            parsed.hasSendingResult == effects.hasSendingResult,
+            thrownError(parsed.thrownError, matches: function, effects: effects),
             type(parsed.result, matches: function.resultType)
         else {
             return false
@@ -35,7 +47,8 @@ enum FunctionSignatureMatcher {
         _ parsed: LoweredFunctionSyntax,
         matches function: FunctionTypeInfo
     ) -> Bool {
-        if direct(parsed, matches: function) { return true }
+        let effects = RuntimeFunctionEffectInfo(function)
+        if direct(parsed, matches: function, effects: effects) { return true }
         let parsedGlobalActor = parsed.globalActor.flatMap(resolveRuntimeType)
         return parsed.isSendable
             == function.effects.isSendable
@@ -51,7 +64,7 @@ enum FunctionSignatureMatcher {
                 ))
             && parsed.isAsync == function.effects.isAsync
             && parsed.isThrowing == function.effects.isThrowing
-            && parsed.hasSendingResult == runtimeFunctionHasSendingResult(function)
+            && parsed.hasSendingResult == effects.hasSendingResult
             && parsed.parameters.count
                 == function.parameters.count
                 + (function.effects.isNonisolatedNonsending ? 1 : 0)
@@ -129,10 +142,11 @@ enum FunctionSignatureMatcher {
 
     private static func thrownError(
         _ parsed: LoweredTypeSyntax?,
-        matches function: FunctionTypeInfo
+        matches function: FunctionTypeInfo,
+        effects: RuntimeFunctionEffectInfo
     ) -> Bool {
-        if function.effects.isTypedThrows {
-            guard let typed = function.effects.typedErrorType else { return false }
+        if effects.isTypedThrows {
+            guard let typed = effects.typedErrorType else { return false }
             guard let parsed else { return false }
             return type(parsed, matches: typed)
         }
@@ -164,6 +178,33 @@ enum FunctionSignatureMatcher {
     }
 }
 
+/// A semantic function-effect snapshot that gates typed-error metadata behind
+/// the compiler's demangled spelling. Some Swift 6.3 runtimes set the raw
+/// typed-throws bit for `sending` closures even though no trailing error
+/// metadata exists; never use that bit alone to read the trailing word.
+package struct RuntimeFunctionEffectInfo {
+    package let isTypedThrows: Bool
+    package let typedErrorType: Any.Type?
+    package let hasSendingResult: Bool
+
+    package init(_ function: FunctionTypeInfo) {
+        let syntax: DemangledFunctionTypeSyntax?
+        if case .function(let parsed)? = DemangledTypeSyntax(
+            String(reflecting: function.type)
+        ) {
+            syntax = parsed
+        } else {
+            syntax = nil
+        }
+
+        isTypedThrows = syntax?.effects.thrownError != nil
+        typedErrorType = isTypedThrows ? function.effects.typedErrorType : nil
+        hasSendingResult =
+            (function.effects.rawExtendedFlags ?? 0) & 0x10 != 0
+            || syntax?.hasSendingResult == true
+    }
+}
+
 /// Swift 6.3 does not consistently surface the sending-result bit through
 /// function metadata, although the canonical runtime type spelling retains
 /// it. Consult both representations so dynamic bridging cannot erase transfer
@@ -171,17 +212,5 @@ enum FunctionSignatureMatcher {
 package func runtimeFunctionHasSendingResult(
     _ function: FunctionTypeInfo
 ) -> Bool {
-    if let rawFlags = function.effects.rawExtendedFlags,
-        rawFlags & 0x10 != 0
-    {
-        return true
-    }
-    guard
-        case .function(let syntax)? = DemangledTypeSyntax(
-            String(reflecting: function.type)
-        )
-    else {
-        return false
-    }
-    return syntax.hasSendingResult
+    RuntimeFunctionEffectInfo(function).hasSendingResult
 }
