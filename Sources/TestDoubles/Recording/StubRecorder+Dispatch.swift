@@ -325,6 +325,7 @@ extension StubRecorder {
             $0.invocationLedger.append(
                 method: method.index,
                 name: method.name,
+                origin: .forwarded,
                 args: args,
                 argumentConventions: recordingArgumentConventions(for: method),
                 runtimePayloadRecorder: self

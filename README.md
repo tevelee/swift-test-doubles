@@ -304,6 +304,11 @@ let translator: any Translator = spy()
 #expect(translator.translate("farewell.title") == "Goodbye")           // forwarded
 
 spy.verify(.exactly(2)) { $0.translate(any()) }
+
+let forwarded: [String] = spy.forwardedInvocations {
+    $0.translate(any())
+}
+#expect(forwarded == ["farewell.title"])
 ```
 
 A matching `when` registration wins, and the first matching one is used,

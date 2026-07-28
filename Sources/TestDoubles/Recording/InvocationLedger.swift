@@ -25,6 +25,13 @@ struct StubSourceLocation: Sendable {
     let column: UInt
 }
 
+/// Indicates whether the recorder answered a call itself or a spy delegated it
+/// to its forwarding target.
+enum InvocationOrigin: Sendable {
+    case stubbed
+    case forwarded
+}
+
 /// A recorded playback invocation or a capture-mode expectation.
 struct RecordedCall: @unchecked Sendable {
     private final class WeakPayload {
@@ -130,6 +137,7 @@ struct RecordedCall: @unchecked Sendable {
     let sequence: UInt64?
     let methodIndex: Int
     let name: String
+    let origin: InvocationOrigin
     private let argumentsStorage: ArgumentsStorage
     let matchers: [ParameterMatcher]
     /// Empty matchers normally mean a broad fallback. An empty parameter pack
@@ -144,6 +152,7 @@ struct RecordedCall: @unchecked Sendable {
         sequence: UInt64? = nil,
         methodIndex: Int,
         name: String,
+        origin: InvocationOrigin = .stubbed,
         args: [Any],
         argumentConventions: [RuntimeValueConvention]? = nil,
         runtimePayloadRecorder: StubRecorder? = nil,
@@ -155,6 +164,7 @@ struct RecordedCall: @unchecked Sendable {
         self.sequence = sequence
         self.methodIndex = methodIndex
         self.name = name
+        self.origin = origin
         if let argumentConventions {
             precondition(
                 argumentConventions.count == args.count,
@@ -179,6 +189,7 @@ struct RecordedCall: @unchecked Sendable {
         sequence: UInt64?,
         methodIndex: Int,
         name: String,
+        origin: InvocationOrigin,
         argumentsStorage: ArgumentsStorage,
         matchers: [ParameterMatcher],
         matchesEmptyArgumentsExactly: Bool,
@@ -188,6 +199,7 @@ struct RecordedCall: @unchecked Sendable {
         self.sequence = sequence
         self.methodIndex = methodIndex
         self.name = name
+        self.origin = origin
         self.argumentsStorage = argumentsStorage
         self.matchers = matchers
         self.matchesEmptyArgumentsExactly = matchesEmptyArgumentsExactly
@@ -201,6 +213,7 @@ struct RecordedCall: @unchecked Sendable {
             sequence: sequence,
             methodIndex: methodIndex,
             name: name,
+            origin: origin,
             argumentsStorage: argumentsStorage,
             matchers: matchers,
             matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
@@ -271,6 +284,7 @@ struct InvocationLedger {
     mutating func append(
         method: Int,
         name: String,
+        origin: InvocationOrigin = .stubbed,
         args: [Any],
         argumentConventions: [RuntimeValueConvention]? = nil,
         runtimePayloadRecorder: StubRecorder? = nil
@@ -283,6 +297,7 @@ struct InvocationLedger {
                 sequence: GlobalInvocationSequence.take(),
                 methodIndex: method,
                 name: name,
+                origin: origin,
                 args: args,
                 argumentConventions: argumentConventions,
                 runtimePayloadRecorder: runtimePayloadRecorder,

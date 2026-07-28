@@ -15,6 +15,18 @@ extension TestDouble {
             self.typedInvocationArguments(from: call)
         }
     }
+
+    func typedMatchingForwardedInvocationArguments<each Argument>(
+        recording: RecordedCall
+    ) -> [(repeat each Argument)] {
+        recorder.forwardedVerificationMatches(
+            method: recording.methodIndex,
+            matchers: recording.resolvedMatchers,
+            matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly
+        ).map { call in
+            self.typedInvocationArguments(from: call)
+        }
+    }
 }
 
 extension Stub {

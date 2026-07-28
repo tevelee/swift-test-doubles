@@ -6,6 +6,18 @@ struct PreparedRecordedCallMatch {
 }
 
 extension StubRecorder {
+    func forwardedVerificationMatches(
+        method: Int,
+        matchers: [ParameterMatcher],
+        matchesEmptyArgumentsExactly: Bool
+    ) -> [RecordedCall] {
+        verificationMatches(
+            method: method,
+            matchers: matchers,
+            matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly
+        ).filter { $0.origin == .forwarded }
+    }
+
     func clearRecordedInvocations() {
         let waiters = withLockedPolicy { $0.invocationLedger.clear() }
         resumeWaiters(waiters, returning: .changed)

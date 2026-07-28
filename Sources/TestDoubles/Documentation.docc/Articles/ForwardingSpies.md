@@ -40,6 +40,29 @@ error through the target's witness. Both overridden and forwarded calls enter
 the same invocation log, so count, ordered, eventual, and no-more-interactions
 verification work across both paths.
 
+### Inspect the forwarding boundary
+
+``Spy/forwardedInvocations(_:)`` narrows the interaction log to calls that
+actually entered the real implementation. It is useful when a test needs to
+prove an override intercepted one input while all other inputs still delegated:
+
+```swift
+spy.when { $0.displayName(for: equal("guest")) }
+    .thenReturn("Test Guest")
+
+#expect(service.displayName(for: "guest") == "Test Guest")
+#expect(service.displayName(for: "admin") == "Admin")
+
+let forwarded: [String] = spy.forwardedInvocations {
+    $0.displayName(for: any())
+}
+#expect(forwarded == ["admin"])
+```
+
+This is a typed, pure query, so it does not verify interactions or alter the
+target. A call is marked forwarded when the spy selects the target; its return
+value or error remains on the protocol's normal transport path.
+
 ### Share target state
 
 Class-constrained targets receive calls on the same object passed to

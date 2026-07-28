@@ -172,6 +172,21 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
         spy.verify(.exactly(2)) { $0.fetch(id: any()) }
     }
 
+    @Test func forwardedInvocationsExcludeOverridesAndKeepArgumentsTyped() throws {
+        let spy = try Spy<any SpyService>(forwardingTo: RealSpyService())
+        spy.when { $0.fetch(id: 1) }.thenReturn("overridden")
+        let service: any SpyService = spy()
+
+        #expect(service.fetch(id: 1) == "overridden")
+        #expect(service.fetch(id: 2) == "real:2")
+        #expect(service.fetch(id: 3) == "real:3")
+
+        let forwarded: [Int] = spy.forwardedInvocations {
+            $0.fetch(id: any())
+        }
+        #expect(forwarded == [2, 3])
+    }
+
     @Test func forwardsThrowingRequirements() throws {
         let spy = try Spy<any SpyService>(forwardingTo: RealSpyService())
         let service: any SpyService = spy()
@@ -192,6 +207,21 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
         #expect(try await service.fetchLater(id: 1) == "overridden-later")
         #expect(try await service.fetchLater(id: 2) == "later:2")
         await spy.verify(.exactly(2)) { try await $0.fetchLater(id: any()) }
+    }
+
+    @Test func forwardedInvocationsSupportAsyncRequirements() async throws {
+        let spy = try Spy<any SpyService>(forwardingTo: RealSpyService())
+        await spy.when { try await $0.fetchLater(id: 1) }
+            .thenReturn("overridden-later")
+        let service: any SpyService = spy()
+
+        _ = try await service.fetchLater(id: 1)
+        _ = try await service.fetchLater(id: 2)
+
+        let forwarded: [Int] = await spy.forwardedInvocations {
+            try await $0.fetchLater(id: any())
+        }
+        #expect(forwarded == [2])
     }
 
     @Test func forwardsClassConstrainedProtocolsToTheSameObject() throws {

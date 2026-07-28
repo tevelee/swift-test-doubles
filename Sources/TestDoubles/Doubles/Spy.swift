@@ -71,6 +71,66 @@ public final class Spy<P>: Stub<P> {
 }
 
 extension Spy {
+    /// Returns the arguments of matching calls that were delegated to the
+    /// forwarding target, excluding calls answered by a configured override.
+    ///
+    /// Use this to assert the boundary between a spy's overrides and its real
+    /// implementation. The returned tuples are in call order and use the same
+    /// matcher and typed-argument rules as ``Stub/invocations(_:)``.
+    ///
+    /// ```swift
+    /// let forwarded: [Int] = spy.forwardedInvocations {
+    ///     $0.fetch(id: any())
+    /// }
+    /// #expect(forwarded == [2])
+    /// ```
+    ///
+    /// This is a query only. It does not verify calls or change the forwarding
+    /// target. A call is considered forwarded once the spy selects its target;
+    /// results and errors retain their normal protocol transport.
+    public func forwardedInvocations<Result, each Argument>(
+        _ call: (P) throws -> Result
+    ) -> [(repeat each Argument)] {
+        typedMatchingForwardedInvocationArguments(recording: recordInvocation(call))
+    }
+
+    /// Returns forwarded invocations for a requirement whose result needs a
+    /// valid value during the recording pass.
+    public func forwardedInvocations<Result, each Argument>(
+        returning placeholder: Result,
+        _ call: (P) throws -> Result
+    ) -> [(repeat each Argument)] {
+        typedMatchingForwardedInvocationArguments(
+            recording: recordInvocation(returning: placeholder, call)
+        )
+    }
+
+    /// Returns forwarded async invocations in call order.
+    public func forwardedInvocations<Result, each Argument>(
+        _ call: (P) async throws -> Result,
+        isolation: isolated (any Actor)? = #isolation
+    ) async -> [(repeat each Argument)] {
+        typedMatchingForwardedInvocationArguments(
+            recording: await recordAsyncInvocation(call, isolation: isolation)
+        )
+    }
+
+    /// Returns forwarded async invocations for a requirement whose result
+    /// needs a valid value during the recording pass.
+    public func forwardedInvocations<Result, each Argument>(
+        returning placeholder: Result,
+        _ call: (P) async throws -> Result,
+        isolation: isolated (any Actor)? = #isolation
+    ) async -> [(repeat each Argument)] {
+        typedMatchingForwardedInvocationArguments(
+            recording: await recordAsyncInvocation(
+                returning: placeholder,
+                call,
+                isolation: isolation
+            )
+        )
+    }
+
     /// Returns a forwarding spy for `protocolType` that records calls to `target`.
     ///
     /// The protocol metatype defaults to the contextual type, so prefer stating
