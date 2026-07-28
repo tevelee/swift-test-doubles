@@ -309,6 +309,35 @@ extension TestDouble {
         )
     }
 
+    func verifyExactlyInOrder(
+        recordings: [RecordedCall],
+        fileID: StaticString,
+        filePath: StaticString,
+        line: UInt,
+        column: UInt
+    ) {
+        guard recordings.isEmpty == false else {
+            reportIssue(
+                "Exact ordered verification requires at least one invocation",
+                fileID: fileID,
+                filePath: filePath,
+                line: line,
+                column: column
+            )
+            return
+        }
+        guard let failure = recorder.exactOrderedVerificationFailure(for: recordings) else {
+            return
+        }
+        reportIssue(
+            failure,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
     func reportUnverifiedInteractions(
         fileID: StaticString,
         filePath: StaticString,

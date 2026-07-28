@@ -166,6 +166,31 @@ enum StubRecorderDiagnostics {
         return lines.joined(separator: "\n")
     }
 
+    static func exactOrderedVerificationCountFailure(
+        expectations: [RecordedCall],
+        calls: [RecordedCall]
+    ) -> String {
+        "Expected an exact interaction timeline of \(expectations.count) "
+            + "call\(expectations.count == 1 ? "" : "s"), but recorded \(calls.count).\n\n"
+            + interactionLog(calls)
+    }
+
+    static func exactOrderedVerificationFailure(
+        expectationIndex: Int,
+        expectation: RecordedCall,
+        actual: RecordedCall,
+        calls: [RecordedCall]
+    ) -> String {
+        let expectedMatchers = expectation.resolvedMatchers
+            .map(\.diagnosticDescription)
+            .joined(separator: ", ")
+        let actualArguments = actual.args.map { String(reflecting: $0) }.joined(separator: ", ")
+        return "Expected exact interaction timeline mismatch at call \(expectationIndex + 1).\n"
+            + "Expected: \(expectation.name)(\(expectedMatchers))\n"
+            + "Actual: \(actual.name)(\(actualArguments))\n\n"
+            + interactionLog(calls)
+    }
+
     /// Renders every recorded invocation as an ordered, human-readable log,
     /// one call per line, for debugging a failing verification. Arguments are
     /// woven back into the requirement's labels, so a call reads the way it was

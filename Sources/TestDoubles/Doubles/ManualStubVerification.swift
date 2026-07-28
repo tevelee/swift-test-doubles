@@ -151,6 +151,26 @@ extension ManualStub {
         )
     }
 
+    /// Verifies the complete interaction timeline, in order.
+    ///
+    /// Unlike ``verifyInOrder(_:)``, this assertion permits no extra calls
+    /// before, between, or after the listed interactions.
+    public func verifyExactlyInOrder(
+        _ calls: (T) throws -> Void,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) {
+        verifyExactlyInOrder(
+            recordings: recordInvocations(calls),
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
     /// Verifies that calls, including direct property assignments, occurred in the listed relative order.
     ///
     /// Each listed invocation consumes a distinct matching recorded call.

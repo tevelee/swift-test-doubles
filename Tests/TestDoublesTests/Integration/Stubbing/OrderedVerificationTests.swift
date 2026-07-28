@@ -63,6 +63,38 @@ private func makeOrderedVerificationStub() throws -> Stub<any OrderedVerificatio
         }
     }
 
+    @Test func matchesTheCompleteTimelineWithoutExtraCalls() throws {
+        let stub = try makeOrderedVerificationStub()
+        stub.when { $0.first(any()) }.thenReturn(0)
+        stub.when { $0.second(any()) }.thenReturn(0)
+        let probe: any OrderedVerificationProbe = stub()
+        _ = probe.first(1)
+        _ = probe.second(2)
+
+        stub.verifyExactlyInOrder {
+            _ = $0.first(equal(1))
+            _ = $0.second(equal(2))
+        }
+    }
+
+    @Test func exactTimelineReportsExtraCalls() throws {
+        let stub = try makeOrderedVerificationStub()
+        stub.when { $0.first(any()) }.thenReturn(0)
+        stub.when { $0.second(any()) }.thenReturn(0)
+        let probe: any OrderedVerificationProbe = stub()
+        _ = probe.first(1)
+        _ = probe.second(2)
+
+        expectReportsIssue {
+            stub.verifyExactlyInOrder {
+                _ = $0.first(equal(1))
+            }
+        } matching: {
+            $0.description.contains("exact interaction timeline")
+                && $0.description.contains("Recorded 2 interactions")
+        }
+    }
+
     @Test func reversedOrderReportsAtTheCallerWithoutTerminating() throws {
         let stub = try makeOrderedVerificationStub()
         stub.when { $0.first(any()) }.thenReturn(0)

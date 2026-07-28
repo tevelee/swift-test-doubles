@@ -75,6 +75,47 @@ extension StubRecorder {
         return nil
     }
 
+    /// Returns an exact-timeline verification diagnostic, or `nil` after
+    /// committing captures for a sequence that accounts for every call.
+    func exactOrderedVerificationFailure(for expectations: [RecordedCall]) -> String? {
+        let calls = withLockedPolicy { $0.invocationLedger.allCalls }
+        guard calls.count == expectations.count else {
+            return StubRecorderDiagnostics.exactOrderedVerificationCountFailure(
+                expectations: expectations,
+                calls: calls
+            )
+        }
+
+        var matches: [PreparedRecordedCallMatch] = []
+        for (index, pair) in zip(expectations, calls).enumerated() {
+            let (expectation, call) = pair
+            guard
+                call.methodIndex == expectation.methodIndex,
+                let transaction = StubBehaviorRegistry.prepareArgumentsMatch(
+                    call.args,
+                    against: expectation.resolvedMatchers,
+                    matchesEmptyArgumentsExactly: expectation.matchesEmptyArgumentsExactly
+                )
+            else {
+                return StubRecorderDiagnostics.exactOrderedVerificationFailure(
+                    expectationIndex: index,
+                    expectation: expectation,
+                    actual: call,
+                    calls: calls
+                )
+            }
+            matches.append(
+                PreparedRecordedCallMatch(call: call, matcherTransaction: transaction)
+            )
+        }
+
+        for match in matches {
+            match.matcherTransaction.commitCaptures()
+        }
+        markVerified(matches.map(\.call))
+        return nil
+    }
+
     func verificationMatches(
         method: Int,
         matchers: [ParameterMatcher] = [],
