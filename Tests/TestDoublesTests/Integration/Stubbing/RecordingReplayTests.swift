@@ -86,6 +86,32 @@ private final class SequencedResponder: @unchecked Sendable {
         #expect(try replayedService.currentConditions(for: "x") == "sunny in Prague")
     }
 
+    @Test func replaysResponsesMatchedToRecordedRequests() throws {
+        let session = RecordingSession()
+        let spy: Spy<any RecordingReplayWeatherService> = .make(
+            forwardingTo: RealRecordingReplayWeatherService()
+        )
+        spy.when { try $0.currentConditions(for: any()) }
+            .thenRecord(as: "currentConditions", into: session, recording: { (city: String) in city }) { city in
+                "weather:\(city)"
+            }
+        let recordedService: any RecordingReplayWeatherService = spy()
+        _ = try recordedService.currentConditions(for: "Berlin")
+        _ = try recordedService.currentConditions(for: "Vienna")
+
+        let stub = try Stub<any RecordingReplayWeatherService>()
+        stub.when { try $0.currentConditions(for: any()) }
+            .thenReplay(
+                as: "currentConditions",
+                from: session.snapshot(),
+                matching: { (city: String) in city }
+            )
+        let replayedService: any RecordingReplayWeatherService = stub()
+
+        #expect(try replayedService.currentConditions(for: "Vienna") == "weather:Vienna")
+        #expect(try replayedService.currentConditions(for: "Berlin") == "weather:Berlin")
+    }
+
     @Test func recordsAndReplaysAnAsynchronousCall() async throws {
         let live = RealRecordingReplayWeatherService()
         let spy: Spy<any RecordingReplayWeatherService> = .make(forwardingTo: live)

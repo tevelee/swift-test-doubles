@@ -24,11 +24,33 @@ import Foundation
 public final class RecordingSession: @unchecked Sendable {
     private let lock = NSLock()
     private var entries: [String: [Data]] = [:]
+    private var requests: [String: [Data?]] = [:]
 
     /// Creates a session with nothing recorded yet.
     public init() {}
 
     func recordSuccess<Value: Encodable>(_ value: Value, as key: String) {
+        recordSuccess(value, requestData: nil, as: key)
+    }
+
+    func recordSuccess<Value: Encodable, Request: Encodable>(
+        _ value: Value,
+        recording request: Request,
+        as key: String
+    ) {
+        guard let requestData = try? JSONEncoder().encode(request) else {
+            fatalError(
+                "[TestDoubles] Could not encode the request for recorded '\(key)' calls as JSON."
+            )
+        }
+        recordSuccess(value, requestData: requestData, as: key)
+    }
+
+    private func recordSuccess<Value: Encodable>(
+        _ value: Value,
+        requestData: Data?,
+        as key: String
+    ) {
         guard let data = try? JSONEncoder().encode(value) else {
             fatalError(
                 "[TestDoubles] Could not encode a recorded '\(key)' result of type \(Value.self) as JSON. Recorded result types must round-trip through JSONEncoder."
@@ -36,6 +58,7 @@ public final class RecordingSession: @unchecked Sendable {
         }
         lock.lock()
         entries[key, default: []].append(data)
+        requests[key, default: []].append(requestData)
         lock.unlock()
     }
 
@@ -46,7 +69,7 @@ public final class RecordingSession: @unchecked Sendable {
     public func snapshot() -> InteractionFixture {
         lock.lock()
         defer { lock.unlock() }
-        return InteractionFixture(entries: entries)
+        return InteractionFixture(entries: entries, requests: requests)
     }
 
     /// Freezes the calls recorded so far and writes them as JSON to `url`,
