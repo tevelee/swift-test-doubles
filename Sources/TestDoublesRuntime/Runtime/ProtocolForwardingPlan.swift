@@ -87,6 +87,14 @@ struct ProtocolForwardingPlanBuilder<P> {
         var modifications: [Int: ForwardedModifyPlan] = [:]
         var reads: [Int: ForwardedReadPlan] = [:]
         for method in methods {
+            // Initializers can be explicitly overridden on a Spy using the
+            // same `when(initializer:)` API as a Stub. Their generated value
+            // must retain this spy's fabricated runtime resources, so an
+            // unmatched initializer is intentionally not delegated to the
+            // target's concrete construction ABI.
+            if method.kind == .initializer {
+                continue
+            }
             let requirement = layout.callableRequirements[method.index]
             let protocolName = requirement.protocolDescriptor.name
             try validate(method, protocolName: protocolName)

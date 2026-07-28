@@ -1,5 +1,6 @@
 /// A runtime-generated test double that records calls and forwards unmatched
-/// instance and static requirements to a real implementation.
+/// instance and static requirements to a real implementation, while allowing
+/// initializer requirements to be explicitly overridden.
 ///
 /// Configure only the interactions a test needs to replace. Every other
 /// supported call uses the forwarding target's behavior and is still available
@@ -15,6 +16,7 @@
 /// ```
 public final class Spy<P>: Stub<P> {
     /// Creates a spy that forwards unmatched instance and static requirements to `target`.
+    /// Initializer requirements use an explicit `when(initializer:)` override.
     ///
     /// The target's own witness tables provide signature discovery, so this
     /// initializer does not need a separately linked conformer or explicit

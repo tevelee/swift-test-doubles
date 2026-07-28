@@ -88,6 +88,21 @@ struct RealStaticSpyService: StaticSpyService {
     static func value() -> Int { 1 }
 }
 
+protocol InitializerSpyService {
+    init(value: Int)
+    func value() -> Int
+}
+
+struct RealInitializerSpyService: InitializerSpyService {
+    let storedValue: Int
+
+    init(value: Int) {
+        storedValue = value
+    }
+
+    func value() -> Int { storedValue }
+}
+
 // Ten arguments overflows even the widest architecture's register budget
 // (arm64: 8 argument registers) by more than the outgoing-stack-spill
 // ceiling (2 words, shared with the target's own spilled metadata/witness
@@ -270,6 +285,19 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
 
         #expect(spy.withValue { type(of: $0).value() } == 1)
         spy.verify { type(of: $0).value() }
+    }
+
+    @Test func permitsExplicitInitializerOverrides() throws {
+        let spy = try Spy<any InitializerSpyService>(
+            forwardingTo: RealInitializerSpyService(value: 0)
+        )
+        spy.when(initializer: { type(of: $0).init(value: any()) }).thenInitialize()
+        spy.when { $0.value() }.thenReturn(42)
+
+        let seed: any InitializerSpyService = spy()
+        let initialized = type(of: seed).init(value: 7)
+        #expect(initialized.value() == 42)
+        spy.verify { type(of: $0).init(value: equal(7)) }
     }
 
     @Test func rejectsArgumentsThatCannotPreserveTheOriginalStack() {
