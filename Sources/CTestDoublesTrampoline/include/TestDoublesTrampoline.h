@@ -3,6 +3,7 @@
 
 #define TD_GP_REGISTER_COUNT 16
 #define TD_FP_REGISTER_COUNT 16
+#define TD_DIRECT_RETURN_REGISTER_COUNT 4
 
 #define TD_FRAME_SIZE 544
 #define TD_FRAME_SLOT_OFFSET 0
@@ -124,10 +125,10 @@ typedef struct TDCallFrame {
   // entirely -- docs/ABI/CallingConvention.rst only describes the philosophy
   // ("one or two more registers to the result"), not a hard number. Treat as
   // an empirical constant, not a documented ABI guarantee.
-  uint64_t returnGP[4];
-  uint64_t returnFP[4];
+  uint64_t returnGP[TD_DIRECT_RETURN_REGISTER_COUNT];
+  uint64_t returnFP[TD_DIRECT_RETURN_REGISTER_COUNT];
   uint64_t returnError;
-  uint64_t returnFPHigh[4];
+  uint64_t returnFPHigh[TD_DIRECT_RETURN_REGISTER_COUNT];
 } TDCallFrame;
 
 typedef struct TDSwiftErrorAllocation {

@@ -236,9 +236,10 @@ private var swiftGetTypeByMangledNameInContextForValueLayout: SwiftGetTypeByMang
     RuntimeSymbols.function(named: "swift_getTypeByMangledNameInContext")
 }
 
-/// Matches `TrampolineCallFrame.floatingPointReturnCount`: wider results
-/// already use Swift's own indirect `sret` convention.
-private let maximumDirectSIMDRegisterCount = 4
+/// Matches the C trampoline frame's return slots. Wider results already use
+/// Swift's own indirect `sret` convention.
+private let maximumDirectSIMDRegisterCount =
+    TrampolineABICapacity.directReturnRegisterCount
 
 /// Whether `type` is a concrete SIMD shape using one or more complete
 /// 128-bit vector registers, and if so, its total byte count.

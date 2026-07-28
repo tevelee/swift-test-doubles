@@ -1,13 +1,16 @@
 import CTestDoublesTrampoline
 import TestDoublesRuntimeMetadata
+import TestDoublesRuntimeSupport
 
 /// Typed access to the C call-frame storage populated by the assembly bridge.
 ///
 /// The C layout remains the source of truth. Keeping every byte offset here
 /// prevents the Swift codecs from depending directly on frame representation.
 package struct TrampolineCallFrame {
-    package static let generalPurposeReturnCount = 4
-    package static let floatingPointReturnCount = 4
+    package static let generalPurposeReturnCount =
+        TrampolineABICapacity.directReturnRegisterCount
+    package static let floatingPointReturnCount =
+        TrampolineABICapacity.directReturnRegisterCount
 
     private enum Offset {
         static let slot = Int(TD_FRAME_SLOT_OFFSET)
