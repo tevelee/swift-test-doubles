@@ -265,15 +265,11 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
         spy.verify { $0.roundTrip(42) }
     }
 
-    @Test func rejectsStaticRequirementsAtConstruction() {
-        let error = #expect(throws: StubError.self) {
-            _ = try Spy<any StaticSpyService>(forwardingTo: RealStaticSpyService())
-        }
-        #expect(
-            error?.description.contains(
-                "supports instance requirements only"
-            ) == true
-        )
+    @Test func forwardsStaticRequirements() throws {
+        let spy = try Spy<any StaticSpyService>(forwardingTo: RealStaticSpyService())
+
+        #expect(spy.withValue { type(of: $0).value() } == 1)
+        spy.verify { type(of: $0).value() }
     }
 
     @Test func rejectsArgumentsThatCannotPreserveTheOriginalStack() {
@@ -316,22 +312,6 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
 
 #if compiler(>=6.2) && (os(macOS) || os(Linux) || targetEnvironment(macCatalyst))
     @Suite struct SpyFactoryExitTests {
-        @Test func unsupportedProtocolShapeFailsClosed() async throws {
-            let result = try await #require(
-                processExitsWith: .failure,
-                observing: [\.standardErrorContent]
-            ) {
-                _ = Spy.make(
-                    StaticSpyService.self,
-                    forwardingTo: RealStaticSpyService()
-                )
-            }
-            let diagnostic = try requireStandardErrorDiagnostic(from: result)
-            #expect(diagnostic.contains("Could not construct a spy"))
-            #expect(diagnostic.contains("StaticSpyService"))
-            #expect(diagnostic.contains("supports instance requirements only"))
-        }
-
         @Test func concreteTargetInferenceFailsClosed() async throws {
             let result = try await #require(
                 processExitsWith: .failure,

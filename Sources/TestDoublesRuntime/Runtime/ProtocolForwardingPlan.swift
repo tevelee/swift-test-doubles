@@ -170,7 +170,7 @@ struct ProtocolForwardingPlanBuilder<P> {
         _ method: MethodDescriptor,
         protocolName: String
     ) throws {
-        guard method.receiver == .instance, method.kind != .initializer else {
+        guard method.kind != .initializer else {
             throw RuntimeConstructionError.forwardingUnsupported(
                 protocolName: protocolName,
                 reason: .nonInstanceRequirement(index: method.index)
@@ -271,7 +271,7 @@ struct ProtocolForwardingPlanBuilder<P> {
             entrySlot: UnsafeRawPointer(modifyWitnessSlot),
             declarationDiscriminator: declarationDiscriminator,
             resumeDiscriminator: resumeDiscriminator,
-            selfValue: target.selfValue,
+            selfValue: target.receiverValue(for: method),
             witnessTable: witnessTable.ptr,
             hiddenArgumentIndex: hiddenArgumentIndex(
                 for: method,

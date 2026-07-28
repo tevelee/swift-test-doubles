@@ -101,5 +101,9 @@ package final class ForwardingTarget<P>: @unchecked Sendable {
         }
     }
 
+    func receiverValue(for method: MethodDescriptor) -> UnsafeRawPointer {
+        method.receiver == .metatype ? dynamicMetadata : selfValue
+    }
+
     var metadata: UnsafeRawPointer { dynamicMetadata }
 }

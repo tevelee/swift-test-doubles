@@ -1,5 +1,5 @@
 /// A runtime-generated test double that records calls and forwards unmatched
-/// instance requirements to a real implementation.
+/// instance and static requirements to a real implementation.
 ///
 /// Configure only the interactions a test needs to replace. Every other
 /// supported call uses the forwarding target's behavior and is still available
@@ -14,7 +14,7 @@
 /// _ = service.displayName(for: "admin") // forwarded
 /// ```
 public final class Spy<P>: Stub<P> {
-    /// Creates a spy that forwards unmatched instance requirements to `target`.
+    /// Creates a spy that forwards unmatched instance and static requirements to `target`.
     ///
     /// The target's own witness tables provide signature discovery, so this
     /// initializer does not need a separately linked conformer or explicit
