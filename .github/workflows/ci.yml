@@ -98,6 +98,12 @@ jobs:
           --parallel
           --experimental-maximum-parallelization-width 4
           --scratch-path .build/ci
+      - name: Test Stubbable macro trait
+        run: >-
+          swift test
+          --traits StubbableMacros
+          --filter StubbableMacroTests
+          --scratch-path .build/ci
       - name: Test release
         run: >-
           swift test

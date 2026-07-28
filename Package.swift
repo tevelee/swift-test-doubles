@@ -1,6 +1,7 @@
 // swift-tools-version: 6.3
 
 import Foundation
+import CompilerPluginSupport
 import PackageDescription
 
 // The C++ interop target breaks the WASI SDK's module cache when
@@ -20,7 +21,18 @@ let package = Package(
     ],
     products: [
         .library(name: "TestDoubles", targets: ["TestDoubles"]),
-        .library(name: "TestDoublesTesting", targets: ["TestDoublesTesting"])
+        .library(name: "TestDoublesTesting", targets: ["TestDoublesTesting"]),
+        .library(name: "TestDoublesMacros", targets: ["TestDoublesMacros"])
+    ],
+    traits: [
+        .trait(
+            name: "ManualStubGenerator",
+            description: "Enables the ManualStubGenerator command plugin."
+        ),
+        .trait(
+            name: "StubbableMacros",
+            description: "Enables @Stubbable macros and their SwiftSyntax dependency."
+        )
     ],
     dependencies: [
         .package(
@@ -30,6 +42,16 @@ let package = Package(
         .package(
             url: "https://github.com/pointfreeco/swift-issue-reporting",
             from: "2.0.0"
+        ),
+        .package(
+            url: "https://github.com/swiftlang/swift-syntax.git",
+            from: "603.0.0-latest",
+            traits: [
+                .trait(
+                    name: "default",
+                    condition: .when(traits: ["StubbableMacros"])
+                )
+            ]
         )
     ],
     targets: allTargets(includesCxxInteropTarget: includesCxxInteropTarget),
@@ -40,7 +62,11 @@ let package = Package(
 
 private func allTargets(includesCxxInteropTarget: Bool) -> [Target] {
     var targets: [Target] = [
-        .executableTarget(name: "ManualStubGeneratorTool"),
+        .target(name: "ManualStubGeneratorCore"),
+        .executableTarget(
+            name: "ManualStubGeneratorTool",
+            dependencies: ["ManualStubGeneratorCore"]
+        ),
         .plugin(
             name: "ManualStubGenerator",
             capability: .command(
@@ -50,7 +76,54 @@ private func allTargets(includesCxxInteropTarget: Bool) -> [Target] {
                 ),
                 permissions: [.writeToPackageDirectory(reason: "Writes the generated Swift conformer you request.")]
             ),
-            dependencies: ["ManualStubGeneratorTool"]
+            dependencies: [
+                .target(
+                    name: "ManualStubGeneratorTool",
+                    condition: .when(traits: ["ManualStubGenerator"])
+                )
+            ]
+        ),
+        .target(
+            name: "TestDoublesMacros",
+            dependencies: [
+                "TestDoubles",
+                .target(
+                    name: "TestDoublesStubbableMacros",
+                    condition: .when(traits: ["StubbableMacros"])
+                )
+            ],
+            swiftSettings: [
+                .define(
+                    "TESTDOUBLES_STUBBABLE_MACROS",
+                    .when(traits: ["StubbableMacros"])
+                )
+            ]
+        ),
+        .macro(
+            name: "TestDoublesStubbableMacros",
+            dependencies: [
+                "ManualStubGeneratorCore",
+                .product(
+                    name: "SwiftCompilerPlugin",
+                    package: "swift-syntax",
+                    condition: .when(traits: ["StubbableMacros"])
+                ),
+                .product(
+                    name: "SwiftDiagnostics",
+                    package: "swift-syntax",
+                    condition: .when(traits: ["StubbableMacros"])
+                ),
+                .product(
+                    name: "SwiftSyntax",
+                    package: "swift-syntax",
+                    condition: .when(traits: ["StubbableMacros"])
+                ),
+                .product(
+                    name: "SwiftSyntaxMacros",
+                    package: "swift-syntax",
+                    condition: .when(traits: ["StubbableMacros"])
+                )
+            ]
         ),
         .target(
             name: "TestDoubles",
@@ -138,6 +211,22 @@ private func allTargets(includesCxxInteropTarget: Bool) -> [Target] {
                 "TestDoublesFixtures",
                 "TestDoublesResilientFixtures",
                 .product(name: "IssueReportingTestSupport", package: "swift-issue-reporting")
+            ]
+        ),
+        .testTarget(
+            name: "TestDoublesMacroTests",
+            dependencies: [
+                "TestDoubles",
+                .target(
+                    name: "TestDoublesMacros",
+                    condition: .when(traits: ["StubbableMacros"])
+                )
+            ],
+            swiftSettings: [
+                .define(
+                    "TESTDOUBLES_STUBBABLE_MACROS",
+                    .when(traits: ["StubbableMacros"])
+                )
             ]
         ),
         .testTarget(

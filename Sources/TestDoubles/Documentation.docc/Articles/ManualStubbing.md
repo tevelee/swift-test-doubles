@@ -52,10 +52,12 @@ stub.verify { $0.fetch(id: any()) }
 ### Generate a conformer with the optional command plugin
 
 For ordinary protocol requirements, invoke the `ManualStubGenerator` command
-plugin from the package checkout instead of writing the forwarding struct:
+plugin instead of writing the forwarding struct. It is disabled by default;
+from the TestDoubles package checkout, enable its `ManualStubGenerator` trait:
 
 ```sh
-swift package plugin --allow-writing-to-package-directory generate-manual-stub \
+swift package --traits ManualStubGenerator plugin \
+  --allow-writing-to-package-directory generate-manual-stub \
   WeatherService Sources/WeatherService.swift \
   Tests/WeatherServiceManualStub.swift
 ```
@@ -66,6 +68,55 @@ requirements and values created through generated initializers use the emitted
 `WeatherServiceManualStub.staticStub`, which is independently configurable.
 The plugin uses no parser-library dependency, and clients that do not invoke it
 neither build nor run it.
+
+### Generate a conformer with `@Stubbable`
+
+For the same ordinary requirement shapes, the `StubbableMacros` trait provides
+an annotation macro. This feature is independently disabled by default because
+it depends on SwiftSyntax. Enable it only in packages that want compile-time
+generation:
+
+```swift
+.package(
+    url: "https://github.com/tevelee/swift-test-doubles.git",
+    from: "0.1.0",
+    traits: ["StubbableMacros"]
+)
+```
+
+Add the macro product to the target that declares the protocol:
+
+```swift
+.target(
+    name: "Weather",
+    dependencies: [
+        .product(name: "TestDoublesMacros", package: "swift-test-doubles")
+    ]
+)
+```
+
+Then annotate the protocol and configure the generated `ManualStub` normally:
+
+```swift
+import TestDoublesMacros
+
+@Stubbable
+protocol WeatherService {
+    func forecast(for city: String) -> String
+}
+
+let stub = ManualStub<WeatherServiceManualStub>()
+stub.when { $0.forecast(for: "Budapest") }.thenReturn("Sunny")
+
+let service: any WeatherService = stub()
+// service.forecast(for: "Budapest") == "Sunny"
+```
+
+`@Stubbable` emits a peer named by appending `ManualStub` to the protocol name.
+The macro is deliberately a convenience layer over the same explicit
+forwarding code as the command plugin: generated source stays inspectable, and
+the hand-written ``ManualStub`` escape hatches remain available for requirement
+shapes that need custom forwarding.
 
 ### Forward requirements
 
