@@ -340,6 +340,23 @@ let translator: any Translator = Stub.make {
 Keep an explicit `Stub` when the test needs verification, reconfiguration, or
 the generated value more than once.
 
+### Reuse named setup
+
+Use a scenario to share ordinary `when` registrations while keeping the test's
+stub and verification close to the behavior under test:
+
+```swift
+let signedOut: StubScenario<any AccountService> = .init {
+    $0.when { $0.currentUser() }.thenReturn(nil)
+}
+
+let account = try Stub<any AccountService>()
+signedOut.apply(to: account)
+```
+
+Scenarios compose in first-match-wins registration order with `appending(_:)`.
+Use `AsyncStubScenario` when the setup records async requirements.
+
 ## Installation
 
 ```swift
@@ -515,6 +532,7 @@ The DocC catalog covers the rest of the surface, with examples:
 - [Getting Started](Sources/TestDoubles/Documentation.docc/Articles/GettingStarted.md): the guided tour.
 - [Async Behaviors](Sources/TestDoubles/Documentation.docc/Articles/AsyncBehaviors.md): delays, wedged dependencies, cancellation, and test-driven suspension.
 - [Inspecting Interactions](Sources/TestDoubles/Documentation.docc/Articles/InspectingInteractions.md): typed invocation access, cross-double ordering, unused-stub detection, placeholder registry, and reset.
+- [Reusable Scenarios](Sources/TestDoubles/Documentation.docc/Articles/ReusableScenarios.md): named, composable setup for generated and manual stubs.
 - [Recording and Replaying Interactions](Sources/TestDoubles/Documentation.docc/Articles/RecordAndReplay.md): capture a Spy's real calls into a fixture and replay them on a plain Stub later.
 - [Construction Guide](Sources/TestDoubles/Documentation.docc/Articles/ConstructionGuide.md): explicit requirements, getter effects, inheritance and composition ordering.
 - [Forwarding Spies](Sources/TestDoubles/Documentation.docc/Articles/ForwardingSpies.md): the forwarding boundary and diagnostics.

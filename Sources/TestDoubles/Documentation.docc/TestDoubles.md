@@ -80,6 +80,14 @@ isolation. See
 - ``RecordingSession``
 - ``InteractionFixture``
 
+### Reusable Setup
+
+- <doc:ReusableScenarios>
+- ``StubScenario``
+- ``ManualStubScenario``
+- ``AsyncStubScenario``
+- ``AsyncManualStubScenario``
+
 ### Dummy API
 
 - ``Dummy``
