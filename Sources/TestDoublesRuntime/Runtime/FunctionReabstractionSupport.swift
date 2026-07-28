@@ -229,10 +229,41 @@ package func hasOnlyExactlyMatchableExtendedFlags(
     }
 }
 
+/// Whether `function`'s own compiler-emitted type spelling shows a
+/// `throws(ErrorType)` clause, independent of the extended-flags metadata
+/// Echo reads back.
+///
+/// Observed on watchOS and visionOS Simulator for a closure that combines a
+/// `sending` parameter with a `sending` result (e.g. `@Sendable (sending
+/// String) -> sending String`): Echo's `isTypedThrows` bit reads back `true`
+/// for a closure that never declared `throws` at all, and the trailing
+/// `typedErrorType` pointer that a genuine typed-throws closure would store
+/// right after it is then read from the wrong offset, producing an address
+/// that crashes the process when something dereferences it (`FunctionType
+/// Metadata.getMetadata(at:)` reading e.g. address `0x10`). The demangled
+/// spelling is derived from the mangled type name string instead of that
+/// trailing metadata, so it stays trustworthy even when the flags word does
+/// not.
+private func demangledSpellingConfirmsTypedThrows(
+    _ function: FunctionTypeInfo
+) -> Bool {
+    guard
+        case .function(let syntax)? = DemangledTypeSyntax(
+            String(reflecting: function.type)
+        )
+    else {
+        return false
+    }
+    return syntax.effects.thrownError != nil
+}
+
 package func typedThrowingFunctionRuntimeUnsupportedReason(
     _ function: FunctionTypeInfo
 ) -> String? {
     guard function.effects.isTypedThrows else { return nil }
+    guard demangledSpellingConfirmsTypedThrows(function) else {
+        return "Typed-throws closure error metadata could not be resolved safely."
+    }
 
     // Echo's typed-throws field is not a usable `Any.Type` on the Swift 6.3
     // Linux x86_64 release runtime. Reading it can produce an invalid metadata
