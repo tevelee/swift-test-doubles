@@ -247,6 +247,11 @@ failures are reported as test issues at the `verify` call's own file and
 line. There is also `verifyNoMoreInteractions()` to catch calls no successful
 verification has covered.
 
+With Swift Testing, add the `TestDoublesTesting` product to your test target,
+then write `@Test(.testDoubles)` to make unused registrations a teardown
+failure for every `Stub`, `Spy`, or `ManualStub` created in that test. Use
+`@Test(.strictTestDoubles)` to require that every interaction is verified, too.
+
 For custom assertions, read recorded arguments as typed tuples with
 `invocations`; `describeInteractions()` dumps the whole call log as a
 human-readable, ordered string when a failing `verify` leaves you asking what

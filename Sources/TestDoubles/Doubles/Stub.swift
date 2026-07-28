@@ -22,6 +22,7 @@ public class Stub<P> {
     init(prepared: PreparedStub) {
         self.recorder = prepared.recorder
         self.storage = prepared.storage
+        TestDoubleTestingContext.session?.register(prepared.recorder)
     }
 
     /// Creates a stub from runtime-discovered or explicitly supplied

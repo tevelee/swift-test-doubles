@@ -19,7 +19,8 @@ let package = Package(
         .watchOS(.v9)
     ],
     products: [
-        .library(name: "TestDoubles", targets: ["TestDoubles"])
+        .library(name: "TestDoubles", targets: ["TestDoubles"]),
+        .library(name: "TestDoublesTesting", targets: ["TestDoublesTesting"])
     ],
     dependencies: [
         .package(
@@ -45,6 +46,13 @@ private func allTargets(includesCxxInteropTarget: Bool) -> [Target] {
                 "InternalRuntimeContract",
                 "TestDoublesRuntime",
                 "TestDoublesRuntimeSupport",
+                .product(name: "IssueReporting", package: "swift-issue-reporting")
+            ]
+        ),
+        .target(
+            name: "TestDoublesTesting",
+            dependencies: [
+                "TestDoubles",
                 .product(name: "IssueReporting", package: "swift-issue-reporting")
             ]
         ),
@@ -110,6 +118,7 @@ private func allTargets(includesCxxInteropTarget: Bool) -> [Target] {
             name: "TestDoublesTests",
             dependencies: [
                 "TestDoubles",
+                "TestDoublesTesting",
                 "TestDoublesRuntime",
                 "TestDoublesRuntimeMetadata",
                 "TestDoublesRuntimeSupport",

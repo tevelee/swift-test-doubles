@@ -43,7 +43,9 @@ public final class ManualStub<T: StubConformer> {
     /// Creates an empty manual stub. No requirements are validated up
     /// front — every requirement is discovered the first time your
     /// conformer forwards to it.
-    public init() {}
+    public init() {
+        TestDoubleTestingContext.session?.register(recorder)
+    }
 
     /// Returns a `T` backed by this stub, for use as the protocol type.
     /// ```swift
