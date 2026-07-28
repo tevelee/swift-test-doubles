@@ -1,20 +1,23 @@
 import TestDoubles
 import Testing
 
-private protocol ScenarioService {
+private protocol RuntimeScenarioService {
     func user(id: Int) -> String
     func load(id: Int) async -> String
 }
 
-private struct ManualScenarioService: ScenarioService, StubConformer {
+private protocol ManualScenarioServiceProtocol {
+    func user(id: Int) -> String
+}
+
+private struct ManualScenarioService: ManualScenarioServiceProtocol, StubConformer {
     let stub: ManualStub<Self>
 
     func user(id: Int) -> String { stub.user(id: id) }
-    func load(id: Int) async -> String { await stub.load(id: id) }
 }
 
-private func makeScenarioStub() throws -> Stub<any ScenarioService> {
-    try Stub<any ScenarioService>(
+private func makeScenarioStub() throws -> Stub<any RuntimeScenarioService> {
+    try Stub<any RuntimeScenarioService>(
         .method(Int.self, returning: String.self),
         .method(Int.self, returning: String.self, isAsync: true)
     )
@@ -22,17 +25,17 @@ private func makeScenarioStub() throws -> Stub<any ScenarioService> {
 
 @Suite struct TestDoubleScenarioTests {
     @Test func synchronousStubScenarioPackagesAndComposesRegistrations() throws {
-        let guest: StubScenario<any ScenarioService> = .init {
+        let guest: StubScenario<any RuntimeScenarioService> = .init {
             $0.when { $0.user(id: equal(0)) }.thenReturn("Guest")
         }
-        let fallback: StubScenario<any ScenarioService> = .init {
+        let fallback: StubScenario<any RuntimeScenarioService> = .init {
             $0.when { $0.user(id: any()) }.thenReturn("Member")
         }
         let stub = try makeScenarioStub()
 
         guest.appending(fallback).apply(to: stub)
 
-        let service: any ScenarioService = stub()
+        let service: any RuntimeScenarioService = stub()
         #expect(service.user(id: 0) == "Guest")
         #expect(service.user(id: 42) == "Member")
     }
@@ -45,12 +48,12 @@ private func makeScenarioStub() throws -> Stub<any ScenarioService> {
 
         scenario.apply(to: stub)
 
-        let service: any ScenarioService = stub()
+        let service: any ManualScenarioServiceProtocol = stub()
         #expect(service.user(id: 42) == "Member")
     }
 
     @Test func asyncScenarioRecordsAsyncRequirements() async throws {
-        let scenario: AsyncStubScenario<any ScenarioService> = .init {
+        let scenario: AsyncStubScenario<any RuntimeScenarioService> = .init {
             await $0.when { await $0.load(id: any()) }.then { (id: Int) async -> String in
                 "value:\(id)"
             }
@@ -59,7 +62,7 @@ private func makeScenarioStub() throws -> Stub<any ScenarioService> {
 
         await scenario.apply(to: stub)
 
-        let service: any ScenarioService = stub()
+        let service: any RuntimeScenarioService = stub()
         #expect(await service.load(id: 42) == "value:42")
     }
 }
