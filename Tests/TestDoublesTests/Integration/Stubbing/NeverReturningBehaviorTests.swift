@@ -66,7 +66,8 @@ private actor CompletionFlag {
 
     @Test func parkedCallsRemainObservableThroughVerification() async throws {
         let stub = try Stub<any NeverReturningWedgedService>()
-        await stub.when { try await $0.fetch(id: Match.any()) }.thenNeverReturn()
+        let calls = await stub.when { try await $0.fetch(id: Match.any()) }
+            .thenNeverReturn()
 
         let service: any NeverReturningWedgedService = stub()
         Task {
@@ -75,8 +76,6 @@ private actor CompletionFlag {
 
         // The invocation is recorded before the call parks, so eventual
         // verification observes it even though it never completes.
-        await stub.verify(1..., within: .seconds(1)) {
-            try await $0.fetch(id: Match.equal(7))
-        }
+        await calls.verify(1..., within: .seconds(1))
     }
 }

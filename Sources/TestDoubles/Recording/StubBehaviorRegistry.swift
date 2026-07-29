@@ -86,13 +86,13 @@ struct StubBehaviorRegistry {
 
         /// An unbounded run already answers every call from here on, so a
         /// fluent chain can never type-check an append after one — the
-        /// unbounded overloads return `Void`. A captured, explicitly
-        /// type-annotated handle can still reach this call, though, since the
-        /// annotation forces the compiler to select the chain-returning
-        /// overload regardless of what followed at the original call site.
-        /// This is the same mistake either way, so it gets the same
-        /// crash-with-diagnostic treatment as every other "there is no
-        /// sensible value here" situation in this library.
+        /// unbounded overloads return the observation-only `CallInteractions`
+        /// handle. A captured, explicitly type-annotated chain can still reach
+        /// this call, though, since the annotation forces the compiler to
+        /// select the chain-returning overload regardless of what followed at
+        /// the original call site. This is the same mistake either way, so it
+        /// gets the same crash-with-diagnostic treatment as every other
+        /// "there is no sensible value here" situation in this library.
         private func requireNotSealed() {
             guard case .unbounded = runs.last?.repeatCount else { return }
             fatalError(

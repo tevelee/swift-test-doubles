@@ -37,23 +37,24 @@ private final class SequencedResponder: @unchecked Sendable {
         let spy: Spy<any RecordingReplayWeatherService> = .make(forwardingTo: live)
         let session = RecordingSession()
 
-        spy.when { try $0.currentConditions(for: Match.any()) }
+        let recordedCalls = spy.when { try $0.currentConditions(for: Match.any()) }
             .thenRecord(as: "currentConditions", into: session) { city in
                 try live.currentConditions(for: city)
             }
 
         let recordedService: any RecordingReplayWeatherService = spy()
         #expect(try recordedService.currentConditions(for: "Berlin") == "sunny in Berlin")
+        recordedCalls.verify(1 ... 1)
 
         let fixture = session.snapshot()
         let stub = try Stub<any RecordingReplayWeatherService>()
-        stub.when { try $0.currentConditions(for: Match.any()) }
+        let replayedCalls = stub.when { try $0.currentConditions(for: Match.any()) }
             .thenReplay(as: "currentConditions", from: fixture)
 
         let replayedService: any RecordingReplayWeatherService = stub()
         #expect(try replayedService.currentConditions(for: "Berlin") == "sunny in Berlin")
         #expect(try replayedService.currentConditions(for: "anything") == "sunny in Berlin")
-        stub.verify(.exactly(2)) { try $0.currentConditions(for: Match.any()) }
+        replayedCalls.verify(2 ... 2)
     }
 
     @Test func replaysMultipleRecordedCallsInOrderThenRepeatsTheLast() throws {

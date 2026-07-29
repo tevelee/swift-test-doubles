@@ -19,28 +19,31 @@ extension CallPattern where Result: Encodable & Sendable {
     /// belong in the fixture. Replay the session's eventual
     /// ``InteractionFixture`` with ``thenReplay(as:from:)``. `Result` must be
     /// `Encodable` so it can be persisted as JSON.
+    @discardableResult
     public func thenRecord<each Argument>(
         as key: String,
         into session: RecordingSession,
         calling handler: @escaping @Sendable (repeat each Argument) throws -> Result
-    ) {
+    ) -> CallInteractions {
         requireOrdinaryResult()
         addStubBehavior { arguments, methodName in
             let result = try invokeTypedHandler(handler, with: arguments, method: methodName)
             session.recordSuccess(result, as: key)
             return result
         }
+        return interactions
     }
 
     /// Records both a successful result and a caller-defined, Codable request
     /// value. Replay it with `thenReplay(as:from:matching:redacting:)` to ensure a
     /// fixture response is selected only for the matching input.
+    @discardableResult
     public func thenRecord<Request: Encodable & Sendable, each Argument>(
         as key: String,
         into session: RecordingSession,
         recording request: @escaping @Sendable (repeat each Argument) -> Request,
         calling handler: @escaping @Sendable (repeat each Argument) throws -> Result
-    ) {
+    ) -> CallInteractions {
         requireOrdinaryResult()
         addStubBehavior { arguments, methodName in
             let result = try invokeTypedHandler(handler, with: arguments, method: methodName)
@@ -53,6 +56,7 @@ extension CallPattern where Result: Encodable & Sendable {
             session.recordSuccess(result, recording: recordedRequest, as: key)
             return result
         }
+        return interactions
     }
 
     /// Records successful results and errors of `Failure` into `session`.
@@ -60,12 +64,13 @@ extension CallPattern where Result: Encodable & Sendable {
     /// Replay the fixture through ``thenReplay(as:from:throwing:)``. Errors
     /// outside `Failure` still propagate but fail closed rather than being
     /// silently serialized under the wrong error type.
+    @discardableResult
     public func thenRecord<Failure: Error & Encodable & Sendable, each Argument>(
         as key: String,
         into session: RecordingSession,
         recordingErrorsAs _: Failure.Type,
         calling handler: @escaping @Sendable (repeat each Argument) throws -> Result
-    ) {
+    ) -> CallInteractions {
         requireOrdinaryResult()
         addStubBehavior { arguments, methodName in
             do {
@@ -77,15 +82,17 @@ extension CallPattern where Result: Encodable & Sendable {
                 throw error
             }
         }
+        return interactions
     }
 
     /// Async counterpart to `thenRecord(as:into:recordingErrorsAs:calling:)`.
+    @discardableResult
     public func thenRecord<Failure: Error & Encodable & Sendable, each Argument>(
         as key: String,
         into session: RecordingSession,
         recordingErrorsAs _: Failure.Type,
         calling handler: @escaping (repeat each Argument) async throws -> Result
-    ) {
+    ) -> CallInteractions {
         requireOrdinaryResult()
         addAsyncStubBehavior { arguments, methodName in
             do {
@@ -97,21 +104,24 @@ extension CallPattern where Result: Encodable & Sendable {
                 throw error
             }
         }
+        return interactions
     }
 
     /// The async form of ``thenRecord(as:into:calling:)-2d9h6``, for an async
     /// requirement forwarding to an async real dependency.
+    @discardableResult
     public func thenRecord<each Argument>(
         as key: String,
         into session: RecordingSession,
         calling handler: @escaping (repeat each Argument) async throws -> Result
-    ) {
+    ) -> CallInteractions {
         requireOrdinaryResult()
         addAsyncStubBehavior { arguments, methodName in
             let result = try await invokeTypedHandler(handler, with: arguments, method: methodName)
             session.recordSuccess(result, as: key)
             return result
         }
+        return interactions
     }
 }
 
@@ -124,7 +134,11 @@ extension CallPattern where Result: Decodable {
     /// `key` must match the one passed to `thenRecord(as:into:calling:)` when
     /// the fixture was captured, with at least one recorded call; otherwise
     /// this halts with a diagnostic naming the missing key.
-    public func thenReplay(as key: String, from fixture: InteractionFixture) {
+    @discardableResult
+    public func thenReplay(
+        as key: String,
+        from fixture: InteractionFixture
+    ) -> CallInteractions {
         requireOrdinaryResult()
         let values = fixture.decodedResults(as: key, resultType: Result.self)
         guard let first = values.first else {
@@ -139,6 +153,7 @@ extension CallPattern where Result: Decodable {
             values.dropLast().map { (fixedAnswer(.success($0), after: nil), .exactly(1)) }
             + [(fixedAnswer(.success(values.last ?? first), after: nil), .unbounded)]
         _ = makeBehaviorChain(answers)
+        return interactions
     }
 
     /// Replays a fixture result selected by an encoded request value.
@@ -147,12 +162,13 @@ extension CallPattern where Result: Decodable {
     /// repeats its final response once exhausted. A request absent from the
     /// fixture fails closed instead of accidentally consuming another input's
     /// recording.
+    @discardableResult
     public func thenReplay<Request: Encodable & Sendable, each Argument>(
         as key: String,
         from fixture: InteractionFixture,
         matching request: @escaping @Sendable (repeat each Argument) -> Request,
         redacting redactor: FixtureRedactor = .none
-    ) where Result: Sendable {
+    ) -> CallInteractions where Result: Sendable {
         requireOrdinaryResult()
         let cursor = InteractionFixtureReplayCursor()
         let recorder = recorder
@@ -178,17 +194,19 @@ extension CallPattern where Result: Decodable {
             recorder.requireReturnValueMatchesRuntimeType(value, for: methodIndex)
             return value
         }
+        return interactions
     }
 
     /// Replays successful results and recorded `Failure` values in fixture order.
     ///
     /// The recorded requirement must be able to throw `Failure`. For a
     /// typed-throws requirement, pass its declared error type.
+    @discardableResult
     public func thenReplay<Failure: Error & Decodable & Sendable>(
         as key: String,
         from fixture: InteractionFixture,
         throwing _: Failure.Type
-    ) where Result: Sendable {
+    ) -> CallInteractions where Result: Sendable {
         requireOrdinaryResult()
         let outcomes = fixture.decodedOutcomes(
             as: key,
@@ -213,6 +231,7 @@ extension CallPattern where Result: Decodable {
                     throw error
             }
         }
+        return interactions
     }
 }
 

@@ -95,6 +95,21 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
         }
     }
 
+    @Test func terminalHandlerCanBeSavedAndObserved() throws {
+        let stub = try makeHandlerArityStub()
+        let calls = stub.when { $0.one(Match.any()) }.then { (value: Int) in
+            value * 2
+        }
+
+        let probe: any HandlerArityProbe = stub()
+        #expect(probe.one(10) == 20)
+        #expect(probe.one(21) == 42)
+
+        calls.verify(2 ... 2)
+        let arguments: [Int] = calls.arguments()
+        #expect(arguments == [10, 21])
+    }
+
     @Test func thenReturnSequenceServesConsecutiveValuesAndRepeatsTheLast() throws {
         let stub = try makeHandlerArityStub()
         stub.when { $0.one(Match.any()) }.thenReturn(1, 2, 3)

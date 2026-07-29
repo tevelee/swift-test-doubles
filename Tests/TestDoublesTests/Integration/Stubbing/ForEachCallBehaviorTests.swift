@@ -22,7 +22,7 @@ private enum ForEachCallError: Error, Equatable {
 @Suite struct ForEachCallBehaviorTests {
     @Test func failsTwiceThenRecoversByCall() throws {
         let loader = try Stub<any ForEachCallLoader>()
-        loader.when { try $0.loadFeed() }.thenForEachCall { (attempt: Int) in
+        let calls = loader.when { try $0.loadFeed() }.thenForEachCall { (attempt: Int) in
             if attempt < 3 { throw ForEachCallError.timeout }
             return ["Hello, world"]
         }
@@ -32,7 +32,7 @@ private enum ForEachCallError: Error, Equatable {
         #expect(throws: ForEachCallError.timeout) { try feed.loadFeed() }
         #expect(try feed.loadFeed() == ["Hello, world"])
 
-        loader.verify(.exactly(3)) { try $0.loadFeed() }
+        calls.verify(3 ... 3)
     }
 
     @Test func passesBothCountAndTypedArguments() throws {

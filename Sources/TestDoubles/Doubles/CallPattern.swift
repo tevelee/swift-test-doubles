@@ -185,9 +185,11 @@ public struct CallPattern<Result>: Sendable {
     /// does not await, and pair it with the timeout path under test. The
     /// invocation is recorded before parking, so verification (including
     /// `verify(_:within:)`) observes calls that never complete.
-    public func thenNeverReturn() {
+    @discardableResult
+    public func thenNeverReturn() -> CallInteractions {
         requireOrdinaryResult()
         _ = makeBehaviorChain([(neverAnswer(), .unbounded)])
+        return interactions
     }
 
     /// Forwards every matching invocation from here on to the spy's real
@@ -200,9 +202,11 @@ public struct CallPattern<Result>: Sendable {
     /// At the end of a chain it hands the remaining calls back to the live
     /// implementation, such as failing twice and then recovering for real.
     /// Forwarded calls are recorded and verifiable like any other.
-    public func thenForward() {
+    @discardableResult
+    public func thenForward() -> CallInteractions {
         requireOrdinaryResult()
         _ = makeBehaviorChain([(forwardAnswer(), .unbounded)])
+        return interactions
     }
 
     /// Parks every matching invocation from here on and hands control to the
@@ -243,33 +247,41 @@ public struct CallPattern<Result>: Sendable {
     /// The requirement must be async. A call whose task is already cancelled
     /// completes immediately, and the invocation is recorded before parking,
     /// so verification observes calls still awaiting cancellation.
-    public func thenAwaitCancellation() {
+    @discardableResult
+    public func thenAwaitCancellation() -> CallInteractions {
         requireOrdinaryResult()
         requireImplicitCancellationOutcome(returning: Result.self)
         _ = makeBehaviorChain([(awaitCancellationAnswer(nil), .unbounded)])
+        return interactions
     }
 
     /// Parks every matching invocation from here on until its task is
     /// cancelled, then completes it with `value`. This is terminal, like the
     /// unbounded `thenReturn`/`thenThrow`. See
     /// ``CallPattern/thenAwaitCancellation()`` for the full contract.
-    public func thenAwaitCancellation(returning value: Result) {
+    @discardableResult
+    public func thenAwaitCancellation(returning value: Result) -> CallInteractions {
         requireOrdinaryResult()
         recorder.requireReturnValueMatchesRuntimeType(
             value,
             for: recording.methodIndex
         )
         _ = makeBehaviorChain([(awaitCancellationAnswer(.success(value)), .unbounded)])
+        return interactions
     }
 
     /// Parks every matching invocation from here on until its task is
     /// cancelled, then throws `error`. This is terminal, like the unbounded
     /// `thenReturn`/`thenThrow`. See ``CallPattern/thenAwaitCancellation()``
     /// for the full contract.
-    public func thenAwaitCancellation<Failure: Error>(throwing error: Failure) {
+    @discardableResult
+    public func thenAwaitCancellation<Failure: Error>(
+        throwing error: Failure
+    ) -> CallInteractions {
         let method = requireOrdinaryResult()
         requireValidThrownError(error, for: method)
         _ = makeBehaviorChain([(awaitCancellationAnswer(.failure(error)), .unbounded)])
+        return interactions
     }
 
     /// Handles a matching invocation whose first argument needs to preserve
@@ -277,13 +289,14 @@ public struct CallPattern<Result>: Sendable {
     ///
     /// This overload preserves the argument's escaping convention, which a
     /// closure nested inside a parameter pack cannot currently express.
+    @discardableResult
     public func thenEscaping<FirstArgument, each AdditionalArgument>(
         _ handler:
             @escaping @Sendable (
                 FirstArgument,
                 repeat each AdditionalArgument
             ) throws -> Result
-    ) {
+    ) -> CallInteractions {
         requireOrdinaryResult()
         addStubBehavior { arguments, methodName in
             var index = 1
@@ -306,6 +319,7 @@ public struct CallPattern<Result>: Sendable {
                 repeat nextArgument((each AdditionalArgument).self)
             )
         }
+        return interactions
     }
 
     /// Asynchronously handles a matching invocation whose first argument needs
@@ -313,13 +327,14 @@ public struct CallPattern<Result>: Sendable {
     ///
     /// This overload preserves the argument's escaping convention, which a
     /// closure nested inside a parameter pack cannot currently express.
+    @discardableResult
     public func thenEscaping<FirstArgument, each AdditionalArgument>(
         _ handler:
             @escaping (
                 FirstArgument,
                 repeat each AdditionalArgument
             ) async throws -> Result
-    ) {
+    ) -> CallInteractions {
         requireOrdinaryResult()
         addAsyncStubBehavior { arguments, methodName in
             var index = 1
@@ -342,13 +357,15 @@ public struct CallPattern<Result>: Sendable {
                 repeat nextArgument((each AdditionalArgument).self)
             )
         }
+        return interactions
     }
 
     /// Handles a matching invocation whose sole argument needs to preserve
     /// its concrete value type, including an escaping closure.
+    @discardableResult
     public func then<Argument>(
         _ handler: @escaping @Sendable (Argument) throws -> Result
-    ) {
+    ) -> CallInteractions {
         requireOrdinaryResult()
         addStubBehavior { arguments, methodName in
             try handler(
@@ -360,6 +377,7 @@ public struct CallPattern<Result>: Sendable {
                 )
             )
         }
+        return interactions
     }
 
     /// Handles a matching invocation with typed arguments.
@@ -368,13 +386,15 @@ public struct CallPattern<Result>: Sendable {
     ///   requirement's arguments in type and order. Trailing arguments may be
     ///   omitted. A handler that throws at runtime requires a throwing
     ///   requirement.
+    @discardableResult
     public func then<each Argument>(
         _ handler: @escaping @Sendable (repeat each Argument) throws -> Result
-    ) {
+    ) -> CallInteractions {
         requireOrdinaryResult()
         addStubBehavior { arguments, methodName in
             try invokeTypedHandler(handler, with: arguments, method: methodName)
         }
+        return interactions
     }
 
     /// Handles a matching async invocation with typed arguments.
@@ -388,13 +408,15 @@ public struct CallPattern<Result>: Sendable {
     /// async stub configured from an actor resumes there. When invoking the
     /// generated existential concurrently, the handler must therefore either
     /// be actor-isolated or protect any mutable captures itself.
+    @discardableResult
     public func then<each Argument>(
         _ handler: @escaping (repeat each Argument) async throws -> Result
-    ) {
+    ) -> CallInteractions {
         requireOrdinaryResult()
         addAsyncStubBehavior { arguments, methodName in
             try await invokeTypedHandler(handler, with: arguments, method: methodName)
         }
+        return interactions
     }
 
     @discardableResult
@@ -449,30 +471,34 @@ public struct CallPattern<Result>: Sendable {
 
     /// Returns `value` after `delay` measured by `clock` for every matching
     /// invocation. Use ``ManualStubClock`` to advance time deterministically.
+    @discardableResult
     public func thenReturn(
         _ value: Result,
         after delay: Duration,
         using clock: any StubClock
-    ) {
+    ) -> CallInteractions {
         requireOrdinaryResult()
         recorder.requireReturnValueMatchesRuntimeType(value, for: recording.methodIndex)
         _ = makeBehaviorChain([
             (fixedAnswer(.success(value), after: delay, using: clock), .unbounded)
         ])
+        return interactions
     }
 
     /// Throws `error` after `delay` measured by `clock` for every matching
     /// invocation.
+    @discardableResult
     public func thenThrow<Failure: Error>(
         _ error: Failure,
         after delay: Duration,
         using clock: any StubClock
-    ) {
+    ) -> CallInteractions {
         let method = requireOrdinaryResult()
         requireValidThrownError(error, for: method)
         _ = makeBehaviorChain([
             (fixedAnswer(.failure(error), after: delay, using: clock), .unbounded)
         ])
+        return interactions
     }
 
     /// Configures a finite, inspectable queue of errors.
@@ -680,45 +706,57 @@ public struct StubBehaviorChain<Result> {
     /// Parks every matching invocation from here on, never completing it.
     /// This is terminal, like the unbounded `thenReturn`/`thenThrow`. See
     /// ``CallPattern/thenNeverReturn()`` for the full contract.
-    public func thenNeverReturn() {
+    @discardableResult
+    public func thenNeverReturn() -> CallInteractions {
         sequence.append(neverAnswer(), times: .unbounded)
+        return interactions
     }
 
     /// Forwards every matching invocation from here on to the spy's real
     /// target. This is terminal, like the unbounded `thenReturn`/`thenThrow`.
     /// See ``CallPattern/thenForward()`` for the full contract.
-    public func thenForward() {
+    @discardableResult
+    public func thenForward() -> CallInteractions {
         sequence.append(forwardAnswer(), times: .unbounded)
+        return interactions
     }
 
     /// Parks every matching invocation from here on until its task is
     /// cancelled, then completes it with the requirement's implicit outcome.
     /// This is terminal, like the unbounded `thenReturn`/`thenThrow`. See
     /// ``CallPattern/thenAwaitCancellation()`` for the full contract.
-    public func thenAwaitCancellation() {
+    @discardableResult
+    public func thenAwaitCancellation() -> CallInteractions {
         requireImplicitCancellationOutcome(returning: Result.self)
         sequence.append(awaitCancellationAnswer(nil), times: .unbounded)
+        return interactions
     }
 
     /// Parks every matching invocation from here on until its task is
     /// cancelled, then completes it with `value`. This is terminal, like the
     /// unbounded `thenReturn`/`thenThrow`. See
     /// ``CallPattern/thenAwaitCancellation()`` for the full contract.
-    public func thenAwaitCancellation(returning value: Result) {
+    @discardableResult
+    public func thenAwaitCancellation(returning value: Result) -> CallInteractions {
         recorder.requireReturnValueMatchesRuntimeType(
             value,
             for: recording.methodIndex
         )
         sequence.append(awaitCancellationAnswer(.success(value)), times: .unbounded)
+        return interactions
     }
 
     /// Parks every matching invocation from here on until its task is
     /// cancelled, then throws `error`. This is terminal, like the unbounded
     /// `thenReturn`/`thenThrow`. See ``CallPattern/thenAwaitCancellation()``
     /// for the full contract.
-    public func thenAwaitCancellation<Failure: Error>(throwing error: Failure) {
+    @discardableResult
+    public func thenAwaitCancellation<Failure: Error>(
+        throwing error: Failure
+    ) -> CallInteractions {
         let method = requireRuntimeMethod()
         requireValidThrownError(error, for: method)
         sequence.append(awaitCancellationAnswer(.failure(error)), times: .unbounded)
+        return interactions
     }
 }

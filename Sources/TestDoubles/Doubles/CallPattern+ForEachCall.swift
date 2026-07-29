@@ -24,9 +24,10 @@ extension CallPattern {
     ///   of the requirement's arguments in type and order. Trailing arguments
     ///   may be omitted, down to a handler taking only the count. A handler
     ///   that throws at runtime requires a throwing requirement.
+    @discardableResult
     public func thenForEachCall<each Argument>(
         _ handler: @escaping @Sendable (Int, repeat each Argument) throws -> Result
-    ) {
+    ) -> CallInteractions {
         requireOrdinaryResult()
         let counter = InvocationCounter()
         addStubBehavior { arguments, methodName in
@@ -37,15 +38,17 @@ extension CallPattern {
                 method: methodName
             )
         }
+        return interactions
     }
 
     /// Handles each matching async invocation with a running call count as the
     /// handler's first argument, ahead of the requirement's typed arguments.
     /// See ``CallPattern/thenForEachCall(_:)-5yw9y`` for the counting contract;
     /// the requirement must be async.
+    @discardableResult
     public func thenForEachCall<each Argument>(
         _ handler: @escaping (Int, repeat each Argument) async throws -> Result
-    ) {
+    ) -> CallInteractions {
         requireOrdinaryResult()
         let counter = InvocationCounter()
         addAsyncStubBehavior { arguments, methodName in
@@ -56,5 +59,6 @@ extension CallPattern {
                 method: methodName
             )
         }
+        return interactions
     }
 }

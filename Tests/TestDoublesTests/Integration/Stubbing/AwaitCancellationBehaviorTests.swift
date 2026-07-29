@@ -27,13 +27,14 @@ private actor CompletionFlag {
 @Suite struct AwaitCancellationBehaviorTests {
     @Test func bareFormThrowsCancellationErrorOnAThrowingRequirement() async throws {
         let stub = try Stub<any AwaitCancellationService>()
-        await stub.when { try await $0.fetch(id: Match.any()) }.thenAwaitCancellation()
+        let calls = await stub.when { try await $0.fetch(id: Match.any()) }
+            .thenAwaitCancellation()
 
         let service: any AwaitCancellationService = stub()
         let task = Task {
             try await service.fetch(id: 1)
         }
-        await stub.verify(1..., within: .seconds(1)) { try await $0.fetch(id: Match.any()) }
+        await calls.verify(1..., within: .seconds(1))
         task.cancel()
 
         await #expect(throws: CancellationError.self) {
