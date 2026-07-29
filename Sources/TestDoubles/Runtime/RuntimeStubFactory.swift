@@ -253,43 +253,46 @@ extension Stub {
         forwardingTo target: P,
         getterEffects: SpyGetterEffectInput<P>
     ) throws -> PreparedStub {
-        let plan: RuntimeStubFactory.PreparedPlan<P> =
-            try RuntimeStubFactory
-            .prepareForwardingStub(
-                to: target,
-                request: runtimePreparationRequest(
-                    requirements: .automatic,
-                    getterEffects: runtimeGetterEffects(getterEffects)
+        try prepare {
+            let plan: RuntimeStubFactory.PreparedPlan<P> =
+                try RuntimeStubFactory.prepareForwardingStub(
+                    to: target,
+                    request: runtimePreparationRequest(
+                        requirements: .automatic,
+                        getterEffects: runtimeGetterEffects(getterEffects)
+                    )
                 )
-            )
-        return try prepare(plan)
+            return plan
+        }
     }
 
     static func prepare() throws -> PreparedStub {
-        try prepare(
-            RuntimeStubFactory.prepareStub(
+        try prepare {
+            try RuntimeStubFactory.prepareStub(
                 runtimePreparationRequest(
                     requirements: .automatic,
                     getterEffects: .automatic
                 )
-            ))
+            )
+        }
     }
 
     static func prepare(getterEffects: [GetterEffect]) throws -> PreparedStub {
-        try prepare(
-            RuntimeStubFactory.prepareStub(
+        try prepare {
+            try RuntimeStubFactory.prepareStub(
                 runtimePreparationRequest(
                     requirements: .automatic,
                     getterEffects: .flat(getterEffects.map(\.isThrowing))
                 )
-            ))
+            )
+        }
     }
 
     static func prepare(
         getterEffectGroups: [ProtocolGetterEffects]
     ) throws -> PreparedStub {
-        try prepare(
-            RuntimeStubFactory.prepareStub(
+        try prepare {
+            try RuntimeStubFactory.prepareStub(
                 runtimePreparationRequest(
                     requirements: .automatic,
                     getterEffects: .grouped(
@@ -300,24 +303,26 @@ extension Stub {
                             )
                         })
                 )
-            ))
+            )
+        }
     }
 
     static func prepare(requirements: [Requirement]) throws -> PreparedStub {
-        try prepare(
-            RuntimeStubFactory.prepareStub(
+        try prepare {
+            try RuntimeStubFactory.prepareStub(
                 runtimePreparationRequest(
                     requirements: .flat(requirements.map(\.runtimeSchema)),
                     getterEffects: .automatic
                 )
-            ))
+            )
+        }
     }
 
     static func prepare(
         requirementGroups: [ProtocolRequirements]
     ) throws -> PreparedStub {
-        try prepare(
-            RuntimeStubFactory.prepareStub(
+        try prepare {
+            try RuntimeStubFactory.prepareStub(
                 runtimePreparationRequest(
                     requirements: .grouped(
                         requirementGroups.map {
@@ -328,7 +333,8 @@ extension Stub {
                         }),
                     getterEffects: .automatic
                 )
-            ))
+            )
+        }
     }
 
     static func prepare(
@@ -339,14 +345,15 @@ extension Stub {
             requirements.isEmpty
             ? .automatic
             : .flat(requirements.map(\.runtimeSchema))
-        return try prepare(
-            RuntimeStubFactory.prepareStub(
+        return try prepare {
+            try RuntimeStubFactory.prepareStub(
                 runtimePreparationRequest(
                     callerAssociatedTypeBindings: callerAssociatedTypeBindings,
                     requirements: requirementInput,
                     getterEffects: .automatic
                 )
-            ))
+            )
+        }
     }
 
     static func prepareDummy() throws -> Dummy<P>.PreparedDummy {
@@ -366,8 +373,11 @@ extension Stub {
     }
 
     private static func prepare(
-        _ plan: RuntimeStubFactory.PreparedPlan<P>
+        _ preparePlan: () throws -> RuntimeStubFactory.PreparedPlan<P>
     ) throws -> PreparedStub {
+        let constructionStartedAt = ContinuousClock.now
+        let plan = try preparePlan()
+        let planPreparedAt = ContinuousClock.now
         let recorder = StubRecorder(
             methods: plan.methods,
             modifyDispatchDescriptors: plan.modifyDispatches,
@@ -378,7 +388,19 @@ extension Stub {
             endpoint: endpoint,
             protocolName: String(reflecting: P.self)
         )
-        return PreparedStub(recorder: recorder, storage: storage)
+        let materializedAt = ContinuousClock.now
+        return PreparedStub(
+            recorder: recorder,
+            storage: storage,
+            constructionPerformance: StubPerformanceDiagnostics.Construction(
+                planPreparationDuration: constructionStartedAt.duration(
+                    to: planPreparedAt
+                ),
+                materializationDuration: planPreparedAt.duration(
+                    to: materializedAt
+                )
+            )
+        )
     }
 
     private static func runtimePreparationRequest(

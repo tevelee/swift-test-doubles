@@ -17,11 +17,13 @@ public class Stub<P> {
     struct PreparedStub {
         let recorder: StubRecorder
         let storage: RuntimeStubFactory.Storage<P>
+        let constructionPerformance: StubPerformanceDiagnostics.Construction
     }
 
     init(prepared: PreparedStub) {
         self.recorder = prepared.recorder
         self.storage = prepared.storage
+        constructionPerformance = prepared.constructionPerformance
         if let session = TestDoubleTestingContext.session {
             session.register(prepared.recorder)
             let recorder = prepared.recorder
@@ -30,6 +32,8 @@ public class Stub<P> {
             }
         }
     }
+
+    let constructionPerformance: StubPerformanceDiagnostics.Construction
 
     /// Creates a stub from runtime-discovered or explicitly supplied
     /// requirement signatures.

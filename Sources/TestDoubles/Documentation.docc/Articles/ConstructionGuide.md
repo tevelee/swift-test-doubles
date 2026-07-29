@@ -33,6 +33,28 @@ concurrent calls are safe. Failed preparation is deliberately not cached, so
 loading a conformance or resilient protocol image can make a later attempt
 succeed.
 
+### Inspect construction and dispatch performance
+
+Every runtime stub and spy exposes a point-in-time
+``Stub/performanceDiagnostics`` snapshot:
+
+```swift
+let diagnostics = stub.performanceDiagnostics
+print(diagnostics.construction.planPreparationDuration)
+print(diagnostics.construction.materializationDuration)
+print(diagnostics.dispatch.maximumDuration as Any)
+print(diagnostics)
+```
+
+Construction separates reusable plan lookup or preparation from recorder and
+generated-value materialization. Dispatch reports completed and pending calls,
+total, average, and maximum latency, plus per-requirement aggregates ordered by
+their slowest call. The durations are end-to-end: matcher evaluation,
+before-call hooks, async suspension, and spy forwarding are included.
+After-call hooks run after the completion timestamp. Treat these values as
+diagnostics for finding slow test-double paths, not as isolated CPU benchmark
+results. Reading a snapshot does not verify or mutate interaction history.
+
 ### Automatic discovery
 
 The zero-argument initializer first discovers requirement signatures from

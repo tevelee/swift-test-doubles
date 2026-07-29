@@ -129,6 +129,7 @@ extension StubRecorder {
             recordPlaceholder(method: methodIndex, name: method.name, args: args)
             return .placeholder
         }
+        let startedAt = ContinuousClock.now
         let callStack = capturedCallStack()
 
         while true {
@@ -142,7 +143,8 @@ extension StubRecorder {
                         recordForwardedInvocation(
                             method: method,
                             args: args,
-                            callStack: callStack
+                            callStack: callStack,
+                            startedAt: startedAt
                         )
                     )
                 }
@@ -169,7 +171,8 @@ extension StubRecorder {
                         recordForwardedInvocation(
                             method: method,
                             args: args,
-                            callStack: callStack
+                            callStack: callStack,
+                            startedAt: startedAt
                         )
                     )
                 }
@@ -213,6 +216,7 @@ extension StubRecorder {
                             origin: origin,
                             registrationSignature: entry.diagnosticSignature,
                             callStack: callStack,
+                            startedAt: startedAt,
                             completionActions: entry.sideEffects.after.map { effect in
                                 { effect(args) }
                             },
@@ -416,7 +420,8 @@ extension StubRecorder {
     private func recordForwardedInvocation(
         method: RuntimeMethod,
         args: [Any],
-        callStack: [String]?
+        callStack: [String]?,
+        startedAt: ContinuousClock.Instant
     ) -> RecordedCallToken {
         let appended = withLockedPolicy {
             $0.invocationLedger.append(
@@ -424,6 +429,7 @@ extension StubRecorder {
                 name: method.name,
                 origin: .forwarded,
                 callStack: callStack,
+                startedAt: startedAt,
                 args: args,
                 argumentConventions: recordingArgumentConventions(for: method),
                 runtimePayloadRecorder: self

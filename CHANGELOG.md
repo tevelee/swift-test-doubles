@@ -53,6 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   manual-stub conformers when a target's protocol sources change.
 - Public `Stub.prewarm()` support for resolving and caching automatic protocol
   preparation plans without constructing a test double.
+- Per-stub construction and dispatch performance snapshots with phase timing,
+  pending/completed counts, and slowest-method aggregates.
 
 ## [0.0.2] - 2026-07-29
 

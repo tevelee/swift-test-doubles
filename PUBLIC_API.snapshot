@@ -78,6 +78,11 @@ conformance	TestDoubles	StubFailableInitializerBuilder.Outcome	Swift.Sendable	[]
 conformance	TestDoubles	StubOptionalSelfResultBuilder.Outcome	Swift.Equatable	[]
 conformance	TestDoubles	StubOptionalSelfResultBuilder.Outcome	Swift.Hashable	[]
 conformance	TestDoubles	StubOptionalSelfResultBuilder.Outcome	Swift.Sendable	[]
+conformance	TestDoubles	StubPerformanceDiagnostics	Swift.CustomStringConvertible	[]
+conformance	TestDoubles	StubPerformanceDiagnostics	Swift.Sendable	[]
+conformance	TestDoubles	StubPerformanceDiagnostics.Construction	Swift.Sendable	[]
+conformance	TestDoubles	StubPerformanceDiagnostics.Dispatch	Swift.Sendable	[]
+conformance	TestDoubles	StubPerformanceDiagnostics.MethodDispatch	Swift.Sendable	[]
 conformance	TestDoubles	StubSuspension	Swift.Sendable	[{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 conformance	TestDoubles	ThrowingClosureCallPattern	Swift.Sendable	[]
 conformance	TestDoubles	ThrowingClosureDouble	Swift.Sendable	[{"kind":"conformance","lhs":"Input","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Input","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Input","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
@@ -762,12 +767,33 @@ symbol	TestDoubles	swift.property	Match.Capture.last	var last: T? { get }
 symbol	TestDoubles	swift.property	Match.Capture.values	var values: [T] { get }
 symbol	TestDoubles	swift.property	ParameterizedTestDoubleScenario.name	let name: String?
 symbol	TestDoubles	swift.property	Stub.history	var history: InteractionHistory { get }
+symbol	TestDoubles	swift.property	Stub.performanceDiagnostics	var performanceDiagnostics: StubPerformanceDiagnostics { get }
 symbol	TestDoubles	swift.property	StubBehaviorChain.behaviorQueue	let behaviorQueue: StubBehaviorQueue
 symbol	TestDoubles	swift.property	StubBehaviorChain.interactions	var interactions: CallInteractions { get }
 symbol	TestDoubles	swift.property	StubBehaviorQueue.interactions	let interactions: CallInteractions
 symbol	TestDoubles	swift.property	StubBehaviorQueue.isExhausted	var isExhausted: Bool { get }
 symbol	TestDoubles	swift.property	StubBehaviorQueue.remainingAnswerCount	var remainingAnswerCount: Int? { get }
 symbol	TestDoubles	swift.property	StubError.description	var description: String { get }
+symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.Construction.materializationDuration	let materializationDuration: Duration
+symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.Construction.planPreparationDuration	let planPreparationDuration: Duration
+symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.Construction.totalDuration	let totalDuration: Duration
+symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.Dispatch.averageDuration	let averageDuration: Duration?
+symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.Dispatch.callCount	let callCount: Int
+symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.Dispatch.completedCallCount	let completedCallCount: Int
+symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.Dispatch.maximumDuration	let maximumDuration: Duration?
+symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.Dispatch.methods	let methods: [MethodDispatch]
+symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.Dispatch.pendingCallCount	let pendingCallCount: Int
+symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.Dispatch.totalDuration	let totalDuration: Duration
+symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.MethodDispatch.averageDuration	let averageDuration: Duration?
+symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.MethodDispatch.callCount	let callCount: Int
+symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.MethodDispatch.completedCallCount	let completedCallCount: Int
+symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.MethodDispatch.maximumDuration	let maximumDuration: Duration?
+symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.MethodDispatch.method	let method: String
+symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.MethodDispatch.pendingCallCount	let pendingCallCount: Int
+symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.MethodDispatch.totalDuration	let totalDuration: Duration
+symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.construction	let construction: Construction
+symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.description	var description: String { get }
+symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.dispatch	let dispatch: Dispatch
 symbol	TestDoubles	swift.property	StubSuspension.interactions	let interactions: CallInteractions
 symbol	TestDoubles	swift.property	TestDoubleScenario.name	let name: String?
 symbol	TestDoubles	swift.property	ThrowingClosureCallPattern.callCount	var callCount: Int { get }
@@ -815,6 +841,10 @@ symbol	TestDoubles	swift.struct	StubBehaviorChain	struct StubBehaviorChain<Resul
 symbol	TestDoubles	swift.struct	StubFailableInitializerBuilder	struct StubFailableInitializerBuilder
 symbol	TestDoubles	swift.struct	StubInitializerBuilder	struct StubInitializerBuilder
 symbol	TestDoubles	swift.struct	StubOptionalSelfResultBuilder	struct StubOptionalSelfResultBuilder
+symbol	TestDoubles	swift.struct	StubPerformanceDiagnostics	struct StubPerformanceDiagnostics
+symbol	TestDoubles	swift.struct	StubPerformanceDiagnostics.Construction	struct Construction
+symbol	TestDoubles	swift.struct	StubPerformanceDiagnostics.Dispatch	struct Dispatch
+symbol	TestDoubles	swift.struct	StubPerformanceDiagnostics.MethodDispatch	struct MethodDispatch
 symbol	TestDoubles	swift.struct	StubSelfResultBuilder	struct StubSelfResultBuilder
 symbol	TestDoubles	swift.struct	TestDoubleScenario	struct TestDoubleScenario<Subject>
 symbol	TestDoubles	swift.struct	ThrowingClosureCallPattern	struct ThrowingClosureCallPattern<Input, Result>

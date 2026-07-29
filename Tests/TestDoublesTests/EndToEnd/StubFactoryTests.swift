@@ -11,7 +11,7 @@ struct LiveFactoryCurrencyService: FactoryCurrencyService {
     var currency: String { "USD" }
 }
 
-protocol FactoryAsyncService {
+protocol FactoryAsyncService: Sendable {
     func load() async -> String
 }
 
@@ -79,6 +79,59 @@ struct StubFactoryTests {
         #expect(throws: StubError.self) {
             try Stub<Int>.prewarm()
         }
+    }
+
+    @Test func reportsConstructionAndDispatchPerformance() throws {
+        _ = LiveFactoryCurrencyService()
+        let stub = try Stub<any FactoryCurrencyService>()
+        let empty = stub.performanceDiagnostics
+
+        #expect(
+            empty.construction.totalDuration
+                == empty.construction.planPreparationDuration
+                + empty.construction.materializationDuration
+        )
+        #expect(empty.dispatch.callCount == 0)
+        #expect(empty.dispatch.averageDuration == nil)
+
+        stub.when { $0.currency }.thenReturn("EUR")
+        #expect(stub().currency == "EUR")
+        #expect(stub().currency == "EUR")
+
+        let diagnostics = stub.performanceDiagnostics
+        #expect(diagnostics.dispatch.callCount == 2)
+        #expect(diagnostics.dispatch.completedCallCount == 2)
+        #expect(diagnostics.dispatch.pendingCallCount == 0)
+        #expect(diagnostics.dispatch.averageDuration != nil)
+        #expect(diagnostics.dispatch.maximumDuration != nil)
+        #expect(diagnostics.dispatch.methods.count == 1)
+        #expect(diagnostics.dispatch.methods[0].method.contains("currency"))
+        #expect(diagnostics.dispatch.methods[0].callCount == 2)
+        #expect(diagnostics.description.contains("Construction:"))
+        #expect(diagnostics.description.contains("Dispatch: 2 calls"))
+    }
+
+    @Test func performanceDiagnosticsIncludePendingAsyncDispatch() async throws {
+        let stub = try Stub<any FactoryAsyncService>()
+        let suspension = await stub.when { await $0.load() }.thenSuspend()
+        let service: any FactoryAsyncService = stub()
+        let task = Task { await service.load() }
+        await suspension.waitForCall()
+
+        let pending = stub.performanceDiagnostics.dispatch
+        #expect(pending.callCount == 1)
+        #expect(pending.completedCallCount == 0)
+        #expect(pending.pendingCallCount == 1)
+        #expect(pending.averageDuration == nil)
+        #expect(pending.methods[0].pendingCallCount == 1)
+
+        suspension.resume(returning: "loaded")
+        #expect(await task.value == "loaded")
+
+        let completed = stub.performanceDiagnostics.dispatch
+        #expect(completed.completedCallCount == 1)
+        #expect(completed.pendingCallCount == 0)
+        #expect(completed.averageDuration != nil)
     }
 
     @Test func configuresAsyncRequirements() async {
