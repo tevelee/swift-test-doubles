@@ -1,12 +1,14 @@
 import Testing
 @testable import TestDoubles
 
-private protocol CancellationInjectionService: Sendable {
+// Internal, not private: automatic discovery needs this conformance record to
+// remain reachable in optimized test builds.
+protocol CancellationInjectionService: Sendable {
     func fetch() async throws -> String
     func poll() async -> Int
 }
 
-private struct RealCancellationInjectionService: CancellationInjectionService {
+struct RealCancellationInjectionService: CancellationInjectionService {
     func fetch() async throws -> String { "real" }
     func poll() async -> Int { 0 }
 }

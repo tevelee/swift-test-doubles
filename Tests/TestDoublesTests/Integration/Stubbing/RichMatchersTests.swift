@@ -15,15 +15,17 @@ struct RealMeasurementLedger: MeasurementLedger {
     func classify(_ value: Double) -> String { "\(value)" }
 }
 
-private struct LedgerEntry {
+// Internal, not private: the conformer makes its protocol's conformance record
+// reachable to the runtime stub machinery in optimized test builds.
+struct LedgerEntry {
     let id: Int
 }
 
-private protocol EntryLedger {
+protocol EntryLedger {
     func classify(_ entry: LedgerEntry) -> String
 }
 
-private struct RealEntryLedger: EntryLedger {
+struct RealEntryLedger: EntryLedger {
     func classify(_ entry: LedgerEntry) -> String { "\(entry.id)" }
 }
 

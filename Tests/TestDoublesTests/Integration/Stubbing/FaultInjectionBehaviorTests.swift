@@ -5,11 +5,13 @@ private enum InjectedFault: Error, Equatable {
     case transient
 }
 
-private protocol FaultInjectionService {
+// Internal, not private: automatic discovery needs this conformance record to
+// remain reachable in optimized test builds.
+protocol FaultInjectionService {
     func load(_ value: Int) throws -> Int
 }
 
-private struct RealFaultInjectionService: FaultInjectionService {
+struct RealFaultInjectionService: FaultInjectionService {
     func load(_ value: Int) throws -> Int { value }
 }
 

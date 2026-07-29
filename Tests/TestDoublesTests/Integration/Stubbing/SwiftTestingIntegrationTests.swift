@@ -3,7 +3,9 @@ import IssueReporting
 import TestDoublesTesting
 import Testing
 
-private protocol ScopedTestDoubleProbe {
+// Internal, not private: optimized runtime-stub tests must keep this
+// conformance on the dynamic witness path.
+protocol ScopedTestDoubleProbe {
     func track(_ value: Int)
 }
 
@@ -15,7 +17,7 @@ private protocol ScopedSuspendedTestDoubleProbe {
     func load() async -> Int
 }
 
-private struct ScopedTestDoubleProbeStub: ScopedTestDoubleProbe, ManualStubConformer {
+struct ScopedTestDoubleProbeStub: ScopedTestDoubleProbe, ManualStubConformer {
     let stub: ManualStub<Self>
 
     func track(_ value: Int) {
