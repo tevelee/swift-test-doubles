@@ -211,11 +211,19 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
         #expect(service.fetch(id: 1) == "override")
         #expect(service.fetch(id: 2) == "real:2")
         #expect(pattern.callCount == 2)
+        #expect(pattern.stubbed.callCount == 1)
         #expect(pattern.forwarded.callCount == 1)
         #expect(pattern.forwarded.wasCalled)
-        pattern.forwarded.verify(1 ... 1)
-        let arguments: [Int] = pattern.forwarded.arguments()
-        #expect(arguments == [2])
+        pattern.stubbed.verify()
+        pattern.forwarded.verify()
+        let stubbed: [Int] = pattern.stubbed.arguments()
+        let forwarded: [Int] = pattern.forwarded.arguments()
+        #expect(stubbed == [1])
+        #expect(forwarded == [2])
+
+        let order = InvocationOrder()
+        order.verify(pattern.stubbed)
+        order.verify(pattern.forwarded)
     }
 
     @Test func forwardsThrowingRequirements() throws {

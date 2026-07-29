@@ -177,24 +177,28 @@ extension StubRecorder {
     func verificationMatches(
         method: Int,
         matchers: [ParameterMatcher] = [],
-        matchesEmptyArgumentsExactly: Bool = false
+        matchesEmptyArgumentsExactly: Bool = false,
+        origin: InvocationOrigin? = nil
     ) -> [RecordedCall] {
         preparedVerificationMatches(
             method: method,
             matchers: matchers,
-            matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly
+            matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
+            origin: origin
         ).map(\.call)
     }
 
     func preparedVerificationMatches(
         method: Int,
         matchers: [ParameterMatcher] = [],
-        matchesEmptyArgumentsExactly: Bool = false
+        matchesEmptyArgumentsExactly: Bool = false,
+        origin: InvocationOrigin? = nil
     ) -> [PreparedRecordedCallMatch] {
         matchingCalls(
             method: method,
             matchers: matchers,
-            matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly
+            matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
+            origin: origin
         )
     }
 
@@ -204,7 +208,8 @@ extension StubRecorder {
     /// releasing it.
     func earliestOrderedMatch(
         recording: RecordedCall,
-        after cursor: UInt64
+        after cursor: UInt64,
+        origin: InvocationOrigin? = nil
     ) -> PreparedRecordedCallMatch? {
         let calls = withLockedPolicy { $0.invocationLedger.allCalls }
         let matchers = recording.resolvedMatchers
@@ -213,6 +218,7 @@ extension StubRecorder {
                 let sequence = call.sequence,
                 sequence > cursor,
                 call.methodIndex == recording.methodIndex,
+                origin == nil || call.origin == origin,
                 let transaction = StubBehaviorRegistry.prepareArgumentsMatch(
                     call.args,
                     against: matchers,

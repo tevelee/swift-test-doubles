@@ -10,6 +10,17 @@ import InternalRuntimeContract
 public struct CallPattern<Result>: Sendable {
     let recorder: StubRecorder
     let recording: RecordedCall
+    let origin: InvocationOrigin?
+
+    init(
+        recorder: StubRecorder,
+        recording: RecordedCall,
+        origin: InvocationOrigin? = nil
+    ) {
+        self.recorder = recorder
+        self.recording = recording
+        self.origin = origin
+    }
 
     // MARK: - thenReturn
 

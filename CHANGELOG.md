@@ -228,6 +228,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `InvocationOrder.verify` now accepts saved `CallPattern` and
   `CallInteractions` values directly, so cross-double ordering composes with
   `when`/`then` setup without repeating either call-capture closure.
+- Dispatch-specific observation is now symmetric and composed:
+  `interactions.forwarded` and `interactions.stubbed` are filtered
+  `CallInteractions` values with the complete count, range, argument, stream,
+  eventual-verification, and ordering API. The duplicate nested forwarding
+  wrapper types have been removed.
 - The pre-release `StubBuilder` type and the separate
   `forwardedCallCount`/`forwardedArguments()` pattern members have been
   replaced by `CallPattern` and its composed `forwarded` view.

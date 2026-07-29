@@ -14,9 +14,20 @@
 public struct CallInteractions: Sendable {
     let recorder: StubRecorder
     let recording: RecordedCall
+    let origin: InvocationOrigin?
+
+    init(
+        recorder: StubRecorder,
+        recording: RecordedCall,
+        origin: InvocationOrigin? = nil
+    ) {
+        self.recorder = recorder
+        self.recording = recording
+        self.origin = origin
+    }
 
     private var pattern: CallPattern<Void> {
-        CallPattern(recorder: recorder, recording: recording)
+        CallPattern(recorder: recorder, recording: recording, origin: origin)
     }
 
     /// The number of recorded invocations matching this call.
@@ -36,8 +47,17 @@ public struct CallInteractions: Sendable {
     /// Matching interactions that a spy delegated to its real target.
     ///
     /// This view is empty for a stub without a forwarding target.
-    public var forwarded: Forwarded {
-        Forwarded(base: pattern.forwarded)
+    public var forwarded: Self {
+        Self(recorder: recorder, recording: recording, origin: .forwarded)
+    }
+
+    /// Matching interactions answered by configured behavior rather than
+    /// delegated to a spy's real target.
+    ///
+    /// This is every interaction for an ordinary or manual stub. For a spy it
+    /// excludes unmatched calls and explicit `thenForward()` behavior.
+    public var stubbed: Self {
+        Self(recorder: recorder, recording: recording, origin: .stubbed)
     }
 
     /// Verifies how many recorded invocations match this call, expecting
@@ -124,95 +144,4 @@ public struct CallInteractions: Sendable {
         pattern.stream()
     }
 
-    /// Matching interactions that a spy forwarded to its real target.
-    ///
-    /// Obtain this view from ``CallInteractions/forwarded``. Calls answered
-    /// by an override are excluded, and every query is empty for an ordinary
-    /// stub without a forwarding target.
-    public struct Forwarded: Sendable {
-        private let base: CallPattern<Void>.Forwarded
-
-        init(base: CallPattern<Void>.Forwarded) {
-            self.base = base
-        }
-
-        /// The number of matching calls delegated to the forwarding target.
-        public var callCount: Int {
-            base.callCount
-        }
-
-        /// Whether at least one matching call reached the forwarding target.
-        public var wasCalled: Bool {
-            base.wasCalled
-        }
-
-        /// Verifies how many matching calls reached the forwarding target,
-        /// expecting exactly one by default.
-        public func verify(
-            _ expectedCounts: any RangeExpression<Int> = 1 ... 1,
-            fileID: StaticString = #fileID,
-            filePath: StaticString = #filePath,
-            line: UInt = #line,
-            column: UInt = #column
-        ) {
-            base.verify(
-                expectedCounts,
-                fileID: fileID,
-                filePath: filePath,
-                line: line,
-                column: column
-            )
-        }
-
-        /// Waits up to `timeout` for the lower-bound number of matching calls
-        /// to reach the forwarding target.
-        public func verify(
-            _ expectedCounts: PartialRangeFrom<Int> = 1...,
-            within timeout: Duration,
-            fileID: StaticString = #fileID,
-            filePath: StaticString = #filePath,
-            line: UInt = #line,
-            column: UInt = #column
-        ) async {
-            await base.verify(
-                expectedCounts,
-                within: timeout,
-                fileID: fileID,
-                filePath: filePath,
-                line: line,
-                column: column
-            )
-        }
-
-        /// Waits for forwarded calls using `clock` rather than wall time.
-        public func verify(
-            _ expectedCounts: PartialRangeFrom<Int> = 1...,
-            within timeout: Duration,
-            using clock: any StubClock,
-            fileID: StaticString = #fileID,
-            filePath: StaticString = #filePath,
-            line: UInt = #line,
-            column: UInt = #column
-        ) async {
-            await base.verify(
-                expectedCounts,
-                within: timeout,
-                using: clock,
-                fileID: fileID,
-                filePath: filePath,
-                line: line,
-                column: column
-            )
-        }
-
-        /// Returns arguments from matching forwarded calls, in call order.
-        public func arguments<each Argument>() -> [(repeat each Argument)] {
-            base.arguments()
-        }
-
-        /// Returns a stream of future matching calls that reach the target.
-        public func stream<each Argument>() -> InvocationStream<(repeat each Argument)> {
-            base.stream()
-        }
-    }
 }

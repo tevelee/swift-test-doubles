@@ -68,12 +68,18 @@ let displayNames = spy.when {
 displayNames.forwarded.verify(1...)
 let forwarded: [String] = displayNames.forwarded.arguments()
 #expect(forwarded == ["admin"])
+
+displayNames.stubbed.verify()
+let stubbed: [String] = displayNames.stubbed.arguments()
+#expect(stubbed == ["guest"])
 ```
 
-Argument and count queries are pure; `verify` explicitly marks matching
-forwarded calls as verified. A call is marked forwarded when the spy selects
-the target; its return value or error remains on the protocol's normal
-transport path.
+Both ``CallPattern/forwarded`` and ``CallPattern/stubbed`` return ordinary
+``CallInteractions`` values, so each filtered view has the same count, range,
+typed-argument, streaming, eventual-verification, and ``InvocationOrder`` API.
+Argument and count queries are pure; `verify` explicitly marks matching calls
+as verified. A call is marked forwarded when the spy selects the target; its
+return value or error remains on the protocol's normal transport path.
 
 ### Share target state
 

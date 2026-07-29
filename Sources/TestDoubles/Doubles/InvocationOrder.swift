@@ -72,6 +72,7 @@ public final class InvocationOrder: @unchecked Sendable {
         advance(
             recording: interactions.recording,
             recorder: interactions.recorder,
+            origin: interactions.origin,
             fileID: fileID,
             filePath: filePath,
             line: line,
@@ -201,6 +202,7 @@ public final class InvocationOrder: @unchecked Sendable {
     private func advance(
         recording: RecordedCall,
         recorder: StubRecorder,
+        origin: InvocationOrigin? = nil,
         fileID: StaticString,
         filePath: StaticString,
         line: UInt,
@@ -211,7 +213,8 @@ public final class InvocationOrder: @unchecked Sendable {
             guard
                 let match = recorder.earliestOrderedMatch(
                     recording: recording,
-                    after: currentCursor
+                    after: currentCursor,
+                    origin: origin
                 )
             else {
                 reportIssue(

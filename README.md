@@ -338,6 +338,10 @@ translations.verify(.exactly(2))
 translations.forwarded.verify(1...)
 let forwarded: [String] = translations.forwarded.arguments()
 #expect(forwarded == ["farewell.title"])
+
+translations.stubbed.verify()
+let stubbed: [String] = translations.stubbed.arguments()
+#expect(stubbed == ["greeting.new_user"])
 ```
 
 A matching `when` registration wins, and the first matching one is used,
@@ -346,6 +350,10 @@ is recorded, so verification covers overridden and forwarded calls alike. The ta
 so a spy needs no other discovery source. A registration can also hand a call
 back to the real implementation explicitly with `thenForward()`, which lets a
 chain fail a few times and then forward for real.
+
+`forwarded` and `stubbed` are symmetric filtered `CallInteractions` views.
+Both support the same counts, ranges, typed arguments, streams, eventual
+verification, and `InvocationOrder` composition as the unfiltered pattern.
 
 ### Dummy: dependencies that must never be touched
 
