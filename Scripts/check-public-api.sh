@@ -31,6 +31,24 @@ symbols_by_identifier = graphs.flat_map { |_, graph| graph.fetch("symbols") }.to
   [symbol.fetch("identifier").fetch("precise"), symbol]
 end
 
+missing_documentation = graphs.flat_map do |module_name, graph|
+  graph.fetch("symbols").each_with_object([]) do |symbol, missing|
+    identifier = symbol.fetch("identifier").fetch("precise")
+    next if identifier.include?("::SYNTHESIZED::")
+
+    documentation = symbol.dig("docComment", "lines") || []
+    next if documentation.any? { |line| !line.fetch("text", "").strip.empty? }
+
+    missing << "#{module_name}: #{symbol.fetch("pathComponents").join(".")}"
+  end
+end.uniq.sort
+
+unless missing_documentation.empty?
+  warn "Public symbols without documentation:"
+  missing_documentation.each { |symbol| warn "  #{symbol}" }
+  abort "#{missing_documentation.length} public symbol(s) need documentation."
+end
+
 entries = graphs.flat_map do |module_name, graph|
   graph.fetch("symbols").each_with_object([]) do |symbol, result|
     next if symbol.fetch("identifier").fetch("precise").include?("::SYNTHESIZED::")

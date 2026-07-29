@@ -9,8 +9,22 @@ public struct InteractionTimeline: Sendable, CustomStringConvertible {
     /// Whether a call was answered by a configured registration or delegated
     /// by a ``Spy`` to its target.
     public enum Dispatch: String, Sendable {
+        /// A configured registration answered the call.
         case stubbed
+        /// A spy delegated the call to its target.
         case forwarded
+
+        /// Creates a dispatch path from its serialized representation.
+        public init?(rawValue: String) {
+            switch rawValue {
+                case "stubbed":
+                    self = .stubbed
+                case "forwarded":
+                    self = .forwarded
+                default:
+                    return nil
+            }
+        }
     }
 
     /// One call-boundary event in global process order.

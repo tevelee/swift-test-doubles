@@ -160,6 +160,10 @@ public struct InteractionFixture: Codable, Sendable {
         case entries
     }
 
+    /// Decodes a current fixture or migrates a supported legacy fixture.
+    ///
+    /// Decoding fails when the encoded schema version is newer than the
+    /// library understands.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let version = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
@@ -186,6 +190,7 @@ public struct InteractionFixture: Codable, Sendable {
         schemaVersion = Self.currentSchemaVersion
     }
 
+    /// Encodes the fixture using ``currentSchemaVersion``.
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(Self.currentSchemaVersion, forKey: .schemaVersion)

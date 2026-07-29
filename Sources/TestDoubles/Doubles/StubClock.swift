@@ -58,6 +58,7 @@ public final class ManualStubClock: StubClock, @unchecked Sendable {
     private var pendingSleepCountWaiterIDs: Set<UInt64> = []
     private var cancelledSleepCountWaiterIDs: Set<UInt64> = []
 
+    /// Creates a clock whose elapsed duration is zero.
     public init() {}
 
     /// Number of delayed behaviors currently waiting on this clock.
@@ -114,6 +115,10 @@ public final class ManualStubClock: StubClock, @unchecked Sendable {
         }
     }
 
+    /// Suspends until the clock advances by at least `duration`.
+    ///
+    /// Cancelling the waiting task ends the suspension with
+    /// `CancellationError`.
     public func sleep(for duration: Duration) async throws {
         precondition(duration >= .zero, "[TestDoubles] A clock delay must be nonnegative.")
         let sleeperID = lock.withLock {
