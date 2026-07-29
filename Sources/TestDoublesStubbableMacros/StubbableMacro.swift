@@ -75,7 +75,11 @@
             let matchingMember = declaration.memberBlock.members.first { member in
                 normalize(member.decl.description) == normalizedRequirement
             }
-            return matchingMember.map { Syntax($0.decl) } ?? Syntax(declaration)
+            return matchingMember?
+                .decl
+                .firstToken(viewMode: .sourceAccurate)
+                .map(Syntax.init)
+                ?? Syntax(declaration)
         }
 
         private static func normalize(_ source: String) -> String {

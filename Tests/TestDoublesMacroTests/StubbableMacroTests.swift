@@ -60,7 +60,7 @@
                 @Stubbable
                 protocol SharedService {
                     static func shared() -> Int
-                    ┬───────────────────────────
+                    ┬─────
                     ╰─ 🛑 cannot generate manual forwarding for `static func shared() -> Int`: static requirements need shared process state and are unsafe in parallel tests
                 }
                 """
