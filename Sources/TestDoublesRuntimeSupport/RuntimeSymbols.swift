@@ -108,16 +108,27 @@ package enum RuntimeSymbols {
         let directlyDemangled = swiftDemangledName(mangledName)
         let result =
             if directlyDemangled == mangledName {
-                demangleCoroutinePointerCompatibilitySymbol(mangledName)
-                    ?? demangleNonsendingCompatibilitySymbol(mangledName)
-                    ?? demangleImplicitActorCompatibilitySymbol(mangledName)
-                    ?? demangleIsolatedParameterCompatibilitySymbol(mangledName)
-                    ?? directlyDemangled
+                compatibilityDemangle(mangledName) ?? directlyDemangled
             } else {
                 directlyDemangled
             }
         withLock { demangledNames[mangledName] = result }
         return result
+    }
+
+    /// Applies compatibility transforms for symbols introduced after the
+    /// process runtime's bundled demangler.
+    ///
+    /// Kept as a separate package boundary so the transforms remain
+    /// deterministic and testable even when the host runtime recognizes the
+    /// original symbol directly.
+    package static func compatibilityDemangle(
+        _ mangledName: String
+    ) -> String? {
+        demangleCoroutinePointerCompatibilitySymbol(mangledName)
+            ?? demangleNonsendingCompatibilitySymbol(mangledName)
+            ?? demangleImplicitActorCompatibilitySymbol(mangledName)
+            ?? demangleIsolatedParameterCompatibilitySymbol(mangledName)
     }
 
     private static func swiftDemangledName(_ mangledName: String) -> String {

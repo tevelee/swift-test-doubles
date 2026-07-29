@@ -120,6 +120,7 @@ import Testing
             + " in conformance TestDoublesFixtures.RealExternalExtendedClosureService : TestDoublesFixtures.ExternalExtendedClosureService in TestDoublesFixtures"
 
         #expect(RuntimeSymbols.demangle(mangled) == expected)
+        #expect(RuntimeSymbols.compatibilityDemangle(mangled) == expected)
     }
 
     @Test func nonsendingCompatibilityPreservesIsolatedAnyAttributes() {
@@ -132,6 +133,7 @@ import Testing
             + " in conformance TestDoublesFixtures.RealExternalExtendedClosureService : TestDoublesFixtures.ExternalExtendedClosureService in TestDoublesFixtures"
 
         #expect(RuntimeSymbols.demangle(mangled) == expected)
+        #expect(RuntimeSymbols.compatibilityDemangle(mangled) == expected)
     }
 
     @Test func implicitActorThunkSymbolsDemangleOnOlderProcessRuntimes() {
@@ -149,6 +151,7 @@ import Testing
             "reabstraction thunk helper from \(direct) to \(generic)"
 
         #expect(RuntimeSymbols.demangle(mangled) == expected)
+        #expect(RuntimeSymbols.compatibilityDemangle(mangled) == expected)
     }
 
     @Test func isolatedParameterThunkSymbolsDemangleOnOlderProcessRuntimes() {
@@ -166,6 +169,7 @@ import Testing
             "reabstraction thunk helper from \(direct) to \(generic)"
 
         #expect(RuntimeSymbols.demangle(mangled) == expected)
+        #expect(RuntimeSymbols.compatibilityDemangle(mangled) == expected)
     }
 
     @Test func coroutinePointerSymbolsDemangleOnOlderProcessRuntimes() {
@@ -180,6 +184,11 @@ import Testing
             + " in TestDoublesReadFixtures"
 
         #expect(RuntimeSymbols.demangle(mangled) == expected)
+        #expect(RuntimeSymbols.compatibilityDemangle(mangled) == expected)
+    }
+
+    @Test func compatibilityDemanglingRejectsUnrecognizedSymbols() {
+        #expect(RuntimeSymbols.compatibilityDemangle("$sSiN") == nil)
     }
 }
 import TestDoublesRuntime
