@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Injected closures now have effect-aware doubles:
+  `ThrowingClosureDouble`, `AsyncClosureDouble`, and
+  `AsyncThrowingClosureDouble`. Their dedicated call-pattern types keep input
+  inference while exposing the same fluent chains, range verification,
+  argument history, streams, `InvocationOrder`, suspension, delays, and
+  cancellation controls as the corresponding protocol requirement—without
+  offering effects the closure cannot perform.
 - Every `Stub`, `Spy`, `ManualStub`, and closure double now exposes a composed
   `history` view with whole-double `callCount`, `wasCalled`, range verification,
   human-readable description, timeline, and `forwarded`/`stubbed` filtering.

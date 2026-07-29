@@ -76,6 +76,63 @@ public final class InvocationOrder: @unchecked Sendable {
         )
     }
 
+    /// Verifies that a saved throwing-closure pattern has a matching
+    /// interaction after the previously verified interaction.
+    @discardableResult
+    public func verify<Input, Result>(
+        _ pattern: ThrowingClosureCallPattern<Input, Result>,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) -> Self {
+        verify(
+            pattern.interactions,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
+    /// Verifies that a saved async-closure pattern has a matching interaction
+    /// after the previously verified interaction.
+    @discardableResult
+    public func verify<Input, Result>(
+        _ pattern: AsyncClosureCallPattern<Input, Result>,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) -> Self {
+        verify(
+            pattern.interactions,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
+    /// Verifies that a saved async-throwing closure pattern has a matching
+    /// interaction after the previously verified interaction.
+    @discardableResult
+    public func verify<Input, Result>(
+        _ pattern: AsyncThrowingClosureCallPattern<Input, Result>,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) -> Self {
+        verify(
+            pattern.interactions,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
     /// Verifies that `interactions` has a matching call after the previously
     /// verified interaction.
     ///

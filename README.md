@@ -220,6 +220,27 @@ inference while sharing the same behavior queues, contextual trailing defaults,
 `InvocationOrder` engine as protocol doubles. `VoidClosureDouble` provides the
 same model for `() -> Result`.
 
+Choose the double that matches the injected closure's effects; its pattern
+offers only valid outcomes in autocomplete:
+
+```swift
+let load = AsyncThrowingClosureDouble<URL, Data>()
+let loads = load.whenAny()
+    .thenThrow(URLError(.timedOut))
+    .then { (url: URL) async throws in try await cache.data(for: url) }
+    .thenReturn(Data())
+
+let function: (URL) async throws -> Data = load.function
+_ = try? await function(feedURL)
+loads.verify()
+```
+
+`ThrowingClosureDouble` models `(Input) throws -> Result`,
+`AsyncClosureDouble` models `(Input) async -> Result`, and
+`AsyncThrowingClosureDouble` models `(Input) async throws -> Result`. Async
+patterns also share delayed results, suspension, and cancellation controls with
+protocol stubs.
+
 ### Control async timing
 
 Testing async code often means asserting what happens *while* a call is in

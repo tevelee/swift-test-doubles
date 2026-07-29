@@ -445,6 +445,27 @@ so ranges, eventual verification, streams, and ``InvocationOrder`` compose
 without closure-specific alternatives. ``VoidClosureDouble`` applies the same
 model to `() -> Result`.
 
+Choose an effect-aware double for throwing or asynchronous injected functions:
+
+```swift
+let load = AsyncThrowingClosureDouble<URL, Data>()
+let loads = load.whenAny()
+    .thenThrow(URLError(.timedOut))
+    .then { (url: URL) async throws in try await cache.data(for: url) }
+    .thenReturn(Data())
+
+let function: (URL) async throws -> Data = load.function
+_ = try? await function(feedURL)
+loads.verify()
+```
+
+``ThrowingClosureDouble`` models `(Input) throws -> Result`,
+``AsyncClosureDouble`` models `(Input) async -> Result`, and
+``AsyncThrowingClosureDouble`` models `(Input) async throws -> Result`. Their
+dedicated patterns expose only outcomes valid for the closure's effects. Async
+patterns share delayed delivery, ``StubSuspension``, and cancellation-aware
+completion with protocol stubs.
+
 ### Choose a construction path
 
 The examples above use automatic discovery from a linked conformance. For

@@ -68,6 +68,7 @@ isolation. See
 - ``StubBehaviorQueue``
 - ``StubSuspension``
 - ``Stub/Invocation``
+- ``InteractionHistory``
 - ``InteractionTimeline``
 - ``StubClock``
 - ``ManualStubClock``
@@ -138,6 +139,12 @@ isolation. See
 - ``ClosureDouble``
 - ``ClosureCallPattern``
 - ``VoidClosureDouble``
+- ``ThrowingClosureDouble``
+- ``ThrowingClosureCallPattern``
+- ``AsyncClosureDouble``
+- ``AsyncClosureCallPattern``
+- ``AsyncThrowingClosureDouble``
+- ``AsyncThrowingClosureCallPattern``
 - ``CallbackCapture``
 
 ### Value and Optional Matchers
