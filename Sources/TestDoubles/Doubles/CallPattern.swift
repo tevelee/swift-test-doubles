@@ -800,7 +800,7 @@ public struct StubBehaviorChain<Result> {
 
     /// Forwards every matching invocation from here on to the spy's real
     /// target. This is terminal, like the unbounded `thenReturn`/`thenThrow`.
-    /// See ``CallPattern/thenForward(times:)-5bb3v`` for the full contract.
+    /// See `CallPattern.thenForward(times:)` for the full contract.
     @discardableResult
     public func thenForward(
         times: PartialRangeFrom<Int> = 1...
