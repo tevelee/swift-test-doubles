@@ -130,7 +130,10 @@ extension StubRecorder {
             guard
                 let preparedMatch = StubBehaviorRegistry.firstPreparedEntryMatch(
                     for: args,
-                    in: entries
+                    in: entries,
+                    candidateEntryIndices: snapshot.candidateEntryIndices(
+                        for: args
+                    )
                 )
             else {
                 guard behaviorRegistryIsCurrent(snapshot) else { continue }

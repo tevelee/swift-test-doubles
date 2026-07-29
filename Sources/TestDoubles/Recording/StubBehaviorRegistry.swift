@@ -168,6 +168,14 @@ struct StubBehaviorRegistry {
     struct Snapshot {
         let revision: UInt64
         let entries: [Entry]?
+        let exactMatchIndex: ExactMatchIndex?
+
+        func candidateEntryIndices(for args: [Any]) -> [Int]? {
+            guard let exactMatchIndex, exactMatchIndex.isWorthUsing else {
+                return nil
+            }
+            return exactMatchIndex.candidateEntryIndices(for: args)
+        }
     }
 
     struct PreparedEntryMatch {
@@ -180,12 +188,94 @@ struct StubBehaviorRegistry {
         let scenarioName: String?
     }
 
+    struct ExactMatchIndex {
+        private struct Schema: Hashable {
+            let matcherTypes: [ObjectIdentifier]
+        }
+
+        private struct Key: Hashable {
+            let schema: Schema
+            let values: [AnyHashable]
+        }
+
+        private var singleDescriptionEntryIndices: [String: [Int]] = [:]
+        private var entryIndicesByKey: [Key: [Int]] = [:]
+        private var representativeMatchersBySchema: [Schema: [ParameterMatcher]] = [:]
+        private var unindexedEntryIndices: [Int] = []
+        private var indexedEntryCount = 0
+
+        var isWorthUsing: Bool { indexedEntryCount >= 4 }
+
+        mutating func add(_ entry: Entry, at entryIndex: Int) {
+            if entry.matchers.count == 1,
+                let matcher = entry.matchers[0] as? DescriptionMatcher
+            {
+                singleDescriptionEntryIndices[
+                    matcher.description,
+                    default: []
+                ].append(entryIndex)
+                indexedEntryCount += 1
+                return
+            }
+            let indexedMatchers = entry.matchers.compactMap {
+                $0 as? any ExactMatchIndexable
+            }
+            guard indexedMatchers.count == entry.matchers.count,
+                indexedMatchers.isEmpty == false
+            else {
+                unindexedEntryIndices.append(entryIndex)
+                return
+            }
+            let schema = Schema(
+                matcherTypes: indexedMatchers.map(\.exactMatchIndexSchema)
+            )
+            let key = Key(
+                schema: schema,
+                values: indexedMatchers.map(\.exactMatchIndexValue)
+            )
+            entryIndicesByKey[key, default: []].append(entryIndex)
+            representativeMatchersBySchema[schema] = entry.matchers
+            indexedEntryCount += 1
+        }
+
+        func candidateEntryIndices(for args: [Any]) -> [Int] {
+            var candidates = unindexedEntryIndices
+            if args.count == 1 {
+                candidates.append(
+                    contentsOf: singleDescriptionEntryIndices[
+                        String(describing: args[0])
+                    ] ?? []
+                )
+            }
+            for (schema, matchers) in representativeMatchersBySchema {
+                guard matchers.count == args.count else { continue }
+                let values = zip(matchers, args).compactMap { matcher, argument in
+                    (matcher as? any ExactMatchIndexable)?
+                        .exactMatchIndexValue(for: argument)
+                }
+                guard values.count == args.count else { continue }
+                candidates.append(
+                    contentsOf: entryIndicesByKey[
+                        Key(schema: schema, values: values)
+                    ] ?? []
+                )
+            }
+            candidates.sort()
+            return candidates
+        }
+    }
+
     private var entriesByMethod: [Int: [Entry]] = [:]
+    private var exactMatchIndicesByMethod: [Int: ExactMatchIndex] = [:]
     private var consumedEntryIndicesByMethod: [Int: Set<Int>] = [:]
     private var revision: UInt64 = 0
 
     func snapshot(for method: Int) -> Snapshot {
-        Snapshot(revision: revision, entries: entriesByMethod[method])
+        Snapshot(
+            revision: revision,
+            entries: entriesByMethod[method],
+            exactMatchIndex: exactMatchIndicesByMethod[method]
+        )
     }
 
     func isCurrent(_ snapshot: Snapshot) -> Bool {
@@ -194,6 +284,7 @@ struct StubBehaviorRegistry {
 
     mutating func removeAll() {
         entriesByMethod.removeAll()
+        exactMatchIndicesByMethod.removeAll()
         consumedEntryIndicesByMethod.removeAll()
         revision &+= 1
     }
@@ -226,15 +317,20 @@ struct StubBehaviorRegistry {
         sourceLocation: StubSourceLocation? = nil,
         behavior: Entry.Behavior
     ) {
+        let entryIndex = entriesByMethod[method]?.count ?? 0
+        let entry = Entry(
+            matchers: matchers,
+            matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
+            diagnosticSignature: diagnosticSignature,
+            scenarioName: scenarioName,
+            sourceLocation: sourceLocation,
+            behavior: behavior
+        )
         entriesByMethod[method, default: []].append(
-            Entry(
-                matchers: matchers,
-                matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
-                diagnosticSignature: diagnosticSignature,
-                scenarioName: scenarioName,
-                sourceLocation: sourceLocation,
-                behavior: behavior
-            ))
+            entry
+        )
+        exactMatchIndicesByMethod[method, default: ExactMatchIndex()]
+            .add(entry, at: entryIndex)
         revision &+= 1
     }
 
@@ -243,9 +339,11 @@ struct StubBehaviorRegistry {
     /// User predicates and projections are evaluated exactly once here.
     static func firstPreparedEntryMatch(
         for args: [Any],
-        in entries: [Entry]
+        in entries: [Entry],
+        candidateEntryIndices: [Int]? = nil
     ) -> PreparedEntryMatch? {
-        for (entryIndex, entry) in entries.enumerated() {
+        func preparedMatch(at entryIndex: Int) -> PreparedEntryMatch? {
+            let entry = entries[entryIndex]
             if let matcherTransaction = prepareArgumentsMatch(
                 args,
                 against: entry.matchers,
@@ -255,6 +353,20 @@ struct StubBehaviorRegistry {
                     entryIndex: entryIndex,
                     matcherTransaction: matcherTransaction
                 )
+            }
+            return nil
+        }
+        if let candidateEntryIndices {
+            for entryIndex in candidateEntryIndices {
+                if let match = preparedMatch(at: entryIndex) {
+                    return match
+                }
+            }
+        } else {
+            for entryIndex in entries.indices {
+                if let match = preparedMatch(at: entryIndex) {
+                    return match
+                }
             }
         }
         return nil

@@ -18,6 +18,15 @@ protocol ParameterMatcher {
     var acceptanceIdentity: String? { get }
 }
 
+/// A matcher whose accepted set has a sound hash key. The schema separates
+/// matcher families and generic value types; the value is identical exactly
+/// when `prepareMatch` would accept the invocation argument.
+protocol ExactMatchIndexable {
+    var exactMatchIndexSchema: ObjectIdentifier { get }
+    var exactMatchIndexValue: AnyHashable { get }
+    func exactMatchIndexValue(for value: Any) -> AnyHashable?
+}
+
 /// The side effects prepared by a successful matcher evaluation.
 ///
 /// Predicates and projections run while this value is built. Committing it
@@ -133,6 +142,20 @@ struct DescriptionMatcher: ParameterMatcher {
     var acceptanceIdentity: String? { diagnosticDescription }
 }
 
+extension DescriptionMatcher: ExactMatchIndexable {
+    var exactMatchIndexSchema: ObjectIdentifier {
+        ObjectIdentifier(Self.self)
+    }
+
+    var exactMatchIndexValue: AnyHashable {
+        AnyHashable(description)
+    }
+
+    func exactMatchIndexValue(for value: Any) -> AnyHashable? {
+        AnyHashable(String(describing: value))
+    }
+}
+
 struct EqualMatcher<Value: Equatable>: ParameterMatcher {
     let expected: Value
 
@@ -141,6 +164,21 @@ struct EqualMatcher<Value: Equatable>: ParameterMatcher {
     }
     var diagnosticDescription: String { "equal(\(String(describing: expected)))" }
     var acceptanceIdentity: String? { diagnosticDescription }
+}
+
+extension EqualMatcher: ExactMatchIndexable where Value: Hashable {
+    var exactMatchIndexSchema: ObjectIdentifier {
+        ObjectIdentifier(Self.self)
+    }
+
+    var exactMatchIndexValue: AnyHashable {
+        AnyHashable(expected)
+    }
+
+    func exactMatchIndexValue(for value: Any) -> AnyHashable? {
+        guard let value = value as? Value else { return nil }
+        return AnyHashable(value)
+    }
 }
 
 struct NotEqualMatcher<Value: Equatable>: ParameterMatcher {
