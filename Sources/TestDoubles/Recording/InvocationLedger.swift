@@ -64,6 +64,13 @@ struct InvocationLedgerAppendResult: RandomAccessCollection {
     }
 }
 
+typealias RecordedCallCompletionAction = () -> Void
+
+struct InvocationLedgerCompletionResult {
+    let waiters: [InvocationLedgerWaiter]
+    let actions: [RecordedCallCompletionAction]
+}
+
 /// A recorded playback invocation or a capture-mode expectation.
 struct RecordedCall: @unchecked Sendable {
     private final class WeakPayload {
@@ -177,6 +184,7 @@ struct RecordedCall: @unchecked Sendable {
     var completedAt: ContinuousClock.Instant?
     var completionSequence: UInt64?
     var outcome: RecordedCallOutcome
+    var completionActions: [RecordedCallCompletionAction]
     private let argumentsStorage: ArgumentsStorage
     let matchers: [ParameterMatcher]
     /// Empty matchers normally mean a broad fallback. An empty parameter pack
@@ -198,6 +206,7 @@ struct RecordedCall: @unchecked Sendable {
         completedAt: ContinuousClock.Instant? = nil,
         completionSequence: UInt64? = nil,
         outcome: RecordedCallOutcome = .pending,
+        completionActions: [RecordedCallCompletionAction] = [],
         args: [Any],
         argumentConventions: [RuntimeValueConvention]? = nil,
         runtimePayloadRecorder: StubRecorder? = nil,
@@ -217,6 +226,7 @@ struct RecordedCall: @unchecked Sendable {
         self.completedAt = completedAt
         self.completionSequence = completionSequence
         self.outcome = outcome
+        self.completionActions = completionActions
         if let argumentConventions {
             precondition(
                 argumentConventions.count == args.count,
@@ -249,6 +259,7 @@ struct RecordedCall: @unchecked Sendable {
         completedAt: ContinuousClock.Instant?,
         completionSequence: UInt64?,
         outcome: RecordedCallOutcome,
+        completionActions: [RecordedCallCompletionAction],
         argumentsStorage: ArgumentsStorage,
         matchers: [ParameterMatcher],
         matchesEmptyArgumentsExactly: Bool,
@@ -266,6 +277,7 @@ struct RecordedCall: @unchecked Sendable {
         self.completedAt = completedAt
         self.completionSequence = completionSequence
         self.outcome = outcome
+        self.completionActions = completionActions
         self.argumentsStorage = argumentsStorage
         self.matchers = matchers
         self.matchesEmptyArgumentsExactly = matchesEmptyArgumentsExactly
@@ -287,6 +299,7 @@ struct RecordedCall: @unchecked Sendable {
             completedAt: completedAt,
             completionSequence: completionSequence,
             outcome: outcome,
+            completionActions: completionActions,
             argumentsStorage: argumentsStorage,
             matchers: matchers,
             matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
@@ -360,6 +373,7 @@ struct InvocationLedger {
         origin: InvocationOrigin = .stubbed,
         registrationSignature: String? = nil,
         callStack: [String]? = nil,
+        completionActions: [RecordedCallCompletionAction] = [],
         args: [Any],
         argumentConventions: [RuntimeValueConvention]? = nil,
         runtimePayloadRecorder: StubRecorder? = nil
@@ -376,6 +390,7 @@ struct InvocationLedger {
                 registrationSignature: registrationSignature,
                 callStack: callStack,
                 startedAt: ContinuousClock.now,
+                completionActions: completionActions,
                 args: args,
                 argumentConventions: argumentConventions,
                 runtimePayloadRecorder: runtimePayloadRecorder,
@@ -391,19 +406,24 @@ struct InvocationLedger {
     mutating func complete(
         _ token: RecordedCallToken,
         outcome: RecordedCallOutcome
-    ) -> [InvocationLedgerWaiter] {
+    ) -> InvocationLedgerCompletionResult {
         guard let index = calls.firstIndex(where: { $0.id == token.id }) else {
-            return []
+            return InvocationLedgerCompletionResult(waiters: [], actions: [])
         }
         guard case .pending = calls[index].outcome else {
-            return []
+            return InvocationLedgerCompletionResult(waiters: [], actions: [])
         }
         calls[index].completedAt = ContinuousClock.now
         calls[index].completionSequence = GlobalInvocationSequence.take()
         calls[index].outcome = outcome
+        let actions = calls[index].completionActions
+        calls[index].completionActions.removeAll(keepingCapacity: false)
         let method = calls[index].methodIndex
         methodGenerations[method, default: 0] &+= 1
-        return takeWaiters(for: method)
+        return InvocationLedgerCompletionResult(
+            waiters: takeWaiters(for: method),
+            actions: actions
+        )
     }
 
     mutating func clear() -> [InvocationLedgerWaiter] {

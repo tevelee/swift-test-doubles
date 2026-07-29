@@ -197,7 +197,9 @@ symbol	TestDoubles	swift.init	TestDoubleScenario.init(_:)	init(_ configure: @esc
 symbol	TestDoubles	swift.init	TestDoubleScenario.init(named:_:)	init(named name: String, _ configure: @escaping (Subject) -> Void)
 symbol	TestDoubles	swift.init	ThrowingClosureDouble.init()	init()
 symbol	TestDoubles	swift.init	VoidClosureDouble.init()	init()
+symbol	TestDoubles	swift.method	AsyncClosureCallPattern.afterEachCall(_:)	func afterEachCall(_ action: @escaping @Sendable (Input) -> Void) -> AsyncClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	AsyncClosureCallPattern.arguments()	func arguments() -> [Input]
+symbol	TestDoubles	swift.method	AsyncClosureCallPattern.beforeEachCall(_:)	func beforeEachCall(_ action: @escaping @Sendable (Input) -> Void) -> AsyncClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	AsyncClosureCallPattern.errors()	func errors() -> [any Error]
 symbol	TestDoubles	swift.method	AsyncClosureCallPattern.outcomes()	func outcomes() -> [InvocationOutcome<Result>]
 symbol	TestDoubles	swift.method	AsyncClosureCallPattern.results()	func results() -> [Result]
@@ -247,7 +249,9 @@ symbol	TestDoubles	swift.method	AsyncParameterizedTestDoubleScenario.apply(_:to:
 symbol	TestDoubles	swift.method	AsyncParameterizedTestDoubleScenario.scenario(for:)	func scenario(for parameter: Parameter) -> AsyncTestDoubleScenario<Subject>
 symbol	TestDoubles	swift.method	AsyncTestDoubleScenario.appending(_:)	func appending(_ next: `Self`) -> AsyncTestDoubleScenario<Subject>
 symbol	TestDoubles	swift.method	AsyncTestDoubleScenario.apply(to:)	func apply(to subject: Subject) async
+symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.afterEachCall(_:)	func afterEachCall(_ action: @escaping @Sendable (Input) -> Void) -> AsyncThrowingClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.arguments()	func arguments() -> [Input]
+symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.beforeEachCall(_:)	func beforeEachCall(_ action: @escaping @Sendable (Input) -> Void) -> AsyncThrowingClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.errors()	func errors() -> [any Error]
 symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.outcomes()	func outcomes() -> [InvocationOutcome<Result>]
 symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.results()	func results() -> [Result]
@@ -311,7 +315,9 @@ symbol	TestDoubles	swift.method	CallInteractions.verify(_:fileID:filePath:line:c
 symbol	TestDoubles	swift.method	CallInteractions.verify(_:within:fileID:filePath:line:column:)	func verify(_ expectedCounts: PartialRangeFrom<Int> = 1..., within timeout: Duration, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
 symbol	TestDoubles	swift.method	CallInteractions.verify(_:within:using:fileID:filePath:line:column:)	func verify(_ expectedCounts: PartialRangeFrom<Int> = 1..., within timeout: Duration, using clock: any StubClock, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
 symbol	TestDoubles	swift.method	CallInteractions.waitForCompletion(count:within:fileID:filePath:line:column:)	func waitForCompletion(count: Int = 1, within timeout: Duration, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
+symbol	TestDoubles	swift.method	CallPattern.afterEachCall(_:)	@discardableResult func afterEachCall<each Argument>(_ action: @escaping @Sendable (repeat each Argument) -> Void) -> CallPattern<Result>
 symbol	TestDoubles	swift.method	CallPattern.arguments()	func arguments<each Argument>() -> [(repeat each Argument)]
+symbol	TestDoubles	swift.method	CallPattern.beforeEachCall(_:)	@discardableResult func beforeEachCall<each Argument>(_ action: @escaping @Sendable (repeat each Argument) -> Void) -> CallPattern<Result>
 symbol	TestDoubles	swift.method	CallPattern.captureCallStacks(maxFrames:)	@discardableResult func captureCallStacks(maxFrames: Int = 32) -> CallPattern<Result>
 symbol	TestDoubles	swift.method	CallPattern.errors()	func errors() -> [any Error]
 symbol	TestDoubles	swift.method	CallPattern.errors(ofType:)	func errors<Failure>(ofType type: Failure.Type) -> [Failure] where Failure : Error
@@ -373,7 +379,9 @@ symbol	TestDoubles	swift.method	CallbackCapture.named(_:)	@discardableResult fun
 symbol	TestDoubles	swift.method	CallbackCapture.releaseAll()	func releaseAll()
 symbol	TestDoubles	swift.method	CallbackCapture.waitForCallback(count:within:fileID:filePath:line:column:)	func waitForCallback(count: Int = 1, within timeout: Duration, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
 symbol	TestDoubles	swift.method	CallbackCapture.waitForCallback(count:within:using:fileID:filePath:line:column:)	func waitForCallback(count: Int = 1, within timeout: Duration, using clock: any StubClock, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
+symbol	TestDoubles	swift.method	ClosureCallPattern.afterEachCall(_:)	func afterEachCall(_ action: @escaping @Sendable (Input) -> Void) -> ClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	ClosureCallPattern.arguments()	func arguments() -> [Input]
+symbol	TestDoubles	swift.method	ClosureCallPattern.beforeEachCall(_:)	func beforeEachCall(_ action: @escaping @Sendable (Input) -> Void) -> ClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	ClosureCallPattern.errors()	func errors() -> [any Error]
 symbol	TestDoubles	swift.method	ClosureCallPattern.outcomes()	func outcomes() -> [InvocationOutcome<Result>]
 symbol	TestDoubles	swift.method	ClosureCallPattern.results()	func results() -> [Result]
@@ -618,7 +626,9 @@ symbol	TestDoubles	swift.method	StubSuspension.waitForCall(count:within:fileID:f
 symbol	TestDoubles	swift.method	StubSuspension.waitForCall(count:within:using:fileID:filePath:line:column:)	func waitForCall(count: Int = 1, within timeout: Duration, using clock: any StubClock, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
 symbol	TestDoubles	swift.method	TestDoubleScenario.appending(_:)	func appending(_ next: `Self`) -> TestDoubleScenario<Subject>
 symbol	TestDoubles	swift.method	TestDoubleScenario.apply(to:)	func apply(to subject: Subject)
+symbol	TestDoubles	swift.method	ThrowingClosureCallPattern.afterEachCall(_:)	func afterEachCall(_ action: @escaping @Sendable (Input) -> Void) -> ThrowingClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	ThrowingClosureCallPattern.arguments()	func arguments() -> [Input]
+symbol	TestDoubles	swift.method	ThrowingClosureCallPattern.beforeEachCall(_:)	func beforeEachCall(_ action: @escaping @Sendable (Input) -> Void) -> ThrowingClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	ThrowingClosureCallPattern.errors()	func errors() -> [any Error]
 symbol	TestDoubles	swift.method	ThrowingClosureCallPattern.outcomes()	func outcomes() -> [InvocationOutcome<Result>]
 symbol	TestDoubles	swift.method	ThrowingClosureCallPattern.results()	func results() -> [Result]

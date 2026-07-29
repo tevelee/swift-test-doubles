@@ -3,6 +3,14 @@ import Foundation
 /// Lock-agnostic behavior storage owned and synchronized by ``StubRecorder``.
 struct StubBehaviorRegistry {
     typealias FixedResult = Result<Any, any Error>
+    typealias SideEffect = @Sendable ([Any]) -> Void
+
+    struct SideEffects: @unchecked Sendable {
+        var before: [SideEffect] = []
+        var after: [SideEffect] = []
+
+        var isEmpty: Bool { before.isEmpty && after.isEmpty }
+    }
 
     /// How many consecutive matching calls a single queued answer serves
     /// before the sequence advances to the next one.
@@ -146,6 +154,7 @@ struct StubBehaviorRegistry {
         let scenarioName: String?
         let sourceLocation: StubSourceLocation?
         let behavior: Behavior
+        let sideEffects: SideEffects
 
         init(
             matchers: [ParameterMatcher],
@@ -153,7 +162,8 @@ struct StubBehaviorRegistry {
             diagnosticSignature: String,
             scenarioName: String? = nil,
             sourceLocation: StubSourceLocation? = nil,
-            behavior: Behavior
+            behavior: Behavior,
+            sideEffects: SideEffects = SideEffects()
         ) {
             self.matchers = matchers
             self.matchesEmptyArgumentsExactly = matchesEmptyArgumentsExactly
@@ -161,6 +171,7 @@ struct StubBehaviorRegistry {
             self.scenarioName = scenarioName
             self.sourceLocation = sourceLocation
             self.behavior = behavior
+            self.sideEffects = sideEffects
         }
     }
 
@@ -317,7 +328,8 @@ struct StubBehaviorRegistry {
         diagnosticSignature: String,
         scenarioName: String? = nil,
         sourceLocation: StubSourceLocation? = nil,
-        behavior: Entry.Behavior
+        behavior: Entry.Behavior,
+        sideEffects: SideEffects = SideEffects()
     ) {
         let entryIndex = entriesByMethod[method]?.count ?? 0
         let entry = Entry(
@@ -326,7 +338,8 @@ struct StubBehaviorRegistry {
             diagnosticSignature: diagnosticSignature,
             scenarioName: scenarioName,
             sourceLocation: sourceLocation,
-            behavior: behavior
+            behavior: behavior,
+            sideEffects: sideEffects
         )
         entriesByMethod[method, default: []].append(
             entry

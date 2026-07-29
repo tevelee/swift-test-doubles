@@ -399,6 +399,21 @@ handler: synchronous handlers and matcher predicates are `@Sendable`, async
 handlers preserve their creation actor or executor, and mutable captures must
 be synchronized when calls may be concurrent.
 
+Use `beforeEachCall` and `afterEachCall` when an independent side effect should
+wrap the selected answer:
+
+```swift
+stub.when { try await $0.load(url: Match.any()) }
+    .beforeEachCall { url in metrics.started(url) }
+    .afterEachCall { url in metrics.finished(url) }
+    .thenReturn("cached")
+```
+
+The pre-call hook runs after matching and before the answer. The post-call hook
+runs after a return, throw, or completed spy delegation, and therefore remains
+pending with an answer that never completes. Hooks are configured before the
+terminal `then` method and do not replace or consume behavior-chain answers.
+
 Computed handlers, counted handlers, and forwarding follow the same chaining
 rules as fixed results. That keeps an argument-dependent attempt and its fixed
 fallback in one discoverable expression:

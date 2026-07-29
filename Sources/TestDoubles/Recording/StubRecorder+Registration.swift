@@ -12,6 +12,7 @@ extension StubRecorder {
         matchers: [ParameterMatcher],
         matchesEmptyArgumentsExactly: Bool = false,
         location: StubSourceLocation? = nil,
+        sideEffects: StubBehaviorRegistry.SideEffects = .init(),
         handler: @escaping ([Any]) async throws -> Any
     ) {
         guard runtimeMethod(for: method)?.isAsync == true else {
@@ -25,7 +26,8 @@ extension StubRecorder {
             matchers: matchers,
             matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
             behavior: .suspending(handler),
-            location: location
+            location: location,
+            sideEffects: sideEffects
         )
     }
 
@@ -34,6 +36,7 @@ extension StubRecorder {
         matchers: [ParameterMatcher],
         matchesEmptyArgumentsExactly: Bool = false,
         location: StubSourceLocation? = nil,
+        sideEffects: StubBehaviorRegistry.SideEffects = .init(),
         value: Any
     ) {
         addEntry(
@@ -41,7 +44,8 @@ extension StubRecorder {
             matchers: matchers,
             matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
             behavior: .fixed(.success(value)),
-            location: location
+            location: location,
+            sideEffects: sideEffects
         )
     }
 
@@ -50,6 +54,7 @@ extension StubRecorder {
         matchers: [ParameterMatcher],
         matchesEmptyArgumentsExactly: Bool = false,
         location: StubSourceLocation? = nil,
+        sideEffects: StubBehaviorRegistry.SideEffects = .init(),
         answers: [(QueuedAnswer, RepeatCount)]
     ) -> ConsumableResults {
         let sequence = ConsumableResults(answers)
@@ -58,7 +63,8 @@ extension StubRecorder {
             matchers: matchers,
             matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
             behavior: .fixedSequence(sequence),
-            location: location
+            location: location,
+            sideEffects: sideEffects
         )
         return sequence
     }
@@ -68,6 +74,7 @@ extension StubRecorder {
         matchers: [ParameterMatcher],
         matchesEmptyArgumentsExactly: Bool = false,
         location: StubSourceLocation? = nil,
+        sideEffects: StubBehaviorRegistry.SideEffects = .init(),
         returnValue: @escaping @Sendable ([Any]) throws -> Any
     ) {
         addEntry(
@@ -75,7 +82,8 @@ extension StubRecorder {
             matchers: matchers,
             matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
             behavior: .immediate(returnValue),
-            location: location
+            location: location,
+            sideEffects: sideEffects
         )
     }
 
@@ -88,7 +96,8 @@ extension StubRecorder {
         matchers: [ParameterMatcher],
         matchesEmptyArgumentsExactly: Bool,
         behavior: StubEntry.Behavior,
-        location: StubSourceLocation?
+        location: StubSourceLocation?,
+        sideEffects: StubBehaviorRegistry.SideEffects
     ) {
         let scenarioName = TestDoubleScenarioContext.name
         let registration = registerEntry(
@@ -97,7 +106,8 @@ extension StubRecorder {
             matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
             behavior: behavior,
             location: location,
-            scenarioName: scenarioName
+            scenarioName: scenarioName,
+            sideEffects: sideEffects
         )
 
         // Predicates and issue reporting are user-visible work, kept off the
@@ -113,7 +123,8 @@ extension StubRecorder {
         matchesEmptyArgumentsExactly: Bool,
         behavior: StubEntry.Behavior,
         location: StubSourceLocation?,
-        scenarioName: String?
+        scenarioName: String?,
+        sideEffects: StubBehaviorRegistry.SideEffects
     ) -> StubEntryRegistrationResult {
         withLockedPolicy { policy -> StubEntryRegistrationResult in
             let signature = policy.methodCatalog.diagnosticSignature(
@@ -132,7 +143,8 @@ extension StubRecorder {
                 diagnosticSignature: signature,
                 scenarioName: scenarioName,
                 sourceLocation: location,
-                behavior: behavior
+                behavior: behavior,
+                sideEffects: sideEffects
             )
             return StubEntryRegistrationResult(
                 signature: signature,

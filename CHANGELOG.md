@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   timelines, independent of invocation-entry order.
 - Opt-in, frame-limited call-stack capture on stubs and saved interaction
   handles, exposed through timeline events.
+- Independent `beforeEachCall` and `afterEachCall` side-effect hooks that
+  compose with returns, errors, suspending handlers, and spy forwarding.
 
 ## [0.0.2] - 2026-07-29
 

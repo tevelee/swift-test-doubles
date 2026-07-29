@@ -178,6 +178,33 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
         #expect(stack.count <= 4)
     }
 
+    @Test func preAndPostCallSideEffectsWrapReturnsAndThrows() throws {
+        let stub = try makeHandlerArityStub()
+        let before = LockedCounter()
+        let afterReturn = LockedCounter()
+        let afterThrow = LockedCounter()
+
+        stub.when { $0.one(Match.equal(1)) }
+            .beforeEachCall { (_: Int) in before.increment() }
+            .afterEachCall { (_: Int) in afterReturn.increment() }
+            .then { (value: Int) in
+                #expect(before.value == 1)
+                #expect(afterReturn.value == 0)
+                return value * 2
+            }
+        stub.when { try $0.throwing(Match.equal(-1)) }
+            .afterEachCall { (_: Int) in afterThrow.increment() }
+            .thenThrow(HandlerError(value: -1))
+
+        let probe: any HandlerArityProbe = stub()
+        #expect(probe.one(1) == 2)
+        #expect(afterReturn.value == 1)
+        #expect(throws: HandlerError(value: -1)) {
+            try probe.throwing(-1)
+        }
+        #expect(afterThrow.value == 1)
+    }
+
     @Test func typedThenSupportsZeroThroughSevenArguments() async throws {
         let stub = try makeHandlerArityStub()
         stub.when { $0.zero() }.then { 0 }

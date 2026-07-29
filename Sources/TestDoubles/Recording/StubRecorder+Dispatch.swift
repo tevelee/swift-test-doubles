@@ -183,46 +183,63 @@ extension StubRecorder {
             }
             let entry = entries[preparedMatch.entryIndex]
 
-            let committed: (PreparedDispatch, [InvocationLedgerWaiter])? =
-                withLockedPolicy { policy in
-                    guard policy.behaviorRegistry.isCurrent(snapshot) else { return nil }
-                    policy.behaviorRegistry.markConsumed(
-                        method: methodIndex,
-                        entryIndex: preparedMatch.entryIndex
-                    )
-                    let selectedDispatch = preparedBehavior(
-                        entry.behavior,
-                        method: method,
-                        args: args,
-                        entries: entries
-                    )
-                    let origin: InvocationOrigin =
-                        if case .forwarding = selectedDispatch {
-                            .forwarded
-                        } else {
-                            .stubbed
-                        }
-                    let appended = policy.invocationLedger.append(
-                        method: methodIndex,
-                        name: method.name,
-                        origin: origin,
-                        registrationSignature: entry.diagnosticSignature,
-                        callStack: callStack,
-                        args: args,
-                        argumentConventions: recordingArgumentConventions(for: method),
-                        runtimePayloadRecorder: self
-                    )
-                    preparedMatch.matcherTransaction.commitCaptures()
-                    let dispatch: PreparedDispatch =
-                        switch selectedDispatch {
-                            case .behavior(let behavior):
-                                .behavior(appended.token, behavior)
-                            case .forwarding:
-                                .forwarding(appended.token)
-                        }
-                    return (dispatch, appended.waiters)
-                }
-            guard let (dispatch, waiters) = committed else { continue }
+            let committed:
+                (
+                    PreparedDispatch,
+                    [InvocationLedgerWaiter],
+                    [StubBehaviorRegistry.SideEffect]
+                )? =
+                    withLockedPolicy { policy in
+                        guard policy.behaviorRegistry.isCurrent(snapshot) else { return nil }
+                        policy.behaviorRegistry.markConsumed(
+                            method: methodIndex,
+                            entryIndex: preparedMatch.entryIndex
+                        )
+                        let selectedDispatch = preparedBehavior(
+                            entry.behavior,
+                            method: method,
+                            args: args,
+                            entries: entries
+                        )
+                        let origin: InvocationOrigin =
+                            if case .forwarding = selectedDispatch {
+                                .forwarded
+                            } else {
+                                .stubbed
+                            }
+                        let appended = policy.invocationLedger.append(
+                            method: methodIndex,
+                            name: method.name,
+                            origin: origin,
+                            registrationSignature: entry.diagnosticSignature,
+                            callStack: callStack,
+                            completionActions: entry.sideEffects.after.map { effect in
+                                { effect(args) }
+                            },
+                            args: args,
+                            argumentConventions: recordingArgumentConventions(for: method),
+                            runtimePayloadRecorder: self
+                        )
+                        preparedMatch.matcherTransaction.commitCaptures()
+                        let dispatch: PreparedDispatch =
+                            switch selectedDispatch {
+                                case .behavior(let behavior):
+                                    .behavior(appended.token, behavior)
+                                case .forwarding:
+                                    .forwarding(appended.token)
+                            }
+                        return (
+                            dispatch,
+                            appended.waiters,
+                            entry.sideEffects.before
+                        )
+                    }
+            guard let (dispatch, waiters, beforeEffects) = committed else {
+                continue
+            }
+            for effect in beforeEffects {
+                effect(args)
+            }
             resumeWaiters(waiters, returning: .changed)
             return dispatch
         }
@@ -407,10 +424,13 @@ extension StubRecorder {
         _ token: RecordedCallToken,
         outcome: RecordedCallOutcome
     ) {
-        let waiters = withLockedPolicy {
+        let completion = withLockedPolicy {
             $0.invocationLedger.complete(token, outcome: outcome)
         }
-        resumeWaiters(waiters, returning: .changed)
+        for action in completion.actions {
+            action()
+        }
+        resumeWaiters(completion.waiters, returning: .changed)
     }
 
     private func recordedOutcome(

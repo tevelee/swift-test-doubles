@@ -3,9 +3,12 @@ import InternalRuntimeContract
 protocol StubRegistrationBuilder {
     var recorder: StubRecorder { get }
     var recording: RecordedCall { get }
+    var sideEffects: StubBehaviorRegistry.SideEffects { get }
 }
 
 extension StubRegistrationBuilder {
+    var sideEffects: StubBehaviorRegistry.SideEffects { .init() }
+
     func requireRuntimeMethod() -> RuntimeMethod {
         guard let method = recorder.runtimeMethod(for: recording.methodIndex) else {
             preconditionFailure("[TestDoubles] The recording closure must invoke a requirement.")
@@ -19,6 +22,7 @@ extension StubRegistrationBuilder {
             matchers: recording.resolvedMatchers,
             matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly,
             location: recording.registrationLocation,
+            sideEffects: sideEffects,
             value: value
         )
     }
@@ -263,7 +267,8 @@ extension StubRegistrationBuilder {
             method: recording.methodIndex,
             matchers: recording.resolvedMatchers,
             matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly,
-            location: recording.registrationLocation
+            location: recording.registrationLocation,
+            sideEffects: sideEffects
         ) { arguments in
             try behavior(arguments, methodName)
         }
@@ -277,7 +282,8 @@ extension StubRegistrationBuilder {
             method: recording.methodIndex,
             matchers: recording.resolvedMatchers,
             matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly,
-            location: recording.registrationLocation
+            location: recording.registrationLocation,
+            sideEffects: sideEffects
         ) { arguments in
             try await behavior(arguments, methodName)
         }

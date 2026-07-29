@@ -11,15 +11,18 @@ public struct CallPattern<Result>: Sendable {
     let recorder: StubRecorder
     let recording: RecordedCall
     let origin: InvocationOrigin?
+    let sideEffects: StubBehaviorRegistry.SideEffects
 
     init(
         recorder: StubRecorder,
         recording: RecordedCall,
-        origin: InvocationOrigin? = nil
+        origin: InvocationOrigin? = nil,
+        sideEffects: StubBehaviorRegistry.SideEffects = .init()
     ) {
         self.recorder = recorder
         self.recording = recording
         self.origin = origin
+        self.sideEffects = sideEffects
     }
 
     // MARK: - thenReturn
@@ -511,6 +514,7 @@ public struct CallPattern<Result>: Sendable {
             matchers: recording.resolvedMatchers,
             matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly,
             location: recording.registrationLocation,
+            sideEffects: sideEffects,
             answers: answers
         )
         return StubBehaviorChain(
