@@ -26,6 +26,19 @@ recordings.verify(1 ... 1)
 try session.save(to: fixtureURL)
 ```
 
+Inside a `TestDoublesTesting` scope, compare a recording session with a
+committed fixture to make failures carry a textual fixture diff automatically:
+
+```swift
+let session = RecordingSession(
+    comparingAgainst: committedFixture,
+    named: "weather"
+)
+```
+
+The diff is generated lazily at test teardown and omitted when the recorded
+snapshot is unchanged.
+
 `thenRecord(as:into:calling:)` runs `handler` — typically a direct call to the
 real dependency the spy wraps — and records its result into the session under
 `key`, in addition to returning it as this call's answer like `then` would.

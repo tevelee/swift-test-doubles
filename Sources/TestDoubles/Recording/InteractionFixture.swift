@@ -197,6 +197,22 @@ public struct InteractionFixture: Codable, Sendable {
         try container.encode(outcomes, forKey: .outcomes)
         try container.encodeIfPresent(requests, forKey: .requests)
     }
+
+    /// Produces a deterministic line diff from `expected` to this fixture.
+    /// Returns `nil` when their serialized contents are identical.
+    func difference(from expected: Self) -> String? {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        guard let expectedJSON = try? encoder.encode(expected),
+            let recordedJSON = try? encoder.encode(self),
+            expectedJSON != recordedJSON,
+            let expectedText = String(data: expectedJSON, encoding: .utf8),
+            let recordedText = String(data: recordedJSON, encoding: .utf8)
+        else {
+            return nil
+        }
+        return fixtureLineDiff(expected: expectedText, recorded: recordedText)
+    }
 }
 
 struct FixtureOutcome: Codable, Sendable {
@@ -210,4 +226,55 @@ struct FixtureOutcome: Codable, Sendable {
     static func failure(_ error: Data) -> Self {
         Self(result: nil, error: error)
     }
+}
+
+private func fixtureLineDiff(expected: String, recorded: String) -> String {
+    let expectedLines = expected.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+    let recordedLines = recorded.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+    var commonPrefixCount = 0
+    while commonPrefixCount < min(expectedLines.count, recordedLines.count),
+        expectedLines[commonPrefixCount] == recordedLines[commonPrefixCount]
+    {
+        commonPrefixCount += 1
+    }
+
+    var commonSuffixCount = 0
+    while commonSuffixCount < expectedLines.count - commonPrefixCount,
+        commonSuffixCount < recordedLines.count - commonPrefixCount,
+        expectedLines[expectedLines.count - commonSuffixCount - 1]
+            == recordedLines[recordedLines.count - commonSuffixCount - 1]
+    {
+        commonSuffixCount += 1
+    }
+
+    var lines = ["--- expected", "+++ recorded"]
+    let leadingContextStart = max(0, commonPrefixCount - 3)
+    if leadingContextStart > 0 {
+        lines.append("  …")
+    }
+    lines.append(
+        contentsOf: expectedLines[leadingContextStart ..< commonPrefixCount]
+            .map { "  \($0)" }
+    )
+
+    let expectedChangeEnd = expectedLines.count - commonSuffixCount
+    let recordedChangeEnd = recordedLines.count - commonSuffixCount
+    lines.append(
+        contentsOf: expectedLines[commonPrefixCount ..< expectedChangeEnd]
+            .map { "- \($0)" }
+    )
+    lines.append(
+        contentsOf: recordedLines[commonPrefixCount ..< recordedChangeEnd]
+            .map { "+ \($0)" }
+    )
+
+    let trailingContextEnd = min(expectedLines.count, expectedChangeEnd + 3)
+    lines.append(
+        contentsOf: expectedLines[expectedChangeEnd ..< trailingContextEnd]
+            .map { "  \($0)" }
+    )
+    if trailingContextEnd < expectedLines.count {
+        lines.append("  …")
+    }
+    return lines.joined(separator: "\n")
 }

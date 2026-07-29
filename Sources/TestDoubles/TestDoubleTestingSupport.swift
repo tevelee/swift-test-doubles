@@ -24,6 +24,30 @@ final class TestDoubleTeardownCheck: @unchecked Sendable {
     }
 }
 
+/// A lazily rendered fixture comparison owned by a test scope.
+final class TestDoubleFixtureDiffCheck: @unchecked Sendable {
+    let name: String
+    private let difference: () -> String?
+
+    init(name: String, difference: @escaping () -> String?) {
+        self.name = name
+        self.difference = difference
+    }
+
+    func makeDifference() -> String? {
+        difference()
+    }
+}
+
+/// A text artifact that `TestDoublesTesting` records with Swift Testing.
+@_spi(Testing) public struct TestDoubleFailureAttachment: Sendable {
+    /// The preferred attachment filename.
+    @_spi(Testing) public let name: String
+
+    /// The UTF-8 text stored in the attachment.
+    @_spi(Testing) public let contents: String
+}
+
 /// Per-test state used by the opt-in `TestDoublesTesting` product.
 ///
 /// This SPI keeps Swift Testing out of the main `TestDoubles` product, which
@@ -32,6 +56,7 @@ final class TestDoubleTeardownCheck: @unchecked Sendable {
     private let lock = NSLock()
     private var recorders: [StubRecorder] = []
     private var teardownChecks: [TestDoubleTeardownCheck] = []
+    private var fixtureDiffChecks: [TestDoubleFixtureDiffCheck] = []
 
     /// Creates an empty test-double session.
     @_spi(Testing) public init() {}
@@ -49,6 +74,17 @@ final class TestDoubleTeardownCheck: @unchecked Sendable {
         teardownChecks.append(teardownCheck)
     }
 
+    func registerFixtureDiff(
+        named name: String,
+        difference: @escaping () -> String?
+    ) {
+        lock.lock()
+        defer { lock.unlock() }
+        fixtureDiffChecks.append(
+            TestDoubleFixtureDiffCheck(name: name, difference: difference)
+        )
+    }
+
     /// Returns diagnostics for the requested automatic teardown checks.
     @_spi(Testing) public func diagnostics(
         checkingUnusedRegistrations: Bool,
@@ -57,7 +93,7 @@ final class TestDoubleTeardownCheck: @unchecked Sendable {
         checkingPendingSuspensions: Bool = false,
         checkingPendingCallbackCaptures: Bool = false
     ) -> [String] {
-        let (recorders, teardownChecks) = snapshot()
+        let (recorders, teardownChecks, _) = snapshot()
         let recorderDiagnostics = recorders.flatMap { recorder in
             var diagnostics: [String] = []
             if checkingUnusedRegistrations,
@@ -85,18 +121,63 @@ final class TestDoubleTeardownCheck: @unchecked Sendable {
         return recorderDiagnostics + lifecycleDiagnostics
     }
 
-    private func snapshot() -> ([StubRecorder], [TestDoubleTeardownCheck]) {
+    /// Returns nonempty interaction timelines and changed fixture comparisons
+    /// for Swift Testing to record as text attachments.
+    @_spi(Testing) public func failureAttachments() -> [TestDoubleFailureAttachment] {
+        let (recorders, _, fixtureDiffChecks) = snapshot()
+        let timelines = recorders.enumerated().compactMap {
+            index,
+            recorder -> TestDoubleFailureAttachment? in
+            let timeline = recorder.interactionTimeline()
+            guard timeline.events.isEmpty == false else { return nil }
+            let label =
+                recorder.testDoubleName.map(sanitizedAttachmentComponent)
+                ?? "test-double-\(index + 1)"
+            return TestDoubleFailureAttachment(
+                name: "\(label)-timeline.txt",
+                contents: timeline.description
+            )
+        }
+        let fixtureDiffs = fixtureDiffChecks.compactMap {
+            check -> TestDoubleFailureAttachment? in
+            guard let difference = check.makeDifference() else { return nil }
+            return TestDoubleFailureAttachment(
+                name: "\(sanitizedAttachmentComponent(check.name))-fixture.diff",
+                contents: difference
+            )
+        }
+        return timelines + fixtureDiffs
+    }
+
+    private func snapshot() -> (
+        [StubRecorder],
+        [TestDoubleTeardownCheck],
+        [TestDoubleFixtureDiffCheck]
+    ) {
         lock.lock()
         let recorders = recorders
         let checks = teardownChecks
+        let fixtureDiffChecks = fixtureDiffChecks
         lock.unlock()
-        return (recorders, checks)
+        return (recorders, checks, fixtureDiffChecks)
     }
 
     private func describing(recorder: StubRecorder, diagnostic: String) -> String {
         guard let name = recorder.testDoubleName else { return diagnostic }
         return "Test double '\(name)':\n\(diagnostic)"
     }
+}
+
+private func sanitizedAttachmentComponent(_ value: String) -> String {
+    let scalars = value.unicodeScalars.map { scalar -> Character in
+        if CharacterSet.alphanumerics.contains(scalar) || scalar == "-" || scalar == "_" {
+            return Character(String(scalar))
+        }
+        return "-"
+    }
+    let collapsed = String(scalars).split(separator: "-", omittingEmptySubsequences: true)
+        .joined(separator: "-")
+    return collapsed.isEmpty ? "test-double" : collapsed
 }
 
 /// The task-local session supplied by the opt-in `TestDoublesTesting` product.

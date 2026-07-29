@@ -18,6 +18,10 @@ This page introduces the complete everyday vocabulary. Continue with
 and associated types; <doc:AsyncBehaviors> for precise async control; and
 <doc:InspectingInteractions> for deeper observation and ordering.
 
+Tests using `.testDoubles` or `.strictTestDoubles` also record nonempty
+interaction timelines as Swift Testing text attachments. They appear with the
+test result when a failure needs deeper diagnosis.
+
 ### Define the dependency
 
 The subject under test should already depend on a protocol:

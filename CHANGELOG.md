@@ -37,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   matcher packages.
 - Copy/paste-ready `when` registrations in missing and nonmatching stub
   diagnostics, with escaped literals and a compiling TODO return handler.
+- Swift Testing failure artifacts for scoped interaction timelines and lazy
+  recording-session diffs against committed fixtures.
 
 ## [0.0.2] - 2026-07-29
 

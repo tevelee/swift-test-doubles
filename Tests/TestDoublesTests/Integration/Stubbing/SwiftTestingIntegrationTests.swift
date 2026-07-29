@@ -153,4 +153,44 @@ private func makeScopedSuspendedTestDoubleStub() throws -> Stub<any ScopedSuspen
             }
         )
     }
+
+    @Test func failureArtifactsIncludeTimelinesAndChangedFixtureDiffs() throws {
+        let session = TestDoubleSession()
+        let attachments = try TestDoubleTestingContext.$session.withValue(session) {
+            let stub = try makeScopedQueuedTestDoubleStub().named("price loader")
+            let recording = RecordingSession(
+                comparingAgainst: InteractionFixture(),
+                named: "weather fixture"
+            )
+            stub.when { $0.nextValue() }
+                .thenRecord(as: "temperature", into: recording) { 21 }
+
+            #expect(stub().nextValue() == 21)
+            return session.failureAttachments()
+        }
+
+        let timeline = try #require(
+            attachments.first { $0.name == "price-loader-timeline.txt" }
+        )
+        #expect(timeline.contents.contains("stubbed requirement_0()"))
+
+        let fixtureDiff = try #require(
+            attachments.first { $0.name == "weather-fixture-fixture.diff" }
+        )
+        #expect(fixtureDiff.contents.hasPrefix("--- expected\n+++ recorded"))
+        #expect(fixtureDiff.contents.contains(#""temperature""#))
+    }
+
+    @Test func unchangedFixtureDoesNotCreateADiffAttachment() {
+        let session = TestDoubleSession()
+        let attachments = TestDoubleTestingContext.$session.withValue(session) {
+            _ = RecordingSession(
+                comparingAgainst: InteractionFixture(),
+                named: "empty fixture"
+            )
+            return session.failureAttachments()
+        }
+
+        #expect(attachments.isEmpty)
+    }
 }

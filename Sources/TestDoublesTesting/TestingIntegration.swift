@@ -81,11 +81,12 @@
                     try await function()
                 }
             } catch {
-                report(
-                    diagnostics(from: session))
+                report(diagnostics(from: session))
+                attachFailureArtifacts(from: session)
                 throw error
             }
             report(diagnostics(from: session))
+            attachFailureArtifacts(from: session)
         }
 
         private func diagnostics(from session: TestDoubleSession) -> [String] {
@@ -101,6 +102,15 @@
         private func report(_ diagnostics: [String]) {
             for diagnostic in diagnostics {
                 reportIssue("[TestDoubles] \(diagnostic)")
+            }
+        }
+
+        private func attachFailureArtifacts(from session: TestDoubleSession) {
+            for artifact in session.failureAttachments() {
+                Attachment<String>.record(
+                    artifact.contents,
+                    named: artifact.name
+                )
             }
         }
     }

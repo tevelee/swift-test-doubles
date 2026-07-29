@@ -36,6 +36,23 @@ public final class RecordingSession: @unchecked Sendable {
         self.redactor = redactor
     }
 
+    /// Creates a recording session whose changed fixture is attached by an
+    /// active `TestDoublesTesting` scope.
+    ///
+    /// The comparison is lazy: the scope snapshots this session at test
+    /// teardown and records a `.diff` attachment only when it differs from
+    /// `expectedFixture`.
+    public convenience init(
+        comparingAgainst expectedFixture: InteractionFixture,
+        named fixtureName: String = "interaction-fixture",
+        redacting redactor: FixtureRedactor = .none
+    ) {
+        self.init(redacting: redactor)
+        TestDoubleTestingContext.session?.registerFixtureDiff(named: fixtureName) {
+            self.snapshot().difference(from: expectedFixture)
+        }
+    }
+
     func recordSuccess<Value: Encodable>(_ value: Value, as key: String) {
         recordSuccess(value, requestData: nil, as: key)
     }
@@ -98,7 +115,10 @@ public final class RecordingSession: @unchecked Sendable {
     public func snapshot() -> InteractionFixture {
         lock.lock()
         defer { lock.unlock() }
-        return InteractionFixture(outcomes: outcomes, requests: requests)
+        return InteractionFixture(
+            outcomes: outcomes,
+            requests: requests.isEmpty ? nil : requests
+        )
     }
 
     /// Freezes the calls recorded so far and writes them as JSON to `url`,

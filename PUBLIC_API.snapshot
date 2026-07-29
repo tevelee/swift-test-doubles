@@ -185,6 +185,7 @@ symbol	TestDoubles	swift.init	ManualStubConformer.init(stub:)	init(stub: ManualS
 symbol	TestDoubles	swift.init	Match.Capture.init()	init()
 symbol	TestDoubles	swift.init	ParameterizedTestDoubleScenario.init(_:)	init(_ configure: @escaping (Subject, Parameter) -> Void)
 symbol	TestDoubles	swift.init	ParameterizedTestDoubleScenario.init(named:_:)	init(named name: String, _ configure: @escaping (Subject, Parameter) -> Void)
+symbol	TestDoubles	swift.init	RecordingSession.init(comparingAgainst:named:redacting:)	convenience init(comparingAgainst expectedFixture: InteractionFixture, named fixtureName: String = "interaction-fixture", redacting redactor: FixtureRedactor = .none)
 symbol	TestDoubles	swift.init	RecordingSession.init(redacting:)	init(redacting redactor: FixtureRedactor = .none)
 symbol	TestDoubles	swift.init	Spy.init(forwardingTo:)	convenience init(forwardingTo target: P) throws(StubError)
 symbol	TestDoubles	swift.init	Spy.init(forwardingTo:getterEffects:_:)	convenience init(forwardingTo target: P, getterEffects firstEffect: Stub<P>.GetterEffect, _ additionalEffects: Stub<P>.GetterEffect...) throws(StubError)
