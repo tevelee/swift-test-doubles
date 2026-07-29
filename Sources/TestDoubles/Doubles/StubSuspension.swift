@@ -13,9 +13,7 @@ public final class StubSuspension<Result> {
 
     private let recorder: StubRecorder
     private let method: RuntimeMethod
-    private let lock = NSLock()
-    private var parked: [CheckedContinuation<Outcome, Never>] = []
-    private var arrivalWaiters: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
+    private let state = StubSuspensionState()
 
     init(recorder: StubRecorder, method: RuntimeMethod) {
         self.recorder = recorder
@@ -25,21 +23,51 @@ public final class StubSuspension<Result> {
     /// Suspends until at least `count` matching calls are currently parked,
     /// returning immediately when they already are. Resumed calls leave the
     /// parked set, so `count` describes calls now in flight, not a running
-    /// total of arrivals.
+    /// total of arrivals. Cancelling the waiting task also returns immediately
+    /// without affecting parked calls.
     public func waitForCall(count: Int = 1) async {
         precondition(
             count >= 1,
             "[TestDoubles] waitForCall(count:) requires a count of at least 1."
         )
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            lock.lock()
-            if parked.count >= count {
-                lock.unlock()
-                continuation.resume()
-                return
+
+        let state = self.state
+        let waiterID = state.lock.withLock {
+            defer { state.nextArrivalWaiterID &+= 1 }
+            state.pendingArrivalWaiterIDs.insert(state.nextArrivalWaiterID)
+            return state.nextArrivalWaiterID
+        }
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                let shouldResume = state.lock.withLock { () -> Bool in
+                    if state.cancelledArrivalWaiterIDs.remove(waiterID) != nil {
+                        return true
+                    }
+                    state.pendingArrivalWaiterIDs.remove(waiterID)
+                    if state.parked.count >= count {
+                        return true
+                    }
+                    state.arrivalWaiters[waiterID] = StubSuspensionArrivalWaiter(
+                        minimumCount: count,
+                        continuation: continuation
+                    )
+                    return false
+                }
+                if shouldResume {
+                    continuation.resume()
+                }
             }
-            arrivalWaiters.append((count, continuation))
-            lock.unlock()
+        } onCancel: {
+            let continuation = state.lock.withLock { () -> CheckedContinuation<Void, Never>? in
+                if let waiter = state.arrivalWaiters.removeValue(forKey: waiterID) {
+                    return waiter.continuation
+                }
+                if state.pendingArrivalWaiterIDs.remove(waiterID) != nil {
+                    state.cancelledArrivalWaiterIDs.insert(waiterID)
+                }
+                return nil
+            }
+            continuation?.resume()
         }
     }
 
@@ -70,32 +98,32 @@ public final class StubSuspension<Result> {
     func park() async throws -> Any {
         let outcome = await withCheckedContinuation {
             (continuation: CheckedContinuation<Outcome, Never>) in
-            lock.lock()
-            parked.append(continuation)
-            let parkedCount = parked.count
-            var satisfied: [CheckedContinuation<Void, Never>] = []
-            arrivalWaiters.removeAll { waiter in
-                guard waiter.count <= parkedCount else { return false }
-                satisfied.append(waiter.continuation)
-                return true
+            state.lock.lock()
+            state.parked.append(continuation)
+            let parkedCount = state.parked.count
+            let satisfiedIDs = state.arrivalWaiters.compactMap { id, waiter in
+                waiter.minimumCount <= parkedCount ? id : nil
             }
-            lock.unlock()
+            let satisfied = satisfiedIDs.compactMap {
+                state.arrivalWaiters.removeValue(forKey: $0)?.continuation
+            }
+            state.lock.unlock()
             satisfied.forEach { $0.resume() }
         }
         return try outcome.get()
     }
 
     private func completeOldest(with outcome: sending Outcome) {
-        lock.lock()
-        guard parked.isEmpty == false else {
-            lock.unlock()
+        state.lock.lock()
+        guard state.parked.isEmpty == false else {
+            state.lock.unlock()
             fatalError(
                 "[TestDoubles] No suspended call to resume for \(method.name). "
                     + "Await waitForCall() first so the call has arrived and parked."
             )
         }
-        let continuation = parked.removeFirst()
-        lock.unlock()
+        let continuation = state.parked.removeFirst()
+        state.lock.unlock()
         continuation.resume(returning: outcome)
     }
 }
@@ -107,12 +135,26 @@ extension StubSuspension: @unchecked Sendable where Result: Sendable {}
 
 extension StubSuspension {
     func teardownDiagnostic() -> String? {
-        let pendingCount = lock.withLock { parked.count }
+        let pendingCount = state.lock.withLock { state.parked.count }
         guard pendingCount > 0 else { return nil }
         let subject = recorder.testDoubleName.map { " for test double '\($0)'" } ?? ""
         return "Expected every suspended call\(subject) for \(method.name) to be resumed, "
             + "but \(pendingCount) \(pendingCount == 1 ? "call remains parked" : "calls remain parked")."
     }
+}
+
+private struct StubSuspensionArrivalWaiter {
+    let minimumCount: Int
+    let continuation: CheckedContinuation<Void, Never>
+}
+
+private final class StubSuspensionState: @unchecked Sendable {
+    let lock = NSLock()
+    var parked: [CheckedContinuation<Swift.Result<Any, any Error>, Never>] = []
+    var nextArrivalWaiterID: UInt64 = 0
+    var arrivalWaiters: [UInt64: StubSuspensionArrivalWaiter] = [:]
+    var pendingArrivalWaiterIDs: Set<UInt64> = []
+    var cancelledArrivalWaiterIDs: Set<UInt64> = []
 }
 
 extension StubSuspension where Result == Void {

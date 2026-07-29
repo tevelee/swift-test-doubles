@@ -111,4 +111,21 @@ private actor CompletionFlag {
         suspension.resume(returning: "done")
         #expect(try await task.value == "done")
     }
+
+    @Test func cancellingWaitForCallReleasesTheWaiter() async throws {
+        let stub = try Stub<any SuspensionProbeService>()
+        let suspension = await stub.when { try await $0.fetch(id: any()) }.thenSuspend()
+
+        let waiter = Task {
+            await suspension.waitForCall()
+        }
+        waiter.cancel()
+        await waiter.value
+
+        let service: any SuspensionProbeService = stub()
+        let call = Task { try await service.fetch(id: 4) }
+        await suspension.waitForCall()
+        suspension.resume(returning: "after cancellation")
+        #expect(try await call.value == "after cancellation")
+    }
 }
