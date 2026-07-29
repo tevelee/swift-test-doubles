@@ -14,6 +14,21 @@
         var save: @Sendable (Int) throws(GeneratedClientFailure) -> String
     }
 
+    @StubbableClient
+    private struct GeneratedGenericClient<Value: Sendable>: Sendable
+    where Value: Equatable {
+        enum Failure: Error {
+            case rejected
+        }
+
+        typealias Load =
+            @Sendable (String) async throws(Failure) -> Value
+
+        var namespace: String
+        var load: Load
+        let identity: @Sendable (Value) -> Value = { $0 }
+    }
+
     @Suite struct StubbableClientMacroIntegrationTests {
         @Test func generatedPresetStubsAndForwardsClosureFields() async throws {
             let failing = GeneratedClosureClientDoubles.preset.failing()
@@ -41,6 +56,32 @@
             #expect(try client.save(6) == "saved-6")
             #expect(spy.history.stubbed.callCount == 1)
             #expect(spy.history.forwarded.callCount == 3)
+        }
+
+        @Test func generatedPresetSupportsGenericClientsAliasesAndInputs() async throws {
+            let preset = GeneratedGenericClientDoubles<Int>.preset(
+                namespace: "test"
+            )
+            let stub = await preset.failing { stub in
+                await stub.when {
+                    try await $0.load(Match.equal("value"))
+                }.thenReturn(42)
+            }
+
+            let stubbed = stub()
+            #expect(stubbed.namespace == "test")
+            #expect(try await stubbed.load("value") == 42)
+            #expect(stubbed.identity(7) == 7)
+
+            let live = GeneratedGenericClient<Int>(
+                namespace: "live",
+                load: { $0.count }
+            )
+            let spy = preset.spy(forwardingTo: live)
+            let forwarded = spy()
+            #expect(forwarded.namespace == "test")
+            #expect(try await forwarded.load("hello") == 5)
+            #expect(spy.history.forwarded.callCount == 1)
         }
     }
 #endif

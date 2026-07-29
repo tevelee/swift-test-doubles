@@ -419,10 +419,21 @@ symbol	TestDoubles	swift.method	CallbackCapture.releaseAll()	func releaseAll()
 symbol	TestDoubles	swift.method	CallbackCapture.waitForCallback(count:within:fileID:filePath:line:column:)	func waitForCallback(count: Int = 1, within timeout: Duration, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
 symbol	TestDoubles	swift.method	CallbackCapture.waitForCallback(count:within:using:fileID:filePath:line:column:)	func waitForCallback(count: Int = 1, within timeout: Duration, using clock: any StubClock, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
 symbol	TestDoubles	swift.method	ClientDoublePreset.failing()	func failing() -> ClientStub<Client>
+symbol	TestDoubles	swift.method	ClientDoublePreset.failing(configure:)	func failing(configure: (ClientStub<Client>) -> Void) -> ClientStub<Client>
+symbol	TestDoubles	swift.method	ClientDoublePreset.failing(configure:)	func failing(configure: (ClientStub<Client>) async throws -> Void) async rethrows -> ClientStub<Client>
 symbol	TestDoubles	swift.method	ClientDoublePreset.live(_:)	func live(_ client: Client) -> Client
 symbol	TestDoubles	swift.method	ClientDoublePreset.overriding(_:configure:)	func overriding(_ live: Client, configure: (ClientSpy<Client>) -> Void) -> ClientSpy<Client>
+symbol	TestDoubles	swift.method	ClientDoublePreset.overriding(_:configure:)	func overriding(_ live: Client, configure: (ClientSpy<Client>) async throws -> Void) async rethrows -> ClientSpy<Client>
 symbol	TestDoubles	swift.method	ClientDoublePreset.spy(forwardingTo:)	func spy(forwardingTo live: Client) -> ClientSpy<Client>
+symbol	TestDoubles	swift.method	ClientDoublePreset.spy(forwardingTo:configure:)	func spy(forwardingTo live: Client, configure: (ClientSpy<Client>) -> Void) -> ClientSpy<Client>
+symbol	TestDoubles	swift.method	ClientDoublePreset.spy(forwardingTo:configure:)	func spy(forwardingTo live: Client, configure: (ClientSpy<Client>) async throws -> Void) async rethrows -> ClientSpy<Client>
 symbol	TestDoubles	swift.method	ClientDoublePreset.stub()	func stub() -> ClientStub<Client>
+symbol	TestDoubles	swift.method	ClientDoublePreset.stub(configure:)	func stub(configure: (ClientStub<Client>) -> Void) -> ClientStub<Client>
+symbol	TestDoubles	swift.method	ClientDoublePreset.stub(configure:)	func stub(configure: (ClientStub<Client>) async throws -> Void) async rethrows -> ClientStub<Client>
+symbol	TestDoubles	swift.method	ClientDoublePreset.testValue(configure:)	func testValue(configure: (ClientStub<Client>) -> Void = { _ in }) -> Client
+symbol	TestDoubles	swift.method	ClientDoublePreset.testValue(configure:)	func testValue(configure: (ClientStub<Client>) async throws -> Void) async rethrows -> Client
+symbol	TestDoubles	swift.method	ClientDoublePreset.testValue(overriding:configure:)	func testValue(overriding live: Client, configure: (ClientSpy<Client>) -> Void) -> Client
+symbol	TestDoubles	swift.method	ClientDoublePreset.testValue(overriding:configure:)	func testValue(overriding live: Client, configure: (ClientSpy<Client>) async throws -> Void) async rethrows -> Client
 symbol	TestDoubles	swift.method	ClientStubEndpoints.asyncFunction(_:)	func asyncFunction<each Argument, Result>(_ name: String) -> @Sendable (repeat each Argument) async -> Result
 symbol	TestDoubles	swift.method	ClientStubEndpoints.asyncFunction(_:forwarding:)	func asyncFunction<each Argument, Result>(_ name: String, forwarding fallback: @escaping @Sendable (Client, repeat each Argument) async -> Result) -> @Sendable (repeat each Argument) async -> Result
 symbol	TestDoubles	swift.method	ClientStubEndpoints.asyncFunction(_:forwardingTo:)	func asyncFunction<each Argument, Result>(_ name: String, forwardingTo fallback: @escaping @Sendable (repeat each Argument) async -> Result) -> @Sendable (repeat each Argument) async -> Result

@@ -346,4 +346,89 @@ private func makeLiveClosureFieldClient() -> ClosureFieldClient {
         formats.forwarded.verify()
         formats.stubbed.verify()
     }
+
+    @Test func clientPresetOffersConfiguredControllersAndDirectTestValues() {
+        let preset = makeClosureFieldClientPreset()
+        let live = makeLiveClosureFieldClient()
+
+        let failing = preset.failing { stub in
+            stub.when { $0.version() }.thenReturn("configured")
+        }
+        #expect(failing().version() == "configured")
+        failing.when { $0.version() }.verify()
+
+        let stub = preset.stub { stub in
+            stub.when {
+                $0.format(Match.equal(2), Match.equal("items"))
+            }.thenReturn("two items")
+        }
+        #expect(stub().format(2, "items") == "two items")
+
+        let spy = preset.spy(forwardingTo: live) { spy in
+            spy.when {
+                $0.format(Match.equal(3), Match.any())
+            }.thenReturn("three overridden")
+        }
+        #expect(spy().format(3, "items") == "three overridden")
+        #expect(spy().version() == "live")
+        #expect(spy.history.stubbed.callCount == 1)
+        #expect(spy.history.forwarded.callCount == 1)
+
+        let testValue = preset.testValue { stub in
+            stub.when { $0.version() }.thenReturn("value")
+        }
+        #expect(testValue.version() == "value")
+
+        let overriddenValue = preset.testValue(overriding: live) { spy in
+            spy.when {
+                $0.format(Match.equal(4), Match.any())
+            }.thenReturn("four overridden")
+        }
+        #expect(overriddenValue.format(4, "items") == "four overridden")
+        #expect(overriddenValue.version() == "live")
+
+        let _: ClosureFieldClient = preset.testValue()
+    }
+
+    @Test func clientPresetConfiguresAsyncEndpointsInOneExpression() async throws {
+        let preset = makeClosureFieldClientPreset()
+        let live = makeLiveClosureFieldClient()
+
+        let stub = await preset.failing { stub in
+            await stub.when {
+                await $0.lookup(Match.equal(9))
+            }.thenReturn("nine")
+            await stub.when(returning: [String]()) {
+                try await $0.load(
+                    Match.equal(9),
+                    Match.equal("items")
+                )
+            }.thenReturn(["nine items"])
+        }
+        #expect(await stub().lookup(9) == "nine")
+        #expect(try await stub().load(9, "items") == ["nine items"])
+
+        let spy = await preset.spy(forwardingTo: live) { spy in
+            await spy.when {
+                await $0.lookup(Match.equal(10))
+            }.thenReturn("ten overridden")
+        }
+        #expect(await spy().lookup(10) == "ten overridden")
+        #expect(await spy().lookup(11) == "lookup-11")
+
+        let testValue = await preset.testValue { stub in
+            await stub.when {
+                await $0.lookup(Match.equal(12))
+            }.thenReturn("twelve")
+        }
+        #expect(await testValue.lookup(12) == "twelve")
+
+        let overriddenValue = await preset.testValue(overriding: live) { spy in
+            await spy.when {
+                await $0.lookup(Match.equal(13))
+            }.thenReturn("thirteen overridden")
+        }
+        #expect(await overriddenValue.lookup(13) == "thirteen overridden")
+        #expect(await overriddenValue.lookup(14) == "lookup-14")
+    }
 }

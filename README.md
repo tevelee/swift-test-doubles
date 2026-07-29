@@ -305,18 +305,26 @@ let apiClients = ClientDoublePreset<APIClient> { endpoints in
     )
 }
 
-let spy = apiClients.spy(forwardingTo: liveAPI)
-await spy.when {
-    try await $0.fetch(Match.equal(42), Match.any())
-}.thenReturn(Data())
+let spy = await apiClients.spy(forwardingTo: liveAPI) {
+    await $0.when {
+        try await $0.fetch(Match.equal(42), Match.any())
+    }.thenReturn(Data())
+}
 
 let client = spy() // unmatched calls forward and every call is recorded
 ```
 
 `live(_:)`, `failing()`, `spy(forwardingTo:)`, and
 `overriding(_:configure:)` cover environment-style dependency presets without
-repeating field mappings. With the opt-in `StubbableMacros` trait,
-`@StubbableClient` derives this wiring as `APIClientDoubles.preset`.
+repeating field mappings. Each controller factory accepts synchronous and
+asynchronous configuration closures. When later verification is unnecessary,
+`testValue { ... }` and `testValue(overriding: live) { ... }` return a concrete
+dependency value directly.
+
+With the opt-in `StubbableMacros` trait, `@StubbableClient` derives this wiring
+as `APIClientDoubles.preset`. The macro supports ordinary generic clients,
+nested closure type aliases, required non-closure configuration inputs, and
+initialized immutable closure defaults.
 
 ### Control async timing
 

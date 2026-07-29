@@ -63,9 +63,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ClientSpy` forwards unmatched closure endpoints to a live client while
   recording delegated calls, and selective overrides compose with
   `thenForward()`. `ClientDoublePreset` reuses one endpoint mapping for live,
-  failing, spying, and partially overridden variants.
+  failing, spying, and partially overridden variants. Synchronous and
+  asynchronous configuration closures prepare controllers in one expression,
+  while `testValue` directly materializes lightweight test overrides.
 - The opt-in `@StubbableClient` macro derives a `ClientDoublePreset` namespace
-  from a concrete struct's stored closure fields.
+  from a concrete struct's stored closure fields, including ordinary generic
+  clients, nested closure aliases, required configuration values, and
+  initialized immutable closure defaults.
 - Tuple-input closure doubles can expand to arbitrary-arity functions and use
   separate typed arguments in matchers and computed behaviors across every
   synchronous, throwing, async, and async-throwing variant.

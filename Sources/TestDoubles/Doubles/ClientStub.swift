@@ -127,9 +127,46 @@ public struct ClientDoublePreset<Client>: @unchecked Sendable {
         ClientStub<Client>(materialize)
     }
 
+    /// Creates a fail-closed stub and configures it before returning it.
+    ///
+    /// Keep the returned controller when the test needs verification, history,
+    /// reset, or additional behavior changes. Inject its concrete client with
+    /// `callAsFunction()`.
+    public func failing(
+        configure: (ClientStub<Client>) -> Void
+    ) -> ClientStub<Client> {
+        let stub = failing()
+        configure(stub)
+        return stub
+    }
+
+    /// Creates a fail-closed stub and asynchronously configures it before
+    /// returning it.
+    public func failing(
+        configure: (ClientStub<Client>) async throws -> Void
+    ) async rethrows -> ClientStub<Client> {
+        let stub = failing()
+        try await configure(stub)
+        return stub
+    }
+
     /// Compatibility spelling emphasizing that the result is a stub.
     public func stub() -> ClientStub<Client> {
         failing()
+    }
+
+    /// Compatibility spelling for `failing(configure:)`.
+    public func stub(
+        configure: (ClientStub<Client>) -> Void
+    ) -> ClientStub<Client> {
+        failing(configure: configure)
+    }
+
+    /// Asynchronous compatibility spelling for `failing(configure:)`.
+    public func stub(
+        configure: (ClientStub<Client>) async throws -> Void
+    ) async rethrows -> ClientStub<Client> {
+        try await failing(configure: configure)
     }
 
     /// Creates a recording client whose unmatched calls delegate to `live`.
@@ -140,6 +177,27 @@ public struct ClientDoublePreset<Client>: @unchecked Sendable {
         )
     }
 
+    /// Creates a forwarding spy and configures it before returning it.
+    public func spy(
+        forwardingTo live: Client,
+        configure: (ClientSpy<Client>) -> Void
+    ) -> ClientSpy<Client> {
+        let spy = self.spy(forwardingTo: live)
+        configure(spy)
+        return spy
+    }
+
+    /// Creates a forwarding spy and asynchronously configures it before
+    /// returning it.
+    public func spy(
+        forwardingTo live: Client,
+        configure: (ClientSpy<Client>) async throws -> Void
+    ) async rethrows -> ClientSpy<Client> {
+        let spy = self.spy(forwardingTo: live)
+        try await configure(spy)
+        return spy
+    }
+
     /// Creates a forwarding spy and applies selective overrides before use.
     ///
     /// The returned controller remains available for verification and
@@ -148,9 +206,67 @@ public struct ClientDoublePreset<Client>: @unchecked Sendable {
         _ live: Client,
         configure: (ClientSpy<Client>) -> Void
     ) -> ClientSpy<Client> {
-        let spy = self.spy(forwardingTo: live)
-        configure(spy)
-        return spy
+        spy(
+            forwardingTo: live,
+            configure: configure
+        )
+    }
+
+    /// Asynchronously configures selected overrides before returning the spy.
+    public func overriding(
+        _ live: Client,
+        configure: (ClientSpy<Client>) async throws -> Void
+    ) async rethrows -> ClientSpy<Client> {
+        try await spy(
+            forwardingTo: live,
+            configure: configure
+        )
+    }
+
+    /// Builds a fail-closed concrete client value for direct injection.
+    ///
+    /// This is convenient when the test does not need to inspect the
+    /// controller after use. Use `failing(configure:)` instead when
+    /// verification, history, reset, or later reconfiguration is required.
+    public func testValue(
+        configure: (ClientStub<Client>) -> Void = { _ in }
+    ) -> Client {
+        failing(configure: configure)()
+    }
+
+    /// Builds a fail-closed concrete client value after asynchronous
+    /// configuration.
+    public func testValue(
+        configure: (ClientStub<Client>) async throws -> Void
+    ) async rethrows -> Client {
+        try await failing(configure: configure)()
+    }
+
+    /// Builds a selectively overridden concrete client value for direct
+    /// injection. Unmatched calls delegate to `live`.
+    ///
+    /// Use `spy(forwardingTo:configure:)` when the test needs to inspect the
+    /// controller after use.
+    public func testValue(
+        overriding live: Client,
+        configure: (ClientSpy<Client>) -> Void
+    ) -> Client {
+        spy(
+            forwardingTo: live,
+            configure: configure
+        )()
+    }
+
+    /// Builds a selectively overridden concrete client value after
+    /// asynchronous configuration.
+    public func testValue(
+        overriding live: Client,
+        configure: (ClientSpy<Client>) async throws -> Void
+    ) async rethrows -> Client {
+        try await spy(
+            forwardingTo: live,
+            configure: configure
+        )()
     }
 }
 

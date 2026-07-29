@@ -116,6 +116,64 @@
             }
         }
 
+        @Test func generatesAConfiguredGenericClosureClientPreset() {
+            assertMacro {
+                """
+                @StubbableClient
+                struct CacheClient<Value: Sendable> where Value: Equatable {
+                    enum Failure: Error {
+                        case unavailable
+                    }
+
+                    typealias Load =
+                        @Sendable (String) async throws(Failure) -> Value
+
+                    var namespace: String
+                    var load: Load
+                    let identity: @Sendable (Value) -> Value = { $0 }
+                }
+                """
+            } expansion: {
+                """
+                struct CacheClient<Value: Sendable> where Value: Equatable {
+                    enum Failure: Error {
+                        case unavailable
+                    }
+
+                    typealias Load =
+                        @Sendable (String) async throws(Failure) -> Value
+
+                    var namespace: String
+                    var load: Load
+                    let identity: @Sendable (Value) -> Value = { $0 }
+                }
+
+                enum CacheClientDoubles<Value: Sendable> where Value: Equatable {
+                    static func preset(
+                        namespace: String
+                    ) -> ClientDoublePreset<CacheClient<Value>> {
+                        ClientDoublePreset<CacheClient<Value>> { endpoints in
+                            CacheClient<Value>(
+                                namespace: namespace,
+                                load: endpoints.asyncThrowingFunction(
+                                    "load",
+                                    throwing: CacheClient<Value>.Failure.self,
+                                    forwarding: {
+                                        (
+                                            live: CacheClient<Value>,
+                                            argument0: String
+                                        ) async throws(CacheClient<Value>.Failure) -> Value in
+                                            try await live.load(argument0)
+                                    }
+                                )
+                            )
+                        }
+                    }
+                }
+                """
+            }
+        }
+
         @Test func rejectsNonStructClientDeclarations() {
             assertMacro {
                 """

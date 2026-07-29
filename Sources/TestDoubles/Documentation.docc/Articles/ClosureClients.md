@@ -165,9 +165,40 @@ one preset to choose among:
 - `overriding(_:configure:)`, which prepares selected overrides before
   returning the spy controller
 
-Because the result of `failing()`, `spy(forwardingTo:)`, and
-`overriding(_:configure:)` is still callable, the test keeps the controller for
-verification and injects `controller()` as the concrete client.
+The controller factories also accept trailing configuration closures:
+
+```swift
+let stub = await apiClients.failing {
+    await $0.when { try await $0.fetchUser(Match.equal(42)) }
+        .thenReturn(testUser)
+}
+
+let spy = await apiClients.spy(forwardingTo: liveAPI) {
+    await $0.when { try await $0.fetchUser(Match.equal(42)) }
+        .thenReturn(testUser)
+}
+```
+
+Keep these controllers when the test needs verification, history, resets, or
+later reconfiguration, and inject `controller()` as the concrete client. For a
+lightweight dependency override that only needs the client value, materialize
+it in one expression:
+
+```swift
+let client = await apiClients.testValue {
+    await $0.when { try await $0.fetchUser(Match.equal(42)) }
+        .thenReturn(testUser)
+}
+
+let partiallyLive = await apiClients.testValue(overriding: liveAPI) {
+    await $0.when { try await $0.fetchUser(Match.equal(42)) }
+        .thenReturn(testUser)
+}
+```
+
+`testValue()` with no configuration is a fail-closed value: invoking any
+generated endpoint reports the ordinary missing-stub failure. The endpoint
+closures retain their recorder even though the controller is not returned.
 
 When the `StubbableMacros` package trait is enabled, `@StubbableClient` can
 derive the preset from stored closure fields:
@@ -177,20 +208,35 @@ import TestDoubles
 import TestDoublesMacros
 
 @StubbableClient
-struct StatusClient {
-    var status: @Sendable (Int) async throws -> String
+struct StatusClient<Value: Sendable> {
+    typealias Status =
+        @Sendable (Int) async throws -> Value
+
+    var namespace: String
+    var status: Status
     var record: @Sendable (String) -> Void
+    let transform: @Sendable (Value) -> Value = { $0 }
 }
 
-let stub = StatusClientDoubles.preset.failing()
-let spy = StatusClientDoubles.preset.spy(forwardingTo: liveStatus)
+let preset = StatusClientDoubles<String>.preset(namespace: "tests")
+let stub = preset.failing()
+let spy = preset.spy(forwardingTo: liveStatus)
 ```
 
 The opt-in macro generates a peer namespace named by appending `Doubles`.
-Closure fields need explicit function types. Non-closure stored properties may
-remain when they have defaults. Generic clients, `inout` parameters, and
+Closure fields need explicit inline function types or a nested non-generic
+closure type alias. Ordinary generic client parameters and constraints are
+preserved on the generated namespace. Required non-closure stored properties
+become inputs to `preset(...)`; initialized properties continue to use their
+memberwise-initializer defaults. An initialized immutable closure is likewise
+left intact instead of being replaced with a test endpoint.
+
+Generic closure type aliases are not expanded; spell those closure fields
+inline. Generic parameter packs and value parameters, `inout` parameters, and
 variadic closure parameters are diagnosed rather than generating partial
-wiring.
+wiring. The client must also remain constructible with its stored properties'
+memberwise labels; use a hand-written preset when a custom initializer
+suppresses that initializer shape.
 
 ### Double one standalone function
 

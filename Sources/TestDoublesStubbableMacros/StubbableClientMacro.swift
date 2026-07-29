@@ -20,21 +20,14 @@
                 )
                 return []
             }
-            guard client.genericParameterClause == nil,
-                client.genericWhereClause == nil
-            else {
-                diagnose(
-                    client,
-                    "@StubbableClient does not yet support generic client structs.",
-                    id: "generic-client",
-                    in: context
-                )
-                return []
-            }
-
-            let endpoints: [ClosureEndpoint]
+            let genericShape: GenericClientShape
+            let properties: ClientProperties
             do {
-                endpoints = try closureEndpoints(in: client)
+                genericShape = try genericClientShape(for: client)
+                properties = try clientProperties(
+                    in: client,
+                    clientType: genericShape.clientType
+                )
             } catch let failure as ClientMacroFailure {
                 diagnose(
                     failure.node,
@@ -44,7 +37,7 @@
                 )
                 return []
             }
-            guard endpoints.isEmpty == false else {
+            guard properties.endpointCount > 0 else {
                 diagnose(
                     client,
                     "@StubbableClient requires at least one stored closure property.",
@@ -60,27 +53,106 @@
                 access == "public " || access == "package "
                 ? access
                 : ""
-            let arguments = endpoints.map {
-                "            \($0.name): \($0.renderFactory(clientName: clientName))"
+            let arguments = properties.initializerArguments.map {
+                "            \($0.render(clientType: genericShape.clientType))"
             }
             .joined(separator: ",\n")
-            let source =
+            let materializer =
                 """
-                \(access)enum \(clientName)Doubles {
-                    \(memberAccess)static let preset = ClientDoublePreset<\(clientName)> { endpoints in
-                        \(clientName)(
+                ClientDoublePreset<\(genericShape.clientType)> { endpoints in
+                        \(genericShape.clientType)(
                 \(arguments)
                         )
                     }
+                """
+
+            let preset: String
+            if properties.inputs.isEmpty {
+                if genericShape.isGeneric {
+                    preset =
+                        """
+                        \(memberAccess)static var preset: ClientDoublePreset<\(genericShape.clientType)> {
+                            \(materializer)
+                        }
+                        """
+                } else {
+                    preset =
+                        """
+                        \(memberAccess)static let preset = \(materializer)
+                        """
+                }
+            } else {
+                let parameters = properties.inputs.map {
+                    "        \($0.name): \($0.type)"
+                }
+                .joined(separator: ",\n")
+                preset =
+                    """
+                    \(memberAccess)static func preset(
+                    \(parameters)
+                    ) -> ClientDoublePreset<\(genericShape.clientType)> {
+                        \(materializer)
+                    }
+                    """
+            }
+
+            let source =
+                """
+                \(access)enum \(clientName)Doubles\(genericShape.declarationClause)\(genericShape.whereClause) {
+                    \(preset)
                 }
                 """
             return [DeclSyntax(stringLiteral: source)]
         }
 
-        private static func closureEndpoints(
-            in client: StructDeclSyntax
-        ) throws -> [ClosureEndpoint] {
-            var endpoints: [ClosureEndpoint] = []
+        private static func genericClientShape(
+            for client: StructDeclSyntax
+        ) throws -> GenericClientShape {
+            guard let clause = client.genericParameterClause else {
+                return GenericClientShape(
+                    declarationClause: "",
+                    whereClause: "",
+                    clientType: client.name.text,
+                    isGeneric: false
+                )
+            }
+            if let unsupported = clause.parameters.first(where: {
+                $0.specifier != nil
+            }) {
+                throw ClientMacroFailure(
+                    node: Syntax(unsupported),
+                    message:
+                        "@StubbableClient supports ordinary generic type parameters, but not parameter packs or value parameters.",
+                    id: "generic-parameter"
+                )
+            }
+
+            let arguments = clause.parameters.map {
+                $0.name.trimmedDescription
+            }
+            .joined(separator: ", ")
+            let whereClause =
+                client.genericWhereClause.map {
+                    " \($0.trimmedDescription)"
+                } ?? ""
+            return GenericClientShape(
+                declarationClause: clause.trimmedDescription,
+                whereClause: whereClause,
+                clientType: "\(client.name.text)<\(arguments)>",
+                isGeneric: true
+            )
+        }
+
+        private static func clientProperties(
+            in client: StructDeclSyntax,
+            clientType: String
+        ) throws -> ClientProperties {
+            let aliases = localTypeAliases(in: client)
+            let nestedTypeNames = localTypeNames(in: client)
+            var initializerArguments: [ClientInitializerArgument] = []
+            var inputs: [ClientInput] = []
+            var endpointCount = 0
+
             for member in client.memberBlock.members {
                 guard let variable = member.decl.as(VariableDeclSyntax.self) else {
                     continue
@@ -117,26 +189,31 @@
                             id: "missing-type"
                         )
                     }
-                    guard let function = functionType(from: annotatedType) else {
+                    guard
+                        let function = functionType(
+                            from: annotatedType,
+                            aliases: aliases
+                        )
+                    else {
                         if binding.initializer != nil {
                             continue
                         }
-                        throw ClientMacroFailure(
-                            node: Syntax(annotatedType),
-                            message:
-                                "@StubbableClient cannot initialize non-closure stored property '\(identifier.identifier.text)' without a default value.",
-                            id: "non-closure-property"
+                        let input = ClientInput(
+                            name: identifier.identifier.trimmedDescription,
+                            type: renderedType(
+                                annotatedType,
+                                clientType: clientType,
+                                nestedTypeNames: nestedTypeNames
+                            )
                         )
+                        inputs.append(input)
+                        initializerArguments.append(.input(input))
+                        continue
                     }
                     if variable.bindingSpecifier.text == "let",
                         binding.initializer != nil
                     {
-                        throw ClientMacroFailure(
-                            node: Syntax(binding.pattern),
-                            message:
-                                "@StubbableClient cannot replace initialized let closure '\(identifier.identifier.text)'.",
-                            id: "initialized-let"
-                        )
+                        continue
                     }
                     if function.parameters.contains(where: {
                         $0.ellipsis != nil
@@ -149,37 +226,123 @@
                             id: "unsupported-parameter"
                         )
                     }
-                    endpoints.append(
-                        ClosureEndpoint(
-                            name: identifier.identifier.trimmedDescription,
-                            argumentTypes: function.parameters.map {
-                                $0.type.trimmedDescription
+                    let endpoint = ClosureEndpoint(
+                        name: identifier.identifier.trimmedDescription,
+                        argumentTypes: function.parameters.map {
+                            renderedType(
+                                $0.type,
+                                clientType: clientType,
+                                nestedTypeNames: nestedTypeNames
+                            )
+                        },
+                        resultType: renderedType(
+                            function.returnClause.type,
+                            clientType: clientType,
+                            nestedTypeNames: nestedTypeNames
+                        ),
+                        isAsync: function.effectSpecifiers?
+                            .asyncSpecifier != nil,
+                        thrownError: function.effectSpecifiers?
+                            .throwsClause?
+                            .type.map {
+                                renderedType(
+                                    $0,
+                                    clientType: clientType,
+                                    nestedTypeNames: nestedTypeNames
+                                )
                             },
-                            resultType: function.returnClause.type
-                                .trimmedDescription,
-                            isAsync: function.effectSpecifiers?
-                                .asyncSpecifier != nil,
-                            thrownError: function.effectSpecifiers?
-                                .throwsClause?
-                                .type?
-                                .trimmedDescription,
-                            isThrowing: function.effectSpecifiers?
-                                .throwsClause != nil
-                        )
+                        isThrowing: function.effectSpecifiers?
+                            .throwsClause != nil
                     )
+                    endpointCount += 1
+                    initializerArguments.append(.endpoint(endpoint))
                 }
             }
-            return endpoints
+            return ClientProperties(
+                initializerArguments: initializerArguments,
+                inputs: inputs,
+                endpointCount: endpointCount
+            )
         }
 
         private static func functionType(
-            from annotatedType: TypeSyntax
+            from annotatedType: TypeSyntax,
+            aliases: [String: TypeSyntax],
+            visitedAliases: Set<String> = []
         ) -> FunctionTypeSyntax? {
             var type = annotatedType
             while let attributed = type.as(AttributedTypeSyntax.self) {
                 type = attributed.baseType
             }
-            return type.as(FunctionTypeSyntax.self)
+            if let function = type.as(FunctionTypeSyntax.self) {
+                return function
+            }
+            guard
+                let identifier = type.as(IdentifierTypeSyntax.self),
+                identifier.genericArgumentClause == nil
+            else {
+                return nil
+            }
+            let name = identifier.name.text
+            guard
+                visitedAliases.contains(name) == false,
+                let aliasedType = aliases[name]
+            else {
+                return nil
+            }
+            return functionType(
+                from: aliasedType,
+                aliases: aliases,
+                visitedAliases: visitedAliases.union([name])
+            )
+        }
+
+        private static func localTypeAliases(
+            in client: StructDeclSyntax
+        ) -> [String: TypeSyntax] {
+            client.memberBlock.members.reduce(into: [:]) { aliases, member in
+                guard
+                    let alias = member.decl.as(TypeAliasDeclSyntax.self),
+                    alias.genericParameterClause == nil
+                else {
+                    return
+                }
+                aliases[alias.name.text] = alias.initializer.value
+            }
+        }
+
+        private static func localTypeNames(
+            in client: StructDeclSyntax
+        ) -> Set<String> {
+            client.memberBlock.members.reduce(into: []) { names, member in
+                let declaration = member.decl
+                if let alias = declaration.as(TypeAliasDeclSyntax.self) {
+                    names.insert(alias.name.text)
+                } else if let structure = declaration.as(StructDeclSyntax.self) {
+                    names.insert(structure.name.text)
+                } else if let enumeration = declaration.as(EnumDeclSyntax.self) {
+                    names.insert(enumeration.name.text)
+                } else if let classDeclaration = declaration.as(ClassDeclSyntax.self) {
+                    names.insert(classDeclaration.name.text)
+                } else if let actor = declaration.as(ActorDeclSyntax.self) {
+                    names.insert(actor.name.text)
+                } else if let protocolDeclaration = declaration.as(ProtocolDeclSyntax.self) {
+                    names.insert(protocolDeclaration.name.text)
+                }
+            }
+        }
+
+        private static func renderedType(
+            _ type: TypeSyntax,
+            clientType: String,
+            nestedTypeNames: Set<String>
+        ) -> String {
+            NestedClientTypeQualifier(
+                clientType: clientType,
+                nestedTypeNames: nestedTypeNames
+            )
+            .rewrite(type)
+            .trimmedDescription
         }
 
         private static func generatedAccessModifier(
@@ -213,6 +376,63 @@
         }
     }
 
+    private struct GenericClientShape {
+        let declarationClause: String
+        let whereClause: String
+        let clientType: String
+        let isGeneric: Bool
+    }
+
+    private struct ClientProperties {
+        let initializerArguments: [ClientInitializerArgument]
+        let inputs: [ClientInput]
+        let endpointCount: Int
+    }
+
+    private enum ClientInitializerArgument {
+        case endpoint(ClosureEndpoint)
+        case input(ClientInput)
+
+        func render(clientType: String) -> String {
+            switch self {
+                case .endpoint(let endpoint):
+                    return
+                        "\(endpoint.name): "
+                        + endpoint.renderFactory(clientType: clientType)
+                case .input(let input):
+                    return "\(input.name): \(input.name)"
+            }
+        }
+    }
+
+    private struct ClientInput {
+        let name: String
+        let type: String
+    }
+
+    private final class NestedClientTypeQualifier: SyntaxRewriter {
+        private let clientType: String
+        private let nestedTypeNames: Set<String>
+
+        init(
+            clientType: String,
+            nestedTypeNames: Set<String>
+        ) {
+            self.clientType = clientType
+            self.nestedTypeNames = nestedTypeNames
+            super.init(viewMode: .sourceAccurate)
+        }
+
+        override func visit(_ node: IdentifierTypeSyntax) -> TypeSyntax {
+            guard nestedTypeNames.contains(node.name.text) else {
+                return super.visit(node)
+            }
+            return TypeSyntax(
+                stringLiteral: "\(clientType).\(node.trimmedDescription)"
+            )
+        }
+    }
+
     private struct ClosureEndpoint {
         let name: String
         let argumentTypes: [String]
@@ -221,7 +441,7 @@
         let thrownError: String?
         let isThrowing: Bool
 
-        func renderFactory(clientName: String) -> String {
+        func renderFactory(clientType: String) -> String {
             let factory =
                 switch (isAsync, isThrowing) {
                     case (false, false): "function"
@@ -250,7 +470,7 @@
                 let typedParameters = zip(argumentNames, argumentTypes).map {
                     "\($0): \($1)"
                 }
-                let parameters = (["live: \(clientName)"] + typedParameters)
+                let parameters = (["live: \(clientType)"] + typedParameters)
                     .joined(separator: ", ")
                 let effects =
                     (isAsync ? " async" : "")
