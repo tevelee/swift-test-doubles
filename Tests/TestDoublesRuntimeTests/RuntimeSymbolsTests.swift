@@ -106,5 +106,80 @@ import Testing
         }
         #expect(attempts == 2)
     }
+
+    @Test func nonsendingSymbolsDemangleOnOlderProcessRuntimes() {
+        let mangled =
+            "$s19TestDoublesFixtures34RealExternalExtendedClosureServiceVAA0efgH0A2aDP10nonsendingySSSiYaYbYCcSSSiYaYbYCcFTW"
+        let closure =
+            "nonisolated(nonsending) @Sendable (Swift.Int) async -> Swift.String"
+        let expected =
+            "protocol witness for TestDoublesFixtures.ExternalExtendedClosureService.nonsending("
+            + closure
+            + ") -> "
+            + closure
+            + " in conformance TestDoublesFixtures.RealExternalExtendedClosureService : TestDoublesFixtures.ExternalExtendedClosureService in TestDoublesFixtures"
+
+        #expect(RuntimeSymbols.demangle(mangled) == expected)
+    }
+
+    @Test func nonsendingCompatibilityPreservesIsolatedAnyAttributes() {
+        let mangled =
+            "$s19TestDoublesFixtures34RealExternalExtendedClosureServiceVAA0efgH0A2aDP8isolatedySSSiYaYbYAcSSSiYaYbYCcFTW"
+        let expected =
+            "protocol witness for TestDoublesFixtures.ExternalExtendedClosureService.isolated("
+            + "nonisolated(nonsending) @Sendable (Swift.Int) async -> Swift.String"
+            + ") -> @isolated(any) @Sendable (Swift.Int) async -> Swift.String"
+            + " in conformance TestDoublesFixtures.RealExternalExtendedClosureService : TestDoublesFixtures.ExternalExtendedClosureService in TestDoublesFixtures"
+
+        #expect(RuntimeSymbols.demangle(mangled) == expected)
+    }
+
+    @Test func implicitActorThunkSymbolsDemangleOnOlderProcessRuntimes() {
+        let mangled =
+            "$sBASiSSIeghHgILnr_BASiSSIeghHgILyo_TR"
+        let direct =
+            "@escaping @callee_guaranteed @Sendable @async"
+            + " (@guaranteed Builtin.ImplicitActor, @in_guaranteed Swift.Int)"
+            + " -> (@out Swift.String)"
+        let generic =
+            "@escaping @callee_guaranteed @Sendable @async"
+            + " (@guaranteed Builtin.ImplicitActor, @unowned Swift.Int)"
+            + " -> (@owned Swift.String)"
+        let expected =
+            "reabstraction thunk helper from \(direct) to \(generic)"
+
+        #expect(RuntimeSymbols.demangle(mangled) == expected)
+    }
+
+    @Test func isolatedParameterThunkSymbolsDemangleOnOlderProcessRuntimes() {
+        let mangled =
+            "$s19TestDoublesFixtures21ExternalClosureWorkerCS2iIeghHgIyd_ACS2iIeghHnInr_TR"
+        let direct =
+            "@escaping @callee_guaranteed @Sendable @async"
+            + " (@guaranteed isolated TestDoublesFixtures.ExternalClosureWorker,"
+            + " @unowned Swift.Int) -> (@unowned Swift.Int)"
+        let generic =
+            "@escaping @callee_guaranteed @Sendable @async"
+            + " (@in_guaranteed isolated TestDoublesFixtures.ExternalClosureWorker,"
+            + " @in_guaranteed Swift.Int) -> (@out Swift.Int)"
+        let expected =
+            "reabstraction thunk helper from \(direct) to \(generic)"
+
+        #expect(RuntimeSymbols.demangle(mangled) == expected)
+    }
+
+    @Test func coroutinePointerSymbolsDemangleOnOlderProcessRuntimes() {
+        let mangled =
+            "$s23TestDoublesReadFixtures018ForwardingConcreteC13AccessorProbeCAA0fcgH0A2aDP7integerSivyTWTwc"
+        let expected =
+            "coro function pointer to protocol witness for"
+            + " TestDoublesReadFixtures.ConcreteReadAccessorProbe.integer.read2"
+            + " : Swift.Int in conformance"
+            + " TestDoublesReadFixtures.ForwardingConcreteReadAccessorProbe"
+            + " : TestDoublesReadFixtures.ConcreteReadAccessorProbe"
+            + " in TestDoublesReadFixtures"
+
+        #expect(RuntimeSymbols.demangle(mangled) == expected)
+    }
 }
 import TestDoublesRuntime

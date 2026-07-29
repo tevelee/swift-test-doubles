@@ -105,6 +105,22 @@ package enum RuntimeSymbols {
         if let cached = withLock({ demangledNames[mangledName] }) {
             return cached
         }
+        let directlyDemangled = swiftDemangledName(mangledName)
+        let result =
+            if directlyDemangled == mangledName {
+                demangleCoroutinePointerCompatibilitySymbol(mangledName)
+                    ?? demangleNonsendingCompatibilitySymbol(mangledName)
+                    ?? demangleImplicitActorCompatibilitySymbol(mangledName)
+                    ?? demangleIsolatedParameterCompatibilitySymbol(mangledName)
+                    ?? directlyDemangled
+            } else {
+                directlyDemangled
+            }
+        withLock { demangledNames[mangledName] = result }
+        return result
+    }
+
+    private static func swiftDemangledName(_ mangledName: String) -> String {
         let result: String? = mangledName.utf8CString.withUnsafeBufferPointer { buffer in
             guard let baseAddress = buffer.baseAddress,
                 let demangled = swiftDemangle(
@@ -120,9 +136,168 @@ package enum RuntimeSymbols {
             defer { free(demangled) }
             return String(cString: demangled)
         }
-        guard let result else { return mangledName }
-        withLock { demangledNames[mangledName] = result }
-        return result
+        return result ?? mangledName
+    }
+
+    /// Bridges Swift 6.3's coroutine-function-pointer suffix when the process
+    /// runtime's demangler understands the witness but not its pointer wrapper.
+    private static func demangleCoroutinePointerCompatibilitySymbol(
+        _ mangledName: String
+    ) -> String? {
+        let suffix = "Twc"
+        guard mangledName.hasSuffix(suffix) else { return nil }
+        let witnessName = String(mangledName.dropLast(suffix.count))
+        let witnessDemangling = swiftDemangledName(witnessName)
+        guard witnessDemangling != witnessName else { return nil }
+        return "coro function pointer to \(witnessDemangling)"
+    }
+
+    /// Bridges Swift 6.3 `nonisolated(nonsending)` symbols when the process
+    /// runtime's demangler predates that mangling node.
+    private static func demangleNonsendingCompatibilitySymbol(
+        _ mangledName: String
+    ) -> String? {
+        guard mangledName.contains("YC") else { return nil }
+
+        let isolatedSurrogate = mangledName.replacingOccurrences(
+            of: "YC",
+            with: "YA"
+        )
+        let plainSurrogate = mangledName.replacingOccurrences(
+            of: "YC",
+            with: ""
+        )
+        let isolatedDemangling = swiftDemangledName(isolatedSurrogate)
+        let plainDemangling = swiftDemangledName(plainSurrogate)
+        guard isolatedDemangling != isolatedSurrogate,
+            plainDemangling != plainSurrogate
+        else {
+            return nil
+        }
+
+        return replacingInsertedOccurrences(
+            [
+                (
+                    marker: "@isolated(any) ",
+                    replacement: "nonisolated(nonsending) "
+                )
+            ],
+            in: isolatedDemangling,
+            relativeTo: plainDemangling
+        )
+    }
+
+    /// Bridges Swift 6.3's lowered `Builtin.ImplicitActor` parameter when the
+    /// process runtime's demangler predates that builtin mangling.
+    private static func demangleImplicitActorCompatibilitySymbol(
+        _ mangledName: String
+    ) -> String? {
+        guard mangledName.contains("BA"),
+            mangledName.contains("gIL")
+        else {
+            return nil
+        }
+
+        let nativeObjectSurrogate =
+            mangledName
+            .replacingOccurrences(of: "BA", with: "Bo")
+            .replacingOccurrences(of: "gIL", with: "g")
+        let plainSurrogate =
+            mangledName
+            .replacingOccurrences(of: "BA", with: "")
+            .replacingOccurrences(of: "gIL", with: "")
+        let nativeObjectDemangling = swiftDemangledName(nativeObjectSurrogate)
+        let plainDemangling = swiftDemangledName(plainSurrogate)
+        guard nativeObjectDemangling != nativeObjectSurrogate,
+            plainDemangling != plainSurrogate
+        else {
+            return nil
+        }
+
+        return replacingInsertedOccurrences(
+            [
+                (
+                    marker: "@guaranteed Builtin.NativeObject, ",
+                    replacement: "@guaranteed Builtin.ImplicitActor, "
+                ),
+                (
+                    marker: "@guaranteed Builtin.NativeObject",
+                    replacement: "@guaranteed Builtin.ImplicitActor"
+                )
+            ],
+            in: nativeObjectDemangling,
+            relativeTo: plainDemangling
+        )
+    }
+
+    /// Bridges Swift 6.3's lowered isolated-parameter flag when the process
+    /// runtime's demangler predates that convention marker.
+    private static func demangleIsolatedParameterCompatibilitySymbol(
+        _ mangledName: String
+    ) -> String? {
+        guard mangledName.contains("gI") || mangledName.contains("nI") else {
+            return nil
+        }
+
+        let sendingSurrogate =
+            mangledName
+            .replacingOccurrences(of: "gI", with: "gT")
+            .replacingOccurrences(of: "nI", with: "nT")
+        let plainSurrogate =
+            mangledName
+            .replacingOccurrences(of: "gI", with: "g")
+            .replacingOccurrences(of: "nI", with: "n")
+        let sendingDemangling = swiftDemangledName(sendingSurrogate)
+        let plainDemangling = swiftDemangledName(plainSurrogate)
+        guard sendingDemangling != sendingSurrogate,
+            plainDemangling != plainSurrogate
+        else {
+            return nil
+        }
+
+        return replacingInsertedOccurrences(
+            [(marker: "sending ", replacement: "isolated ")],
+            in: sendingDemangling,
+            relativeTo: plainDemangling
+        )
+    }
+
+    /// Replaces only marker occurrences added to `marked`, leaving matching
+    /// occurrences already present in `unmarked` untouched.
+    private static func replacingInsertedOccurrences(
+        _ replacements: [(marker: String, replacement: String)],
+        in marked: String,
+        relativeTo unmarked: String
+    ) -> String? {
+        var markedIndex = marked.startIndex
+        var unmarkedIndex = unmarked.startIndex
+        var result = ""
+
+        while markedIndex < marked.endIndex {
+            let markedRemainder = marked[markedIndex...]
+            let unmarkedRemainder = unmarked[unmarkedIndex...]
+            if let inserted = replacements.first(where: {
+                markedRemainder.hasPrefix($0.marker)
+                    && unmarkedRemainder.hasPrefix($0.marker) == false
+            }) {
+                result += inserted.replacement
+                markedIndex = marked.index(
+                    markedIndex,
+                    offsetBy: inserted.marker.count
+                )
+                continue
+            }
+            guard unmarkedIndex < unmarked.endIndex,
+                marked[markedIndex] == unmarked[unmarkedIndex]
+            else {
+                return nil
+            }
+            result.append(marked[markedIndex])
+            marked.formIndex(after: &markedIndex)
+            unmarked.formIndex(after: &unmarkedIndex)
+        }
+
+        return unmarkedIndex == unmarked.endIndex ? result : nil
     }
 
     package static func cachedRuntimeType(
