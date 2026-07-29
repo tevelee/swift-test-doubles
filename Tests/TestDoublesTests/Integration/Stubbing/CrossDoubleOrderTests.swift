@@ -83,6 +83,26 @@ private final class ConcurrentGatewayStub: @unchecked Sendable {
         order.verify(analytics) { $0.track(event: Match.equal("purchase")) }
     }
 
+    @Test func savedPatternsAndTerminalInteractionsComposeInOrder() throws {
+        let gateway = try Stub<any CrossOrderGateway>()
+        let analytics = try Stub<any CrossOrderAnalytics>()
+        let charge = gateway.when {
+            $0.charge(amount: Match.equal(42))
+        }
+        charge.thenDoNothing()
+        let purchase = analytics.when {
+            $0.track(event: Match.equal("purchase"))
+        }.thenDoNothing()
+
+        gateway().charge(amount: 42)
+        analytics().track(event: "purchase")
+
+        let order = InvocationOrder()
+        order.verify(charge)
+        order.verify(purchase)
+        order.verifyNoMoreInteractions()
+    }
+
     @Test func reportsWhenInteractionsHappenedInTheOppositeOrder() throws {
         let gateway = try Stub<any CrossOrderGateway>()
         let analytics = try Stub<any CrossOrderAnalytics>()

@@ -287,9 +287,10 @@ and every `CallbackCapture` is released.
 For custom assertions, read a pattern's recorded arguments as typed tuples with
 `arguments()`; `describeInteractions()` dumps the whole call log as a
 human-readable, ordered string when a failing `verify` leaves you asking what
-actually got called; `InvocationOrder` checks call order across several doubles
-at once; `verifyNoUnusedStubs()` flags registrations no call matched; and
-`reset()` restores a double between parameterized cases. See
+actually got called; `InvocationOrder` accepts saved patterns and terminal
+interaction handles to check call order across several doubles without
+repeating capture closures; `verifyNoUnusedStubs()` flags registrations no call
+matched; and `reset()` restores a double between parameterized cases. See
 [Inspecting Interactions](Sources/TestDoubles/Documentation.docc/Articles/InspectingInteractions.md).
 
 ```swift

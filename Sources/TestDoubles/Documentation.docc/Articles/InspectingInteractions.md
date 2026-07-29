@@ -117,14 +117,19 @@ fired when each lives on its own stub:
 ```swift
 let gateway = try Stub<any PaymentGateway>()
 let analytics = try Stub<any Analytics>()
-gateway.when { $0.charge(amount: Match.any()) }.thenDoNothing()
-analytics.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
+let charge = gateway.when {
+    $0.charge(amount: Match.equal(42))
+}
+charge.thenDoNothing()
+let purchase = analytics.when {
+    $0.track(event: Match.equal("purchase"), value: Match.any())
+}.thenDoNothing()
 
 Checkout(gateway: gateway(), analytics: analytics()).placeOrder()
 
 let order = InvocationOrder()
-order.verify(gateway) { $0.charge(amount: Match.equal(42)) }
-order.verify(analytics) { $0.track(event: Match.equal("purchase"), value: Match.any()) }
+order.verify(charge)
+order.verify(purchase)
 ```
 
 Each `verify(_:_:)` step matches the earliest recorded call after the
@@ -136,6 +141,11 @@ sync and async requirements. A step that finds no later matching call reports a
 test issue at its own source location and leaves the cursor unchanged;
 successful steps commit their captors and count toward
 `verifyNoMoreInteractions()`.
+
+Both a ``CallPattern`` saved directly from `when` and the
+``CallInteractions`` returned by a terminal `then` method can be passed to
+`InvocationOrder`. The older stub-and-capture overloads remain available when
+the expectation was not saved during setup.
 
 `InvocationOrder` has its own ``InvocationOrder/verifyNoMoreInteractions(fileID:filePath:line:column:)``,
 which closes out every double the session touched in one call instead of one

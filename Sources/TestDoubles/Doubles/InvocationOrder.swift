@@ -10,9 +10,17 @@ import IssueReporting
 /// ones, like `verifyInOrder` on a single double:
 ///
 /// ```swift
+/// let charges = gateway.when {
+///     $0.charge(amount: Match.equal(42))
+/// }
+/// charges.thenDoNothing()
+/// let purchases = analytics.when {
+///     $0.track(event: Match.equal("purchase"))
+/// }.thenDoNothing()
+///
 /// let order = InvocationOrder()
-/// order.verify(gateway) { $0.charge(amount: Match.equal(42)) }
-/// order.verify(analytics) { $0.track(event: Match.equal("purchase")) }
+/// order.verify(charges)
+/// order.verify(purchases)
 /// ```
 ///
 /// A failed step reports a test issue at its own call site and leaves the
@@ -26,6 +34,50 @@ public final class InvocationOrder: @unchecked Sendable {
 
     /// Creates a session with no verified interactions yet.
     public init() {}
+
+    /// Verifies that `pattern` has a matching interaction after the
+    /// previously verified interaction.
+    ///
+    /// Saving a `when` pattern lets behavior configuration, ordinary
+    /// verification, and cross-double ordering share one call description.
+    public func verify<Result>(
+        _ pattern: CallPattern<Result>,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) {
+        verify(
+            pattern.interactions,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
+    /// Verifies that `interactions` has a matching call after the previously
+    /// verified interaction.
+    ///
+    /// Terminal `then` methods return this handle, so an inline fluent
+    /// configuration can be reused for ordering without recording its call
+    /// again.
+    public func verify(
+        _ interactions: CallInteractions,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) {
+        advance(
+            recording: interactions.recording,
+            recorder: interactions.recorder,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
 
     /// Verifies the next in-order interaction on a runtime stub or spy.
     public func verify<P, Result>(

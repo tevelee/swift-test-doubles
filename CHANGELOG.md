@@ -225,6 +225,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the conventional Mockito-style meaning and catching accidental duplicates.
   Native ranges remain the primary spelling for every other count expectation,
   while eventual verification continues to default to the monotonic `1...`.
+- `InvocationOrder.verify` now accepts saved `CallPattern` and
+  `CallInteractions` values directly, so cross-double ordering composes with
+  `when`/`then` setup without repeating either call-capture closure.
 - The pre-release `StubBuilder` type and the separate
   `forwardedCallCount`/`forwardedArguments()` pattern members have been
   replaced by `CallPattern` and its composed `forwarded` view.
