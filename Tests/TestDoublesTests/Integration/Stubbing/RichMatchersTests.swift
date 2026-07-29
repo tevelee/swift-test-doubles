@@ -39,6 +39,24 @@ private protocol ReferenceEntryLedger {
     func classify(_ entry: ReferenceLedgerEntry) -> String
 }
 
+private enum DeliveryUpdate {
+    case idle
+    case queued(id: Int)
+    case failed(code: Int, message: String)
+}
+
+private protocol DeliveryLedger {
+    func classify(_ update: DeliveryUpdate) -> String
+}
+
+private struct DeliveryLedgerStub: DeliveryLedger, ManualStubConformer {
+    let stub: ManualStub<Self>
+
+    func classify(_ update: DeliveryUpdate) -> String {
+        stub.call(update)
+    }
+}
+
 struct RealLedger: Ledger {
     func classify(amount: Int) -> String { "" }
     func lookup(id: Int?) -> String { "" }
@@ -48,6 +66,45 @@ struct RealLedger: Ledger {
 final class LedgerNode {}
 
 @Suite struct RichMatchersTests {
+    @Test func enumCaseMatcherAppliesMatchersToAssociatedValues() throws {
+        let stub = ManualStub<DeliveryLedgerStub>()
+        stub.when {
+            $0.classify(
+                Match.enumCase(
+                    "queued",
+                    extracting: { update in
+                        guard case .queued(let id) = update else { return nil }
+                        return id
+                    },
+                    matching: Match.greaterThan(40)
+                )
+            )
+        }.thenReturn("priority")
+        stub.when {
+            $0.classify(
+                Match.enumCase(
+                    "failed",
+                    extracting: { update in
+                        guard case .failed(let code, let message) = update else {
+                            return nil
+                        }
+                        return (code, message)
+                    },
+                    matching: Match.inRange(400 ... 499),
+                    Match.hasPrefix("auth")
+                )
+            )
+        }.thenReturn("authentication")
+        stub.when { $0.classify(Match.any()) }.thenReturn("other")
+        let ledger: any DeliveryLedger = stub()
+
+        #expect(ledger.classify(.queued(id: 42)) == "priority")
+        #expect(ledger.classify(.queued(id: 7)) == "other")
+        #expect(ledger.classify(.failed(code: 401, message: "auth expired")) == "authentication")
+        #expect(ledger.classify(.failed(code: 500, message: "auth failed")) == "other")
+        #expect(ledger.classify(.idle) == "other")
+    }
+
     @Test func keyPathProjectionMatchesAProperty() throws {
         _ = RealEntryLedger()
         let stub = try Stub<any EntryLedger>(

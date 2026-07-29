@@ -103,6 +103,30 @@ stub.when {
 For a root type that needs an explicit recording value, use
 `Match.property(using:placeholder, \.id, equalTo: 42)`.
 
+Match enum cases by extracting associated values and composing the usual
+matchers:
+
+```swift
+stub.when {
+    $0.handle(
+        Match.enumCase(
+            "failed",
+            extracting: { update in
+                guard case .failed(let code, let message) = update else {
+                    return nil
+                }
+                return (code, message)
+            },
+            matching: Match.inRange(400 ... 499),
+            Match.hasPrefix("auth")
+        )
+    )
+}.thenReturn(.retry)
+```
+
+The extractor returns `nil` for every other case. An overload accepts one
+associated value, and `using:` variants accept an explicit enum placeholder.
+
 The zero-argument matcher forms synthesize valid recording placeholders for
 supported value types. Supply a valid value for references, existentials, and
 other types that cannot be synthesized safely:

@@ -354,6 +354,35 @@ struct ProjectionMatcher: ParameterMatcher {
     }
 }
 
+/// Extracts the associated values of one enum case and applies one nested
+/// matcher to each value. A `nil` extraction rejects values of every other case.
+struct EnumCaseMatcher: ParameterMatcher {
+    let label: String
+    let matchers: [ParameterMatcher]
+    let extract: (Any) -> [Any]?
+
+    func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
+        guard let associatedValues = extract(value),
+            associatedValues.count == matchers.count
+        else {
+            return nil
+        }
+
+        var combined = PreparedMatcherTransaction.matched
+        for (matcher, associatedValue) in zip(matchers, associatedValues) {
+            guard let transaction = matcher.prepareMatch(value: associatedValue) else {
+                return nil
+            }
+            combined.append(transaction)
+        }
+        return combined
+    }
+
+    var diagnosticDescription: String {
+        "\(label)(\(matchers.map(\.diagnosticDescription).joined(separator: ", ")))"
+    }
+}
+
 /// Evaluates a conjunction once, discarding every prepared capture if any
 /// matcher rejects the value.
 private func prepareAll(

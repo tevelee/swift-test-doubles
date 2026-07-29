@@ -859,6 +859,10 @@ symbol	TestDoubles	swift.type.method	Match.contains(where:)	static func contains
 symbol	TestDoubles	swift.type.method	Match.containsAll(_:)	static func containsAll<C>(_ elements: C.Element...) -> C where C : Collection, C.Element : Equatable, C.Element : Sendable
 symbol	TestDoubles	swift.type.method	Match.containsSubstring(_:)	static func containsSubstring(_ substring: String) -> String
 symbol	TestDoubles	swift.type.method	Match.endsWith(_:)	static func endsWith<C>(_ suffix: C.Element...) -> C where C : Collection, C.Element : Equatable, C.Element : Sendable
+symbol	TestDoubles	swift.type.method	Match.enumCase(_:extracting:matching:)	static func enumCase<Enum, Associated>(_ name: String, extracting extract: @escaping @Sendable (Enum) -> Associated?, matching matcher: @autoclosure () -> Associated) -> Enum
+symbol	TestDoubles	swift.type.method	Match.enumCase(_:extracting:matching:_:)	static func enumCase<Enum, First, Second>(_ name: String, extracting extract: @escaping @Sendable (Enum) -> (First, Second)?, matching first: @autoclosure () -> First, _ second: @autoclosure () -> Second) -> Enum
+symbol	TestDoubles	swift.type.method	Match.enumCase(using:_:extracting:matching:)	static func enumCase<Enum, Associated>(using placeholder: Enum, _ name: String, extracting extract: @escaping @Sendable (Enum) -> Associated?, matching matcher: @autoclosure () -> Associated) -> Enum
+symbol	TestDoubles	swift.type.method	Match.enumCase(using:_:extracting:matching:_:)	static func enumCase<Enum, First, Second>(using placeholder: Enum, _ name: String, extracting extract: @escaping @Sendable (Enum) -> (First, Second)?, matching first: @autoclosure () -> First, _ second: @autoclosure () -> Second) -> Enum
 symbol	TestDoubles	swift.type.method	Match.equal(_:)	static func equal<T>(_ value: T) -> T where T : Equatable
 symbol	TestDoubles	swift.type.method	Match.equalsIgnoringCase(_:)	static func equalsIgnoringCase(_ value: String) -> String
 symbol	TestDoubles	swift.type.method	Match.greaterThan(_:)	static func greaterThan<T>(_ value: T) -> T where T : Comparable

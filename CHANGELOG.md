@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tolerances.
 - Key-path property projection matching, with synthesized and explicit root
   placeholders.
+- Enum-case matching with composable matchers for one or two associated values.
 
 ## [0.0.2] - 2026-07-29
 

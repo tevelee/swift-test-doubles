@@ -241,6 +241,121 @@ extension Match {
         )
     }
 
+    // MARK: - Enum cases
+
+    /// Matches an enum case and applies `matcher` to its associated value.
+    ///
+    /// Return the associated value from `extract` for the named case and `nil`
+    /// for every other case. The matcher expression can use any existing
+    /// `Match` API, including captures and logical combinators.
+    public static func enumCase<Enum, Associated>(
+        _ name: String,
+        extracting extract: @escaping @Sendable (Enum) -> Associated?,
+        matching matcher: @autoclosure () -> Associated
+    ) -> Enum {
+        let (_, matchers) = MatcherContext.captureNested { matcher() }
+        appendEnumCaseMatcher(name, associatedValueCount: 1, matchers: matchers) { value in
+            guard let root = value as? Enum, let associated = extract(root) else {
+                return nil
+            }
+            return [associated]
+        }
+        return synthesizedPlaceholder(
+            for: "Match.enumCase(_:extracting:matching:)",
+            fallback: "Match.enumCase(using:_:extracting:matching:)"
+        )
+    }
+
+    /// Matches an enum case and applies one matcher to each associated value.
+    ///
+    /// Return both associated values from `extract` for the named case and
+    /// `nil` for every other case.
+    public static func enumCase<Enum, First, Second>(
+        _ name: String,
+        extracting extract: @escaping @Sendable (Enum) -> (First, Second)?,
+        matching first: @autoclosure () -> First,
+        _ second: @autoclosure () -> Second
+    ) -> Enum {
+        let (_, firstMatchers) = MatcherContext.captureNested { first() }
+        let (_, secondMatchers) = MatcherContext.captureNested { second() }
+        appendEnumCaseMatcher(
+            name,
+            associatedValueCount: 2,
+            matchers: firstMatchers + secondMatchers
+        ) { value in
+            guard let root = value as? Enum, let associated = extract(root) else {
+                return nil
+            }
+            return [associated.0, associated.1]
+        }
+        return synthesizedPlaceholder(
+            for: "Match.enumCase(_:extracting:matching:_:)",
+            fallback: "Match.enumCase(using:_:extracting:matching:_:)"
+        )
+    }
+
+    /// Matches an enum case and its associated value, using `placeholder` only
+    /// while recording the call.
+    public static func enumCase<Enum, Associated>(
+        using placeholder: Enum,
+        _ name: String,
+        extracting extract: @escaping @Sendable (Enum) -> Associated?,
+        matching matcher: @autoclosure () -> Associated
+    ) -> Enum {
+        let (_, matchers) = MatcherContext.captureNested { matcher() }
+        appendEnumCaseMatcher(name, associatedValueCount: 1, matchers: matchers) { value in
+            guard let root = value as? Enum, let associated = extract(root) else {
+                return nil
+            }
+            return [associated]
+        }
+        return placeholder
+    }
+
+    /// Matches an enum case and its two associated values, using `placeholder`
+    /// only while recording the call.
+    public static func enumCase<Enum, First, Second>(
+        using placeholder: Enum,
+        _ name: String,
+        extracting extract: @escaping @Sendable (Enum) -> (First, Second)?,
+        matching first: @autoclosure () -> First,
+        _ second: @autoclosure () -> Second
+    ) -> Enum {
+        let (_, firstMatchers) = MatcherContext.captureNested { first() }
+        let (_, secondMatchers) = MatcherContext.captureNested { second() }
+        appendEnumCaseMatcher(
+            name,
+            associatedValueCount: 2,
+            matchers: firstMatchers + secondMatchers
+        ) { value in
+            guard let root = value as? Enum, let associated = extract(root) else {
+                return nil
+            }
+            return [associated.0, associated.1]
+        }
+        return placeholder
+    }
+
+    private static func appendEnumCaseMatcher(
+        _ name: String,
+        associatedValueCount: Int,
+        matchers: [ParameterMatcher],
+        extract: @escaping (Any) -> [Any]?
+    ) {
+        precondition(
+            matchers.count == associatedValueCount,
+            "[TestDoubles] enumCase requires exactly one Match expression "
+                + "for every associated value."
+        )
+        MatcherContext.append(
+            EnumCaseMatcher(
+                label: "enumCase(\(name))",
+                matchers: matchers,
+                extract: extract
+            )
+        )
+    }
+
     // MARK: - Optionals
 
     /// Matches a `nil` optional argument.
