@@ -9,85 +9,91 @@
     import Testing
     @testable import TestDoubles
 
-    @available(iOS 17, macCatalyst 17, tvOS 17, watchOS 10, *)
-    private final class QueueSerialExecutor: @unchecked Sendable, SerialExecutor {
-        private let queue = DispatchQueue(label: "TestDoubles.QueueSerialExecutor")
-        private let queueKey = DispatchSpecificKey<Void>()
+    // Swift's custom-executor isolation hook is part of the current simulator
+    // runtimes but is not weak-linked by this compiler on older macOS hosts.
+    // Exercise it in the Apple simulator matrix without making the native test
+    // bundle unloadable at the package's macOS deployment target.
+    #if !os(macOS)
+        @available(iOS 17, macCatalyst 17, tvOS 17, watchOS 10, *)
+        private final class QueueSerialExecutor: @unchecked Sendable, SerialExecutor {
+            private let queue = DispatchQueue(label: "TestDoubles.QueueSerialExecutor")
+            private let queueKey = DispatchSpecificKey<Void>()
 
-        init() {
-            queue.setSpecific(key: queueKey, value: ())
-        }
+            init() {
+                queue.setSpecific(key: queueKey, value: ())
+            }
 
-        func enqueue(_ job: UnownedJob) {
-            let executor = asUnownedSerialExecutor()
-            queue.async {
-                job.runSynchronously(on: executor)
+            func enqueue(_ job: UnownedJob) {
+                let executor = asUnownedSerialExecutor()
+                queue.async {
+                    job.runSynchronously(on: executor)
+                }
+            }
+
+            var isCurrent: Bool {
+                DispatchQueue.getSpecific(key: queueKey) != nil
             }
         }
 
-        var isCurrent: Bool {
-            DispatchQueue.getSpecific(key: queueKey) != nil
-        }
-    }
-
-    private protocol CustomExecutorProbe: Sendable {
-        func immediate() async -> Int
-        func suspending() async -> Int
-        func failing() async throws -> Int
-    }
-
-    private enum CustomExecutorError: Error, Equatable {
-        case expected
-        case wrongExecutor
-    }
-
-    @available(iOS 17, macCatalyst 17, tvOS 17, watchOS 10, *)
-    private actor CustomExecutorCaller {
-        nonisolated let executor: QueueSerialExecutor
-
-        init(executor: QueueSerialExecutor) {
-            self.executor = executor
+        private protocol CustomExecutorProbe: Sendable {
+            func immediate() async -> Int
+            func suspending() async -> Int
+            func failing() async throws -> Int
         }
 
-        nonisolated var unownedExecutor: UnownedSerialExecutor {
-            executor.asUnownedSerialExecutor()
+        private enum CustomExecutorError: Error, Equatable {
+            case expected
+            case wrongExecutor
         }
 
-        func makeConfiguredProbe() async throws -> any CustomExecutorProbe {
-            let stub = try Stub<any CustomExecutorProbe>(
-                .method(returning: Int.self, isAsync: true),
-                .method(returning: Int.self, isAsync: true),
-                .method(returning: Int.self, isThrowing: true, isAsync: true)
-            )
-            await stub.when { await $0.immediate() }.thenReturn(1)
-            await stub.when { await $0.suspending() }.then {
-                () async throws -> Int in
-                let enteredOnExecutor = self.executor.isCurrent
-                await Task.yield()
-                return enteredOnExecutor && self.executor.isCurrent ? 2 : -1
+        @available(iOS 17, macCatalyst 17, tvOS 17, watchOS 10, *)
+        private actor CustomExecutorCaller {
+            nonisolated let executor: QueueSerialExecutor
+
+            init(executor: QueueSerialExecutor) {
+                self.executor = executor
             }
-            await stub.when { try await $0.failing() }.then {
-                () async throws -> Int in
-                guard self.executor.isCurrent else { throw CustomExecutorError.wrongExecutor }
-                await Task.yield()
-                guard self.executor.isCurrent else { throw CustomExecutorError.wrongExecutor }
-                throw CustomExecutorError.expected
-            }
-            return stub()
-        }
 
-        func exercise(_ probe: any CustomExecutorProbe) async {
-            #expect(executor.isCurrent)
-            #expect(await probe.immediate() == 1)
-            #expect(executor.isCurrent)
-            #expect(await probe.suspending() == 2)
-            #expect(executor.isCurrent)
-            await #expect(throws: CustomExecutorError.expected) {
-                try await probe.failing()
+            nonisolated var unownedExecutor: UnownedSerialExecutor {
+                executor.asUnownedSerialExecutor()
             }
-            #expect(executor.isCurrent)
+
+            func makeConfiguredProbe() async throws -> any CustomExecutorProbe {
+                let stub = try Stub<any CustomExecutorProbe>(
+                    .method(returning: Int.self, isAsync: true),
+                    .method(returning: Int.self, isAsync: true),
+                    .method(returning: Int.self, isThrowing: true, isAsync: true)
+                )
+                await stub.when { await $0.immediate() }.thenReturn(1)
+                await stub.when { await $0.suspending() }.then {
+                    () async throws -> Int in
+                    let enteredOnExecutor = self.executor.isCurrent
+                    await Task.yield()
+                    return enteredOnExecutor && self.executor.isCurrent ? 2 : -1
+                }
+                await stub.when { try await $0.failing() }.then {
+                    () async throws -> Int in
+                    guard self.executor.isCurrent else { throw CustomExecutorError.wrongExecutor }
+                    await Task.yield()
+                    guard self.executor.isCurrent else { throw CustomExecutorError.wrongExecutor }
+                    throw CustomExecutorError.expected
+                }
+                return stub()
+            }
+
+            func exercise(_ probe: any CustomExecutorProbe) async {
+                #expect(executor.isCurrent)
+                #expect(await probe.immediate() == 1)
+                #expect(executor.isCurrent)
+                #expect(await probe.suspending() == 2)
+                #expect(executor.isCurrent)
+                await #expect(throws: CustomExecutorError.expected) {
+                    try await probe.failing()
+                }
+                #expect(executor.isCurrent)
+            }
         }
-    }
+    #endif
 
     private protocol ConcurrentInvocationProbe: Sendable {
         func synchronous(_ value: Int) -> Int
@@ -158,19 +164,21 @@
             }
         }
 
-        @Test
-        @available(iOS 17, macCatalyst 17, tvOS 17, watchOS 10, *)
-        func asyncDispatchPreservesCustomSerialExecutor() async throws {
-            let executor = QueueSerialExecutor()
-            let caller = CustomExecutorCaller(executor: executor)
-            let probe = try await caller.makeConfiguredProbe()
+        #if !os(macOS)
+            @Test
+            @available(iOS 17, macCatalyst 17, tvOS 17, watchOS 10, *)
+            func asyncDispatchPreservesCustomSerialExecutor() async throws {
+                let executor = QueueSerialExecutor()
+                let caller = CustomExecutorCaller(executor: executor)
+                let probe = try await caller.makeConfiguredProbe()
 
-            await caller.exercise(probe)
-            #expect(await probe.suspending() == 2)
-            await #expect(throws: CustomExecutorError.expected) {
-                try await probe.failing()
+                await caller.exercise(probe)
+                #expect(await probe.suspending() == 2)
+                await #expect(throws: CustomExecutorError.expected) {
+                    try await probe.failing()
+                }
             }
-        }
+        #endif
 
         @Test func concurrentSyncAndAsyncCallsRemainIndependent() async throws {
             let stub = try Stub<any ConcurrentInvocationProbe>(
