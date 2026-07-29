@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-07-29
+
 ### Added
 
 - Injected closures now have effect-aware doubles:
@@ -160,11 +162,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   recording placeholder.
 - `clearConfiguredBehaviors()` removes every `when` registration while
   preserving the invocation log, returning a `Spy` to pure forwarding, and
-  `reset()` on `Stub` and `Spy` restores the just-constructed state by
-  clearing behaviors and invocations together. `ManualStub` gets
-  `clearConfiguredBehaviors()` but deliberately no `reset()`, since member
-  names dispatch requirements there and a concrete `reset` would shadow a
-  protocol's own `reset` requirement.
+  `reset()` restores the just-constructed state on `Stub`, `Spy`, and
+  `ManualStub` by clearing behaviors and invocations together. Manual
+  conformers forward a protocol requirement named `reset` through
+  `stub.requirements.reset()` to avoid colliding with the controller operation.
 - `thenForward()` on `Spy` registrations explicitly forwards matching calls
   to the real target. At the end of a chain it hands remaining calls back to
   the live implementation, such as failing twice and then recovering for
@@ -356,5 +357,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Runtime and ABI boundaries fail closed when a protocol requirement cannot be
   represented safely.
 
-[Unreleased]: https://github.com/tevelee/swift-test-doubles/commits/main
+[Unreleased]: https://github.com/tevelee/swift-test-doubles/compare/0.0.2...HEAD
+[0.0.2]: https://github.com/tevelee/swift-test-doubles/compare/0.0.1...0.0.2
 [0.0.1]: https://github.com/tevelee/swift-test-doubles/tree/0.0.1

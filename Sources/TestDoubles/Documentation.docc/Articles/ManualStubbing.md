@@ -93,7 +93,7 @@ generation:
 ```swift
 .package(
     url: "https://github.com/tevelee/swift-test-doubles.git",
-    from: "0.1.0",
+    from: "0.0.2",
     traits: ["StubbableMacros"]
 )
 ```

@@ -257,9 +257,9 @@ stub.clearConfiguredBehaviors()
 stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenReturn(())  // fresh
 ```
 
-`reset()` on ``Stub`` and ``Spy`` does both at once, restoring the
-just-constructed state so one double can be reconfigured from scratch across
-parameterized cases:
+`reset()` on ``Stub``, ``Spy``, and ``ManualStub`` does both at once, restoring
+the just-constructed state so one double can be reconfigured from scratch
+across parameterized cases:
 
 ```swift
 for scenario in scenarios {
@@ -269,9 +269,7 @@ for scenario in scenarios {
 }
 ```
 
-``ManualStub`` has `clearConfiguredBehaviors()` but deliberately no `reset()`:
-its member names dispatch protocol requirements, so a concrete `reset` method
-would shadow a protocol's own `reset` requirement. Pair
-`clearConfiguredBehaviors()` with `clearRecordedInvocations()` there for the same
-effect. Calls already parked by a suspending behavior are unaffected by either
-clear; their behavior started before it ran.
+In a ``ManualStubConformer``, forward a protocol requirement named `reset`
+through `stub.requirements.reset()` so it does not collide with the controller's
+`stub.reset()` operation. Calls already parked by a suspending behavior are
+unaffected by either clear; their behavior started before it ran.
