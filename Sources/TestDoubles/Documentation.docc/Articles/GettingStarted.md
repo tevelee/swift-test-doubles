@@ -374,7 +374,7 @@ let stub = try Stub<any AsyncDataLoader>()
 let loads = await stub.when { try await $0.load(url: Match.equal("/users/42")) }
     .thenReturn("cached")
     .thenThrow(LoadError(url: "/users/42"))
-    .thenReturn("fresh", times: 1...)
+    .thenReturn("fresh")
 
 let loader: any AsyncDataLoader = stub()
 #expect(try await loader.load(url: "/users/42") == "cached")
@@ -385,9 +385,10 @@ await #expect(throws: LoadError.self) {
 loads.verify(3 ... 3)
 ```
 
-Matching calls consume the configured behaviors in order, and the final behavior
-repeats. Use `times: 2` for a finite behavior and `times: 1...` for an explicit
-unbounded terminal. The terminal returns ``CallInteractions``, an
+Matching calls consume the configured behaviors in order. A bare intermediate
+behavior runs exactly once, while the bare trailing behavior repeats. Use
+`times: 2` for another exact finite run or `times: 1...` when you want to make
+the unbounded terminal explicit. The terminal returns ``CallInteractions``, an
 observation-only handle that supports `verify`, `arguments()`, and `stream()`
 without allowing another behavior after an unbounded answer. Passing several
 values to one `thenReturn` remains shorthand for a return-only chain.

@@ -142,7 +142,7 @@ let loader = try Stub<any FeedLoader>()
 let loads = await loader.when { try await $0.loadFeed() }
     .thenThrow(URLError(.timedOut))
     .thenThrow(URLError(.networkConnectionLost))
-    .thenReturn(["Hello, world"], times: 1...)
+    .thenReturn(["Hello, world"])
 
 let feed = FeedViewModel(loader: loader())
 await feed.refresh()
@@ -152,12 +152,13 @@ await feed.refresh()
 loads.verify(3 ... 3)
 ```
 
-Each matching call consumes the next behavior in the chain, and the last one
-repeats for every call after that. Use `times: 2` for an exact finite run and
-`times: 1...` for an explicit unbounded terminal. A terminal behavior returns
-an observation-only handle, so the completed chain can be saved and later
-verified, inspected with `arguments()`, or observed with `stream()`. Each
-registration owns its own chain, so a call that matches a more specific
+Each matching call consumes the next behavior in the chain. A bare intermediate
+behavior runs exactly once, while the bare trailing behavior repeats for every
+call after that. Use `times: 2` for another exact finite run or `times: 1...`
+when you want to make the unbounded terminal explicit. A terminal behavior
+returns an observation-only handle, so the completed chain can be saved and
+later verified, inspected with `arguments()`, or observed with `stream()`.
+Each registration owns its own chain, so a call that matches a more specific
 registration does not advance a general fallback's chain.
 
 When the response depends on *which* attempt this is rather than a fixed list,

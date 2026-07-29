@@ -504,9 +504,12 @@ extension CallPattern where Result == Void {
     }
 
     /// Completes every matching invocation without performing additional
+    /// work.
     ///
     /// The returned handle supports interaction operations but no further
-    /// behavior can be chained after it.
+    /// behavior can be chained after it. Omitting `times:` resolves here when
+    /// this is the trailing behavior; an intermediate bare `thenDoNothing()`
+    /// instead completes exactly one invocation.
     @discardableResult
     public func thenDoNothing(
         after delay: Duration? = nil,
@@ -540,11 +543,12 @@ private func validateUnboundedRepeatCount(_ times: PartialRangeFrom<Int>) {
 /// Extends a stub registration with fixed behaviors for consecutive
 /// invocations.
 ///
-/// Matching invocations consume behaviors in registration order. A bounded
-/// run left terminal (nothing appended after it) fails with a diagnostic
-/// once its own count is exceeded; an unbounded run keeps repeating. See
-/// `CallPattern.thenReturn(_:times:)` for how `times:` selects between the
-/// two, and the bare form, at each position.
+/// Matching invocations consume behaviors in registration order. A bare
+/// intermediate behavior runs exactly once, while a bare trailing behavior
+/// repeats without bound. An explicitly bounded run left terminal (nothing
+/// appended after it) fails with a diagnostic once its own count is exceeded.
+/// See `CallPattern.thenReturn(_:times:)` for how `times:` selects between
+/// the bounded and unbounded forms.
 public struct StubBehaviorChain<Result> {
     let recorder: StubRecorder
     let recording: RecordedCall
@@ -561,7 +565,9 @@ public struct StubBehaviorChain<Result> {
     /// invocations.
     ///
     /// A later behavior takes over after exactly that many matching calls.
-    /// `after:` delays delivery and requires an async requirement.
+    /// `after:` delays delivery and requires an async requirement. Omitting
+    /// `times:` resolves here when another behavior follows, making this
+    /// intermediate behavior exactly once.
     @discardableResult
     @_disfavoredOverload
     public func thenReturn(
@@ -580,7 +586,8 @@ public struct StubBehaviorChain<Result> {
 
     /// Appends a fixed return value for every matching invocation from here
     /// on. This is terminal — nothing can be chained after it — and anything
-    /// already appended earlier in the chain is unaffected.
+    /// already appended earlier in the chain is unaffected. Omitting `times:`
+    /// resolves here when this is the trailing behavior.
     @discardableResult
     public func thenReturn(
         _ value: Result,
@@ -627,6 +634,8 @@ public struct StubBehaviorChain<Result> {
     ///
     /// The recorded requirement must be throwing. For a concrete typed-throws
     /// requirement, `error` must be compatible with its declared error type.
+    /// Omitting `times:` resolves here when another behavior follows, making
+    /// this intermediate behavior exactly once.
     @discardableResult
     @_disfavoredOverload
     public func thenThrow<Failure: Error>(
@@ -643,7 +652,8 @@ public struct StubBehaviorChain<Result> {
 
     /// Appends a fixed error for every matching invocation from here on.
     /// This is terminal — nothing can be chained after it — and anything
-    /// already appended earlier in the chain is unaffected.
+    /// already appended earlier in the chain is unaffected. Omitting `times:`
+    /// resolves here when this is the trailing behavior.
     @discardableResult
     public func thenThrow<Failure: Error>(
         _ error: Failure,

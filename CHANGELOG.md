@@ -206,7 +206,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed behavior repetition now has two intentional forms: `times: 2` serves
   an exact finite run that can continue into another `then` step, while
   `times: 1...` is an unbounded terminal. The redundant bounded-range
-  spellings such as `times: 1...2` have been removed. Unbounded
+  spellings such as `times: 1...2` have been removed. When `times:` is
+  omitted, a bare intermediate behavior is exactly once and a bare trailing
+  behavior is implicitly unbounded. Unbounded
   `thenReturn`, `thenThrow`, and `thenDoNothing` terminals, variadic
   `thenReturn`, and `thenFatalError` now return an observation-only
   `CallInteractions` handle, so a completed fluent chain can be saved and
