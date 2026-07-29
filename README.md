@@ -321,7 +321,8 @@ let translator: any Translator = spy()
 
 translations.verify(.exactly(2))
 
-let forwarded: [String] = translations.forwardedArguments()
+translations.forwarded.verify(1...)
+let forwarded: [String] = translations.forwarded.arguments()
 #expect(forwarded == ["farewell.title"])
 ```
 

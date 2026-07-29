@@ -17,11 +17,24 @@ extension StubRecorder {
         matchers: [ParameterMatcher],
         matchesEmptyArgumentsExactly: Bool
     ) -> [RecordedCall] {
-        verificationMatches(
+        preparedForwardedVerificationMatches(
             method: method,
             matchers: matchers,
             matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly
-        ).filter { $0.origin == .forwarded }
+        ).map(\.call)
+    }
+
+    func preparedForwardedVerificationMatches(
+        method: Int,
+        matchers: [ParameterMatcher],
+        matchesEmptyArgumentsExactly: Bool
+    ) -> [PreparedRecordedCallMatch] {
+        matchingCalls(
+            method: method,
+            matchers: matchers,
+            matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
+            origin: .forwarded
+        )
     }
 
     func clearRecordedInvocations() {
@@ -254,7 +267,8 @@ extension StubRecorder {
     /// intentionally do not commit captures or verification state.
     func nextMatchingInvocation(
         after lastSeenCallID: UInt64?,
-        matching recording: RecordedCall
+        matching recording: RecordedCall,
+        origin: InvocationOrigin? = nil
     ) async -> RecordedCall? {
         let method = recording.methodIndex
         let matchers = recording.resolvedMatchers
@@ -267,6 +281,7 @@ extension StubRecorder {
                 method: method,
                 matchers: matchers,
                 matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly,
+                origin: origin,
                 in: snapshot.calls
             ).first(where: { match in
                 guard let callID = match.call.id else { return false }
@@ -286,7 +301,8 @@ extension StubRecorder {
     func waitForCallCount(
         recording: RecordedCall,
         minimumCount: Int,
-        timeout: Duration
+        timeout: Duration,
+        origin: InvocationOrigin? = nil
     ) async -> EventualCallCountResult {
         let clock = ContinuousClock()
         let deadline = clock.now.advanced(by: timeout)
@@ -303,6 +319,7 @@ extension StubRecorder {
                 method: method,
                 matchers: matchers,
                 matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly,
+                origin: origin,
                 in: snapshot.calls
             )
             if matches.count >= minimumCount {
@@ -326,7 +343,8 @@ extension StubRecorder {
                     let finalMatches = matchingCalls(
                         method: method,
                         matchers: matchers,
-                        matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly
+                        matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly,
+                        origin: origin
                     )
                     if finalMatches.count >= minimumCount {
                         commitSuccessfulVerification(of: finalMatches)
@@ -346,13 +364,15 @@ extension StubRecorder {
         recording: RecordedCall,
         minimumCount: Int,
         timeout: Duration,
-        using clock: any StubClock
+        using clock: any StubClock,
+        origin: InvocationOrigin? = nil
     ) async -> EventualCallCountResult {
         await withTaskGroup(of: EventualCallCountResult.self) { group in
             group.addTask { [self] in
                 await waitForCallCountUntilCancelled(
                     recording: recording,
-                    minimumCount: minimumCount
+                    minimumCount: minimumCount,
+                    origin: origin
                 )
             }
             group.addTask { [self] in
@@ -364,7 +384,8 @@ extension StubRecorder {
                 let matches = matchingCalls(
                     method: recording.methodIndex,
                     matchers: recording.resolvedMatchers,
-                    matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly
+                    matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly,
+                    origin: origin
                 )
                 if matches.count >= minimumCount {
                     commitSuccessfulVerification(of: matches)
@@ -383,7 +404,8 @@ extension StubRecorder {
 
     private func waitForCallCountUntilCancelled(
         recording: RecordedCall,
-        minimumCount: Int
+        minimumCount: Int,
+        origin: InvocationOrigin?
     ) async -> EventualCallCountResult {
         let method = recording.methodIndex
         let matchers = recording.resolvedMatchers
@@ -393,6 +415,7 @@ extension StubRecorder {
                 method: method,
                 matchers: matchers,
                 matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly,
+                origin: origin,
                 in: snapshot.calls
             )
             if matches.count >= minimumCount {
@@ -413,12 +436,14 @@ extension StubRecorder {
     private func matchingCalls(
         method: Int,
         matchers: [ParameterMatcher],
-        matchesEmptyArgumentsExactly: Bool = false
+        matchesEmptyArgumentsExactly: Bool = false,
+        origin: InvocationOrigin? = nil
     ) -> [PreparedRecordedCallMatch] {
         matchingCalls(
             method: method,
             matchers: matchers,
             matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
+            origin: origin,
             in: withLockedPolicy { $0.invocationLedger.allCalls }
         )
     }
@@ -427,11 +452,13 @@ extension StubRecorder {
         method: Int,
         matchers: [ParameterMatcher],
         matchesEmptyArgumentsExactly: Bool,
+        origin: InvocationOrigin?,
         in calls: [RecordedCall]
     ) -> [PreparedRecordedCallMatch] {
         calls.compactMap { call in
             guard
                 call.methodIndex == method,
+                origin == nil || call.origin == origin,
                 let transaction = StubBehaviorRegistry.prepareArgumentsMatch(
                     call.args,
                     against: matchers,

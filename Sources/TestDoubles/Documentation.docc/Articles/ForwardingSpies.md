@@ -50,10 +50,10 @@ the spy's recorder and overrides.
 
 ### Inspect the forwarding boundary
 
-``CallPattern/forwardedArguments()`` narrows a pattern's interaction log to
-calls that actually entered the real implementation. It is useful when a test
-needs to prove an override intercepted one input while all other inputs still
-delegated:
+``CallPattern/forwarded`` narrows a pattern's interaction surface to calls
+that actually entered the real implementation. Its count, verification,
+typed-argument, and streaming APIs mirror the pattern's ordinary interaction
+APIs:
 
 ```swift
 spy.when { $0.displayName(for: Match.equal("guest")) }
@@ -65,13 +65,15 @@ let displayNames = spy.when {
 #expect(service.displayName(for: "guest") == "Test Guest")
 #expect(service.displayName(for: "admin") == "Admin")
 
-let forwarded: [String] = displayNames.forwardedArguments()
+displayNames.forwarded.verify(1...)
+let forwarded: [String] = displayNames.forwarded.arguments()
 #expect(forwarded == ["admin"])
 ```
 
-This is a typed, pure query, so it does not verify interactions or alter the
-target. A call is marked forwarded when the spy selects the target; its return
-value or error remains on the protocol's normal transport path.
+Argument and count queries are pure; `verify` explicitly marks matching
+forwarded calls as verified. A call is marked forwarded when the spy selects
+the target; its return value or error remains on the protocol's normal
+transport path.
 
 ### Share target state
 

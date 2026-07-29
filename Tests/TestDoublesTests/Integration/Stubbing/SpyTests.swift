@@ -197,11 +197,11 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
         #expect(service.fetch(id: 2) == "real:2")
         #expect(service.fetch(id: 3) == "real:3")
 
-        let forwarded: [Int] = fetches.forwardedArguments()
+        let forwarded: [Int] = fetches.forwarded.arguments()
         #expect(forwarded == [2, 3])
     }
 
-    @Test func callPatternExposesForwardedArgumentsAndCount() throws {
+    @Test func callPatternComposesForwardedInteractions() throws {
         let real = RealSpyService()
         let spy: Spy<any SpyService> = .make(forwardingTo: real)
         let pattern = spy.when { $0.fetch(id: Match.any()) }
@@ -211,8 +211,10 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
         #expect(service.fetch(id: 1) == "override")
         #expect(service.fetch(id: 2) == "real:2")
         #expect(pattern.callCount == 2)
-        #expect(pattern.forwardedCallCount == 1)
-        let arguments: [Int] = pattern.forwardedArguments()
+        #expect(pattern.forwarded.callCount == 1)
+        #expect(pattern.forwarded.wasCalled)
+        pattern.forwarded.verify(1 ... 1)
+        let arguments: [Int] = pattern.forwarded.arguments()
         #expect(arguments == [2])
     }
 
@@ -248,8 +250,56 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
         _ = try await service.fetchLater(id: 1)
         _ = try await service.fetchLater(id: 2)
 
-        let forwarded: [Int] = fetches.forwardedArguments()
+        let forwarded: [Int] = fetches.forwarded.arguments()
         #expect(forwarded == [2])
+    }
+
+    @Test func forwardedPatternStreamsAndEventuallyVerifiesDelegatedCalls() async throws {
+        let spy = try Spy<any SpyService>(forwardingTo: RealSpyService())
+        spy.when { $0.fetch(id: 1) }.thenReturn("overridden")
+        let fetches = spy.when { $0.fetch(id: Match.any()) }
+        let stream: InvocationStream<Int> = fetches.forwarded.stream()
+        let nextForwarded = Task {
+            var iterator = stream.makeAsyncIterator()
+            return await iterator.next()
+        }
+        let verification = Task {
+            await fetches.forwarded.verify(2..., within: .seconds(1))
+        }
+        let service: any SpyService = spy()
+
+        _ = service.fetch(id: 1)
+        _ = service.fetch(id: 2)
+        _ = service.fetch(id: 3)
+
+        #expect(await nextForwarded.value == 2)
+        await verification.value
+        #expect(fetches.forwarded.callCount == 2)
+    }
+
+    @Test func forwardedPatternVerificationSupportsManualClocks() async throws {
+        let spy = try Spy<any SpyService>(forwardingTo: RealSpyService())
+        spy.when { $0.fetch(id: 1) }.thenReturn("overridden")
+        let fetches = spy.when { $0.fetch(id: Match.any()) }
+        let service: any SpyService = spy()
+        let clock = ManualStubClock()
+        let verification = Task {
+            await fetches.forwarded.verify(
+                1...,
+                within: .seconds(1),
+                using: clock
+            )
+        }
+
+        await clock.waitForSleepers(atLeast: 1)
+        _ = service.fetch(id: 1)
+        await Task.yield()
+        #expect(fetches.forwarded.callCount == 0)
+        #expect(clock.pendingSleepCount == 1)
+
+        _ = service.fetch(id: 2)
+        await verification.value
+        #expect(clock.pendingSleepCount == 0)
     }
 
     @Test func forwardsClassConstrainedProtocolsToTheSameObject() throws {

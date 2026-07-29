@@ -16,12 +16,11 @@ extension CallPattern {
         callCount > 0
     }
 
-    /// The number of matching calls a spy forwarded to its real target.
+    /// Interactions matching this pattern that a spy delegated to its target.
     ///
-    /// This is zero for a stub without a forwarding target. Reading the count
-    /// does not mark calls as verified or commit captures.
-    public var forwardedCallCount: Int {
-        forwardedMatchingCalls().count
+    /// This view is empty for a stub without a forwarding target.
+    public var forwarded: Forwarded {
+        Forwarded(recorder: recorder, recording: recording)
     }
 
     /// Verifies how many recorded invocations match this pattern.
@@ -147,15 +146,6 @@ extension CallPattern {
         matchingCalls().map(typedCallArguments)
     }
 
-    /// Returns arguments from matching calls that a spy forwarded to its
-    /// real target.
-    ///
-    /// Calls answered by an override are excluded. This returns an empty
-    /// array for a stub without a forwarding target.
-    public func forwardedArguments<each Argument>() -> [(repeat each Argument)] {
-        forwardedMatchingCalls().map(typedCallArguments)
-    }
-
     /// Returns a stream of future matching invocation arguments.
     ///
     /// Calls recorded before this method returns are deliberately excluded.
@@ -167,14 +157,6 @@ extension CallPattern {
 
     private func matchingCalls() -> [RecordedCall] {
         recorder.verificationMatches(
-            method: recording.methodIndex,
-            matchers: recording.resolvedMatchers,
-            matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly
-        )
-    }
-
-    private func forwardedMatchingCalls() -> [RecordedCall] {
-        recorder.forwardedVerificationMatches(
             method: recording.methodIndex,
             matchers: recording.resolvedMatchers,
             matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly
@@ -203,6 +185,159 @@ extension CallPattern {
             line: line,
             column: column
         )
+    }
+}
+
+extension CallPattern {
+    /// Matching interactions that a spy forwarded to its real target.
+    ///
+    /// Access this view through ``CallPattern/forwarded``. Calls answered by
+    /// an override are excluded, and every query is empty for an ordinary
+    /// stub without a forwarding target.
+    public struct Forwarded: Sendable {
+        let recorder: StubRecorder
+        let recording: RecordedCall
+
+        /// The number of matching calls delegated to the forwarding target.
+        ///
+        /// Reading the count does not mark calls as verified or commit captures.
+        public var callCount: Int {
+            matchingCalls().count
+        }
+
+        /// Whether at least one matching call reached the forwarding target.
+        ///
+        /// Reading this value does not mark calls as verified or commit captures.
+        public var wasCalled: Bool {
+            callCount > 0
+        }
+
+        /// Verifies how many matching calls reached the forwarding target.
+        ///
+        /// Successful verification marks the forwarded calls as verified and
+        /// commits captures. Calls answered by an override do not count.
+        public func verify(
+            _ expectedCounts: any RangeExpression<Int> = 1...,
+            fileID: StaticString = #fileID,
+            filePath: StaticString = #filePath,
+            line: UInt = #line,
+            column: UInt = #column
+        ) {
+            let matches = recorder.preparedForwardedVerificationMatches(
+                method: recording.methodIndex,
+                matchers: recording.resolvedMatchers,
+                matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly
+            )
+            let actualCount = matches.count
+            guard expectedCounts.contains(actualCount) else {
+                reportIssue(
+                    "'\(recording.name)': expected "
+                        + "\(callCountDescription(for: expectedCounts)) to be forwarded, "
+                        + "got \(actualCount)",
+                    fileID: fileID,
+                    filePath: filePath,
+                    line: line,
+                    column: column
+                )
+                return
+            }
+            recorder.commitSuccessfulVerification(of: matches)
+        }
+
+        /// Waits up to `timeout` for the lower-bound number of matching calls
+        /// to reach the forwarding target.
+        public func verify(
+            _ expectedCounts: PartialRangeFrom<Int> = 1...,
+            within timeout: Duration,
+            fileID: StaticString = #fileID,
+            filePath: StaticString = #filePath,
+            line: UInt = #line,
+            column: UInt = #column
+        ) async {
+            switch await recorder.waitForCallCount(
+                recording: recording,
+                minimumCount: expectedCounts.lowerBound,
+                timeout: timeout,
+                origin: .forwarded
+            ) {
+                case .satisfied, .cancelled:
+                    return
+                case .timedOut(let actualCount):
+                    reportIssue(
+                        "'\(recording.name)': expected "
+                            + "\(callCountDescription(for: expectedCounts)) to be forwarded "
+                            + "within \(timeout), got \(actualCount)",
+                        fileID: fileID,
+                        filePath: filePath,
+                        line: line,
+                        column: column
+                    )
+            }
+        }
+
+        /// Waits for forwarded calls using `clock` rather than wall time.
+        ///
+        /// Use ``ManualStubClock`` to advance timeout-sensitive tests
+        /// deterministically.
+        public func verify(
+            _ expectedCounts: PartialRangeFrom<Int> = 1...,
+            within timeout: Duration,
+            using clock: any StubClock,
+            fileID: StaticString = #fileID,
+            filePath: StaticString = #filePath,
+            line: UInt = #line,
+            column: UInt = #column
+        ) async {
+            switch await recorder.waitForCallCount(
+                recording: recording,
+                minimumCount: expectedCounts.lowerBound,
+                timeout: timeout,
+                using: clock,
+                origin: .forwarded
+            ) {
+                case .satisfied, .cancelled:
+                    return
+                case .timedOut(let actualCount):
+                    reportIssue(
+                        "'\(recording.name)': expected "
+                            + "\(callCountDescription(for: expectedCounts)) to be forwarded "
+                            + "within \(timeout), got \(actualCount)",
+                        fileID: fileID,
+                        filePath: filePath,
+                        line: line,
+                        column: column
+                    )
+            }
+        }
+
+        /// Returns arguments from matching forwarded calls, in call order.
+        ///
+        /// Annotate the result to select the tuple shape. This query does not
+        /// verify calls or commit captures.
+        public func arguments<each Argument>() -> [(repeat each Argument)] {
+            matchingCalls().map(typedCallArguments)
+        }
+
+        /// Returns a stream of future matching calls that reach the target.
+        ///
+        /// Calls answered by an override and calls recorded before this method
+        /// returns are excluded.
+        public func stream<each Argument>() -> InvocationStream<(repeat each Argument)> {
+            InvocationStream(
+                recorder: recorder,
+                recording: recording,
+                origin: .forwarded,
+                transform: typedCallArguments
+            )
+        }
+
+        private func matchingCalls() -> [RecordedCall] {
+            recorder.forwardedVerificationMatches(
+                method: recording.methodIndex,
+                matchers: recording.resolvedMatchers,
+                matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly
+            )
+        }
     }
 }
 

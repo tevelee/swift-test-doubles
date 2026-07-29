@@ -33,7 +33,7 @@ struct StubSourceLocation: Sendable {
 
 /// Indicates whether the recorder answered a call itself or a spy delegated it
 /// to its forwarding target.
-enum InvocationOrigin: Sendable {
+enum InvocationOrigin: Sendable, Equatable {
     case stubbed
     case forwarded
 }

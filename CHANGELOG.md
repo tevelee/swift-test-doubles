@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `when` now returns a reusable `CallPattern` that composes behavior
+  registration with call-count verification, typed argument history, and
+  future-call streaming. A spy pattern's `forwarded` view provides the same
+  count, `wasCalled`, range verification, argument, and stream vocabulary
+  scoped to calls that actually reached the forwarding target.
 - Automatic discovery now supports an associated-dependent typed error whose
   outer type is a linked, top-level generic class, struct, or enum with one or
   two type parameters. Reconstructed class errors retain Swift's direct
@@ -198,6 +203,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The pre-release `StubBuilder` type and the separate
+  `forwardedCallCount`/`forwardedArguments()` pattern members have been
+  replaced by `CallPattern` and its composed `forwarded` view.
 - Verification now uses native `RangeExpression<Int>` values as its primary
   vocabulary: `2...`, `...2`, and `2...4` express lower bounds, upper bounds,
   and closed ranges directly. `.exactly(2)` and `.never` remain conveniences
@@ -242,6 +250,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Runtime performance CI now builds each revision's native benchmark driver
+  while keeping both revisions on the candidate dependency graph. Intentional
+  public API breaks therefore remain benchmarkable without compiling new
+  workload source against the old API.
 - `ClosureDouble`, `VoidClosureDouble`, and `CallbackCapture` no longer claim
   unconditional `Sendable` safety, and user matchers and handlers execute
   outside internal locks so reentrant calls cannot deadlock.

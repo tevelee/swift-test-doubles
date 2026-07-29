@@ -8,17 +8,20 @@ public struct InvocationStream<Element>: AsyncSequence {
     public struct Iterator: AsyncIteratorProtocol {
         private let recorder: StubRecorder
         private let recording: RecordedCall
+        private let origin: InvocationOrigin?
         private let transform: (RecordedCall) -> Element
         private var lastSeenCallID: UInt64?
 
         init(
             recorder: StubRecorder,
             recording: RecordedCall,
+            origin: InvocationOrigin?,
             startingAfter lastSeenCallID: UInt64?,
             transform: @escaping (RecordedCall) -> Element
         ) {
             self.recorder = recorder
             self.recording = recording
+            self.origin = origin
             self.lastSeenCallID = lastSeenCallID
             self.transform = transform
         }
@@ -31,7 +34,8 @@ public struct InvocationStream<Element>: AsyncSequence {
             guard
                 let call = await recorder.nextMatchingInvocation(
                     after: lastSeenCallID,
-                    matching: recording
+                    matching: recording,
+                    origin: origin
                 )
             else {
                 return nil
@@ -43,16 +47,19 @@ public struct InvocationStream<Element>: AsyncSequence {
 
     private let recorder: StubRecorder
     private let recording: RecordedCall
+    private let origin: InvocationOrigin?
     private let startAfterCallID: UInt64?
     private let transform: (RecordedCall) -> Element
 
     init(
         recorder: StubRecorder,
         recording: RecordedCall,
+        origin: InvocationOrigin? = nil,
         transform: @escaping (RecordedCall) -> Element
     ) {
         self.recorder = recorder
         self.recording = recording
+        self.origin = origin
         startAfterCallID = recorder.latestRecordedCallID()
         self.transform = transform
     }
@@ -62,6 +69,7 @@ public struct InvocationStream<Element>: AsyncSequence {
         Iterator(
             recorder: recorder,
             recording: recording,
+            origin: origin,
             startingAfter: startAfterCallID,
             transform: transform
         )
