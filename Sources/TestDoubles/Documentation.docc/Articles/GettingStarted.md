@@ -371,10 +371,10 @@ differently:
 
 ```swift
 let stub = try Stub<any AsyncDataLoader>()
-await stub.when { try await $0.load(url: Match.equal("/users/42")) }
+let loads = await stub.when { try await $0.load(url: Match.equal("/users/42")) }
     .thenReturn("cached")
     .thenThrow(LoadError(url: "/users/42"))
-    .thenReturn("fresh")
+    .thenReturn("fresh", times: 1...)
 
 let loader: any AsyncDataLoader = stub()
 #expect(try await loader.load(url: "/users/42") == "cached")
@@ -382,15 +382,20 @@ await #expect(throws: LoadError.self) {
     try await loader.load(url: "/users/42")
 }
 #expect(try await loader.load(url: "/users/42") == "fresh")
+loads.verify(3 ... 3)
 ```
 
 Matching calls consume the configured behaviors in order, and the final behavior
-repeats. Passing several values to one `thenReturn` remains shorthand for a
-return-only chain. Reservation is internally synchronized, and each registration
-owns its own chain. Behavior that depends on arguments or richer state belongs
-in a `then` handler: synchronous handlers and matcher predicates are `@Sendable`,
-async handlers preserve their creation actor or executor, and mutable captures
-must be synchronized when calls may be concurrent.
+repeats. Use `times: 2` for a finite behavior and `times: 1...` for an explicit
+unbounded terminal. The terminal returns ``CallInteractions``, an
+observation-only handle that supports `verify`, `arguments()`, and `stream()`
+without allowing another behavior after an unbounded answer. Passing several
+values to one `thenReturn` remains shorthand for a return-only chain.
+Reservation is internally synchronized, and each registration owns its own
+chain. Behavior that depends on arguments or richer state belongs in a `then`
+handler: synchronous handlers and matcher predicates are `@Sendable`, async
+handlers preserve their creation actor or executor, and mutable captures must
+be synchronized when calls may be concurrent.
 
 ### Choose a construction path
 

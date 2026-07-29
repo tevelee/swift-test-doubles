@@ -139,22 +139,26 @@ protocol FeedLoader {
 ```swift
 let loader = try Stub<any FeedLoader>()
 
-await loader.when { try await $0.loadFeed() }
+let loads = await loader.when { try await $0.loadFeed() }
     .thenThrow(URLError(.timedOut))
     .thenThrow(URLError(.networkConnectionLost))
-    .thenReturn(["Hello, world"])
+    .thenReturn(["Hello, world"], times: 1...)
 
 let feed = FeedViewModel(loader: loader())
 await feed.refresh()
 
 #expect(feed.posts == ["Hello, world"])
 #expect(feed.retryCount == 2)
+loads.verify(3 ... 3)
 ```
 
 Each matching call consumes the next behavior in the chain, and the last one
-repeats for every call after that. Each registration owns its own chain, so a
-call that matches a more specific registration does not advance a general
-fallback's chain. Retry logic like this is hard to test any other way.
+repeats for every call after that. Use `times: 2` for an exact finite run and
+`times: 1...` for an explicit unbounded terminal. A terminal behavior returns
+an observation-only handle, so the completed chain can be saved and later
+verified, inspected with `arguments()`, or observed with `stream()`. Each
+registration owns its own chain, so a call that matches a more specific
+registration does not advance a general fallback's chain.
 
 When the response depends on *which* attempt this is rather than a fixed list,
 `thenForEachCall` hands the computed handler a running call count as its first

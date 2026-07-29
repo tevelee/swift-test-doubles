@@ -203,6 +203,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Fixed behavior repetition now has two intentional forms: `times: 2` serves
+  an exact finite run that can continue into another `then` step, while
+  `times: 1...` is an unbounded terminal. The redundant bounded-range
+  spellings such as `times: 1...2` have been removed. Unbounded
+  `thenReturn`, `thenThrow`, and `thenDoNothing` terminals, variadic
+  `thenReturn`, and `thenFatalError` now return an observation-only
+  `CallInteractions` handle, so a completed fluent chain can be saved and
+  later verified, queried for arguments, streamed, or narrowed to forwarded
+  spy calls without allowing another behavior after its terminal answer.
 - The pre-release `StubBuilder` type and the separate
   `forwardedCallCount`/`forwardedArguments()` pattern members have been
   replaced by `CallPattern` and its composed `forwarded` view.

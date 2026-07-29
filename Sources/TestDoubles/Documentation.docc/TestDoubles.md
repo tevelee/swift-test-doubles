@@ -63,6 +63,7 @@ isolation. See
 - ``Stub``
 - ``Spy``
 - ``CallPattern``
+- ``CallInteractions``
 - ``StubBehaviorChain``
 - ``StubBehaviorQueue``
 - ``StubSuspension``
