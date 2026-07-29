@@ -10,7 +10,7 @@ ACTUAL="$OUTPUT_DIR/GeneratedManualStub.swift"
 mkdir -p "$OUTPUT_DIR"
 swift package --package-path "$ROOT_DIR" --traits ManualStubGenerator plugin \
     --allow-writing-to-package-directory generate-manual-stub \
-    GeneratedManualStubService "$INPUT" "$ACTUAL"
+    --all "$INPUT" "$ACTUAL"
 swift-format format --in-place "$ACTUAL"
 diff -u "$EXPECTED" "$ACTUAL"
 

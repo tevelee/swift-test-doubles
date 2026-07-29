@@ -10,3 +10,8 @@ protocol GeneratedManualStubService {
     var count: Int { get set }
     subscript(_ value: Int) -> String { get set }
 }
+
+protocol GeneratedManualStubCounter {
+    func increment(by amount: Int)
+    var value: Int { get }
+}

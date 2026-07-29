@@ -47,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unread, while accepting streams ended through task cancellation.
 - Stable, scope-local automatic names for unnamed doubles, including explicit
   case-qualified names in parameterized Swift Testing tests.
+- Batch manual-stub generation for every supported protocol in a Swift source
+  file or recursively scanned directory.
 
 ## [0.0.2] - 2026-07-29
 

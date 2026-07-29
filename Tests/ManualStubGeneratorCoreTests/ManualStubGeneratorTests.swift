@@ -95,6 +95,68 @@ import Testing
         }
     }
 
+    @Test func batchGenerationFindsEveryProtocolInDeterministicSourceOrder() throws {
+        let result = try ManualStubBatchGenerator(
+            sources: [
+                .init(
+                    identifier: "B.swift",
+                    contents: "protocol Second { var value: Int { get } }"
+                ),
+                .init(
+                    identifier: "A.swift",
+                    contents:
+                        """
+                        // protocol CommentedOut {}
+                        let example = "protocol InAString {}"
+                        protocol First {
+                            func load(_ id: Int) -> String
+                        }
+                        """
+                )
+            ]
+        ).render(importingTestDoubles: false)
+
+        #expect(result.generatedProtocolNames == ["First", "Second"])
+        #expect(result.source.contains("FirstStubConformer"))
+        #expect(result.source.contains("SecondStubConformer"))
+        #expect(result.source.contains("CommentedOutStubConformer") == false)
+        #expect(result.source.contains("InAStringStubConformer") == false)
+    }
+
+    @Test func batchGenerationReportsUnsupportedProtocolsWhileGeneratingEligibleOnes() throws {
+        let result = try ManualStubBatchGenerator(
+            sources: [
+                .init(
+                    identifier: "Services.swift",
+                    contents:
+                        """
+                        protocol Eligible {
+                            func load() -> Int
+                        }
+                        protocol NeedsSharedState {
+                            static func shared() -> Int
+                        }
+                        """
+                )
+            ]
+        ).render(importingTestDoubles: false)
+
+        #expect(result.generatedProtocolNames == ["Eligible"])
+        #expect(result.skippedProtocols.map(\.name) == ["NeedsSharedState"])
+        #expect(result.skippedProtocols[0].reason.contains("static requirements"))
+    }
+
+    @Test func batchGenerationRejectsDuplicateProtocolNames() {
+        #expect(throws: ManualStubGeneratorError.self) {
+            try ManualStubBatchGenerator(
+                sources: [
+                    .init(identifier: "A.swift", contents: "protocol Service {}"),
+                    .init(identifier: "B.swift", contents: "protocol Service {}")
+                ]
+            ).render(importingTestDoubles: false)
+        }
+    }
+
     private func render(_ source: String, protocolName: String) throws -> String {
         try ManualStubGenerator(
             protocolName: protocolName,

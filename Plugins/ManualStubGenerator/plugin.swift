@@ -26,7 +26,11 @@ private enum GeneratorError: LocalizedError {
     var errorDescription: String? {
         switch self {
             case .usage:
-                "usage: swift package plugin --allow-writing-to-package-directory generate-manual-stub <ProtocolName> <source.swift> <output.swift>"
+                """
+                usage:
+                  swift package plugin --allow-writing-to-package-directory generate-manual-stub <ProtocolName> <source.swift> <output.swift>
+                  swift package plugin --allow-writing-to-package-directory generate-manual-stub --all <source.swift-or-directory> <output.swift>
+                """
             case .failed:
                 "ManualStub generation failed."
         }

@@ -34,25 +34,14 @@ package struct ManualStubGenerator {
     }
 
     private func protocolBody() throws -> String {
-        guard let declaration = source.range(of: "protocol \(protocolName)") else {
+        guard
+            let declaration = SwiftProtocolDeclarationScanner(source: source)
+                .declarations()
+                .first(where: { $0.name == protocolName })
+        else {
             throw ManualStubGeneratorError.protocolNotFound(protocolName)
         }
-        guard let opening = source[declaration.lowerBound...].firstIndex(of: "{") else {
-            throw ManualStubGeneratorError.protocolNotFound(protocolName)
-        }
-        var depth = 0
-        for index in source[opening...].indices {
-            switch source[index] {
-                case "{": depth += 1
-                case "}":
-                    depth -= 1
-                    if depth == 0 {
-                        return String(source[source.index(after: opening) ..< index])
-                    }
-                default: break
-            }
-        }
-        throw ManualStubGeneratorError.protocolNotFound(protocolName)
+        return declaration.body
     }
 
     private func forwarder(for requirement: String) throws -> String? {
@@ -317,10 +306,12 @@ extension String {
 package enum ManualStubGeneratorError: LocalizedError {
     case protocolNotFound(String)
     case unsupportedRequirement(requirement: String, reason: String)
+    case duplicateProtocol(name: String, firstSource: String, secondSource: String)
+    case noEligibleProtocols
 
     package var requirement: String? {
         switch self {
-            case .protocolNotFound:
+            case .protocolNotFound, .duplicateProtocol, .noEligibleProtocols:
                 nil
             case .unsupportedRequirement(let requirement, _):
                 requirement
@@ -333,6 +324,10 @@ package enum ManualStubGeneratorError: LocalizedError {
                 "could not find a complete protocol declaration for \(name)"
             case .unsupportedRequirement(let requirement, let reason):
                 "cannot generate manual forwarding for `\(requirement)`: \(reason)"
+            case .duplicateProtocol(let name, let firstSource, let secondSource):
+                "found protocol \(name) in both \(firstSource) and \(secondSource)"
+            case .noEligibleProtocols:
+                "found no protocols whose requirements can be generated"
         }
     }
 }

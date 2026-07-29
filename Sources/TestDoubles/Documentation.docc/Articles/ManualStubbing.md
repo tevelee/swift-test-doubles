@@ -73,6 +73,21 @@ static types of their arguments automatically, so overloads that differ only by
 argument type remain independent. Typed-throws requirements preserve their
 declared failure type instead of erasing it to ordinary `throws`.
 
+Pass `--all` to generate every supported protocol declared in one file:
+
+```sh
+swift package --traits ManualStubGenerator plugin \
+  --allow-writing-to-package-directory generate-manual-stub \
+  --all Sources/Services.swift Tests/Generated/ServiceStubs.swift
+```
+
+The input can also be a directory. Directory generation recursively scans its
+Swift files in stable path order and writes all conformers to the one requested
+output file. Protocols with unsupported requirements are identified as skipped
+on standard error, while duplicate protocol names fail generation instead of
+silently overwriting one another. The existing protocol-name form remains
+available when only one declaration should be generated.
+
 The generator deliberately rejects static and initializer requirements. Both
 need process-wide state rather than the test-local recorder owned by a
 ``ManualStub``, which makes an implicit generated implementation unsafe when
