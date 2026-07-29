@@ -108,7 +108,8 @@ final class TestDoubleFixtureDiffCheck: @unchecked Sendable {
         checkingUnconsumedBehaviorQueues: Bool = false,
         checkingPendingSuspensions: Bool = false,
         checkingPendingCallbackCaptures: Bool = false,
-        checkingEscapedTestDoubles: Bool = false
+        checkingEscapedTestDoubles: Bool = false,
+        checkingUnfinishedAsyncInvocations: Bool = false
     ) -> [String] {
         let (recorders, teardownChecks, _) = snapshot()
         let recorderDiagnostics = recorders.flatMap { recorder in
@@ -120,6 +121,11 @@ final class TestDoubleFixtureDiffCheck: @unchecked Sendable {
             }
             if checkingUnverifiedInteractions,
                 let diagnostic = recorder.unverifiedInteractionsDiagnostic()
+            {
+                diagnostics.append(describing(recorder: recorder, diagnostic: diagnostic))
+            }
+            if checkingUnfinishedAsyncInvocations,
+                let diagnostic = recorder.unfinishedAsyncInvocationsDiagnostic()
             {
                 diagnostics.append(describing(recorder: recorder, diagnostic: diagnostic))
             }

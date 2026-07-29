@@ -23,6 +23,33 @@ private struct ScopedTestDoubleProbeStub: ScopedTestDoubleProbe, ManualStubConfo
     }
 }
 
+private actor ScopedAsyncInvocationGate {
+    private var started = false
+    private var startWaiters: [CheckedContinuation<Void, Never>] = []
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+
+    func suspend() async {
+        await withCheckedContinuation { continuation in
+            started = true
+            startWaiters.forEach { $0.resume() }
+            startWaiters.removeAll()
+            releaseContinuation = continuation
+        }
+    }
+
+    func waitUntilStarted() async {
+        guard started == false else { return }
+        await withCheckedContinuation { continuation in
+            startWaiters.append(continuation)
+        }
+    }
+
+    func release() {
+        releaseContinuation?.resume()
+        releaseContinuation = nil
+    }
+}
+
 private func makeScopedTestDoubleStub() throws -> Stub<any ScopedTestDoubleProbe> {
     try Stub<any ScopedTestDoubleProbe>(.method(Int.self, returning: Void.self))
 }
@@ -89,6 +116,7 @@ private func makeScopedSuspendedTestDoubleStub() throws -> Stub<any ScopedSuspen
         #expect(TestDoubleStrictness.strict.contains(.noPendingSuspensions))
         #expect(TestDoubleStrictness.strict.contains(.noPendingCallbackCaptures))
         #expect(TestDoubleStrictness.strict.contains(.noEscapedTestDoubles))
+        #expect(TestDoubleStrictness.strict.contains(.noUnfinishedAsyncInvocations))
     }
 
     @Test(.testDoubles(strictness: []))
@@ -260,5 +288,42 @@ private func makeScopedSuspendedTestDoubleStub() throws -> Stub<any ScopedSuspen
                 checkingEscapedTestDoubles: true
             ).isEmpty
         )
+    }
+
+    @Test func scopeReportsAsyncInvocationsStillRunningAtTeardown() async throws {
+        let session = TestDoubleSession()
+        let gate = ScopedAsyncInvocationGate()
+        try await TestDoubleTestingContext.$session.withValue(session) {
+            let stub = try makeScopedSuspendedTestDoubleStub().named("background loader")
+            await stub.when { await $0.load() }.then { () async -> Int in
+                await gate.suspend()
+                return 42
+            }
+            let task = Task { await stub().load() }
+            await gate.waitUntilStarted()
+
+            let diagnostics = session.diagnostics(
+                checkingUnusedRegistrations: false,
+                checkingUnverifiedInteractions: false,
+                checkingUnfinishedAsyncInvocations: true
+            )
+            #expect(
+                diagnostics.contains {
+                    $0.contains("Test double 'background loader'")
+                        && $0.contains("1 invocation still running")
+                        && $0.contains("requirement_0")
+                }
+            )
+
+            await gate.release()
+            #expect(await task.value == 42)
+            #expect(
+                session.diagnostics(
+                    checkingUnusedRegistrations: false,
+                    checkingUnverifiedInteractions: false,
+                    checkingUnfinishedAsyncInvocations: true
+                ).isEmpty
+            )
+        }
     }
 }

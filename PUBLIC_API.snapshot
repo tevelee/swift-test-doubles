@@ -1019,6 +1019,7 @@ symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.noMoreInterac
 symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.noPendingCallbackCaptures	static let noPendingCallbackCaptures: TestDoubleStrictness
 symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.noPendingSuspensions	static let noPendingSuspensions: TestDoubleStrictness
 symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.noUnconsumedBehaviorQueues	static let noUnconsumedBehaviorQueues: TestDoubleStrictness
+symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.noUnfinishedAsyncInvocations	static let noUnfinishedAsyncInvocations: TestDoubleStrictness
 symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.noUnusedStubs	static let noUnusedStubs: TestDoubleStrictness
 symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.strict	static let strict: `Self`
 symbol	TestDoublesTesting@Testing	swift.type.method	Trait.testDoubles(strictness:)	static func testDoubles(strictness: TestDoubleStrictness) -> Self

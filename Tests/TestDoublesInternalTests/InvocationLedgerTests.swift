@@ -164,4 +164,26 @@ private final class WaitOutcomeRecorder: @unchecked Sendable {
         #expect(staleOutcome == .changed)
         #expect(ledger.pendingWaiterCount(for: firstMethod) == 0)
     }
+
+    @Test func clearKeepsAnActiveInvocationUntilItCompletes() {
+        var ledger = InvocationLedger()
+        let appended = ledger.append(
+            method: 40,
+            name: "load()",
+            completionActions: [{}],
+            args: []
+        )
+
+        #expect(ledger.pendingCalls.map(\.name) == ["load()"])
+        _ = ledger.clear()
+        #expect(ledger.allCalls.isEmpty)
+        #expect(ledger.pendingCalls.map(\.name) == ["load()"])
+
+        let completion = ledger.complete(
+            appended.token,
+            outcome: .returned(42)
+        )
+        #expect(completion.actions.count == 1)
+        #expect(ledger.pendingCalls.isEmpty)
+    }
 }

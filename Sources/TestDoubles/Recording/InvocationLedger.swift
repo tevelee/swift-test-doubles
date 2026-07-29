@@ -350,6 +350,7 @@ struct InvocationLedgerGeneration: Equatable, Sendable {
 /// ``StubRecorder``.
 struct InvocationLedger {
     private var calls: [RecordedCall] = []
+    private var clearedPendingCalls: [UInt64: RecordedCall] = [:]
     private var nextRecordedCallID: UInt64 = 0
     private var verifiedCallIDs: Set<UInt64> = []
     private var methodGenerations: [Int: UInt64] = [:]
@@ -365,6 +366,16 @@ struct InvocationLedger {
     }
 
     var allCalls: [RecordedCall] { calls }
+
+    var pendingCalls: [RecordedCall] {
+        let visible = calls.filter {
+            if case .pending = $0.outcome { return true }
+            return false
+        }
+        return (visible + clearedPendingCalls.values).sorted {
+            ($0.sequence ?? 0) < ($1.sequence ?? 0)
+        }
+    }
 
     var latestRecordedCallID: UInt64? { calls.last?.id }
 
@@ -409,7 +420,13 @@ struct InvocationLedger {
         outcome: RecordedCallOutcome
     ) -> InvocationLedgerCompletionResult {
         guard let index = calls.firstIndex(where: { $0.id == token.id }) else {
-            return InvocationLedgerCompletionResult(waiters: [], actions: [])
+            guard let call = clearedPendingCalls.removeValue(forKey: token.id) else {
+                return InvocationLedgerCompletionResult(waiters: [], actions: [])
+            }
+            return InvocationLedgerCompletionResult(
+                waiters: [],
+                actions: call.completionActions
+            )
         }
         guard case .pending = calls[index].outcome else {
             return InvocationLedgerCompletionResult(waiters: [], actions: [])
@@ -428,6 +445,11 @@ struct InvocationLedger {
     }
 
     mutating func clear() -> [InvocationLedgerWaiter] {
+        for call in calls {
+            guard let id = call.id else { continue }
+            guard case .pending = call.outcome else { continue }
+            clearedPendingCalls[id] = call
+        }
         calls.removeAll(keepingCapacity: true)
         verifiedCallIDs.removeAll(keepingCapacity: true)
         clearGeneration &+= 1

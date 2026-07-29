@@ -32,6 +32,9 @@
         /// remain alive after the scoped test body returns.
         public static let noEscapedTestDoubles = Self(rawValue: 1 << 5)
 
+        /// Reports async invocations that have not finished at teardown.
+        public static let noUnfinishedAsyncInvocations = Self(rawValue: 1 << 6)
+
         /// Applies every automatic test-double check.
         public static let strict: Self = [
             .noUnusedStubs,
@@ -39,7 +42,8 @@
             .noUnconsumedBehaviorQueues,
             .noPendingSuspensions,
             .noPendingCallbackCaptures,
-            .noEscapedTestDoubles
+            .noEscapedTestDoubles,
+            .noUnfinishedAsyncInvocations
         ]
     }
 
@@ -101,7 +105,10 @@
                 checkingUnconsumedBehaviorQueues: strictness.contains(.noUnconsumedBehaviorQueues),
                 checkingPendingSuspensions: strictness.contains(.noPendingSuspensions),
                 checkingPendingCallbackCaptures: strictness.contains(.noPendingCallbackCaptures),
-                checkingEscapedTestDoubles: strictness.contains(.noEscapedTestDoubles)
+                checkingEscapedTestDoubles: strictness.contains(.noEscapedTestDoubles),
+                checkingUnfinishedAsyncInvocations: strictness.contains(
+                    .noUnfinishedAsyncInvocations
+                )
             )
         }
 

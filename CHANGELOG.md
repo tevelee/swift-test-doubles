@@ -41,6 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   recording-session diffs against committed fixtures.
 - Strict-scope detection of generated values, injected closures, and
   controllers that outlive their Swift Testing test body.
+- Strict-scope detection of async invocations that remain unfinished when a
+  Swift Testing test body returns.
 
 ## [0.0.2] - 2026-07-29
 

@@ -27,6 +27,10 @@ injected closure, or controller remains alive after the test body returns. Use
 `.testDoubles(strictness: [.noEscapedTestDoubles])` to enable only this lifetime
 check.
 
+They also report async invocations that are still running when the test body
+returns. Use `.testDoubles(strictness: [.noUnfinishedAsyncInvocations])` to
+enable only this completion check.
+
 ### Define the dependency
 
 The subject under test should already depend on a protocol:

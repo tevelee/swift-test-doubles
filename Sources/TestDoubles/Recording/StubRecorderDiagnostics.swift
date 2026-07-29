@@ -234,6 +234,23 @@ enum StubRecorderDiagnostics {
         return lines.joined(separator: "\n")
     }
 
+    static func unfinishedAsyncInvocations(_ calls: [RecordedCall]) -> String? {
+        guard calls.isEmpty == false else { return nil }
+
+        let count = calls.count
+        var lines = [
+            "Expected every async invocation to finish before test teardown, but found \(count) "
+                + "\(count == 1 ? "invocation" : "invocations") still running:"
+        ]
+        for (index, call) in calls.enumerated() {
+            let arguments = call.args.map { String(reflecting: $0) }
+            lines.append(
+                "  \(index + 1)/\(count): \(weaveArguments(arguments, intoName: call.name))"
+            )
+        }
+        return lines.joined(separator: "\n")
+    }
+
     private static func suggestedStubSnippet(
         method: RuntimeMethod,
         args: [Any]

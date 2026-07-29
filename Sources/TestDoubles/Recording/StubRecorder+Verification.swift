@@ -321,6 +321,15 @@ extension StubRecorder {
             + signatures.map { "  - \($0)" }.joined(separator: "\n")
     }
 
+    func unfinishedAsyncInvocationsDiagnostic() -> String? {
+        let calls = withLockedPolicy { policy in
+            policy.invocationLedger.pendingCalls.filter { call in
+                policy.methodCatalog.method(at: call.methodIndex)?.isAsync == true
+            }
+        }
+        return StubRecorderDiagnostics.unfinishedAsyncInvocations(calls)
+    }
+
     func latestRecordedCallID() -> UInt64? {
         withLockedPolicy { $0.invocationLedger.latestRecordedCallID }
     }
