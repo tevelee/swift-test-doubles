@@ -56,6 +56,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Per-stub construction and dispatch performance snapshots with phase timing,
   pending/completed counts, and slowest-method aggregates.
 
+### Fixed
+
+- Call-stack capture now compiles as a safe no-op on WASI, whose Foundation
+  implementation does not provide `Thread`.
+
 ## [0.0.2] - 2026-07-29
 
 ### Added

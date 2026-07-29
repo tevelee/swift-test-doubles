@@ -440,12 +440,16 @@ extension StubRecorder {
     }
 
     private func capturedCallStack() -> [String]? {
-        guard
-            let limit = withLockedPolicy({ $0.callStackCaptureLimit })
-        else {
+        #if os(WASI)
             return nil
-        }
-        return Array(Thread.callStackSymbols.dropFirst(2).prefix(limit))
+        #else
+            guard
+                let limit = withLockedPolicy({ $0.callStackCaptureLimit })
+            else {
+                return nil
+            }
+            return Array(Thread.callStackSymbols.dropFirst(2).prefix(limit))
+        #endif
     }
 
     func completeInvocation(

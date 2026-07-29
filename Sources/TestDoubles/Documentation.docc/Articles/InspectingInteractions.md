@@ -160,6 +160,8 @@ let stub = try Stub<any Analytics>()
 Subsequent timeline events expose the capped symbols through `callStack`.
 `ManualStub`, saved call patterns, and terminal interaction handles provide the
 same opt-in method; enabling it through a pattern applies to its whole double.
+WASI has no thread stack-symbolization API, so capture is a no-op on that
+platform.
 
 ### Inspect the whole double
 
