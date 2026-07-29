@@ -33,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   placeholders.
 - Enum-case matching with composable matchers for one or two associated values.
 - Native Swift `Regex` matching, including expressions with typed captures.
+- A public `CustomMatcher` protocol and `Match.custom` adapter for reusable
+  matcher packages.
 
 ## [0.0.2] - 2026-07-29
 

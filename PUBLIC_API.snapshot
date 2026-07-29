@@ -23,6 +23,7 @@ conformance	TestDoubles	ClosureCallPattern	Swift.Sendable	[]
 conformance	TestDoubles	ClosureDouble	Swift.Sendable	[{"kind":"conformance","lhs":"Input","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Input","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Input","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 conformance	TestDoubles	CompletionOrder	Swift.Sendable	[]
 conformance	TestDoubles	CompletionOrder.Expectation	Swift.Sendable	[]
+conformance	TestDoubles	CustomMatcher	Swift.Sendable	[]
 conformance	TestDoubles	Dummy	Swift.Sendable	[{"kind":"conformance","lhs":"P","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"P","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"P","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 conformance	TestDoubles	FixtureRedactor	Swift.Sendable	[]
 conformance	TestDoubles	FixtureValueRole	Swift.Equatable	[]
@@ -91,6 +92,7 @@ conformance	TestDoublesTesting	TestDoubleStrictness	Swift.OptionSet	[]
 conformance	TestDoublesTesting	TestDoubleStrictness	Swift.RawRepresentable	[]
 conformance	TestDoublesTesting	TestDoubleStrictness	Swift.Sendable	[]
 conformance	TestDoublesTesting	TestDoubleStrictness	Swift.SetAlgebra	[]
+symbol	TestDoubles	swift.associatedtype	CustomMatcher.Value	associatedtype Value
 symbol	TestDoubles	swift.class	AsyncClosureDouble	final class AsyncClosureDouble<Input, Result>
 symbol	TestDoubles	swift.class	AsyncThrowingClosureDouble	final class AsyncThrowingClosureDouble<Input, Result>
 symbol	TestDoubles	swift.class	CallbackCapture	final class CallbackCapture<Value>
@@ -431,6 +433,7 @@ symbol	TestDoubles	swift.method	ClosureDouble.when(equal:fileID:filePath:line:co
 symbol	TestDoubles	swift.method	ClosureDouble.whenAny(fileID:filePath:line:column:)	func whenAny(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> ClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	CompletionOrder.verify(_:fileID:filePath:line:column:)	@discardableResult func verify(_ interactions: CallInteractions, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> Self
 symbol	TestDoubles	swift.method	CompletionOrder.verify(_:fileID:filePath:line:column:)	@discardableResult func verify<Result>(_ pattern: CallPattern<Result>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> Self
+symbol	TestDoubles	swift.method	CustomMatcher.matches(_:)	func matches(_ value: Value) -> Bool
 symbol	TestDoubles	swift.method	Dummy.callAsFunction()	func callAsFunction() -> P
 symbol	TestDoubles	swift.method	InteractionFixture.encode(to:)	func encode(to encoder: any Encoder) throws
 symbol	TestDoubles	swift.method	InteractionFixture.save(to:)	func save(to url: URL) throws
@@ -723,6 +726,7 @@ symbol	TestDoubles	swift.property	ClosureDouble.history	var history: Interaction
 symbol	TestDoubles	swift.property	ClosureDouble.interactions	var interactions: CallInteractions { get }
 symbol	TestDoubles	swift.property	ClosureDouble.invocations	var invocations: [Input] { get }
 symbol	TestDoubles	swift.property	ClosureDouble.wasCalled	var wasCalled: Bool { get }
+symbol	TestDoubles	swift.property	CustomMatcher.diagnosticDescription	var diagnosticDescription: String { get }
 symbol	TestDoubles	swift.property	InteractionHistory.callCount	var callCount: Int { get }
 symbol	TestDoubles	swift.property	InteractionHistory.completionTimeline	var completionTimeline: InteractionTimeline { get }
 symbol	TestDoubles	swift.property	InteractionHistory.description	var description: String { get }
@@ -777,6 +781,7 @@ symbol	TestDoubles	swift.property	VoidClosureDouble.function	var function: () ->
 symbol	TestDoubles	swift.property	VoidClosureDouble.history	var history: InteractionHistory { get }
 symbol	TestDoubles	swift.property	VoidClosureDouble.interactions	var interactions: CallInteractions { get }
 symbol	TestDoubles	swift.property	VoidClosureDouble.wasCalled	var wasCalled: Bool { get }
+symbol	TestDoubles	swift.protocol	CustomMatcher	protocol CustomMatcher<Value> : Sendable
 symbol	TestDoubles	swift.protocol	ManualStubConformer	protocol ManualStubConformer
 symbol	TestDoubles	swift.protocol	StubClock	protocol StubClock : Sendable
 symbol	TestDoubles	swift.struct	AsyncClosureCallPattern	struct AsyncClosureCallPattern<Input, Result>
@@ -858,6 +863,8 @@ symbol	TestDoubles	swift.type.method	Match.contains(_:)	static func contains<C>(
 symbol	TestDoubles	swift.type.method	Match.contains(where:)	static func contains<C>(where predicate: @escaping @Sendable (C.Element) -> Bool) -> C where C : Collection
 symbol	TestDoubles	swift.type.method	Match.containsAll(_:)	static func containsAll<C>(_ elements: C.Element...) -> C where C : Collection, C.Element : Equatable, C.Element : Sendable
 symbol	TestDoubles	swift.type.method	Match.containsSubstring(_:)	static func containsSubstring(_ substring: String) -> String
+symbol	TestDoubles	swift.type.method	Match.custom(_:)	static func custom<M>(_ matcher: M) -> M.Value where M : CustomMatcher
+symbol	TestDoubles	swift.type.method	Match.custom(using:_:)	static func custom<M>(using placeholder: M.Value, _ matcher: M) -> M.Value where M : CustomMatcher
 symbol	TestDoubles	swift.type.method	Match.endsWith(_:)	static func endsWith<C>(_ suffix: C.Element...) -> C where C : Collection, C.Element : Equatable, C.Element : Sendable
 symbol	TestDoubles	swift.type.method	Match.enumCase(_:extracting:matching:)	static func enumCase<Enum, Associated>(_ name: String, extracting extract: @escaping @Sendable (Enum) -> Associated?, matching matcher: @autoclosure () -> Associated) -> Enum
 symbol	TestDoubles	swift.type.method	Match.enumCase(_:extracting:matching:_:)	static func enumCase<Enum, First, Second>(_ name: String, extracting extract: @escaping @Sendable (Enum) -> (First, Second)?, matching first: @autoclosure () -> First, _ second: @autoclosure () -> Second) -> Enum

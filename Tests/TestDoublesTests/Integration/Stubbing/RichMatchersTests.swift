@@ -39,6 +39,24 @@ private protocol ReferenceEntryLedger {
     func classify(_ entry: ReferenceLedgerEntry) -> String
 }
 
+private struct MultipleOfMatcher: CustomMatcher {
+    let divisor: Int
+
+    var diagnosticDescription: String { "multipleOf(\(divisor))" }
+
+    func matches(_ value: Int) -> Bool {
+        value.isMultiple(of: divisor)
+    }
+}
+
+private struct ReferenceEntryIDMatcher: CustomMatcher {
+    let id: Int
+
+    func matches(_ value: ReferenceLedgerEntry) -> Bool {
+        value.id == id
+    }
+}
+
 private enum DeliveryUpdate {
     case idle
     case queued(id: Int)
@@ -66,6 +84,37 @@ struct RealLedger: Ledger {
 final class LedgerNode {}
 
 @Suite struct RichMatchersTests {
+    @Test func reusableCustomMatcherUsesSynthesizedPlaceholder() throws {
+        let stub = try Stub<any Ledger>()
+        stub.when { $0.classify(amount: Match.custom(MultipleOfMatcher(divisor: 3))) }
+            .thenReturn("multiple")
+        stub.when { $0.classify(amount: Match.any()) }.thenReturn("other")
+        let ledger: any Ledger = stub()
+
+        #expect(ledger.classify(amount: 12) == "multiple")
+        #expect(ledger.classify(amount: 10) == "other")
+    }
+
+    @Test func reusableCustomMatcherAcceptsExplicitPlaceholder() throws {
+        let placeholder = ReferenceLedgerEntry(id: -1)
+        let stub = try Stub<any ReferenceEntryLedger>(
+            .method(ReferenceLedgerEntry.self, returning: String.self)
+        )
+        stub.when {
+            $0.classify(
+                Match.custom(
+                    using: placeholder,
+                    ReferenceEntryIDMatcher(id: 42)
+                )
+            )
+        }.thenReturn("answer")
+        stub.when { $0.classify(Match.any(using: placeholder)) }.thenReturn("other")
+        let ledger: any ReferenceEntryLedger = stub()
+
+        #expect(ledger.classify(ReferenceLedgerEntry(id: 42)) == "answer")
+        #expect(ledger.classify(ReferenceLedgerEntry(id: 7)) == "other")
+    }
+
     @Test func enumCaseMatcherAppliesMatchersToAssociatedValues() throws {
         let stub = ManualStub<DeliveryLedgerStub>()
         stub.when {

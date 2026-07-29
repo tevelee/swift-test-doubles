@@ -88,6 +88,24 @@ registration when an earlier registration provably makes it unreachable.
 Every argument in one recorded invocation must either use a matcher or use its
 literal value. Do not mix the two styles in one call.
 
+Reusable matcher packages can conform a value to ``CustomMatcher``:
+
+```swift
+struct MultipleOf: CustomMatcher {
+    let divisor: Int
+
+    var diagnosticDescription: String { "multipleOf(\(divisor))" }
+    func matches(_ value: Int) -> Bool { value.isMultiple(of: divisor) }
+}
+
+stub.when {
+    $0.record(Match.custom(MultipleOf(divisor: 3)))
+}.thenDoNothing()
+```
+
+Use `Match.custom(using:_:)` when the argument type requires an explicit
+recording placeholder.
+
 ### Inject the generated value
 
 Calling the controller produces an ordinary protocol existential:
