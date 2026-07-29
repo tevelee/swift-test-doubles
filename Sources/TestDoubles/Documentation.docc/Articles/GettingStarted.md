@@ -61,7 +61,7 @@ let repository: any UserRepository = stub()
 #expect(repository.find(id: 42) == "Alice")
 
 stub.verify { $0.find(id: Match.equal(42)) }
-stub.verify(.exactly(3)) { $0.find(id: Match.any()) }
+stub.verify(3 ... 3) { $0.find(id: Match.any()) }
 stub.verify(.never) { $0.find(id: Match.equal(999)) }
 ```
 
@@ -70,7 +70,8 @@ stub.verify(.never) { $0.find(id: Match.equal(999)) }
 several registrations match a call, the first one wins, like the cases of a
 `switch`: register specific matchers first and broad fallbacks last, because
 a catch-all registered first swallows everything after it. Verification
-defaults to at least one matching call; state a count only when it adds meaning.
+defaults to exactly one matching call. Use native ranges such as `1...`, `...2`,
+or `2 ... 4` when another count shape expresses the test's intent.
 A mismatch is reported as a test issue at the `verify` call's source location
 and does not terminate the process. When calls reached the same requirement
 with different arguments, the issue also shows the closest observed calls and
@@ -126,7 +127,7 @@ let repository: any UserRepository = spy()
 #expect(repository.find(id: 42) == "Fixture User")
 #expect(repository.find(id: 7) == "live-user-7")
 
-spy.verify(.exactly(2)) { $0.find(id: Match.any()) }
+spy.verify(2 ... 2) { $0.find(id: Match.any()) }
 ```
 
 Matching registrations take precedence; unmatched supported calls forward and
@@ -151,7 +152,7 @@ try notifications.send(to: 2, message: "Try again")
 
 let recipients = Match.Capture<Int>()
 let messages = Match.Capture<String>()
-stub.verify(.exactly(2)) {
+stub.verify(2 ... 2) {
     try $0.send(to: recipients.capture(), message: messages.capture())
 }
 #expect(recipients.values == [1, 2])

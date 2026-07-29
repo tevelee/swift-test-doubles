@@ -38,7 +38,7 @@ await #expect(throws: AuthError.self) {
     try await service.signIn(user: "blob", password: "hunter2")
 }
 
-await auth.verify(.exactly(2)) { try await $0.signIn(user: Match.any(), password: Match.any()) }
+await auth.verify(2 ... 2) { try await $0.signIn(user: Match.any(), password: Match.any()) }
 ```
 
 There is no `MockAuthService` in this test. Nobody wrote one, no build tool
@@ -274,7 +274,7 @@ let errors = analytics.when {
 }
 errors.verify(.never)
 
-allEvents.verify(.exactly(3))
+allEvents.verify(3 ... 3)
 let events: [(String, Int)] = allEvents.arguments()
 #expect(events.map(\.0) == ["add_to_cart", "add_to_cart", "purchase"])
 
@@ -361,7 +361,7 @@ let translator: any Translator = spy()
 #expect(translator.translate("greeting.new_user") == "Howdy, partner") // overridden
 #expect(translator.translate("farewell.title") == "Goodbye")           // forwarded
 
-translations.verify(.exactly(2))
+translations.verify(2 ... 2)
 
 translations.forwarded.verify(1...)
 let forwarded: [String] = translations.forwarded.arguments()
