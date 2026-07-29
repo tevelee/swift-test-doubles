@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Delayed caller-cancellation injection through `thenCancel(after:)`, with an
   explicit fallback form for nonthrowing async requirements and manual-clock
   support.
+- Deterministic fault injection that fails every Nth call or follows a seeded
+  probability sequence while returning an explicit success value otherwise.
 
 ## [0.0.2] - 2026-07-29
 

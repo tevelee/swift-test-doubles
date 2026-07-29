@@ -27,6 +27,7 @@ struct StubBehaviorRegistry {
     enum QueuedAnswer {
         case value(FixedResult)
         case delayed(FixedResult, Duration, any StubClock)
+        case faultInjection(FaultInjectionSchedule)
         case immediate(@Sendable ([Any]) throws -> Any)
         case suspending(([Any]) async throws -> Any)
         case never
@@ -34,6 +35,55 @@ struct StubBehaviorRegistry {
         case cancelAfter(Duration, any StubClock, FixedResult?)
         case forward
         case fatal(message: String?)
+    }
+
+    final class FaultInjectionSchedule: @unchecked Sendable {
+        enum Rule {
+            case every(Int)
+            case probability(Double)
+        }
+
+        private let lock = NSLock()
+        private let rule: Rule
+        private let failure: FixedResult
+        private let success: FixedResult
+        private var callCount = 0
+        private var randomState: UInt64
+
+        init(
+            rule: Rule,
+            seed: UInt64,
+            failure: FixedResult,
+            success: FixedResult
+        ) {
+            self.rule = rule
+            randomState = seed
+            self.failure = failure
+            self.success = success
+        }
+
+        func next() -> FixedResult {
+            lock.withLock {
+                callCount += 1
+                let shouldFail =
+                    switch rule {
+                        case .every(let interval):
+                            callCount.isMultiple(of: interval)
+                        case .probability(let probability):
+                            nextUnitInterval() < probability
+                    }
+                return shouldFail ? failure : success
+            }
+        }
+
+        private func nextUnitInterval() -> Double {
+            randomState &+= 0x9E37_79B9_7F4A_7C15
+            var value = randomState
+            value = (value ^ (value >> 30)) &* 0xBF58_476D_1CE4_E5B9
+            value = (value ^ (value >> 27)) &* 0x94D0_49BB_1331_11EB
+            value ^= value >> 31
+            return Double(value >> 11) / 9_007_199_254_740_992
+        }
     }
 
     /// Serves queued answers one per matching invocation. Exact-count runs

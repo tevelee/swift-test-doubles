@@ -274,6 +274,8 @@ extension StubRecorder {
                             cancellableDelay: cancellableDelay
                         )
                     })
+            case .faultInjection(let schedule):
+                return .behavior(.fixed(schedule.next()))
             case .immediate(let handler):
                 return .behavior(.immediate(handler))
             case .suspending(let handler):

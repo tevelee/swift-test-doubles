@@ -365,6 +365,34 @@ let error = await #expect(throws: LoadError.self) {
 To control *when* an async call completes rather than only its result, for
 loading states, latency, timeouts, and cancellation, see <doc:AsyncBehaviors>.
 
+### Inject deterministic faults
+
+Use `thenInjectFailure` to exercise retry and degradation paths without making
+the test itself random. Fail every Nth matching call:
+
+```swift
+stub.when { try $0.load() }.thenInjectFailure(
+    every: 3,
+    throwing: LoadError.transient,
+    otherwiseReturning: "ready"
+)
+```
+
+Or use a reproducible probability sequence:
+
+```swift
+stub.when { try $0.load() }.thenInjectFailure(
+    probability: 0.25,
+    seed: 0xC0FFEE,
+    throwing: LoadError.transient,
+    otherwiseReturning: "ready"
+)
+```
+
+Counting and seeded decisions are scoped to the registration and reserved in
+invocation order, so concurrent calls still consume one deterministic
+sequence.
+
 ### Sequence fixed behaviors
 
 Chain fixed returns, errors, and no-ops when consecutive calls should behave
