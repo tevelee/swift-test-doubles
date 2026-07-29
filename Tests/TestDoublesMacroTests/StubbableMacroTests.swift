@@ -28,8 +28,12 @@
                         self.stub = stub
                     }
 
+                    private static func manualStubArgumentType<Value>(of _: Value) -> Value.Type {
+                        Value.self
+                    }
+
                     func fetch(_ identifier: Int) -> String {
-                        return stub.call(identifier)
+                        return stub.call(identifier, route: ManualRouteID(argumentTypes: Self.manualStubArgumentType(of: identifier)))
                     }
 
                     var displayName: String {
@@ -37,7 +41,7 @@
                             return stub.call()
                         }
                         set {
-                            stub.call(newValue)
+                            stub.call(newValue, route: ManualRouteID(argumentTypes: Self.manualStubArgumentType(of: newValue)))
                         }
                     }
                 }

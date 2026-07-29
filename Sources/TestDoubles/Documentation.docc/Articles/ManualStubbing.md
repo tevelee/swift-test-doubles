@@ -66,6 +66,10 @@ The plugin emits `WeatherServiceManualStub`. Instance requirements use the
 `ManualStub<WeatherServiceManualStub>` you create in the test. Static
 requirements and values created through generated initializers use the emitted
 `WeatherServiceManualStub.staticStub`, which is independently configurable.
+Generated methods and subscripts include static argument-type routes, so
+overloads that differ only by argument type remain independent. Typed-throws
+requirements also forward their declared failure type instead of erasing it to
+ordinary `throws`.
 The plugin uses no parser-library dependency, and clients that do not invoke it
 neither build nor run it.
 
@@ -231,12 +235,14 @@ That makes it the best fit for:
 - platforms the runtime strategy doesn't run on
 - protocols with language features the runtime strategies intentionally skip
 
-The cost is boilerplate: every protocol requirement needs a forwarding
-implementation, and those forwarding methods must stay in sync with the
-protocol by hand. There is no compile-time check that a forwarding body's
-dynamic-member name matches the requirement it forwards for. A typo compiles
-and simply becomes a distinct, never-stubbed entry, surfacing as a "No stub
-configured" failure the first time it is exercised.
+The cost of a hand-written conformer is boilerplate: every protocol requirement
+needs a forwarding implementation, and those forwarding methods must stay in
+sync with the protocol. The command plugin and `@Stubbable` remove that
+boilerplate for ordinary declarations; unusual syntax can still require a
+hand-written conformer. There is no compile-time check that a hand-written
+forwarding body's dynamic-member name matches the requirement it forwards. A
+typo compiles and simply becomes a distinct, never-stubbed entry, surfacing as
+a "No stub configured" failure the first time it is exercised.
 
 ### Workarounds
 
@@ -247,8 +253,9 @@ configured" failure the first time it is exercised.
   recorder entries even when their printed signature is identical.
 - Overloads that have the same labels, effects, and result type but differ only
   in argument types use typed ``ManualRouteID`` values with the explicit
-  fallback methods. Dynamic-member syntax still erases argument types to `Any`,
-  so it cannot infer this distinction automatically.
+  fallback methods. Generated conformers add those routes automatically.
+  Hand-written dynamic-member syntax still erases argument types to `Any`, so
+  it cannot infer this distinction automatically.
 - A getter and setter on the same property intern to distinct keys
   (`"count"` vs. `"count="`), so stubbing one never interferes with the
   other.

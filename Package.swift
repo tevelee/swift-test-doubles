@@ -78,6 +78,10 @@ let package = Package(
 private func allTargets(includesCxxInteropTarget: Bool) -> [Target] {
     var targets: [Target] = [
         .target(name: "ManualStubGeneratorCore"),
+        .testTarget(
+            name: "ManualStubGeneratorCoreTests",
+            dependencies: ["ManualStubGeneratorCore"]
+        ),
         .executableTarget(
             name: "ManualStubGeneratorTool",
             dependencies: ["ManualStubGeneratorCore"]
@@ -219,6 +223,11 @@ private func allTargets(includesCxxInteropTarget: Bool) -> [Target] {
             path: "Tests/TestDoublesFixtures"
         ),
         .target(
+            name: "ManualStubGeneratorIntegrationFixtures",
+            dependencies: ["TestDoubles"],
+            path: "Tests/ManualStubGeneratorIntegrationFixtures"
+        ),
+        .target(
             name: "TestDoublesResilientFixtures",
             path: "Tests/TestDoublesResilientFixtures",
             swiftSettings: [
@@ -241,6 +250,7 @@ private func allTargets(includesCxxInteropTarget: Bool) -> [Target] {
                 "TestDoublesRuntimeMetadata",
                 "TestDoublesRuntimeSupport",
                 "InternalRuntimeContract",
+                "ManualStubGeneratorIntegrationFixtures",
                 "TestDoublesFixtures",
                 "TestDoublesResilientFixtures",
                 .product(

@@ -17,7 +17,8 @@ package struct ManualStubGenerator {
         }
         var members = [
             "let stub: ManualStub<Self>",
-            "init(stub: ManualStub<Self>) { self.stub = stub }"
+            "init(stub: ManualStub<Self>) { self.stub = stub }",
+            "private static func manualStubArgumentType<Value>(of _: Value) -> Value.Type { Value.self }"
         ]
         if usesStaticStore {
             members.append("static let staticStub = ManualStub<Self>()")
@@ -32,7 +33,7 @@ package struct ManualStubGenerator {
             \(importLine)struct \(protocolName)ManualStub: \(protocolName), StubConformer {
                 \(members.joined(separator: "\n\n    "))
             }
-            """
+            """ + "\n"
     }
 
     private func protocolBody() throws -> String {
@@ -124,7 +125,9 @@ package struct ManualStubGenerator {
         )
         var accessors = ["get { \(getter) }"]
         if requirement.contains("set") {
-            accessors.append("set { \(receiver).call(newValue) }")
+            accessors.append(
+                "set { \(forwardingInvocation(receiver: receiver, arguments: ["newValue"], effects: "", returnType: "Void")) }"
+            )
         }
         return "\(prefix)var \(name): \(type) { \(accessors.joined(separator: " ")) }"
     }
@@ -155,7 +158,7 @@ package struct ManualStubGenerator {
         var accessors = ["get { \(getter) }"]
         if requirement.contains("set") {
             accessors.append(
-                "set { \(receiver).call(\((arguments + ["newValue"]).joined(separator: ", "))) }"
+                "set { \(forwardingInvocation(receiver: receiver, arguments: arguments + ["newValue"], effects: "", returnType: "Void")) }"
             )
         }
         return "\(prefix)\(header) \(type) { \(accessors.joined(separator: " ")) }"
@@ -179,10 +182,36 @@ package struct ManualStubGenerator {
         let prefix = [isThrowing ? "try" : nil, isAsync ? "await" : nil]
             .compactMap { $0 }
             .joined(separator: " ")
-        let expression = [prefix, "\(receiver).\(method)(\(arguments.joined(separator: ", ")))"]
+        var forwardedArguments = arguments
+        if arguments.isEmpty == false {
+            let argumentTypes = arguments.map { argument in
+                let localName = argument.hasPrefix("&") ? String(argument.dropFirst()) : argument
+                return "Self.manualStubArgumentType(of: \(localName))"
+            }
+            forwardedArguments.append(
+                "route: ManualRouteID(argumentTypes: \(argumentTypes.joined(separator: ", ")))"
+            )
+        }
+        if let failureType = typedFailureType(in: effects) {
+            forwardedArguments.append("throwing: \(failureType).self")
+        }
+        let expression = [prefix, "\(receiver).\(method)(\(forwardedArguments.joined(separator: ", ")))"]
             .filter { $0.isEmpty == false }
             .joined(separator: " ")
         return returnType == "Void" || returnType == "()" ? expression : "return \(expression)"
+    }
+
+    private func typedFailureType(in effects: String) -> String? {
+        guard let throwsRange = effects.range(of: "throws(") else {
+            return nil
+        }
+        let opening = effects.index(before: throwsRange.upperBound)
+        guard let closing = matchingParen(in: effects, opening: opening) else {
+            return nil
+        }
+        let failureType = effects[effects.index(after: opening) ..< closing]
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return failureType.isEmpty ? nil : failureType
     }
 
     private func invocationArguments(_ parameters: String) -> [String] {
