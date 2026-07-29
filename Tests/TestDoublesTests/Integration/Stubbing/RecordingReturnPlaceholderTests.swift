@@ -31,7 +31,7 @@ private protocol ExistentialResultProbe {
         let placeholder = ReferenceResult(value: -1)
         let configured = ReferenceResult(value: 42)
 
-        stub.when(returning: placeholder) { $0.load() }.thenReturn(configured)
+        stub.onCall(returning: placeholder) { $0.load() }.thenReturn(configured)
 
         let result = stub().load()
         #expect(result === configured)
@@ -43,7 +43,7 @@ private protocol ExistentialResultProbe {
         let placeholder = ReferenceResult(value: -1)
         let configured = ReferenceResult(value: 42)
 
-        await stub.when(returning: placeholder) { await $0.loadAsync() }
+        await stub.onCall(returning: placeholder) { await $0.loadAsync() }
             .thenReturn(configured)
 
         let result = await stub().loadAsync()
@@ -58,7 +58,7 @@ private protocol ExistentialResultProbe {
         let placeholder: ReferenceResult? = nil
         let configured = ReferenceResult(value: 42)
 
-        stub.when(returning: placeholder) { $0.optional() }.thenReturn(configured)
+        stub.onCall(returning: placeholder) { $0.optional() }.thenReturn(configured)
 
         #expect(stub().optional() === configured)
         stub.verify(returning: placeholder) { $0.optional() }
@@ -71,7 +71,7 @@ private protocol ExistentialResultProbe {
         let placeholder: any ResultMarker = ReferenceResult(value: -1)
         let configured = ReferenceResult(value: 42)
 
-        stub.when(returning: placeholder) { $0.load() }.thenReturn(configured)
+        stub.onCall(returning: placeholder) { $0.load() }.thenReturn(configured)
 
         let result = stub().load()
         #expect(result === configured)

@@ -15,7 +15,7 @@ import Testing
         let result = externalStackSyncClosure(offset: 100)
         let stub = try Stub<any ExternalClosureStackBridgeService>()
 
-        stub.when(returning: placeholder) {
+        stub.onCall(returning: placeholder) {
             $0.synchronous()
         }.thenReturn(result)
 
@@ -49,7 +49,7 @@ import Testing
             failure: failure
         )
         let stub = try Stub<any ExternalClosureStackBridgeService>()
-        stub.when(returning: placeholder) {
+        stub.onCall(returning: placeholder) {
             $0.typedThrowing()
         }.thenReturn(result)
 
@@ -74,7 +74,7 @@ import Testing
         let placeholder = externalStackAsyncClosure(offset: 0)
         let result = externalStackAsyncClosure(offset: 100)
         let stub = try Stub<any ExternalClosureStackBridgeService>()
-        stub.when(returning: placeholder) {
+        stub.onCall(returning: placeholder) {
             $0.asynchronous()
         }.thenReturn(result)
 
@@ -107,7 +107,7 @@ import Testing
             failure: failure
         )
         let stub = try Stub<any ExternalClosureStackBridgeService>()
-        stub.when(returning: placeholder) {
+        stub.onCall(returning: placeholder) {
             $0.asyncTypedThrowing()
         }.thenReturn(result)
 
@@ -141,12 +141,12 @@ import Testing
         let asyncPlaceholder = externalDirectAsyncStackInputClosure(offset: 0)
         let stub = try Stub<any ExternalClosureStackBridgeService>()
 
-        stub.when {
+        stub.onCall {
             $0.consume(Match.any(using: directPlaceholder))
         }.then { (closure: ExternalDirectStackInputClosure) in
             externalInvokeDirectStackInput(closure)
         }
-        await stub.when {
+        await stub.onCall {
             await $0.consumeAsync(Match.any(using: asyncPlaceholder))
         }.thenEscaping {
             (closure: ExternalDirectAsyncStackInputClosure) async in

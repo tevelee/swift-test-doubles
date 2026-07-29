@@ -9,7 +9,7 @@ import IssueReporting
 ///
 /// ```swift
 /// let completion = CallbackCapture<Result>()
-/// stub.when { $0.load(completion: Match.any()) }.thenEscaping { callback in
+/// stub.onCall { $0.load(completion: Match.any()) }.thenEscaping { callback in
 ///     completion.capture(callback)
 /// }
 /// completion.invokeNext(.success(value))

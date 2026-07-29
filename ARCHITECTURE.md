@@ -175,7 +175,7 @@ protocol Greeter {
 }
 
 let stub = try Stub<any Greeter>()
-stub.when { $0.greeting(for: "Ada") }.thenReturn("Hello, Ada")
+stub.onCall { $0.greeting(for: "Ada") }.thenReturn("Hello, Ada")
 let greeter = stub()
 let value = greeter.greeting(for: "Ada")
 ```

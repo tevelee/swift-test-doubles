@@ -47,13 +47,13 @@ Register specific behavior first, then a broad fallback:
 
 ```swift
 let stub = try Stub<any UserRepository>()
-stub.when { $0.find(id: Match.equal(42)) }.thenReturn("Alice")
-stub.when {
+stub.onCall { $0.find(id: Match.equal(42)) }.thenReturn("Alice")
+stub.onCall {
     $0.find(id: Match.matching(description: "positive", where: { $0 > 0 }))
 }.then { (id: Int) in
     "member-\(id)"
 }
-stub.when { $0.find(id: Match.any()) }.thenReturn("guest")
+stub.onCall { $0.find(id: Match.any()) }.thenReturn("guest")
 
 let repository: any UserRepository = stub()
 #expect(repository.find(id: -1) == "guest")
@@ -62,7 +62,7 @@ let repository: any UserRepository = stub()
 
 stub.verify { $0.find(id: Match.equal(42)) }
 stub.verify(.exactly(3)) { $0.find(id: Match.any()) }
-stub.verify(.never()) { $0.find(id: Match.equal(999)) }
+stub.verify(.never) { $0.find(id: Match.equal(999)) }
 ```
 
 `Match.any()` accepts every value, `Match.equal(_:)` uses `Equatable` equality, and
@@ -82,8 +82,8 @@ other types that cannot be synthesized safely:
 
 ```swift
 let placeholder = ReferenceUser(id: -1, isActive: false)
-stub.when { $0.save(user: Match.any(using: placeholder)) }.thenReturn("fallback")
-stub.when {
+stub.onCall { $0.save(user: Match.any(using: placeholder)) }.thenReturn("fallback")
+stub.onCall {
     $0.save(user: Match.matching(using: placeholder, description: "active") {
         $0.isActive
     })
@@ -104,7 +104,7 @@ determines the protocol existential type:
 
 ```swift
 let repository: any UserRepository = Stub.make {
-    $0.when { $0.find(id: Match.any()) }.then { (id: Int) in "user-\(id)" }
+    $0.onCall { $0.find(id: Match.any()) }.then { (id: Int) in "user-\(id)" }
 }
 
 #expect(repository.find(id: 42) == "user-42")
@@ -120,7 +120,7 @@ needs to observe or replace only selected interactions:
 
 ```swift
 let spy: Spy<any UserRepository> = Spy.make(forwardingTo: liveRepository)
-spy.when { $0.find(id: Match.equal(42)) }.thenReturn("Fixture User")
+spy.onCall { $0.find(id: Match.equal(42)) }.thenReturn("Fixture User")
 
 let repository: any UserRepository = spy()
 #expect(repository.find(id: 42) == "Fixture User")
@@ -143,7 +143,7 @@ test:
 
 ```swift
 let stub = try Stub<any NotificationService>()
-stub.when { try $0.send(to: Match.any(), message: Match.any()) }.thenDoNothing()
+stub.onCall { try $0.send(to: Match.any(), message: Match.any()) }.thenDoNothing()
 
 let notifications: any NotificationService = stub()
 try notifications.send(to: 1, message: "Welcome")
@@ -167,7 +167,7 @@ await stub.verify(2..., within: .seconds(1)) {
 }
 ```
 
-Eventual verification accepts `PartialRangeFrom<Int>` because that expectation
+Eventual verification accepts an `atLeast:` count because that expectation
 becomes true monotonically as calls arrive. A timeout is reported at the caller
 like an immediate count mismatch. After successful verifications,
 `verifyNoMoreInteractions()` reports any uncovered calls. Use
@@ -208,7 +208,7 @@ Read-write protocol properties support their getter and direct setter:
 
 ```swift
 let stub = try Stub<any MutableProfile>()
-stub.when { $0.displayName = Match.any() }.thenDoNothing()
+stub.onCall { $0.displayName = Match.any() }.thenDoNothing()
 
 var profile: any MutableProfile = stub()
 profile.displayName = "Blob"
@@ -226,8 +226,8 @@ yields writable storage, and writes the final value back through the setter on
 both normal return and thrown unwind:
 
 ```swift
-stub.when { $0.displayName }.thenReturn("Blob")
-stub.when { $0.displayName = Match.any() }.thenDoNothing()
+stub.onCall { $0.displayName }.thenReturn("Blob")
+stub.onCall { $0.displayName = Match.any() }.thenDoNothing()
 
 var profile: any MutableProfile = stub()
 profile.displayName += "!"
@@ -245,7 +245,7 @@ protocol Snapshot {
 }
 
 let stub = try Stub<any Snapshot>()
-stub.when { $0.value }.thenReturn("ready")
+stub.onCall { $0.value }.thenReturn("ready")
 
 let snapshot: any Snapshot = stub()
 #expect(snapshot.value == "ready")
@@ -267,8 +267,8 @@ before its indices:
 
 ```swift
 let stub = try Stub<any KeyValueStore>()
-stub.when { $0[Match.any()] }.thenReturn(nil)
-stub.when { $0[Match.any()] = Match.any() }.thenDoNothing()
+stub.onCall { $0[Match.any()] }.thenReturn(nil)
+stub.onCall { $0[Match.any()] = Match.any() }.thenDoNothing()
 
 var store: any KeyValueStore = stub()
 store["theme"] = "dark"
@@ -299,7 +299,7 @@ let stub = try Stub<any Source>(
         )
     ]
 )
-stub.when { $0.load() }.thenReturn(42)
+stub.onCall { $0.load() }.thenReturn(42)
 
 let loaded = stub().load() as? Int
 ```
@@ -314,13 +314,13 @@ itself, such as `any Source<Int>`, for that full dependent interface.
 ### Return dynamic Self
 
 A method, getter, or static requirement returning nonoptional `Self` uses
-`when(returningSelf:)`. TestDoubles creates a fresh value backed by the same
+`onCall(returningSelf:)`. TestDoubles creates a fresh value backed by the same
 recorder and runtime graph:
 
 ```swift
 let stub = try Stub<any Duplicating>()
-stub.when(returningSelf: { $0.duplicate() }).thenReturnValue()
-stub.when { $0.marker() }.thenReturn(42)
+stub.onCall(returningSelf: { $0.duplicate() }).thenReturnValue()
+stub.onCall { $0.marker() }.thenReturn(42)
 
 let duplicate = stub().duplicate()
 #expect(duplicate.marker() == 42)
@@ -330,7 +330,7 @@ Use `thenThrow` for a fixed error or a `Void`-returning `then` handler when the
 requirement has arguments, suspends, or computes an error. TestDoubles creates
 the generated value after the handler returns. For explicit construction, write
 `.method(returning: .dynamicSelf)`. Optional `Self?` uses
-`when(returningOptionalSelf:)`; its builder returns a fresh generated value or
+`onCall(returningOptionalSelf:)`; its builder returns a fresh generated value or
 `nil`, and explicit construction uses `.optionalDynamicSelf`. Direct `Self`
 inputs remain outside the supported boundary.
 
@@ -345,12 +345,12 @@ struct LoadError: Error, Equatable {
 }
 
 let stub = try Stub<any AsyncDataLoader>()
-await stub.when { try await $0.load(url: Match.equal("/users/42")) }.then {
+await stub.onCall { try await $0.load(url: Match.equal("/users/42")) }.then {
     (url: String) async throws -> String in
     await Task.yield()
     return "profile:\(url)"
 }
-await stub.when { try await $0.load(url: Match.any()) }
+await stub.onCall { try await $0.load(url: Match.any()) }
     .thenThrow(LoadError(url: "/missing"))
 
 let loader: any AsyncDataLoader = stub()
@@ -371,7 +371,7 @@ differently:
 
 ```swift
 let stub = try Stub<any AsyncDataLoader>()
-await stub.when { try await $0.load(url: Match.equal("/users/42")) }
+await stub.onCall { try await $0.load(url: Match.equal("/users/42")) }
     .thenReturn("cached")
     .thenThrow(LoadError(url: "/users/42"))
     .thenReturn("fresh")

@@ -1,6 +1,13 @@
 import InternalRuntimeContract
-/// Configures the result of a stubbed method or property.
-public struct StubBuilder<Result> {
+
+/// A reusable description of one method, property, subscript, static member,
+/// or initializer call.
+///
+/// Create a pattern with `onCall`, then use the same value to configure its
+/// behavior, verify its call count, read prior arguments, or observe future
+/// calls. Matchers remain attached to the pattern, so the invocation only
+/// needs to be described once.
+public struct CallPattern<Result>: Sendable {
     let recorder: StubRecorder
     let recording: RecordedCall
 
@@ -111,7 +118,7 @@ public struct StubBuilder<Result> {
     /// terminal: nothing can be chained after it.
     ///
     /// Omitting `times:` entirely also resolves here whenever nothing
-    /// follows, so a plain `stub.when { ... }.thenReturn(x)` with no further
+    /// follows, so a plain `stub.onCall { ... }.thenReturn(x)` with no further
     /// configuration means "always return x" — the common case for a
     /// single-behavior stub.
     public func thenReturn(
@@ -225,7 +232,7 @@ public struct StubBuilder<Result> {
     /// terminal: nothing can be chained after it.
     ///
     /// Omitting `times:` entirely also resolves here whenever nothing
-    /// follows, so a plain `stub.when { ... }.thenThrow(x)` with no further
+    /// follows, so a plain `stub.onCall { ... }.thenThrow(x)` with no further
     /// configuration means "always throw x."
     public func thenThrow<Failure: Error>(
         _ error: Failure,
@@ -330,7 +337,7 @@ public struct StubBuilder<Result> {
     /// Parks every matching invocation from here on until its task is
     /// cancelled, then completes it with `value`. This is terminal, like the
     /// unbounded `thenReturn`/`thenThrow`. See
-    /// ``StubBuilder/thenAwaitCancellation()`` for the full contract.
+    /// ``CallPattern/thenAwaitCancellation()`` for the full contract.
     public func thenAwaitCancellation(returning value: Result) {
         requireOrdinaryResult()
         recorder.requireReturnValueMatchesRuntimeType(
@@ -342,7 +349,7 @@ public struct StubBuilder<Result> {
 
     /// Parks every matching invocation from here on until its task is
     /// cancelled, then throws `error`. This is terminal, like the unbounded
-    /// `thenReturn`/`thenThrow`. See ``StubBuilder/thenAwaitCancellation()``
+    /// `thenReturn`/`thenThrow`. See ``CallPattern/thenAwaitCancellation()``
     /// for the full contract.
     public func thenAwaitCancellation<Failure: Error>(throwing error: Failure) {
         let method = requireOrdinaryResult()
@@ -569,7 +576,7 @@ public struct StubBuilder<Result> {
     }
 }
 
-extension StubBuilder where Result == Void {
+extension CallPattern where Result == Void {
     /// Completes a matching invocation without performing additional work,
     /// and starts a behavior chain.
     ///
@@ -654,7 +661,7 @@ private func validatedRepeatRange(times: Int) -> ClosedRange<Int> {
 /// Matching invocations consume behaviors in registration order. A bounded
 /// run left terminal (nothing appended after it) fails with a diagnostic
 /// once its own count is exceeded; an unbounded run keeps repeating. See
-/// `StubBuilder.thenReturn(_:times:)` for how `times:` selects between the
+/// `CallPattern.thenReturn(_:times:)` for how `times:` selects between the
 /// two, and the bare form, at each position.
 public struct StubBehaviorChain<Result> {
     let recorder: StubRecorder
@@ -667,7 +674,7 @@ public struct StubBehaviorChain<Result> {
     ///
     /// With nothing appended after it, this behaves like `times: 1...`
     /// (repeats forever). `after:` delays delivery; see
-    /// `StubBuilder.thenReturn(_:after:times:)` for the delay and
+    /// `CallPattern.thenReturn(_:after:times:)` for the delay and
     /// cancellation contract, which applies here identically.
     @_disfavoredOverload
     public func thenReturn(
@@ -828,21 +835,21 @@ public struct StubBehaviorChain<Result> {
     /// Halts the process with an actionable diagnostic for every matching
     /// invocation from here on, instead of returning or throwing. This is
     /// terminal, like the unbounded `thenReturn`/`thenThrow`. See
-    /// ``StubBuilder/thenFatalError(_:)``.
+    /// ``CallPattern/thenFatalError(_:)``.
     public func thenFatalError(_ message: String? = nil) {
         sequence.append(.fatal(message: message), times: .unbounded)
     }
 
     /// Parks every matching invocation from here on, never completing it.
     /// This is terminal, like the unbounded `thenReturn`/`thenThrow`. See
-    /// ``StubBuilder/thenNeverReturn()`` for the full contract.
+    /// ``CallPattern/thenNeverReturn()`` for the full contract.
     public func thenNeverReturn() {
         sequence.append(neverAnswer(), times: .unbounded)
     }
 
     /// Forwards every matching invocation from here on to the spy's real
     /// target. This is terminal, like the unbounded `thenReturn`/`thenThrow`.
-    /// See ``StubBuilder/thenForward()`` for the full contract.
+    /// See ``CallPattern/thenForward()`` for the full contract.
     public func thenForward() {
         sequence.append(forwardAnswer(), times: .unbounded)
     }
@@ -850,7 +857,7 @@ public struct StubBehaviorChain<Result> {
     /// Parks every matching invocation from here on until its task is
     /// cancelled, then completes it with the requirement's implicit outcome.
     /// This is terminal, like the unbounded `thenReturn`/`thenThrow`. See
-    /// ``StubBuilder/thenAwaitCancellation()`` for the full contract.
+    /// ``CallPattern/thenAwaitCancellation()`` for the full contract.
     public func thenAwaitCancellation() {
         requireImplicitCancellationOutcome(returning: Result.self)
         sequence.append(awaitCancellationAnswer(nil), times: .unbounded)
@@ -859,7 +866,7 @@ public struct StubBehaviorChain<Result> {
     /// Parks every matching invocation from here on until its task is
     /// cancelled, then completes it with `value`. This is terminal, like the
     /// unbounded `thenReturn`/`thenThrow`. See
-    /// ``StubBuilder/thenAwaitCancellation()`` for the full contract.
+    /// ``CallPattern/thenAwaitCancellation()`` for the full contract.
     public func thenAwaitCancellation(returning value: Result) {
         recorder.requireReturnValueMatchesRuntimeType(
             value,
@@ -870,7 +877,7 @@ public struct StubBehaviorChain<Result> {
 
     /// Parks every matching invocation from here on until its task is
     /// cancelled, then throws `error`. This is terminal, like the unbounded
-    /// `thenReturn`/`thenThrow`. See ``StubBuilder/thenAwaitCancellation()``
+    /// `thenReturn`/`thenThrow`. See ``CallPattern/thenAwaitCancellation()``
     /// for the full contract.
     public func thenAwaitCancellation<Failure: Error>(throwing error: Failure) {
         let method = requireRuntimeMethod()

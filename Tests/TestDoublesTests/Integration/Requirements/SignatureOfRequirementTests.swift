@@ -160,8 +160,8 @@ struct SignatureOfRequirementTests {
         #expect(methods[6].argumentTypes.count == 6)
         #expect(ObjectIdentifier(methods[6].returnType) == ObjectIdentifier(Int.self))
 
-        stub.when { $0.render(Match.any(), label: Match.any()) }.thenReturn("rendered")
-        await stub.when { try await $0.asynchronousTyped(Match.any()) }.thenReturn("loaded")
+        stub.onCall { $0.render(Match.any(), label: Match.any()) }.thenReturn("rendered")
+        await stub.onCall { try await $0.asynchronousTyped(Match.any()) }.thenReturn("loaded")
 
         let probe: any SignatureOfMethodProbe = stub()
         #expect(probe.render(7, label: "value") == "rendered")
@@ -191,12 +191,12 @@ struct SignatureOfRequirementTests {
         #expect(methods[5].isThrowing)
         #expect(methods[5].isAsync)
 
-        stub.when { $0.count }.thenReturn(7)
-        stub.when { $0.count = Match.any() }.thenDoNothing()
-        stub.when { $0.title }.thenReturn("title")
-        stub.when { try $0.throwingValue }.thenReturn(8)
-        await stub.when { await $0.asynchronousValue }.thenReturn(9)
-        await stub.when { try await $0.asynchronousThrowingValue }.thenReturn(10)
+        stub.onCall { $0.count }.thenReturn(7)
+        stub.onCall { $0.count = Match.any() }.thenDoNothing()
+        stub.onCall { $0.title }.thenReturn("title")
+        stub.onCall { try $0.throwingValue }.thenReturn(8)
+        await stub.onCall { await $0.asynchronousValue }.thenReturn(9)
+        await stub.onCall { try await $0.asynchronousThrowingValue }.thenReturn(10)
 
         var probe: any SignatureOfPropertyProbe = stub()
         #expect(probe.count == 7)

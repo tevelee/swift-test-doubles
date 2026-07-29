@@ -41,16 +41,16 @@ protocol MatcherPlaceholderService {
 @Suite struct MatcherTests {
     @Test func matchingSupportsDefaultAndNamedDescriptions() throws {
         let stub = try Stub<any MatcherService>()
-        stub.when { $0.search(query: Match.matching(where: { $0.hasPrefix("test") }), limit: Match.any()) }
+        stub.onCall { $0.search(query: Match.matching(where: { $0.hasPrefix("test") }), limit: Match.any()) }
             .thenReturn(["test"])
-        stub.when {
+        stub.onCall {
             $0.search(
                 query: Match.matching(description: "admin", where: { $0.hasPrefix("admin") }),
                 limit: Match.any()
             )
         }
         .thenReturn(["admin"])
-        stub.when { $0.search(query: Match.any(), limit: Match.any()) }.thenReturn([])
+        stub.onCall { $0.search(query: Match.any(), limit: Match.any()) }.thenReturn([])
 
         #expect(stub().search(query: "test.users", limit: 10) == ["test"])
         #expect(stub().search(query: "admin.users", limit: 10) == ["admin"])
@@ -59,8 +59,8 @@ protocol MatcherPlaceholderService {
 
     @Test func firstMatchingRegistrationWins() throws {
         let stub = try Stub<any MatcherService>()
-        stub.when { $0.find(id: Match.equal(42)) }.thenReturn("exact")
-        stub.when { $0.find(id: Match.any()) }.thenReturn("fallback")
+        stub.onCall { $0.find(id: Match.equal(42)) }.thenReturn("exact")
+        stub.onCall { $0.find(id: Match.any()) }.thenReturn("fallback")
 
         #expect(stub().find(id: 42) == "exact")
         #expect(stub().find(id: 1) == "fallback")
@@ -68,11 +68,11 @@ protocol MatcherPlaceholderService {
 
     @Test func catchAllRegisteredFirstShadowsLaterMatchers() throws {
         let stub = try Stub<any MatcherService>()
-        stub.when { $0.find(id: Match.any()) }.thenReturn("fallback")
+        stub.onCall { $0.find(id: Match.any()) }.thenReturn("fallback")
         // The catch-all shadows this specific registration, which is reported
         // at the when site in addition to the runtime first-match-wins result.
         expectReportsIssue {
-            stub.when { $0.find(id: Match.equal(42)) }.thenReturn("exact")
+            stub.onCall { $0.find(id: Match.equal(42)) }.thenReturn("exact")
         } matching: {
             $0.description.contains("Unreachable stub registration")
         }
@@ -83,11 +83,11 @@ protocol MatcherPlaceholderService {
 
     @Test func reRegisteringAMatcherKeepsTheFirstBehavior() throws {
         let stub = try Stub<any MatcherService>()
-        stub.when { $0.find(id: Match.any()) }.thenReturn("guest")
+        stub.onCall { $0.find(id: Match.any()) }.thenReturn("guest")
         // A second identical registration is unreachable, reported at the
         // when site.
         expectReportsIssue {
-            stub.when { $0.find(id: Match.any()) }.thenReturn("admin")
+            stub.onCall { $0.find(id: Match.any()) }.thenReturn("admin")
         } matching: {
             $0.description.contains("Unreachable stub registration")
         }
@@ -97,10 +97,10 @@ protocol MatcherPlaceholderService {
 
     @Test func overlappingPredicatesResolveToFirstRegistration() throws {
         let stub = try Stub<any MatcherService>()
-        stub.when {
+        stub.onCall {
             $0.find(id: Match.matching(description: "six", where: { $0 == 6 }))
         }.thenReturn("six")
-        stub.when {
+        stub.onCall {
             $0.find(id: Match.matching(description: "even", where: { $0 % 2 == 0 }))
         }.thenReturn("even")
 
@@ -110,7 +110,7 @@ protocol MatcherPlaceholderService {
 
     @Test func captorCollectsValuesDuringVerification() throws {
         let stub = try Stub<any MatcherService>()
-        stub.when { $0.find(id: Match.any()) }.thenReturn("X")
+        stub.onCall { $0.find(id: Match.any()) }.thenReturn("X")
         let service: any MatcherService = stub()
         _ = service.find(id: 7)
         _ = service.find(id: 13)
@@ -127,7 +127,7 @@ protocol MatcherPlaceholderService {
 
     @Test func captorCommitsOnlyAfterEveryArgumentMatches() throws {
         let stub = try Stub<any MatcherService>()
-        stub.when { $0.search(query: Match.any(), limit: Match.any()) }.thenReturn([])
+        stub.onCall { $0.search(query: Match.any(), limit: Match.any()) }.thenReturn([])
         let service: any MatcherService = stub()
         _ = service.search(query: "rejected", limit: 1)
         _ = service.search(query: "accepted", limit: 2)
@@ -144,7 +144,7 @@ protocol MatcherPlaceholderService {
         let stub = try Stub<any MatcherService>()
         let queries = Match.Capture<String>()
         let limits = Match.Capture<Int>()
-        stub.when {
+        stub.onCall {
             $0.search(query: queries.capture(), limit: limits.capture())
         }.thenReturn([])
 
@@ -184,7 +184,7 @@ protocol MatcherPlaceholderService {
             .method((any MatcherExistentialValue).self, returning: String.self)
         )
         let placeholder = MatcherReferenceBox(value: 0)
-        stub.when {
+        stub.onCall {
             $0.inspect(
                 reference: Match.matching(
                     using: placeholder,
@@ -193,7 +193,7 @@ protocol MatcherPlaceholderService {
                 )
             )
         }.thenReturn("positive")
-        stub.when { $0.inspect(reference: Match.any(using: placeholder)) }.thenReturn("any")
+        stub.onCall { $0.inspect(reference: Match.any(using: placeholder)) }.thenReturn("any")
 
         #expect(stub().inspect(reference: MatcherReferenceBox(value: 2)) == "positive")
         #expect(stub().inspect(reference: MatcherReferenceBox(value: -1)) == "any")
@@ -205,7 +205,7 @@ protocol MatcherPlaceholderService {
             .method((any MatcherExistentialValue).self, returning: String.self)
         )
         let placeholder: any MatcherExistentialValue = FirstMatcherExistentialValue(value: 0)
-        stub.when { $0.inspect(existential: Match.any(using: placeholder)) }.thenReturn("matched")
+        stub.onCall { $0.inspect(existential: Match.any(using: placeholder)) }.thenReturn("matched")
         let service: any MatcherPlaceholderService = stub()
         let actual: any MatcherExistentialValue = SecondMatcherExistentialValue(value: 42)
 
@@ -245,8 +245,8 @@ protocol MatcherPlaceholderService {
 @Suite struct TypedThenTests {
     @Test func zeroOneAndTwoArgumentHandlers() throws {
         let stub = try Stub<any MatcherService>()
-        stub.when { $0.find(id: Match.any()) }.then { (id: Int) in "user_\(id)" }
-        stub.when { $0.search(query: Match.any(), limit: Match.any()) }.then {
+        stub.onCall { $0.find(id: Match.any()) }.then { (id: Int) in "user_\(id)" }
+        stub.onCall { $0.search(query: Match.any(), limit: Match.any()) }.then {
             (query: String, limit: Int) in
             Array(repeating: query, count: limit)
         }
@@ -258,7 +258,7 @@ protocol MatcherPlaceholderService {
     @Test func typedThrowingHandlerPropagates() throws {
         struct ReadError: Error, Equatable { let path: String }
         let stub = try Stub<any ThrowingFileService>()
-        stub.when { try $0.read(path: Match.any()) }.then { (path: String) throws in
+        stub.onCall { try $0.read(path: Match.any()) }.then { (path: String) throws in
             if path == "/missing" { throw ReadError(path: path) }
             return "content:\(path)"
         }

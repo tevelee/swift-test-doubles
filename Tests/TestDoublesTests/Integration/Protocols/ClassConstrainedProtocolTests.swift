@@ -158,7 +158,7 @@ private func exerciseClassPayloadLifetime() throws -> (
     var stub: Stub<any ClassLifetimeProbe>? = try Stub(
         .method(returning: Int.self)
     )
-    stub?.when { $0.value() }.thenReturn(42)
+    stub?.onCall { $0.value() }.thenReturn(42)
     let probe = try #require(stub?())
     let secondProbe = try #require(stub?())
     let weakPayload = WeakClassLifetimeProbe(probe)
@@ -181,7 +181,7 @@ private func exerciseSuperclassPayloadLifetime() throws -> (
     value: Int
 ) {
     var stub: Stub<any RequiredSuperclass & SuperclassConstraintProbe>? = try Stub()
-    stub?.when { $0.value() }.thenReturn(42)
+    stub?.onCall { $0.value() }.thenReturn(42)
     let probe = try #require(stub?())
     let secondProbe = try #require(stub?())
     let weakPayload = WeakReference<RequiredSuperclass>(probe)
@@ -203,10 +203,10 @@ private func exerciseSuperclassPayloadLifetime() throws -> (
             exerciseLinkedAutomaticClassProbe(LinkedAutomaticClassProbe()) == "linked-1linked"
         )
         let stub = try Stub<any AutomaticClassProbe>()
-        stub.when { $0.transform(Match.any()) }.then { (value: Int) in
+        stub.onCall { $0.transform(Match.any()) }.then { (value: Int) in
             "stub-\(value)"
         }
-        stub.when { $0.label }.thenReturn("class")
+        stub.onCall { $0.label }.thenReturn("class")
 
         let probe: any AutomaticClassProbe = stub()
 
@@ -220,7 +220,7 @@ private func exerciseSuperclassPayloadLifetime() throws -> (
         let stub = try Stub<any ExplicitClassProbe>(
             .method(Int.self, returning: Int.self)
         )
-        stub.when { $0.transform(Match.any()) }.then { (value: Int) in
+        stub.onCall { $0.transform(Match.any()) }.then { (value: Int) in
             value * 3
         }
 
@@ -235,8 +235,8 @@ private func exerciseSuperclassPayloadLifetime() throws -> (
             exerciseLinkedClassInheritanceProbe(LinkedClassInheritanceProbe()) == "0:"
         )
         let stub = try Stub<any ClassInheritanceChildProbe>()
-        stub.when { $0.baseValue() }.thenReturn(21)
-        stub.when { $0.childValue() }.thenReturn("child")
+        stub.onCall { $0.baseValue() }.thenReturn(21)
+        stub.onCall { $0.childValue() }.thenReturn("child")
 
         let probe: any ClassInheritanceChildProbe = stub()
 
@@ -248,7 +248,7 @@ private func exerciseSuperclassPayloadLifetime() throws -> (
         var stub: Stub<any ClassLifetimeProbe>? = try Stub(
             .method(returning: Int.self)
         )
-        stub?.when { $0.value() }.thenReturn(42)
+        stub?.onCall { $0.value() }.thenReturn(42)
         let probe = try #require(stub?())
         let weakStub = WeakReference(stub)
 
@@ -271,7 +271,7 @@ private func exerciseSuperclassPayloadLifetime() throws -> (
         let stub = try Stub<any ConcurrentClassProbe>(
             .method(Int.self, returning: Int.self)
         )
-        stub.when { $0.doubled(Match.any()) }.then { (value: Int) in
+        stub.onCall { $0.doubled(Match.any()) }.then { (value: Int) in
             value * 2
         }
         let probe: any ConcurrentClassProbe = stub()
@@ -297,7 +297,7 @@ private func exerciseSuperclassPayloadLifetime() throws -> (
                 ) == 17
             )
             let stub = try Stub<any RequiredSuperclass & SuperclassConstraintProbe>()
-            stub.when { $0.value() }.thenReturn(25)
+            stub.onCall { $0.value() }.thenReturn(25)
 
             let probe: any RequiredSuperclass & SuperclassConstraintProbe = stub()
 
@@ -327,8 +327,8 @@ private func exerciseSuperclassPayloadLifetime() throws -> (
                 any RequiredSuperclass & SuperclassConstraintProbe
                     & SecondSuperclassConstraintProbe
             >()
-            stub.when { $0.value() }.thenReturn(7)
-            stub.when { $0.text() }.thenReturn("composed")
+            stub.onCall { $0.value() }.thenReturn(7)
+            stub.onCall { $0.text() }.thenReturn("composed")
 
             let probe = stub()
 
@@ -344,8 +344,8 @@ private func exerciseSuperclassPayloadLifetime() throws -> (
                 ) == 0
             )
             let stub = try Stub<any RequiredSuperclass & SuperclassStaticProbe>()
-            stub.when { type(of: $0).defaultValue() }.thenReturn(99)
-            stub.when { $0.value() }.thenReturn(1)
+            stub.onCall { type(of: $0).defaultValue() }.thenReturn(99)
+            stub.onCall { $0.value() }.thenReturn(1)
 
             let defaultValue = stub.withValue { type(of: $0).defaultValue() }
 
@@ -374,7 +374,7 @@ private func exerciseSuperclassPayloadLifetime() throws -> (
             let stub = try Stub<any NSObject & ImportedSuperclassConstraintProbe>(
                 .method(returning: Int.self)
             )
-            stub.when { $0.value() }.thenReturn(42)
+            stub.onCall { $0.value() }.thenReturn(42)
 
             let probe: any NSObject & ImportedSuperclassConstraintProbe = stub()
 

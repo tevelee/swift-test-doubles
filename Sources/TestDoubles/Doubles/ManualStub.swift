@@ -31,7 +31,7 @@ public protocol StubConformer {
 ///
 /// ```swift
 /// let stub = ManualStub<MyServiceStub>()
-/// stub.when { $0.fetch(id: Match.equal(42)) }.thenReturn("Alice")
+/// stub.onCall { $0.fetch(id: Match.equal(42)) }.thenReturn("Alice")
 ///
 /// let service: any MyService = stub()
 /// // service.fetch(id: 42) == "Alice"

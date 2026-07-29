@@ -13,7 +13,7 @@ func demonstrateRuntimeStub() throws {
     let stub = try Stub<any AndroidRuntimeDemoService>(
         .method(signatureOf: AndroidRuntimeDemoService.doubled)
     )
-    stub.when { $0.doubled(Match.equal(21)) }.thenReturn(42)
+    stub.onCall { $0.doubled(Match.equal(21)) }.thenReturn(42)
 
     let service: any AndroidRuntimeDemoService = stub()
     precondition(service.doubled(21) == 42)

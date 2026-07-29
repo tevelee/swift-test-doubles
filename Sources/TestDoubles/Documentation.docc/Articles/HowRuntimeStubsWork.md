@@ -110,12 +110,12 @@ recorder path, not separate mocking systems.
 
 ### Configuration uses the same path
 
-A `when` closure is not analyzed as source code. TestDoubles temporarily puts
+A `onCall` closure is not analyzed as source code. TestDoubles temporarily puts
 the recorder into capture mode and invokes the closure with the generated
 protocol value:
 
 ```swift
-stub.when { $0.load(id: Match.any()) }.thenReturn("sample")
+stub.onCall { $0.load(id: Match.any()) }.thenReturn("sample")
 ```
 
 The apparent call to `load(id:)` travels through the same witness table and

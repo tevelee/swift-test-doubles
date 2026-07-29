@@ -155,7 +155,7 @@ extension StubRegistrationBuilder {
     }
 }
 
-extension StubBuilder: StubRegistrationBuilder {}
+extension CallPattern: StubRegistrationBuilder {}
 extension StubBehaviorChain: StubRegistrationBuilder {}
 extension StubInitializerBuilder: StubRegistrationBuilder {}
 extension StubFailableInitializerBuilder: StubRegistrationBuilder {}

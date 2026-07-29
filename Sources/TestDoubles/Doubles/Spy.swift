@@ -10,7 +10,7 @@ import IssueReporting
 ///
 /// ```swift
 /// let spy: Spy<any UserService> = .make(forwardingTo: liveService)
-/// spy.when { $0.displayName(for: "guest") }.thenReturn("Test Guest")
+/// spy.onCall { $0.displayName(for: "guest") }.thenReturn("Test Guest")
 ///
 /// let service: any UserService = spy()
 /// _ = service.displayName(for: "guest") // overridden
@@ -19,7 +19,7 @@ import IssueReporting
 
 public final class Spy<P>: Stub<P> {
     /// Creates a spy that forwards unmatched instance and static requirements to `target`.
-    /// Initializer requirements use an explicit `when(initializer:)` override.
+    /// Initializer requirements use an explicit `onCall(initializer:)` override.
     ///
     /// The target's own witness tables provide signature discovery, so this
     /// initializer does not need a separately linked conformer or explicit
@@ -97,7 +97,7 @@ extension Spy {
     }
 
     /// Verifies that these, and only these, calls reached the real forwarding
-    /// target in the listed order. Calls answered by a `when` override are
+    /// target in the listed order. Calls answered by a `onCall` override are
     /// ignored, so this checks the spy's forwarding boundary directly.
     public func verifyOnlyForwarded(
         _ calls: (P) throws -> Void,
@@ -138,66 +138,6 @@ extension Spy {
             filePath: filePath,
             line: line,
             column: column
-        )
-    }
-
-    /// Returns the arguments of matching calls that were delegated to the
-    /// forwarding target, excluding calls answered by a configured override.
-    ///
-    /// Use this to assert the boundary between a spy's overrides and its real
-    /// implementation. The returned tuples are in call order and use the same
-    /// matcher and typed-argument rules as ``Stub/invocations(_:)``.
-    ///
-    /// ```swift
-    /// let forwarded: [Int] = spy.forwardedInvocations {
-    ///     $0.fetch(id: Match.any())
-    /// }
-    /// #expect(forwarded == [2])
-    /// ```
-    ///
-    /// This is a query only. It does not verify calls or change the forwarding
-    /// target. A call is considered forwarded once the spy selects its target;
-    /// results and errors retain their normal protocol transport.
-    public func forwardedInvocations<Result, each Argument>(
-        _ call: (P) throws -> Result
-    ) -> [(repeat each Argument)] {
-        typedMatchingForwardedInvocationArguments(recording: recordInvocation(call))
-    }
-
-    /// Returns forwarded invocations for a requirement whose result needs a
-    /// valid value during the recording pass.
-    public func forwardedInvocations<Result, each Argument>(
-        returning placeholder: Result,
-        _ call: (P) throws -> Result
-    ) -> [(repeat each Argument)] {
-        typedMatchingForwardedInvocationArguments(
-            recording: recordInvocation(returning: placeholder, call)
-        )
-    }
-
-    /// Returns forwarded async invocations in call order.
-    public func forwardedInvocations<Result, each Argument>(
-        _ call: (P) async throws -> Result,
-        isolation: isolated (any Actor)? = #isolation
-    ) async -> [(repeat each Argument)] {
-        typedMatchingForwardedInvocationArguments(
-            recording: await recordAsyncInvocation(call, isolation: isolation)
-        )
-    }
-
-    /// Returns forwarded async invocations for a requirement whose result
-    /// needs a valid value during the recording pass.
-    public func forwardedInvocations<Result, each Argument>(
-        returning placeholder: Result,
-        _ call: (P) async throws -> Result,
-        isolation: isolated (any Actor)? = #isolation
-    ) async -> [(repeat each Argument)] {
-        typedMatchingForwardedInvocationArguments(
-            recording: await recordAsyncInvocation(
-                returning: placeholder,
-                call,
-                isolation: isolation
-            )
         )
     }
 

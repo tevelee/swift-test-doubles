@@ -42,11 +42,11 @@ enum StubRecorderDiagnostics {
         lines.append("Action:")
         if entries.isEmpty {
             lines.append(
-                "  Register behavior with `stub.when { ... }` before invoking this requirement."
+                "  Register behavior with `stub.onCall { ... }` before invoking this requirement."
             )
         } else {
             lines.append(
-                "  Add a `stub.when { ... }` registration whose matchers accept these arguments, "
+                "  Add a `stub.onCall { ... }` registration whose matchers accept these arguments, "
                     + "or correct the call if the arguments are unexpected."
             )
         }
@@ -249,7 +249,7 @@ enum StubRecorderDiagnostics {
         }
 
         if method.kind == .initializer {
-            return "\(configurationPrefix)stub.when(initializer: { \(requirementCall("type(of: $0).\(invocation)")) }).thenInitialize()"
+            return "\(configurationPrefix)stub.onCall(initializer: { \(requirementCall("type(of: $0).\(invocation)")) }).thenInitialize()"
         }
         if method.returnConvention == .selfType {
             let receiver =
@@ -258,7 +258,7 @@ enum StubRecorderDiagnostics {
                     case .metatype: "type(of: $0)"
                 }
             return
-                "\(configurationPrefix)stub.when(returningSelf: { \(requirementCall("\(receiver).\(invocation)")) }).thenReturnValue()"
+                "\(configurationPrefix)stub.onCall(returningSelf: { \(requirementCall("\(receiver).\(invocation)")) }).thenReturnValue()"
         }
         if method.returnConvention == .optionalSelf {
             let receiver =
@@ -267,7 +267,7 @@ enum StubRecorderDiagnostics {
                     case .metatype: "type(of: $0)"
                 }
             return
-                "\(configurationPrefix)stub.when(returningOptionalSelf: { \(requirementCall("\(receiver).\(invocation)")) }).thenReturnValue()"
+                "\(configurationPrefix)stub.onCall(returningOptionalSelf: { \(requirementCall("\(receiver).\(invocation)")) }).thenReturnValue()"
         }
         let receiver =
             switch method.receiver {
@@ -278,7 +278,7 @@ enum StubRecorderDiagnostics {
             method.returnType == Void.self
             ? ".thenDoNothing()"
             : ".thenReturn(...)"
-        return "\(configurationPrefix)stub.when { \(requirementCall("\(receiver).\(invocation)")) }\(behavior)"
+        return "\(configurationPrefix)stub.onCall { \(requirementCall("\(receiver).\(invocation)")) }\(behavior)"
     }
 
     private static func suggestedInvocation(name: String, args: [Any]) -> String {

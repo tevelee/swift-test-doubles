@@ -31,7 +31,7 @@ struct LiveFactorySendableService: FactorySendableService {
 struct StubFactoryTests {
     @Test func returnsAConfiguredProtocolValue() {
         let service: any FactoryCurrencyService = Stub.make {
-            $0.when { $0.currency }.then { "EUR" }
+            $0.onCall { $0.currency }.then { "EUR" }
         }
 
         #expect(service.currency == "EUR")
@@ -41,8 +41,8 @@ struct StubFactoryTests {
         _ = LiveFactoryCurrencyService()
         let first = try Stub<any FactoryCurrencyService>()
         let second = try Stub<any FactoryCurrencyService>()
-        first.when { $0.currency }.thenReturn("EUR")
-        second.when { $0.currency }.thenReturn("HUF")
+        first.onCall { $0.currency }.thenReturn("EUR")
+        second.onCall { $0.currency }.thenReturn("HUF")
 
         #expect(first().currency == "EUR")
         #expect(second().currency == "HUF")
@@ -54,8 +54,8 @@ struct StubFactoryTests {
             .getter(String.self)
         let first = try Stub<any FactoryCurrencyService>(requirement)
         let second = try Stub<any FactoryCurrencyService>(requirement)
-        first.when { $0.currency }.thenReturn("EUR")
-        second.when { $0.currency }.thenReturn("HUF")
+        first.onCall { $0.currency }.thenReturn("EUR")
+        second.onCall { $0.currency }.thenReturn("HUF")
 
         #expect(first().currency == "EUR")
         #expect(second().currency == "HUF")
@@ -63,7 +63,7 @@ struct StubFactoryTests {
 
     @Test func configuresAsyncRequirements() async {
         let service: any FactoryAsyncService = await Stub.make {
-            await $0.when { await $0.load() }.then { "loaded" }
+            await $0.onCall { await $0.load() }.then { "loaded" }
         }
 
         #expect(await service.load() == "loaded")
@@ -72,7 +72,7 @@ struct StubFactoryTests {
     @Test func sendableProtocolsRequireAnExplicitUncheckedBoundary() {
         _ = LiveFactorySendableService()
         let service: any FactorySendableService = Stub.make {
-            $0.when { $0.value }.thenReturn(42)
+            $0.onCall { $0.value }.thenReturn(42)
         }
 
         #expect(service.value == 42)
@@ -83,7 +83,7 @@ struct StubFactoryTests {
         let service: any FactorySendableService = await Stub.make {
             stub in
             await Task.yield()
-            stub.when { $0.value }.thenReturn(42)
+            stub.onCall { $0.value }.thenReturn(42)
         }
 
         #expect(service.value == 42)

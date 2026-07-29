@@ -6,7 +6,7 @@ import Foundation
 //
 // Every function here appends exactly one ``ParameterMatcher`` to the active
 // recording and returns a value of the argument's own type, so matchers stay
-// positional: use matcher functions for every argument of a `when`/`verify`
+// positional: use matcher functions for every argument of a `onCall`/`verify`
 // call or none, never a mix. Combinators fold the matchers their nested
 // expressions record into a single composite through ``MatcherContext``'s
 // nested-capture support, which is why negation and conjunction are spelled as

@@ -20,7 +20,7 @@ test task and inherited child tasks.
 @Test(.testDoubles)
 func checkoutUsesTheConfiguredGateway() throws {
     let gateway = try Stub<any PaymentGateway>()
-    gateway.when { $0.charge(amount: 42) }.thenReturn(.approved)
+    gateway.onCall { $0.charge(amount: 42) }.thenReturn(.approved)
 
     _ = try Checkout(gateway: gateway()).complete()
 }

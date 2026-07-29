@@ -18,8 +18,8 @@ protocol Source<Element> {
 }
 
 let stub = try Stub<any Source<Int>>()
-stub.when { $0.load() }.thenReturn(41)
-stub.when { $0.transform(Match.any()) }.then { $0 + 1 }
+stub.onCall { $0.load() }.thenReturn(41)
+stub.onCall { $0.transform(Match.any()) }.then { $0 + 1 }
 ```
 
 It also accepts a complete caller-supplied binding set for an unbound
@@ -36,7 +36,7 @@ let stub = try Stub<any Source>(
         )
     ]
 )
-stub.when { $0.load() }.thenReturn(41)
+stub.onCall { $0.load() }.thenReturn(41)
 ```
 
 Swift exposes that unbound result at its upper bound rather than as `Int`.

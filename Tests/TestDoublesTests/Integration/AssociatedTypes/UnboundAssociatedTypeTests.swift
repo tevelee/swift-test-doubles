@@ -90,9 +90,9 @@ private final class NonEquatableCallerBinding {}
                 )
             ]
         )
-        stub.when { $0.next() }.thenReturn("next")
-        stub.when { $0.current }.thenReturn("current")
-        await stub.when { try await $0.load() }.then {
+        stub.onCall { $0.next() }.thenReturn("next")
+        stub.onCall { $0.current }.thenReturn("current")
+        await stub.onCall { try await $0.load() }.then {
             () async throws -> any Equatable in "loaded"
         }
 
@@ -122,8 +122,8 @@ private final class NonEquatableCallerBinding {}
             method.typedErrorAssociatedTypeUse
                 == .associatedType(named: "Failure")
         )
-        stub.when { try $0.load(Match.equal(false)) }.thenReturn(42)
-        stub.when { try $0.load(Match.equal(true)) }.thenThrow(CallerBoundTypedFailure(code: 7))
+        stub.onCall { try $0.load(Match.equal(false)) }.thenReturn(42)
+        stub.onCall { try $0.load(Match.equal(true)) }.thenThrow(CallerBoundTypedFailure(code: 7))
 
         let probe = stub()
         #expect(try probe.load(false) == 42)
@@ -148,8 +148,8 @@ private final class NonEquatableCallerBinding {}
             .method(returning: element),
             .getter(element)
         )
-        stub.when { $0.next() }.thenReturn(41)
-        stub.when { $0.current }.thenReturn(42)
+        stub.onCall { $0.next() }.thenReturn(41)
+        stub.onCall { $0.current }.thenReturn(42)
 
         let source = stub()
 
@@ -196,7 +196,7 @@ private final class NonEquatableCallerBinding {}
                 )
             ]
         )
-        stub.when { $0.baseValue() }.thenReturn("base")
+        stub.onCall { $0.baseValue() }.thenReturn("base")
 
         #expect(stub().baseValue() as? String == "base")
     }

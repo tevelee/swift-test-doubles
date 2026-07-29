@@ -22,7 +22,7 @@ struct RealForwardingProbeService: ForwardingProbeService {
         let spy: Spy<any ForwardingProbeService> = Spy.make(
             forwardingTo: RealForwardingProbeService()
         )
-        await spy.when { try await $0.load(url: Match.any()) }
+        await spy.onCall { try await $0.load(url: Match.any()) }
             .thenThrow(ForwardingTestError.flaky, times: 2)
             .thenForward()
 
@@ -41,8 +41,8 @@ struct RealForwardingProbeService: ForwardingProbeService {
         let spy: Spy<any ForwardingProbeService> = Spy.make(
             forwardingTo: RealForwardingProbeService()
         )
-        spy.when { $0.name(for: Match.equal(7)) }.thenForward()
-        spy.when { $0.name(for: Match.any()) }.thenReturn("stubbed")
+        spy.onCall { $0.name(for: Match.equal(7)) }.thenForward()
+        spy.onCall { $0.name(for: Match.any()) }.thenReturn("stubbed")
 
         let service: any ForwardingProbeService = spy()
         #expect(service.name(for: 1) == "stubbed")
@@ -53,7 +53,7 @@ struct RealForwardingProbeService: ForwardingProbeService {
         let spy: Spy<any ForwardingProbeService> = Spy.make(
             forwardingTo: RealForwardingProbeService()
         )
-        spy.when { $0.name(for: Match.any()) }
+        spy.onCall { $0.name(for: Match.any()) }
             .thenReturn("once")
             .thenForward()
 
@@ -66,7 +66,7 @@ struct RealForwardingProbeService: ForwardingProbeService {
         let spy: Spy<any ForwardingProbeService> = Spy.make(
             forwardingTo: RealForwardingProbeService()
         )
-        spy.when { $0.name(for: Match.any()) }.thenForward()
+        spy.onCall { $0.name(for: Match.any()) }.thenForward()
 
         let service: any ForwardingProbeService = spy()
         _ = service.name(for: 1)

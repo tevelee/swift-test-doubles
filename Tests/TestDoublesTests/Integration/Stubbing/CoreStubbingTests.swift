@@ -55,10 +55,10 @@ struct RealFileLoader: FileLoader {
 @Suite struct StubbingTests {
     @Test func exactAndWildcardMatching() throws {
         let stub = try Stub<any Calculator>()
-        stub.when { $0.add(1, 2) }.thenReturn(42)
-        stub.when { $0.add(Match.any(), Match.any()) }.thenReturn(-1)
-        stub.when { $0.describe(Match.any()) }.thenReturn("anything")
-        stub.when { $0.precision }.thenReturn(5)
+        stub.onCall { $0.add(1, 2) }.thenReturn(42)
+        stub.onCall { $0.add(Match.any(), Match.any()) }.thenReturn(-1)
+        stub.onCall { $0.describe(Match.any()) }.thenReturn("anything")
+        stub.onCall { $0.precision }.thenReturn(5)
 
         let calculator: any Calculator = stub()
         #expect(calculator.add(1, 2) == 42)
@@ -69,10 +69,10 @@ struct RealFileLoader: FileLoader {
 
     @Test func typedDynamicHandlerReceivesArguments() throws {
         let stub = try Stub<any Calculator>()
-        stub.when { $0.add(Match.any(), Match.any()) }.then { (lhs: Int, rhs: Int) in
+        stub.onCall { $0.add(Match.any(), Match.any()) }.then { (lhs: Int, rhs: Int) in
             lhs * rhs
         }
-        stub.when { $0.describe(Match.any()) }.then { (value: Int) in
+        stub.onCall { $0.describe(Match.any()) }.then { (value: Int) in
             "value:\(value)"
         }
 
@@ -84,8 +84,8 @@ struct RealFileLoader: FileLoader {
     @Test func independentStubsDoNotShareState() throws {
         let first = try Stub<any Calculator>()
         let second = try Stub<any Calculator>()
-        first.when { $0.precision }.thenReturn(1)
-        second.when { $0.precision }.thenReturn(2)
+        first.onCall { $0.precision }.thenReturn(1)
+        second.onCall { $0.precision }.thenReturn(2)
 
         #expect(first().precision == 1)
         #expect(second().precision == 2)
@@ -95,7 +95,7 @@ struct RealFileLoader: FileLoader {
 @Suite struct DirectVerificationTests {
     @Test func verifiesDefaultExactAndNeverCounts() throws {
         let stub = try Stub<any Calculator>()
-        stub.when { $0.describe(Match.any()) }.thenReturn("X")
+        stub.onCall { $0.describe(Match.any()) }.thenReturn("X")
 
         let calculator: any Calculator = stub()
         _ = calculator.describe(1)
@@ -103,18 +103,18 @@ struct RealFileLoader: FileLoader {
 
         stub.verify { $0.describe(Match.any()) }
         stub.verify(.exactly(2)) { $0.describe(Match.any()) }
-        stub.verify(.never()) { $0.add(Match.any(), Match.any()) }
+        stub.verify(.never) { $0.add(Match.any(), Match.any()) }
 
         stub.verify(2...) { $0.describe(Match.any()) }
         stub.verify(...2) { $0.describe(Match.any()) }
         stub.verify(1 ... 2) { $0.describe(Match.any()) }
-        stub.verify(0 ..< 3) { $0.describe(Match.any()) }
+        stub.verify(...2) { $0.describe(Match.any()) }
     }
 
     @Test func verificationDoesNotReplayHandler() throws {
         let stub = try Stub<any Calculator>()
         let executions = LockedCounter()
-        stub.when { $0.describe(Match.any()) }.then { (value: Int) in
+        stub.onCall { $0.describe(Match.any()) }.then { (value: Int) in
             executions.increment()
             return "\(value)"
         }
@@ -128,10 +128,10 @@ struct RealFileLoader: FileLoader {
 @Suite struct PropertyAndVoidTests {
     @Test func gettersAcrossReturnShapes() throws {
         let stub = try Stub<any AppConfig>()
-        stub.when { $0.appName }.thenReturn("TestApp")
-        stub.when { $0.version }.thenReturn(42)
-        stub.when { $0.isDebug }.thenReturn(true)
-        stub.when { $0.scale }.thenReturn(2.5)
+        stub.onCall { $0.appName }.thenReturn("TestApp")
+        stub.onCall { $0.version }.thenReturn(42)
+        stub.onCall { $0.isDebug }.thenReturn(true)
+        stub.onCall { $0.scale }.thenReturn(2.5)
 
         let config: any AppConfig = stub()
         #expect(config.appName == "TestApp")
@@ -142,10 +142,10 @@ struct RealFileLoader: FileLoader {
 
     @Test func gettersAndExplicitVoidBehaviors() throws {
         let stub = try Stub<any Settings>()
-        stub.when { $0.theme }.thenReturn("dark")
-        stub.when { $0.fontSize }.thenReturn(16)
-        stub.when { $0.reset() }.thenDoNothing()
-        stub.when { $0.apply(key: Match.any()) }.thenDoNothing()
+        stub.onCall { $0.theme }.thenReturn("dark")
+        stub.onCall { $0.fontSize }.thenReturn(16)
+        stub.onCall { $0.reset() }.thenDoNothing()
+        stub.onCall { $0.apply(key: Match.any()) }.thenDoNothing()
 
         let settings: any Settings = stub()
         #expect(settings.theme == "dark")
@@ -162,10 +162,10 @@ struct RealFileLoader: FileLoader {
         struct ReadError: Error, Equatable { let path: String }
 
         let stub = try Stub<any FileLoader>()
-        stub.when { try $0.load(path: Match.equal("/missing")) }
+        stub.onCall { try $0.load(path: Match.equal("/missing")) }
             .thenThrow(ReadError(path: "/missing"))
-        stub.when { try $0.load(path: Match.any()) }.then { (path: String) in "contents:\(path)" }
-        stub.when { $0.exists(path: Match.any()) }.thenReturn(true)
+        stub.onCall { try $0.load(path: Match.any()) }.then { (path: String) in "contents:\(path)" }
+        stub.onCall { $0.exists(path: Match.any()) }.thenReturn(true)
 
         let loader: any FileLoader = stub()
         #expect(try loader.load(path: "/readme") == "contents:/readme")
@@ -175,12 +175,12 @@ struct RealFileLoader: FileLoader {
         #expect(error?.path == "/missing")
 
         stub.verify(.exactly(2)) { try $0.load(path: Match.any()) }
-        stub.verify(.never()) { $0.exists(path: Match.equal("/missing")) }
+        stub.verify(.never) { $0.exists(path: Match.equal("/missing")) }
     }
 
     @Test func throwingVoidRequirementCanExplicitlyDoNothing() throws {
         let stub = try Stub<any ThrowingFileService>()
-        stub.when { try $0.write(path: Match.any(), content: Match.any()) }.thenDoNothing()
+        stub.onCall { try $0.write(path: Match.any(), content: Match.any()) }.thenDoNothing()
 
         try stub().write(path: "/out", content: "data")
         stub.verify { try $0.write(path: "/out", content: "data") }
@@ -194,9 +194,9 @@ struct RealFileLoader: FileLoader {
             .method(Int.self, returning: String.self),
             .getter(Int.self)
         )
-        stub.when { $0.add(Match.any(), Match.any()) }.then { (a: Int, b: Int) in a + b }
-        stub.when { $0.describe(Match.any()) }.then { (value: Int) in "\(value)" }
-        stub.when { $0.precision }.thenReturn(12)
+        stub.onCall { $0.add(Match.any(), Match.any()) }.then { (a: Int, b: Int) in a + b }
+        stub.onCall { $0.describe(Match.any()) }.then { (value: Int) in "\(value)" }
+        stub.onCall { $0.precision }.thenReturn(12)
 
         let calculator: any PrototypeCalculator = stub()
         #expect(calculator.add(2, 4) == 6)
@@ -210,9 +210,9 @@ struct RealFileLoader: FileLoader {
             .method([String].self, returning: Void.self, isAsync: true),
             .getter(Int.self)
         )
-        await stub.when { try await $0.load(url: Match.any()) }.thenReturn("data")
-        await stub.when { await $0.prefetch(urls: Match.any()) }.thenDoNothing()
-        stub.when { $0.cacheSize }.thenReturn(3)
+        await stub.onCall { try await $0.load(url: Match.any()) }.thenReturn("data")
+        await stub.onCall { await $0.prefetch(urls: Match.any()) }.thenDoNothing()
+        stub.onCall { $0.cacheSize }.thenReturn(3)
 
         let loader: any AsyncDataLoader = stub()
         #expect(try await loader.load(url: "url") == "data")

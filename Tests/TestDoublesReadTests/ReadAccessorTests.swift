@@ -20,12 +20,12 @@ private struct Modify2AbortFailure: Error {}
     @Test func concretePropertyAndSubscriptDispatchThroughReadDescriptors() throws {
         _ = LinkedConcreteReadAccessorProbe()
         let stub = try Stub<any ConcreteReadAccessorProbe>()
-        stub.when { $0.integer }.thenReturn(42)
-        stub.when { $0.text }.thenReturn("forty-two")
+        stub.onCall { $0.integer }.thenReturn(42)
+        stub.onCall { $0.text }.thenReturn("forty-two")
         let dictionaryPlaceholder = ["placeholder": -1]
-        stub.when(returning: dictionaryPlaceholder) { $0.dictionary }
+        stub.onCall(returning: dictionaryPlaceholder) { $0.dictionary }
             .thenReturn(["answer": 42])
-        stub.when { $0[Match.any()] }.then { (index: Int) in index * 2 }
+        stub.onCall { $0[Match.any()] }.then { (index: Int) in index * 2 }
 
         let probe: any ConcreteReadAccessorProbe = stub()
         #expect(probe.integer == 42)
@@ -44,8 +44,8 @@ private struct Modify2AbortFailure: Error {}
     @Test func associatedResultUsesBorrowedIndirectStorage() throws {
         _ = LinkedAssociatedReadAccessorProbe()
         let stub = try Stub<any AssociatedReadAccessorProbe<Int>>()
-        stub.when { $0.value }.thenReturn(41)
-        stub.when { $0[Match.any()] }.then { (index: Int) in index + 1 }
+        stub.onCall { $0.value }.thenReturn(41)
+        stub.onCall { $0[Match.any()] }.then { (index: Int) in index + 1 }
 
         let probe: any AssociatedReadAccessorProbe<Int> = stub()
         #expect(probe.value == 41)
@@ -61,7 +61,7 @@ private struct Modify2AbortFailure: Error {}
         let stub = try Stub<any ExplicitReadAccessorProbe>(
             .getter(Int.self)
         )
-        stub.when { $0.value }.thenReturn(42)
+        stub.onCall { $0.value }.thenReturn(42)
 
         let probe: any ExplicitReadAccessorProbe = stub()
         #expect(probe.value == 42)
@@ -71,8 +71,8 @@ private struct Modify2AbortFailure: Error {}
     @Test func modify2StubDispatchesGetterAndSetter() throws {
         _ = LinkedModify2AccessorProbe()
         let stub = try Stub<any Modify2AccessorProbe>()
-        stub.when { $0.value }.thenReturn(40)
-        stub.when { $0.value = Match.equal(42) }.thenDoNothing()
+        stub.onCall { $0.value }.thenReturn(40)
+        stub.onCall { $0.value = Match.equal(42) }.thenDoNothing()
         var probe: any Modify2AccessorProbe = stub()
 
         probe.value += 2
@@ -98,8 +98,8 @@ private struct Modify2AbortFailure: Error {}
     @Test func modify2StubWritesBackBeforeUnwind() throws {
         _ = LinkedModify2AccessorProbe()
         let stub = try Stub<any Modify2AccessorProbe>()
-        stub.when { $0.value }.thenReturn(40)
-        stub.when { $0.value = Match.equal(42) }.thenDoNothing()
+        stub.onCall { $0.value }.thenReturn(40)
+        stub.onCall { $0.value = Match.equal(42) }.thenDoNothing()
         var probe: any Modify2AccessorProbe = stub()
 
         #expect(throws: Modify2AbortFailure.self) {
@@ -128,7 +128,7 @@ private struct Modify2AbortFailure: Error {}
         _ = LinkedReadLifetimeProbe()
         let stub = try Stub<any ReadLifetimeProbe>()
         let weakReference = WeakReadReference(nil)
-        stub.when(returning: ReadLifetimeValue(reference: ReadLifetimeReference(value: -1))) {
+        stub.onCall(returning: ReadLifetimeValue(reference: ReadLifetimeReference(value: -1))) {
             $0.value
         }.then { () -> ReadLifetimeValue in
             let reference = ReadLifetimeReference(value: 42)
@@ -145,7 +145,7 @@ private struct Modify2AbortFailure: Error {}
         _ = LinkedReadLifetimeProbe()
         let stub = try Stub<any ReadLifetimeProbe>()
         let weakReference = WeakReadReference(nil)
-        stub.when(returning: ReadLifetimeValue(reference: ReadLifetimeReference(value: -1))) {
+        stub.onCall(returning: ReadLifetimeValue(reference: ReadLifetimeReference(value: -1))) {
             $0.value
         }.then { () -> ReadLifetimeValue in
             let reference = ReadLifetimeReference(value: 42)
@@ -338,7 +338,7 @@ private struct Modify2AbortFailure: Error {}
         let spy = try Spy<any ConcreteReadAccessorProbe>(
             forwardingTo: ForwardingConcreteReadAccessorProbe(trace: trace)
         )
-        spy.when { $0.integer }.thenReturn(42)
+        spy.onCall { $0.integer }.thenReturn(42)
         let probe: any ConcreteReadAccessorProbe = spy()
 
         #expect(probe.integer == 42)

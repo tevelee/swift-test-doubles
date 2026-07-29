@@ -16,7 +16,7 @@ private struct ManualOnlyServiceStub: ManualOnlyService, StubConformer {
 @Test
 func manualStubWorksWithoutRuntimeFabrication() {
     let stub = ManualStub<ManualOnlyServiceStub>()
-    stub.when { $0.value(for: Match.equal(42)) }.thenReturn("forty-two")
+    stub.onCall { $0.value(for: Match.equal(42)) }.thenReturn("forty-two")
 
     let service: any ManualOnlyService = stub()
 

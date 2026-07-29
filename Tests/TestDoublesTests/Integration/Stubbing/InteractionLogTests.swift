@@ -26,8 +26,8 @@ private struct ManualInteractionLogServiceStub: ManualInteractionLogService, Stu
 @Suite struct InteractionLogTests {
     @Test func describesRecordedCallsInOrderWithWovenLabels() throws {
         let stub = try Stub<any InteractionLogAnalytics>()
-        stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
-        stub.when { $0.flush() }.thenDoNothing()
+        stub.onCall { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
+        stub.onCall { $0.flush() }.thenDoNothing()
 
         let analytics: any InteractionLogAnalytics = stub()
         analytics.track(event: "add_to_cart", value: 30)
@@ -51,7 +51,7 @@ private struct ManualInteractionLogServiceStub: ManualInteractionLogService, Stu
 
     @Test func numberColumnAlignsAcrossOrdersOfMagnitude() throws {
         let stub = try Stub<any InteractionLogAnalytics>()
-        stub.when { $0.flush() }.thenDoNothing()
+        stub.onCall { $0.flush() }.thenDoNothing()
 
         let analytics: any InteractionLogAnalytics = stub()
         for _ in 0 ..< 10 { analytics.flush() }
@@ -65,7 +65,7 @@ private struct ManualInteractionLogServiceStub: ManualInteractionLogService, Stu
 
     @Test func describingIsAQueryThatDoesNotConsumeBehaviorOrVerification() throws {
         let stub = try Stub<any InteractionLogAnalytics>()
-        stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
+        stub.onCall { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
 
         let analytics: any InteractionLogAnalytics = stub()
         analytics.track(event: "purchase", value: 42)
@@ -78,7 +78,7 @@ private struct ManualInteractionLogServiceStub: ManualInteractionLogService, Stu
 
     @Test func manualStubDescribesRecordedCalls() {
         let stub = ManualStub<ManualInteractionLogServiceStub>()
-        stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
+        stub.onCall { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
 
         let service: any ManualInteractionLogService = stub()
         service.track(event: "add_to_cart", value: 30)

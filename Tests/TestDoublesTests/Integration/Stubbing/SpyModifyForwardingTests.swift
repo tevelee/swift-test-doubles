@@ -169,7 +169,7 @@ private struct ModifyForwardingAbort: Error {}
         let spy = try Spy<any ModifyForwardingService>(
             forwardingTo: RealModifyForwardingService(trace: trace)
         )
-        spy.when { $0.value }.thenReturn(40)
+        spy.onCall { $0.value }.thenReturn(40)
         var service: any ModifyForwardingService = spy()
 
         service.value += 2

@@ -26,10 +26,10 @@ private func makeScenarioStub() throws -> Stub<any RuntimeScenarioService> {
 @Suite struct TestDoubleScenarioTests {
     @Test func synchronousStubScenarioPackagesAndComposesRegistrations() throws {
         let guest: StubScenario<any RuntimeScenarioService> = .init {
-            $0.when { $0.user(id: Match.equal(0)) }.thenReturn("Guest")
+            $0.onCall { $0.user(id: Match.equal(0)) }.thenReturn("Guest")
         }
         let fallback: StubScenario<any RuntimeScenarioService> = .init {
-            $0.when { $0.user(id: Match.any()) }.thenReturn("Member")
+            $0.onCall { $0.user(id: Match.any()) }.thenReturn("Member")
         }
         let stub = try makeScenarioStub()
 
@@ -42,7 +42,7 @@ private func makeScenarioStub() throws -> Stub<any RuntimeScenarioService> {
 
     @Test func manualStubScenarioUsesTheSameConfigurationVocabulary() {
         let scenario: ManualStubScenario<ManualScenarioService> = .init {
-            $0.when { $0.user(id: Match.any()) }.thenReturn("Member")
+            $0.onCall { $0.user(id: Match.any()) }.thenReturn("Member")
         }
         let stub = ManualStub<ManualScenarioService>()
 
@@ -54,7 +54,7 @@ private func makeScenarioStub() throws -> Stub<any RuntimeScenarioService> {
 
     @Test func asyncScenarioRecordsAsyncRequirements() async throws {
         let scenario: AsyncStubScenario<any RuntimeScenarioService> = .init {
-            await $0.when { await $0.load(id: Match.any()) }.then { (id: Int) async -> String in
+            await $0.onCall { await $0.load(id: Match.any()) }.then { (id: Int) async -> String in
                 "value:\(id)"
             }
         }

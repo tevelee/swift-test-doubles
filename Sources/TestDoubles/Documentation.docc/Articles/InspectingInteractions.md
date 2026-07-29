@@ -22,21 +22,23 @@ protocol Analytics: Sendable {
 ### Read recorded arguments as typed values
 
 When an assertion is more naturally expressed over the recorded arguments than
-as a count, ``Stub/invocations(_:)`` returns them as typed tuples in call order.
-The result annotation selects the tuple shape, and components bind to the
-requirement's arguments from the front:
+as a count, save the ``CallPattern`` returned by `onCall` and call
+``CallPattern/arguments()``. It returns typed tuples in call order. The result
+annotation selects the tuple shape, and components bind to the requirement's
+arguments from the front:
 
 ```swift
 let stub = try Stub<any Analytics>()
-stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
+let allEvents = stub.onCall {
+    $0.track(event: Match.any(), value: Match.any())
+}
+allEvents.thenDoNothing()
 
 let analytics: any Analytics = stub()
 analytics.track(event: "add_to_cart", value: 30)
 analytics.track(event: "purchase", value: 42)
 
-let calls: [(String, Int)] = stub.invocations {
-    $0.track(event: Match.any(), value: Match.any())
-}
+let calls: [(String, Int)] = allEvents.arguments()
 #expect(calls == [("add_to_cart", 30), ("purchase", 42)])
 ```
 
@@ -44,12 +46,13 @@ Trailing arguments may be omitted, so a narrower tuple reads a leading prefix,
 and matchers filter which calls are included:
 
 ```swift
-let events: [String] = stub.invocations { $0.track(event: Match.any(), value: Match.any()) }
+let events: [String] = allEvents.arguments()
 #expect(events == ["add_to_cart", "purchase"])
 
-let large: [(String, Int)] = stub.invocations {
+let largeEvents = stub.onCall {
     $0.track(event: Match.any(), value: Match.greaterThan(40))
 }
+let large: [(String, Int)] = largeEvents.arguments()
 #expect(large == [("purchase", 42)])
 ```
 
@@ -60,9 +63,7 @@ or guessing at a delay. It begins after the stream is created, so setup calls
 do not replay into the observation:
 
 ```swift
-let events: InvocationStream<(String, Int)> = stub.invocationStream {
-    $0.track(event: Match.any(), value: Match.any())
-}
+let events: InvocationStream<(String, Int)> = allEvents.stream()
 
 analytics.track(event: "feed_refreshed", value: 1)
 var iterator = events.makeAsyncIterator()
@@ -72,10 +73,9 @@ let call = try #require(await iterator.next())
 #expect(call.1 == 1)
 ```
 
-Matchers work exactly as they do for `verify`, so a stream can observe only
-calls that matter to the test. Reading it does not mark a call verified or
-commit captors. Cancelling a task awaiting `next()` returns `nil` and removes
-its waiter immediately.
+The pattern's matchers determine which calls the stream observes. Reading it
+does not mark a call verified or commit captures. Cancelling a task awaiting
+`next()` returns `nil` and removes its waiter immediately.
 
 ### Dump the whole call log
 
@@ -95,18 +95,17 @@ print(stub.describeInteractions())
 //   #2  track(event: "purchase", value: 42)
 ```
 
-Like reading invocations, it is a pure query: it does not verify, consume
-behavior, or commit captors, and on a `Spy` it includes forwarded calls
+Like reading pattern arguments, it is a pure query: it does not verify, consume
+behavior, or commit captures, and on a `Spy` it includes forwarded calls
 alongside overridden ones. Reach for it while debugging; keep `verify` for the
 assertion itself.
 
-Reading invocations is a pure query. Unlike `verify`, it does not report an
+Reading arguments is a pure query. Unlike `verify`, it does not report an
 issue on a mismatch, consume configured behavior, advance a chain, or commit
-captors, so it is safe to call as often as needed. It is the right tool for
+captures, so it is safe to call as often as needed. It is the right tool for
 custom assertions; keep `verify` and `verifyInOrder` when a count or order is
-the expectation and their diagnostics add value. The same API is available on
-``Spy`` and ``ManualStub``, with `returning:` overloads for results that need a
-recording placeholder.
+the expectation and their diagnostics add value. The same ``CallPattern`` API
+is available from ``Stub``, ``Spy``, and ``ManualStub``.
 
 ### Order interactions across doubles
 
@@ -118,8 +117,8 @@ fired when each lives on its own stub:
 ```swift
 let gateway = try Stub<any PaymentGateway>()
 let analytics = try Stub<any Analytics>()
-gateway.when { $0.charge(amount: Match.any()) }.thenDoNothing()
-analytics.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
+gateway.onCall { $0.charge(amount: Match.any()) }.thenDoNothing()
+analytics.onCall { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
 
 Checkout(gateway: gateway(), analytics: analytics()).placeOrder()
 
@@ -153,7 +152,7 @@ even if it has recorded calls of its own — check that one directly.
 
 ### Catch stale and unreachable registrations
 
-`verifyNoUnusedStubs()` reports every `when` registration that no recorded call
+`verifyNoUnusedStubs()` reports every `onCall` registration that no recorded call
 ever matched. This catches setup that has drifted out of sync with the code, and
 more subtly, a specific registration left unreachable behind an earlier
 catch-all under first-match-wins ordering:
@@ -162,8 +161,8 @@ catch-all under first-match-wins ordering:
 let stub = try Stub<any Analytics>()
 // Registered in the wrong order: the catch-all answers every call, so the
 // specific registration below it can never match.
-stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenReturn(())
-stub.when { $0.track(event: Match.equal("purchase"), value: Match.any()) }.thenReturn(())
+stub.onCall { $0.track(event: Match.any(), value: Match.any()) }.thenReturn(())
+stub.onCall { $0.track(event: Match.equal("purchase"), value: Match.any()) }.thenReturn(())
 
 stub().track(event: "purchase", value: 42)
 
@@ -174,8 +173,8 @@ Call it at the end of a test to keep registrations honest. It reads the same
 consumption tracking the matcher engine already maintains, so it costs nothing
 during the test itself.
 
-A shadowed registration is also caught eagerly: when a new `when` is provably
-unreachable behind an earlier one, an issue is reported at that `when` site as
+A shadowed registration is also caught eagerly: when a new `onCall` is provably
+unreachable behind an earlier one, an issue is reported at that `onCall` site as
 you register it, without waiting for `verifyNoUnusedStubs()`. The check is
 sound, flagging only registrations proven unreachable (a universal earlier
 matcher such as `Match.any()`, or the identical accepted set at every argument
@@ -184,7 +183,7 @@ specific-before-broad ordering is never flagged.
 
 ### Register recording placeholders once
 
-The recording pass behind every `when`, `verify`, and `invocations` closure
+The recording pass behind every `onCall` and one-shot `verify` closure
 needs one valid temporary value per argument and result. TestDoubles synthesizes
 these for most value types, but class instances and existentials normally take a
 value at each site through the `using:` and `returning:` overloads.
@@ -199,7 +198,7 @@ Match.Placeholders.register { User(name: "placeholder") }
 
 let stub = try Stub<any Directory>()
 // No Match.any(using:) needed: the registered factory supplies the recording value.
-stub.when { $0.displayName(for: Match.any()) }.thenReturn("Blob")
+stub.onCall { $0.displayName(for: Match.any()) }.thenReturn("Blob")
 ```
 
 A registered value is used only while recording; it is never matched against,
@@ -215,13 +214,13 @@ than registering inside individual parallel tests.
 
 `clearRecordedInvocations()` clears the invocation log while preserving
 configured behavior. Two more tools complete the picture.
-`clearConfiguredBehaviors()` removes every `when` registration while preserving
+`clearConfiguredBehaviors()` removes every `onCall` registration while preserving
 the log, which returns a ``Spy`` to pure forwarding and lets a test replace a
 registration that first-match-wins would otherwise shadow:
 
 ```swift
 stub.clearConfiguredBehaviors()
-stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenReturn(())  // fresh
+stub.onCall { $0.track(event: Match.any(), value: Match.any()) }.thenReturn(())  // fresh
 ```
 
 `reset()` on ``Stub`` and ``Spy`` does both at once, restoring the
@@ -231,7 +230,7 @@ parameterized cases:
 ```swift
 for scenario in scenarios {
     stub.reset()
-    stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
+    stub.onCall { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
     // exercise `scenario` against a clean double
 }
 ```

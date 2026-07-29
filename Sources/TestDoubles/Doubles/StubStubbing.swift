@@ -4,7 +4,7 @@ extension Stub {
     ///
     /// Swift cannot express the opened existential metatype as a generic closure
     /// parameter, so invoke the initializer through `type(of:)` inside `call`.
-    public func when(initializer call: (P) throws -> P) -> StubInitializerBuilder {
+    public func onCall(initializer call: (P) throws -> P) -> StubInitializerBuilder {
         let recording = recordInvocation(call)
         requireInitializerRecording(recording, returnConvention: .selfType)
         return StubInitializerBuilder(recorder: recorder, recording: recording)
@@ -14,7 +14,7 @@ extension Stub {
     ///
     /// Swift cannot express the opened existential metatype as a generic closure
     /// parameter, so invoke the initializer through `type(of:)` inside `call`.
-    public func when(
+    public func onCall(
         initializer call: (P) async throws -> P,
         isolation: isolated (any Actor)? = #isolation
     ) async -> StubInitializerBuilder {
@@ -27,7 +27,7 @@ extension Stub {
     ///
     /// Swift cannot express the opened existential metatype as a generic closure
     /// parameter, so invoke the initializer through `type(of:)` inside `call`.
-    public func when(initializer call: (P) throws -> P?) -> StubFailableInitializerBuilder {
+    public func onCall(initializer call: (P) throws -> P?) -> StubFailableInitializerBuilder {
         let recording = recordInvocation(call)
         requireInitializerRecording(recording, returnConvention: .optionalSelf)
         return StubFailableInitializerBuilder(recorder: recorder, recording: recording)
@@ -37,7 +37,7 @@ extension Stub {
     ///
     /// Swift cannot express the opened existential metatype as a generic closure
     /// parameter, so invoke the initializer through `type(of:)` inside `call`.
-    public func when(
+    public func onCall(
         initializer call: (P) async throws -> P?,
         isolation: isolated (any Actor)? = #isolation
     ) async -> StubFailableInitializerBuilder {
@@ -50,7 +50,7 @@ extension Stub {
     ///
     /// The configured invocation returns a fresh generated value backed by
     /// this stub's runtime resources.
-    public func when(returningSelf call: (P) throws -> P) -> StubSelfResultBuilder {
+    public func onCall(returningSelf call: (P) throws -> P) -> StubSelfResultBuilder {
         let recording = recordInvocation(call)
         requireSelfResultRecording(recording)
         return StubSelfResultBuilder(recorder: recorder, recording: recording)
@@ -60,7 +60,7 @@ extension Stub {
     ///
     /// The configured invocation returns a fresh generated value backed by
     /// this stub's runtime resources.
-    public func when(
+    public func onCall(
         returningSelf call: (P) async throws -> P,
         isolation: isolated (any Actor)? = #isolation
     ) async -> StubSelfResultBuilder {
@@ -73,7 +73,7 @@ extension Stub {
     ///
     /// A matching invocation can return a fresh generated value backed by this
     /// stub's runtime resources or `nil`.
-    public func when(
+    public func onCall(
         returningOptionalSelf call: (P) throws -> P?
     ) -> StubOptionalSelfResultBuilder {
         let recording = recordInvocation(call)
@@ -85,7 +85,7 @@ extension Stub {
     ///
     /// A matching invocation can return a fresh generated value backed by this
     /// stub's runtime resources or `nil`.
-    public func when(
+    public func onCall(
         returningOptionalSelf call: (P) async throws -> P?,
         isolation: isolated (any Actor)? = #isolation
     ) async -> StubOptionalSelfResultBuilder {
@@ -94,81 +94,81 @@ extension Stub {
         return StubOptionalSelfResultBuilder(recorder: recorder, recording: recording)
     }
 
-    /// Stubs an instance or static method, or getter, including throwing requirements.
-    public func when<Result>(
+    /// Describes an instance or static call for behavior and interaction operations.
+    public func onCall<Result>(
         _ call: (P) throws -> Result,
         fileID: StaticString = #fileID,
         filePath: StaticString = #filePath,
         line: UInt = #line,
         column: UInt = #column
-    ) -> StubBuilder<Result> {
+    ) -> CallPattern<Result> {
         let recording = recordInvocation(call).taggingRegistrationLocation(
             StubSourceLocation(fileID: fileID, filePath: filePath, line: line, column: column)
         )
-        return StubBuilder(recorder: recorder, recording: recording)
+        return CallPattern(recorder: recorder, recording: recording)
     }
 
-    /// Stubs a requirement whose result needs a valid value while recording.
+    /// Describes a call whose result needs a valid value while recording.
     ///
     /// Use this overload for reference, existential, and other results for which
     /// the runtime cannot safely synthesize a recording placeholder. The
     /// placeholder is returned only while capturing `call`; configured behavior
     /// still comes from the resulting builder.
-    public func when<Result>(
+    public func onCall<Result>(
         returning placeholder: Result,
         _ call: (P) throws -> Result,
         fileID: StaticString = #fileID,
         filePath: StaticString = #filePath,
         line: UInt = #line,
         column: UInt = #column
-    ) -> StubBuilder<Result> {
+    ) -> CallPattern<Result> {
         let recording = recordInvocation(returning: placeholder, call)
             .taggingRegistrationLocation(
                 StubSourceLocation(fileID: fileID, filePath: filePath, line: line, column: column)
             )
-        return StubBuilder(recorder: recorder, recording: recording)
+        return CallPattern(recorder: recorder, recording: recording)
     }
 
-    /// Stubs a direct property assignment.
+    /// Describes a direct property assignment.
     ///
     /// Compound assignment and `inout` access use Swift's `_modify` coroutine.
-    /// Configure its ordinary getter and direct setter separately with `when`.
-    public func when(
+    /// Configure its ordinary getter and direct setter separately with `onCall`.
+    public func onCall(
         _ call: (inout P) throws -> Void,
         fileID: StaticString = #fileID,
         filePath: StaticString = #filePath,
         line: UInt = #line,
         column: UInt = #column
-    ) -> StubBuilder<Void> {
+    ) -> CallPattern<Void> {
         let recording = recordMutation(call).taggingRegistrationLocation(
             StubSourceLocation(fileID: fileID, filePath: filePath, line: line, column: column)
         )
-        return StubBuilder(recorder: recorder, recording: recording)
+        return CallPattern(recorder: recorder, recording: recording)
     }
 
-    /// Stubs an async instance or static method, or getter, including throwing requirements.
-    public func when<Result>(
+    /// Describes an async call for behavior and interaction operations.
+    public func onCall<Result>(
         _ call: (P) async throws -> Result,
         isolation: isolated (any Actor)? = #isolation,
         fileID: StaticString = #fileID,
         filePath: StaticString = #filePath,
         line: UInt = #line,
         column: UInt = #column
-    ) async -> StubBuilder<Result> {
+    ) async -> CallPattern<Result> {
         let recording = await recordAsyncInvocation(call, isolation: isolation)
             .taggingRegistrationLocation(
                 StubSourceLocation(fileID: fileID, filePath: filePath, line: line, column: column)
             )
-        return StubBuilder(recorder: recorder, recording: recording)
+        return CallPattern(recorder: recorder, recording: recording)
     }
 
-    /// Stubs an async requirement whose result needs a valid value while recording.
+    /// Describes an async call whose result needs a valid value while recording.
     ///
     /// Use this overload for reference, existential, and other results for which
     /// the runtime cannot safely synthesize a recording placeholder. The
     /// placeholder is returned only while capturing `call`; configured behavior
     /// still comes from the resulting builder.
-    public func when<Result>(
+    public func onCall<Result>(
         returning placeholder: Result,
         _ call: (P) async throws -> Result,
         isolation: isolated (any Actor)? = #isolation,
@@ -176,7 +176,7 @@ extension Stub {
         filePath: StaticString = #filePath,
         line: UInt = #line,
         column: UInt = #column
-    ) async -> StubBuilder<Result> {
+    ) async -> CallPattern<Result> {
         let recording = await recordAsyncInvocation(
             returning: placeholder,
             call,
@@ -184,7 +184,7 @@ extension Stub {
         ).taggingRegistrationLocation(
             StubSourceLocation(fileID: fileID, filePath: filePath, line: line, column: column)
         )
-        return StubBuilder(recorder: recorder, recording: recording)
+        return CallPattern(recorder: recorder, recording: recording)
     }
 
     private func requireInitializerRecording(

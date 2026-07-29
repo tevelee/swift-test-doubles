@@ -125,11 +125,11 @@ private func callWithValue(
             method.typedErrorType.map(ObjectIdentifier.init)
                 == ObjectIdentifier(TypedThrowsRequirementError.self)
         )
-        success.when { try $0.load() }.thenReturn(42)
+        success.onCall { try $0.load() }.thenReturn(42)
         #expect(try success().load() == 42)
 
         let failure = try Stub<any TypedThrowsRequirementProbe>()
-        failure.when { try $0.load() }.thenThrow(TypedThrowsRequirementError.failed)
+        failure.onCall { try $0.load() }.thenThrow(TypedThrowsRequirementError.failed)
         #expect(throws: TypedThrowsRequirementError.failed) {
             _ = try failure().load()
         }
@@ -144,8 +144,8 @@ private func callWithValue(
     @Test func aggregateTypedErrorsUseDirectErrorResultRegisters() throws {
         _ = RealTypedThrowsPayloadProbe()
         let stub = try Stub<any TypedThrowsPayloadProbe>()
-        stub.when { try $0.load(Match.equal(false)) }.thenReturn("loaded")
-        stub.when { try $0.load(Match.equal(true)) }.then {
+        stub.onCall { try $0.load(Match.equal(false)) }.thenReturn("loaded")
+        stub.onCall { try $0.load(Match.equal(true)) }.then {
             (_: Bool) throws -> String in
             throw TypedThrowsPayloadError(code: 42, message: "failed")
         }
@@ -164,8 +164,8 @@ private func callWithValue(
         _ = RealIndirectTypedThrowsResultProbe()
 
         let indirectError = try Stub<any IndirectTypedThrowsRequirementProbe>()
-        indirectError.when { try $0.load(Match.equal(false)) }.thenReturn(42)
-        indirectError.when { try $0.load(Match.equal(true)) }.then {
+        indirectError.onCall { try $0.load(Match.equal(false)) }.thenReturn(42)
+        indirectError.onCall { try $0.load(Match.equal(true)) }.then {
             (_: Bool) throws -> Int in
             throw IndirectTypedThrowsRequirementError(
                 first: 1,
@@ -198,8 +198,8 @@ private func callWithValue(
             fourth: 4,
             fifth: 5
         )
-        indirectResult.when { try $0.load(Match.equal(false)) }.thenReturn(expected)
-        indirectResult.when { try $0.load(Match.equal(true)) }.then {
+        indirectResult.onCall { try $0.load(Match.equal(false)) }.thenReturn(expected)
+        indirectResult.onCall { try $0.load(Match.equal(true)) }.then {
             (_: Bool) throws -> IndirectTypedThrowsResult in
             throw TypedThrowsRequirementError.failed
         }
@@ -210,7 +210,7 @@ private func callWithValue(
 
         _ = RealSpilledTypedErrorBufferProbe()
         let spilled = try Stub<any SpilledTypedErrorBufferProbe>()
-        spilled.when { try $0.load(1, 2, 3, 4, 5, 6, 7, 8) }.then {
+        spilled.onCall { try $0.load(1, 2, 3, 4, 5, 6, 7, 8) }.then {
             (
                 _: Int,
                 _: Int,
@@ -252,7 +252,7 @@ private func callWithValue(
                 throwing: TypedThrowsPayloadError.self
             )
         )
-        success.when { try $0.load(Match.equal(1)) }.thenReturn("loaded")
+        success.onCall { try $0.load(Match.equal(1)) }.thenReturn("loaded")
         #expect(try success().load(1) == "loaded")
 
         let failure = try Stub<any ExplicitTypedThrowsProbe>(
@@ -262,7 +262,7 @@ private func callWithValue(
                 throwing: TypedThrowsPayloadError.self
             )
         )
-        failure.when { try $0.load(Match.equal(2)) }.then {
+        failure.onCall { try $0.load(Match.equal(2)) }.then {
             (_: Int) throws -> String in
             throw TypedThrowsPayloadError(code: 42, message: "failed")
         }
@@ -282,7 +282,7 @@ private func callWithValue(
                 throwing: TypedThrowsRequirementError.self
             )
         )
-        associated.when { try $0.load() }.thenReturn(42)
+        associated.onCall { try $0.load() }.thenReturn(42)
         #expect(try associated().load() == 42)
     }
 
@@ -294,7 +294,7 @@ private func callWithValue(
                 throwing: TypedThrowsRequirementError.self
             )
         )
-        matching.when { try $0.load() }.thenReturn(42)
+        matching.onCall { try $0.load() }.thenReturn(42)
         #expect(try matching().load() == 42)
 
         #expect(throws: StubError.self) {

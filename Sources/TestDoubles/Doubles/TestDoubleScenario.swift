@@ -5,7 +5,7 @@ enum TestDoubleScenarioContext {
 /// Reusable synchronous configuration for a test double.
 ///
 /// Prefer the ``StubScenario`` and ``ManualStubScenario`` aliases at call
-/// sites. A scenario packages ordinary `when` registrations and can be
+/// sites. A scenario packages ordinary `onCall` registrations and can be
 /// appended to another scenario in registration order.
 public struct TestDoubleScenario<Subject> {
     private let configure: (Subject) -> Void

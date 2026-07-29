@@ -13,7 +13,7 @@
             self.rawValue = rawValue
         }
 
-        /// Reports every `when` registration that no call matched.
+        /// Reports every `onCall` registration that no call matched.
         public static let noUnusedStubs = Self(rawValue: 1 << 0)
 
         /// Reports recorded calls that no successful `verify` covered.
@@ -41,7 +41,7 @@
     /// A Swift Testing scope that checks test doubles created inside a test.
     ///
     /// Apply ``Trait/testDoubles`` to a test or suite. At teardown, the scope
-    /// reports every `when` registration that no call matched. Use
+    /// reports every `onCall` registration that no call matched. Use
     /// ``Trait/strictTestDoubles`` to also require every recorded call to be
     /// explicitly verified and every tracked queue, suspension, and callback
     /// capture to be finished.
@@ -50,7 +50,7 @@
     /// @Test(.testDoubles)
     /// func checkoutUsesItsConfiguredGateway() throws {
     ///     let gateway = try Stub<any PaymentGateway>()
-    ///     gateway.when { $0.charge(amount: 42) }.thenReturn(.approved)
+    ///     gateway.onCall { $0.charge(amount: 42) }.thenReturn(.approved)
     ///
     ///     _ = try Checkout(gateway: gateway()).complete()
     /// }

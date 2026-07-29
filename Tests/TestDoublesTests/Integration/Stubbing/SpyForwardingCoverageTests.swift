@@ -391,7 +391,7 @@ struct RealSpyGetterService: SpyGetterService {
     @Test func overrideThenForwardPreservesInvocationOrder() throws {
         let target = RealSpySequencingService()
         let spy = try Spy<any SpySequencingService>(forwardingTo: target)
-        spy.when { $0.value(for: Match.equal(1)) }.thenReturn("overridden")
+        spy.onCall { $0.value(for: Match.equal(1)) }.thenReturn("overridden")
         let service: any SpySequencingService = spy()
 
         #expect(service.value(for: 1) == "overridden")
@@ -482,7 +482,7 @@ struct RealSpyGetterService: SpyGetterService {
             .nonthrowing,
             .throwing
         )
-        overridingSpy.when { try $0.throwingValue }.thenReturn("overridden")
+        overridingSpy.onCall { try $0.throwingValue }.thenReturn("overridden")
         let overridden: any SpyGetterService = overridingSpy()
         #expect(try overridden.throwingValue == "overridden")
         #expect(overridingState.accesses.isEmpty)
@@ -496,7 +496,7 @@ struct RealSpyGetterService: SpyGetterService {
             .nonthrowing,
             .throwing
         )
-        await spy.when { await $0.asyncValue }.thenReturn(99)
+        await spy.onCall { await $0.asyncValue }.thenReturn(99)
         let service: any SpyGetterService = spy()
 
         #expect(await service.asyncValue == 99)

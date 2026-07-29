@@ -6,7 +6,7 @@
 ///
 /// ```swift
 /// let stub = try Stub<any Calculator>()
-/// stub.when { $0.add(1, 2) }.thenReturn(42)
+/// stub.onCall { $0.add(1, 2) }.thenReturn(42)
 ///
 /// let calculator: any Calculator = stub()
 /// ```

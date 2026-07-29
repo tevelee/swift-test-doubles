@@ -17,8 +17,8 @@ import Testing
                 == .associatedType(named: "Failure")
         )
 
-        stub.when { try $0.load(Match.equal(false)) }.thenReturn(42)
-        stub.when { try $0.load(Match.equal(true)) }.thenThrow(ThrowingProbeError(value: 7))
+        stub.onCall { try $0.load(Match.equal(false)) }.thenReturn(42)
+        stub.onCall { try $0.load(Match.equal(true)) }.thenThrow(ThrowingProbeError(value: 7))
         let probe: Probe = stub()
 
         #expect(try probe.load(false) == 42)
@@ -47,7 +47,7 @@ import Testing
             method.typedErrorAssociatedTypeUse
                 == .associatedType(named: "Failure")
         )
-        stub.when { try $0.load(Match.any()) }.thenReturn(42)
+        stub.onCall { try $0.load(Match.any()) }.thenReturn(42)
         #expect(try stub().load(false) == 42)
     }
 
@@ -84,7 +84,7 @@ import Testing
         let method = try #require(stub.recorder.runtimeMethod(for: 0))
         #expect(method.typedErrorType.map(ObjectIdentifier.init) == ObjectIdentifier(Error.self))
 
-        stub.when { try $0.load() }.thenThrow(Error())
+        stub.onCall { try $0.load() }.thenThrow(Error())
         let error = #expect(throws: Error.self) {
             _ = try stub().load()
         }

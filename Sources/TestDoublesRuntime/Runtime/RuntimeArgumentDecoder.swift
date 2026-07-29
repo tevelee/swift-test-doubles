@@ -350,7 +350,7 @@ package enum RuntimeArgumentDecoder {
     /// Decodes Swift 6.3's direct borrowed pack ABI: an array of element
     /// source addresses, an element count, and a low-bit-tagged metadata-pack
     /// pointer. The recorder deliberately receives the flattened values, so
-    /// existing variadic `when` and `verify` calls retain their source order.
+    /// existing variadic `onCall` and `verify` calls retain their source order.
     private static func decodeMethodGenericParameterPack(
         locations: [CallFrameArgumentLocation],
         from frame: TrampolineCallFrame,

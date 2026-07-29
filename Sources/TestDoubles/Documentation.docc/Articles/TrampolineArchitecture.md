@@ -137,8 +137,8 @@ remain independent, so a method may mix them or use all eight vector argument
 registers. Vector spills are not copied to the target and therefore fail during
 construction.
 
-Capture mode normally encodes a synthesized recording result so the `when` or
-`verify` closure can return safely. `when(returning:_:)` and
+Capture mode normally encodes a synthesized recording result so the `onCall` or
+`verify` closure can return safely. `onCall(returning:_:)` and
 `verify(_:returning:_:)` instead carry a caller-supplied result through task-
 local context. This supports reference, existential, optional, and other values
 for which synthesis would be invalid, without adding mutable capture state to

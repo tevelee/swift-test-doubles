@@ -40,7 +40,7 @@ struct MyServiceStub: MyService, StubConformer {
 
 // 2. Configure and use in your test
 let stub = ManualStub<MyServiceStub>()
-stub.when { $0.fetch(id: Match.equal(42)) }.thenReturn("Alice")
+stub.onCall { $0.fetch(id: Match.equal(42)) }.thenReturn("Alice")
 
 let sut: any MyService = stub()
 // sut.fetch(id: 42) == "Alice"
@@ -111,7 +111,7 @@ protocol WeatherService {
 }
 
 let stub = ManualStub<WeatherServiceManualStub>()
-stub.when { $0.forecast(for: "Budapest") }.thenReturn("Sunny")
+stub.onCall { $0.forecast(for: "Budapest") }.thenReturn("Sunny")
 
 let service: any WeatherService = stub()
 // service.forecast(for: "Budapest") == "Sunny"
@@ -267,7 +267,7 @@ a "No stub configured" failure the first time it is exercised.
 - ``StubConformer`` — protocol your stub struct conforms to; provides
   `init(stub:)` for free via the synthesized memberwise initializer.
 - ``ManualStub`` — the stub container; holds registrations and the call log,
-  and provides `when`, immediate or eventual `verify`, `verifyInOrder`,
+  and provides `onCall`, immediate or eventual `verify`, `verifyInOrder`,
   `verifyNoMoreInteractions`, and `clearRecordedInvocations` with the same
   semantics as ``Stub``.
 - ``ManualRouteID`` — a readable signature plus static argument-type identity

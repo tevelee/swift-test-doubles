@@ -1,6 +1,6 @@
 import Foundation
 
-extension StubBuilder where Result: Encodable & Sendable {
+extension CallPattern where Result: Encodable & Sendable {
     /// Runs `handler` — typically a call to the real dependency a `Spy`
     /// forwards to — and records its result into `session` under `key`, in
     /// addition to returning it as this call's answer.
@@ -8,7 +8,7 @@ extension StubBuilder where Result: Encodable & Sendable {
     /// ```swift
     /// let spy: Spy<any WeatherService> = .make(forwardingTo: live)
     /// let session = RecordingSession()
-    /// spy.when { try await $0.currentConditions(for: Match.any()) }
+    /// spy.onCall { try await $0.currentConditions(for: Match.any()) }
     ///     .thenRecord(as: "currentConditions", into: session) { city in
     ///         try await live.currentConditions(for: city)
     ///     }
@@ -99,7 +99,7 @@ extension StubBuilder where Result: Encodable & Sendable {
         }
     }
 
-    /// The async form of ``thenRecord(as:into:calling:)-62gmo``, for an async
+    /// The async form of ``thenRecord(as:into:calling:)-2d9h6``, for an async
     /// requirement forwarding to an async real dependency.
     public func thenRecord<each Argument>(
         as key: String,
@@ -115,7 +115,7 @@ extension StubBuilder where Result: Encodable & Sendable {
     }
 }
 
-extension StubBuilder where Result: Decodable {
+extension CallPattern where Result: Decodable {
     /// Configures fixed responses for this registration from `fixture`'s
     /// calls recorded under `key`, in recording order — exactly like
     /// `thenReturn(_:_:_:)` built from playback: the last recorded response

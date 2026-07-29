@@ -24,7 +24,7 @@ import Testing
     @Suite struct Float16ABITests {
         @Test func float16ArgumentsAndResultsRoundTrip() throws {
             let stub = try Stub<any HalfPrecisionABIProbe>()
-            stub.when { $0.scale(Match.equal(2 as Float16), by: Match.any()) }
+            stub.onCall { $0.scale(Match.equal(2 as Float16), by: Match.any()) }
                 .then { (value: Float16, factor: Float16) in value * factor }
 
             let probe = stub()
@@ -34,7 +34,7 @@ import Testing
 
         @Test func float16GetterRoundTrips() throws {
             let stub = try Stub<any HalfPrecisionABIProbe>()
-            stub.when { $0.offset }.thenReturn(1.5)
+            stub.onCall { $0.offset }.thenReturn(1.5)
 
             #expect(stub().offset == 1.5)
         }
@@ -42,7 +42,7 @@ import Testing
         @Test func aggregatesContainingFloat16RoundTrip() throws {
             let stub = try Stub<any HalfPrecisionABIProbe>()
             let expected = HalfPrecisionABIRange(lower: -1, upper: 2)
-            stub.when { $0.bounds() }.thenReturn(expected)
+            stub.onCall { $0.bounds() }.thenReturn(expected)
 
             #expect(stub().bounds() == expected)
         }

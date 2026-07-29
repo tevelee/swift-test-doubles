@@ -207,28 +207,28 @@ that restricted error channel.
 
 ### Static and initializer requirements
 
-Instance and static requirements share `when` and `verify`. Swift cannot spell
+Instance and static requirements share `onCall` and `verify`. Swift cannot spell
 the opened existential metatype as the closure parameter, so invoke a static
 requirement through `type(of:)`:
 
 ```swift
-stub.when { type(of: $0).defaultName() }.thenReturn("Guest")
+stub.onCall { type(of: $0).defaultName() }.thenReturn("Guest")
 
 let value: any UserFactory = stub()
 #expect(type(of: value).defaultName() == "Guest")
 ```
 
-Record initializers through the labeled `when(initializer:)` overload.
+Record initializers through the labeled `onCall(initializer:)` overload.
 They return another generated value backed by the same recorder and runtime
 graph. Finish a nonfailable initializer with `thenInitialize()`; failable
 initializers can instead return `nil`:
 
 ```swift
-stub.when(initializer: {
+stub.onCall(initializer: {
     type(of: $0).init(id: Match.any())
 }).thenInitialize()
 
-stub.when(initializer: {
+stub.onCall(initializer: {
     type(of: $0).init(validating: Match.any())
 }).then { id in
     id > 0 ? .initialize : .returnNil
@@ -257,8 +257,8 @@ produce a fresh value backed by the same recorder and runtime graph:
 
 ```swift
 let stub = try Stub<any Duplicating>()
-stub.when(returningSelf: { $0.duplicate() }).thenReturnValue()
-stub.when { $0.marker() }.thenReturn(42)
+stub.onCall(returningSelf: { $0.duplicate() }).thenReturnValue()
+stub.onCall { $0.marker() }.thenReturn(42)
 
 let duplicate = stub().duplicate()
 #expect(duplicate.marker() == 42)
@@ -271,7 +271,7 @@ a different fabricated witness graph from being returned accidentally.
 
 Without a linked conformer or resilient requirement symbol, describe the result
 as `.method(returning: .dynamicSelf)`. Optional `Self?` uses
-`.optionalDynamicSelf` with `when(returningOptionalSelf:)`, which can return a
+`.optionalDynamicSelf` with `onCall(returningOptionalSelf:)`, which can return a
 fresh generated value or `nil`.
 
 Automatically discovered nonthrowing instance methods may also accept direct

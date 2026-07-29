@@ -84,10 +84,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   results are recorded; a thrown error still propagates but is not captured.
   Both sides require the requirement's `Result` to round-trip through
   `JSONEncoder`/`JSONDecoder`.
-- Eager detection of unreachable stub registrations. When a new `when`
+- Eager detection of unreachable stub registrations. When a new `onCall`
   registration is provably shadowed by an earlier one under first-match-wins,
   such as a specific matcher registered behind an earlier catch-all, an issue
-  is reported at that `when` site instead of silently never firing. The check
+  is reported at that `onCall` site instead of silently never firing. The check
   is sound: it flags only registrations proven unreachable (a universal
   earlier matcher, or the identical accepted set at every position) and never
   guesses through opaque predicates.
@@ -130,7 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pure query that neither verifies, consumes configured behavior, nor
   commits captors. `returning:` overloads cover results that need a valid
   recording placeholder.
-- `clearConfiguredBehaviors()` removes every `when` registration while
+- `clearConfiguredBehaviors()` removes every `onCall` registration while
   preserving the invocation log, returning a `Spy` to pure forwarding, and
   `reset()` on `Stub` and `Spy` restores the just-constructed state by
   clearing behaviors and invocations together. `ManualStub` gets
@@ -151,13 +151,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   double. Works across `Stub`, `Spy`, and `ManualStub`, sync and async. A
   failed step reports a test issue at its own call site; successful steps
   commit captors and count for `verifyNoMoreInteractions()`.
-- `verifyNoUnusedStubs()` reports every `when` registration that no recorded
+- `verifyNoUnusedStubs()` reports every `onCall` registration that no recorded
   call ever matched, listing each unused registration's signature. This
   catches stale setup and, more importantly, registrations left unreachable
   behind an earlier catch-all under first-match-wins ordering.
 - `Match.Placeholders` registers suite-wide factories for recording
   placeholder values, so class and existential arguments and results no
-  longer need `using:` or `returning:` at every `when`/`verify` site.
+  longer need `using:` or `returning:` at every `onCall`/`verify` site.
   Explicit `using:`/`returning:` values win over registered factories, and
   registered factories win over synthesized values; registered values are
   used only during the recording pass and are never matched against or
@@ -180,7 +180,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   legible diagnostic descriptions.
 - WatchOS simulator support
 - Explicit `thenDoNothing()` behavior for `Void`-returning stub requirements;
-  `when` now requires a terminal behavior, so ignoring its builder produces a
+  `onCall` now requires a terminal behavior, so ignoring its builder produces a
   compiler warning and no longer installs an implicit `Void` fallback.
 - Chainable fixed returns, errors, and no-ops for consecutive matching
   invocations, with the final configured behavior repeating.
@@ -198,6 +198,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Verification now uses native `RangeExpression<Int>` values as its primary
+  vocabulary: `2...`, `...2`, and `2...4` express lower bounds, upper bounds,
+  and closed ranges directly. `.exactly(2)` and `.never` remain conveniences
+  for the two cases that ranges spell less clearly. Eventual verification
+  accepts a monotonic lower-bounded range such as `2...`.
 - Argument matching is now one discoverable API family under `Match`.
   Top-level matcher functions moved to static methods such as `Match.any()`,
   `Match.equal(_:)`, and `Match.allOf(_:_:)`; `ArgumentCaptor` became
@@ -211,7 +216,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   argument its matcher accepted or rejected with the actual value against the
   expected matcher, so the closest near-miss is visible at a glance instead of
   only listing the registrations.
-- When multiple `when` registrations match a call, the first matching
+- When multiple `onCall` registrations match a call, the first matching
   registration now wins and matcher specificity no longer ranks
   registrations. Registration order is the entire contract, like the cases of
   a `switch`: register specific matchers first and broad fallbacks last,

@@ -1,11 +1,11 @@
 extension RangeExpression where Self == ClosedRange<Int> {
-    /// Returns a range that matches only `count`.
+    /// Returns a range containing only `count`.
     public static func exactly(_ count: Int) -> Self {
         count ... count
     }
 
-    /// Returns a range that matches only zero.
-    public static func never() -> Self {
+    /// A range containing only zero.
+    public static var never: Self {
         .exactly(0)
     }
 }

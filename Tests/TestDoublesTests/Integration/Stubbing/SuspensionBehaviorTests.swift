@@ -25,7 +25,7 @@ private actor CompletionFlag {
 @Suite struct SuspensionBehaviorTests {
     @Test func resumeReturningCompletesAParkedCall() async throws {
         let stub = try Stub<any SuspensionProbeService>()
-        let suspension = await stub.when { try await $0.fetch(id: Match.any()) }.thenSuspend()
+        let suspension = await stub.onCall { try await $0.fetch(id: Match.any()) }.thenSuspend()
 
         let service: any SuspensionProbeService = stub()
         let completed = CompletionFlag()
@@ -46,7 +46,7 @@ private actor CompletionFlag {
 
     @Test func resumeThrowingCompletesAParkedCall() async throws {
         let stub = try Stub<any SuspensionProbeService>()
-        let suspension = await stub.when { try await $0.fetch(id: Match.any()) }.thenSuspend()
+        let suspension = await stub.onCall { try await $0.fetch(id: Match.any()) }.thenSuspend()
 
         let service: any SuspensionProbeService = stub()
         let task = Task {
@@ -63,7 +63,7 @@ private actor CompletionFlag {
 
     @Test func parkedCallsResumeInArrivalOrder() async throws {
         let stub = try Stub<any SuspensionProbeService>()
-        let suspension = await stub.when { try await $0.fetch(id: Match.any()) }.thenSuspend()
+        let suspension = await stub.onCall { try await $0.fetch(id: Match.any()) }.thenSuspend()
 
         let service: any SuspensionProbeService = stub()
         let first = Task { try await service.fetch(id: 1) }
@@ -80,7 +80,7 @@ private actor CompletionFlag {
 
     @Test func voidResumeCompletesAParkedVoidCall() async throws {
         let stub = try Stub<any SuspensionProbeService>()
-        let suspension = await stub.when { await $0.warmUp() }.thenSuspend()
+        let suspension = await stub.onCall { await $0.warmUp() }.thenSuspend()
 
         let service: any SuspensionProbeService = stub()
         let completed = CompletionFlag()
@@ -99,7 +99,7 @@ private actor CompletionFlag {
 
     @Test func waitForCallReturnsImmediatelyWhenAlreadyParked() async throws {
         let stub = try Stub<any SuspensionProbeService>()
-        let suspension = await stub.when { try await $0.fetch(id: Match.any()) }.thenSuspend()
+        let suspension = await stub.onCall { try await $0.fetch(id: Match.any()) }.thenSuspend()
 
         let service: any SuspensionProbeService = stub()
         let task = Task { try await service.fetch(id: 3) }
@@ -114,7 +114,7 @@ private actor CompletionFlag {
 
     @Test func cancellingWaitForCallReleasesTheWaiter() async throws {
         let stub = try Stub<any SuspensionProbeService>()
-        let suspension = await stub.when { try await $0.fetch(id: Match.any()) }.thenSuspend()
+        let suspension = await stub.onCall { try await $0.fetch(id: Match.any()) }.thenSuspend()
 
         let waiter = Task {
             await suspension.waitForCall()

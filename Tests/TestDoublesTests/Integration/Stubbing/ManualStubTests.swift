@@ -40,9 +40,9 @@ private struct SaveError: Error, Equatable {}
 @Suite struct ManualStubTests {
     @Test func baseRouteSyncMethodsMatchAndReturn() {
         let stub = ManualStub<ManualServiceStub>()
-        stub.when { $0.fetch(id: Match.equal(42)) }.thenReturn("Alice")
-        stub.when { $0.fetch(id: Match.any()) }.thenReturn("guest")
-        stub.when { $0.add(Match.any(), Match.any()) }.then { (a: Int, b: Int) in a + b }
+        stub.onCall { $0.fetch(id: Match.equal(42)) }.thenReturn("Alice")
+        stub.onCall { $0.fetch(id: Match.any()) }.thenReturn("guest")
+        stub.onCall { $0.add(Match.any(), Match.any()) }.then { (a: Int, b: Int) in a + b }
 
         let service: any ManualService = stub()
         #expect(service.fetch(id: 1) == "guest")
@@ -55,20 +55,20 @@ private struct SaveError: Error, Equatable {}
 
     @Test func baseRouteVoidMethodRecordsAndVerifies() {
         let stub = ManualStub<ManualServiceStub>()
-        stub.when { $0.reset() }.thenDoNothing()
+        stub.onCall { $0.reset() }.thenDoNothing()
 
         let service: any ManualService = stub()
         service.reset()
         service.reset()
 
         stub.verify(.exactly(2)) { $0.reset() }
-        stub.verify(.never()) { $0.fetch(id: Match.any()) }
+        stub.verify(.never) { $0.fetch(id: Match.any()) }
     }
 
     @Test func baseRouteGetterAndSetterMatchAndVerify() {
         let stub = ManualStub<ManualServiceStub>()
-        stub.when { $0.count }.thenReturn(7)
-        stub.when { $0.count = Match.any() }.thenDoNothing()
+        stub.onCall { $0.count }.thenReturn(7)
+        stub.onCall { $0.count = Match.any() }.thenDoNothing()
 
         var service: any ManualService = stub()
         #expect(service.count == 7)
@@ -79,8 +79,8 @@ private struct SaveError: Error, Equatable {}
 
     @Test func baseRouteAsyncMethodsMatchAndReturn() async {
         let stub = ManualStub<ManualServiceStub>()
-        await stub.when { await $0.load() }.then { () async -> String in "loaded" }
-        await stub.when { await $0.tick() }.thenDoNothing()
+        await stub.onCall { await $0.load() }.then { () async -> String in "loaded" }
+        await stub.onCall { await $0.tick() }.thenDoNothing()
 
         let service: any ManualService = stub()
         #expect(await service.load() == "loaded")
@@ -92,8 +92,8 @@ private struct SaveError: Error, Equatable {}
 
     @Test func throwingRouteSyncMethodPropagatesSuccessAndFailure() throws {
         let stub = ManualStub<ManualServiceStub>()
-        stub.when { try $0.save(Match.equal("ok")) }.thenDoNothing()
-        stub.when { try $0.save(Match.equal("bad")) }.then { (_: String) throws -> Void in
+        stub.onCall { try $0.save(Match.equal("ok")) }.thenDoNothing()
+        stub.onCall { try $0.save(Match.equal("bad")) }.then { (_: String) throws -> Void in
             throw SaveError()
         }
 
@@ -108,8 +108,8 @@ private struct SaveError: Error, Equatable {}
 
     @Test func throwingRouteAsyncMethodAndGetterWork() async throws {
         let stub = ManualStub<ManualServiceStub>()
-        await stub.when { try await $0.refresh() }.then { () async throws -> String in "fresh" }
-        stub.when { try $0.token }.thenReturn("secret")
+        await stub.onCall { try await $0.refresh() }.then { () async throws -> String in "fresh" }
+        stub.onCall { try $0.token }.thenReturn("secret")
 
         let service: any ManualService = stub()
         #expect(try await service.refresh() == "fresh")
@@ -127,8 +127,8 @@ private struct SaveError: Error, Equatable {}
         // intern to the same key regardless of what #function evaluates to
         // inside a property accessor.
         let stub = ManualStub<ManualServiceStub>()
-        await stub.when { await $0.asyncCount }.thenReturn(3)
-        await stub.when { try await $0.asyncToken }.thenReturn("explicit")
+        await stub.onCall { await $0.asyncCount }.thenReturn(3)
+        await stub.onCall { try await $0.asyncToken }.thenReturn("explicit")
 
         let service: any ManualService = stub()
         #expect(await service.asyncCount == 3)
@@ -137,7 +137,7 @@ private struct SaveError: Error, Equatable {}
 
     @Test func sequencedReturnsServeConsecutiveCallsThenRepeat() {
         let stub = ManualStub<ManualServiceStub>()
-        stub.when { $0.fetch(id: Match.equal(1)) }.thenReturn("first", "second")
+        stub.onCall { $0.fetch(id: Match.equal(1)) }.thenReturn("first", "second")
 
         let service: any ManualService = stub()
         #expect(service.fetch(id: 1) == "first")
@@ -147,7 +147,7 @@ private struct SaveError: Error, Equatable {}
 
     @Test func behaviorChainMixesNoOpsAndErrorsThenRepeatsTheLast() throws {
         let stub = ManualStub<ManualServiceStub>()
-        stub.when { try $0.save(Match.any()) }
+        stub.onCall { try $0.save(Match.any()) }
             .thenDoNothing()
             .thenThrow(SaveError())
             .thenDoNothing(times: 1...)
@@ -161,7 +161,7 @@ private struct SaveError: Error, Equatable {}
 
     @Test func argumentCaptorCollectsMatchingArguments() {
         let stub = ManualStub<ManualServiceStub>()
-        stub.when { $0.fetch(id: Match.any()) }.thenReturn("x")
+        stub.onCall { $0.fetch(id: Match.any()) }.thenReturn("x")
 
         let service: any ManualService = stub()
         _ = service.fetch(id: 1)
@@ -174,7 +174,7 @@ private struct SaveError: Error, Equatable {}
 
     @Test func verifyInOrderMatchesRelativeCallSubsequence() {
         let stub = ManualStub<ManualServiceStub>()
-        stub.when { $0.fetch(id: Match.any()) }.thenReturn("x")
+        stub.onCall { $0.fetch(id: Match.any()) }.thenReturn("x")
 
         let service: any ManualService = stub()
         _ = service.fetch(id: 1)
@@ -189,10 +189,10 @@ private struct SaveError: Error, Equatable {}
 
     @Test func verifyInOrderSupportsMixedMethodsGettersAndSetters() {
         let stub = ManualStub<ManualServiceStub>()
-        stub.when { $0.fetch(id: Match.any()) }.thenReturn("x")
-        stub.when { $0.count }.thenReturn(7)
-        stub.when { $0.count = Match.any() }.thenDoNothing()
-        stub.when { $0.reset() }.thenDoNothing()
+        stub.onCall { $0.fetch(id: Match.any()) }.thenReturn("x")
+        stub.onCall { $0.count }.thenReturn(7)
+        stub.onCall { $0.count = Match.any() }.thenDoNothing()
+        stub.onCall { $0.reset() }.thenDoNothing()
         var service: any ManualService = stub()
 
         _ = service.fetch(id: 1)
@@ -212,8 +212,8 @@ private struct SaveError: Error, Equatable {}
 
     @Test func verifyInOrderReportsManualSetterOrderFailures() {
         let stub = ManualStub<ManualServiceStub>()
-        stub.when { $0.fetch(id: Match.any()) }.thenReturn("x")
-        stub.when { $0.count = Match.any() }.thenDoNothing()
+        stub.onCall { $0.fetch(id: Match.any()) }.thenReturn("x")
+        stub.onCall { $0.count = Match.any() }.thenDoNothing()
         var service: any ManualService = stub()
         _ = service.fetch(id: 1)
         service.count = 2

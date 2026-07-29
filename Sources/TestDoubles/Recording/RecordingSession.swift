@@ -1,7 +1,7 @@
 import Foundation
 
-/// Captures results produced by ``StubBuilder/thenRecord(as:into:calling:)-62gmo``
-/// so they can be replayed later with ``StubBuilder/thenReplay(as:from:)``.
+/// Captures results produced by ``CallPattern/thenRecord(as:into:calling:)-2d9h6``
+/// so they can be replayed later with ``CallPattern/thenReplay(as:from:)``.
 ///
 /// Attach one session to a `Spy` wrapping a real dependency, record a test
 /// pass against the real thing, then freeze it into an ``InteractionFixture``
@@ -13,7 +13,7 @@ import Foundation
 /// let spy: Spy<any WeatherService> = .make(forwardingTo: live)
 /// let session = RecordingSession()
 ///
-/// spy.when { try await $0.currentConditions(for: Match.any()) }
+/// spy.onCall { try await $0.currentConditions(for: Match.any()) }
 ///     .thenRecord(as: "currentConditions", into: session) { city in
 ///         try await live.currentConditions(for: city)
 ///     }

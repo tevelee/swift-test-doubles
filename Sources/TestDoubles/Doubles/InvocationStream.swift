@@ -1,7 +1,6 @@
 /// An asynchronous sequence of future invocations matching one requirement.
 ///
-/// Create a stream with ``Stub/invocationStream(_:)`` or
-/// ``ManualStub/invocationStream(_:)``. A stream observes calls made after it
+/// Create a stream with ``CallPattern/stream()``. A stream observes calls made after it
 /// is created, in recorded order. It is a pure observation: yielding a call
 /// does not mark it verified or commit argument captors.
 public struct InvocationStream<Element>: AsyncSequence {

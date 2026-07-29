@@ -3,7 +3,7 @@ import Foundation
 extension Match {
     /// Process-global factories for recording placeholder values.
     ///
-    /// The recording pass behind `when`, `verify`, and `invocations` closures
+    /// The recording pass behind `onCall`, `verify`, and `invocations` closures
     /// needs one valid temporary value per argument and result. TestDoubles
     /// synthesizes most types; class instances, existentials, and other layouts
     /// it cannot initialize safely normally take a value at each site through
@@ -14,7 +14,7 @@ extension Match {
     /// Match.Placeholders.register { User(name: "placeholder") }
     ///
     /// // Every later recording of a User argument or result just works:
-    /// stub.when { $0.displayName(for: Match.any()) }.thenReturn("Blob")
+    /// stub.onCall { $0.displayName(for: Match.any()) }.thenReturn("Blob")
     /// ```
     ///
     /// A registered value is used only while recording. It is never matched

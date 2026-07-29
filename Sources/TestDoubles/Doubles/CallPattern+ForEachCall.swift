@@ -1,4 +1,4 @@
-extension StubBuilder {
+extension CallPattern {
     /// Handles each matching invocation with a running call count as the
     /// handler's first argument, ahead of the requirement's typed arguments.
     ///
@@ -8,7 +8,7 @@ extension StubBuilder {
     /// recover, say — without threading a counter through the test yourself:
     ///
     /// ```swift
-    /// loader.when { try $0.loadFeed() }.thenForEachCall { attempt in
+    /// loader.onCall { try $0.loadFeed() }.thenForEachCall { attempt in
     ///     if attempt < 3 { throw URLError(.timedOut) }
     ///     return ["Hello, world"]
     /// }
@@ -41,7 +41,7 @@ extension StubBuilder {
 
     /// Handles each matching async invocation with a running call count as the
     /// handler's first argument, ahead of the requirement's typed arguments.
-    /// See ``StubBuilder/thenForEachCall(_:)-72ner`` for the counting contract;
+    /// See ``CallPattern/thenForEachCall(_:)-5yw9y`` for the counting contract;
     /// the requirement must be async.
     public func thenForEachCall<each Argument>(
         _ handler: @escaping (Int, repeat each Argument) async throws -> Result

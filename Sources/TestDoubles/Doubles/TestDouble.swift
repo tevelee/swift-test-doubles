@@ -17,23 +17,6 @@ extension ManualStub: TestDouble {}
 // MARK: - Recording
 
 extension TestDouble {
-    func typedInvocationArguments<each Argument>(
-        from call: RecordedCall
-    ) -> (repeat each Argument) {
-        var index = 0
-        func nextArgument<T>(_ type: T.Type) -> T {
-            defer { index += 1 }
-            return typedArgument(
-                type,
-                from: call.args,
-                at: index,
-                method: call.name,
-                context: "Invocation stream"
-            )
-        }
-        return (repeat nextArgument((each Argument).self))
-    }
-
     func recordInvocation<Result>(
         _ call: (Generated) throws -> Result
     ) -> RecordedCall {
@@ -163,7 +146,7 @@ extension TestDouble {
         guard let recording = recordings.first else {
             fatalError(
                 "[TestDoubles] The recording closure did not invoke a protocol requirement. "
-                    + "Call exactly one requirement inside `when` or `verify`. "
+                    + "Call exactly one requirement inside `onCall` or `verify`. "
                     + "If this was a method declared only in a protocol extension, Swift dispatches "
                     + "it statically and TestDoubles cannot intercept it; declare it as a protocol "
                     + "requirement instead."
@@ -172,7 +155,7 @@ extension TestDouble {
         guard recordings.count == 1 else {
             fatalError(
                 "[TestDoubles] The recording closure invoked \(recordings.count) protocol requirements, "
-                    + "but `when` and `verify` accept exactly one. Split them into separate operations; "
+                    + "but `onCall` and `verify` accept exactly one. Split them into separate operations; "
                     + "use `verifyInOrder` when checking an ordered sequence."
             )
         }
@@ -191,32 +174,13 @@ extension TestDouble {
         line: UInt,
         column: UInt
     ) {
-        func report(_ message: String) {
-            reportIssue(
-                message,
-                fileID: fileID,
-                filePath: filePath,
-                line: line,
-                column: column
-            )
-        }
-
-        let matches = recorder.preparedVerificationMatches(
-            method: recording.methodIndex,
-            matchers: recording.resolvedMatchers,
-            matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly
+        CallPattern<Void>(recorder: recorder, recording: recording).verify(
+            expectedCounts,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
         )
-        let actualCount = matches.count
-
-        guard expectedCounts.contains(actualCount) else {
-            var message = "'\(recording.name)': expected \(callCountDescription(for: expectedCounts)), got \(actualCount)"
-            if let nearMisses = recorder.verificationNearMisses(for: recording) {
-                message += "\n\n\(nearMisses)"
-            }
-            report(message)
-            return
-        }
-        recorder.commitSuccessfulVerification(of: matches)
     }
 
     func verifyCallCount(
@@ -229,29 +193,14 @@ extension TestDouble {
         line: UInt,
         column: UInt
     ) async {
-        switch await recorder.waitForCallCount(
-            recording: recording,
-            minimumCount: expectedCounts.lowerBound,
-            timeout: timeout
-        ) {
-            case .satisfied, .cancelled:
-                return
-
-            case .timedOut(let actualCount):
-                var message =
-                    "'\(recording.name)': expected \(callCountDescription(for: expectedCounts)) "
-                    + "within \(timeout), got \(actualCount)"
-                if let nearMisses = recorder.verificationNearMisses(for: recording) {
-                    message += "\n\n\(nearMisses)"
-                }
-                reportIssue(
-                    message,
-                    fileID: fileID,
-                    filePath: filePath,
-                    line: line,
-                    column: column
-                )
-        }
+        await CallPattern<Void>(recorder: recorder, recording: recording).verify(
+            expectedCounts,
+            within: timeout,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
     }
 
     func verifyCallCount(
@@ -265,58 +214,15 @@ extension TestDouble {
         line: UInt,
         column: UInt
     ) async {
-        switch await recorder.waitForCallCount(
-            recording: recording,
-            minimumCount: expectedCounts.lowerBound,
-            timeout: timeout,
-            using: clock
-        ) {
-            case .satisfied, .cancelled:
-                return
-            case .timedOut(let actualCount):
-                var message =
-                    "'\(recording.name)': expected at least \(expectedCounts.lowerBound) "
-                    + "call\(expectedCounts.lowerBound == 1 ? "" : "s") within \(timeout), got \(actualCount)"
-                if let nearMisses = recorder.verificationNearMisses(for: recording) {
-                    message += "\n\n\(nearMisses)"
-                }
-                reportIssue(
-                    message,
-                    fileID: fileID,
-                    filePath: filePath,
-                    line: line,
-                    column: column
-                )
-        }
-    }
-
-    private func callCountDescription(for expectedCounts: any RangeExpression<Int>) -> String {
-        func calls(_ count: Int) -> String {
-            "\(count) \(count == 1 ? "call" : "calls")"
-        }
-
-        switch expectedCounts {
-            case let range as ClosedRange<Int> where range.lowerBound == range.upperBound:
-                return range.lowerBound == 0 ? "no calls" : calls(range.lowerBound)
-
-            case let range as ClosedRange<Int>:
-                return "between \(calls(range.lowerBound)) and \(calls(range.upperBound))"
-
-            case let range as Range<Int>:
-                return "at least \(calls(range.lowerBound)) and fewer than \(calls(range.upperBound))"
-
-            case let range as PartialRangeFrom<Int>:
-                return "at least \(calls(range.lowerBound))"
-
-            case let range as PartialRangeThrough<Int>:
-                return "at most \(calls(range.upperBound))"
-
-            case let range as PartialRangeUpTo<Int>:
-                return "fewer than \(calls(range.upperBound))"
-
-            default:
-                return "a count matching \(expectedCounts)"
-        }
+        await CallPattern<Void>(recorder: recorder, recording: recording).verify(
+            expectedCounts,
+            within: timeout,
+            using: clock,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
     }
 
     func verifyInOrder(

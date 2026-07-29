@@ -22,7 +22,7 @@ enum GlobalInvocationSequence {
     }
 }
 
-/// The source location of a `when` call, so a diagnostic about the
+/// The source location of a `onCall` call, so a diagnostic about the
 /// registration (such as an unreachable stub) can point at the test.
 struct StubSourceLocation: Sendable {
     let fileID: StaticString
@@ -221,7 +221,7 @@ struct RecordedCall: @unchecked Sendable {
         self.registrationLocation = registrationLocation
     }
 
-    /// Returns a copy tagged with the `when` call's source location.
+    /// Returns a copy tagged with the `onCall` call's source location.
     func taggingRegistrationLocation(_ location: StubSourceLocation?) -> RecordedCall {
         RecordedCall(
             id: id,

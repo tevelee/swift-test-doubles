@@ -8,7 +8,7 @@ extension Stub {
         recorder.clearRecordedInvocations()
     }
 
-    /// Removes every `when` registration while preserving recorded
+    /// Removes every `onCall` registration while preserving recorded
     /// invocations.
     ///
     /// A later matching call behaves like a call to an unconfigured double:
@@ -19,7 +19,7 @@ extension Stub {
         recorder.clearConfiguredBehaviors()
     }
 
-    /// Restores the just-constructed state: removes every `when` registration
+    /// Restores the just-constructed state: removes every `onCall` registration
     /// and clears the invocation log, so the stub can be reconfigured from
     /// scratch, as between parameterized test cases.
     public func reset() {
@@ -43,7 +43,7 @@ extension Stub {
         )
     }
 
-    /// Reports every `when` registration that no recorded call ever matched.
+    /// Reports every `onCall` registration that no recorded call ever matched.
     ///
     /// An unused registration is usually stale setup, or a specific
     /// registration unreachable behind an earlier catch-all under
@@ -73,7 +73,7 @@ extension ManualStub {
         recorder.clearRecordedInvocations()
     }
 
-    /// Removes every `when` registration while preserving recorded
+    /// Removes every `onCall` registration while preserving recorded
     /// invocations.
     ///
     /// A later matching call behaves like a call to an unconfigured double
@@ -102,7 +102,7 @@ extension ManualStub {
         )
     }
 
-    /// Reports every `when` registration that no recorded call ever matched.
+    /// Reports every `onCall` registration that no recorded call ever matched.
     ///
     /// An unused registration is usually stale setup, or a specific
     /// registration unreachable behind an earlier catch-all under

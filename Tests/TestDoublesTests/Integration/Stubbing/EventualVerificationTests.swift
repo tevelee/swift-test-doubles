@@ -74,7 +74,7 @@ private actor EventualVerificationGate {
 @Suite struct EventualVerificationTests {
     @Test func waitsForALateSynchronousCall() async throws {
         let stub = try Stub<any EventualVerificationService>()
-        stub.when { $0.notify(Match.any()) }.thenDoNothing()
+        stub.onCall { $0.notify(Match.any()) }.thenDoNothing()
         let service: any EventualVerificationService = stub()
 
         let invocation = Task {
@@ -88,7 +88,7 @@ private actor EventualVerificationGate {
 
     @Test func waitsUntilTheLowerBoundIsReached() async throws {
         let stub = try Stub<any EventualVerificationService>()
-        stub.when { $0.notify(Match.any()) }.thenDoNothing()
+        stub.onCall { $0.notify(Match.any()) }.thenDoNothing()
         let service: any EventualVerificationService = stub()
 
         let invocations = Task {
@@ -103,7 +103,7 @@ private actor EventualVerificationGate {
 
     @Test func waitsForAnAsyncRequirement() async throws {
         let stub = try Stub<any EventualVerificationService>()
-        await stub.when { await $0.load(Match.any()) }.thenReturn("loaded")
+        await stub.onCall { await $0.load(Match.any()) }.thenReturn("loaded")
         let service: any EventualVerificationService = stub()
 
         let invocation = Task {
@@ -118,7 +118,7 @@ private actor EventualVerificationGate {
     @MainActor
     @Test func timeoutReportsAtTheCallerAndDoesNotRetainItsWaiter() async throws {
         let stub = try Stub<any EventualVerificationService>()
-        stub.when { $0.notify(Match.any()) }.thenDoNothing()
+        stub.onCall { $0.notify(Match.any()) }.thenDoNothing()
         let expectedLine = UInt(#line + 2)
         await expectReportsIssue {
             await stub.verify(within: .milliseconds(1)) { $0.notify(Match.any()) }
@@ -138,7 +138,7 @@ private actor EventualVerificationGate {
 
     @Test func manualStubHasEventualVerificationParity() async throws {
         let stub = ManualStub<ManualEventualVerificationServiceStub>()
-        stub.when { $0.notify(Match.any()) }.thenDoNothing()
+        stub.onCall { $0.notify(Match.any()) }.thenDoNothing()
         let service: any ManualEventualVerificationService = stub()
 
         let invocation = Task {
@@ -152,7 +152,7 @@ private actor EventualVerificationGate {
 
     @Test func captorCommitsExactlyOnceAfterThresholdSuccess() async throws {
         let stub = try Stub<any EventualVerificationService>()
-        stub.when { $0.notify(Match.any()) }.thenDoNothing()
+        stub.onCall { $0.notify(Match.any()) }.thenDoNothing()
         let service: any EventualVerificationService = stub()
         let values = Match.Capture<Int>()
 
@@ -173,11 +173,11 @@ private actor EventualVerificationGate {
     @Test(.timeLimit(.minutes(2)))
     func suspendedAsyncCaptureDoesNotCaptureAnotherTasksNormalCall() async throws {
         let stub = try Stub<any EventualVerificationService>()
-        stub.when { $0.value(for: Match.any()) }.thenReturn("configured")
+        stub.onCall { $0.value(for: Match.any()) }.thenReturn("configured")
         let gate = EventualVerificationGate()
 
         let configuration = Task { @MainActor in
-            await stub.when {
+            await stub.onCall {
                 await gate.suspend()
                 return await $0.load(Match.any())
             }.thenReturn("loaded")
@@ -196,13 +196,13 @@ private actor EventualVerificationGate {
         _ = await configuration.value
 
         stub.verify(.exactly(1)) { $0.value(for: Match.equal(42)) }
-        await stub.verify(.never()) { await $0.load(Match.any()) }
+        await stub.verify(.never) { await $0.load(Match.any()) }
     }
 
     @MainActor
     @Test func cancellationRemovesTheWaiterWithoutReporting() async throws {
         let stub = try Stub<any EventualVerificationService>()
-        stub.when { $0.notify(Match.any()) }.thenDoNothing()
+        stub.onCall { $0.notify(Match.any()) }.thenDoNothing()
 
         let verification = Task { @MainActor in
             await stub.verify(within: .seconds(60)) { $0.notify(Match.any()) }
@@ -225,8 +225,8 @@ private actor EventualVerificationGate {
     @Test func placeholderAndSetterOverloadsWaitForCalls() async throws {
         let stub = try Stub<any EventualVerificationService>()
         let placeholder = EventualVerificationReference()
-        stub.when(returning: placeholder) { $0.makeReference() }.thenReturn(placeholder)
-        stub.when { $0.count = Match.any() }.thenDoNothing()
+        stub.onCall(returning: placeholder) { $0.makeReference() }.thenReturn(placeholder)
+        stub.onCall { $0.count = Match.any() }.thenDoNothing()
         var service: any EventualVerificationService = stub()
 
         let invocations = Task {

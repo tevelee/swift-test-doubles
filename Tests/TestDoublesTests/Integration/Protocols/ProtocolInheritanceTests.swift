@@ -101,9 +101,9 @@ private func useLinkedAsyncInheritance(
     @Test func automaticDiscoverySupportsBaseMethodsGettersAndChildMethods() throws {
         #expect(useLinkedAutomaticInheritance(LinkedAutomaticInheritanceProbe()) == "0")
         let stub = try Stub<any AutomaticInheritanceChildProbe>()
-        stub.when { $0.base(Match.any()) }.then { (value: Int) in "base:\(value)" }
-        stub.when { $0.baseValue }.thenReturn(42)
-        stub.when { $0.child() }.thenReturn(true)
+        stub.onCall { $0.base(Match.any()) }.then { (value: Int) in "base:\(value)" }
+        stub.onCall { $0.baseValue }.thenReturn(42)
+        stub.onCall { $0.child() }.thenReturn(true)
 
         let probe: any AutomaticInheritanceChildProbe = stub()
         #expect(probe.base(7) == "base:7")
@@ -121,9 +121,9 @@ private func useLinkedAsyncInheritance(
             .getter(Int.self),
             .method(returning: Bool.self)
         )
-        stub.when { $0.base(Match.any()) }.then { (value: Int) in "explicit:\(value)" }
-        stub.when { $0.baseValue }.thenReturn(17)
-        stub.when { $0.child() }.thenReturn(true)
+        stub.onCall { $0.base(Match.any()) }.then { (value: Int) in "explicit:\(value)" }
+        stub.onCall { $0.baseValue }.thenReturn(17)
+        stub.onCall { $0.child() }.thenReturn(true)
 
         let probe: any ExplicitInheritanceChildProbe = stub()
         #expect(probe.base(3) == "explicit:3")
@@ -134,10 +134,10 @@ private func useLinkedAsyncInheritance(
     @Test func diamondInheritanceFabricatesEachUniqueBaseOnce() throws {
         #expect(useLinkedDiamondInheritance(LinkedDiamondProbe()) == "0")
         let stub = try Stub<any DiamondProbe>()
-        stub.when { $0.root(Match.any()) }.then { (value: Int) in "root:\(value)" }
-        stub.when { $0.left() }.thenReturn(2)
-        stub.when { $0.right }.thenReturn("right")
-        stub.when { $0.finish(Match.any()) }.then { (value: Bool) in !value }
+        stub.onCall { $0.root(Match.any()) }.then { (value: Int) in "root:\(value)" }
+        stub.onCall { $0.left() }.thenReturn(2)
+        stub.onCall { $0.right }.thenReturn("right")
+        stub.onCall { $0.finish(Match.any()) }.then { (value: Bool) in !value }
 
         let probe: any DiamondProbe = stub()
         #expect(probe.root(1) == "root:1")
@@ -158,10 +158,10 @@ private func useLinkedAsyncInheritance(
             .getter(String.self),
             .method(Bool.self, returning: Bool.self)
         )
-        explicit.when { $0.root(Match.any()) }.thenReturn("explicit-root")
-        explicit.when { $0.left() }.thenReturn(3)
-        explicit.when { $0.right }.thenReturn("explicit-right")
-        explicit.when { $0.finish(Match.any()) }.thenReturn(true)
+        explicit.onCall { $0.root(Match.any()) }.thenReturn("explicit-root")
+        explicit.onCall { $0.left() }.thenReturn(3)
+        explicit.onCall { $0.right }.thenReturn("explicit-right")
+        explicit.onCall { $0.finish(Match.any()) }.thenReturn(true)
 
         let explicitProbe: any DiamondProbe = explicit()
         #expect(explicitProbe.root(0) == "explicit-root")
@@ -173,9 +173,9 @@ private func useLinkedAsyncInheritance(
     @Test func markerRefinementsRemainErasedBesideOrdinaryInheritance() throws {
         #expect(useLinkedSendableInheritance(LinkedSendableInheritanceProbe()) == 0)
         let stub = try Stub<any SendableInheritanceProbe>()
-        stub.when { $0.base(Match.any()) }.then { (value: Int) in "sendable:\(value)" }
-        stub.when { $0.baseValue }.thenReturn(5)
-        stub.when { $0.sendableChild() }.thenReturn(8)
+        stub.onCall { $0.base(Match.any()) }.then { (value: Int) in "sendable:\(value)" }
+        stub.onCall { $0.baseValue }.thenReturn(5)
+        stub.onCall { $0.sendableChild() }.thenReturn(8)
 
         let probe: any SendableInheritanceProbe = stub()
         #expect(probe.base(4) == "sendable:4")
@@ -186,11 +186,11 @@ private func useLinkedAsyncInheritance(
     @Test func inheritedAsyncThrowingMethodsUseTheirBaseTableContext() async throws {
         #expect(try await useLinkedAsyncInheritance(LinkedAsyncInheritanceProbe()) == "0")
         let stub = try Stub<any AsyncInheritanceChildProbe>()
-        await stub.when { try await $0.inheritedLoad(Match.any()) }.then {
+        await stub.onCall { try await $0.inheritedLoad(Match.any()) }.then {
             (id: Int) async throws -> String in
             "loaded:\(id)"
         }
-        stub.when { $0.localValue() }.thenReturn(9)
+        stub.onCall { $0.localValue() }.thenReturn(9)
 
         let probe: any AsyncInheritanceChildProbe = stub()
         #expect(try await probe.inheritedLoad(4) == "loaded:4")

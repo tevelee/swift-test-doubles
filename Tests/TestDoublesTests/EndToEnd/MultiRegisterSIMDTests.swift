@@ -18,7 +18,7 @@ private struct RealAudioGainProcessor: AudioGainProcessor {
         let boosted = SIMD8<Float>(2, 4, 6, 8, 10, 12, 14, 16)
 
         let stub = try Stub<any AudioGainProcessor>()
-        stub.when(returning: SIMD8<Float>()) {
+        stub.onCall(returning: SIMD8<Float>()) {
             $0.applyGain(Match.equal(input), gain: Match.equal(2))
         }.thenReturn(boosted)
 

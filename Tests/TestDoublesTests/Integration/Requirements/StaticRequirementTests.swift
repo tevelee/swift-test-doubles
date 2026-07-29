@@ -98,12 +98,12 @@ struct StaticRequirementTests {
         #expect(useLinkedStaticRequirement(RealStaticRequirementProbe()) == "real-0")
         let stub = try Stub<any StaticRequirementProbe>()
 
-        stub.when { type(of: $0).describe(Match.any()) }.then { (value: Int) in
+        stub.onCall { type(of: $0).describe(Match.any()) }.then { (value: Int) in
             "stub-\(value)"
         }
-        stub.when { type(of: $0).count }.thenReturn(7)
-        stub.when { type(of: $0).count = Match.any() }.thenDoNothing()
-        await stub.when { try await type(of: $0).load(Match.any()) }.then { value in
+        stub.onCall { type(of: $0).count }.thenReturn(7)
+        stub.onCall { type(of: $0).count = Match.any() }.thenDoNothing()
+        await stub.onCall { try await type(of: $0).load(Match.any()) }.then { value in
             if value < 0 { throw StaticRequirementError.rejected(value) }
             return "loaded-\(value)"
         }
@@ -128,7 +128,7 @@ struct StaticRequirementTests {
         let stub = try Stub<any ExplicitStaticRequirementProbe>(
             .method(Int.self, returning: String.self)
         )
-        stub.when { type(of: $0).transform(Match.any()) }.then { (value: Int) in
+        stub.onCall { type(of: $0).transform(Match.any()) }.then { (value: Int) in
             "explicit-\(value)"
         }
 
@@ -140,7 +140,7 @@ struct StaticRequirementTests {
         var stub: Stub<any ExplicitStaticRequirementProbe>? = try Stub(
             .method(Int.self, returning: String.self)
         )
-        stub!.when {
+        stub!.onCall {
             type(of: $0).transform(Match.any())
         }.then { (value: Int) in
             "alive-\(value)"
@@ -157,8 +157,8 @@ struct StaticRequirementTests {
     @Test func inheritedStaticRequirementsUseTheirDeclaringWitnessTables() throws {
         #expect(useLinkedStaticChildRequirement(RealStaticChildRequirementProbe()) == 0)
         let stub = try Stub<any StaticChildRequirementProbe>()
-        stub.when { type(of: $0).baseValue() }.thenReturn(21)
-        stub.when { type(of: $0).childValue() }.thenReturn(42)
+        stub.onCall { type(of: $0).baseValue() }.thenReturn(21)
+        stub.onCall { type(of: $0).childValue() }.thenReturn(42)
 
         let value: any StaticChildRequirementProbe = stub()
         #expect(type(of: value).baseValue() == 21)
@@ -169,8 +169,8 @@ struct StaticRequirementTests {
         #expect(useLinkedFirstStaticComposition(RealFirstStaticCompositionProbe()) == 0)
         #expect(useLinkedSecondStaticComposition(RealSecondStaticCompositionProbe()) == 0)
         let stub = try Stub<any FirstStaticCompositionProbe & SecondStaticCompositionProbe>()
-        stub.when { type(of: $0).firstValue() }.thenReturn(1)
-        stub.when { type(of: $0).secondValue() }.thenReturn(2)
+        stub.onCall { type(of: $0).firstValue() }.thenReturn(1)
+        stub.onCall { type(of: $0).secondValue() }.thenReturn(2)
 
         let value: any FirstStaticCompositionProbe & SecondStaticCompositionProbe = stub()
         #expect(type(of: value).firstValue() == 1)
@@ -179,11 +179,11 @@ struct StaticRequirementTests {
 
     @Test func classStaticRequirementsPreserveEffectsAndValueOwnership() async throws {
         var stub: Stub<any ClassStaticRequirementProbe>? = try Stub()
-        stub?.when { try type(of: $0).describe(Match.any()) }.then { value in
+        stub?.onCall { try type(of: $0).describe(Match.any()) }.then { value in
             if value < 0 { throw StaticRequirementError.rejected(value) }
             return "described-\(value)"
         }
-        await stub?.when { await type(of: $0).load(Match.any()) }.then {
+        await stub?.onCall { await type(of: $0).load(Match.any()) }.then {
             (value: Int) async in
             await Task.yield()
             return "loaded-\(value)"

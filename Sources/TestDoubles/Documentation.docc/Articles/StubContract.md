@@ -109,11 +109,11 @@ existential such as `Stub<any Source<Int>>` for the full dependent interface.
 
 A direct dynamic `Self` result is described by
 ``Stub/Requirement/Value/dynamicSelf``. Record it with
-``Stub/when(returningSelf:)`` and finish with
+``Stub/onCall(returningSelf:)`` and finish with
 ``StubSelfResultBuilder/thenReturnValue()``, `thenThrow`, or a sync/async `then`
 handler. Optional `Self?` uses
 ``Stub/Requirement/Value/optionalDynamicSelf``,
-``Stub/when(returningOptionalSelf:)``, and
+``Stub/onCall(returningOptionalSelf:)``, and
 ``StubOptionalSelfResultBuilder`` to choose a fresh value or `nil`.
 TestDoubles creates a fresh payload backed by the same
 recorder and runtime resources. The builder validates the recorded return
@@ -144,13 +144,13 @@ Stub itself is released.
 
 ### Configuration and selection
 
-`when` records one protocol invocation using matcher arguments and returns a
+`onCall` records one protocol invocation using matcher arguments and returns a
 builder. Finish every configuration with `thenReturn` for a constant,
 `thenThrow` for a fixed error, `then` for typed behavior, or `thenDoNothing` for
 a `Void` requirement with no side effect. Ignoring the builder produces a
 compiler warning and does not install behavior.
 
-The setter-specific `when` overload records a direct assignment through an
+The setter-specific `onCall` overload records a direct assignment through an
 `inout` existential; the assigned value is passed to a typed handler and owned
 according to Swift's setter convention. A subscript setter's runtime argument
 order is the assigned value followed by its borrowed indices. Matcher recording
@@ -192,7 +192,7 @@ resumes on its executor. Actor-isolate it or synchronize mutable captures when
 the generated existential can be invoked concurrently. Synchronous handlers and
 matcher predicates are `@Sendable`.
 
-Static requirements use ``Stub/when(_:fileID:filePath:line:column:)->StubBuilder<Result>`` and are
+Static requirements use ``Stub/onCall(_:fileID:filePath:line:column:)->CallPattern<Result>`` and are
 invoked as `type(of: value).requirement(...)`. Initializers are recorded with
 the `initializer:` label. Nonfailable initializers complete with
 ``StubInitializerBuilder/thenInitialize()``, `thenThrow`, or a typed `then`
@@ -214,17 +214,19 @@ meaningful equality.
 ### Verification
 
 `verify` checks a recorded instance, static, or initializer invocation
-immediately and defaults to the `1...` call-count range. It accepts any
-`RangeExpression<Int>`: use `.exactly(2)`, `.never()`, `2...`, or `...2` when
-the count expresses meaningful behavior. An ``Match/Capture`` in the
-verification call captures matching arguments for later assertions. A failed
-count expectation is reported through IssueReporting at the caller's file,
-line, and column, allowing Swift Testing or XCTest to record a normal issue
-without terminating the process. Call counts are never negative, so negative
-range bounds simply cannot match an observed call count.
+immediately and defaults to `1...`, meaning at least once. It accepts any
+`RangeExpression<Int>`: use `2...`, `...2`, or `2...4` to express lower bounds,
+upper bounds, and closed ranges directly. `.exactly(2)` and `.never` are
+conveniences for the two cases that ranges spell less clearly. A
+``Match/Capture`` in the verification call captures matching arguments for
+later assertions. A failed count expectation is reported through
+IssueReporting at the caller's file, line, and column, allowing Swift Testing
+or XCTest to record a normal issue without terminating the process. Call
+counts are never negative, so negative range bounds simply cannot match an
+observed call count.
 
-The `verify(_:within:_:)` overload waits without polling for a
-`PartialRangeFrom<Int>` lower bound. Calls wake the waiter through the recorder's
+The `verify(_:within:_:)` overload accepts a lower-bounded range such as `2...`
+and waits without polling. Calls wake the waiter through the recorder's
 generation event; timeout and task cancellation clean up the waiter without
 leaving a verification behind. A timeout reports the final observed count at
 the caller's source location.
@@ -259,7 +261,7 @@ requirement, or violating the runtime ABI contract remains fatal.
 ### Matcher recording placeholders
 
 `Match.any()`, `Match.matching(description:where:)`, and ``Match/Capture/capture()``
-synthesize valid temporary values while the `when` or `verify` closure records
+synthesize valid temporary values while the `onCall` or `verify` closure records
 an invocation. TestDoubles initializes only layouts it can form safely, such as
 supported scalar, tuple, enum/optional, metatype, string, array, and recursively
 supported struct values.
@@ -271,8 +273,8 @@ by the requirement to `Match.any(using:)`,
 ``Match/Capture/capture(using:)``. That value exists only to make the recorded
 protocol call valid; it does not participate in matching and is not captured.
 
-A requirement result may also need a valid value while the `when` or `verify`
-closure records its invocation. Use `when(returning:_:)` or
+A requirement result may also need a valid value while the `onCall` or `verify`
+closure records its invocation. Use `onCall(returning:_:)` or
 `verify(_:returning:_:)` for reference, existential, optional, and other result
 layouts that cannot be synthesized safely. The supplied value is used only
 during capture; it does not replace configured behavior. Synchronous and async
@@ -374,7 +376,7 @@ and linked mangled-type discovery both resolve SIMD generic metadata directly
 other supported shape; explicit `.method(signatureOf:)` requirements remain
 available but are no longer required just to name a SIMD type. SIMD values
 still cannot be synthesized as matcher or result placeholders, so pass them
-through `Match.any(using:)` and `when(returning:_:)` when recording needs a
+through `Match.any(using:)` and `onCall(returning:_:)` when recording needs a
 placeholder.
 Forwarding spies support that same register-only SIMD boundary for ordinary
 synchronous instance methods, including mixed scalar/vector arguments and all

@@ -91,7 +91,7 @@ private actor LifetimeSuspensionGate {
     @Test func automaticExistentialOutlivesStub() throws {
         _ = LinkedAutomaticLifetimeProbe()
         var stub: Stub<any AutomaticLifetimeProbe>? = try Stub()
-        stub?.when { $0.value() }.thenReturn(42)
+        stub?.onCall { $0.value() }.thenReturn(42)
         let probe = try #require(stub?())
         let weakStub = WeakReference(stub)
 
@@ -104,7 +104,7 @@ private actor LifetimeSuspensionGate {
     @Test func repeatedMaterializationSharesBehaviorAndOutlivesStub() throws {
         _ = LinkedAutomaticLifetimeProbe()
         var stub: Stub<any AutomaticLifetimeProbe>? = try Stub()
-        stub?.when { $0.value() }.thenReturn(42)
+        stub?.onCall { $0.value() }.thenReturn(42)
         let first = try #require(stub?())
         let second = try #require(stub?())
 
@@ -121,7 +121,7 @@ private actor LifetimeSuspensionGate {
             let weakRecorder: WeakReference<StubRecorder>
             do {
                 let stub = try Stub<any AutomaticLifetimeProbe>()
-                stub.when { $0.value() }.thenReturn(expected)
+                stub.onCall { $0.value() }.thenReturn(expected)
                 let probe = stub()
                 weakRecorder = WeakReference(stub.recorder)
 
@@ -136,7 +136,7 @@ private actor LifetimeSuspensionGate {
         var stub: Stub<any ExplicitLifetimeProbe>? = try Stub(
             .method(returning: Int.self)
         )
-        stub?.when { $0.value() }.thenReturn(42)
+        stub?.onCall { $0.value() }.thenReturn(42)
         let probe = try #require(stub?())
         let weakStub = WeakReference(stub)
 
@@ -149,8 +149,8 @@ private actor LifetimeSuspensionGate {
     @Test func inheritedWitnessTableGraphOutlivesStub() throws {
         _ = LinkedInheritedLifetimeProbe()
         var stub: Stub<any InheritedLifetimeChildProbe>? = try Stub()
-        stub?.when { $0.baseValue() }.thenReturn(21)
-        stub?.when { $0.childValue() }.thenReturn(42)
+        stub?.onCall { $0.baseValue() }.thenReturn(21)
+        stub?.onCall { $0.childValue() }.thenReturn(42)
         let probe = try #require(stub?())
         let weakStub = WeakReference(stub)
 
@@ -165,8 +165,8 @@ private actor LifetimeSuspensionGate {
         _ = LinkedCompositionLifetimeA()
         _ = LinkedCompositionLifetimeB()
         var stub: Stub<any CompositionLifetimeA & CompositionLifetimeB>? = try Stub()
-        stub?.when { $0.firstValue() }.thenReturn(21)
-        stub?.when { $0.secondValue() }.thenReturn(42)
+        stub?.onCall { $0.firstValue() }.thenReturn(21)
+        stub?.onCall { $0.secondValue() }.thenReturn(42)
         let probe = try #require(stub?())
         let weakStub = WeakReference(stub)
 
@@ -182,7 +182,7 @@ private actor LifetimeSuspensionGate {
             .method(returning: Int.self, isAsync: true)
         )
         let gate = LifetimeSuspensionGate()
-        await stub?.when { await $0.value() }.then {
+        await stub?.onCall { await $0.value() }.then {
             () async throws -> Int in
             await gate.suspend()
             return 42

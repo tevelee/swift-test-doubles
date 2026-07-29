@@ -7,7 +7,7 @@ extension Stub {
     ///
     /// ```swift
     /// let service: any CurrencyService = Stub.make {
-    ///     $0.when { $0.currency }.then { "EUR" }
+    ///     $0.onCall { $0.currency }.then { "EUR" }
     /// }
     /// ```
     ///

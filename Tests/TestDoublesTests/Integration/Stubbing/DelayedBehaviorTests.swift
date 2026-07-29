@@ -9,7 +9,7 @@ private enum DelayedTestError: Error, Equatable {
 @Suite struct DelayedBehaviorTests {
     @Test func delayedReturnDeliversAfterTheDelay() async throws {
         let stub = try Stub<any AsyncDataLoader>()
-        await stub.when { try await $0.load(url: Match.any()) }
+        await stub.onCall { try await $0.load(url: Match.any()) }
             .thenReturn("slow-data", after: .milliseconds(50))
 
         let loader: any AsyncDataLoader = stub()
@@ -24,7 +24,7 @@ private enum DelayedTestError: Error, Equatable {
 
     @Test func delayedThrowDeliversAfterTheDelay() async throws {
         let stub = try Stub<any AsyncDataLoader>()
-        await stub.when { try await $0.load(url: Match.any()) }
+        await stub.onCall { try await $0.load(url: Match.any()) }
             .thenThrow(DelayedTestError.transient, after: .milliseconds(50))
 
         let loader: any AsyncDataLoader = stub()
@@ -38,7 +38,7 @@ private enum DelayedTestError: Error, Equatable {
 
     @Test func delayedBehaviorsParticipateInChains() async throws {
         let stub = try Stub<any AsyncDataLoader>()
-        await stub.when { try await $0.load(url: Match.any()) }
+        await stub.onCall { try await $0.load(url: Match.any()) }
             .thenThrow(DelayedTestError.transient, after: .milliseconds(20))
             .thenReturn("recovered")
 
@@ -51,7 +51,7 @@ private enum DelayedTestError: Error, Equatable {
 
     @Test func delayedReturnRepeatsForItsConfiguredCount() async throws {
         let stub = try Stub<any AsyncDataLoader>()
-        await stub.when { try await $0.load(url: Match.any()) }
+        await stub.onCall { try await $0.load(url: Match.any()) }
             .thenReturn("slow", after: .milliseconds(10), times: 2)
             .thenReturn("fast")
 
@@ -63,7 +63,7 @@ private enum DelayedTestError: Error, Equatable {
 
     @Test func delayedCompletionOnNonThrowingVoidRequirement() async throws {
         let stub = try Stub<any AsyncDataLoader>()
-        await stub.when { await $0.prefetch(urls: Match.any()) }
+        await stub.onCall { await $0.prefetch(urls: Match.any()) }
             .thenDoNothing(after: .milliseconds(50))
 
         let loader: any AsyncDataLoader = stub()
@@ -75,7 +75,7 @@ private enum DelayedTestError: Error, Equatable {
 
     @Test func cancellationCutsAThrowingDelayShort() async throws {
         let stub = try Stub<any AsyncDataLoader & Sendable>()
-        await stub.when { try await $0.load(url: Match.any()) }
+        await stub.onCall { try await $0.load(url: Match.any()) }
             .thenReturn("never-delivered", after: .seconds(60))
 
         let loader: any AsyncDataLoader & Sendable = stub()

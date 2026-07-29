@@ -36,15 +36,15 @@ import Testing
 private func configureSuccessfulThrowingSelfArgumentStub(
     _ stub: Stub<any ExternalThrowingSelfArgumentProbe>
 ) {
-    stub.when { try captureThrowingAccept($0) }.thenDoNothing()
-    stub.when { try captureThrowingBorrow($0) }.thenDoNothing()
-    stub.when { try captureThrowingConsume($0) }.thenDoNothing()
-    stub.when { try captureThrowingOptional($0) }.thenDoNothing()
-    stub.when { try captureThrowingConsumingOptional($0) }.thenDoNothing()
-    stub.when { try captureTypedThrowingAccept($0) }.thenDoNothing()
-    stub.when { try captureTypedThrowingConsume($0) }.thenDoNothing()
-    stub.when { try captureTypedThrowingOptional($0) }.thenDoNothing()
-    stub.when { try captureTypedThrowingConsumingOptional($0) }.thenDoNothing()
+    stub.onCall { try captureThrowingAccept($0) }.thenDoNothing()
+    stub.onCall { try captureThrowingBorrow($0) }.thenDoNothing()
+    stub.onCall { try captureThrowingConsume($0) }.thenDoNothing()
+    stub.onCall { try captureThrowingOptional($0) }.thenDoNothing()
+    stub.onCall { try captureThrowingConsumingOptional($0) }.thenDoNothing()
+    stub.onCall { try captureTypedThrowingAccept($0) }.thenDoNothing()
+    stub.onCall { try captureTypedThrowingConsume($0) }.thenDoNothing()
+    stub.onCall { try captureTypedThrowingOptional($0) }.thenDoNothing()
+    stub.onCall { try captureTypedThrowingConsumingOptional($0) }.thenDoNothing()
 }
 
 private func exerciseSuccessfulThrowingSelfArguments<
@@ -87,15 +87,15 @@ private func configureFailingThrowingSelfArgumentStub(
     _ stub: Stub<any ExternalThrowingSelfArgumentProbe>
 ) {
     let error = ExternalThrowingSelfArgumentError.rejected
-    stub.when { try captureThrowingAccept($0) }.thenThrow(error)
-    stub.when { try captureThrowingBorrow($0) }.thenThrow(error)
-    stub.when { try captureThrowingConsume($0) }.thenThrow(error)
-    stub.when { try captureThrowingOptional($0) }.thenThrow(error)
-    stub.when { try captureThrowingConsumingOptional($0) }.thenThrow(error)
-    stub.when { try captureTypedThrowingAccept($0) }.thenThrow(error)
-    stub.when { try captureTypedThrowingConsume($0) }.thenThrow(error)
-    stub.when { try captureTypedThrowingOptional($0) }.thenThrow(error)
-    stub.when { try captureTypedThrowingConsumingOptional($0) }
+    stub.onCall { try captureThrowingAccept($0) }.thenThrow(error)
+    stub.onCall { try captureThrowingBorrow($0) }.thenThrow(error)
+    stub.onCall { try captureThrowingConsume($0) }.thenThrow(error)
+    stub.onCall { try captureThrowingOptional($0) }.thenThrow(error)
+    stub.onCall { try captureThrowingConsumingOptional($0) }.thenThrow(error)
+    stub.onCall { try captureTypedThrowingAccept($0) }.thenThrow(error)
+    stub.onCall { try captureTypedThrowingConsume($0) }.thenThrow(error)
+    stub.onCall { try captureTypedThrowingOptional($0) }.thenThrow(error)
+    stub.onCall { try captureTypedThrowingConsumingOptional($0) }
         .thenThrow(error)
 }
 
@@ -275,7 +275,7 @@ private func exerciseConsumingThrowingClassLifetime() throws
 {
     _ = RealExternalThrowingClassSelfArgumentProbe()
     let stub = try Stub<any ExternalThrowingClassSelfArgumentProbe>()
-    stub.when { try captureThrowingClassConsume($0) }
+    stub.onCall { try captureThrowingClassConsume($0) }
         .thenThrow(ExternalThrowingSelfArgumentError.rejected)
 
     let receiver = stub()

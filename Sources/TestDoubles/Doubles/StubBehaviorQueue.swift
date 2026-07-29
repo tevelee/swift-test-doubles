@@ -2,7 +2,7 @@ import IssueReporting
 
 /// An inspectable, per-registration queue of fixed behaviors.
 ///
-/// Obtain this handle from ``StubBuilder/thenQueue(_:_:)`` or from a
+/// Obtain this handle from ``CallPattern/thenQueue(_:_:)`` or from a
 /// ``StubBehaviorChain``'s ``StubBehaviorChain/behaviorQueue`` property.
 /// A finite queue is useful for retry tests: assert that every planned
 /// failure was consumed instead of silently leaving a recovery path untested.

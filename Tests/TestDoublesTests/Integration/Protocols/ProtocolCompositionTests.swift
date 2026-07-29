@@ -104,9 +104,9 @@ func useLinkedMarkerComposition(
         #expect(useLinkedAutomaticCompositionA(LinkedAutomaticCompositionA()) == "0")
         #expect(try await useLinkedAutomaticCompositionB(LinkedAutomaticCompositionB()) == false)
         let stub = try Stub<any AutomaticCompositionA & AutomaticCompositionB>()
-        stub.when { $0.transform(Match.any()) }.then { (value: Int) in "value:\(value)" }
-        stub.when { $0.count }.thenReturn(3)
-        await stub.when { try await $0.isEnabled(Match.any()) }.then {
+        stub.onCall { $0.transform(Match.any()) }.then { (value: Int) in "value:\(value)" }
+        stub.onCall { $0.count }.thenReturn(3)
+        await stub.onCall { try await $0.isEnabled(Match.any()) }.then {
             (key: String) async throws -> Bool in
             key == "feature"
         }
@@ -132,8 +132,8 @@ func useLinkedMarkerComposition(
                 .method(Int.self, returning: String.self)
             )
         )
-        stub.when { $0.transform(Match.any()) }.then { (value: Int) in "explicit:\(value)" }
-        stub.when { $0.enabled }.thenReturn(true)
+        stub.onCall { $0.transform(Match.any()) }.then { (value: Int) in "explicit:\(value)" }
+        stub.onCall { $0.enabled }.thenReturn(true)
 
         let probe: any ExplicitCompositionA & ExplicitCompositionB = stub()
         #expect(probe.transform(4) == "explicit:4")
@@ -166,9 +166,9 @@ func useLinkedMarkerComposition(
         #expect(useLinkedSharedCompositionLeft(LinkedSharedCompositionLeft()) == 0)
         #expect(useLinkedSharedCompositionRight(LinkedSharedCompositionRight()) == "")
         let automatic = try Stub<any SharedCompositionLeft & SharedCompositionRight>()
-        automatic.when { $0.shared(Match.any()) }.then { (value: Int) in "shared:\(value)" }
-        automatic.when { $0.left() }.thenReturn(1)
-        automatic.when { $0.right }.thenReturn("right")
+        automatic.onCall { $0.shared(Match.any()) }.then { (value: Int) in "shared:\(value)" }
+        automatic.onCall { $0.left() }.thenReturn(1)
+        automatic.onCall { $0.right }.thenReturn("right")
 
         let automaticProbe: any SharedCompositionLeft & SharedCompositionRight = automatic()
         #expect(automaticProbe.shared(7) == "shared:7")
@@ -189,9 +189,9 @@ func useLinkedMarkerComposition(
                 .method(returning: Int.self)
             )
         )
-        explicit.when { $0.shared(Match.any()) }.thenReturn("explicit-shared")
-        explicit.when { $0.left() }.thenReturn(2)
-        explicit.when { $0.right }.thenReturn("explicit-right")
+        explicit.onCall { $0.shared(Match.any()) }.thenReturn("explicit-shared")
+        explicit.onCall { $0.left() }.thenReturn(2)
+        explicit.onCall { $0.right }.thenReturn("explicit-right")
 
         let explicitProbe: any SharedCompositionLeft & SharedCompositionRight = explicit()
         #expect(explicitProbe.shared(0) == "explicit-shared")
@@ -202,7 +202,7 @@ func useLinkedMarkerComposition(
     @Test func markerCompositionDoesNotAddWitnessStorage() throws {
         #expect(useLinkedMarkerComposition(LinkedMarkerCompositionProtocol()) == 0)
         let stub = try Stub<any MarkerCompositionProtocol & Sendable>()
-        stub.when { $0.markerValue() }.thenReturn(42)
+        stub.onCall { $0.markerValue() }.thenReturn(42)
 
         let probe: any MarkerCompositionProtocol & Sendable = stub()
         #expect(probe.markerValue() == 42)

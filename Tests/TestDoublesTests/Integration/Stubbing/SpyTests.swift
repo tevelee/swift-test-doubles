@@ -177,7 +177,7 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
     @Test func matchedOverrideWinsWhileOtherArgumentsForward() throws {
         let target = RealSpyService()
         let spy = try Spy<any SpyService>(forwardingTo: target)
-        spy.when { $0.fetch(id: 1) }.thenReturn("overridden")
+        spy.onCall { $0.fetch(id: 1) }.thenReturn("overridden")
 
         let service: any SpyService = spy()
         #expect(service.fetch(id: 1) == "overridden")
@@ -189,17 +189,31 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
 
     @Test func forwardedInvocationsExcludeOverridesAndKeepArgumentsTyped() throws {
         let spy = try Spy<any SpyService>(forwardingTo: RealSpyService())
-        spy.when { $0.fetch(id: 1) }.thenReturn("overridden")
+        spy.onCall { $0.fetch(id: 1) }.thenReturn("overridden")
+        let fetches = spy.onCall { $0.fetch(id: Match.any()) }
         let service: any SpyService = spy()
 
         #expect(service.fetch(id: 1) == "overridden")
         #expect(service.fetch(id: 2) == "real:2")
         #expect(service.fetch(id: 3) == "real:3")
 
-        let forwarded: [Int] = spy.forwardedInvocations {
-            $0.fetch(id: Match.any())
-        }
+        let forwarded: [Int] = fetches.forwardedArguments()
         #expect(forwarded == [2, 3])
+    }
+
+    @Test func callPatternExposesForwardedArgumentsAndCount() throws {
+        let real = RealSpyService()
+        let spy: Spy<any SpyService> = .make(forwardingTo: real)
+        let pattern = spy.onCall { $0.fetch(id: Match.any()) }
+        spy.onCall { $0.fetch(id: Match.equal(1)) }.thenReturn("override")
+        let service: any SpyService = spy()
+
+        #expect(service.fetch(id: 1) == "override")
+        #expect(service.fetch(id: 2) == "real:2")
+        #expect(pattern.callCount == 2)
+        #expect(pattern.forwardedCallCount == 1)
+        let arguments: [Int] = pattern.forwardedArguments()
+        #expect(arguments == [2])
     }
 
     @Test func forwardsThrowingRequirements() throws {
@@ -215,7 +229,7 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
 
     @Test func forwardsAsyncRequirementsAndSupportsOverrides() async throws {
         let spy = try Spy<any SpyService>(forwardingTo: RealSpyService())
-        await spy.when { try await $0.fetchLater(id: 1) }
+        await spy.onCall { try await $0.fetchLater(id: 1) }
             .thenReturn("overridden-later")
 
         let service: any SpyService = spy()
@@ -226,16 +240,15 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
 
     @Test func forwardedInvocationsSupportAsyncRequirements() async throws {
         let spy = try Spy<any SpyService>(forwardingTo: RealSpyService())
-        await spy.when { try await $0.fetchLater(id: 1) }
+        await spy.onCall { try await $0.fetchLater(id: 1) }
             .thenReturn("overridden-later")
+        let fetches = await spy.onCall { try await $0.fetchLater(id: Match.any()) }
         let service: any SpyService = spy()
 
         _ = try await service.fetchLater(id: 1)
         _ = try await service.fetchLater(id: 2)
 
-        let forwarded: [Int] = await spy.forwardedInvocations {
-            try await $0.fetchLater(id: Match.any())
-        }
+        let forwarded: [Int] = fetches.forwardedArguments()
         #expect(forwarded == [2])
     }
 
@@ -291,8 +304,8 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
         let spy = try Spy<any InitializerSpyService>(
             forwardingTo: RealInitializerSpyService(value: 0)
         )
-        spy.when(initializer: { type(of: $0).init(value: Match.any()) }).thenInitialize()
-        spy.when { $0.value() }.thenReturn(42)
+        spy.onCall(initializer: { type(of: $0).init(value: Match.any()) }).thenInitialize()
+        spy.onCall { $0.value() }.thenReturn(42)
 
         let seed: any InitializerSpyService = spy()
         let initialized = type(of: seed).init(value: 7)
