@@ -43,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   controllers that outlive their Swift Testing test body.
 - Strict-scope detection of async invocations that remain unfinished when a
   Swift Testing test body returns.
+- Strict-scope detection of invocation streams with matching calls left
+  unread, while accepting streams ended through task cancellation.
 
 ## [0.0.2] - 2026-07-29
 

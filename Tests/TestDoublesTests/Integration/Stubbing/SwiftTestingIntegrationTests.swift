@@ -117,6 +117,7 @@ private func makeScopedSuspendedTestDoubleStub() throws -> Stub<any ScopedSuspen
         #expect(TestDoubleStrictness.strict.contains(.noPendingCallbackCaptures))
         #expect(TestDoubleStrictness.strict.contains(.noEscapedTestDoubles))
         #expect(TestDoubleStrictness.strict.contains(.noUnfinishedAsyncInvocations))
+        #expect(TestDoubleStrictness.strict.contains(.noUnconsumedInvocationStreams))
     }
 
     @Test(.testDoubles(strictness: []))
@@ -322,6 +323,64 @@ private func makeScopedSuspendedTestDoubleStub() throws -> Stub<any ScopedSuspen
                     checkingUnusedRegistrations: false,
                     checkingUnverifiedInteractions: false,
                     checkingUnfinishedAsyncInvocations: true
+                ).isEmpty
+            )
+        }
+    }
+
+    @Test func scopeReportsUnreadInvocationStreamCalls() async throws {
+        let session = TestDoubleSession()
+        try await TestDoubleTestingContext.$session.withValue(session) {
+            let stub = try makeScopedTestDoubleStub().named("analytics")
+            let calls = stub.when { $0.track(Match.any()) }
+            calls.thenDoNothing()
+            let stream: InvocationStream<Int> = calls.stream()
+
+            stub().track(42)
+            #expect(
+                session.diagnostics(
+                    checkingUnusedRegistrations: false,
+                    checkingUnverifiedInteractions: false,
+                    checkingUnconsumedInvocationStreams: true
+                ).contains {
+                    $0.contains("invocation stream for test double 'analytics'")
+                        && $0.contains("1 unread invocation remains")
+                }
+            )
+
+            var iterator = stream.makeAsyncIterator()
+            #expect(await iterator.next() == 42)
+            #expect(
+                session.diagnostics(
+                    checkingUnusedRegistrations: false,
+                    checkingUnverifiedInteractions: false,
+                    checkingUnconsumedInvocationStreams: true
+                ).isEmpty
+            )
+        }
+    }
+
+    @Test func scopeAcceptsAnIntentionallyCancelledInvocationStream() async throws {
+        let session = TestDoubleSession()
+        try await TestDoubleTestingContext.$session.withValue(session) {
+            let stub = try makeScopedTestDoubleStub()
+            let calls = stub.when { $0.track(Match.any()) }
+            calls.thenDoNothing()
+            let stream: InvocationStream<Int> = calls.stream()
+            let clock = ManualStubClock()
+            let next = Task {
+                var iterator = stream.makeAsyncIterator()
+                return await iterator.next(within: .seconds(1), using: clock)
+            }
+            await clock.waitForSleepers(atLeast: 1)
+            next.cancel()
+
+            #expect(await next.value == nil)
+            #expect(
+                session.diagnostics(
+                    checkingUnusedRegistrations: false,
+                    checkingUnverifiedInteractions: false,
+                    checkingUnconsumedInvocationStreams: true
                 ).isEmpty
             )
         }

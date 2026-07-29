@@ -10,6 +10,7 @@ final class TestDoubleTeardownCheck: @unchecked Sendable {
         case suspension
         case callbackCapture
         case testDoubleLifetime
+        case invocationStream
     }
 
     let kind: Kind
@@ -109,7 +110,8 @@ final class TestDoubleFixtureDiffCheck: @unchecked Sendable {
         checkingPendingSuspensions: Bool = false,
         checkingPendingCallbackCaptures: Bool = false,
         checkingEscapedTestDoubles: Bool = false,
-        checkingUnfinishedAsyncInvocations: Bool = false
+        checkingUnfinishedAsyncInvocations: Bool = false,
+        checkingUnconsumedInvocationStreams: Bool = false
     ) -> [String] {
         let (recorders, teardownChecks, _) = snapshot()
         let recorderDiagnostics = recorders.flatMap { recorder in
@@ -136,6 +138,7 @@ final class TestDoubleFixtureDiffCheck: @unchecked Sendable {
         if checkingPendingSuspensions { enabledChecks.insert(.suspension) }
         if checkingPendingCallbackCaptures { enabledChecks.insert(.callbackCapture) }
         if checkingEscapedTestDoubles { enabledChecks.insert(.testDoubleLifetime) }
+        if checkingUnconsumedInvocationStreams { enabledChecks.insert(.invocationStream) }
         let lifecycleDiagnostics: [String] = teardownChecks.compactMap { teardownCheck -> String? in
             guard enabledChecks.contains(teardownCheck.kind) else {
                 return nil

@@ -77,7 +77,9 @@ The pattern's matchers determine which calls the stream observes. Reading it
 does not mark a call verified or commit captures. A timed `next` returns `nil`
 when its timeout expires; its clock-aware overload accepts ``ManualStubClock``.
 Cancelling a task awaiting `next()` also returns `nil` and removes its waiter
-immediately.
+immediately. In a `.strictTestDoubles` scope, matching calls left unread are
+reported at teardown; cancelling the awaiting task intentionally ends the
+stream and suppresses that check.
 
 ### Inspect returned values, errors, and pending calls
 

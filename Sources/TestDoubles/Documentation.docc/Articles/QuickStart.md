@@ -31,6 +31,11 @@ They also report async invocations that are still running when the test body
 returns. Use `.testDoubles(strictness: [.noUnfinishedAsyncInvocations])` to
 enable only this completion check.
 
+Invocation streams created inside a strict scope must consume every matching
+call they observe or end through task cancellation. Use
+`.testDoubles(strictness: [.noUnconsumedInvocationStreams])` to enable only
+this stream check.
+
 ### Define the dependency
 
 The subject under test should already depend on a protocol:

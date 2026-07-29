@@ -35,6 +35,9 @@
         /// Reports async invocations that have not finished at teardown.
         public static let noUnfinishedAsyncInvocations = Self(rawValue: 1 << 6)
 
+        /// Reports invocation streams that have matching calls left unread.
+        public static let noUnconsumedInvocationStreams = Self(rawValue: 1 << 7)
+
         /// Applies every automatic test-double check.
         public static let strict: Self = [
             .noUnusedStubs,
@@ -43,7 +46,8 @@
             .noPendingSuspensions,
             .noPendingCallbackCaptures,
             .noEscapedTestDoubles,
-            .noUnfinishedAsyncInvocations
+            .noUnfinishedAsyncInvocations,
+            .noUnconsumedInvocationStreams
         ]
     }
 
@@ -108,6 +112,9 @@
                 checkingEscapedTestDoubles: strictness.contains(.noEscapedTestDoubles),
                 checkingUnfinishedAsyncInvocations: strictness.contains(
                     .noUnfinishedAsyncInvocations
+                ),
+                checkingUnconsumedInvocationStreams: strictness.contains(
+                    .noUnconsumedInvocationStreams
                 )
             )
         }
