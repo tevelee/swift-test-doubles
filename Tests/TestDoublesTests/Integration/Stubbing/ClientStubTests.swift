@@ -49,6 +49,104 @@ private func makeClosureFieldClientStub() -> ClientStub<ClosureFieldClient> {
     }
 }
 
+private func makeClosureFieldClientPreset() -> ClientDoublePreset<ClosureFieldClient> {
+    ClientDoublePreset<ClosureFieldClient> { endpoints in
+        ClosureFieldClient(
+            version: endpoints.function(
+                "version",
+                forwarding: { live in live.version() }
+            ),
+            format: endpoints.function(
+                "format",
+                forwarding: { live, value, unit in
+                    live.format(value, unit)
+                }
+            ),
+            combine: endpoints.function(
+                "combine",
+                forwarding: { live, a, b, c, d, e, f, g, h in
+                    live.combine(a, b, c, d, e, f, g, h)
+                }
+            ),
+            save: endpoints.throwingFunction(
+                "save",
+                forwarding: { live, value in
+                    try live.save(value)
+                }
+            ),
+            typedSave: endpoints.throwingFunction(
+                "typedSave",
+                throwing: ClientStubFailure.self,
+                forwarding: {
+                    (
+                        live: ClosureFieldClient,
+                        value: Int
+                    ) throws(ClientStubFailure) -> String in
+                    try live.typedSave(value)
+                }
+            ),
+            notify: endpoints.function(
+                "notify",
+                forwarding: { live, message in
+                    live.notify(message)
+                }
+            ),
+            lookup: endpoints.asyncFunction(
+                "lookup",
+                forwarding: { live, value in
+                    await live.lookup(value)
+                }
+            ),
+            load: endpoints.asyncThrowingFunction(
+                "load",
+                forwarding: { live, value, category in
+                    try await live.load(value, category)
+                }
+            ),
+            typedLoad: endpoints.asyncThrowingFunction(
+                "typedLoad",
+                throwing: ClientStubFailure.self,
+                forwarding: {
+                    (
+                        live: ClosureFieldClient,
+                        value: Int
+                    ) async throws(ClientStubFailure) -> String in
+                    try await live.typedLoad(value)
+                }
+            )
+        )
+    }
+}
+
+private func makeLiveClosureFieldClient() -> ClosureFieldClient {
+    ClosureFieldClient(
+        version: { "live" },
+        format: { "\($0) \($1)" },
+        combine: { $0 + $1 + $2 + $3 + $4 + $5 + $6 + $7 },
+        save: {
+            guard $0 >= 0 else {
+                throw ClientStubFailure.rejected($0)
+            }
+            return "saved-\($0)"
+        },
+        typedSave: { (value: Int) throws(ClientStubFailure) -> String in
+            guard value >= 0 else {
+                throw ClientStubFailure.rejected(value)
+            }
+            return "typed-saved-\(value)"
+        },
+        notify: { _ in },
+        lookup: { "lookup-\($0)" },
+        load: { ["\($0)-\($1)"] },
+        typedLoad: { (value: Int) async throws(ClientStubFailure) -> String in
+            guard value >= 0 else {
+                throw ClientStubFailure.rejected(value)
+            }
+            return "typed-loaded-\(value)"
+        }
+    )
+}
+
 @Suite struct ClientStubTests {
     @Test func concreteClientUsesTheProtocolStubConfigurationVocabulary() async throws {
         let stub = makeClosureFieldClientStub().named("api client")
@@ -181,5 +279,71 @@ private func makeClosureFieldClientStub() -> ClientStub<ClosureFieldClient> {
         stub.reset()
         stub.verify(.never) { $0.version() }
         stub.verify(.never) { $0.notify(Match.any()) }
+    }
+
+    @Test func clientSpyForwardsEveryEffectAndArbitraryArity() async throws {
+        let spy = makeClosureFieldClientPreset().spy(
+            forwardingTo: makeLiveClosureFieldClient()
+        )
+        let versions = spy.when { $0.version() }
+        let combinations = spy.when {
+            $0.combine(
+                Match.any(),
+                Match.any(),
+                Match.any(),
+                Match.any(),
+                Match.any(),
+                Match.any(),
+                Match.any(),
+                Match.any()
+            )
+        }
+        let typedLoads = await spy.when {
+            try await $0.typedLoad(Match.any())
+        }
+
+        let client = spy()
+        #expect(client.version() == "live")
+        #expect(client.combine(1, 2, 3, 4, 5, 6, 7, 8) == 36)
+        #expect(try client.save(4) == "saved-4")
+        #expect(throws: ClientStubFailure.rejected(-1)) {
+            _ = try client.typedSave(-1)
+        }
+        #expect(await client.lookup(5) == "lookup-5")
+        #expect(try await client.load(6, "news") == ["6-news"])
+        #expect(try await client.typedLoad(7) == "typed-loaded-7")
+
+        versions.forwarded.verify()
+        combinations.forwarded.verify()
+        typedLoads.forwarded.verify()
+        #expect(spy.history.forwarded.callCount == 7)
+        #expect(spy.history.stubbed.callCount == 0)
+    }
+
+    @Test func clientPresetBuildsLiveFailingAndPartialOverrideVariants() {
+        let preset = makeClosureFieldClientPreset()
+        let live = makeLiveClosureFieldClient()
+        #expect(preset.live(live).version() == "live")
+
+        let failing = preset.failing()
+        failing.when { $0.version() }.thenReturn("test")
+        #expect(failing().version() == "test")
+
+        let partial = preset.overriding(live) { spy in
+            spy.when {
+                $0.format(Match.equal(7), Match.any())
+            }.thenForward()
+            spy.when {
+                $0.format(Match.any(), Match.any())
+            }.thenReturn("overridden")
+        }
+        let formats = partial.when {
+            $0.format(Match.any(), Match.any())
+        }
+        let client = partial()
+        #expect(client.format(7, "items") == "7 items")
+        #expect(client.format(8, "items") == "overridden")
+        formats.forwarded.verify()
+        formats.stubbed.verify()
     }
 }

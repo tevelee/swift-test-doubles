@@ -19,6 +19,7 @@ conformance	TestDoubles	AsyncThrowingClosureDouble	Swift.Sendable	[{"kind":"conf
 conformance	TestDoubles	CallInteractions	Swift.Sendable	[]
 conformance	TestDoubles	CallPattern	Swift.Sendable	[]
 conformance	TestDoubles	CallbackCapture	Swift.Sendable	[]
+conformance	TestDoubles	ClientDoublePreset	Swift.Sendable	[]
 conformance	TestDoubles	ClientStubEndpoints	Swift.Sendable	[]
 conformance	TestDoubles	ClosureCallPattern	Swift.Sendable	[]
 conformance	TestDoubles	ClosureDouble	Swift.Sendable	[{"kind":"conformance","lhs":"Input","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Input","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Input","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
@@ -171,6 +172,7 @@ symbol	TestDoubles	swift.init	AsyncTestDoubleScenario.init(_:)	init(_ configure:
 symbol	TestDoubles	swift.init	AsyncTestDoubleScenario.init(named:_:)	init(named name: String, _ configure: @escaping (Subject) async -> Void)
 symbol	TestDoubles	swift.init	AsyncThrowingClosureDouble.init()	init()
 symbol	TestDoubles	swift.init	CallbackCapture.init()	init()
+symbol	TestDoubles	swift.init	ClientDoublePreset.init(_:)	init(_ materialize: @escaping (ClientStubEndpoints<Client>) -> Client)
 symbol	TestDoubles	swift.init	ClosureDouble.init()	init()
 symbol	TestDoubles	swift.init	CompletionOrder.init()	init()
 symbol	TestDoubles	swift.init	CompletionOrder.init(_:)	@discardableResult convenience init(@CompletionOrder.Builder _ expectations: () -> [Expectation])
@@ -187,6 +189,7 @@ symbol	TestDoubles	swift.init	InvocationOrder.init(exhaustive:isolation:fileID:f
 symbol	TestDoubles	swift.init	ManualRouteID.init(_:argumentTypes:)	init(_ signature: String = #function, argumentTypes: Any.Type...)
 symbol	TestDoubles	swift.init	ManualStub.init()	convenience init()
 symbol	TestDoubles	swift.init	ManualStub.init(_:)	convenience init(_ materialize: @escaping (ClientStubEndpoints<T>) -> T)
+symbol	TestDoubles	swift.init	ManualStub.init(forwardingTo:_:)	convenience init(forwardingTo live: T, _ materialize: @escaping (ClientStubEndpoints<T>) -> T)
 symbol	TestDoubles	swift.init	ManualStubClock.init()	init()
 symbol	TestDoubles	swift.init	ManualStubConformer.init(stub:)	init(stub: ManualStub<Self>)
 symbol	TestDoubles	swift.init	Match.Capture.init()	init()
@@ -415,12 +418,29 @@ symbol	TestDoubles	swift.method	CallbackCapture.named(_:)	@discardableResult fun
 symbol	TestDoubles	swift.method	CallbackCapture.releaseAll()	func releaseAll()
 symbol	TestDoubles	swift.method	CallbackCapture.waitForCallback(count:within:fileID:filePath:line:column:)	func waitForCallback(count: Int = 1, within timeout: Duration, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
 symbol	TestDoubles	swift.method	CallbackCapture.waitForCallback(count:within:using:fileID:filePath:line:column:)	func waitForCallback(count: Int = 1, within timeout: Duration, using clock: any StubClock, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
+symbol	TestDoubles	swift.method	ClientDoublePreset.failing()	func failing() -> ClientStub<Client>
+symbol	TestDoubles	swift.method	ClientDoublePreset.live(_:)	func live(_ client: Client) -> Client
+symbol	TestDoubles	swift.method	ClientDoublePreset.overriding(_:configure:)	func overriding(_ live: Client, configure: (ClientSpy<Client>) -> Void) -> ClientSpy<Client>
+symbol	TestDoubles	swift.method	ClientDoublePreset.spy(forwardingTo:)	func spy(forwardingTo live: Client) -> ClientSpy<Client>
+symbol	TestDoubles	swift.method	ClientDoublePreset.stub()	func stub() -> ClientStub<Client>
 symbol	TestDoubles	swift.method	ClientStubEndpoints.asyncFunction(_:)	func asyncFunction<each Argument, Result>(_ name: String) -> @Sendable (repeat each Argument) async -> Result
+symbol	TestDoubles	swift.method	ClientStubEndpoints.asyncFunction(_:forwarding:)	func asyncFunction<each Argument, Result>(_ name: String, forwarding fallback: @escaping @Sendable (Client, repeat each Argument) async -> Result) -> @Sendable (repeat each Argument) async -> Result
+symbol	TestDoubles	swift.method	ClientStubEndpoints.asyncFunction(_:forwardingTo:)	func asyncFunction<each Argument, Result>(_ name: String, forwardingTo fallback: @escaping @Sendable (repeat each Argument) async -> Result) -> @Sendable (repeat each Argument) async -> Result
 symbol	TestDoubles	swift.method	ClientStubEndpoints.asyncThrowingFunction(_:)	func asyncThrowingFunction<each Argument, Result>(_ name: String) -> @Sendable (repeat each Argument) async throws -> Result
+symbol	TestDoubles	swift.method	ClientStubEndpoints.asyncThrowingFunction(_:forwarding:)	func asyncThrowingFunction<each Argument, Result>(_ name: String, forwarding fallback: @escaping @Sendable (Client, repeat each Argument) async throws -> Result) -> @Sendable (repeat each Argument) async throws -> Result
+symbol	TestDoubles	swift.method	ClientStubEndpoints.asyncThrowingFunction(_:forwardingTo:)	func asyncThrowingFunction<each Argument, Result>(_ name: String, forwardingTo fallback: @escaping @Sendable (repeat each Argument) async throws -> Result) -> @Sendable (repeat each Argument) async throws -> Result
 symbol	TestDoubles	swift.method	ClientStubEndpoints.asyncThrowingFunction(_:throwing:)	func asyncThrowingFunction<each Argument, Result, Failure>(_ name: String, throwing failureType: Failure.Type) -> @Sendable (repeat each Argument) async throws(Failure) -> Result where Failure : Error
+symbol	TestDoubles	swift.method	ClientStubEndpoints.asyncThrowingFunction(_:throwing:forwarding:)	func asyncThrowingFunction<each Argument, Result, Failure>(_ name: String, throwing failureType: Failure.Type, forwarding fallback: @escaping @Sendable (Client, repeat each Argument) async throws(Failure) -> Result) -> @Sendable (repeat each Argument) async throws(Failure) -> Result where Failure : Error
+symbol	TestDoubles	swift.method	ClientStubEndpoints.asyncThrowingFunction(_:throwing:forwardingTo:)	func asyncThrowingFunction<each Argument, Result, Failure>(_ name: String, throwing failureType: Failure.Type, forwardingTo fallback: @escaping @Sendable (repeat each Argument) async throws(Failure) -> Result) -> @Sendable (repeat each Argument) async throws(Failure) -> Result where Failure : Error
 symbol	TestDoubles	swift.method	ClientStubEndpoints.function(_:)	func function<each Argument, Result>(_ name: String) -> @Sendable (repeat each Argument) -> Result
+symbol	TestDoubles	swift.method	ClientStubEndpoints.function(_:forwarding:)	func function<each Argument, Result>(_ name: String, forwarding fallback: @escaping @Sendable (Client, repeat each Argument) -> Result) -> @Sendable (repeat each Argument) -> Result
+symbol	TestDoubles	swift.method	ClientStubEndpoints.function(_:forwardingTo:)	func function<each Argument, Result>(_ name: String, forwardingTo fallback: @escaping @Sendable (repeat each Argument) -> Result) -> @Sendable (repeat each Argument) -> Result
 symbol	TestDoubles	swift.method	ClientStubEndpoints.throwingFunction(_:)	func throwingFunction<each Argument, Result>(_ name: String) -> @Sendable (repeat each Argument) throws -> Result
+symbol	TestDoubles	swift.method	ClientStubEndpoints.throwingFunction(_:forwarding:)	func throwingFunction<each Argument, Result>(_ name: String, forwarding fallback: @escaping @Sendable (Client, repeat each Argument) throws -> Result) -> @Sendable (repeat each Argument) throws -> Result
+symbol	TestDoubles	swift.method	ClientStubEndpoints.throwingFunction(_:forwardingTo:)	func throwingFunction<each Argument, Result>(_ name: String, forwardingTo fallback: @escaping @Sendable (repeat each Argument) throws -> Result) -> @Sendable (repeat each Argument) throws -> Result
 symbol	TestDoubles	swift.method	ClientStubEndpoints.throwingFunction(_:throwing:)	func throwingFunction<each Argument, Result, Failure>(_ name: String, throwing failureType: Failure.Type) -> @Sendable (repeat each Argument) throws(Failure) -> Result where Failure : Error
+symbol	TestDoubles	swift.method	ClientStubEndpoints.throwingFunction(_:throwing:forwarding:)	func throwingFunction<each Argument, Result, Failure>(_ name: String, throwing failureType: Failure.Type, forwarding fallback: @escaping @Sendable (Client, repeat each Argument) throws(Failure) -> Result) -> @Sendable (repeat each Argument) throws(Failure) -> Result where Failure : Error
+symbol	TestDoubles	swift.method	ClientStubEndpoints.throwingFunction(_:throwing:forwardingTo:)	func throwingFunction<each Argument, Result, Failure>(_ name: String, throwing failureType: Failure.Type, forwardingTo fallback: @escaping @Sendable (repeat each Argument) throws(Failure) -> Result) -> @Sendable (repeat each Argument) throws(Failure) -> Result where Failure : Error
 symbol	TestDoubles	swift.method	ClosureCallPattern.afterEachCall(_:)	func afterEachCall(_ action: @escaping @Sendable (Input) -> Void) -> ClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	ClosureCallPattern.arguments()	func arguments() -> [Input]
 symbol	TestDoubles	swift.method	ClosureCallPattern.beforeEachCall(_:)	func beforeEachCall(_ action: @escaping @Sendable (Input) -> Void) -> ClosureCallPattern<Input, Result>
@@ -857,6 +877,7 @@ symbol	TestDoubles	swift.struct	AsyncTestDoubleScenario	struct AsyncTestDoubleSc
 symbol	TestDoubles	swift.struct	AsyncThrowingClosureCallPattern	struct AsyncThrowingClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.struct	CallInteractions	struct CallInteractions
 symbol	TestDoubles	swift.struct	CallPattern	struct CallPattern<Result>
+symbol	TestDoubles	swift.struct	ClientDoublePreset	struct ClientDoublePreset<Client>
 symbol	TestDoubles	swift.struct	ClientStubEndpoints	struct ClientStubEndpoints<Client>
 symbol	TestDoubles	swift.struct	ClosureCallPattern	struct ClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.struct	CompletionOrder.Expectation	struct Expectation
@@ -1065,6 +1086,7 @@ symbol	TestDoubles	swift.typealias	AsyncThrowingClosureDouble.Function	typealias
 symbol	TestDoubles	swift.typealias	AsyncThrowingClosureDouble.Handler	typealias Handler = (Input) async throws -> Result
 symbol	TestDoubles	swift.typealias	AsyncThrowingClosureDouble.Matcher	typealias Matcher = @Sendable (Input) -> Bool
 symbol	TestDoubles	swift.typealias	CallbackCapture.Callback	typealias Callback = (Value) -> Void
+symbol	TestDoubles	swift.typealias	ClientSpy	typealias ClientSpy<Client> = ManualStub<Client>
 symbol	TestDoubles	swift.typealias	ClientStub	typealias ClientStub<Client> = ManualStub<Client>
 symbol	TestDoubles	swift.typealias	ClosureDouble.Function	typealias Function = (Input) -> Result
 symbol	TestDoubles	swift.typealias	ClosureDouble.Handler	typealias Handler = @Sendable (Input) -> Result

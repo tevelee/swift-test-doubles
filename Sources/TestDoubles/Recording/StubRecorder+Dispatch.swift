@@ -17,7 +17,11 @@ extension StubRecorder {
         prepareAsyncDispatch(method: manualMethod.descriptor, args: args)
     }
 
-    func dispatch(method: RuntimeMethod, args: [Any]) throws -> Any {
+    func dispatch(
+        method: RuntimeMethod,
+        args: [Any],
+        forwardingTo fallback: (() throws -> Any)? = nil
+    ) throws -> Any {
         switch prepareDispatch(method: method, args: args) {
             case .placeholder:
                 return zeroValue
@@ -47,10 +51,16 @@ extension StubRecorder {
                     throw error
                 }
 
-            case .forwarding:
-                preconditionFailure(
-                    "[TestDoubles] A forwarding dispatch requires a Spy runtime target."
-                )
+            case .forwarding(let token):
+                guard let fallback else {
+                    preconditionFailure(
+                        "[TestDoubles] A forwarding dispatch requires a Spy target."
+                    )
+                }
+                defer {
+                    completeInvocation(token, outcome: .forwarded)
+                }
+                return try fallback()
         }
     }
 
@@ -70,6 +80,30 @@ extension StubRecorder {
             try dispatch(method: method, args: args),
             as: type,
             method: method.name
+        )
+    }
+
+    func dispatchTyped<Result>(
+        manualMethod: ManualMethod,
+        args: [Any],
+        as type: Result.Type,
+        forwardingTo fallback: @escaping () throws -> Result
+    ) throws -> Result {
+        if mode == .capturing {
+            _ = try? dispatch(method: manualMethod.descriptor, args: args)
+            return RecordingReturnPlaceholderContext.requiredValue(
+                for: type,
+                method: manualMethod.name
+            )
+        }
+        return requireStubbedResult(
+            try dispatch(
+                method: manualMethod.descriptor,
+                args: args,
+                forwardingTo: fallback
+            ),
+            as: type,
+            method: manualMethod.name
         )
     }
 

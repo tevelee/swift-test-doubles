@@ -47,9 +47,13 @@ public final class ManualStub<T>: @unchecked Sendable {
     private let materializer: (ManualStub<T>) -> T
 
     init(
-        materializing materializer: @escaping (ManualStub<T>) -> T
+        materializing materializer: @escaping (ManualStub<T>) -> T,
+        allowsForwardingFallback: Bool = false
     ) {
-        recorder = StubRecorder(methods: [])
+        recorder = StubRecorder(
+            methods: [],
+            allowsForwardingFallback: allowsForwardingFallback
+        )
         self.materializer = materializer
         if let session = TestDoubleTestingContext.session {
             session.register(recorder)
@@ -706,7 +710,7 @@ public final class ManualStub<T>: @unchecked Sendable {
         }
     }
 
-    private func internMethod(
+    func internMethod(
         route: ManualMethodRouteIdentity,
         returnType: Any.Type,
         isAsync: Bool,
