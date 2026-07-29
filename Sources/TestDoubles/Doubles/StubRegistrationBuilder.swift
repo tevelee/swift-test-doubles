@@ -88,6 +88,21 @@ extension StubRegistrationBuilder {
         return .awaitCancellation(outcome)
     }
 
+    /// Creates a delayed behavior that cancels the calling task before
+    /// completing with `outcome`.
+    func cancelAfterAnswer(
+        _ delay: Duration,
+        using clock: any StubClock,
+        outcome: StubBehaviorRegistry.FixedResult?
+    ) -> StubRecorder.QueuedAnswer {
+        requireAsyncRequirement(configuring: "thenCancel")
+        precondition(
+            delay >= .zero,
+            "[TestDoubles] thenCancel(after:) requires a nonnegative delay."
+        )
+        return .cancelAfter(delay, clock, outcome)
+    }
+
     /// Wraps an explicit fall-through to the forwarding target as a queued
     /// answer. Only a `Spy` has a target to forward to, so any other double
     /// fails here at registration rather than at the eventual call.

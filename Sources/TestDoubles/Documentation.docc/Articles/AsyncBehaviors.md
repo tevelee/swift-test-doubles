@@ -132,6 +132,31 @@ The bare form is only available where an implicit outcome exists; a non-throwing
 requirement that returns a value has none, so it must use the `returning:` form,
 and the bare call fails with a diagnostic pointing there.
 
+### Inject cancellation from the dependency
+
+``CallPattern/thenCancel(after:using:)`` models the opposite direction: after
+the delay, the stub cancels the task that called it and throws
+`CancellationError`.
+
+```swift
+let clock = ManualStubClock()
+let stub = try Stub<any FeedService>()
+await stub.when { try await $0.loadFeed() }
+    .thenCancel(after: .seconds(1), using: clock)
+
+let task = Task { try await stub().loadFeed() }
+await clock.waitForSleepers(atLeast: 1)
+clock.advance(by: .seconds(1))
+
+await #expect(throws: CancellationError.self) { try await task.value }
+#expect(task.isCancelled)
+```
+
+For a nonthrowing async requirement,
+``CallPattern/thenCancel(after:returning:using:)`` returns an explicit fallback
+after marking the caller cancelled. The same overloads are available on async
+closure-call patterns. A ``ManualStubClock`` makes both forms deterministic.
+
 ### Control completion from the test
 
 ``CallPattern/thenSuspend()`` is the most precise tool: it parks matching calls

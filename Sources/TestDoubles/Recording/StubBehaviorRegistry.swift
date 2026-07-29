@@ -31,6 +31,7 @@ struct StubBehaviorRegistry {
         case suspending(([Any]) async throws -> Any)
         case never
         case awaitCancellation(FixedResult?)
+        case cancelAfter(Duration, any StubClock, FixedResult?)
         case forward
         case fatal(message: String?)
     }

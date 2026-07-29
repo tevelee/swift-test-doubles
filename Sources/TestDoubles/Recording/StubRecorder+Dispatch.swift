@@ -299,6 +299,26 @@ extension StubRecorder {
                                 return ()
                         }
                     })
+            case .cancelAfter(let delay, let clock, let outcome):
+                let isThrowing = method.isThrowing
+                return .behavior(
+                    .suspending { _ in
+                        if isThrowing {
+                            try await clock.sleep(for: delay)
+                        } else {
+                            await Task {
+                                try? await clock.sleep(for: delay)
+                            }.value
+                        }
+                        withUnsafeCurrentTask { task in
+                            task?.cancel()
+                        }
+                        if let outcome {
+                            return try outcome.get()
+                        }
+                        throw CancellationError()
+                    }
+                )
             case .forward:
                 guard allowsForwardingFallback else {
                     fatalError(

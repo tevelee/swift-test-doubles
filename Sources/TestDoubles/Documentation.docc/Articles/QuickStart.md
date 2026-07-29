@@ -421,6 +421,29 @@ await loader.when {
 }.thenAwaitCancellation(throwing: FeedError.cancelled)
 ```
 
+#### Inject cancellation after a delay
+
+Use `thenCancel(after:)` when the dependency itself should cancel the calling
+task, such as a transport aborting an in-flight operation:
+
+```swift
+await loader.when {
+    try await $0.load()
+}.thenCancel(after: .milliseconds(200))
+```
+
+The throwing form cancels the caller and throws `CancellationError`. A
+nonthrowing async requirement names the value returned after cancellation:
+
+```swift
+await stub.when {
+    await $0.pendingCount()
+}.thenCancel(after: .milliseconds(200), returning: 0)
+```
+
+Pass a ``ManualStubClock`` with `using:` to advance the cancellation deadline
+without real sleeps.
+
 #### Resume the call from the test
 
 ```swift

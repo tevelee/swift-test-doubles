@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   handles, exposed through timeline events.
 - Independent `beforeEachCall` and `afterEachCall` side-effect hooks that
   compose with returns, errors, suspending handlers, and spy forwarding.
+- Delayed caller-cancellation injection through `thenCancel(after:)`, with an
+  explicit fallback form for nonthrowing async requirements and manual-clock
+  support.
 
 ## [0.0.2] - 2026-07-29
 

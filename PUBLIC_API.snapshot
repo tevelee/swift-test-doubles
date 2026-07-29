@@ -214,6 +214,7 @@ symbol	TestDoubles	swift.method	AsyncClosureCallPattern.then(times:_:)	@discarda
 symbol	TestDoubles	swift.method	AsyncClosureCallPattern.then(times:_:)	@discardableResult func then(times: PartialRangeFrom<Int> = 1..., _ handler: @escaping @Sendable (Input) -> Result) -> CallInteractions
 symbol	TestDoubles	swift.method	AsyncClosureCallPattern.thenAwaitCancellation()	@discardableResult func thenAwaitCancellation() -> CallInteractions
 symbol	TestDoubles	swift.method	AsyncClosureCallPattern.thenAwaitCancellation(returning:)	@discardableResult func thenAwaitCancellation(returning value: Result) -> CallInteractions
+symbol	TestDoubles	swift.method	AsyncClosureCallPattern.thenCancel(after:returning:using:)	@discardableResult func thenCancel(after delay: Duration, returning value: Result, using clock: any StubClock = StubClocks.continuous) -> CallInteractions
 symbol	TestDoubles	swift.method	AsyncClosureCallPattern.thenDoNothing(after:times:)	@discardableResult func thenDoNothing(after delay: Duration? = nil, times: Int = 1) -> StubBehaviorChain<Void>
 symbol	TestDoubles	swift.method	AsyncClosureCallPattern.thenDoNothing(after:times:)	@discardableResult func thenDoNothing(after delay: Duration? = nil, times: PartialRangeFrom<Int> = 1...) -> CallInteractions
 symbol	TestDoubles	swift.method	AsyncClosureCallPattern.thenFatalError(_:)	@discardableResult func thenFatalError(_ message: String? = nil) -> CallInteractions
@@ -267,6 +268,7 @@ symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.then(times:_:)	@
 symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.thenAwaitCancellation()	@discardableResult func thenAwaitCancellation() -> CallInteractions
 symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.thenAwaitCancellation(returning:)	@discardableResult func thenAwaitCancellation(returning value: Result) -> CallInteractions
 symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.thenAwaitCancellation(throwing:)	@discardableResult func thenAwaitCancellation<Failure>(throwing error: Failure) -> CallInteractions where Failure : Error
+symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.thenCancel(after:using:)	@discardableResult func thenCancel(after delay: Duration, using clock: any StubClock = StubClocks.continuous) -> CallInteractions
 symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.thenDoNothing(after:times:)	@discardableResult func thenDoNothing(after delay: Duration? = nil, times: Int = 1) -> StubBehaviorChain<Void>
 symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.thenDoNothing(after:times:)	@discardableResult func thenDoNothing(after delay: Duration? = nil, times: PartialRangeFrom<Int> = 1...) -> CallInteractions
 symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.thenFatalError(_:)	@discardableResult func thenFatalError(_ message: String? = nil) -> CallInteractions
@@ -333,6 +335,8 @@ symbol	TestDoubles	swift.method	CallPattern.then(times:_:)	@discardableResult fu
 symbol	TestDoubles	swift.method	CallPattern.thenAwaitCancellation()	@discardableResult func thenAwaitCancellation() -> CallInteractions
 symbol	TestDoubles	swift.method	CallPattern.thenAwaitCancellation(returning:)	@discardableResult func thenAwaitCancellation(returning value: Result) -> CallInteractions
 symbol	TestDoubles	swift.method	CallPattern.thenAwaitCancellation(throwing:)	@discardableResult func thenAwaitCancellation<Failure>(throwing error: Failure) -> CallInteractions where Failure : Error
+symbol	TestDoubles	swift.method	CallPattern.thenCancel(after:returning:using:)	@discardableResult func thenCancel(after delay: Duration, returning value: Result, using clock: any StubClock = StubClocks.continuous) -> CallInteractions
+symbol	TestDoubles	swift.method	CallPattern.thenCancel(after:using:)	@discardableResult func thenCancel(after delay: Duration, using clock: any StubClock = StubClocks.continuous) -> CallInteractions
 symbol	TestDoubles	swift.method	CallPattern.thenDoNothing(after:times:)	@discardableResult func thenDoNothing(after delay: Duration? = nil, times: Int = 1) -> StubBehaviorChain<Void>
 symbol	TestDoubles	swift.method	CallPattern.thenDoNothing(after:times:)	@discardableResult func thenDoNothing(after delay: Duration? = nil, times: PartialRangeFrom<Int> = 1...) -> CallInteractions
 symbol	TestDoubles	swift.method	CallPattern.thenEscaping(times:_:)	@discardableResult func thenEscaping<FirstArgument, each AdditionalArgument>(times: Int = 1, _ handler: @escaping (FirstArgument, repeat each AdditionalArgument) async throws -> Result) -> StubBehaviorChain<Result>

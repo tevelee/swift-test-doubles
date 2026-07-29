@@ -68,6 +68,7 @@ private struct UnexpectedTypedError: Error {}
         case neverReturnOnSynchronousRequirement
         case awaitCancellationOnSynchronousRequirement
         case bareAwaitCancellationWithoutImplicitOutcome
+        case cancelAfterOnSynchronousRequirement
         case suspendOnSynchronousRequirement
         case resumeWithoutSuspendedCall
         case resumeThrowingOnNonThrowingRequirement
@@ -114,6 +115,8 @@ private struct UnexpectedTypedError: Error {}
                     try await awaitCancellationOnSynchronousRequirementHaltsAtConfiguration()
                 case .bareAwaitCancellationWithoutImplicitOutcome:
                     try await bareAwaitCancellationWithoutImplicitOutcomeHaltsAtConfiguration()
+                case .cancelAfterOnSynchronousRequirement:
+                    try await cancelAfterOnSynchronousRequirementHaltsAtConfiguration()
                 case .suspendOnSynchronousRequirement:
                     try await suspendOnSynchronousRequirementHaltsAtConfiguration()
                 case .resumeWithoutSuspendedCall:
@@ -219,6 +222,23 @@ private struct UnexpectedTypedError: Error {}
             )
             #expect(diagnostic.contains("needs a value to complete with"))
             #expect(diagnostic.contains("thenAwaitCancellation(returning:)"))
+        }
+
+        private func cancelAfterOnSynchronousRequirementHaltsAtConfiguration() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let stub = try Stub<any UnstubbedBehaviorProbe>()
+                stub.when { try $0.total(of: Match.any()) }
+                    .thenCancel(after: .milliseconds(1))
+            }
+
+            let diagnostic = try #require(
+                String(bytes: result.standardErrorContent, encoding: .utf8)
+            )
+            #expect(diagnostic.contains("thenCancel requires an async requirement"))
+            #expect(diagnostic.contains("total(of:)"))
         }
 
         private func neverReturnOnSynchronousRequirementHaltsAtConfiguration() async throws {
