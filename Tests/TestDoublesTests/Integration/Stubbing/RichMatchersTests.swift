@@ -7,6 +7,14 @@ protocol Ledger {
     func attach(node: LedgerNode) -> Bool
 }
 
+protocol MeasurementLedger {
+    func classify(_ value: Double) -> String
+}
+
+struct RealMeasurementLedger: MeasurementLedger {
+    func classify(_ value: Double) -> String { "\(value)" }
+}
+
 struct RealLedger: Ledger {
     func classify(amount: Int) -> String { "" }
     func lookup(id: Int?) -> String { "" }
@@ -16,6 +24,37 @@ struct RealLedger: Ledger {
 final class LedgerNode {}
 
 @Suite struct RichMatchersTests {
+    @Test func approximateMatcherSupportsAbsoluteAndRelativeTolerance() throws {
+        _ = RealMeasurementLedger()
+        let stub = try Stub<any MeasurementLedger>()
+        stub.when {
+            $0.classify(
+                Match.approximately(
+                    1_000,
+                    absoluteTolerance: 0.01,
+                    relativeTolerance: 0.001
+                )
+            )
+        }.thenReturn("near")
+        stub.when { $0.classify(Match.any()) }.thenReturn("far")
+        let ledger: any MeasurementLedger = stub()
+
+        #expect(ledger.classify(1_000.005) == "near")
+        #expect(ledger.classify(1_000.9) == "near")
+        #expect(ledger.classify(1_002) == "far")
+        #expect(ledger.classify(.infinity) == "far")
+
+        stub.verify(.exactly(2)) {
+            $0.classify(
+                Match.approximately(
+                    1_000,
+                    absoluteTolerance: 0.01,
+                    relativeTolerance: 0.001
+                )
+            )
+        }
+    }
+
     @Test func comparisonMatchers() throws {
         let stub = try Stub<any Ledger>()
         stub.when { $0.classify(amount: Match.atMost(0)) }.thenReturn("nonpositive")

@@ -77,6 +77,21 @@ and does not terminate the process. When calls reached the same requirement
 with different arguments, the issue also shows the closest observed calls and
 which matcher rejected each argument.
 
+For floating-point values, `Match.approximately` combines absolute and relative
+tolerance:
+
+```swift
+stub.when {
+    $0.record(
+        Match.approximately(
+            1_000,
+            absoluteTolerance: 0.01,
+            relativeTolerance: 0.001
+        )
+    )
+}.thenDoNothing()
+```
+
 The zero-argument matcher forms synthesize valid recording placeholders for
 supported value types. Supply a valid value for references, existentials, and
 other types that cannot be synthesized safely:

@@ -168,6 +168,35 @@ extension Match {
         return range.lowerBound
     }
 
+    /// Matches a floating-point argument within absolute or relative
+    /// tolerance of `value`.
+    ///
+    /// A value matches when its difference is no larger than the greater of
+    /// `absoluteTolerance` and `relativeTolerance` times the larger
+    /// magnitude. Both tolerances must be finite and nonnegative.
+    public static func approximately<Value: BinaryFloatingPoint>(
+        _ value: Value,
+        absoluteTolerance: Value = 0,
+        relativeTolerance: Value = 0
+    ) -> Value {
+        precondition(
+            absoluteTolerance.isFinite && absoluteTolerance >= 0,
+            "[TestDoubles] absoluteTolerance must be finite and nonnegative."
+        )
+        precondition(
+            relativeTolerance.isFinite && relativeTolerance >= 0,
+            "[TestDoubles] relativeTolerance must be finite and nonnegative."
+        )
+        MatcherContext.append(
+            ApproximateMatcher(
+                expected: value,
+                absoluteTolerance: absoluteTolerance,
+                relativeTolerance: relativeTolerance
+            )
+        )
+        return value
+    }
+
     // MARK: - Optionals
 
     /// Matches a `nil` optional argument.

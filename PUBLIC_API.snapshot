@@ -851,6 +851,7 @@ symbol	TestDoubles	swift.type.method	Match.any(using:)	static func any<T>(using 
 symbol	TestDoubles	swift.type.method	Match.anyOf(_:_:)	static func anyOf<T>(_ first: @autoclosure () -> T, _ second: @autoclosure () -> T) -> T
 symbol	TestDoubles	swift.type.method	Match.anyOf(_:_:_:)	static func anyOf<T>(_ first: @autoclosure () -> T, _ second: @autoclosure () -> T, _ third: @autoclosure () -> T) -> T
 symbol	TestDoubles	swift.type.method	Match.anyOf(_:_:_:_:)	static func anyOf<T>(_ first: @autoclosure () -> T, _ second: @autoclosure () -> T, _ third: @autoclosure () -> T, _ fourth: @autoclosure () -> T) -> T
+symbol	TestDoubles	swift.type.method	Match.approximately(_:absoluteTolerance:relativeTolerance:)	static func approximately<Value>(_ value: Value, absoluteTolerance: Value = 0, relativeTolerance: Value = 0) -> Value where Value : BinaryFloatingPoint
 symbol	TestDoubles	swift.type.method	Match.atLeast(_:)	static func atLeast<T>(_ value: T) -> T where T : Comparable
 symbol	TestDoubles	swift.type.method	Match.atMost(_:)	static func atMost<T>(_ value: T) -> T where T : Comparable
 symbol	TestDoubles	swift.type.method	Match.contains(_:)	static func contains<C>(_ element: C.Element) -> C where C : Collection, C.Element : Equatable, C.Element : Sendable

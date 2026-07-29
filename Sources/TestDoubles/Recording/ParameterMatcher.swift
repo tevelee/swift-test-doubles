@@ -240,6 +240,29 @@ struct RangeMatcher<Bound: Comparable>: ParameterMatcher {
     var acceptanceIdentity: String? { diagnosticDescription }
 }
 
+struct ApproximateMatcher<Value: BinaryFloatingPoint>: ParameterMatcher {
+    let expected: Value
+    let absoluteTolerance: Value
+    let relativeTolerance: Value
+
+    func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
+        guard let value = value as? Value else { return nil }
+        if value == expected { return .matched }
+        guard value.isFinite, expected.isFinite else { return nil }
+        let difference = Swift.abs(value - expected)
+        let scale = Swift.max(Swift.abs(value), Swift.abs(expected))
+        let tolerance = Swift.max(absoluteTolerance, relativeTolerance * scale)
+        return difference <= tolerance ? .matched : nil
+    }
+
+    var diagnosticDescription: String {
+        "Match.approximately(\(expected), absoluteTolerance: "
+            + "\(absoluteTolerance), relativeTolerance: \(relativeTolerance))"
+    }
+
+    var acceptanceIdentity: String? { diagnosticDescription }
+}
+
 struct NilMatcher: ParameterMatcher {
     let expectsNil: Bool
 

@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   support.
 - Deterministic fault injection that fails every Nth call or follows a seeded
   probability sequence while returning an explicit success value otherwise.
+- Approximate floating-point matching with combined absolute and relative
+  tolerances.
 
 ## [0.0.2] - 2026-07-29
 
