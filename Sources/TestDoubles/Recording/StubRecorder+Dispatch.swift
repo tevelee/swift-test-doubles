@@ -164,9 +164,16 @@ extension StubRecorder {
                         args: args,
                         entries: entries
                     )
+                    let origin: InvocationOrigin =
+                        if case .forwarding = dispatch {
+                            .forwarded
+                        } else {
+                            .stubbed
+                        }
                     let waiters = policy.invocationLedger.append(
                         method: methodIndex,
                         name: method.name,
+                        origin: origin,
                         registrationSignature: entry.diagnosticSignature,
                         args: args,
                         argumentConventions: recordingArgumentConventions(for: method),

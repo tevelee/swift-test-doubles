@@ -66,12 +66,14 @@ struct RealForwardingProbeService: ForwardingProbeService {
         let spy: Spy<any ForwardingProbeService> = Spy.make(
             forwardingTo: RealForwardingProbeService()
         )
-        spy.when { $0.name(for: Match.any()) }.thenForward()
+        let calls = spy.when { $0.name(for: Match.any()) }
+        calls.thenForward()
 
         let service: any ForwardingProbeService = spy()
         _ = service.name(for: 1)
         _ = service.name(for: 2)
 
-        spy.verify(.exactly(2)) { $0.name(for: Match.any()) }
+        calls.verify(2 ... 2)
+        calls.forwarded.verify(2 ... 2)
     }
 }
