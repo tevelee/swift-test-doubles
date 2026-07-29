@@ -377,15 +377,18 @@ struct InvocationLedger {
     mutating func complete(
         _ token: RecordedCallToken,
         outcome: RecordedCallOutcome
-    ) {
+    ) -> [InvocationLedgerWaiter] {
         guard let index = calls.firstIndex(where: { $0.id == token.id }) else {
-            return
+            return []
         }
         guard case .pending = calls[index].outcome else {
-            return
+            return []
         }
         calls[index].completedAt = ContinuousClock.now
         calls[index].outcome = outcome
+        let method = calls[index].methodIndex
+        methodGenerations[method, default: 0] &+= 1
+        return takeWaiters(for: method)
     }
 
     mutating func clear() -> [InvocationLedgerWaiter] {

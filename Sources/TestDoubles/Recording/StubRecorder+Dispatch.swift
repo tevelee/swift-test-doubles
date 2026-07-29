@@ -386,9 +386,10 @@ extension StubRecorder {
         _ token: RecordedCallToken,
         outcome: RecordedCallOutcome
     ) {
-        withLockedPolicy {
+        let waiters = withLockedPolicy {
             $0.invocationLedger.complete(token, outcome: outcome)
         }
+        resumeWaiters(waiters, returning: .changed)
     }
 
     private func recordedOutcome(

@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   spy forwarding.
 - Monotonic invocation start/completion timestamps and elapsed durations on
   call patterns, terminal handles, and whole-double timeline events.
+- Event-driven `waitForCompletion(count:within:)` synchronization for matching
+  interactions, including throwing and forwarded calls.
 
 ## [0.0.2] - 2026-07-29
 

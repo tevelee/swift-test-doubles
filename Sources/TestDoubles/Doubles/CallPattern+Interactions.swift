@@ -213,6 +213,39 @@ extension CallPattern {
         matchingCalls().compactMap(\.timing)
     }
 
+    /// Waits until at least `count` matching calls have completed.
+    ///
+    /// Completion includes returning, throwing, and finishing a spy
+    /// delegation. A timeout reports an issue at this call site.
+    public func waitForCompletion(
+        count: Int = 1,
+        within timeout: Duration,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) async {
+        switch await recorder.waitForCompletionCount(
+            recording: recording,
+            minimumCount: count,
+            timeout: timeout,
+            origin: origin
+        ) {
+            case .satisfied, .cancelled:
+                return
+            case .timedOut(let actualCount):
+                reportIssue(
+                    "'\(recording.name)': expected \(count) completed "
+                        + "call\(count == 1 ? "" : "s") within \(timeout), "
+                        + "got \(actualCount)",
+                    fileID: fileID,
+                    filePath: filePath,
+                    line: line,
+                    column: column
+                )
+        }
+    }
+
     /// Returns a stream of future matching invocation arguments.
     ///
     /// Calls recorded before this method returns are deliberately excluded.

@@ -122,6 +122,12 @@ entry and completion, plus a derived `Duration`. Pending calls have no
 completion instant or duration. The same fields appear on
 ``InteractionTimeline/Event`` for whole-double traces.
 
+To synchronize with asynchronous handlers without polling, use
+`await interactions.waitForCompletion(count:within:)`. It resumes when at
+least the requested number of matching calls have returned, thrown, or
+finished forwarding. A timeout reports a test issue and waiting does not mark
+the calls as verified.
+
 ### Inspect the whole double
 
 When a `verify` fails, the useful next question is what actually *did* get

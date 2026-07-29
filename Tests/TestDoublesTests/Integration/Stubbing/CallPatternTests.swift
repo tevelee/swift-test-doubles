@@ -99,6 +99,27 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
         #expect(event.duration == timing.duration)
     }
 
+    @Test func completionWaiterResumesAfterAsyncHandlerReturns() async throws {
+        let stub = try makeHandlerArityStub()
+        let pattern = await stub.when {
+            await $0.asynchronous(Match.any())
+        }
+        pattern.then { (value: Int) async -> Int in
+            try? await ContinuousClock().sleep(for: .milliseconds(25))
+            return value * 2
+        }
+        let probe: any HandlerArityProbe = stub()
+
+        let task = Task { await probe.asynchronous(21) }
+        await pattern.interactions.waitForCompletion(
+            count: 1,
+            within: .seconds(1)
+        )
+
+        #expect(pattern.results() == [42])
+        #expect(await task.value == 42)
+    }
+
     @Test func typedThenSupportsZeroThroughSevenArguments() async throws {
         let stub = try makeHandlerArityStub()
         stub.when { $0.zero() }.then { 0 }

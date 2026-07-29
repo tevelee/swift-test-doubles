@@ -493,6 +493,86 @@ extension StubRecorder {
         return .cancelled
     }
 
+    func waitForCompletionCount(
+        recording: RecordedCall,
+        minimumCount: Int,
+        timeout: Duration,
+        origin: InvocationOrigin? = nil
+    ) async -> EventualCallCountResult {
+        precondition(
+            minimumCount >= 0,
+            "[TestDoubles] A completion count must be nonnegative."
+        )
+        precondition(
+            timeout >= .zero,
+            "[TestDoubles] A completion timeout must be nonnegative."
+        )
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: timeout)
+        let method = recording.methodIndex
+        let matchers = recording.resolvedMatchers
+
+        while true {
+            let snapshot = withLockedPolicy {
+                $0.invocationLedger.snapshot(for: method)
+            }
+            let completedCount = completedMatchCount(
+                recording: recording,
+                matchers: matchers,
+                origin: origin,
+                in: snapshot.calls
+            )
+            if completedCount >= minimumCount {
+                return .satisfied
+            }
+            if Task.isCancelled {
+                return .cancelled
+            }
+            if deadline <= clock.now {
+                return .timedOut(actualCount: completedCount)
+            }
+
+            switch await waitForCall(after: snapshot.generation, until: deadline) {
+                case .changed:
+                    continue
+                case .timedOut:
+                    let finalCount = completedMatchCount(
+                        recording: recording,
+                        matchers: matchers,
+                        origin: origin,
+                        in: withLockedPolicy {
+                            $0.invocationLedger.allCalls
+                        }
+                    )
+                    return finalCount >= minimumCount
+                        ? .satisfied
+                        : .timedOut(actualCount: finalCount)
+                case .cancelled:
+                    return .cancelled
+            }
+        }
+    }
+
+    private func completedMatchCount(
+        recording: RecordedCall,
+        matchers: [ParameterMatcher],
+        origin: InvocationOrigin?,
+        in calls: [RecordedCall]
+    ) -> Int {
+        matchingCalls(
+            method: recording.methodIndex,
+            matchers: matchers,
+            matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly,
+            origin: origin,
+            in: calls
+        ).count { match in
+            if case .pending = match.call.outcome {
+                return false
+            }
+            return true
+        }
+    }
+
     private func markVerified(_ calls: [RecordedCall]) {
         withLockedPolicy { $0.invocationLedger.markVerified(calls) }
     }

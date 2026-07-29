@@ -185,6 +185,28 @@ public struct CallInteractions: Sendable {
         matchingCalls().compactMap(\.timing)
     }
 
+    /// Waits until at least `count` matching calls have completed.
+    ///
+    /// A timeout reports an issue at this call site. Waiting is event-driven
+    /// and does not mark calls as verified.
+    public func waitForCompletion(
+        count: Int = 1,
+        within timeout: Duration,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) async {
+        await pattern.waitForCompletion(
+            count: count,
+            within: timeout,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
     /// Returns a stream of future matching invocation arguments.
     ///
     /// Calls recorded before this method returns are deliberately excluded.
