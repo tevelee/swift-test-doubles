@@ -38,6 +38,9 @@ private actor CompletionFlag {
         await suspension.waitForCall()
         // The call has arrived and is parked; nothing has completed yet.
         #expect(await completed.isSet == false)
+        suspension.interactions.verify(1 ... 1)
+        let arguments: [Int] = suspension.interactions.arguments()
+        #expect(arguments == [1])
 
         suspension.resume(returning: "late")
         #expect(try await task.value == "late")

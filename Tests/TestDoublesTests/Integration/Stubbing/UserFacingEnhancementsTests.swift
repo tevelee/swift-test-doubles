@@ -176,6 +176,9 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
         #expect(service.value(for: "second") == 2)
         #expect(queue.isExhausted)
         queue.assertExhausted()
+        queue.interactions.verify(2 ... 2)
+        let arguments: [String] = queue.interactions.arguments()
+        #expect(arguments == ["first", "second"])
     }
 
     @Test func throwingBehaviorQueuesExposeTheirRemainingAnswers() async throws {

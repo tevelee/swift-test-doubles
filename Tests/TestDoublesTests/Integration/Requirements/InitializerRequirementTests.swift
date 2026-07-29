@@ -176,14 +176,18 @@ struct InitializerRequirementTests {
             ) == "real"
         )
         let stub = try Stub<any InitializerRequirementProbe>()
-        stub.when(initializer: { type(of: $0).init(value: Match.any()) }).thenInitialize()
+        let initializations = stub.when(
+            initializer: { type(of: $0).init(value: Match.any()) }
+        ).thenInitialize()
         stub.when { $0.storedValue() }.thenReturn("stubbed")
 
         let seed: any InitializerRequirementProbe = stub()
         let initialized = type(of: seed).init(value: "created")
 
         #expect(initialized.storedValue() == "stubbed")
-        stub.verify { type(of: $0).init(value: Match.equal("created")) }
+        initializations.verify(1 ... 1)
+        let arguments: [String] = initializations.arguments()
+        #expect(arguments == ["created"])
     }
 
     @Test func explicitInitializersWorkWithoutAConformer() throws {

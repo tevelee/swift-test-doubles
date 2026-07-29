@@ -111,8 +111,9 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
             ),
             .method(returning: Int.self)
         )
-        stub.when(returningSelf: { $0.duplicate() }).thenReturnValue()
-        stub.when(
+        let duplicates = stub.when(returningSelf: { $0.duplicate() })
+            .thenReturnValue()
+        let optionalDuplicates = stub.when(
             returningOptionalSelf: {
                 $0.optionalDuplicate(returnValue: Match.any())
             }
@@ -127,10 +128,8 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
         #expect(duplicate.marker() == 42)
         #expect(optionalDuplicate?.marker() == 42)
         #expect(stub().optionalDuplicate(returnValue: false) == nil)
-        stub.verify(.exactly(1)) { $0.duplicate() }
-        stub.verify(.exactly(2)) {
-            $0.optionalDuplicate(returnValue: Match.any())
-        }
+        duplicates.verify(1 ... 1)
+        optionalDuplicates.verify(2 ... 2)
     }
 
     @Test func automaticMethodsAndGetterReturnValuesFromTheSameRuntimeGraph() throws {

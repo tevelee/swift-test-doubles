@@ -375,24 +375,24 @@ symbol	TestDoubles	swift.method	StubBehaviorChain.thenThrow(_:after:times:)	@dis
 symbol	TestDoubles	swift.method	StubBehaviorChain.thenThrow(_:after:times:)	@discardableResult func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, times: PartialRangeFrom<Int> = 1...) -> CallInteractions where Failure : Error
 symbol	TestDoubles	swift.method	StubBehaviorQueue.assertExhausted(fileID:filePath:line:column:)	func assertExhausted(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	TestDoubles	swift.method	StubClock.sleep(for:)	func sleep(for duration: Duration) async throws
-symbol	TestDoubles	swift.method	StubFailableInitializerBuilder.then(_:)	func then<each Argument>(_ handler: @escaping (repeat each Argument) async throws -> Outcome)
-symbol	TestDoubles	swift.method	StubFailableInitializerBuilder.then(_:)	func then<each Argument>(_ handler: @escaping @Sendable (repeat each Argument) throws -> Outcome)
-symbol	TestDoubles	swift.method	StubFailableInitializerBuilder.thenInitialize()	func thenInitialize()
-symbol	TestDoubles	swift.method	StubFailableInitializerBuilder.thenReturnNil()	func thenReturnNil()
-symbol	TestDoubles	swift.method	StubFailableInitializerBuilder.thenThrow(_:)	func thenThrow<Failure>(_ error: Failure) where Failure : Error
-symbol	TestDoubles	swift.method	StubInitializerBuilder.then(_:)	func then<each Argument>(_ handler: @escaping (repeat each Argument) async throws -> Void)
-symbol	TestDoubles	swift.method	StubInitializerBuilder.then(_:)	func then<each Argument>(_ handler: @escaping @Sendable (repeat each Argument) throws -> Void)
-symbol	TestDoubles	swift.method	StubInitializerBuilder.thenInitialize()	func thenInitialize()
-symbol	TestDoubles	swift.method	StubInitializerBuilder.thenThrow(_:)	func thenThrow<Failure>(_ error: Failure) where Failure : Error
-symbol	TestDoubles	swift.method	StubOptionalSelfResultBuilder.then(_:)	func then<each Argument>(_ handler: @escaping (repeat each Argument) async throws -> Outcome)
-symbol	TestDoubles	swift.method	StubOptionalSelfResultBuilder.then(_:)	func then<each Argument>(_ handler: @escaping @Sendable (repeat each Argument) throws -> Outcome)
-symbol	TestDoubles	swift.method	StubOptionalSelfResultBuilder.thenReturnNil()	func thenReturnNil()
-symbol	TestDoubles	swift.method	StubOptionalSelfResultBuilder.thenReturnValue()	func thenReturnValue()
-symbol	TestDoubles	swift.method	StubOptionalSelfResultBuilder.thenThrow(_:)	func thenThrow<Failure>(_ error: Failure) where Failure : Error
-symbol	TestDoubles	swift.method	StubSelfResultBuilder.then(_:)	func then<each Argument>(_ handler: @escaping (repeat each Argument) async throws -> Void)
-symbol	TestDoubles	swift.method	StubSelfResultBuilder.then(_:)	func then<each Argument>(_ handler: @escaping @Sendable (repeat each Argument) throws -> Void)
-symbol	TestDoubles	swift.method	StubSelfResultBuilder.thenReturnValue()	func thenReturnValue()
-symbol	TestDoubles	swift.method	StubSelfResultBuilder.thenThrow(_:)	func thenThrow<Failure>(_ error: Failure) where Failure : Error
+symbol	TestDoubles	swift.method	StubFailableInitializerBuilder.then(_:)	@discardableResult func then<each Argument>(_ handler: @escaping (repeat each Argument) async throws -> Outcome) -> CallInteractions
+symbol	TestDoubles	swift.method	StubFailableInitializerBuilder.then(_:)	@discardableResult func then<each Argument>(_ handler: @escaping @Sendable (repeat each Argument) throws -> Outcome) -> CallInteractions
+symbol	TestDoubles	swift.method	StubFailableInitializerBuilder.thenInitialize()	@discardableResult func thenInitialize() -> CallInteractions
+symbol	TestDoubles	swift.method	StubFailableInitializerBuilder.thenReturnNil()	@discardableResult func thenReturnNil() -> CallInteractions
+symbol	TestDoubles	swift.method	StubFailableInitializerBuilder.thenThrow(_:)	@discardableResult func thenThrow<Failure>(_ error: Failure) -> CallInteractions where Failure : Error
+symbol	TestDoubles	swift.method	StubInitializerBuilder.then(_:)	@discardableResult func then<each Argument>(_ handler: @escaping (repeat each Argument) async throws -> Void) -> CallInteractions
+symbol	TestDoubles	swift.method	StubInitializerBuilder.then(_:)	@discardableResult func then<each Argument>(_ handler: @escaping @Sendable (repeat each Argument) throws -> Void) -> CallInteractions
+symbol	TestDoubles	swift.method	StubInitializerBuilder.thenInitialize()	@discardableResult func thenInitialize() -> CallInteractions
+symbol	TestDoubles	swift.method	StubInitializerBuilder.thenThrow(_:)	@discardableResult func thenThrow<Failure>(_ error: Failure) -> CallInteractions where Failure : Error
+symbol	TestDoubles	swift.method	StubOptionalSelfResultBuilder.then(_:)	@discardableResult func then<each Argument>(_ handler: @escaping (repeat each Argument) async throws -> Outcome) -> CallInteractions
+symbol	TestDoubles	swift.method	StubOptionalSelfResultBuilder.then(_:)	@discardableResult func then<each Argument>(_ handler: @escaping @Sendable (repeat each Argument) throws -> Outcome) -> CallInteractions
+symbol	TestDoubles	swift.method	StubOptionalSelfResultBuilder.thenReturnNil()	@discardableResult func thenReturnNil() -> CallInteractions
+symbol	TestDoubles	swift.method	StubOptionalSelfResultBuilder.thenReturnValue()	@discardableResult func thenReturnValue() -> CallInteractions
+symbol	TestDoubles	swift.method	StubOptionalSelfResultBuilder.thenThrow(_:)	@discardableResult func thenThrow<Failure>(_ error: Failure) -> CallInteractions where Failure : Error
+symbol	TestDoubles	swift.method	StubSelfResultBuilder.then(_:)	@discardableResult func then<each Argument>(_ handler: @escaping (repeat each Argument) async throws -> Void) -> CallInteractions
+symbol	TestDoubles	swift.method	StubSelfResultBuilder.then(_:)	@discardableResult func then<each Argument>(_ handler: @escaping @Sendable (repeat each Argument) throws -> Void) -> CallInteractions
+symbol	TestDoubles	swift.method	StubSelfResultBuilder.thenReturnValue()	@discardableResult func thenReturnValue() -> CallInteractions
+symbol	TestDoubles	swift.method	StubSelfResultBuilder.thenThrow(_:)	@discardableResult func thenThrow<Failure>(_ error: Failure) -> CallInteractions where Failure : Error
 symbol	TestDoubles	swift.method	StubSuspension.resume()	func resume()
 symbol	TestDoubles	swift.method	StubSuspension.resume(returning:)	func resume(returning value: sending Result)
 symbol	TestDoubles	swift.method	StubSuspension.resume(throwing:)	func resume<Failure>(throwing error: Failure) where Failure : Error
@@ -434,9 +434,11 @@ symbol	TestDoubles	swift.property	Match.Capture.values	var values: [T] { get }
 symbol	TestDoubles	swift.property	ParameterizedTestDoubleScenario.name	let name: String?
 symbol	TestDoubles	swift.property	StubBehaviorChain.behaviorQueue	let behaviorQueue: StubBehaviorQueue
 symbol	TestDoubles	swift.property	StubBehaviorChain.interactions	var interactions: CallInteractions { get }
+symbol	TestDoubles	swift.property	StubBehaviorQueue.interactions	let interactions: CallInteractions
 symbol	TestDoubles	swift.property	StubBehaviorQueue.isExhausted	var isExhausted: Bool { get }
 symbol	TestDoubles	swift.property	StubBehaviorQueue.remainingAnswerCount	var remainingAnswerCount: Int? { get }
 symbol	TestDoubles	swift.property	StubError.description	var description: String { get }
+symbol	TestDoubles	swift.property	StubSuspension.interactions	let interactions: CallInteractions
 symbol	TestDoubles	swift.property	TestDoubleScenario.name	let name: String?
 symbol	TestDoubles	swift.property	VoidClosureDouble.callCount	var callCount: Int { get }
 symbol	TestDoubles	swift.property	VoidClosureDouble.function	var function: () -> Result { get }

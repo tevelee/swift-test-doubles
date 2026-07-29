@@ -9,12 +9,17 @@ import IssueReporting
 public final class StubBehaviorQueue: @unchecked Sendable {
     private let sequence: StubRecorder.ConsumableResults
 
+    /// An observation-only view of invocations matching this queue's call.
+    public let interactions: CallInteractions
+
     init(
         sequence: StubRecorder.ConsumableResults,
         recorder: StubRecorder,
+        recording: RecordedCall,
         requirementName: String
     ) {
         self.sequence = sequence
+        interactions = CallInteractions(recorder: recorder, recording: recording)
         TestDoubleTestingContext.session?.register(
             TestDoubleTeardownCheck(kind: .behaviorQueue) { [sequence, recorder, requirementName] in
                 guard let remaining = sequence.remainingAnswerCount(), remaining > 0 else {

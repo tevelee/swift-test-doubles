@@ -225,7 +225,11 @@ public struct CallPattern<Result>: Sendable {
     public func thenSuspend() -> StubSuspension<Result> {
         let method = requireOrdinaryResult()
         requireAsyncRequirement(configuring: "thenSuspend")
-        let suspension = StubSuspension<Result>(recorder: recorder, method: method)
+        let suspension = StubSuspension<Result>(
+            recorder: recorder,
+            recording: recording,
+            method: method
+        )
         TestDoubleTestingContext.session?.register(
             TestDoubleTeardownCheck(kind: .suspension) { [weak suspension] in
                 suspension?.teardownDiagnostic()
@@ -449,6 +453,7 @@ public struct CallPattern<Result>: Sendable {
             behaviorQueue: StubBehaviorQueue(
                 sequence: sequence,
                 recorder: recorder,
+                recording: recording,
                 requirementName: recording.name
             )
         )

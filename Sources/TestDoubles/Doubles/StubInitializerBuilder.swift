@@ -9,41 +9,49 @@ public struct StubInitializerBuilder {
     let recording: RecordedCall
 
     /// Configures the initializer to create another value backed by this stub.
-    public func thenInitialize() {
+    @discardableResult
+    public func thenInitialize() -> CallInteractions {
         addReturnValue(InitializerDispatchOutcome.success)
+        return interactions
     }
 
     /// Throws `error` whenever the recorded initializer invocation matches.
     ///
     /// The initializer must be throwing. For a concrete typed-throws
     /// initializer, `error` must be compatible with its declared error type.
-    public func thenThrow<Failure: Error>(_ error: Failure) {
+    @discardableResult
+    public func thenThrow<Failure: Error>(_ error: Failure) -> CallInteractions {
         addThrownError(error)
+        return interactions
     }
 
     /// Handles a matching initializer invocation before creating its value.
     ///
     /// Throwing from `handler` requires a throwing initializer requirement.
+    @discardableResult
     public func then<each Argument>(
         _ handler: @escaping @Sendable (repeat each Argument) throws -> Void
-    ) {
+    ) -> CallInteractions {
         addStubBehavior { arguments, methodName in
             try invokeTypedHandler(handler, with: arguments, method: methodName)
             return InitializerDispatchOutcome.success
         }
+        return interactions
     }
 
     /// Asynchronously handles a matching initializer invocation before creating its value.
     ///
     /// The requirement must be async. Throwing from `handler` requires a throwing
     /// initializer requirement.
+    @discardableResult
     public func then<each Argument>(
         _ handler: @escaping (repeat each Argument) async throws -> Void
-    ) {
+    ) -> CallInteractions {
         addAsyncStubBehavior { arguments, methodName in
             try await invokeTypedHandler(handler, with: arguments, method: methodName)
             return InitializerDispatchOutcome.success
         }
+        return interactions
     }
 }
 
@@ -61,29 +69,36 @@ public struct StubFailableInitializerBuilder {
     let recording: RecordedCall
 
     /// Configures the initializer to create another value backed by this stub.
-    public func thenInitialize() {
+    @discardableResult
+    public func thenInitialize() -> CallInteractions {
         add(.success)
+        return interactions
     }
 
     /// Configures the initializer to return `nil`.
-    public func thenReturnNil() {
+    @discardableResult
+    public func thenReturnNil() -> CallInteractions {
         add(.failure)
+        return interactions
     }
 
     /// Throws `error` whenever the recorded initializer invocation matches.
     ///
     /// The initializer must be throwing. For a concrete typed-throws
     /// initializer, `error` must be compatible with its declared error type.
-    public func thenThrow<Failure: Error>(_ error: Failure) {
+    @discardableResult
+    public func thenThrow<Failure: Error>(_ error: Failure) -> CallInteractions {
         addThrownError(error)
+        return interactions
     }
 
     /// Handles a matching initializer invocation and chooses its returned outcome.
     ///
     /// Throwing from `handler` requires a throwing initializer requirement.
+    @discardableResult
     public func then<each Argument>(
         _ handler: @escaping @Sendable (repeat each Argument) throws -> Outcome
-    ) {
+    ) -> CallInteractions {
         let methodName = recording.name
         recorder.addStub(
             method: recording.methodIndex,
@@ -93,15 +108,17 @@ public struct StubFailableInitializerBuilder {
             try invokeTypedHandler(handler, with: arguments, method: methodName)
                 .dispatchOutcome
         }
+        return interactions
     }
 
     /// Asynchronously handles a matching initializer invocation and chooses its returned outcome.
     ///
     /// The requirement must be async. Throwing from `handler` requires a throwing
     /// initializer requirement.
+    @discardableResult
     public func then<each Argument>(
         _ handler: @escaping (repeat each Argument) async throws -> Outcome
-    ) {
+    ) -> CallInteractions {
         let methodName = recording.name
         recorder.addAsyncStub(
             method: recording.methodIndex,
@@ -111,10 +128,23 @@ public struct StubFailableInitializerBuilder {
             try await invokeTypedHandler(handler, with: arguments, method: methodName)
                 .dispatchOutcome
         }
+        return interactions
     }
 
     private func add(_ outcome: InitializerDispatchOutcome) {
         addReturnValue(outcome)
+    }
+}
+
+extension StubInitializerBuilder {
+    fileprivate var interactions: CallInteractions {
+        CallInteractions(recorder: recorder, recording: recording)
+    }
+}
+
+extension StubFailableInitializerBuilder {
+    fileprivate var interactions: CallInteractions {
+        CallInteractions(recorder: recorder, recording: recording)
     }
 }
 

@@ -15,9 +15,18 @@ public final class StubSuspension<Result> {
     private let method: RuntimeMethod
     private let state = StubSuspensionState()
 
-    init(recorder: StubRecorder, method: RuntimeMethod) {
+    /// An observation-only view of every invocation matching the suspended
+    /// call, including calls that are still parked.
+    public let interactions: CallInteractions
+
+    init(
+        recorder: StubRecorder,
+        recording: RecordedCall,
+        method: RuntimeMethod
+    ) {
         self.recorder = recorder
         self.method = method
+        interactions = CallInteractions(recorder: recorder, recording: recording)
     }
 
     /// Suspends until at least `count` matching calls are currently parked,
