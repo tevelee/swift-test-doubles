@@ -154,7 +154,6 @@ public final class InvocationOrder: @unchecked Sendable {
         line: UInt,
         column: UInt
     ) {
-        lock.withLock { touchedRecorders[ObjectIdentifier(recorder)] = recorder }
         while true {
             let currentCursor = lock.withLock { cursor }
             guard
@@ -178,6 +177,7 @@ public final class InvocationOrder: @unchecked Sendable {
             let advanced = lock.withLock {
                 guard cursor == currentCursor else { return false }
                 cursor = Swift.max(cursor, match.call.sequence ?? cursor)
+                touchedRecorders[ObjectIdentifier(recorder)] = recorder
                 return true
             }
             guard advanced else { continue }

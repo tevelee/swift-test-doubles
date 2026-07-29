@@ -94,10 +94,12 @@ private func makeScopedSuspendedTestDoubleStub() throws -> Stub<any ScopedSuspen
             )
         }
 
-        #expect(diagnostics.contains {
-            $0.contains("finite behavior queue for test double 'retry loader'")
-                && $0.contains("2 answers remain")
-        })
+        #expect(
+            diagnostics.contains {
+                $0.contains("finite behavior queue for test double 'retry loader'")
+                    && $0.contains("2 answers remain")
+            }
+        )
     }
 
     @Test func scopeReportsParkedSuspensions() async throws {
@@ -118,10 +120,12 @@ private func makeScopedSuspendedTestDoubleStub() throws -> Stub<any ScopedSuspen
             return diagnostics
         }
 
-        #expect(diagnostics.contains {
-            $0.contains("suspended call for test double 'feed loader'")
-                && $0.contains("1 call remains parked")
-        })
+        #expect(
+            diagnostics.contains {
+                $0.contains("suspended call for test double 'feed loader'")
+                    && $0.contains("1 call remains parked")
+            }
+        )
     }
 
     @Test func scopeReportsPendingCallbackCaptures() {
@@ -136,9 +140,11 @@ private func makeScopedSuspendedTestDoubleStub() throws -> Stub<any ScopedSuspen
             )
         }
 
-        #expect(diagnostics.contains {
-            $0.contains("captured callbacks 'completion'")
-                && $0.contains("1 callback remains")
-        })
+        #expect(
+            diagnostics.contains {
+                $0.contains("captured callbacks 'completion'")
+                    && $0.contains("1 callback remains")
+            }
+        )
     }
 }

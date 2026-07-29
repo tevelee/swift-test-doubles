@@ -239,4 +239,22 @@ private final class ConcurrentGatewayStub: @unchecked Sendable {
         // so it is out of scope for this session's verifyNoMoreInteractions().
         order.verifyNoMoreInteractions()
     }
+
+    @Test func verifyNoMoreInteractionsIgnoresDoublesWhoseOrderVerificationFailed() throws {
+        let gateway = try Stub<any CrossOrderGateway>()
+        gateway.when { $0.charge(amount: any()) }.thenDoNothing()
+
+        gateway().charge(amount: 42)
+
+        let order = InvocationOrder()
+        expectReportsIssue {
+            order.verify(gateway) { $0.charge(amount: equal(7)) }
+        } matching: {
+            $0.description.contains("Ordered verification failed")
+        }
+
+        // A failed step must not bring this otherwise unverified double into
+        // the session-wide verification scope.
+        order.verifyNoMoreInteractions()
+    }
 }
