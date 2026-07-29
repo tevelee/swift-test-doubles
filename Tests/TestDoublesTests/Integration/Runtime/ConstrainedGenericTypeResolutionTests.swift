@@ -55,27 +55,27 @@ struct RealSixArgumentGenericNominalProbe: SixArgumentGenericNominalProbe {
         // construction ever reached ABI-classification concerns.
         let stub = try Stub<any ConstrainedGenericArgumentProbe>()
         stub.when(returning: 0) {
-            $0.unwrap(any(using: ExternalConstrainedAssociatedBox(0)))
+            $0.unwrap(Match.any(using: ExternalConstrainedAssociatedBox(0)))
         }.then { (box: ExternalConstrainedAssociatedBox<Int>) in
             box.value * 2
         }
         stub.when(returning: 0) {
             $0.combine(
-                any(using: ExternalBothParametersConstrainedPair(0, 0))
+                Match.any(using: ExternalBothParametersConstrainedPair(0, 0))
             )
         }.then { (pair: ExternalBothParametersConstrainedPair<Int, Int>) in
             pair.first + pair.second
         }
         stub.when(returning: 0) {
             $0.multiplyConstrained(
-                any(using: ExternalMultiplyConstrainedBox(0))
+                Match.any(using: ExternalMultiplyConstrainedBox(0))
             )
         }.then { (box: ExternalMultiplyConstrainedBox<Int>) in
             box.value * 2
         }
         stub.when(returning: 0) {
             $0.severalConstrained(
-                any(
+                Match.any(
                     using: ExternalSeveralConstrainedArguments<
                         String,
                         Bool,
@@ -120,7 +120,7 @@ struct RealSixArgumentGenericNominalProbe: SixArgumentGenericNominalProbe {
             UInt
         >
 
-        let captor = ArgumentCaptor<Box>()
+        let captor = Match.Capture<Box>()
         let stub = try Stub<any SixArgumentGenericNominalProbe>()
         stub.when(returning: 0) {
             $0.first(captor.capture(using: Box(0)))
@@ -133,11 +133,11 @@ struct RealSixArgumentGenericNominalProbe: SixArgumentGenericNominalProbe {
         #expect(captor.first?.first == 21)
 
         let recorded: [Box] = stub.invocations {
-            $0.first(any(using: Box(0)))
+            $0.first(Match.any(using: Box(0)))
         }
         #expect(recorded.map(\.first) == [21])
         stub.verify(.exactly(1)) {
-            $0.first(any(using: Box(0)))
+            $0.first(Match.any(using: Box(0)))
         }
     }
 }

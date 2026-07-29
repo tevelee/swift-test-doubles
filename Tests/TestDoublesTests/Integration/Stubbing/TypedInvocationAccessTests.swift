@@ -26,14 +26,14 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
 @Suite struct TypedInvocationAccessTests {
     @Test func manualStubReturnsTypedArgumentTuples() {
         let stub = ManualStub<ManualInvocationAccessServiceStub>()
-        stub.when { $0.track(event: any(), value: any()) }.thenDoNothing()
+        stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
 
         let service: any ManualInvocationAccessService = stub()
         service.track(event: "add_to_cart", value: 30)
         service.track(event: "purchase", value: 42)
 
         let events: [(String, Int)] = stub.invocations {
-            $0.track(event: any(), value: any())
+            $0.track(event: Match.any(), value: Match.any())
         }
         #expect(events.count == 2)
         #expect(events[0] == ("add_to_cart", 30))
@@ -42,14 +42,14 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
 
     @Test func returnsTypedArgumentTuplesInCallOrder() throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
-        stub.when { $0.track(event: any(), value: any()) }.thenDoNothing()
+        stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
 
         let analytics: any InvocationAccessAnalytics = stub()
         analytics.track(event: "add_to_cart", value: 30)
         analytics.track(event: "purchase", value: 42)
 
         let events: [(String, Int)] = stub.invocations {
-            $0.track(event: any(), value: any())
+            $0.track(event: Match.any(), value: Match.any())
         }
         #expect(events.count == 2)
         #expect(events[0] == ("add_to_cart", 30))
@@ -58,21 +58,21 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
 
     @Test func bindsALeadingPrefixOfArguments() throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
-        stub.when { $0.track(event: any(), value: any()) }.thenDoNothing()
+        stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
 
         let analytics: any InvocationAccessAnalytics = stub()
         analytics.track(event: "add_to_cart", value: 30)
         analytics.track(event: "purchase", value: 42)
 
         let names: [String] = stub.invocations {
-            $0.track(event: any(), value: any())
+            $0.track(event: Match.any(), value: Match.any())
         }
         #expect(names == ["add_to_cart", "purchase"])
     }
 
     @Test func matchersFilterWhichInvocationsAreIncluded() throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
-        stub.when { $0.track(event: any(), value: any()) }.thenDoNothing()
+        stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
 
         let analytics: any InvocationAccessAnalytics = stub()
         analytics.track(event: "add_to_cart", value: 30)
@@ -80,33 +80,33 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
         analytics.track(event: "purchase", value: 42)
 
         let large: [(String, Int)] = stub.invocations {
-            $0.track(event: any(), value: greaterThan(10))
+            $0.track(event: Match.any(), value: Match.greaterThan(10))
         }
         #expect(large.map(\.0) == ["add_to_cart", "purchase"])
     }
 
     @Test func readsAsyncRequirementInvocations() async throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
-        await stub.when { try await $0.load(url: any()) }.thenReturn("data")
+        await stub.when { try await $0.load(url: Match.any()) }.thenReturn("data")
 
         let analytics: any InvocationAccessAnalytics = stub()
         _ = try await analytics.load(url: "https://one.example")
         _ = try await analytics.load(url: "https://two.example")
 
         let urls: [String] = await stub.invocations {
-            try await $0.load(url: any())
+            try await $0.load(url: Match.any())
         }
         #expect(urls == ["https://one.example", "https://two.example"])
     }
 
     @Test func streamYieldsFutureTypedArgumentsInOrder() async throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
-        stub.when { $0.track(event: any(), value: any()) }.thenDoNothing()
+        stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
         let analytics: any InvocationAccessAnalytics = stub()
 
         analytics.track(event: "before", value: 0)
         let stream: InvocationStream<(String, Int)> = stub.invocationStream {
-            $0.track(event: any(), value: any())
+            $0.track(event: Match.any(), value: Match.any())
         }
         analytics.track(event: "add_to_cart", value: 30)
         analytics.track(event: "purchase", value: 42)
@@ -120,15 +120,15 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
         #expect(second.1 == 42)
 
         // Streaming is observational, just like the existing invocation query.
-        stub.verify(.exactly(3)) { $0.track(event: any(), value: any()) }
+        stub.verify(.exactly(3)) { $0.track(event: Match.any(), value: Match.any()) }
     }
 
     @Test func streamFiltersFutureCallsWithMatchers() async throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
-        stub.when { $0.track(event: any(), value: any()) }.thenDoNothing()
+        stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
         let analytics: any InvocationAccessAnalytics = stub()
         let stream: InvocationStream<String> = stub.invocationStream {
-            $0.track(event: any(), value: greaterThan(10))
+            $0.track(event: Match.any(), value: Match.greaterThan(10))
         }
 
         analytics.track(event: "ignored", value: 1)
@@ -140,10 +140,10 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
 
     @Test func streamSupportsAsyncRequirements() async throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
-        await stub.when { try await $0.load(url: any()) }.thenReturn("data")
+        await stub.when { try await $0.load(url: Match.any()) }.thenReturn("data")
         let analytics: any InvocationAccessAnalytics = stub()
         let stream: InvocationStream<String> = await stub.invocationStream {
-            try await $0.load(url: any())
+            try await $0.load(url: Match.any())
         }
 
         _ = try await analytics.load(url: "https://one.example")
@@ -153,10 +153,10 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
 
     @Test func manualStubStreamsFutureCalls() async throws {
         let stub = ManualStub<ManualInvocationAccessServiceStub>()
-        stub.when { $0.track(event: any(), value: any()) }.thenDoNothing()
+        stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
         let service: any ManualInvocationAccessService = stub()
         let stream: InvocationStream<(String, Int)> = stub.invocationStream {
-            $0.track(event: any(), value: any())
+            $0.track(event: Match.any(), value: Match.any())
         }
 
         service.track(event: "purchase", value: 42)
@@ -168,9 +168,9 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
 
     @Test func streamCancellationFinishesTheAwaitingIterator() async throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
-        stub.when { $0.track(event: any(), value: any()) }.thenDoNothing()
+        stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
         let stream: InvocationStream<(String, Int)> = stub.invocationStream {
-            $0.track(event: any(), value: any())
+            $0.track(event: Match.any(), value: Match.any())
         }
 
         let next = Task {
@@ -199,27 +199,27 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
 
     @Test func returnsEmptyWhenNothingMatched() throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
-        stub.when { $0.track(event: any(), value: any()) }.thenDoNothing()
+        stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
 
         let analytics: any InvocationAccessAnalytics = stub()
         analytics.track(event: "add_to_cart", value: 30)
 
         let errors: [(String, Int)] = stub.invocations {
-            $0.track(event: equal("error"), value: any())
+            $0.track(event: Match.equal("error"), value: Match.any())
         }
         #expect(errors.isEmpty)
     }
 
     @Test func readingDoesNotConsumeConfiguredBehavior() async throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
-        await stub.when { try await $0.load(url: any()) }
+        await stub.when { try await $0.load(url: Match.any()) }
             .thenReturn("first")
             .thenReturn("second")
 
         let analytics: any InvocationAccessAnalytics = stub()
         #expect(try await analytics.load(url: "a") == "first")
 
-        let urls: [String] = await stub.invocations { try await $0.load(url: any()) }
+        let urls: [String] = await stub.invocations { try await $0.load(url: Match.any()) }
         #expect(urls == ["a"])
 
         // The read must not have advanced the behavior chain.

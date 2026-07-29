@@ -162,18 +162,18 @@ private struct PurgeError: Error, Equatable {}
 
     @Test func typedRoutesDistinguishArgumentTypeOverloads() {
         let intFirst = ManualStub<ManualTypedRouteServiceStub>()
-        intFirst.when { $0.render(equal(7)) }.thenReturn("integer")
-        intFirst.when { $0.render(equal("7")) }.thenReturn("string")
+        intFirst.when { $0.render(Match.equal(7)) }.thenReturn("integer")
+        intFirst.when { $0.render(Match.equal("7")) }.thenReturn("string")
 
         let service: any ManualTypedRouteService = intFirst()
         #expect(service.render(7) == "integer")
         #expect(service.render("7") == "string")
-        intFirst.verify(.exactly(1)) { $0.render(equal(7)) }
-        intFirst.verify(.exactly(1)) { $0.render(equal("7")) }
+        intFirst.verify(.exactly(1)) { $0.render(Match.equal(7)) }
+        intFirst.verify(.exactly(1)) { $0.render(Match.equal("7")) }
 
         let stringFirst = ManualStub<ManualTypedRouteServiceStub>()
-        stringFirst.when { $0.render(equal("8")) }.thenReturn("string-first")
-        stringFirst.when { $0.render(equal(8)) }.thenReturn("integer-second")
+        stringFirst.when { $0.render(Match.equal("8")) }.thenReturn("string-first")
+        stringFirst.when { $0.render(Match.equal(8)) }.thenReturn("integer-second")
 
         let reverseService: any ManualTypedRouteService = stringFirst()
         #expect(reverseService.render(8) == "integer-second")
@@ -182,14 +182,14 @@ private struct PurgeError: Error, Equatable {}
 
     @Test func typedBehaviorsCoverEveryEffectAndResultCombination() async throws {
         let stub = ManualStub<ManualTypedRouteServiceStub>()
-        stub.when { $0.consume(equal(1)) }.thenDoNothing()
-        stub.when { try $0.throwingValue(equal(2)) }.thenReturn("throwing")
-        stub.when { try $0.throwingEffect(equal(3)) }.thenDoNothing()
-        await stub.when { await $0.asyncValue(equal(4)) }.thenReturn("async")
-        await stub.when { await $0.asyncEffect(equal(5)) }.thenDoNothing()
-        await stub.when { try await $0.asyncThrowingValue(equal(6)) }
+        stub.when { $0.consume(Match.equal(1)) }.thenDoNothing()
+        stub.when { try $0.throwingValue(Match.equal(2)) }.thenReturn("throwing")
+        stub.when { try $0.throwingEffect(Match.equal(3)) }.thenDoNothing()
+        await stub.when { await $0.asyncValue(Match.equal(4)) }.thenReturn("async")
+        await stub.when { await $0.asyncEffect(Match.equal(5)) }.thenDoNothing()
+        await stub.when { try await $0.asyncThrowingValue(Match.equal(6)) }
             .thenReturn("async-throwing")
-        await stub.when { try await $0.asyncThrowingEffect(equal(7)) }.thenDoNothing()
+        await stub.when { try await $0.asyncThrowingEffect(Match.equal(7)) }.thenDoNothing()
 
         let service: any ManualTypedRouteService = stub()
         service.consume(1)
@@ -261,7 +261,7 @@ private struct PurgeError: Error, Equatable {}
 
     @Test func explicitRoutesCoverEveryEffectCombination() async throws {
         let stub = ManualStub<ManualOverloadServiceStub>()
-        stub.when { $0.labelFor(equal(3)) }.thenReturn("three")
+        stub.when { $0.labelFor(Match.equal(3)) }.thenReturn("three")
         stub.when { $0.clear() }.thenDoNothing()
         stub.when { try $0.code() }.thenReturn(200)
         stub.when { try $0.commit() }.thenDoNothing()
@@ -276,7 +276,7 @@ private struct PurgeError: Error, Equatable {}
         await service.warmup()
         try await service.syncUp()
 
-        stub.verify(.exactly(1)) { $0.labelFor(any()) }
+        stub.verify(.exactly(1)) { $0.labelFor(Match.any()) }
         stub.verify(.exactly(1)) { $0.clear() }
         stub.verify(.exactly(1)) { try $0.code() }
         stub.verify(.exactly(1)) { try $0.commit() }
@@ -315,12 +315,12 @@ private struct PurgeError: Error, Equatable {}
 
     @Test func setterCountVerificationUsesTheInoutOverload() {
         let stub = ManualStub<ManualOverloadServiceStub>()
-        stub.when { $0.count = any() }.thenDoNothing()
+        stub.when { $0.count = Match.any() }.thenDoNothing()
 
         var service: any ManualOverloadService = stub()
         service.count = 5
 
-        stub.verify(.exactly(1)) { $0.count = equal(5) }
-        stub.verify(.never()) { $0.count = equal(9) }
+        stub.verify(.exactly(1)) { $0.count = Match.equal(5) }
+        stub.verify(.never()) { $0.count = Match.equal(9) }
     }
 }

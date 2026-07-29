@@ -225,11 +225,11 @@ initializers can instead return `nil`:
 
 ```swift
 stub.when(initializer: {
-    type(of: $0).init(id: any())
+    type(of: $0).init(id: Match.any())
 }).thenInitialize()
 
 stub.when(initializer: {
-    type(of: $0).init(validating: any())
+    type(of: $0).init(validating: Match.any())
 }).then { id in
     id > 0 ? .initialize : .returnNil
 }

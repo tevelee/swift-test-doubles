@@ -564,7 +564,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
 
     @Test func mixedFloatingPointArguments() throws {
         let stub = try Stub<any FloatingABIProbe>()
-        stub.when { $0.mix(any(), any(), any()) }.then {
+        stub.when { $0.mix(Match.any(), Match.any(), Match.any()) }.then {
             (a: Float, b: Double, c: Float) in Double(a) + b + Double(c)
         }
 
@@ -580,7 +580,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
             )
         )
         stub.when {
-            $0.sum(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+            $0.sum(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any())
         }.then {
             (
                 f0: Float, f1: Float, f2: Float, f3: Float, f4: Float,
@@ -595,7 +595,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
     @Test func integerArgumentsAndTypedHandlersExceedOldArityLimit() throws {
         let stub = try Stub<any StackArgumentABIProbe>()
         stub.when {
-            $0.sum(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+            $0.sum(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any())
         }.then {
             (
                 a0: Int, a1: Int, a2: Int, a3: Int, a4: Int,
@@ -606,14 +606,14 @@ protocol ExtendedAsyncABIProbe: Sendable {
 
         #expect(stub().sum(1, 2, 3, 4, 5, 6, 7, 8, 9, 10) == 55)
         stub.verify {
-            $0.sum(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+            $0.sum(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any())
         }
     }
 
     @Test func customValueAndReferenceArgumentsDecode() throws {
         let stub = try Stub<any CustomArgumentABIProbe>()
         let box = ABIReferenceBox(value: 42)
-        stub.when { $0.describe(pair: any(), box: any(using: box)) }.then {
+        stub.when { $0.describe(pair: Match.any(), box: Match.any(using: box)) }.then {
             (pair: SmallABIPair, decodedBox: ABIReferenceBox) in
             #expect(pair == SmallABIPair(left: 7, right: 11))
             #expect(decodedBox === box)
@@ -626,7 +626,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
     @Test func mixedAggregateArgumentUsesIntegerAndFloatingPointRegisters() throws {
         let stub = try Stub<any MixedAggregateArgumentABIProbe>()
         let payload = MixedAggregateABIArgument(amount: 13.5, accepted: true)
-        stub.when { $0.describe(id: any(), payload: any(), scale: any()) }.then {
+        stub.when { $0.describe(id: Match.any(), payload: Match.any(), scale: Match.any()) }.then {
             (id: Int, decoded: MixedAggregateABIArgument, scale: Double) in
             #expect(id == 42)
             #expect(decoded == payload)
@@ -639,7 +639,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
 
     @Test func throwingFailureUsesSwiftErrorRegister() throws {
         let stub = try Stub<any ThrowingABIProbe>()
-        stub.when { try $0.load(code: any()) }.then { (code: Int) throws in
+        stub.when { try $0.load(code: Match.any()) }.then { (code: Int) throws in
             throw ABIThrownError(code: code)
         }
 
@@ -652,8 +652,8 @@ protocol ExtendedAsyncABIProbe: Sendable {
         let indirectStub = try Stub<any IndirectReturnABIProbe>()
         let direct = DirectAggregateABIResult(label: "direct", amount: 12.5, accepted: true)
         let indirect = LargeABIResult(id: 7, amount: 19.5, label: "sret", accepted: true)
-        directStub.when { $0.load(id: any()) }.thenReturn(direct)
-        indirectStub.when { $0.load(id: any()) }.thenReturn(indirect)
+        directStub.when { $0.load(id: Match.any()) }.thenReturn(direct)
+        indirectStub.when { $0.load(id: Match.any()) }.thenReturn(indirect)
 
         #expect(directStub().load(id: 1) == direct)
         #expect(indirectStub().load(id: 2) == indirect)
@@ -669,7 +669,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
         )
         let payload = MixedAggregateABIArgument(amount: 21.5, accepted: true)
         let expected = LargeABIResult(id: 9, amount: 21.5, label: "explicit", accepted: true)
-        stub.when { try $0.load(id: any(), payload: any()) }.then {
+        stub.when { try $0.load(id: Match.any(), payload: Match.any()) }.then {
             (id: Int, value: MixedAggregateABIArgument) throws in
             #expect(id == 9)
             #expect(value == payload)
@@ -688,14 +688,14 @@ protocol ExtendedAsyncABIProbe: Sendable {
             await Task.yield()
             return 17
         }
-        await stub.when { await $0.integer(any()) }.then {
+        await stub.when { await $0.integer(Match.any()) }.then {
             (value: Int) async throws -> Int in
             await Task.yield()
             return value + 1
         }
-        await stub.when { await $0.floating(any()) }.thenReturn(6.75)
-        await stub.when { await $0.direct(any()) }.thenReturn(direct)
-        await stub.when { await $0.indirect(any()) }.thenReturn(indirect)
+        await stub.when { await $0.floating(Match.any()) }.thenReturn(6.75)
+        await stub.when { await $0.direct(Match.any()) }.thenReturn(direct)
+        await stub.when { await $0.indirect(Match.any()) }.thenReturn(indirect)
         await stub.when { await $0.finish() }.then {
             () async throws -> Void in await Task.yield()
         }
@@ -713,7 +713,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
 
     @Test func asyncEnumValueShape() async throws {
         let stub = try makeExtendedAsyncStub()
-        await stub.when { await $0.enumValue(any()) }.then {
+        await stub.when { await $0.enumValue(Match.any()) }.then {
             (value: PayloadABIEnum) async throws -> PayloadABIEnum in
             guard case .code(let code) = value else { return .idle }
             return .code(code + 1)
@@ -724,7 +724,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
 
     @Test func asyncOptionalValueShape() async throws {
         let stub = try makeExtendedAsyncStub()
-        await stub.when { await $0.optional(any()) }.then {
+        await stub.when { await $0.optional(Match.any()) }.then {
             (value: String?) async throws -> String? in value?.uppercased()
         }
 
@@ -733,7 +733,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
 
     @Test func asyncTupleValueShape() async throws {
         let stub = try makeExtendedAsyncStub()
-        await stub.when { await $0.tuple(any()) }.then {
+        await stub.when { await $0.tuple(Match.any()) }.then {
             (value: MixedABITuple) async throws -> MixedABITuple in
             (id: value.id + 1, amount: value.amount + 0.5)
         }
@@ -745,7 +745,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
 
     @Test func asyncMetatypeValueShape() async throws {
         let stub = try makeExtendedAsyncStub()
-        await stub.when { await $0.metatype(any()) }.then {
+        await stub.when { await $0.metatype(Match.any()) }.then {
             (type: ABIMetatypeToken.Type) async throws -> ABIMetatypeToken.Type in type
         }
 
@@ -770,7 +770,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
     @Test func asyncHandlerPreservesTaskContext() async throws {
         let stub = try Stub<any AsyncABIProbe>()
         let expectedPriority = Task.currentPriority
-        await stub.when { await $0.integer(any()) }.then {
+        await stub.when { await $0.integer(Match.any()) }.then {
             (value: Int) async throws -> Int in
             #expect(StubTaskValues.marker == "caller")
             #expect(Task.currentPriority == expectedPriority)
@@ -789,7 +789,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
     @MainActor
     @Test func asyncHandlerPreservesActorIsolation() async throws {
         let stub = try Stub<any AsyncABIProbe>()
-        await stub.when { await $0.integer(any()) }.then {
+        await stub.when { await $0.integer(Match.any()) }.then {
             (value: Int) async throws -> Int in
             MainActor.assertIsolated()
             await Task.yield()

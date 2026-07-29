@@ -97,7 +97,7 @@ private func uppercasedTextValue<P: TextAssociatedRoot>(_ value: P) -> String {
         let stub = try Stub<any MultipleAssociatedTypeProbe<Int, String>>()
         stub.when { $0.number() }.thenReturn(41)
         stub.when { $0.text() }.thenReturn("bound")
-        stub.when { $0.render(any(), as: any()) }.then {
+        stub.when { $0.render(Match.any(), as: Match.any()) }.then {
             (number: Int, text: String) in "\(number):\(text)"
         }
 
@@ -124,7 +124,7 @@ private func uppercasedTextValue<P: TextAssociatedRoot>(_ value: P) -> String {
         )
         stub.when { $0.number() }.thenReturn(42)
         stub.when { $0.text() }.thenReturn("explicit")
-        stub.when { $0.render(any(), as: any()) }.thenReturn("rendered")
+        stub.when { $0.render(Match.any(), as: Match.any()) }.thenReturn("rendered")
 
         let probe: Probe = stub()
 
@@ -208,7 +208,7 @@ private func uppercasedTextValue<P: TextAssociatedRoot>(_ value: P) -> String {
         )
         stub.when { $0.number() }.thenReturn(42)
         stub.when { $0.text() }.thenReturn("inherited")
-        stub.when { $0.render(any(), as: any()) }.thenReturn("inherited render")
+        stub.when { $0.render(Match.any(), as: Match.any()) }.thenReturn("inherited render")
 
         let probe: Probe = stub()
 
@@ -222,7 +222,7 @@ private func uppercasedTextValue<P: TextAssociatedRoot>(_ value: P) -> String {
         let stub = try Stub<any PrefixAssociatedTypeProbe<String, Int>>()
         stub.when { $0.element() }.thenReturn("element")
         stub.when { $0.index() }.thenReturn(41)
-        stub.when { $0.transform(indexes: any()) }.then { (indexes: [Int]) in
+        stub.when { $0.transform(indexes: Match.any()) }.then { (indexes: [Int]) in
             indexes.map { $0 + 1 }
         }
 

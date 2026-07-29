@@ -24,10 +24,10 @@ append specific registrations before broad fallbacks:
 
 ```swift
 let member: StubScenario<any AccountService> = .init {
-    $0.when { $0.user(id: equal(42)) }.thenReturn(sampleMember)
+    $0.when { $0.user(id: Match.equal(42)) }.thenReturn(sampleMember)
 }
 let fallback: StubScenario<any AccountService> = .init {
-    $0.when { $0.user(id: any()) }.thenReturn(nil)
+    $0.when { $0.user(id: Match.any()) }.thenReturn(nil)
 }
 
 member.appending(fallback).apply(to: stub)

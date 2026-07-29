@@ -117,8 +117,8 @@ extension Stub {
             /// than one parameter is used, indices must be a non-negative,
             /// dense sequence starting at zero.
             ///
-            /// - Note: `any()` doesn't discriminate by type here; use
-            ///   `equal(_:)` to distinguish calls with different types.
+            /// - Note: `Match.any()` doesn't discriminate by type here; use
+            ///   `Match.equal(_:)` to distinguish calls with different types.
             public static func methodGenericParameter(index: Int = 0) -> Self {
                 Self(source: .methodGenericParameter(index: index), ownership: nil)
             }

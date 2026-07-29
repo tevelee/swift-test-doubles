@@ -27,13 +27,13 @@ private actor CompletionFlag {
 @Suite struct AwaitCancellationBehaviorTests {
     @Test func bareFormThrowsCancellationErrorOnAThrowingRequirement() async throws {
         let stub = try Stub<any AwaitCancellationService>()
-        await stub.when { try await $0.fetch(id: any()) }.thenAwaitCancellation()
+        await stub.when { try await $0.fetch(id: Match.any()) }.thenAwaitCancellation()
 
         let service: any AwaitCancellationService = stub()
         let task = Task {
             try await service.fetch(id: 1)
         }
-        await stub.verify(1..., within: .seconds(1)) { try await $0.fetch(id: any()) }
+        await stub.verify(1..., within: .seconds(1)) { try await $0.fetch(id: Match.any()) }
         task.cancel()
 
         await #expect(throws: CancellationError.self) {
@@ -57,14 +57,14 @@ private actor CompletionFlag {
 
     @Test func throwingFormThrowsTheConfiguredErrorAfterCancellation() async throws {
         let stub = try Stub<any AwaitCancellationService>()
-        await stub.when { try await $0.fetch(id: any()) }
+        await stub.when { try await $0.fetch(id: Match.any()) }
             .thenAwaitCancellation(throwing: AwaitCancellationTestError.aborted)
 
         let service: any AwaitCancellationService = stub()
         let task = Task {
             try await service.fetch(id: 2)
         }
-        await stub.verify(1..., within: .seconds(1)) { try await $0.fetch(id: any()) }
+        await stub.verify(1..., within: .seconds(1)) { try await $0.fetch(id: Match.any()) }
         task.cancel()
 
         await #expect(throws: AwaitCancellationTestError.aborted) {
@@ -92,7 +92,7 @@ private actor CompletionFlag {
 
     @Test func awaitCancellationTerminatesAChain() async throws {
         let stub = try Stub<any AwaitCancellationService>()
-        await stub.when { try await $0.fetch(id: any()) }
+        await stub.when { try await $0.fetch(id: Match.any()) }
             .thenReturn("ok")
             .thenAwaitCancellation()
 
@@ -102,7 +102,7 @@ private actor CompletionFlag {
         let task = Task {
             try await service.fetch(id: 2)
         }
-        await stub.verify(2..., within: .seconds(1)) { try await $0.fetch(id: any()) }
+        await stub.verify(2..., within: .seconds(1)) { try await $0.fetch(id: Match.any()) }
         task.cancel()
 
         await #expect(throws: CancellationError.self) {

@@ -34,13 +34,13 @@ extension Stub {
     ///
     /// The stream starts after this method returns, so it cannot replay an
     /// earlier call by accident. Matchers filter which calls it yields; use
-    /// `any()` for every argument to observe every future call to the
+    /// `Match.any()` for every argument to observe every future call to the
     /// requirement. Cancellation ends an awaiting iterator without consuming
     /// behavior or changing verification state.
     ///
     /// ```swift
     /// let events: InvocationStream<(String, Int)> = analytics.invocationStream {
-    ///     $0.track(event: any(), value: any())
+    ///     $0.track(event: Match.any(), value: Match.any())
     /// }
     /// let (event, value) = await events.makeAsyncIterator().next()
     /// ```
@@ -126,11 +126,11 @@ extension Stub {
     ///
     /// ```swift
     /// let events: [(String, Int)] = analytics.invocations {
-    ///     $0.track(event: any(), value: any())
+    ///     $0.track(event: Match.any(), value: Match.any())
     /// }
     /// ```
     ///
-    /// Matchers filter which invocations are included; use `any()` for every
+    /// Matchers filter which invocations are included; use `Match.any()` for every
     /// argument to include every call to the requirement. Reading invocations
     /// is a query: it does not verify, consume configured behavior, or commit
     /// captors. For asserting counts or order, prefer `verify` and

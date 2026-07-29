@@ -83,7 +83,7 @@ private func useLinkedConstrainedGenericClassAssociatedProbe(
 
         let placeholder = ExternalAssociatedBox(0)
         stub.when(returning: placeholder) {
-            $0.transform(box: any(using: placeholder))
+            $0.transform(box: Match.any(using: placeholder))
         }.then { (box: ExternalAssociatedBox<Int>) in
             ExternalAssociatedBox(box.value + 1)
         }
@@ -167,7 +167,7 @@ private func useLinkedConstrainedGenericClassAssociatedProbe(
         )
         let structPlaceholder = ExternalAssociatedValue(0)
         structStub.when(returning: structPlaceholder) {
-            $0.transform(any(using: structPlaceholder))
+            $0.transform(Match.any(using: structPlaceholder))
         }.then { (value: ExternalAssociatedValue<Int>) in
             ExternalAssociatedValue(value.value + 1)
         }
@@ -183,7 +183,7 @@ private func useLinkedConstrainedGenericClassAssociatedProbe(
         )
         let enumPlaceholder = ExternalAssociatedChoice<Int>.value(0)
         enumStub.when(returning: enumPlaceholder) {
-            $0.transform(any(using: enumPlaceholder))
+            $0.transform(Match.any(using: enumPlaceholder))
         }.then { (value: ExternalAssociatedChoice<Int>) in
             switch value {
                 case .value(let element): .value(element + 1)
@@ -212,7 +212,7 @@ private func useLinkedConstrainedGenericClassAssociatedProbe(
             "zero"
         )
         constrainedStructStub.when(returning: constrainedPlaceholder) {
-            $0.transform(any(using: constrainedPlaceholder))
+            $0.transform(Match.any(using: constrainedPlaceholder))
         }.then { (value: ExternalSecondParameterConstrainedPair<Int, String>) in
             ExternalSecondParameterConstrainedPair(value.first + 1, value.second)
         }
@@ -245,7 +245,7 @@ private func useLinkedConstrainedGenericClassAssociatedProbe(
 
         let placeholder = ExternalConstrainedAssociatedBox(0)
         stub.when(returning: placeholder) {
-            $0.transform(any(using: placeholder))
+            $0.transform(Match.any(using: placeholder))
         }.then { (box: ExternalConstrainedAssociatedBox<Int>) in
             ExternalConstrainedAssociatedBox(box.value + 1)
         }

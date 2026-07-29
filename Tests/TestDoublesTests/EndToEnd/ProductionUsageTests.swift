@@ -73,8 +73,8 @@ private func todaysHeadlines(using loader: some AsyncDataLoader) async throws ->
 @Suite struct ProductionUsageTests {
     private func makeCatalogStub() throws -> Stub<any PriceCatalog> {
         let stub = try Stub<any PriceCatalog>()
-        stub.when { try $0.price(of: equal("apple")) }.thenReturn(3)
-        stub.when { try $0.price(of: equal("pear")) }.thenReturn(4)
+        stub.when { try $0.price(of: Match.equal("apple")) }.thenReturn(3)
+        stub.when { try $0.price(of: Match.equal("pear")) }.thenReturn(4)
         stub.when { $0.currency }.thenReturn("EUR")
         return stub
     }
@@ -86,7 +86,7 @@ private func todaysHeadlines(using loader: some AsyncDataLoader) async throws ->
         let total = try subtotal(of: ["apple", "pear", "apple"], using: catalog)
 
         #expect(total == 10)
-        stub.verify(.exactly(3)) { try $0.price(of: any()) }
+        stub.verify(.exactly(3)) { try $0.price(of: Match.any()) }
     }
 
     @Test func genericComponentsStoreAndDriveTheStubbedDependency() throws {
@@ -96,8 +96,8 @@ private func todaysHeadlines(using loader: some AsyncDataLoader) async throws ->
         let receipt = try checkoutReceipt(for: ["apple", "pear"], using: catalog)
 
         #expect(receipt == "7 EUR")
-        stub.verify(.exactly(1)) { try $0.price(of: equal("apple")) }
-        stub.verify(.exactly(1)) { try $0.price(of: equal("pear")) }
+        stub.verify(.exactly(1)) { try $0.price(of: Match.equal("apple")) }
+        stub.verify(.exactly(1)) { try $0.price(of: Match.equal("pear")) }
         stub.verify(.exactly(1)) { $0.currency }
     }
 
@@ -107,7 +107,7 @@ private func todaysHeadlines(using loader: some AsyncDataLoader) async throws ->
 
         #expect(try catalog.formattedPrice(of: "pear") == "4 EUR")
         stub.verifyInOrder {
-            _ = try $0.price(of: equal("pear"))
+            _ = try $0.price(of: Match.equal("pear"))
             _ = $0.currency
         }
     }
@@ -116,7 +116,7 @@ private func todaysHeadlines(using loader: some AsyncDataLoader) async throws ->
         struct DiscontinuedSKU: Error, Equatable { let sku: String }
 
         let stub = try Stub<any PriceCatalog>()
-        stub.when { try $0.price(of: any()) }.then { (sku: String) throws -> Int in
+        stub.when { try $0.price(of: Match.any()) }.then { (sku: String) throws -> Int in
             throw DiscontinuedSKU(sku: sku)
         }
         stub.when { $0.currency }.thenReturn("EUR")
@@ -132,7 +132,7 @@ private func todaysHeadlines(using loader: some AsyncDataLoader) async throws ->
         struct TransientFailure: Error, Equatable {}
 
         let stub = try Stub<any PriceCatalog>()
-        stub.when { try $0.price(of: any()) }
+        stub.when { try $0.price(of: Match.any()) }
             .thenReturn(3)
             .thenThrow(TransientFailure())
             .thenReturn(4)
@@ -146,14 +146,14 @@ private func todaysHeadlines(using loader: some AsyncDataLoader) async throws ->
 
     @Test func asyncComponentsConsumeTheStubThroughStoredGenerics() async throws {
         let stub = try Stub<any AsyncDataLoader>()
-        await stub.when { try await $0.load(url: any()) }.thenReturn("first\nsecond")
+        await stub.when { try await $0.load(url: Match.any()) }.thenReturn("first\nsecond")
         let loader: any AsyncDataLoader = stub()
 
         let headlines = try await todaysHeadlines(using: loader)
 
         #expect(headlines == ["first", "second"])
         await stub.verify(.exactly(1)) {
-            try await $0.load(url: equal("https://news.example/today"))
+            try await $0.load(url: Match.equal("https://news.example/today"))
         }
     }
 }

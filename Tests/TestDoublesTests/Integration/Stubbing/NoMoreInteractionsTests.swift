@@ -29,14 +29,14 @@ private struct ManualNoMoreInteractionsServiceStub: ManualNoMoreInteractionsServ
 @Suite struct NoMoreInteractionsTests {
     @Test func ordinaryVerificationMarksOnlyItsMatchingSnapshot() throws {
         let stub = try Stub<any NoMoreInteractionsService>()
-        stub.when { $0.first(any()) }.thenReturn(0)
-        stub.when { $0.second(any()) }.thenReturn(0)
+        stub.when { $0.first(Match.any()) }.thenReturn(0)
+        stub.when { $0.second(Match.any()) }.thenReturn(0)
         let service: any NoMoreInteractionsService = stub()
 
         _ = service.first(1)
         _ = service.second(2)
-        stub.verify { $0.first(equal(1)) }
-        stub.verify { $0.first(equal(1)) }
+        stub.verify { $0.first(Match.equal(1)) }
+        stub.verify { $0.first(Match.equal(1)) }
 
         let expectedLine = UInt(#line + 2)
         expectReportsIssue {
@@ -54,12 +54,12 @@ private struct ManualNoMoreInteractionsServiceStub: ManualNoMoreInteractionsServ
 
     @Test func manualStubHasVerificationAndClearingParity() {
         let stub = ManualStub<ManualNoMoreInteractionsServiceStub>()
-        stub.when { $0.first(any()) }.thenReturn(0)
-        stub.when { $0.second(any()) }.thenReturn(0)
+        stub.when { $0.first(Match.any()) }.thenReturn(0)
+        stub.when { $0.second(Match.any()) }.thenReturn(0)
         let service: any ManualNoMoreInteractionsService = stub()
 
         _ = service.first(1)
-        stub.verify { $0.first(equal(1)) }
+        stub.verify { $0.first(Match.equal(1)) }
         stub.verifyNoMoreInteractions()
 
         _ = service.second(2)
@@ -75,8 +75,8 @@ private struct ManualNoMoreInteractionsServiceStub: ManualNoMoreInteractionsServ
 
     @Test func orderedVerificationMarksOnlyTheDistinctSelectedCalls() throws {
         let stub = try Stub<any NoMoreInteractionsService>()
-        stub.when { $0.first(any()) }.thenReturn(0)
-        stub.when { $0.second(any()) }.thenReturn(0)
+        stub.when { $0.first(Match.any()) }.thenReturn(0)
+        stub.when { $0.second(Match.any()) }.thenReturn(0)
         let service: any NoMoreInteractionsService = stub()
 
         _ = service.first(1)
@@ -84,8 +84,8 @@ private struct ManualNoMoreInteractionsServiceStub: ManualNoMoreInteractionsServ
         _ = service.first(2)
 
         stub.verifyInOrder {
-            _ = $0.first(equal(1))
-            _ = $0.first(equal(2))
+            _ = $0.first(Match.equal(1))
+            _ = $0.first(Match.equal(2))
         }
 
         expectReportsIssue {
@@ -99,9 +99,9 @@ private struct ManualNoMoreInteractionsServiceStub: ManualNoMoreInteractionsServ
 
     @Test func failedExactVerificationLeavesInteractionAndCaptorUntouched() throws {
         let stub = try Stub<any NoMoreInteractionsService>()
-        stub.when { $0.first(any()) }.thenReturn(0)
+        stub.when { $0.first(Match.any()) }.thenReturn(0)
         let service: any NoMoreInteractionsService = stub()
-        let values = ArgumentCaptor<Int>()
+        let values = Match.Capture<Int>()
 
         _ = service.first(7)
         expectReportsIssue {
@@ -121,16 +121,16 @@ private struct ManualNoMoreInteractionsServiceStub: ManualNoMoreInteractionsServ
 
     @Test func failedOrderedVerificationLeavesInteractionAndCaptorUntouched() throws {
         let stub = try Stub<any NoMoreInteractionsService>()
-        stub.when { $0.first(any()) }.thenReturn(0)
-        stub.when { $0.second(any()) }.thenReturn(0)
+        stub.when { $0.first(Match.any()) }.thenReturn(0)
+        stub.when { $0.second(Match.any()) }.thenReturn(0)
         let service: any NoMoreInteractionsService = stub()
-        let values = ArgumentCaptor<Int>()
+        let values = Match.Capture<Int>()
 
         _ = service.first(7)
         expectReportsIssue {
             stub.verifyInOrder {
                 _ = $0.first(values.capture())
-                _ = $0.second(any())
+                _ = $0.second(Match.any())
             }
         } matching: {
             $0.description.contains("expectation 2")
@@ -148,15 +148,15 @@ private struct ManualNoMoreInteractionsServiceStub: ManualNoMoreInteractionsServ
     @Test(.timeLimit(.minutes(2)))
     func eventualVerificationMarksItsSnapshotButNotLaterCalls() async throws {
         let stub = try Stub<any NoMoreInteractionsService>()
-        stub.when { $0.first(any()) }.thenReturn(0)
-        stub.when { $0.second(any()) }.thenReturn(0)
+        stub.when { $0.first(Match.any()) }.thenReturn(0)
+        stub.when { $0.second(Match.any()) }.thenReturn(0)
         let service: any NoMoreInteractionsService = stub()
 
         let invocation = Task {
             try await Task.sleep(for: .milliseconds(10))
             _ = service.first(3)
         }
-        await stub.verify(within: .seconds(60)) { $0.first(equal(3)) }
+        await stub.verify(within: .seconds(60)) { $0.first(Match.equal(3)) }
         try await invocation.value
         stub.verifyNoMoreInteractions()
 
@@ -171,7 +171,7 @@ private struct ManualNoMoreInteractionsServiceStub: ManualNoMoreInteractionsServ
 
     @Test func clearRemovesUnverifiedInteractionsAndTheirLedgerState() throws {
         let stub = try Stub<any NoMoreInteractionsService>()
-        stub.when { $0.first(any()) }.thenReturn(0)
+        stub.when { $0.first(Match.any()) }.thenReturn(0)
         let service: any NoMoreInteractionsService = stub()
 
         _ = service.first(1)
@@ -179,7 +179,7 @@ private struct ManualNoMoreInteractionsServiceStub: ManualNoMoreInteractionsServ
         stub.verifyNoMoreInteractions()
 
         _ = service.first(2)
-        stub.verify { $0.first(equal(2)) }
+        stub.verify { $0.first(Match.equal(2)) }
         stub.verifyNoMoreInteractions()
     }
 }

@@ -27,7 +27,7 @@ choose a hand-written spy.
 Use the same matching and response API as ``Stub``:
 
 ```swift
-spy.when { $0.displayName(for: equal("guest")) }
+spy.when { $0.displayName(for: Match.equal("guest")) }
     .thenReturn("Test Guest")
 
 #expect(service.displayName(for: "guest") == "Test Guest")
@@ -55,14 +55,14 @@ actually entered the real implementation. It is useful when a test needs to
 prove an override intercepted one input while all other inputs still delegated:
 
 ```swift
-spy.when { $0.displayName(for: equal("guest")) }
+spy.when { $0.displayName(for: Match.equal("guest")) }
     .thenReturn("Test Guest")
 
 #expect(service.displayName(for: "guest") == "Test Guest")
 #expect(service.displayName(for: "admin") == "Admin")
 
 let forwarded: [String] = spy.forwardedInvocations {
-    $0.displayName(for: any())
+    $0.displayName(for: Match.any())
 }
 #expect(forwarded == ["admin"])
 ```

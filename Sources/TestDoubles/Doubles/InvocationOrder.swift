@@ -11,8 +11,8 @@ import IssueReporting
 ///
 /// ```swift
 /// let order = InvocationOrder()
-/// order.verify(gateway) { $0.charge(amount: equal(42)) }
-/// order.verify(analytics) { $0.track(event: equal("purchase")) }
+/// order.verify(gateway) { $0.charge(amount: Match.equal(42)) }
+/// order.verify(analytics) { $0.track(event: Match.equal("purchase")) }
 /// ```
 ///
 /// A failed step reports a test issue at its own call site and leaves the
@@ -116,8 +116,8 @@ public final class InvocationOrder: @unchecked Sendable {
     ///
     /// ```swift
     /// let order = InvocationOrder()
-    /// order.verify(gateway) { $0.charge(amount: equal(42)) }
-    /// order.verify(analytics) { $0.track(event: equal("purchase")) }
+    /// order.verify(gateway) { $0.charge(amount: Match.equal(42)) }
+    /// order.verify(analytics) { $0.track(event: Match.equal("purchase")) }
     /// order.verifyNoMoreInteractions()
     /// ```
     ///

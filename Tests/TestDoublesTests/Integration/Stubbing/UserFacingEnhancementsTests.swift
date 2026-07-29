@@ -167,7 +167,7 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
 
     @Test func finiteBehaviorQueueReportsRemainingAnswers() throws {
         let loader = try Stub<any ForEachCallLoader>()
-        let queue = loader.when { $0.value(for: any()) }.thenQueue(1, 2)
+        let queue = loader.when { $0.value(for: Match.any()) }.thenQueue(1, 2)
         let service: any ForEachCallLoader = loader()
 
         #expect(queue.remainingAnswerCount == 2)
@@ -233,7 +233,7 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
 
     @Test func timelinesIncludeTheMatchedRegistration() throws {
         let loader = try Stub<any ForEachCallLoader>()
-        loader.when { $0.value(for: equal("timeline")) }.thenReturn(3)
+        loader.when { $0.value(for: Match.equal("timeline")) }.thenReturn(3)
 
         #expect(loader().value(for: "timeline") == 3)
 
@@ -250,21 +250,21 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
     @Test func spyCanAssertExactlyWhichCallsForwarded() throws {
         #expect(useLinkedForwarder(RealEnhancementForwarder()) == "live-linked")
         let spy: Spy<any EnhancementForwarder> = .make(forwardingTo: RealEnhancementForwarder())
-        spy.when { $0.value(for: equal("override")) }.thenReturn("fixture")
+        spy.when { $0.value(for: Match.equal("override")) }.thenReturn("fixture")
         let service: any EnhancementForwarder = spy()
 
         #expect(service.value(for: "override") == "fixture")
         #expect(service.value(for: "live") == "live-live")
 
         spy.verifyOnlyForwarded {
-            _ = $0.value(for: equal("live"))
+            _ = $0.value(for: Match.equal("live"))
         }
     }
 
     @Test func spyCanAssertThatNoCallsWereForwarded() throws {
         #expect(useLinkedForwarder(RealEnhancementForwarder()) == "live-linked")
         let spy: Spy<any EnhancementForwarder> = .make(forwardingTo: RealEnhancementForwarder())
-        spy.when { $0.value(for: any()) }.thenReturn("fixture")
+        spy.when { $0.value(for: Match.any()) }.thenReturn("fixture")
 
         #expect(spy().value(for: "overridden") == "fixture")
         spy.verifyNoForwardedInteractions()
@@ -279,7 +279,7 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
 
         #expect(await service.value(for: "network") == "live-network")
         await spy.verifyOnlyForwarded {
-            _ = await $0.value(for: equal("network"))
+            _ = await $0.value(for: Match.equal("network"))
         }
     }
 
@@ -287,7 +287,7 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
         let scenario: ParameterizedStubScenario<any ForEachCallLoader, Int> = .init(named: "page") {
             stub,
             value in
-            stub.when { $0.value(for: any()) }.thenReturn(value)
+            stub.when { $0.value(for: Match.any()) }.thenReturn(value)
         }
         let loader = try Stub<any ForEachCallLoader>()
 
@@ -300,7 +300,7 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
         let scenario: ParameterizedStubScenario<any ForEachCallLoader, Int> = .init(named: "page") {
             stub,
             value in
-            stub.when { $0.value(for: any()) }.thenReturn(value)
+            stub.when { $0.value(for: Match.any()) }.thenReturn(value)
         }
         let bound = scenario.scenario(for: 11)
         let loader = try Stub<any ForEachCallLoader>()
@@ -330,13 +330,13 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
     @Test func clockDrivenVerificationFinishesWhenTheCallArrives() async throws {
         useLinkedClockVerifier(RealEnhancementClockVerifier())
         let stub = try Stub<any EnhancementClockVerifier>()
-        stub.when { $0.notify(any()) }.thenDoNothing()
+        stub.when { $0.notify(Match.any()) }.thenDoNothing()
         let service: any EnhancementClockVerifier = stub()
         let clock = ManualStubClock()
 
         let verification = Task {
             await stub.verify(within: .seconds(1), using: clock) {
-                $0.notify(equal(7))
+                $0.notify(Match.equal(7))
             }
         }
         await clock.waitForSleepers(atLeast: 1)

@@ -76,7 +76,7 @@ isolation. See
 
 - <doc:InspectingInteractions>
 - ``InvocationOrder``
-- ``RecordingPlaceholders``
+- ``Match/Placeholders``
 
 ### Recording and Replaying Interactions
 
@@ -126,60 +126,60 @@ isolation. See
 
 ### Matching and Capture
 
-- ``any()``
-- ``any(using:)``
-- ``equal(_:)``
-- ``notEqual(_:)``
-- ``identical(to:)``
-- ``matching(description:where:)``
-- ``matching(using:description:where:)``
-- ``ArgumentCaptor``
+- ``Match/any()``
+- ``Match/any(using:)``
+- ``Match/equal(_:)``
+- ``Match/notEqual(_:)``
+- ``Match/identical(to:)``
+- ``Match/matching(description:where:)``
+- ``Match/matching(using:description:where:)``
+- ``Match/Capture``
 - ``ClosureDouble``
 - ``VoidClosureDouble``
 - ``CallbackCapture``
 
 ### Value and Optional Matchers
 
-- ``greaterThan(_:)``
-- ``atLeast(_:)``
-- ``lessThan(_:)``
-- ``atMost(_:)``
-- ``inRange(_:)-(Range<Bound>)``
-- ``inRange(_:)-(ClosedRange<Bound>)``
-- ``isNil()``
-- ``notNil()``
-- ``some(_:)``
+- ``Match/greaterThan(_:)``
+- ``Match/atLeast(_:)``
+- ``Match/lessThan(_:)``
+- ``Match/atMost(_:)``
+- ``Match/inRange(_:)-(Range<Bound>)``
+- ``Match/inRange(_:)-(ClosedRange<Bound>)``
+- ``Match/isNil()``
+- ``Match/notNil()``
+- ``Match/some(_:)``
 
 ### Collection Matchers
 
-- ``isEmpty()``
-- ``nonEmpty()``
-- ``hasCount(_:)``
-- ``hasCount(matching:)``
-- ``contains(_:)``
-- ``contains(where:)``
-- ``containsAll(_:)``
-- ``startsWith(_:)``
-- ``endsWith(_:)``
+- ``Match/isEmpty()``
+- ``Match/nonEmpty()``
+- ``Match/hasCount(_:)``
+- ``Match/hasCount(matching:)``
+- ``Match/contains(_:)``
+- ``Match/contains(where:)``
+- ``Match/containsAll(_:)``
+- ``Match/startsWith(_:)``
+- ``Match/endsWith(_:)``
 
 ### String Matchers
 
-- ``hasPrefix(_:)``
-- ``hasSuffix(_:)``
-- ``containsSubstring(_:)``
-- ``equalsIgnoringCase(_:)``
-- ``matchesRegex(_:)``
+- ``Match/hasPrefix(_:)``
+- ``Match/hasSuffix(_:)``
+- ``Match/containsSubstring(_:)``
+- ``Match/equalsIgnoringCase(_:)``
+- ``Match/matchesRegex(_:)``
 
 ### Composing Matchers
 
-- ``not(_:)``
-- ``allOf(_:_:)``
-- ``allOf(_:_:_:)``
-- ``allOf(_:_:_:_:)``
-- ``anyOf(_:_:)``
-- ``anyOf(_:_:_:)``
-- ``anyOf(_:_:_:_:)``
-- ``oneOf(_:)``
+- ``Match/not(_:)``
+- ``Match/allOf(_:_:)``
+- ``Match/allOf(_:_:_:)``
+- ``Match/allOf(_:_:_:_:)``
+- ``Match/anyOf(_:_:)``
+- ``Match/anyOf(_:_:_:)``
+- ``Match/anyOf(_:_:_:_:)``
+- ``Match/oneOf(_:)``
 
 ### Diagnostics and Runtime Internals
 

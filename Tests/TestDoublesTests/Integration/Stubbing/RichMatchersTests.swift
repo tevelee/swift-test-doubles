@@ -18,9 +18,9 @@ final class LedgerNode {}
 @Suite struct RichMatchersTests {
     @Test func comparisonMatchers() throws {
         let stub = try Stub<any Ledger>()
-        stub.when { $0.classify(amount: atMost(0)) }.thenReturn("nonpositive")
-        stub.when { $0.classify(amount: inRange(1 ..< 100)) }.thenReturn("small")
-        stub.when { $0.classify(amount: greaterThan(99)) }.thenReturn("large")
+        stub.when { $0.classify(amount: Match.atMost(0)) }.thenReturn("nonpositive")
+        stub.when { $0.classify(amount: Match.inRange(1 ..< 100)) }.thenReturn("small")
+        stub.when { $0.classify(amount: Match.greaterThan(99)) }.thenReturn("large")
 
         let ledger: any Ledger = stub()
         #expect(ledger.classify(amount: -5) == "nonpositive")
@@ -32,9 +32,9 @@ final class LedgerNode {}
 
     @Test func closedRangeAndAtLeastLessThan() throws {
         let stub = try Stub<any Ledger>()
-        stub.when { $0.classify(amount: inRange(10 ... 20)) }.thenReturn("mid")
-        stub.when { $0.classify(amount: lessThan(10)) }.thenReturn("low")
-        stub.when { $0.classify(amount: atLeast(21)) }.thenReturn("high")
+        stub.when { $0.classify(amount: Match.inRange(10 ... 20)) }.thenReturn("mid")
+        stub.when { $0.classify(amount: Match.lessThan(10)) }.thenReturn("low")
+        stub.when { $0.classify(amount: Match.atLeast(21)) }.thenReturn("high")
 
         let ledger: any Ledger = stub()
         #expect(ledger.classify(amount: 9) == "low")
@@ -45,8 +45,8 @@ final class LedgerNode {}
 
     @Test func negationAndInequality() throws {
         let stub = try Stub<any Ledger>()
-        stub.when { $0.classify(amount: notEqual(0)) }.thenReturn("nonzero")
-        stub.when { $0.classify(amount: not(greaterThan(0))) }.thenReturn("zero-or-less")
+        stub.when { $0.classify(amount: Match.notEqual(0)) }.thenReturn("nonzero")
+        stub.when { $0.classify(amount: Match.not(Match.greaterThan(0))) }.thenReturn("zero-or-less")
 
         let ledger: any Ledger = stub()
         #expect(ledger.classify(amount: 7) == "nonzero")
@@ -56,12 +56,12 @@ final class LedgerNode {}
 
     @Test func conjunctionDisjunctionAndOneOf() throws {
         let stub = try Stub<any Ledger>()
-        stub.when { $0.classify(amount: allOf(greaterThan(0), lessThan(10))) }
+        stub.when { $0.classify(amount: Match.allOf(Match.greaterThan(0), Match.lessThan(10))) }
             .thenReturn("single-digit")
-        stub.when { $0.classify(amount: oneOf(10, 20, 30)) }.thenReturn("round")
-        stub.when { $0.classify(amount: anyOf(equal(-1), lessThan(-100))) }
+        stub.when { $0.classify(amount: Match.oneOf(10, 20, 30)) }.thenReturn("round")
+        stub.when { $0.classify(amount: Match.anyOf(Match.equal(-1), Match.lessThan(-100))) }
             .thenReturn("edge")
-        stub.when { $0.classify(amount: any()) }.thenReturn("other")
+        stub.when { $0.classify(amount: Match.any()) }.thenReturn("other")
 
         let ledger: any Ledger = stub()
         #expect(ledger.classify(amount: 5) == "single-digit")
@@ -74,9 +74,9 @@ final class LedgerNode {}
 
     @Test func optionalMatchers() throws {
         let stub = try Stub<any Ledger>()
-        stub.when { $0.lookup(id: isNil()) }.thenReturn("missing")
-        stub.when { $0.lookup(id: some(greaterThan(0))) }.thenReturn("positive")
-        stub.when { $0.lookup(id: notNil()) }.thenReturn("present")
+        stub.when { $0.lookup(id: Match.isNil()) }.thenReturn("missing")
+        stub.when { $0.lookup(id: Match.some(Match.greaterThan(0))) }.thenReturn("positive")
+        stub.when { $0.lookup(id: Match.notNil()) }.thenReturn("present")
 
         let ledger: any Ledger = stub()
         #expect(ledger.lookup(id: nil) == "missing")
@@ -87,8 +87,8 @@ final class LedgerNode {}
     @Test func identityMatcher() throws {
         let stub = try Stub<any Ledger>()
         let tracked = LedgerNode()
-        stub.when { $0.attach(node: identical(to: tracked)) }.thenReturn(true)
-        stub.when { $0.attach(node: any(using: tracked)) }.thenReturn(false)
+        stub.when { $0.attach(node: Match.identical(to: tracked)) }.thenReturn(true)
+        stub.when { $0.attach(node: Match.any(using: tracked)) }.thenReturn(false)
 
         let ledger: any Ledger = stub()
         #expect(ledger.attach(node: tracked) == true)
@@ -97,10 +97,10 @@ final class LedgerNode {}
 
     @Test func captureComposedWithConstraint() throws {
         let stub = try Stub<any Ledger>()
-        let positives = ArgumentCaptor<Int>()
-        stub.when { $0.classify(amount: allOf(positives.capture(), greaterThan(0))) }
+        let positives = Match.Capture<Int>()
+        stub.when { $0.classify(amount: Match.allOf(positives.capture(), Match.greaterThan(0))) }
             .thenReturn("positive")
-        stub.when { $0.classify(amount: any()) }.thenReturn("other")
+        stub.when { $0.classify(amount: Match.any()) }.thenReturn("other")
 
         let ledger: any Ledger = stub()
         #expect(ledger.classify(amount: 3) == "positive")
@@ -116,14 +116,14 @@ final class LedgerNode {}
         let evaluations = LockedCounter()
         stub.when {
             $0.classify(
-                amount: anyOf(
-                    matching(
+                amount: Match.anyOf(
+                    Match.matching(
                         description: "positive",
                         where: { value in
                             evaluations.increment()
                             return value > 0
                         }),
-                    equal(0)
+                    Match.equal(0)
                 )
             )
         }.thenReturn("matched")
@@ -134,20 +134,20 @@ final class LedgerNode {}
 
     @Test func anyOfPredicateIsEvaluatedOnceWhenVerificationCommits() throws {
         let stub = try Stub<any Ledger>()
-        stub.when { $0.classify(amount: any()) }.thenReturn("matched")
+        stub.when { $0.classify(amount: Match.any()) }.thenReturn("matched")
         _ = stub().classify(amount: 7)
         let evaluations = LockedCounter()
 
         stub.verify {
             $0.classify(
-                amount: anyOf(
-                    matching(
+                amount: Match.anyOf(
+                    Match.matching(
                         description: "positive",
                         where: { value in
                             evaluations.increment()
                             return value > 0
                         }),
-                    equal(0)
+                    Match.equal(0)
                 )
             )
         }
@@ -157,17 +157,17 @@ final class LedgerNode {}
 
     @Test func verificationUsesRichMatchers() throws {
         let stub = try Stub<any Ledger>()
-        stub.when { $0.classify(amount: any()) }.thenReturn("x")
+        stub.when { $0.classify(amount: Match.any()) }.thenReturn("x")
 
         let ledger: any Ledger = stub()
         _ = ledger.classify(amount: 5)
         _ = ledger.classify(amount: 50)
         _ = ledger.classify(amount: -5)
 
-        stub.verify(.exactly(2)) { $0.classify(amount: greaterThan(0)) }
-        stub.verify(.exactly(1)) { $0.classify(amount: lessThan(0)) }
-        stub.verify(.exactly(1)) { $0.classify(amount: inRange(0 ... 10)) }
-        stub.verify(.never()) { $0.classify(amount: oneOf(1, 2, 3)) }
+        stub.verify(.exactly(2)) { $0.classify(amount: Match.greaterThan(0)) }
+        stub.verify(.exactly(1)) { $0.classify(amount: Match.lessThan(0)) }
+        stub.verify(.exactly(1)) { $0.classify(amount: Match.inRange(0 ... 10)) }
+        stub.verify(.never()) { $0.classify(amount: Match.oneOf(1, 2, 3)) }
     }
 }
 
@@ -186,10 +186,10 @@ struct RealTagIndex: TagIndex {
 @Suite struct CollectionMatchersTests {
     @Test func emptinessAndCount() throws {
         let stub = try Stub<any TagIndex>()
-        stub.when { $0.matchScores(isEmpty()) }.thenReturn("empty")
-        stub.when { $0.matchScores(hasCount(2)) }.thenReturn("pair")
-        stub.when { $0.matchScores(hasCount(matching: greaterThan(2))) }.thenReturn("many")
-        stub.when { $0.matchScores(nonEmpty()) }.thenReturn("some")
+        stub.when { $0.matchScores(Match.isEmpty()) }.thenReturn("empty")
+        stub.when { $0.matchScores(Match.hasCount(2)) }.thenReturn("pair")
+        stub.when { $0.matchScores(Match.hasCount(matching: Match.greaterThan(2))) }.thenReturn("many")
+        stub.when { $0.matchScores(Match.nonEmpty()) }.thenReturn("some")
 
         let index: any TagIndex = stub()
         #expect(index.matchScores([]) == "empty")
@@ -200,12 +200,12 @@ struct RealTagIndex: TagIndex {
 
     @Test func membershipAndOrdering() throws {
         let stub = try Stub<any TagIndex>()
-        stub.when { $0.matchScores(startsWith(1, 2)) }.thenReturn("prefixed")
-        stub.when { $0.matchScores(endsWith(8, 9)) }.thenReturn("suffixed")
-        stub.when { $0.matchScores(containsAll(3, 4)) }.thenReturn("superset")
-        stub.when { $0.matchScores(contains(7)) }.thenReturn("has-seven")
-        stub.when { $0.matchScores(contains { $0 < 0 }) }.thenReturn("has-negative")
-        stub.when { $0.matchScores(any()) }.thenReturn("other")
+        stub.when { $0.matchScores(Match.startsWith(1, 2)) }.thenReturn("prefixed")
+        stub.when { $0.matchScores(Match.endsWith(8, 9)) }.thenReturn("suffixed")
+        stub.when { $0.matchScores(Match.containsAll(3, 4)) }.thenReturn("superset")
+        stub.when { $0.matchScores(Match.contains(7)) }.thenReturn("has-seven")
+        stub.when { $0.matchScores(Match.contains { $0 < 0 }) }.thenReturn("has-negative")
+        stub.when { $0.matchScores(Match.any()) }.thenReturn("other")
 
         let index: any TagIndex = stub()
         #expect(index.matchScores([1, 2, 5]) == "prefixed")
@@ -220,12 +220,12 @@ struct RealTagIndex: TagIndex {
 @Suite struct StringMatchersTests {
     @Test func stringMatchers() throws {
         let stub = try Stub<any TagIndex>()
-        stub.when { $0.matchName(hasPrefix("com.")) }.thenReturn("reverse-dns")
-        stub.when { $0.matchName(hasSuffix(".swift")) }.thenReturn("source")
-        stub.when { $0.matchName(containsSubstring("test")) }.thenReturn("test")
-        stub.when { $0.matchName(equalsIgnoringCase("readme")) }.thenReturn("readme")
-        stub.when { $0.matchName(matchesRegex("^[0-9]+$")) }.thenReturn("numeric")
-        stub.when { $0.matchName(any()) }.thenReturn("other")
+        stub.when { $0.matchName(Match.hasPrefix("com.")) }.thenReturn("reverse-dns")
+        stub.when { $0.matchName(Match.hasSuffix(".swift")) }.thenReturn("source")
+        stub.when { $0.matchName(Match.containsSubstring("test")) }.thenReturn("test")
+        stub.when { $0.matchName(Match.equalsIgnoringCase("readme")) }.thenReturn("readme")
+        stub.when { $0.matchName(Match.matchesRegex("^[0-9]+$")) }.thenReturn("numeric")
+        stub.when { $0.matchName(Match.any()) }.thenReturn("other")
 
         let index: any TagIndex = stub()
         #expect(index.matchName("com.example.app") == "reverse-dns")

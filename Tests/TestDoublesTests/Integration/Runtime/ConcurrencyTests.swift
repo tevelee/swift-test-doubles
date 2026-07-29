@@ -190,7 +190,7 @@
             let asyncHandlerCalls = LockedCounter()
             stub.when {
                 $0.synchronous(
-                    matching(
+                    Match.matching(
                         description: "nonnegative",
                         where: { value in
                             predicateCalls.increment()
@@ -201,7 +201,7 @@
                 syncHandlerCalls.increment()
                 return value * 2
             }
-            await stub.when { await $0.asynchronous(any()) }.then {
+            await stub.when { await $0.asynchronous(Match.any()) }.then {
                 (value: Int) async throws -> Int in
                 asyncHandlerCalls.increment()
                 await Task.yield()
@@ -210,7 +210,7 @@
             let probe: any ConcurrentInvocationProbe = stub()
             let callCount = 250
 
-            requireSendable(ArgumentCaptor<Int>())
+            requireSendable(Match.Capture<Int>())
 
             await withTaskGroup(of: Void.self) { group in
                 for value in 0 ..< callCount {
@@ -225,9 +225,9 @@
             #expect(syncHandlerCalls.value == callCount)
             #expect(asyncHandlerCalls.value == callCount)
             stub.verify(.exactly(callCount)) {
-                $0.synchronous(matching(description: "nonnegative", where: { $0 >= 0 }))
+                $0.synchronous(Match.matching(description: "nonnegative", where: { $0 >= 0 }))
             }
-            await stub.verify(.exactly(callCount)) { await $0.asynchronous(any()) }
+            await stub.verify(.exactly(callCount)) { await $0.asynchronous(Match.any()) }
         }
 
         @Test(.timeLimit(.minutes(2)))
@@ -239,7 +239,7 @@
             let gate = BlockedMatcherCompletionGate()
             stub.when {
                 $0.synchronous(
-                    matching(description: "gated", where: gate.matches)
+                    Match.matching(description: "gated", where: gate.matches)
                 )
             }.thenReturn(10, 20)
             let probe: any ConcurrentInvocationProbe = stub()

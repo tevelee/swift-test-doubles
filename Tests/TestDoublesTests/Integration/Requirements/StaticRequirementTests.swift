@@ -98,12 +98,12 @@ struct StaticRequirementTests {
         #expect(useLinkedStaticRequirement(RealStaticRequirementProbe()) == "real-0")
         let stub = try Stub<any StaticRequirementProbe>()
 
-        stub.when { type(of: $0).describe(any()) }.then { (value: Int) in
+        stub.when { type(of: $0).describe(Match.any()) }.then { (value: Int) in
             "stub-\(value)"
         }
         stub.when { type(of: $0).count }.thenReturn(7)
-        stub.when { type(of: $0).count = any() }.thenDoNothing()
-        await stub.when { try await type(of: $0).load(any()) }.then { value in
+        stub.when { type(of: $0).count = Match.any() }.thenDoNothing()
+        await stub.when { try await type(of: $0).load(Match.any()) }.then { value in
             if value < 0 { throw StaticRequirementError.rejected(value) }
             return "loaded-\(value)"
         }
@@ -119,16 +119,16 @@ struct StaticRequirementTests {
         #expect(stub.withValue { type(of: $0).describe(9) } == "stub-9")
         #expect(try await stub.withValue { try await type(of: $0).load(10) } == "loaded-10")
 
-        stub.verify { type(of: $0).describe(equal(3)) }
-        stub.verify { type(of: $0).count = equal(11) }
-        await stub.verify { try await type(of: $0).load(equal(5)) }
+        stub.verify { type(of: $0).describe(Match.equal(3)) }
+        stub.verify { type(of: $0).count = Match.equal(11) }
+        await stub.verify { try await type(of: $0).load(Match.equal(5)) }
     }
 
     @Test func explicitRequirementsSupportStaticMethodsWithoutAConformer() throws {
         let stub = try Stub<any ExplicitStaticRequirementProbe>(
             .method(Int.self, returning: String.self)
         )
-        stub.when { type(of: $0).transform(any()) }.then { (value: Int) in
+        stub.when { type(of: $0).transform(Match.any()) }.then { (value: Int) in
             "explicit-\(value)"
         }
 
@@ -141,7 +141,7 @@ struct StaticRequirementTests {
             .method(Int.self, returning: String.self)
         )
         stub!.when {
-            type(of: $0).transform(any())
+            type(of: $0).transform(Match.any())
         }.then { (value: Int) in
             "alive-\(value)"
         }
@@ -179,11 +179,11 @@ struct StaticRequirementTests {
 
     @Test func classStaticRequirementsPreserveEffectsAndValueOwnership() async throws {
         var stub: Stub<any ClassStaticRequirementProbe>? = try Stub()
-        stub?.when { try type(of: $0).describe(any()) }.then { value in
+        stub?.when { try type(of: $0).describe(Match.any()) }.then { value in
             if value < 0 { throw StaticRequirementError.rejected(value) }
             return "described-\(value)"
         }
-        await stub?.when { await type(of: $0).load(any()) }.then {
+        await stub?.when { await type(of: $0).load(Match.any()) }.then {
             (value: Int) async in
             await Task.yield()
             return "loaded-\(value)"

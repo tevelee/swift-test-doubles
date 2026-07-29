@@ -142,12 +142,12 @@ import Testing
         let stub = try Stub<any ExternalClosureStackBridgeService>()
 
         stub.when {
-            $0.consume(any(using: directPlaceholder))
+            $0.consume(Match.any(using: directPlaceholder))
         }.then { (closure: ExternalDirectStackInputClosure) in
             externalInvokeDirectStackInput(closure)
         }
         await stub.when {
-            await $0.consumeAsync(any(using: asyncPlaceholder))
+            await $0.consumeAsync(Match.any(using: asyncPlaceholder))
         }.thenEscaping {
             (closure: ExternalDirectAsyncStackInputClosure) async in
             await externalInvokeDirectAsyncStackInput(closure)

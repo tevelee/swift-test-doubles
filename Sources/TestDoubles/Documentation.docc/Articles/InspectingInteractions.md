@@ -28,14 +28,14 @@ requirement's arguments from the front:
 
 ```swift
 let stub = try Stub<any Analytics>()
-stub.when { $0.track(event: any(), value: any()) }.thenDoNothing()
+stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
 
 let analytics: any Analytics = stub()
 analytics.track(event: "add_to_cart", value: 30)
 analytics.track(event: "purchase", value: 42)
 
 let calls: [(String, Int)] = stub.invocations {
-    $0.track(event: any(), value: any())
+    $0.track(event: Match.any(), value: Match.any())
 }
 #expect(calls == [("add_to_cart", 30), ("purchase", 42)])
 ```
@@ -44,11 +44,11 @@ Trailing arguments may be omitted, so a narrower tuple reads a leading prefix,
 and matchers filter which calls are included:
 
 ```swift
-let events: [String] = stub.invocations { $0.track(event: any(), value: any()) }
+let events: [String] = stub.invocations { $0.track(event: Match.any(), value: Match.any()) }
 #expect(events == ["add_to_cart", "purchase"])
 
 let large: [(String, Int)] = stub.invocations {
-    $0.track(event: any(), value: greaterThan(40))
+    $0.track(event: Match.any(), value: Match.greaterThan(40))
 }
 #expect(large == [("purchase", 42)])
 ```
@@ -61,7 +61,7 @@ do not replay into the observation:
 
 ```swift
 let events: InvocationStream<(String, Int)> = stub.invocationStream {
-    $0.track(event: any(), value: any())
+    $0.track(event: Match.any(), value: Match.any())
 }
 
 analytics.track(event: "feed_refreshed", value: 1)
@@ -118,14 +118,14 @@ fired when each lives on its own stub:
 ```swift
 let gateway = try Stub<any PaymentGateway>()
 let analytics = try Stub<any Analytics>()
-gateway.when { $0.charge(amount: any()) }.thenDoNothing()
-analytics.when { $0.track(event: any(), value: any()) }.thenDoNothing()
+gateway.when { $0.charge(amount: Match.any()) }.thenDoNothing()
+analytics.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
 
 Checkout(gateway: gateway(), analytics: analytics()).placeOrder()
 
 let order = InvocationOrder()
-order.verify(gateway) { $0.charge(amount: equal(42)) }
-order.verify(analytics) { $0.track(event: equal("purchase"), value: any()) }
+order.verify(gateway) { $0.charge(amount: Match.equal(42)) }
+order.verify(analytics) { $0.track(event: Match.equal("purchase"), value: Match.any()) }
 ```
 
 Each `verify(_:_:)` step matches the earliest recorded call after the
@@ -162,8 +162,8 @@ catch-all under first-match-wins ordering:
 let stub = try Stub<any Analytics>()
 // Registered in the wrong order: the catch-all answers every call, so the
 // specific registration below it can never match.
-stub.when { $0.track(event: any(), value: any()) }.thenReturn(())
-stub.when { $0.track(event: equal("purchase"), value: any()) }.thenReturn(())
+stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenReturn(())
+stub.when { $0.track(event: Match.equal("purchase"), value: Match.any()) }.thenReturn(())
 
 stub().track(event: "purchase", value: 42)
 
@@ -178,7 +178,7 @@ A shadowed registration is also caught eagerly: when a new `when` is provably
 unreachable behind an earlier one, an issue is reported at that `when` site as
 you register it, without waiting for `verifyNoUnusedStubs()`. The check is
 sound, flagging only registrations proven unreachable (a universal earlier
-matcher such as `any()`, or the identical accepted set at every argument
+matcher such as `Match.any()`, or the identical accepted set at every argument
 position) and never guessing through opaque predicates, so correct
 specific-before-broad ordering is never flagged.
 
@@ -188,18 +188,18 @@ The recording pass behind every `when`, `verify`, and `invocations` closure
 needs one valid temporary value per argument and result. TestDoubles synthesizes
 these for most value types, but class instances and existentials normally take a
 value at each site through the `using:` and `returning:` overloads.
-``RecordingPlaceholders`` supplies that value once for a whole suite instead:
+``Match/Placeholders`` supplies that value once for a whole suite instead:
 
 ```swift
 protocol Directory {
     func displayName(for user: User) -> String   // User is a class
 }
 
-RecordingPlaceholders.register { User(name: "placeholder") }
+Match.Placeholders.register { User(name: "placeholder") }
 
 let stub = try Stub<any Directory>()
-// No any(using:) needed: the registered factory supplies the recording value.
-stub.when { $0.displayName(for: any()) }.thenReturn("Blob")
+// No Match.any(using:) needed: the registered factory supplies the recording value.
+stub.when { $0.displayName(for: Match.any()) }.thenReturn("Blob")
 ```
 
 A registered value is used only while recording; it is never matched against,
@@ -208,7 +208,7 @@ explicit `using:`/`returning:` values first, then registered factories, then
 synthesized values, so a registration is a default that per-call values still
 override. Factories match the exact registered type, so an existential and each
 concrete class register separately. The registry is process-wide: register in
-suite setup, or ``RecordingPlaceholders/unregister(_:)`` on the way out, rather
+suite setup, or ``Match/Placeholders/unregister(_:)`` on the way out, rather
 than registering inside individual parallel tests.
 
 ### Reset a double between cases
@@ -221,7 +221,7 @@ registration that first-match-wins would otherwise shadow:
 
 ```swift
 stub.clearConfiguredBehaviors()
-stub.when { $0.track(event: any(), value: any()) }.thenReturn(())  // fresh
+stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenReturn(())  // fresh
 ```
 
 `reset()` on ``Stub`` and ``Spy`` does both at once, restoring the
@@ -231,7 +231,7 @@ parameterized cases:
 ```swift
 for scenario in scenarios {
     stub.reset()
-    stub.when { $0.track(event: any(), value: any()) }.thenDoNothing()
+    stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
     // exercise `scenario` against a clean double
 }
 ```

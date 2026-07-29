@@ -73,8 +73,8 @@ private func useLinkedMultiplePackRequirementProbe(
             useLinkedPackRequirementProbe(RealExternalPackRequirementProbe()) == 2
         )
 
-        let integerCaptor = ArgumentCaptor<Int>()
-        let textCaptor = ArgumentCaptor<String>()
+        let integerCaptor = Match.Capture<Int>()
+        let textCaptor = Match.Capture<String>()
         let stub = try Stub<any ExternalPackRequirementProbe>()
         stub.when { $0.pack() }.thenReturn(0)
         stub.when {
@@ -154,7 +154,7 @@ private func useLinkedMultiplePackRequirementProbe(
         )
 
         let stub = try Stub<any ExternalGenericRequirementProbe>()
-        stub.when { $0.generic(any(using: 0)) }.thenReturn(7)
+        stub.when { $0.generic(Match.any(using: 0)) }.thenReturn(7)
 
         let probe: any ExternalGenericRequirementProbe = stub()
         #expect(probe.generic(123) == 7)

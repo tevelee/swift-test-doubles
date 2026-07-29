@@ -25,7 +25,7 @@ private struct Modify2AbortFailure: Error {}
         let dictionaryPlaceholder = ["placeholder": -1]
         stub.when(returning: dictionaryPlaceholder) { $0.dictionary }
             .thenReturn(["answer": 42])
-        stub.when { $0[any()] }.then { (index: Int) in index * 2 }
+        stub.when { $0[Match.any()] }.then { (index: Int) in index * 2 }
 
         let probe: any ConcreteReadAccessorProbe = stub()
         #expect(probe.integer == 42)
@@ -38,20 +38,20 @@ private struct Modify2AbortFailure: Error {}
         stub.verify(.exactly(1), returning: dictionaryPlaceholder) {
             $0.dictionary
         }
-        stub.verify(.exactly(1)) { $0[equal(21)] }
+        stub.verify(.exactly(1)) { $0[Match.equal(21)] }
     }
 
     @Test func associatedResultUsesBorrowedIndirectStorage() throws {
         _ = LinkedAssociatedReadAccessorProbe()
         let stub = try Stub<any AssociatedReadAccessorProbe<Int>>()
         stub.when { $0.value }.thenReturn(41)
-        stub.when { $0[any()] }.then { (index: Int) in index + 1 }
+        stub.when { $0[Match.any()] }.then { (index: Int) in index + 1 }
 
         let probe: any AssociatedReadAccessorProbe<Int> = stub()
         #expect(probe.value == 41)
         #expect(probe[41] == 42)
         stub.verify { $0.value }
-        stub.verify { $0[equal(41)] }
+        stub.verify { $0[Match.equal(41)] }
 
         let value = try #require(stub.recorder.runtimeMethod(for: 0))
         #expect(value.returnConvention == .associatedType(name: "Value"))
@@ -72,13 +72,13 @@ private struct Modify2AbortFailure: Error {}
         _ = LinkedModify2AccessorProbe()
         let stub = try Stub<any Modify2AccessorProbe>()
         stub.when { $0.value }.thenReturn(40)
-        stub.when { $0.value = equal(42) }.thenDoNothing()
+        stub.when { $0.value = Match.equal(42) }.thenDoNothing()
         var probe: any Modify2AccessorProbe = stub()
 
         probe.value += 2
 
         stub.verify(.exactly(1)) { $0.value }
-        stub.verify(.exactly(1)) { $0.value = equal(42) }
+        stub.verify(.exactly(1)) { $0.value = Match.equal(42) }
     }
 
     @Test func modify2SpyForwardsRepeatedMutation() throws {
@@ -99,7 +99,7 @@ private struct Modify2AbortFailure: Error {}
         _ = LinkedModify2AccessorProbe()
         let stub = try Stub<any Modify2AccessorProbe>()
         stub.when { $0.value }.thenReturn(40)
-        stub.when { $0.value = equal(42) }.thenDoNothing()
+        stub.when { $0.value = Match.equal(42) }.thenDoNothing()
         var probe: any Modify2AccessorProbe = stub()
 
         #expect(throws: Modify2AbortFailure.self) {
@@ -107,7 +107,7 @@ private struct Modify2AbortFailure: Error {}
         }
 
         stub.verify(.exactly(1)) { $0.value }
-        stub.verify(.exactly(1)) { $0.value = equal(42) }
+        stub.verify(.exactly(1)) { $0.value = Match.equal(42) }
     }
 
     @Test func modify2SpyWritesTargetBackBeforeUnwind() throws {
@@ -330,7 +330,7 @@ private struct Modify2AbortFailure: Error {}
         spy.verify { $0.integer }
         spy.verify { $0.text }
         spy.verify(returning: ["placeholder": -1]) { $0.dictionary }
-        spy.verify { $0[equal(21)] }
+        spy.verify { $0[Match.equal(21)] }
     }
 
     @Test func configuredSpyReadOverrideWinsWithoutEnteringTarget() throws {
@@ -364,7 +364,7 @@ private struct Modify2AbortFailure: Error {}
                 ]
         )
         spy.verify { $0.value }
-        spy.verify { $0[equal(41)] }
+        spy.verify { $0[Match.equal(41)] }
     }
 
     @Test func forwardedReadRetainsYieldedValueUntilNormalResume() throws {

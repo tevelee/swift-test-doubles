@@ -208,7 +208,7 @@ tables.
 When multiple registrations match, the first registration wins, like the
 first matching case of a `switch`. Register specific matchers before broad
 fallbacks; an earlier registration shadows any later one it overlaps with.
-Literal matching is best-effort textual matching; prefer `equal(_:)` for
+Literal matching is best-effort textual matching; prefer `Match.equal(_:)` for
 meaningful equality.
 
 ### Verification
@@ -216,7 +216,7 @@ meaningful equality.
 `verify` checks a recorded instance, static, or initializer invocation
 immediately and defaults to the `1...` call-count range. It accepts any
 `RangeExpression<Int>`: use `.exactly(2)`, `.never()`, `2...`, or `...2` when
-the count expresses meaningful behavior. An ``ArgumentCaptor`` in the
+the count expresses meaningful behavior. An ``Match/Capture`` in the
 verification call captures matching arguments for later assertions. A failed
 count expectation is reported through IssueReporting at the caller's file,
 line, and column, allowing Swift Testing or XCTest to record a normal issue
@@ -258,7 +258,7 @@ requirement, or violating the runtime ABI contract remains fatal.
 
 ### Matcher recording placeholders
 
-`any()`, `matching(description:where:)`, and ``ArgumentCaptor/capture()``
+`Match.any()`, `Match.matching(description:where:)`, and ``Match/Capture/capture()``
 synthesize valid temporary values while the `when` or `verify` closure records
 an invocation. TestDoubles initializes only layouts it can form safely, such as
 supported scalar, tuple, enum/optional, metatype, string, array, and recursively
@@ -266,9 +266,9 @@ supported struct values.
 
 A reference, existential, function, recursive value, or another unsupported
 layout cannot be fabricated as a valid Swift value. Pass a valid value accepted
-by the requirement to `any(using:)`,
-`matching(using:description:where:)`, or
-``ArgumentCaptor/capture(using:)``. That value exists only to make the recorded
+by the requirement to `Match.any(using:)`,
+`Match.matching(using:description:where:)`, or
+``Match/Capture/capture(using:)``. That value exists only to make the recorded
 protocol call valid; it does not participate in matching and is not captured.
 
 A requirement result may also need a valid value while the `when` or `verify`
@@ -374,7 +374,7 @@ and linked mangled-type discovery both resolve SIMD generic metadata directly
 other supported shape; explicit `.method(signatureOf:)` requirements remain
 available but are no longer required just to name a SIMD type. SIMD values
 still cannot be synthesized as matcher or result placeholders, so pass them
-through `any(using:)` and `when(returning:_:)` when recording needs a
+through `Match.any(using:)` and `when(returning:_:)` when recording needs a
 placeholder.
 Forwarding spies support that same register-only SIMD boundary for ordinary
 synchronous instance methods, including mixed scalar/vector arguments and all
@@ -535,7 +535,7 @@ When `P` conforms to `Sendable`, `stub()` resolves to a `Sendable`-constrained
 overload, so the returned existential may cross isolation domains with the
 compiler checking that guarantee. When `P` does not conform to `Sendable`,
 keep the generated value on the isolation domain that configured it.
-``ArgumentCaptor`` is conditionally `Sendable` when its captured value is
+``Match/Capture`` is conditionally `Sendable` when its captured value is
 `Sendable`.
 
 The generated existential retains its payload, recorder, fabricated witness

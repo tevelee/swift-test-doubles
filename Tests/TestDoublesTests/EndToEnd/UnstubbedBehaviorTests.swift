@@ -131,7 +131,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                stub.when { $0.greet(name: any()) }.thenForward()
+                stub.when { $0.greet(name: Match.any()) }.thenForward()
             }
 
             let diagnostic = try #require(
@@ -146,7 +146,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                _ = stub.when { $0.greet(name: any()) }.thenSuspend()
+                _ = stub.when { $0.greet(name: Match.any()) }.thenSuspend()
             }
 
             let diagnostic = try #require(
@@ -195,7 +195,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                stub.when { try $0.total(of: any()) }.thenAwaitCancellation()
+                stub.when { try $0.total(of: Match.any()) }.thenAwaitCancellation()
             }
 
             let diagnostic = try #require(
@@ -227,7 +227,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                stub.when { $0.greet(name: any()) }.thenNeverReturn()
+                stub.when { $0.greet(name: Match.any()) }.thenNeverReturn()
             }
 
             let diagnostic = try #require(
@@ -243,7 +243,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                stub.when { $0.greet(name: any()) }
+                stub.when { $0.greet(name: Match.any()) }
                     .thenReturn("hi", after: .milliseconds(1))
             }
 
@@ -269,7 +269,7 @@ private struct UnexpectedTypedError: Error {}
             #expect(diagnostic.contains("No stub configured for greet(name:)"))
             #expect(diagnostic.contains("arg0: \"eve\""))
             #expect(
-                diagnostic.contains("stub.when { $0.greet(name: equal(\"eve\")) }.thenReturn(...)")
+                diagnostic.contains("stub.when { $0.greet(name: Match.equal(\"eve\")) }.thenReturn(...)")
             )
         }
 
@@ -303,7 +303,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                stub.when { $0.greet(name: equal("alice")) }.thenReturn("hi")
+                stub.when { $0.greet(name: Match.equal("alice")) }.thenReturn("hi")
                 _ = stub().greet(name: "bob")
             }
 
@@ -311,9 +311,9 @@ private struct UnexpectedTypedError: Error {}
                 String(bytes: result.standardErrorContent, encoding: .utf8)
             )
             #expect(diagnostic.contains("No matching stub for greet(name:)"))
-            #expect(diagnostic.contains("greet(name:)(equal(alice))"))
+            #expect(diagnostic.contains("greet(name:)(Match.equal(alice))"))
             #expect(
-                diagnostic.contains("arg0 rejected: expected equal(alice), got \"bob\"")
+                diagnostic.contains("arg0 rejected: expected Match.equal(alice), got \"bob\"")
             )
         }
 
@@ -392,7 +392,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                stub.when { $0.greet(name: any()) }.thenThrow(ManualLoadError())
+                stub.when { $0.greet(name: Match.any()) }.thenThrow(ManualLoadError())
             }
             let diagnostic = try requireStandardErrorDiagnostic(from: result)
             #expect(diagnostic.contains("thenThrow requires a throwing requirement"))
@@ -440,7 +440,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                stub.when { $0.greet(name: any()) }
+                stub.when { $0.greet(name: Match.any()) }
                     .thenFatalError("greet should not be called more than expected")
                 _ = stub().greet(name: "eve")
             }
@@ -463,7 +463,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                stub.when { $0.greet(name: any()) }.thenReturn("hi", times: 0 ... 3)
+                stub.when { $0.greet(name: Match.any()) }.thenReturn("hi", times: 0 ... 3)
             }
 
             let diagnostic = try #require(
@@ -487,7 +487,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                stub.when { $0.greet(name: any()) }
+                stub.when { $0.greet(name: Match.any()) }
                     .thenReturn("hi", times: 2)
                     .thenReturn("bye", times: 0)
             }
@@ -513,7 +513,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                let chain: StubBehaviorChain<String> = stub.when { $0.greet(name: any()) }
+                let chain: StubBehaviorChain<String> = stub.when { $0.greet(name: Match.any()) }
                     .thenReturn("hi", times: 2)
                 chain.thenReturn("bye")
                 chain.thenReturn("late", times: 1 ... 1)

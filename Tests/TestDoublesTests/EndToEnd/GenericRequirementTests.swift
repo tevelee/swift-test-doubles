@@ -15,7 +15,7 @@ import TestDoublesFixtures
     }
 
     @Test func automaticStubRecordsAPublishedEvent() throws {
-        let captor = ArgumentCaptor<UserRegistered>()
+        let captor = Match.Capture<UserRegistered>()
         let stub = try Stub<any EventBus>()
         stub.when { $0.publish(captor.capture()) }.thenReturn(())
 
@@ -24,31 +24,31 @@ import TestDoublesFixtures
 
         #expect(captor.first == UserRegistered(userID: 42))
         stub.verify(.exactly(1)) {
-            $0.publish(any(using: UserRegistered(userID: 0)))
+            $0.publish(Match.any(using: UserRegistered(userID: 0)))
         }
     }
 
-    /// `equal(_:)` discriminates by type via its internal cast; `any()` does not.
+    /// `Match.equal(_:)` discriminates by type via its internal cast; `Match.any()` does not.
     @Test func automaticStubDistinguishesDifferentEventTypesAtTheSameRequirement() throws {
         let stub = try Stub<any EventBus>()
-        stub.when { $0.publish(equal(UserRegistered(userID: 1))) }.thenReturn(())
-        stub.when { $0.publish(equal(UserRegistered(userID: 2))) }.thenReturn(())
-        stub.when { $0.publish(equal(OrderShipped(orderID: "A-1"))) }.thenReturn(())
+        stub.when { $0.publish(Match.equal(UserRegistered(userID: 1))) }.thenReturn(())
+        stub.when { $0.publish(Match.equal(UserRegistered(userID: 2))) }.thenReturn(())
+        stub.when { $0.publish(Match.equal(OrderShipped(orderID: "A-1"))) }.thenReturn(())
 
         let bus: any EventBus = stub()
         bus.publish(UserRegistered(userID: 1))
         bus.publish(OrderShipped(orderID: "A-1"))
         bus.publish(UserRegistered(userID: 2))
 
-        stub.verify(.exactly(1)) { $0.publish(equal(UserRegistered(userID: 1))) }
-        stub.verify(.exactly(1)) { $0.publish(equal(UserRegistered(userID: 2))) }
-        stub.verify(.exactly(1)) { $0.publish(equal(OrderShipped(orderID: "A-1"))) }
+        stub.verify(.exactly(1)) { $0.publish(Match.equal(UserRegistered(userID: 1))) }
+        stub.verify(.exactly(1)) { $0.publish(Match.equal(UserRegistered(userID: 2))) }
+        stub.verify(.exactly(1)) { $0.publish(Match.equal(OrderShipped(orderID: "A-1"))) }
     }
 
     @Test func automaticStubHandlesTwoArgumentsSharingOneGenericParameter() throws {
         let stub = try Stub<any EqualityChecker>()
-        stub.when { $0.areEqual(equal(1), equal(1)) }.thenReturn(true)
-        stub.when { $0.areEqual(equal("a"), equal("b")) }.thenReturn(false)
+        stub.when { $0.areEqual(Match.equal(1), Match.equal(1)) }.thenReturn(true)
+        stub.when { $0.areEqual(Match.equal("a"), Match.equal("b")) }.thenReturn(false)
 
         let checker: any EqualityChecker = stub()
 
@@ -58,13 +58,13 @@ import TestDoublesFixtures
 
     @Test func automaticStubHandlesTwoDistinctGenericParameters() throws {
         let stub = try Stub<any GenericCache>()
-        stub.when { $0.store(equal("value"), forKey: equal(7)) }.thenReturn(())
+        stub.when { $0.store(Match.equal("value"), forKey: Match.equal(7)) }.thenReturn(())
 
         let cache: any GenericCache = stub()
         cache.store("value", forKey: 7)
 
         stub.verify(.exactly(1)) {
-            $0.store(any(using: ""), forKey: equal(7))
+            $0.store(Match.any(using: ""), forKey: Match.equal(7))
         }
     }
 
@@ -72,13 +72,13 @@ import TestDoublesFixtures
         let stub = try Stub<any EventBus>(
             .method(.methodGenericParameter(), returning: .concrete(Void.self))
         )
-        stub.when { $0.publish(any(using: UserRegistered(userID: 0))) }.thenReturn(())
+        stub.when { $0.publish(Match.any(using: UserRegistered(userID: 0))) }.thenReturn(())
 
         let bus: any EventBus = stub()
         bus.publish(UserRegistered(userID: 9))
 
         stub.verify(.exactly(1)) {
-            $0.publish(any(using: UserRegistered(userID: 0)))
+            $0.publish(Match.any(using: UserRegistered(userID: 0)))
         }
     }
 
@@ -90,13 +90,13 @@ import TestDoublesFixtures
                 returning: .concrete(Void.self)
             )
         )
-        stub.when { $0.store(equal("value"), forKey: equal(7)) }.thenReturn(())
+        stub.when { $0.store(Match.equal("value"), forKey: Match.equal(7)) }.thenReturn(())
 
         let cache: any GenericCache = stub()
         cache.store("value", forKey: 7)
 
         stub.verify(.exactly(1)) {
-            $0.store(any(using: ""), forKey: equal(7))
+            $0.store(Match.any(using: ""), forKey: Match.equal(7))
         }
     }
 

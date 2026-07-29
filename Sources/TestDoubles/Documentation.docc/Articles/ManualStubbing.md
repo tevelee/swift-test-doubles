@@ -40,13 +40,13 @@ struct MyServiceStub: MyService, StubConformer {
 
 // 2. Configure and use in your test
 let stub = ManualStub<MyServiceStub>()
-stub.when { $0.fetch(id: equal(42)) }.thenReturn("Alice")
+stub.when { $0.fetch(id: Match.equal(42)) }.thenReturn("Alice")
 
 let sut: any MyService = stub()
 // sut.fetch(id: 42) == "Alice"
 
 // 3. Verify
-stub.verify { $0.fetch(id: any()) }
+stub.verify { $0.fetch(id: Match.any()) }
 ```
 
 ### Generate a conformer with the optional command plugin

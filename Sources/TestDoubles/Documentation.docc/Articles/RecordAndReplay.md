@@ -14,7 +14,7 @@ let live = LiveWeatherService()
 let spy: Spy<any WeatherService> = .make(forwardingTo: live)
 let session = RecordingSession()
 
-spy.when { try await $0.currentConditions(for: any()) }
+spy.when { try await $0.currentConditions(for: Match.any()) }
     .thenRecord(as: "currentConditions", into: session) { city in
         try await live.currentConditions(for: city)
     }
@@ -41,12 +41,12 @@ dependency involved:
 let fixture = try InteractionFixture.load(from: fixtureURL)
 let stub = try Stub<any WeatherService>()
 
-stub.when { try await $0.currentConditions(for: any()) }
+stub.when { try await $0.currentConditions(for: Match.any()) }
     .thenReplay(as: "currentConditions", from: fixture)
 
 let service: any WeatherService = stub()
 try await service.currentConditions(for: "Berlin") // the recorded value
-stub.verify { try await $0.currentConditions(for: equal("Berlin")) }
+stub.verify { try await $0.currentConditions(for: Match.equal("Berlin")) }
 ```
 
 `thenReplay(as:from:)` configures fixed responses from the fixture's calls

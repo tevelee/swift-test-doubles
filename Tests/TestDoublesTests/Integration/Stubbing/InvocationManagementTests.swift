@@ -87,39 +87,39 @@ private actor MatcherEvaluationGate {
 @Suite struct InvocationManagementTests {
     @Test func stubClearingBehaviorsRemovesShadowingRegistrations() throws {
         let stub = try Stub<any InvocationManagementService>()
-        stub.when { $0.value(for: any()) }.thenReturn("old")
+        stub.when { $0.value(for: Match.any()) }.thenReturn("old")
         let service: any InvocationManagementService = stub()
         #expect(service.value(for: 1) == "old")
 
         stub.clearConfiguredBehaviors()
 
         // Without the clear, first-match-wins would keep answering "old".
-        stub.when { $0.value(for: any()) }.thenReturn("new")
+        stub.when { $0.value(for: Match.any()) }.thenReturn("new")
         #expect(service.value(for: 2) == "new")
 
         // Clearing behaviors preserves the invocation log.
-        stub.verify(.exactly(2)) { $0.value(for: any()) }
+        stub.verify(.exactly(2)) { $0.value(for: Match.any()) }
     }
 
     @Test func stubResetRestoresJustConstructedState() throws {
         let stub = try Stub<any InvocationManagementService>()
-        stub.when { $0.value(for: any()) }.thenReturn("old")
+        stub.when { $0.value(for: Match.any()) }.thenReturn("old")
         let service: any InvocationManagementService = stub()
         #expect(service.value(for: 1) == "old")
 
         stub.reset()
 
-        stub.verify(.never()) { $0.value(for: any()) }
-        stub.when { $0.value(for: any()) }.thenReturn("new")
+        stub.verify(.never()) { $0.value(for: Match.any()) }
+        stub.when { $0.value(for: Match.any()) }.thenReturn("new")
         #expect(service.value(for: 2) == "new")
-        stub.verify(.exactly(1)) { $0.value(for: any()) }
+        stub.verify(.exactly(1)) { $0.value(for: Match.any()) }
     }
 
     @Test func spyClearingBehaviorsRestoresForwarding() throws {
         let spy: Spy<any InvocationManagementService> = Spy.make(
             forwardingTo: RealInvocationManagementService()
         )
-        spy.when { $0.value(for: any()) }.thenReturn("stubbed")
+        spy.when { $0.value(for: Match.any()) }.thenReturn("stubbed")
         let service: any InvocationManagementService = spy()
         #expect(service.value(for: 7) == "stubbed")
 
@@ -136,7 +136,7 @@ private actor MatcherEvaluationGate {
         let gate = BlockedBehaviorMatcherGate()
         spy.when {
             $0.value(
-                for: matching(
+                for: Match.matching(
                     description: "blocked",
                     where: gate.matchAfterRelease
                 )
@@ -162,57 +162,57 @@ private actor MatcherEvaluationGate {
 
     @Test func manualStubClearingBehaviorsRemovesShadowingRegistrations() {
         let stub = ManualStub<ManualInvocationManagementServiceStub>()
-        stub.when { $0.value(for: any()) }.thenReturn("old")
+        stub.when { $0.value(for: Match.any()) }.thenReturn("old")
         let service: any ManualInvocationManagementService = stub()
         #expect(service.value(for: 1) == "old")
 
         stub.clearConfiguredBehaviors()
 
-        stub.when { $0.value(for: any()) }.thenReturn("new")
+        stub.when { $0.value(for: Match.any()) }.thenReturn("new")
         #expect(service.value(for: 2) == "new")
-        stub.verify(.exactly(2)) { $0.value(for: any()) }
+        stub.verify(.exactly(2)) { $0.value(for: Match.any()) }
     }
 
     @Test func stubClearsOldCallsButPreservesBehaviorAndRecordsNewCalls() throws {
         let stub = try Stub<any InvocationManagementService>()
-        stub.when { $0.value(for: any()) }.thenReturn("configured")
+        stub.when { $0.value(for: Match.any()) }.thenReturn("configured")
         let service: any InvocationManagementService = stub()
 
         #expect(service.value(for: 1) == "configured")
-        stub.verify(.exactly(1)) { $0.value(for: any()) }
+        stub.verify(.exactly(1)) { $0.value(for: Match.any()) }
 
         stub.clearRecordedInvocations()
 
-        stub.verify(.never()) { $0.value(for: any()) }
+        stub.verify(.never()) { $0.value(for: Match.any()) }
         expectReportsIssue {
-            stub.verify { $0.value(for: equal(1)) }
+            stub.verify { $0.value(for: Match.equal(1)) }
         } matching: {
             $0.description.contains("expected at least 1 call, got 0")
         }
 
         #expect(service.value(for: 2) == "configured")
-        stub.verify(.exactly(1)) { $0.value(for: equal(2)) }
-        stub.verify(.exactly(1)) { $0.value(for: any()) }
+        stub.verify(.exactly(1)) { $0.value(for: Match.equal(2)) }
+        stub.verify(.exactly(1)) { $0.value(for: Match.any()) }
     }
 
     @Test func manualStubHasClearingParityWithoutInterceptingReset() {
         let stub = ManualStub<ManualInvocationManagementServiceStub>()
-        stub.when { $0.value(for: any()) }.thenReturn("configured")
+        stub.when { $0.value(for: Match.any()) }.thenReturn("configured")
         stub.when { $0.reset() }.thenDoNothing()
         let service: any ManualInvocationManagementService = stub()
 
         #expect(service.value(for: 1) == "configured")
         service.reset()
-        stub.verify(.exactly(1)) { $0.value(for: any()) }
+        stub.verify(.exactly(1)) { $0.value(for: Match.any()) }
         stub.verify(.exactly(1)) { $0.reset() }
 
         stub.clearRecordedInvocations()
 
-        stub.verify(.never()) { $0.value(for: any()) }
+        stub.verify(.never()) { $0.value(for: Match.any()) }
         stub.verify(.never()) { $0.reset() }
         #expect(service.value(for: 2) == "configured")
         service.reset()
-        stub.verify(.exactly(1)) { $0.value(for: equal(2)) }
+        stub.verify(.exactly(1)) { $0.value(for: Match.equal(2)) }
         stub.verify(.exactly(1)) { $0.reset() }
     }
 
@@ -232,7 +232,7 @@ private actor MatcherEvaluationGate {
     @Test(.timeLimit(.minutes(2)))
     func eventualVerificationReevaluatesAcrossClear() async throws {
         let stub = try Stub<any InvocationManagementService>()
-        stub.when { $0.notify(any()) }.thenDoNothing()
+        stub.when { $0.notify(Match.any()) }.thenDoNothing()
         let service: any InvocationManagementService = stub()
         let completions = LockedCounter()
         let evaluationGate = MatcherEvaluationGate()
@@ -241,7 +241,7 @@ private actor MatcherEvaluationGate {
         let verification = Task { @MainActor in
             await stub.verify(2..., within: .seconds(60)) {
                 $0.notify(
-                    matching(description: "verification evaluation") { (value: Int) in
+                    Match.matching(description: "verification evaluation") { (value: Int) in
                         Task { await evaluationGate.recordEvaluation() }
                         return value > 0
                     }
@@ -270,6 +270,6 @@ private actor MatcherEvaluationGate {
         service.notify(3)
         await verification.value
         #expect(completions.value == 1)
-        stub.verify(.exactly(2)) { $0.notify(any()) }
+        stub.verify(.exactly(2)) { $0.notify(Match.any()) }
     }
 }

@@ -72,7 +72,7 @@ enum MatcherContext {
     /// Runs `body` against a fresh sub-recording and returns the matchers it
     /// appended without leaking them into the enclosing invocation's list.
     ///
-    /// Combinators such as ``not(_:)`` and ``allOf(_:_:)`` use this to fold the
+    /// Combinators such as ``Match/not(_:)`` and ``Match/allOf(_:_:)`` use this to fold the
     /// matchers their nested expressions record into one composite matcher, so
     /// a composed argument stays a single positional matcher.
     static func captureNested<Result>(
@@ -91,133 +91,147 @@ enum MatcherContext {
     }
 }
 
-/// Matches any argument of type `T`.
+/// Namespaces argument matchers, captures, and recording placeholders.
 ///
-/// This overload synthesizes a valid recording placeholder. For reference,
-/// existential, or other unsupported types, use ``any(using:)``.
-public func any<T>() -> T {
-    MatcherContext.append(AnyMatcher())
-    return synthesizedPlaceholder(for: "any()", fallback: "any(using:)")
-}
+/// Every matcher returns the argument's own type so it can be written directly
+/// inside a call-recording closure. Keeping the vocabulary under one namespace
+/// makes available matchers discoverable through autocomplete without
+/// occupying the module's global function namespace.
+public enum Match {}
 
-/// Matches any argument of type `T`, using `placeholder` while recording the call.
-///
-/// Use this overload when ``any()`` cannot safely synthesize a value, such as
-/// for reference or existential types. The placeholder is never used for matching.
-///
-/// - Parameter placeholder: A valid value accepted by the stubbed requirement.
-public func any<T>(using placeholder: T) -> T {
-    MatcherContext.append(AnyMatcher())
-    return placeholder
-}
-
-/// Matches an argument that is equal to `value`.
-public func equal<T: Equatable>(_ value: T) -> T {
-    MatcherContext.append(EqualMatcher(expected: value))
-    return value
-}
-
-/// Matches an argument accepted by `predicate`.
-///
-/// This overload synthesizes a valid recording placeholder. For reference,
-/// existential, or other unsupported types, use ``matching(using:description:where:)``.
-public func matching<T>(
-    description: String = "predicate",
-    where predicate: @escaping @Sendable (T) -> Bool
-) -> T {
-    MatcherContext.append(PredicateMatcher(description: description, predicate: predicate))
-    return synthesizedPlaceholder(
-        for: "matching(description:where:)",
-        fallback: "matching(using:description:where:)"
-    )
-}
-
-/// Matches an argument accepted by `predicate`, using `placeholder` while recording the call.
-///
-/// The placeholder is never evaluated by the matcher and is not used for matching.
-///
-/// - Parameters:
-///   - placeholder: A valid value accepted by the stubbed requirement.
-///   - description: A diagnostic description of the predicate.
-///   - predicate: A closure that determines whether an actual argument matches.
-public func matching<T>(
-    using placeholder: T,
-    description: String = "predicate",
-    where predicate: @escaping @Sendable (T) -> Bool
-) -> T {
-    MatcherContext.append(PredicateMatcher(description: description, predicate: predicate))
-    return placeholder
-}
-
-/// Captures matching argument values for later inspection.
-public final class ArgumentCaptor<T> {
-    private let lock = NSLock()
-    private var storage: [T] = []
-
-    /// All captured values, in call order.
-    public var values: [T] { withLock { storage } }
-
-    /// The first captured value.
-    public var first: T? { withLock { storage.first } }
-
-    /// The most recently captured value.
-    public var last: T? { withLock { storage.last } }
-
-    /// Creates an empty captor.
-    public init() {}
-
-    /// Returns a matcher placeholder that captures each matching argument.
+extension Match {
+    /// Matches any argument of type `T`.
     ///
     /// This overload synthesizes a valid recording placeholder. For reference,
-    /// existential, or other unsupported types, use ``capture(using:)``.
-    public func capture() -> T {
-        MatcherContext.append(CaptureMatcher(captor: self))
-        return synthesizedPlaceholder(for: "capture()", fallback: "capture(using:)")
+    /// existential, or other unsupported types, use ``Match/any(using:)``.
+    public static func any<T>() -> T {
+        MatcherContext.append(AnyMatcher())
+        return synthesizedPlaceholder(for: "Match.any()", fallback: "Match.any(using:)")
     }
 
-    /// Returns a matcher placeholder that captures each matching argument.
+    /// Matches any argument of type `T`, using `placeholder` while recording the call.
     ///
-    /// Use this overload when ``capture()`` cannot safely synthesize a value,
-    /// such as for reference or existential types. The placeholder is never captured.
+    /// Use this overload when ``Match/any()`` cannot safely synthesize a value, such as
+    /// for reference or existential types. The placeholder is never used for matching.
     ///
     /// - Parameter placeholder: A valid value accepted by the stubbed requirement.
-    public func capture(using placeholder: T) -> T {
-        MatcherContext.append(CaptureMatcher(captor: self))
+    public static func any<T>(using placeholder: T) -> T {
+        MatcherContext.append(AnyMatcher())
         return placeholder
     }
 
-    /// Removes all previously captured values.
-    public func reset() {
-        withLock { storage.removeAll() }
+    /// Matches an argument that is equal to `value`.
+    public static func equal<T: Equatable>(_ value: T) -> T {
+        MatcherContext.append(EqualMatcher(expected: value))
+        return value
     }
 
-    func append(_ value: T) {
-        withLock { storage.append(value) }
+    /// Matches an argument accepted by `predicate`.
+    ///
+    /// This overload synthesizes a valid recording placeholder. For reference,
+    /// existential, or other unsupported types, use
+    /// ``Match/matching(using:description:where:)``.
+    public static func matching<T>(
+        description: String = "predicate",
+        where predicate: @escaping @Sendable (T) -> Bool
+    ) -> T {
+        MatcherContext.append(PredicateMatcher(description: description, predicate: predicate))
+        return synthesizedPlaceholder(
+            for: "Match.matching(description:where:)",
+            fallback: "Match.matching(using:description:where:)"
+        )
     }
 
-    private func withLock<Result>(_ operation: () -> Result) -> Result {
-        lock.lock()
-        defer { lock.unlock() }
-        return operation()
+    /// Matches an argument accepted by `predicate`, using `placeholder` while recording the call.
+    ///
+    /// The placeholder is never evaluated by the matcher and is not used for matching.
+    ///
+    /// - Parameters:
+    ///   - placeholder: A valid value accepted by the stubbed requirement.
+    ///   - description: A diagnostic description of the predicate.
+    ///   - predicate: A closure that determines whether an actual argument matches.
+    public static func matching<T>(
+        using placeholder: T,
+        description: String = "predicate",
+        where predicate: @escaping @Sendable (T) -> Bool
+    ) -> T {
+        MatcherContext.append(PredicateMatcher(description: description, predicate: predicate))
+        return placeholder
+    }
+
+    /// Captures matching argument values for later inspection.
+    public final class Capture<T> {
+        private let lock = NSLock()
+        private var storage: [T] = []
+
+        /// All captured values, in call order.
+        public var values: [T] { withLock { storage } }
+
+        /// The first captured value.
+        public var first: T? { withLock { storage.first } }
+
+        /// The most recently captured value.
+        public var last: T? { withLock { storage.last } }
+
+        /// Creates an empty capture.
+        public init() {}
+
+        /// Returns a matcher placeholder that captures each matching argument.
+        ///
+        /// This overload synthesizes a valid recording placeholder. For reference,
+        /// existential, or other unsupported types, use ``capture(using:)``.
+        public func capture() -> T {
+            MatcherContext.append(CaptureMatcher(capture: self))
+            return synthesizedPlaceholder(
+                for: "Match.Capture.capture()",
+                fallback: "Match.Capture.capture(using:)"
+            )
+        }
+
+        /// Returns a matcher placeholder that captures each matching argument.
+        ///
+        /// Use this overload when ``capture()`` cannot safely synthesize a value,
+        /// such as for reference or existential types. The placeholder is never captured.
+        ///
+        /// - Parameter placeholder: A valid value accepted by the stubbed requirement.
+        public func capture(using placeholder: T) -> T {
+            MatcherContext.append(CaptureMatcher(capture: self))
+            return placeholder
+        }
+
+        /// Removes all previously captured values.
+        public func reset() {
+            withLock { storage.removeAll() }
+        }
+
+        func append(_ value: T) {
+            withLock { storage.append(value) }
+        }
+
+        private func withLock<Result>(_ operation: () -> Result) -> Result {
+            lock.lock()
+            defer { lock.unlock() }
+            return operation()
+        }
     }
 }
 
-/// A captor uses a lock to serialize its storage. It can cross concurrency
+/// A capture uses a lock to serialize its storage. It can cross concurrency
 /// domains only when its captured values can do so safely as well.
-extension ArgumentCaptor: @unchecked Sendable where T: Sendable {}
+extension Match.Capture: @unchecked Sendable where T: Sendable {}
 
 /// Synthesizes the recording placeholder a matcher returns at its call site,
 /// preferring a suite-wide registered factory, or traps pointing at the
 /// `using:` overload that accepts a caller-supplied value.
 func synthesizedPlaceholder<T>(for api: String, fallback: String) -> T {
-    if let registered = RecordingPlaceholders.make(T.self) {
+    if let registered = Match.Placeholders.make(T.self) {
         return registered
     }
     guard let placeholder = RuntimeStubFactory.makeRecordingPlaceholder(for: T.self) else {
         fatalError(
             "[TestDoubles] \(api) cannot safely synthesize a placeholder for \(T.self). "
                 + "Pass a valid value with \(fallback), or register a suite-wide "
-                + "factory with RecordingPlaceholders.register."
+                + "factory with Match.Placeholders.register."
         )
     }
     return placeholder

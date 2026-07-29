@@ -263,9 +263,9 @@ struct RealSpyGetterService: SpyGetterService {
         #expect(result == SpyMixedAggregate(count: 9, ratio: 1.75))
         spy.verify {
             $0.mixed(
-                floating: equal(1.25),
-                scalar: equal(2.0),
-                aggregate: equal(SpyMixedAggregate(count: 7, ratio: 0.5))
+                floating: Match.equal(1.25),
+                scalar: Match.equal(2.0),
+                aggregate: Match.equal(SpyMixedAggregate(count: 7, ratio: 0.5))
             )
         }
     }
@@ -391,15 +391,15 @@ struct RealSpyGetterService: SpyGetterService {
     @Test func overrideThenForwardPreservesInvocationOrder() throws {
         let target = RealSpySequencingService()
         let spy = try Spy<any SpySequencingService>(forwardingTo: target)
-        spy.when { $0.value(for: equal(1)) }.thenReturn("overridden")
+        spy.when { $0.value(for: Match.equal(1)) }.thenReturn("overridden")
         let service: any SpySequencingService = spy()
 
         #expect(service.value(for: 1) == "overridden")
         #expect(service.value(for: 2) == "real:2")
         #expect(target.receivedIDs == [2])
         spy.verifyInOrder {
-            _ = $0.value(for: equal(1))
-            _ = $0.value(for: equal(2))
+            _ = $0.value(for: Match.equal(1))
+            _ = $0.value(for: Match.equal(2))
         }
     }
 
@@ -414,7 +414,7 @@ struct RealSpyGetterService: SpyGetterService {
             return service.value(for: 9)
         }
 
-        await spy.verify(within: .seconds(60)) { $0.value(for: equal(9)) }
+        await spy.verify(within: .seconds(60)) { $0.value(for: Match.equal(9)) }
         #expect(try await invocation.value == "real:9")
         #expect(target.receivedIDs == [9])
     }

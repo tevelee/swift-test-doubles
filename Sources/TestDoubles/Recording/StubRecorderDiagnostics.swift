@@ -283,7 +283,7 @@ enum StubRecorderDiagnostics {
 
     private static func suggestedInvocation(name: String, args: [Any]) -> String {
         guard args.isEmpty == false else { return name }
-        let matchers = args.map { "equal(\(swiftLiteralDescription($0)))" }
+        let matchers = args.map { "Match.equal(\(swiftLiteralDescription($0)))" }
         return weaveArguments(matchers, intoName: name)
     }
 

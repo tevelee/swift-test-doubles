@@ -24,12 +24,12 @@ import Testing
     @Suite struct Float16ABITests {
         @Test func float16ArgumentsAndResultsRoundTrip() throws {
             let stub = try Stub<any HalfPrecisionABIProbe>()
-            stub.when { $0.scale(equal(2 as Float16), by: any()) }
+            stub.when { $0.scale(Match.equal(2 as Float16), by: Match.any()) }
                 .then { (value: Float16, factor: Float16) in value * factor }
 
             let probe = stub()
             #expect(probe.scale(2, by: 3) == 6)
-            stub.verify(.exactly(1)) { $0.scale(any(), by: equal(3 as Float16)) }
+            stub.verify(.exactly(1)) { $0.scale(Match.any(), by: Match.equal(3 as Float16)) }
         }
 
         @Test func float16GetterRoundTrips() throws {

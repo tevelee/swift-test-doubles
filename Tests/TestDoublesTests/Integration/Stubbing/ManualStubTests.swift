@@ -40,17 +40,17 @@ private struct SaveError: Error, Equatable {}
 @Suite struct ManualStubTests {
     @Test func baseRouteSyncMethodsMatchAndReturn() {
         let stub = ManualStub<ManualServiceStub>()
-        stub.when { $0.fetch(id: equal(42)) }.thenReturn("Alice")
-        stub.when { $0.fetch(id: any()) }.thenReturn("guest")
-        stub.when { $0.add(any(), any()) }.then { (a: Int, b: Int) in a + b }
+        stub.when { $0.fetch(id: Match.equal(42)) }.thenReturn("Alice")
+        stub.when { $0.fetch(id: Match.any()) }.thenReturn("guest")
+        stub.when { $0.add(Match.any(), Match.any()) }.then { (a: Int, b: Int) in a + b }
 
         let service: any ManualService = stub()
         #expect(service.fetch(id: 1) == "guest")
         #expect(service.fetch(id: 42) == "Alice")
         #expect(service.add(20, 22) == 42)
 
-        stub.verify { $0.fetch(id: equal(42)) }
-        stub.verify(.exactly(2)) { $0.fetch(id: any()) }
+        stub.verify { $0.fetch(id: Match.equal(42)) }
+        stub.verify(.exactly(2)) { $0.fetch(id: Match.any()) }
     }
 
     @Test func baseRouteVoidMethodRecordsAndVerifies() {
@@ -62,19 +62,19 @@ private struct SaveError: Error, Equatable {}
         service.reset()
 
         stub.verify(.exactly(2)) { $0.reset() }
-        stub.verify(.never()) { $0.fetch(id: any()) }
+        stub.verify(.never()) { $0.fetch(id: Match.any()) }
     }
 
     @Test func baseRouteGetterAndSetterMatchAndVerify() {
         let stub = ManualStub<ManualServiceStub>()
         stub.when { $0.count }.thenReturn(7)
-        stub.when { $0.count = any() }.thenDoNothing()
+        stub.when { $0.count = Match.any() }.thenDoNothing()
 
         var service: any ManualService = stub()
         #expect(service.count == 7)
         service.count = 9
 
-        stub.verify { $0.count = equal(9) }
+        stub.verify { $0.count = Match.equal(9) }
     }
 
     @Test func baseRouteAsyncMethodsMatchAndReturn() async {
@@ -92,8 +92,8 @@ private struct SaveError: Error, Equatable {}
 
     @Test func throwingRouteSyncMethodPropagatesSuccessAndFailure() throws {
         let stub = ManualStub<ManualServiceStub>()
-        stub.when { try $0.save(equal("ok")) }.thenDoNothing()
-        stub.when { try $0.save(equal("bad")) }.then { (_: String) throws -> Void in
+        stub.when { try $0.save(Match.equal("ok")) }.thenDoNothing()
+        stub.when { try $0.save(Match.equal("bad")) }.then { (_: String) throws -> Void in
             throw SaveError()
         }
 
@@ -103,7 +103,7 @@ private struct SaveError: Error, Equatable {}
             try service.save("bad")
         }
 
-        stub.verify(.exactly(2)) { try $0.save(any()) }
+        stub.verify(.exactly(2)) { try $0.save(Match.any()) }
     }
 
     @Test func throwingRouteAsyncMethodAndGetterWork() async throws {
@@ -137,7 +137,7 @@ private struct SaveError: Error, Equatable {}
 
     @Test func sequencedReturnsServeConsecutiveCallsThenRepeat() {
         let stub = ManualStub<ManualServiceStub>()
-        stub.when { $0.fetch(id: equal(1)) }.thenReturn("first", "second")
+        stub.when { $0.fetch(id: Match.equal(1)) }.thenReturn("first", "second")
 
         let service: any ManualService = stub()
         #expect(service.fetch(id: 1) == "first")
@@ -147,7 +147,7 @@ private struct SaveError: Error, Equatable {}
 
     @Test func behaviorChainMixesNoOpsAndErrorsThenRepeatsTheLast() throws {
         let stub = ManualStub<ManualServiceStub>()
-        stub.when { try $0.save(any()) }
+        stub.when { try $0.save(Match.any()) }
             .thenDoNothing()
             .thenThrow(SaveError())
             .thenDoNothing(times: 1...)
@@ -161,20 +161,20 @@ private struct SaveError: Error, Equatable {}
 
     @Test func argumentCaptorCollectsMatchingArguments() {
         let stub = ManualStub<ManualServiceStub>()
-        stub.when { $0.fetch(id: any()) }.thenReturn("x")
+        stub.when { $0.fetch(id: Match.any()) }.thenReturn("x")
 
         let service: any ManualService = stub()
         _ = service.fetch(id: 1)
         _ = service.fetch(id: 2)
 
-        let captor = ArgumentCaptor<Int>()
+        let captor = Match.Capture<Int>()
         stub.verify { $0.fetch(id: captor.capture()) }
         #expect(captor.values == [1, 2])
     }
 
     @Test func verifyInOrderMatchesRelativeCallSubsequence() {
         let stub = ManualStub<ManualServiceStub>()
-        stub.when { $0.fetch(id: any()) }.thenReturn("x")
+        stub.when { $0.fetch(id: Match.any()) }.thenReturn("x")
 
         let service: any ManualService = stub()
         _ = service.fetch(id: 1)
@@ -182,16 +182,16 @@ private struct SaveError: Error, Equatable {}
         _ = service.fetch(id: 2)
 
         stub.verifyInOrder {
-            _ = $0.fetch(id: equal(1))
-            _ = $0.fetch(id: equal(2))
+            _ = $0.fetch(id: Match.equal(1))
+            _ = $0.fetch(id: Match.equal(2))
         }
     }
 
     @Test func verifyInOrderSupportsMixedMethodsGettersAndSetters() {
         let stub = ManualStub<ManualServiceStub>()
-        stub.when { $0.fetch(id: any()) }.thenReturn("x")
+        stub.when { $0.fetch(id: Match.any()) }.thenReturn("x")
         stub.when { $0.count }.thenReturn(7)
-        stub.when { $0.count = any() }.thenDoNothing()
+        stub.when { $0.count = Match.any() }.thenDoNothing()
         stub.when { $0.reset() }.thenDoNothing()
         var service: any ManualService = stub()
 
@@ -201,27 +201,27 @@ private struct SaveError: Error, Equatable {}
         service.reset()
 
         stub.verifyInOrder(mutating: {
-            _ = $0.fetch(id: equal(1))
-            $0.count = equal(2)
+            _ = $0.fetch(id: Match.equal(1))
+            $0.count = Match.equal(2)
             _ = $0.count
             $0.reset()
         })
 
-        stub.verify(.exactly(1)) { $0.count = equal(2) }
+        stub.verify(.exactly(1)) { $0.count = Match.equal(2) }
     }
 
     @Test func verifyInOrderReportsManualSetterOrderFailures() {
         let stub = ManualStub<ManualServiceStub>()
-        stub.when { $0.fetch(id: any()) }.thenReturn("x")
-        stub.when { $0.count = any() }.thenDoNothing()
+        stub.when { $0.fetch(id: Match.any()) }.thenReturn("x")
+        stub.when { $0.count = Match.any() }.thenDoNothing()
         var service: any ManualService = stub()
         _ = service.fetch(id: 1)
         service.count = 2
 
         expectReportsIssue {
             stub.verifyInOrder(mutating: {
-                $0.count = equal(2)
-                _ = $0.fetch(id: equal(1))
+                $0.count = Match.equal(2)
+                _ = $0.fetch(id: Match.equal(1))
             })
         } matching: {
             $0.description.contains("expectation 2")

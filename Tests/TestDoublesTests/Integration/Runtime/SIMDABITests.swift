@@ -208,10 +208,10 @@ struct RealNestedSIMDABIProbe: NestedSIMDABIProbe {
 
         stub.when(returning: SIMD2<UInt64>(repeating: 0)) {
             $0.mix(
-                any(using: SIMD4<Float>(repeating: 0)),
-                tag: equal(41),
-                scale: equal(2.5),
-                bits: equal(incomingBits)
+                Match.any(using: SIMD4<Float>(repeating: 0)),
+                tag: Match.equal(41),
+                scale: Match.equal(2.5),
+                bits: Match.equal(incomingBits)
             )
         }.then {
             (
@@ -249,12 +249,12 @@ struct RealNestedSIMDABIProbe: NestedSIMDABIProbe {
         )
 
         stub.when(returning: SIMD16<UInt8>(repeating: 0)) {
-            $0.bytes(equal(input))
+            $0.bytes(Match.equal(input))
         }.thenReturn(expected)
 
         #expect(stub().bytes(input) == expected)
         stub.verify(returning: SIMD16<UInt8>(repeating: 0)) {
-            $0.bytes(equal(input))
+            $0.bytes(Match.equal(input))
         }
     }
 
@@ -295,7 +295,7 @@ struct RealNestedSIMDABIProbe: NestedSIMDABIProbe {
             .method(signatureOf: WideSIMDABIProbe.echo)
         )
         stub.when(returning: SIMD8<Float>()) {
-            $0.echo(equal(input))
+            $0.echo(Match.equal(input))
         }.thenReturn(expected)
         #expect(stub().echo(input) == expected)
 
@@ -313,7 +313,7 @@ struct RealNestedSIMDABIProbe: NestedSIMDABIProbe {
             .method(signatureOf: FourRegisterReturnSIMDABIProbe.widen)
         )
         stub.when(returning: SIMD16<Float>()) {
-            $0.widen(equal(input))
+            $0.widen(Match.equal(input))
         }.thenReturn(expected)
         #expect(stub().widen(input) == expected)
 
@@ -406,10 +406,10 @@ struct RealNestedSIMDABIProbe: NestedSIMDABIProbe {
         let bits = SIMD2<UInt64>(1, 2)
         stub.when(returning: SIMD2<UInt64>(repeating: 0)) {
             $0.mix(
-                any(using: SIMD4<Float>(repeating: 0)),
-                tag: equal(1),
-                scale: equal(1),
-                bits: equal(bits)
+                Match.any(using: SIMD4<Float>(repeating: 0)),
+                tag: Match.equal(1),
+                scale: Match.equal(1),
+                bits: Match.equal(bits)
             )
         }.thenReturn(bits)
         #expect(
@@ -447,10 +447,10 @@ struct RealNestedSIMDABIProbe: NestedSIMDABIProbe {
         )
         spy.verify(returning: SIMD2<UInt64>(repeating: 0)) {
             $0.mix(
-                equal(input),
-                tag: equal(tag),
-                scale: equal(scale),
-                bits: equal(bits)
+                Match.equal(input),
+                tag: Match.equal(tag),
+                scale: Match.equal(scale),
+                bits: Match.equal(bits)
             )
         }
     }
@@ -468,7 +468,7 @@ struct RealNestedSIMDABIProbe: NestedSIMDABIProbe {
 
         #expect(spy().bytes(input) == input)
         spy.verify(returning: SIMD16<UInt8>(repeating: 0)) {
-            $0.bytes(equal(input))
+            $0.bytes(Match.equal(input))
         }
     }
 
@@ -487,10 +487,10 @@ struct RealNestedSIMDABIProbe: NestedSIMDABIProbe {
         )
         spy.verify(returning: SIMD4<UInt32>(repeating: 0)) {
             $0.fold(
-                equal(vectors[0]), equal(vectors[1]),
-                equal(vectors[2]), equal(vectors[3]),
-                equal(vectors[4]), equal(vectors[5]),
-                equal(vectors[6]), equal(vectors[7])
+                Match.equal(vectors[0]), Match.equal(vectors[1]),
+                Match.equal(vectors[2]), Match.equal(vectors[3]),
+                Match.equal(vectors[4]), Match.equal(vectors[5]),
+                Match.equal(vectors[6]), Match.equal(vectors[7])
             )
         }
     }

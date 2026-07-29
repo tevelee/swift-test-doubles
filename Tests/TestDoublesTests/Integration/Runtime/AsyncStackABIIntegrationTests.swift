@@ -151,7 +151,7 @@ struct AsyncStackSplitValue: Sendable {
         _ stub: Stub<any FirstSpilledAsyncStubProbe>
     ) async {
         await stub.when {
-            await $0.immediate(any(), any(), any(), any(), any(), any(), equal(7))
+            await $0.immediate(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.equal(7))
         }.thenReturn(28)
     }
 
@@ -163,7 +163,7 @@ struct AsyncStackSplitValue: Sendable {
         _ stub: Stub<any FirstSpilledAsyncStubProbe>
     ) async -> StubSuspension<Int> {
         await stub.when {
-            await $0.suspending(any(), any(), any(), any(), any(), any(), any())
+            await $0.suspending(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any())
         }.thenSuspend()
     }
 
@@ -175,7 +175,7 @@ struct AsyncStackSplitValue: Sendable {
         _ stub: Stub<any FirstSpilledAsyncStubProbe>
     ) async -> StubSuspension<Int> {
         await stub.when {
-            try await $0.throwing(any(), any(), any(), any(), any(), any(), any())
+            try await $0.throwing(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any())
         }.thenSuspend()
     }
 
@@ -189,7 +189,7 @@ struct AsyncStackSplitValue: Sendable {
         _ stub: Stub<any FirstSpilledAsyncStubProbe>
     ) async -> StubSuspension<AsyncStackLargeResult> {
         await stub.when {
-            await $0.indirect(any(), any(), any(), any(), any(), any())
+            await $0.indirect(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any())
         }.thenSuspend()
     }
 
@@ -203,7 +203,7 @@ struct AsyncStackSplitValue: Sendable {
         _ stub: Stub<any FirstSpilledAsyncStubProbe>
     ) async -> StubSuspension<Int> {
         await stub.when {
-            try await $0.typed(any(), any(), any(), any(), any(), any())
+            try await $0.typed(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any())
         }.thenSuspend()
     }
 
@@ -218,7 +218,7 @@ struct AsyncStackSplitValue: Sendable {
     ) async {
         await stub.when {
             await $0.call(
-                any(), any(), any(), any(), any(), any(), equal(7), equal(8)
+                Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.equal(7), Match.equal(8)
             )
         }.thenReturn(36)
     }
@@ -234,8 +234,8 @@ struct AsyncStackSplitValue: Sendable {
     ) async -> StubSuspension<Int> {
         await stub.when {
             await $0.three(
-                any(), any(), any(), any(), any(), any(),
-                equal(7), equal(8), equal(9)
+                Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(),
+                Match.equal(7), Match.equal(8), Match.equal(9)
             )
         }.thenSuspend()
     }
@@ -251,8 +251,8 @@ struct AsyncStackSplitValue: Sendable {
     ) async -> StubSuspension<Int> {
         await stub.when {
             try await $0.throwing(
-                any(), any(), any(), any(), any(), any(),
-                equal(7), equal(8), equal(9), equal(10), equal(11), equal(12)
+                Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(),
+                Match.equal(7), Match.equal(8), Match.equal(9), Match.equal(10), Match.equal(11), Match.equal(12)
             )
         }.thenSuspend()
     }
@@ -268,8 +268,8 @@ struct AsyncStackSplitValue: Sendable {
     ) async -> StubSuspension<AsyncStackLargeResult> {
         await stub.when {
             await $0.indirect(
-                any(), any(), any(), any(), any(),
-                equal(6), equal(7), equal(8), equal(9), equal(10), equal(11)
+                Match.any(), Match.any(), Match.any(), Match.any(), Match.any(),
+                Match.equal(6), Match.equal(7), Match.equal(8), Match.equal(9), Match.equal(10), Match.equal(11)
             )
         }.thenSuspend()
     }
@@ -415,7 +415,7 @@ struct AsyncStackSplitValue: Sendable {
     ) async {
         await stub.when {
             await $0.immediate(
-                any(), any(), any(), any(), any(), any(), any(), any(), equal(9)
+                Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.equal(9)
             )
         }.thenReturn(45)
     }
@@ -429,7 +429,7 @@ struct AsyncStackSplitValue: Sendable {
     ) async -> StubSuspension<Int> {
         await stub.when {
             await $0.suspending(
-                any(), any(), any(), any(), any(), any(), any(), any(), any()
+                Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any()
             )
         }.thenSuspend()
     }
@@ -443,7 +443,7 @@ struct AsyncStackSplitValue: Sendable {
     ) async -> StubSuspension<Int> {
         await stub.when {
             try await $0.throwing(
-                any(), any(), any(), any(), any(), any(), any(), any(), any()
+                Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any()
             )
         }.thenSuspend()
     }
@@ -458,7 +458,7 @@ struct AsyncStackSplitValue: Sendable {
         _ stub: Stub<any FirstSpilledAsyncStubProbe>
     ) async -> StubSuspension<AsyncStackLargeResult> {
         await stub.when {
-            await $0.indirect(any(), any(), any(), any(), any(), any(), any(), any())
+            await $0.indirect(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any())
         }.thenSuspend()
     }
 
@@ -472,7 +472,7 @@ struct AsyncStackSplitValue: Sendable {
         _ stub: Stub<any FirstSpilledAsyncStubProbe>
     ) async -> StubSuspension<Int> {
         await stub.when {
-            try await $0.typed(any(), any(), any(), any(), any(), any(), any(), any())
+            try await $0.typed(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any())
         }.thenSuspend()
     }
 
@@ -487,8 +487,8 @@ struct AsyncStackSplitValue: Sendable {
     ) async {
         await stub.when {
             await $0.call(
-                any(), any(), any(), any(), any(), any(), any(), any(),
-                equal(9), equal(10)
+                Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(),
+                Match.equal(9), Match.equal(10)
             )
         }.thenReturn(55)
     }
@@ -504,8 +504,8 @@ struct AsyncStackSplitValue: Sendable {
     ) async -> StubSuspension<Int> {
         await stub.when {
             await $0.three(
-                any(), any(), any(), any(), any(), any(), any(), any(),
-                equal(9), equal(10), equal(11)
+                Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(),
+                Match.equal(9), Match.equal(10), Match.equal(11)
             )
         }.thenSuspend()
     }
@@ -521,8 +521,8 @@ struct AsyncStackSplitValue: Sendable {
     ) async -> StubSuspension<Int> {
         await stub.when {
             try await $0.throwing(
-                any(), any(), any(), any(), any(), any(), any(), any(),
-                equal(9), equal(10), equal(11), equal(12), equal(13), equal(14)
+                Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(),
+                Match.equal(9), Match.equal(10), Match.equal(11), Match.equal(12), Match.equal(13), Match.equal(14)
             )
         }.thenSuspend()
     }
@@ -540,8 +540,8 @@ struct AsyncStackSplitValue: Sendable {
     ) async -> StubSuspension<AsyncStackLargeResult> {
         await stub.when {
             await $0.indirect(
-                any(), any(), any(), any(), any(), any(), any(),
-                equal(8), equal(9), equal(10), equal(11), equal(12), equal(13)
+                Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(),
+                Match.equal(8), Match.equal(9), Match.equal(10), Match.equal(11), Match.equal(12), Match.equal(13)
             )
         }.thenSuspend()
     }

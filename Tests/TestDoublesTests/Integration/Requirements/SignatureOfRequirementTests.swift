@@ -160,8 +160,8 @@ struct SignatureOfRequirementTests {
         #expect(methods[6].argumentTypes.count == 6)
         #expect(ObjectIdentifier(methods[6].returnType) == ObjectIdentifier(Int.self))
 
-        stub.when { $0.render(any(), label: any()) }.thenReturn("rendered")
-        await stub.when { try await $0.asynchronousTyped(any()) }.thenReturn("loaded")
+        stub.when { $0.render(Match.any(), label: Match.any()) }.thenReturn("rendered")
+        await stub.when { try await $0.asynchronousTyped(Match.any()) }.thenReturn("loaded")
 
         let probe: any SignatureOfMethodProbe = stub()
         #expect(probe.render(7, label: "value") == "rendered")
@@ -192,7 +192,7 @@ struct SignatureOfRequirementTests {
         #expect(methods[5].isAsync)
 
         stub.when { $0.count }.thenReturn(7)
-        stub.when { $0.count = any() }.thenDoNothing()
+        stub.when { $0.count = Match.any() }.thenDoNothing()
         stub.when { $0.title }.thenReturn("title")
         stub.when { try $0.throwingValue }.thenReturn(8)
         await stub.when { await $0.asynchronousValue }.thenReturn(9)
@@ -205,7 +205,7 @@ struct SignatureOfRequirementTests {
         #expect(try probe.throwingValue == 8)
         #expect(await probe.asynchronousValue == 9)
         #expect(try await probe.asynchronousThrowingValue == 10)
-        stub.verify { $0.count = equal(11) }
+        stub.verify { $0.count = Match.equal(11) }
     }
 
     @Test func associatedTypeSignaturesFailClosedAfterFunctionConversion() {

@@ -23,8 +23,8 @@ struct WasmDemoServiceStub: WasmDemoService, StubConformer {
 @Suite struct WasmPlatformTests {
     @Test func manualStubConfiguresRecordsAndVerifiesOnEveryPlatform() {
         let stub = ManualStub<WasmDemoServiceStub>()
-        stub.when { $0.fetch(id: equal(42)) }.thenReturn("Alice")
-        stub.when { $0.fetch(id: any()) }.thenReturn("stranger")
+        stub.when { $0.fetch(id: Match.equal(42)) }.thenReturn("Alice")
+        stub.when { $0.fetch(id: Match.any()) }.thenReturn("stranger")
         stub.when { $0.count }.thenReturn(3)
         stub.when { $0.reset() }.thenDoNothing()
 
@@ -35,7 +35,7 @@ struct WasmDemoServiceStub: WasmDemoService, StubConformer {
         #expect(sut.count == 3)
         sut.reset()
 
-        stub.verify(.exactly(2)) { $0.fetch(id: any()) }
+        stub.verify(.exactly(2)) { $0.fetch(id: Match.any()) }
         stub.verify { $0.reset() }
         stub.verify { $0.count }
         stub.verifyNoMoreInteractions()

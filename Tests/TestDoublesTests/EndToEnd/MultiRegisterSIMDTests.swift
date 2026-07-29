@@ -19,7 +19,7 @@ private struct RealAudioGainProcessor: AudioGainProcessor {
 
         let stub = try Stub<any AudioGainProcessor>()
         stub.when(returning: SIMD8<Float>()) {
-            $0.applyGain(equal(input), gain: equal(2))
+            $0.applyGain(Match.equal(input), gain: Match.equal(2))
         }.thenReturn(boosted)
 
         let processor: any AudioGainProcessor = stub()
@@ -34,7 +34,7 @@ private struct RealAudioGainProcessor: AudioGainProcessor {
 
         #expect(processor.applyGain(input, gain: 3) == SIMD8<Float>(repeating: 3))
         spy.verify(.exactly(1), returning: SIMD8<Float>()) {
-            $0.applyGain(any(using: input), gain: equal(3))
+            $0.applyGain(Match.any(using: input), gain: Match.equal(3))
         }
     }
 }

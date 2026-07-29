@@ -148,7 +148,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
             .getter(String.self)
         )
         stub.when { $0.zero() }.thenReturn(7)
-        stub.when { $0.many(any(), any(), any(), any(), any(), any(), any()) }.then {
+        stub.when { $0.many(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any()) }.then {
             (a: Int, b: String, c: Bool, d: Double, e: UInt, f: Float, g: Character) in
             "\(a):\(b):\(c):\(d):\(e):\(f):\(g)"
         }
@@ -177,7 +177,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
             )
         )
         stub.when(returning: identity) {
-            $0.transform(any(using: identity))
+            $0.transform(Match.any(using: identity))
         }.then { (closure: RequirementClosure) in
             let transformed = closure(20) + 2
             return { _ in transformed }
@@ -188,7 +188,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
         let result = probe.transform(supplied)
 
         #expect(result(0) == 42)
-        let captor = ArgumentCaptor<RequirementClosure>()
+        let captor = Match.Capture<RequirementClosure>()
         stub.verify(returning: identity) {
             $0.transform(captor.capture(using: identity))
         }
@@ -249,7 +249,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
             )
         )
         stub.when(returning: identity) {
-            try $0.transform(any(using: identity))
+            try $0.transform(Match.any(using: identity))
         }.thenThrow(ClosureRequirementError.failed)
 
         let probe: any TypedThrowingClosureRequirementProbe = stub()
@@ -277,7 +277,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
             )
         )
         stub.when {
-            $0.apply(any(using: identity), to: any())
+            $0.apply(Match.any(using: identity), to: Match.any())
         }.thenEscaping { (closure: RequirementClosure, value: Int) in
             closure(value) + 2
         }
@@ -303,7 +303,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
             )
         )
         await stub.when(returning: identity) {
-            await $0.transform(any(using: identity))
+            await $0.transform(Match.any(using: identity))
         }.thenEscaping { (closure: RequirementClosure) async -> RequirementClosure in
             let transformed = closure(20) + 2
             await Task.yield()
@@ -313,7 +313,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
         let result = await stub().transform { $0 * 2 }
         #expect(result(0) == 42)
         await stub.verify(returning: identity) {
-            await $0.transform(any(using: identity))
+            await $0.transform(Match.any(using: identity))
         }
     }
 
@@ -336,7 +336,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
             )
         )
         await stub.when(returning: identity) {
-            try await $0.transform(any(using: identity))
+            try await $0.transform(Match.any(using: identity))
         }.thenEscaping { (closure: RequirementClosure) async throws -> RequirementClosure in
             let transformed = closure(20) + 2
             await Task.yield()
@@ -346,7 +346,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
         let result = try await stub().transform { $0 * 2 }
         #expect(result(0) == 42)
         await stub.verify(returning: identity) {
-            try await $0.transform(any(using: identity))
+            try await $0.transform(Match.any(using: identity))
         }
     }
 
@@ -369,7 +369,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
             )
         )
         await stub.when(returning: identity) {
-            try await $0.transform(any(using: identity))
+            try await $0.transform(Match.any(using: identity))
         }.thenThrow(ClosureRequirementError.failed)
 
         await #expect(throws: ClosureRequirementError.failed) {
@@ -401,7 +401,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
             )
         )
         await stub.when(returning: identity) {
-            try await $0.transform(any(using: identity))
+            try await $0.transform(Match.any(using: identity))
         }.thenEscaping { (closure: RequirementClosure) async throws -> RequirementClosure in
             let transformed = closure(20) + 2
             await Task.yield()
@@ -411,7 +411,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
         let result = try await stub().transform { $0 * 2 }
         #expect(result(0) == 42)
         await stub.verify(returning: identity) {
-            try await $0.transform(any(using: identity))
+            try await $0.transform(Match.any(using: identity))
         }
     }
 
@@ -439,7 +439,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
             )
         )
         await stub.when(returning: identity) {
-            try await $0.transform(any(using: identity))
+            try await $0.transform(Match.any(using: identity))
         }.thenThrow(ClosureRequirementError.failed)
 
         await #expect(throws: ClosureRequirementError.failed) {
@@ -452,7 +452,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
         let identity: RequirementClosure = { $0 }
         let stub = try Stub<any ClosureRequirementProbe>()
         stub.when(returning: identity) {
-            $0.transform(any(using: identity))
+            $0.transform(Match.any(using: identity))
         }.then { (closure: RequirementClosure) in
             let transformed = closure(20) + 2
             return { _ in transformed }
@@ -469,7 +469,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
         let identity: ManagedClosure = { $0 }
         let stub = try Stub<any ManagedClosureRequirementProbe>()
         stub.when(returning: identity) {
-            $0.transform(any(using: identity))
+            $0.transform(Match.any(using: identity))
         }.then { (closure: ManagedClosure) in
             let captured = closure("forty-")
             return { captured + $0 }

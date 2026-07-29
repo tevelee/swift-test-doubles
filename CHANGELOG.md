@@ -125,7 +125,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   returns the recorded arguments of matching calls as typed tuples in call
   order, with the tuple shape selected by the result annotation, such as
   `let events: [(String, Int)] = analytics.invocations { $0.track(event:
-  any(), value: any()) }`. Components bind to the requirement's arguments
+  Match.any(), value: Match.any()) }`. Components bind to the requirement's arguments
   from the front, matchers filter which calls are included, and reading is a
   pure query that neither verifies, consumes configured behavior, nor
   commits captors. `returning:` overloads cover results that need a valid
@@ -155,7 +155,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   call ever matched, listing each unused registration's signature. This
   catches stale setup and, more importantly, registrations left unreachable
   behind an earlier catch-all under first-match-wins ordering.
-- `RecordingPlaceholders` registers suite-wide factories for recording
+- `Match.Placeholders` registers suite-wide factories for recording
   placeholder values, so class and existential arguments and results no
   longer need `using:` or `returning:` at every `when`/`verify` site.
   Explicit `using:`/`returning:` values win over registered factories, and
@@ -163,17 +163,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   used only during the recording pass and are never matched against or
   returned.
 - Rich argument matchers that compose on the existing matching engine:
-  logical combinators `not`, `allOf`, `anyOf`, and `oneOf`; the equality and
-  identity matchers `notEqual` and `identical(to:)`; the comparison matchers
-  `greaterThan`, `atLeast`, `lessThan`, `atMost`, and `inRange`; the optional
-  matchers `isNil`, `notNil`, and `some`; the collection matchers `isEmpty`,
-  `nonEmpty`, `hasCount` (by value or nested matcher), `contains`,
-  `contains(where:)`, `containsAll`, `startsWith`, and `endsWith`; and the
-  string matchers `hasPrefix`, `hasSuffix`, `containsSubstring`,
-  `equalsIgnoringCase`, and `matchesRegex`. Combinators fold nested matchers
-  into a single positional matcher, so `allOf(captor.capture(),
-  greaterThan(0))` captures only the arguments that satisfy the whole
-  expression, and composed matchers keep legible diagnostic descriptions.
+  logical combinators `Match.not`, `Match.allOf`, `Match.anyOf`, and
+  `Match.oneOf`; the equality and identity matchers `Match.notEqual` and
+  `Match.identical(to:)`; the comparison matchers `Match.greaterThan`,
+  `Match.atLeast`, `Match.lessThan`, `Match.atMost`, and `Match.inRange`; the
+  optional matchers `Match.isNil`, `Match.notNil`, and `Match.some`; the
+  collection matchers `Match.isEmpty`, `Match.nonEmpty`, `Match.hasCount` (by
+  value or nested matcher), `Match.contains`, `Match.contains(where:)`,
+  `Match.containsAll`, `Match.startsWith`, and `Match.endsWith`; and the
+  string matchers `Match.hasPrefix`, `Match.hasSuffix`,
+  `Match.containsSubstring`, `Match.equalsIgnoringCase`, and
+  `Match.matchesRegex`. Combinators fold nested matchers into a single
+  positional matcher, so
+  `Match.allOf(captor.capture(), Match.greaterThan(0))` captures only the
+  arguments that satisfy the whole expression, and composed matchers keep
+  legible diagnostic descriptions.
 - WatchOS simulator support
 - Explicit `thenDoNothing()` behavior for `Void`-returning stub requirements;
   `when` now requires a terminal behavior, so ignoring its builder produces a
@@ -194,6 +198,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Argument matching is now one discoverable API family under `Match`.
+  Top-level matcher functions moved to static methods such as `Match.any()`,
+  `Match.equal(_:)`, and `Match.allOf(_:_:)`; `ArgumentCaptor` became
+  `Match.Capture`; and `RecordingPlaceholders` became `Match.Placeholders`.
+  The pre-release top-level spellings no longer exist.
 - CI now snapshots every exported product API, rejects undocumented public
   symbols, compiles generated manual stubs against their protocols, and
   enforces coverage for the generator, Swift Testing integration, and C

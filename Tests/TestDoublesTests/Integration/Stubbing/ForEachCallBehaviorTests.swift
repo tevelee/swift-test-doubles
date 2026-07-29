@@ -37,7 +37,7 @@ private enum ForEachCallError: Error, Equatable {
 
     @Test func passesBothCountAndTypedArguments() throws {
         let loader = try Stub<any ForEachCallLoader>()
-        loader.when { $0.value(for: any()) }.thenForEachCall { (count: Int, key: String) in
+        loader.when { $0.value(for: Match.any()) }.thenForEachCall { (count: Int, key: String) in
             count * 100 + key.count
         }
 
@@ -48,7 +48,7 @@ private enum ForEachCallError: Error, Equatable {
 
     @Test func omittingTrailingArgumentsCountsOnly() throws {
         let loader = try Stub<any ForEachCallLoader>()
-        loader.when { $0.value(for: any()) }.thenForEachCall { (count: Int) in count }
+        loader.when { $0.value(for: Match.any()) }.thenForEachCall { (count: Int) in count }
 
         let sut: any ForEachCallLoader = loader()
         #expect(sut.value(for: "irrelevant") == 1)
@@ -58,8 +58,8 @@ private enum ForEachCallError: Error, Equatable {
 
     @Test func countIsScopedPerRegistration() throws {
         let loader = try Stub<any ForEachCallLoader>()
-        loader.when { $0.value(for: equal("a")) }.thenForEachCall { (count: Int) in count }
-        loader.when { $0.value(for: any()) }.thenForEachCall { (count: Int) in 100 + count }
+        loader.when { $0.value(for: Match.equal("a")) }.thenForEachCall { (count: Int) in count }
+        loader.when { $0.value(for: Match.any()) }.thenForEachCall { (count: Int) in 100 + count }
 
         let sut: any ForEachCallLoader = loader()
         // The specific registration and the fallback advance independently.
@@ -71,7 +71,7 @@ private enum ForEachCallError: Error, Equatable {
 
     @Test func supportsAsyncRequirements() async throws {
         let loader = try Stub<any ForEachCallLoader>()
-        await loader.when { try await $0.fetch(page: any()) }
+        await loader.when { try await $0.fetch(page: Match.any()) }
             .thenForEachCall { (attempt: Int, page: Int) in
                 await Task.yield()
                 if attempt == 1 { throw ForEachCallError.timeout }

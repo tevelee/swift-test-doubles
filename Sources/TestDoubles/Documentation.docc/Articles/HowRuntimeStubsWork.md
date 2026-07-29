@@ -115,7 +115,7 @@ the recorder into capture mode and invokes the closure with the generated
 protocol value:
 
 ```swift
-stub.when { $0.load(id: any()) }.thenReturn("sample")
+stub.when { $0.load(id: Match.any()) }.thenReturn("sample")
 ```
 
 The apparent call to `load(id:)` travels through the same witness table and

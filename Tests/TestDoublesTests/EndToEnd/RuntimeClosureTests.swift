@@ -8,7 +8,7 @@ import Testing
         let identity: ExternalTransform = { $0 }
         let stub = try Stub<any ExternalClosureService>()
         stub.when(returning: identity) {
-            $0.transform(any(using: identity))
+            $0.transform(Match.any(using: identity))
         }.then { (body: ExternalTransform) in
             let captured = body(20) + 2
             return { _ in captured }
@@ -23,7 +23,7 @@ import Testing
         let identity: ExternalTransform = { $0 }
         let stub = try Stub<any ExternalClosureService>()
         stub.when {
-            $0.apply(any(using: identity), to: any())
+            $0.apply(Match.any(using: identity), to: Match.any())
         }.thenEscaping { (body: ExternalTransform, value: Int) in
             body(value) + 2
         }

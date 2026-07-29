@@ -49,8 +49,8 @@ private func useLinkedAssociatedClassTypedErrorProbe(
     @Test func synchronousClassErrorsPreserveMatchingAndDynamicType() throws {
         typealias Probe = any ExternalAssociatedClassTypedErrorProbe<Int>
         let stub = try Stub<Probe>()
-        stub.when { try $0.oneParameter(equal(0)) }.thenReturn(100)
-        stub.when { try $0.oneParameter(equal(1)) }.thenThrow(
+        stub.when { try $0.oneParameter(Match.equal(0)) }.thenReturn(100)
+        stub.when { try $0.oneParameter(Match.equal(1)) }.thenThrow(
             ExternalAssociatedClassError(101)
         )
         let probe: Probe = stub()
@@ -65,15 +65,15 @@ private func useLinkedAssociatedClassTypedErrorProbe(
                 == ObjectIdentifier(ExternalAssociatedClassError<Int>.self)
         )
         #expect(error.value == 101)
-        stub.verify { try $0.oneParameter(equal(0)) }
-        stub.verify { try $0.oneParameter(equal(1)) }
+        stub.verify { try $0.oneParameter(Match.equal(0)) }
+        stub.verify { try $0.oneParameter(Match.equal(1)) }
     }
 
     @Test func constrainedClassErrorsPreserveMatchingAndDynamicType() throws {
         typealias Probe = any ExternalConstrainedAssociatedClassTypedErrorProbe<Int>
         let stub = try Stub<Probe>()
-        stub.when { try $0.load(equal(0)) }.thenReturn(100)
-        stub.when { try $0.load(equal(1)) }.thenThrow(
+        stub.when { try $0.load(Match.equal(0)) }.thenReturn(100)
+        stub.when { try $0.load(Match.equal(1)) }.thenThrow(
             ExternalConstrainedAssociatedClassError(101)
         )
         let probe: Probe = stub()
@@ -92,19 +92,19 @@ private func useLinkedAssociatedClassTypedErrorProbe(
                 )
         )
         #expect(error.value == 101)
-        stub.verify { try $0.load(equal(0)) }
-        stub.verify { try $0.load(equal(1)) }
+        stub.verify { try $0.load(Match.equal(0)) }
+        stub.verify { try $0.load(Match.equal(1)) }
     }
 
     @Test func pairAndNestedClassErrorsPreservePayloads() throws {
         typealias Probe = any ExternalAssociatedClassTypedErrorProbe<Int>
         let stub = try Stub<Probe>()
-        stub.when { try $0.twoParameters(equal(0)) }.thenReturn("success")
-        stub.when { try $0.twoParameters(equal(2)) }.thenThrow(
+        stub.when { try $0.twoParameters(Match.equal(0)) }.thenReturn("success")
+        stub.when { try $0.twoParameters(Match.equal(2)) }.thenThrow(
             ExternalAssociatedPairClassError(202, "pair")
         )
-        stub.when { try $0.nestedClass(equal(0)) }.thenReturn(300)
-        stub.when { try $0.nestedClass(equal(3)) }.thenThrow(
+        stub.when { try $0.nestedClass(Match.equal(0)) }.thenReturn(300)
+        stub.when { try $0.nestedClass(Match.equal(3)) }.thenThrow(
             ExternalAssociatedPairClassError(
                 ExternalAssociatedClassError(303),
                 "nested"
@@ -145,8 +145,8 @@ private func useLinkedAssociatedClassTypedErrorProbe(
     @Test func asynchronousClassErrorsPreserveSuccessAndFailure() async throws {
         typealias Probe = any ExternalAssociatedClassTypedErrorProbe<Int>
         let stub = try Stub<Probe>()
-        await stub.when { try await $0.asynchronous(equal(0)) }.thenReturn("success")
-        await stub.when { try await $0.asynchronous(equal(4)) }.then {
+        await stub.when { try await $0.asynchronous(Match.equal(0)) }.thenReturn("success")
+        await stub.when { try await $0.asynchronous(Match.equal(4)) }.then {
             (_: Int) async throws -> String in
             await Task.yield()
             throw ExternalAssociatedClassError(404)
@@ -163,8 +163,8 @@ private func useLinkedAssociatedClassTypedErrorProbe(
                 == ObjectIdentifier(ExternalAssociatedClassError<Int>.self)
         )
         #expect(error.value == 404)
-        await stub.verify { try await $0.asynchronous(equal(0)) }
-        await stub.verify { try await $0.asynchronous(equal(4)) }
+        await stub.verify { try await $0.asynchronous(Match.equal(0)) }
+        await stub.verify { try await $0.asynchronous(Match.equal(4)) }
     }
 
     @Test func explicitSchemasCannotEraseClassErrorDependency() {
@@ -234,7 +234,7 @@ private func useLinkedAssociatedClassTypedErrorProbe(
         structStub.when { try $0.load() }.thenThrow(
             ExternalAssociatedGenericStructError(101)
         )
-        await structStub.when { try await $0.asynchronouslyLoad(equal(2)) }.then {
+        await structStub.when { try await $0.asynchronouslyLoad(Match.equal(2)) }.then {
             (_: Int) async throws -> Int in
             await Task.yield()
             throw ExternalAssociatedGenericStructError(102)
@@ -269,7 +269,7 @@ private func useLinkedAssociatedClassTypedErrorProbe(
         enumStub.when { try $0.load() }.thenThrow(
             ExternalAssociatedGenericEnumError<Int>.value(201)
         )
-        await enumStub.when { try await $0.asynchronouslyLoad(equal(2)) }.then {
+        await enumStub.when { try await $0.asynchronouslyLoad(Match.equal(2)) }.then {
             (_: Int) async throws -> Int in
             await Task.yield()
             throw ExternalAssociatedGenericEnumError.value(202)
@@ -311,9 +311,9 @@ private func useLinkedAssociatedClassTypedErrorProbe(
         #expect(try #require(thrownWrappedClass).value.value == 303)
 
         structStub.verify { try $0.load() }
-        await structStub.verify { try await $0.asynchronouslyLoad(equal(2)) }
+        await structStub.verify { try await $0.asynchronouslyLoad(Match.equal(2)) }
         enumStub.verify { try $0.load() }
-        await enumStub.verify { try await $0.asynchronouslyLoad(equal(2)) }
+        await enumStub.verify { try await $0.asynchronouslyLoad(Match.equal(2)) }
     }
 
     @Test func optionalErrorsRemainUnsupported() {

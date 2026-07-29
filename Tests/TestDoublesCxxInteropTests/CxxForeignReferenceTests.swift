@@ -67,7 +67,7 @@ private func useLinkedWidgetTransporter(
         request.setValue(17)
         let response = Widget()
         response.setValue(29)
-        let captor = ArgumentCaptor<Widget>()
+        let captor = Match.Capture<Widget>()
         #expect(
             useLinkedWidgetTransporter(
                 RealWidgetTransporter(),
@@ -88,7 +88,7 @@ private func useLinkedWidgetTransporter(
         #expect(captor.first?.value() == 17)
         #expect(result.value() == 29)
         stub.verify(returning: response) {
-            $0.replace(any(using: request))
+            $0.replace(Match.any(using: request))
         }
     }
 

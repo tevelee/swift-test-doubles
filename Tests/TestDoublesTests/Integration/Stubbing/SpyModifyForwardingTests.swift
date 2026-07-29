@@ -161,7 +161,7 @@ private struct ModifyForwardingAbort: Error {}
                 ]
         )
         spy.verify(.exactly(2)) { $0.value }
-        spy.verify(.exactly(2)) { $0[equal(1)] }
+        spy.verify(.exactly(2)) { $0[Match.equal(1)] }
     }
 
     @Test func configuredGetterOverrideSkipsTargetModifyAndSetter() throws {
@@ -176,7 +176,7 @@ private struct ModifyForwardingAbort: Error {}
 
         #expect(trace.events.isEmpty)
         spy.verify(.exactly(1)) { $0.value }
-        spy.verify(.exactly(1)) { $0.value = equal(42) }
+        spy.verify(.exactly(1)) { $0.value = Match.equal(42) }
     }
 
     @Test func forwardsAssociatedIndirectStorageAndPersistsMutation() throws {

@@ -193,12 +193,12 @@ struct RealAssociatedGetterEffectProbe: AssociatedGetterEffectProbe {
             getterEffects: .nonthrowing
         )
         stub.when { $0.value }.thenReturn(7)
-        stub.when { $0.value = any() }.thenDoNothing()
+        stub.when { $0.value = Match.any() }.thenDoNothing()
 
         var probe: any ReadWriteGetterEffectProbe = stub()
         #expect(probe.value == 7)
         probe.value = 9
-        stub.verify { $0.value = equal(9) }
+        stub.verify { $0.value = Match.equal(9) }
 
         let getter = try #require(stub.recorder.runtimeMethod(for: 0))
         let setter = try #require(stub.recorder.runtimeMethod(for: 1))

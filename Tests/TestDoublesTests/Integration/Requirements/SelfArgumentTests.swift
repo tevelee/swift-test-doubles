@@ -446,7 +446,7 @@ private func captureRecordedClassAccept<P: ExternalClassSelfArgumentProbe>(
     _ stub: Stub<any ExternalClassSelfArgumentProbe>,
     placeholder: P
 ) throws -> any ExternalClassSelfArgumentProbe {
-    let captor = ArgumentCaptor<P>()
+    let captor = Match.Capture<P>()
     stub.verify {
         _ = captor.capture(using: placeholder)
         recordClassAccept($0)
@@ -459,7 +459,7 @@ private func accessRecordedClassAccept<P: ExternalClassSelfArgumentProbe>(
     placeholder: P
 ) throws -> any ExternalClassSelfArgumentProbe {
     let values: [P] = stub.invocations {
-        _ = any(using: placeholder)
+        _ = Match.any(using: placeholder)
         recordClassAccept($0)
     }
     return try #require(values.first)
@@ -472,7 +472,7 @@ private func verifyRecordedClassAcceptIsIdentical<
     to expected: P
 ) {
     stub.verify {
-        _ = identical(to: expected)
+        _ = Match.identical(to: expected)
         recordClassAccept($0)
     }
 }
@@ -482,7 +482,7 @@ private func assertRecordedNilClassOptional<P: ExternalClassSelfArgumentProbe>(
     placeholder: P,
     sourceLocation: SourceLocation = #_sourceLocation
 ) throws {
-    let captor = ArgumentCaptor<P?>()
+    let captor = Match.Capture<P?>()
     stub.verify {
         _ = captor.capture(using: Optional(placeholder))
         recordClassOptional($0)
@@ -565,85 +565,85 @@ private enum ExpectedSelfArgumentLayout {
 }
 
 private func captureAccept<P: ExternalSelfArgumentProbe>(_ value: P) {
-    value.accept(any(using: value))
+    value.accept(Match.any(using: value))
 }
 
 private func captureBorrow<P: ExternalSelfArgumentProbe>(_ value: P) {
-    value.borrow(any(using: value))
+    value.borrow(Match.any(using: value))
 }
 
 private func captureConsume<P: ExternalSelfArgumentProbe>(_ value: P) {
-    value.consume(any(using: value))
+    value.consume(Match.any(using: value))
 }
 
 private func captureOptional<P: ExternalSelfArgumentProbe>(_ value: P) {
-    value.acceptOptional(any(using: Optional(value)))
+    value.acceptOptional(Match.any(using: Optional(value)))
 }
 
 private func captureConsumingOptional<P: ExternalSelfArgumentProbe>(_ value: P) {
-    value.consumeOptional(any(using: Optional(value)))
+    value.consumeOptional(Match.any(using: Optional(value)))
 }
 
 private func captureAsync<P: ExternalSelfArgumentProbe>(_ value: P) async {
-    await value.acceptAsynchronously(any(using: value))
+    await value.acceptAsynchronously(Match.any(using: value))
 }
 
 private func captureConsumingAsync<P: ExternalSelfArgumentProbe>(_ value: P) async {
-    await value.consumeAsynchronously(any(using: value))
+    await value.consumeAsynchronously(Match.any(using: value))
 }
 
 private func captureRoundTrip<P: ExternalSelfArgumentProbe>(_ value: P) -> P {
-    value.roundTrip(any(using: value))
+    value.roundTrip(Match.any(using: value))
 }
 
 private func captureOptionalRoundTrip<P: ExternalSelfArgumentProbe>(
     _ value: P
 ) -> P? {
-    value.optionalRoundTrip(any(using: Optional(value)))
+    value.optionalRoundTrip(Match.any(using: Optional(value)))
 }
 
 private func captureClassAccept<P: ExternalClassSelfArgumentProbe>(_ value: P) {
-    value.accept(any(using: value))
+    value.accept(Match.any(using: value))
 }
 
 private func captureClassBorrow<P: ExternalClassSelfArgumentProbe>(_ value: P) {
-    value.borrow(any(using: value))
+    value.borrow(Match.any(using: value))
 }
 
 private func captureClassConsume<P: ExternalClassSelfArgumentProbe>(_ value: P) {
-    value.consume(any(using: value))
+    value.consume(Match.any(using: value))
 }
 
 private func captureClassOptional<P: ExternalClassSelfArgumentProbe>(_ value: P) {
-    value.acceptOptional(any(using: Optional(value)))
+    value.acceptOptional(Match.any(using: Optional(value)))
 }
 
 private func captureClassConsumingOptional<P: ExternalClassSelfArgumentProbe>(
     _ value: P
 ) {
-    value.consumeOptional(any(using: Optional(value)))
+    value.consumeOptional(Match.any(using: Optional(value)))
 }
 
 private func captureClassAsync<P: ExternalClassSelfArgumentProbe>(_ value: P) async {
-    await value.acceptAsynchronously(any(using: value))
+    await value.acceptAsynchronously(Match.any(using: value))
 }
 
 private func captureClassConsumingAsync<P: ExternalClassSelfArgumentProbe>(
     _ value: P
 ) async {
-    await value.consumeAsynchronously(any(using: value))
+    await value.consumeAsynchronously(Match.any(using: value))
 }
 
 private func captureClassRoundTrip<P: ExternalClassSelfArgumentProbe>(
     _ value: P
 ) -> P {
-    value.roundTrip(any(using: value))
+    value.roundTrip(Match.any(using: value))
 }
 
 private func captureClassOptionalRoundTrip<P: ExternalClassSelfArgumentProbe>(
     _ value: P
 ) -> P? {
-    value.optionalRoundTrip(any(using: Optional(value)))
+    value.optionalRoundTrip(Match.any(using: Optional(value)))
 }
 
 private func invokeAccept<P: ExternalSelfArgumentProbe>(_ value: P) {

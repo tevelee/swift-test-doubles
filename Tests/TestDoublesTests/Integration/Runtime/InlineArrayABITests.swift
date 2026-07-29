@@ -82,7 +82,7 @@ struct RealInlineArrayABIProbe: InlineArrayABIProbe {
         let expected: InlineArray<2, Int> = [7, 11]
 
         stub.when(returning: InlineArray<2, Int>(repeating: 0)) {
-            $0.integers(any(using: InlineArray<2, Int>(repeating: 0)))
+            $0.integers(Match.any(using: InlineArray<2, Int>(repeating: 0)))
         }.then { (value: InlineArray<2, Int>) in
             #expect(value[0] == input[0])
             #expect(value[1] == input[1])
@@ -96,13 +96,13 @@ struct RealInlineArrayABIProbe: InlineArrayABIProbe {
         let recorded: [InlineArray<2, Int>] = stub.invocations(
             returning: InlineArray<2, Int>(repeating: 0)
         ) {
-            $0.integers(any(using: InlineArray<2, Int>(repeating: 0)))
+            $0.integers(Match.any(using: InlineArray<2, Int>(repeating: 0)))
         }
         #expect(recorded.count == 1)
         #expect(recorded[0][0] == input[0])
         #expect(recorded[0][1] == input[1])
         stub.verify(returning: InlineArray<2, Int>(repeating: 0)) {
-            $0.integers(any(using: InlineArray<2, Int>(repeating: 0)))
+            $0.integers(Match.any(using: InlineArray<2, Int>(repeating: 0)))
         }
     }
 
@@ -123,7 +123,7 @@ struct RealInlineArrayABIProbe: InlineArrayABIProbe {
 
         stub.when(returning: InlineArray<3, Float>(repeating: 0)) {
             $0.floatingPoint(
-                any(using: InlineArray<3, Float>(repeating: 0))
+                Match.any(using: InlineArray<3, Float>(repeating: 0))
             )
         }.then { (value: InlineArray<3, Float>) in
             #expect(value[0].bitPattern == input[0].bitPattern)
@@ -153,12 +153,12 @@ struct RealInlineArrayABIProbe: InlineArrayABIProbe {
         let empty: InlineArray<0, Int> = []
 
         stub.when(returning: empty) {
-            $0.empty(any(using: empty))
+            $0.empty(Match.any(using: empty))
         }.then { (_: InlineArray<0, Int>) in empty }
 
         _ = stub().empty(empty)
         stub.verify(returning: empty) {
-            $0.empty(any(using: empty))
+            $0.empty(Match.any(using: empty))
         }
     }
 
@@ -178,7 +178,7 @@ struct RealInlineArrayABIProbe: InlineArrayABIProbe {
         let expected: InlineArray<8, Int> = [8, 7, 6, 5, 4, 3, 2, 1]
 
         stub.when(returning: InlineArray<8, Int>(repeating: 0)) {
-            $0.large(any(using: InlineArray<8, Int>(repeating: 0)))
+            $0.large(Match.any(using: InlineArray<8, Int>(repeating: 0)))
         }.then { (value: InlineArray<8, Int>) in
             for index in 0 ..< 8 {
                 #expect(value[index] == input[index])
@@ -218,7 +218,7 @@ struct RealInlineArrayABIProbe: InlineArrayABIProbe {
             ]
 
             stub.when(returning: input) {
-                $0.references(any(using: input))
+                $0.references(Match.any(using: input))
             }.then {
                 (value: InlineArray<2, InlineArrayLifetimeToken>) in
                 #expect(value[0] === first)

@@ -44,12 +44,12 @@ import Testing
         let output = ExternalReferenceAssociatedBox(id: 2)
         let optionalOutput = ExternalReferenceAssociatedBox(id: 3)
 
-        stub.when { $0.accept(identical(to: input)) }.thenDoNothing()
+        stub.when { $0.accept(Match.identical(to: input)) }.thenDoNothing()
         stub.when(returning: output) {
-            $0.transform(identical(to: input))
+            $0.transform(Match.identical(to: input))
         }.thenReturn(output)
         stub.when(returning: Optional(optionalOutput)) {
-            $0.optional(any(using: Optional(input)))
+            $0.optional(Match.any(using: Optional(input)))
         }.thenReturn(Optional(optionalOutput))
 
         let probe: Probe = stub()
@@ -57,12 +57,12 @@ import Testing
         #expect(probe.transform(input) === output)
         #expect(probe.optional(input) === optionalOutput)
 
-        stub.verify { $0.accept(identical(to: input)) }
+        stub.verify { $0.accept(Match.identical(to: input)) }
         stub.verify(returning: output) {
-            $0.transform(identical(to: input))
+            $0.transform(Match.identical(to: input))
         }
         stub.verify(returning: Optional(optionalOutput)) {
-            $0.optional(any(using: Optional(input)))
+            $0.optional(Match.any(using: Optional(input)))
         }
     }
 
@@ -88,17 +88,17 @@ import Testing
         let asyncFailureInput = ExternalReferenceAssociatedBox(id: 15)
 
         await stub.when(returning: asyncOutput) {
-            await $0.asynchronous(any(using: asyncInput))
+            await $0.asynchronous(Match.any(using: asyncInput))
         }.thenReturn(asyncOutput)
         stub.when(returning: successOutput) {
-            try $0.throwing(identical(to: successInput))
+            try $0.throwing(Match.identical(to: successInput))
         }.thenReturn(successOutput)
         stub.when(returning: successOutput) {
-            try $0.throwing(identical(to: failureInput))
+            try $0.throwing(Match.identical(to: failureInput))
         }.thenThrow(ExternalReferenceFixedFailure(code: 16))
         await stub.when(returning: Optional(successOutput)) {
             try await $0.throwingAsynchronously(
-                any(using: Optional(asyncFailureInput))
+                Match.any(using: Optional(asyncFailureInput))
             )
         }.thenThrow(ExternalReferenceFixedFailure(code: 17))
 
@@ -135,15 +135,15 @@ import Testing
             named: "Failure"
         )
 
-        stub.when { try $0.load(equal(false)) }.thenReturn(40)
-        stub.when { try $0.load(equal(true)) }.thenThrow(
+        stub.when { try $0.load(Match.equal(false)) }.thenReturn(40)
+        stub.when { try $0.load(Match.equal(true)) }.thenThrow(
             ExternalReferenceAssociatedFailure(code: 41)
         )
         await stub.when {
-            try await $0.loadAsynchronously(equal(false))
+            try await $0.loadAsynchronously(Match.equal(false))
         }.thenReturn(42)
         await stub.when {
-            try await $0.loadAsynchronously(equal(true))
+            try await $0.loadAsynchronously(Match.equal(true))
         }.thenThrow(ExternalReferenceAssociatedFailure(code: 43))
 
         let probe: Probe = stub()
@@ -186,15 +186,15 @@ import Testing
             named: "Failure"
         )
 
-        stub.when { try $0.load(equal(false)) }.thenReturn(50)
-        stub.when { try $0.load(equal(true)) }.thenThrow(
+        stub.when { try $0.load(Match.equal(false)) }.thenReturn(50)
+        stub.when { try $0.load(Match.equal(true)) }.thenThrow(
             ExternalAlternateReferenceAssociatedFailure(code: 51)
         )
         await stub.when {
-            try await $0.loadAsynchronously(equal(false))
+            try await $0.loadAsynchronously(Match.equal(false))
         }.thenReturn(52)
         await stub.when {
-            try await $0.loadAsynchronously(equal(true))
+            try await $0.loadAsynchronously(Match.equal(true))
         }.thenThrow(ExternalAlternateReferenceAssociatedFailure(code: 53))
 
         let probe: Probe = stub()
@@ -238,14 +238,14 @@ import Testing
         let output = ExternalReferenceAssociatedBox(id: 21)
 
         stub.when(returning: output) {
-            $0.transform(any(using: input))
+            $0.transform(Match.any(using: input))
         }.thenReturn(output)
         stub.when(returning: Optional(output)) {
-            $0.optional(any(using: Optional(input)))
+            $0.optional(Match.any(using: Optional(input)))
         }.thenReturn(Optional(output))
-        stub.when { $0.consume(any(using: input)) }.thenDoNothing()
+        stub.when { $0.consume(Match.any(using: input)) }.thenDoNothing()
         await stub.when(returning: output) {
-            await $0.asynchronous(any(using: input))
+            await $0.asynchronous(Match.any(using: input))
         }.thenReturn(output)
 
         let probe = stub()
@@ -501,9 +501,9 @@ private func exerciseConsumingReferenceArguments() async throws -> (
     let placeholder = ReferenceAssociatedLifetimeBox(
         deinitCounter: placeholderCounter
     )
-    stub.when { $0.consume(any(using: placeholder)) }.thenDoNothing()
+    stub.when { $0.consume(Match.any(using: placeholder)) }.thenDoNothing()
     await stub.when {
-        await $0.consumeAsynchronously(any(using: placeholder))
+        await $0.consumeAsynchronously(Match.any(using: placeholder))
     }.thenDoNothing()
 
     let probe: Probe = stub()
@@ -523,9 +523,9 @@ private func exerciseConsumingReferenceArguments() async throws -> (
     asyncValue = nil
     #expect(weakAsync.value != nil)
 
-    stub.verify { $0.consume(any(using: placeholder)) }
+    stub.verify { $0.consume(Match.any(using: placeholder)) }
     await stub.verify {
-        await $0.consumeAsynchronously(any(using: placeholder))
+        await $0.consumeAsynchronously(Match.any(using: placeholder))
     }
     return (weakSync, weakAsync, syncCounter, asyncCounter)
 }
@@ -558,7 +558,7 @@ private func callerBoundTransform<P, Element>(
 ) -> Element
 where P: ExternalReferenceAssociatedProbe, Element: AnyObject {
     let boundValue = unsafeDowncast(value, to: P.Element.self)
-    let argument = recordsMatcher ? any(using: boundValue) : boundValue
+    let argument = recordsMatcher ? Match.any(using: boundValue) : boundValue
     return unsafeDowncast(probe.transform(argument), to: Element.self)
 }
 
@@ -569,7 +569,7 @@ private func callerBoundOptional<P, Element>(
 ) -> Element?
 where P: ExternalReferenceAssociatedProbe, Element: AnyObject {
     let boundValue = value.map { unsafeDowncast($0, to: P.Element.self) }
-    let argument = recordsMatcher ? any(using: boundValue) : boundValue
+    let argument = recordsMatcher ? Match.any(using: boundValue) : boundValue
     return probe.optional(argument).map {
         unsafeDowncast($0, to: Element.self)
     }
@@ -581,7 +581,7 @@ private func callerBoundConsume<P, Element>(
     recordsMatcher: Bool
 ) where P: ExternalReferenceAssociatedProbe, Element: AnyObject {
     let boundValue = unsafeDowncast(value, to: P.Element.self)
-    let argument = recordsMatcher ? any(using: boundValue) : boundValue
+    let argument = recordsMatcher ? Match.any(using: boundValue) : boundValue
     probe.consume(argument)
 }
 
@@ -592,7 +592,7 @@ private func callerBoundAsynchronous<P, Element>(
 ) async -> Element
 where P: ExternalReferenceAssociatedProbe, Element: AnyObject {
     let boundValue = unsafeDowncast(value, to: P.Element.self)
-    let argument = recordsMatcher ? any(using: boundValue) : boundValue
+    let argument = recordsMatcher ? Match.any(using: boundValue) : boundValue
     return unsafeDowncast(
         await probe.asynchronous(argument),
         to: Element.self
@@ -606,7 +606,7 @@ private func callerBoundConsumeAsynchronously<P, Element>(
 ) async
 where P: ExternalReferenceAssociatedProbe, Element: AnyObject {
     let boundValue = unsafeDowncast(value, to: P.Element.self)
-    let argument = recordsMatcher ? any(using: boundValue) : boundValue
+    let argument = recordsMatcher ? Match.any(using: boundValue) : boundValue
     await probe.consumeAsynchronously(argument)
 }
 import TestDoublesRuntime

@@ -144,8 +144,8 @@ private func callWithValue(
     @Test func aggregateTypedErrorsUseDirectErrorResultRegisters() throws {
         _ = RealTypedThrowsPayloadProbe()
         let stub = try Stub<any TypedThrowsPayloadProbe>()
-        stub.when { try $0.load(equal(false)) }.thenReturn("loaded")
-        stub.when { try $0.load(equal(true)) }.then {
+        stub.when { try $0.load(Match.equal(false)) }.thenReturn("loaded")
+        stub.when { try $0.load(Match.equal(true)) }.then {
             (_: Bool) throws -> String in
             throw TypedThrowsPayloadError(code: 42, message: "failed")
         }
@@ -164,8 +164,8 @@ private func callWithValue(
         _ = RealIndirectTypedThrowsResultProbe()
 
         let indirectError = try Stub<any IndirectTypedThrowsRequirementProbe>()
-        indirectError.when { try $0.load(equal(false)) }.thenReturn(42)
-        indirectError.when { try $0.load(equal(true)) }.then {
+        indirectError.when { try $0.load(Match.equal(false)) }.thenReturn(42)
+        indirectError.when { try $0.load(Match.equal(true)) }.then {
             (_: Bool) throws -> Int in
             throw IndirectTypedThrowsRequirementError(
                 first: 1,
@@ -198,8 +198,8 @@ private func callWithValue(
             fourth: 4,
             fifth: 5
         )
-        indirectResult.when { try $0.load(equal(false)) }.thenReturn(expected)
-        indirectResult.when { try $0.load(equal(true)) }.then {
+        indirectResult.when { try $0.load(Match.equal(false)) }.thenReturn(expected)
+        indirectResult.when { try $0.load(Match.equal(true)) }.then {
             (_: Bool) throws -> IndirectTypedThrowsResult in
             throw TypedThrowsRequirementError.failed
         }
@@ -252,7 +252,7 @@ private func callWithValue(
                 throwing: TypedThrowsPayloadError.self
             )
         )
-        success.when { try $0.load(equal(1)) }.thenReturn("loaded")
+        success.when { try $0.load(Match.equal(1)) }.thenReturn("loaded")
         #expect(try success().load(1) == "loaded")
 
         let failure = try Stub<any ExplicitTypedThrowsProbe>(
@@ -262,7 +262,7 @@ private func callWithValue(
                 throwing: TypedThrowsPayloadError.self
             )
         )
-        failure.when { try $0.load(equal(2)) }.then {
+        failure.when { try $0.load(Match.equal(2)) }.then {
             (_: Int) throws -> String in
             throw TypedThrowsPayloadError(code: 42, message: "failed")
         }

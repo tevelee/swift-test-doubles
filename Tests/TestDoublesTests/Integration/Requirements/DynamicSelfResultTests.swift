@@ -114,7 +114,7 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
         stub.when(returningSelf: { $0.duplicate() }).thenReturnValue()
         stub.when(
             returningOptionalSelf: {
-                $0.optionalDuplicate(returnValue: any())
+                $0.optionalDuplicate(returnValue: Match.any())
             }
         ).then { (returnValue: Bool) -> StubOptionalSelfResultBuilder.Outcome in
             returnValue ? .returnValue : .returnNil
@@ -129,7 +129,7 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
         #expect(stub().optionalDuplicate(returnValue: false) == nil)
         stub.verify(.exactly(1)) { $0.duplicate() }
         stub.verify(.exactly(2)) {
-            $0.optionalDuplicate(returnValue: any())
+            $0.optionalDuplicate(returnValue: Match.any())
         }
     }
 
@@ -137,7 +137,7 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
         _ = RealDynamicSelfEffectsProbe()
         let stub = try Stub<any DynamicSelfEffectsProbe>()
         stub.when(returningSelf: { $0.duplicate() }).thenReturnValue()
-        stub.when(returningSelf: { $0.copied(marker: equal(5)) }).then {
+        stub.when(returningSelf: { $0.copied(marker: Match.equal(5)) }).then {
             (marker: Int) throws -> Void in
             #expect(marker == 5)
         }
@@ -221,10 +221,10 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
         _ = RealOptionalDynamicSelfProbe()
         let stub = try Stub<any OptionalDynamicSelfProbe>()
         stub.when(
-            returningOptionalSelf: { $0.duplicate(marker: equal(1)) }
+            returningOptionalSelf: { $0.duplicate(marker: Match.equal(1)) }
         ).thenReturnValue()
         stub.when(
-            returningOptionalSelf: { $0.duplicate(marker: equal(2)) }
+            returningOptionalSelf: { $0.duplicate(marker: Match.equal(2)) }
         ).thenReturnNil()
         stub.when(returningOptionalSelf: { $0.twin }).thenReturnValue()
         stub.when(
@@ -242,8 +242,8 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
         #expect(missing == nil)
         #expect(twin?.marker() == 47)
         #expect(made == nil)
-        stub.verify(.exactly(1)) { $0.duplicate(marker: equal(1)) }
-        stub.verify(.exactly(1)) { $0.duplicate(marker: equal(2)) }
+        stub.verify(.exactly(1)) { $0.duplicate(marker: Match.equal(1)) }
+        stub.verify(.exactly(1)) { $0.duplicate(marker: Match.equal(2)) }
         stub.verify(.exactly(1)) { $0.twin }
         stub.verify(.exactly(1)) { type(of: $0).make() }
     }
@@ -253,7 +253,7 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
         let stub = try Stub<any OptionalDynamicSelfProbe>()
         await stub.when(
             returningOptionalSelf: {
-                try await $0.refreshed(returnValue: any())
+                try await $0.refreshed(returnValue: Match.any())
             }
         ).then {
             (returnValue: Bool) async throws -> StubOptionalSelfResultBuilder.Outcome in
@@ -295,7 +295,7 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
             _ = RealOptionalDynamicSelfProbe()
             let stub = try Stub<any OptionalDynamicSelfProbe>()
             stub.when(
-                returningOptionalSelf: { $0.duplicate(marker: equal(1)) }
+                returningOptionalSelf: { $0.duplicate(marker: Match.equal(1)) }
             ).thenReturnValue()
             stub.when { $0.marker() }.thenReturn(61)
             return stub().duplicate(marker: 1)

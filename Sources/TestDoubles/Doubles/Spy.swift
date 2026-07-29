@@ -150,7 +150,7 @@ extension Spy {
     ///
     /// ```swift
     /// let forwarded: [Int] = spy.forwardedInvocations {
-    ///     $0.fetch(id: any())
+    ///     $0.fetch(id: Match.any())
     /// }
     /// #expect(forwarded == [2])
     /// ```

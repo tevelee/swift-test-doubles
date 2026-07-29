@@ -27,8 +27,8 @@ private struct ManualUnusedStubServiceStub: ManualUnusedStubService, StubConform
 @Suite struct UnusedStubDetectionTests {
     @Test func reportsRegistrationsNeverMatchedByAnyCall() throws {
         let stub = try Stub<any UnusedStubProbeService>()
-        stub.when { $0.value(for: any()) }.thenReturn("used")
-        stub.when { $0.notify(any()) }.thenDoNothing()
+        stub.when { $0.value(for: Match.any()) }.thenReturn("used")
+        stub.when { $0.notify(Match.any()) }.thenDoNothing()
 
         _ = stub().value(for: 1)
 
@@ -42,8 +42,8 @@ private struct ManualUnusedStubServiceStub: ManualUnusedStubService, StubConform
 
     @Test func passesWhenEveryRegistrationServedACall() throws {
         let stub = try Stub<any UnusedStubProbeService>()
-        stub.when { $0.value(for: any()) }.thenReturn("used")
-        stub.when { $0.notify(any()) }.thenDoNothing()
+        stub.when { $0.value(for: Match.any()) }.thenReturn("used")
+        stub.when { $0.notify(Match.any()) }.thenDoNothing()
 
         let service: any UnusedStubProbeService = stub()
         _ = service.value(for: 1)
@@ -58,9 +58,9 @@ private struct ManualUnusedStubServiceStub: ManualUnusedStubService, StubConform
         // so the specific registration below it can never match. The shadow
         // is reported eagerly at the when site, and verifyNoUnusedStubs
         // reports it again as an unused registration at end of test.
-        stub.when { $0.value(for: any()) }.thenReturn("broad")
+        stub.when { $0.value(for: Match.any()) }.thenReturn("broad")
         expectReportsIssue {
-            stub.when { $0.value(for: equal(7)) }.thenReturn("specific")
+            stub.when { $0.value(for: Match.equal(7)) }.thenReturn("specific")
         } matching: {
             $0.description.contains("Unreachable stub registration")
         }
@@ -76,10 +76,10 @@ private struct ManualUnusedStubServiceStub: ManualUnusedStubService, StubConform
 
     @Test func clearingBehaviorsResetsTheTracking() throws {
         let stub = try Stub<any UnusedStubProbeService>()
-        stub.when { $0.notify(any()) }.thenDoNothing()
+        stub.when { $0.notify(Match.any()) }.thenDoNothing()
 
         stub.clearConfiguredBehaviors()
-        stub.when { $0.value(for: any()) }.thenReturn("used")
+        stub.when { $0.value(for: Match.any()) }.thenReturn("used")
         _ = stub().value(for: 1)
 
         stub.verifyNoUnusedStubs()
@@ -87,8 +87,8 @@ private struct ManualUnusedStubServiceStub: ManualUnusedStubService, StubConform
 
     @Test func manualStubReportsUnusedRegistrations() {
         let stub = ManualStub<ManualUnusedStubServiceStub>()
-        stub.when { $0.value(for: equal(1)) }.thenReturn("one")
-        stub.when { $0.value(for: equal(2)) }.thenReturn("two")
+        stub.when { $0.value(for: Match.equal(1)) }.thenReturn("one")
+        stub.when { $0.value(for: Match.equal(2)) }.thenReturn("two")
 
         let service: any ManualUnusedStubService = stub()
         _ = service.value(for: 1)

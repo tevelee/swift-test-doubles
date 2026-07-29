@@ -74,7 +74,7 @@ private protocol AsyncFailureProbe {
         #expect(message.contains("Register behavior with `stub.when { ... }` before invoking"))
         #expect(
             message.contains(
-                "stub.when { $0.fetch(id: equal(42), name: equal(\"alice\")) }.thenReturn(...)"
+                "stub.when { $0.fetch(id: Match.equal(42), name: Match.equal(\"alice\")) }.thenReturn(...)"
             )
         )
     }
@@ -124,7 +124,7 @@ private protocol AsyncFailureProbe {
         #expect(staticMethod.contains("stub.when { type(of: $0).name() }.thenReturn(...)"))
         #expect(
             initializer.contains(
-                "stub.when(initializer: { type(of: $0).init(id: equal(1)) }).thenInitialize()"
+                "stub.when(initializer: { type(of: $0).init(id: Match.equal(1)) }).thenInitialize()"
             )
         )
         #expect(
@@ -138,7 +138,7 @@ private protocol AsyncFailureProbe {
         let recorder = makeRecorder(methods: [makeMethod(name: "ping()")])
         let entry = StubRecorder.StubEntry(
             matchers: [AnyMatcher()],
-            diagnosticSignature: "ping(any())",
+            diagnosticSignature: "ping(Match.any())",
             behavior: .fixed(.success("pong"))
         )
 
@@ -149,7 +149,7 @@ private protocol AsyncFailureProbe {
             entries: [entry]
         )
 
-        #expect(message.contains("Registered stubs:\n  ping(any())"))
+        #expect(message.contains("Registered stubs:\n  ping(Match.any())"))
         #expect(message.contains("whose matchers accept these arguments"))
     }
 
@@ -159,7 +159,7 @@ private protocol AsyncFailureProbe {
         )
         let entry = StubRecorder.StubEntry(
             matchers: [EqualMatcher(expected: "new_checkout"), EqualMatcher(expected: 7)],
-            diagnosticSignature: "isEnabled(equal(new_checkout), for: equal(7))",
+            diagnosticSignature: "isEnabled(Match.equal(new_checkout), for: Match.equal(7))",
             behavior: .fixed(.success(true))
         )
 
@@ -175,10 +175,10 @@ private protocol AsyncFailureProbe {
 
         #expect(
             message.contains(
-                "arg0 rejected: expected equal(new_checkout), got \"dark_mode\""
+                "arg0 rejected: expected Match.equal(new_checkout), got \"dark_mode\""
             )
         )
-        #expect(message.contains("arg1 matched: equal(7)"))
+        #expect(message.contains("arg1 matched: Match.equal(7)"))
     }
 
     @Test func suggestionsIncludeRequirementEffectsAndVoidConfiguration() {
@@ -203,7 +203,7 @@ private protocol AsyncFailureProbe {
 
         #expect(
             asyncThrowing.contains(
-                "await stub.when { try await $0.load(id: equal(42)) }.thenReturn(...)"
+                "await stub.when { try await $0.load(id: Match.equal(42)) }.thenReturn(...)"
             )
         )
         #expect(void.contains("stub.when { $0.reset() }.thenDoNothing()"))
@@ -218,7 +218,7 @@ private protocol AsyncFailureProbe {
             args: [1, 2],
             entries: []
         )
-        #expect(unlabeled.contains("stub.when { $0.add(equal(1), equal(2)) }.thenReturn(...)"))
+        #expect(unlabeled.contains("stub.when { $0.add(Match.equal(1), Match.equal(2)) }.thenReturn(...)"))
 
         let property = recorder.diagnosticMessage(
             title: "No stub configured",
@@ -226,7 +226,7 @@ private protocol AsyncFailureProbe {
             args: [3],
             entries: []
         )
-        #expect(property.contains("stub.when { $0.count(equal(3)) }.thenReturn(...)"))
+        #expect(property.contains("stub.when { $0.count(Match.equal(3)) }.thenReturn(...)"))
 
         let mismatchedLabels = recorder.diagnosticMessage(
             title: "No stub configured",
@@ -234,7 +234,7 @@ private protocol AsyncFailureProbe {
             args: [1, 2],
             entries: []
         )
-        #expect(mismatchedLabels.contains("stub.when { $0.route(equal(1), equal(2)) }.thenReturn(...)"))
+        #expect(mismatchedLabels.contains("stub.when { $0.route(Match.equal(1), Match.equal(2)) }.thenReturn(...)"))
     }
 
     @Test func suggestedLiteralsEscapeStringsAndCharacters() {
@@ -249,8 +249,8 @@ private protocol AsyncFailureProbe {
             entries: []
         )
 
-        #expect(message.contains("text: equal(\"say \\\"hi\\\"\")"))
-        #expect(message.contains("grade: equal(\"A\")"))
+        #expect(message.contains("text: Match.equal(\"say \\\"hi\\\"\")"))
+        #expect(message.contains("grade: Match.equal(\"A\")"))
     }
 
     @Test func lookupsFailSoftlyForUnknownIndices() {

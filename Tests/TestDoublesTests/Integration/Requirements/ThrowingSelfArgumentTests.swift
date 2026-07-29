@@ -141,25 +141,25 @@ private func verifyFailingThrowingSelfArgumentCalls(
 private func captureThrowingAccept<P: ExternalThrowingSelfArgumentProbe>(
     _ value: P
 ) throws {
-    try value.accept(any(using: value))
+    try value.accept(Match.any(using: value))
 }
 
 private func captureThrowingBorrow<P: ExternalThrowingSelfArgumentProbe>(
     _ value: P
 ) throws {
-    try value.borrow(any(using: value))
+    try value.borrow(Match.any(using: value))
 }
 
 private func captureThrowingConsume<P: ExternalThrowingSelfArgumentProbe>(
     _ value: P
 ) throws {
-    try value.consume(any(using: value))
+    try value.consume(Match.any(using: value))
 }
 
 private func captureThrowingOptional<P: ExternalThrowingSelfArgumentProbe>(
     _ value: P
 ) throws {
-    try value.acceptOptional(any(using: Optional(value)))
+    try value.acceptOptional(Match.any(using: Optional(value)))
 }
 
 private func captureThrowingConsumingOptional<
@@ -167,7 +167,7 @@ private func captureThrowingConsumingOptional<
 >(
     _ value: P
 ) throws {
-    try value.consumeOptional(any(using: Optional(value)))
+    try value.consumeOptional(Match.any(using: Optional(value)))
 }
 
 private func captureTypedThrowingAccept<
@@ -175,7 +175,7 @@ private func captureTypedThrowingAccept<
 >(
     _ value: P
 ) throws(ExternalThrowingSelfArgumentError) {
-    try value.acceptTyped(any(using: value))
+    try value.acceptTyped(Match.any(using: value))
 }
 
 private func captureTypedThrowingConsume<
@@ -183,7 +183,7 @@ private func captureTypedThrowingConsume<
 >(
     _ value: P
 ) throws(ExternalThrowingSelfArgumentError) {
-    try value.consumeTyped(any(using: value))
+    try value.consumeTyped(Match.any(using: value))
 }
 
 private func captureTypedThrowingOptional<
@@ -191,7 +191,7 @@ private func captureTypedThrowingOptional<
 >(
     _ value: P
 ) throws(ExternalThrowingSelfArgumentError) {
-    try value.acceptOptionalTyped(any(using: Optional(value)))
+    try value.acceptOptionalTyped(Match.any(using: Optional(value)))
 }
 
 private func captureTypedThrowingConsumingOptional<
@@ -199,7 +199,7 @@ private func captureTypedThrowingConsumingOptional<
 >(
     _ value: P
 ) throws(ExternalThrowingSelfArgumentError) {
-    try value.consumeOptionalTyped(any(using: Optional(value)))
+    try value.consumeOptionalTyped(Match.any(using: Optional(value)))
 }
 
 private func invokeThrowingAccept<P: ExternalThrowingSelfArgumentProbe>(
@@ -300,7 +300,7 @@ private func captureThrowingClassConsume<
 >(
     _ value: P
 ) throws {
-    try value.consume(any(using: value))
+    try value.consume(Match.any(using: value))
 }
 
 private func invokeThrowingClassConsume<

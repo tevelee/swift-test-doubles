@@ -72,30 +72,30 @@ private final class ConcurrentGatewayStub: @unchecked Sendable {
     @Test func passesWhenInteractionsHappenedInTheVerifiedOrder() throws {
         let gateway = try Stub<any CrossOrderGateway>()
         let analytics = try Stub<any CrossOrderAnalytics>()
-        gateway.when { $0.charge(amount: any()) }.thenDoNothing()
-        analytics.when { $0.track(event: any()) }.thenDoNothing()
+        gateway.when { $0.charge(amount: Match.any()) }.thenDoNothing()
+        analytics.when { $0.track(event: Match.any()) }.thenDoNothing()
 
         gateway().charge(amount: 42)
         analytics().track(event: "purchase")
 
         let order = InvocationOrder()
-        order.verify(gateway) { $0.charge(amount: equal(42)) }
-        order.verify(analytics) { $0.track(event: equal("purchase")) }
+        order.verify(gateway) { $0.charge(amount: Match.equal(42)) }
+        order.verify(analytics) { $0.track(event: Match.equal("purchase")) }
     }
 
     @Test func reportsWhenInteractionsHappenedInTheOppositeOrder() throws {
         let gateway = try Stub<any CrossOrderGateway>()
         let analytics = try Stub<any CrossOrderAnalytics>()
-        gateway.when { $0.charge(amount: any()) }.thenDoNothing()
-        analytics.when { $0.track(event: any()) }.thenDoNothing()
+        gateway.when { $0.charge(amount: Match.any()) }.thenDoNothing()
+        analytics.when { $0.track(event: Match.any()) }.thenDoNothing()
 
         analytics().track(event: "purchase")
         gateway().charge(amount: 42)
 
         let order = InvocationOrder()
-        order.verify(gateway) { $0.charge(amount: any()) }
+        order.verify(gateway) { $0.charge(amount: Match.any()) }
         expectReportsIssue {
-            order.verify(analytics) { $0.track(event: any()) }
+            order.verify(analytics) { $0.track(event: Match.any()) }
         } matching: {
             $0.description.contains("Ordered verification failed")
         }
@@ -104,29 +104,29 @@ private final class ConcurrentGatewayStub: @unchecked Sendable {
     @Test func unrelatedInterleavedCallsAreAllowed() throws {
         let gateway = try Stub<any CrossOrderGateway>()
         let analytics = try Stub<any CrossOrderAnalytics>()
-        gateway.when { $0.charge(amount: any()) }.thenDoNothing()
-        analytics.when { $0.track(event: any()) }.thenDoNothing()
+        gateway.when { $0.charge(amount: Match.any()) }.thenDoNothing()
+        analytics.when { $0.track(event: Match.any()) }.thenDoNothing()
 
         gateway().charge(amount: 42)
         analytics().track(event: "noise")
         analytics().track(event: "purchase")
 
         let order = InvocationOrder()
-        order.verify(gateway) { $0.charge(amount: any()) }
-        order.verify(analytics) { $0.track(event: equal("purchase")) }
+        order.verify(gateway) { $0.charge(amount: Match.any()) }
+        order.verify(analytics) { $0.track(event: Match.equal("purchase")) }
     }
 
     @Test func cursorAdvancesWithinASingleDouble() throws {
         let gateway = try Stub<any CrossOrderGateway>()
-        gateway.when { $0.charge(amount: any()) }.thenDoNothing()
+        gateway.when { $0.charge(amount: Match.any()) }.thenDoNothing()
 
         gateway().charge(amount: 1)
         gateway().charge(amount: 2)
 
         let order = InvocationOrder()
-        order.verify(gateway) { $0.charge(amount: equal(2)) }
+        order.verify(gateway) { $0.charge(amount: Match.equal(2)) }
         expectReportsIssue {
-            order.verify(gateway) { $0.charge(amount: equal(1)) }
+            order.verify(gateway) { $0.charge(amount: Match.equal(1)) }
         } matching: {
             $0.description.contains("Ordered verification failed")
         }
@@ -136,31 +136,31 @@ private final class ConcurrentGatewayStub: @unchecked Sendable {
         let gateway = try Stub<any CrossOrderGateway>()
         let analytics = try Stub<any CrossOrderAnalytics>()
         await gateway.when { await $0.settle() }.thenDoNothing()
-        analytics.when { $0.track(event: any()) }.thenDoNothing()
+        analytics.when { $0.track(event: Match.any()) }.thenDoNothing()
 
         await gateway().settle()
         analytics().track(event: "settled")
 
         let order = InvocationOrder()
         await order.verify(gateway) { await $0.settle() }
-        order.verify(analytics) { $0.track(event: equal("settled")) }
+        order.verify(analytics) { $0.track(event: Match.equal("settled")) }
     }
 
     @Test(.timeLimit(.minutes(2)))
     func concurrentVerificationsCannotClaimTheSameInteraction() async throws {
         let gateway = ConcurrentGatewayStub(try Stub<any CrossOrderGateway>())
-        gateway.value.when { $0.charge(amount: any()) }.thenDoNothing()
+        gateway.value.when { $0.charge(amount: Match.any()) }.thenDoNothing()
         gateway.value().charge(amount: 42)
 
         let order = InvocationOrder()
-        let captor = ArgumentCaptor<Int>()
+        let captor = Match.Capture<Int>()
         let gate = OrderedVerificationGate()
         let blockedVerification = Task {
             expectReportsIssue {
                 order.verify(gateway.value) {
                     $0.charge(
-                        amount: allOf(
-                            matching(description: "blocked", where: gate.matchAfterRelease),
+                        amount: Match.allOf(
+                            Match.matching(description: "blocked", where: gate.matchAfterRelease),
                             captor.capture()
                         )
                     )
@@ -179,7 +179,7 @@ private final class ConcurrentGatewayStub: @unchecked Sendable {
         }
 
         order.verify(gateway.value) {
-            $0.charge(amount: allOf(equal(42), captor.capture()))
+            $0.charge(amount: Match.allOf(Match.equal(42), captor.capture()))
         }
         gate.releaseMatcher()
         await blockedVerification.value
@@ -190,31 +190,31 @@ private final class ConcurrentGatewayStub: @unchecked Sendable {
     @Test func verifyNoMoreInteractionsPassesWhenEveryTouchedDoublesCallsAreVerified() throws {
         let gateway = try Stub<any CrossOrderGateway>()
         let analytics = try Stub<any CrossOrderAnalytics>()
-        gateway.when { $0.charge(amount: any()) }.thenDoNothing()
-        analytics.when { $0.track(event: any()) }.thenDoNothing()
+        gateway.when { $0.charge(amount: Match.any()) }.thenDoNothing()
+        analytics.when { $0.track(event: Match.any()) }.thenDoNothing()
 
         gateway().charge(amount: 42)
         analytics().track(event: "purchase")
 
         let order = InvocationOrder()
-        order.verify(gateway) { $0.charge(amount: equal(42)) }
-        order.verify(analytics) { $0.track(event: equal("purchase")) }
+        order.verify(gateway) { $0.charge(amount: Match.equal(42)) }
+        order.verify(analytics) { $0.track(event: Match.equal("purchase")) }
         order.verifyNoMoreInteractions()
     }
 
     @Test func verifyNoMoreInteractionsReportsAnUnverifiedCallOnATouchedDouble() throws {
         let gateway = try Stub<any CrossOrderGateway>()
         let analytics = try Stub<any CrossOrderAnalytics>()
-        gateway.when { $0.charge(amount: any()) }.thenDoNothing()
-        analytics.when { $0.track(event: any()) }.thenDoNothing()
+        gateway.when { $0.charge(amount: Match.any()) }.thenDoNothing()
+        analytics.when { $0.track(event: Match.any()) }.thenDoNothing()
 
         gateway().charge(amount: 42)
         analytics().track(event: "purchase")
         analytics().track(event: "extra")
 
         let order = InvocationOrder()
-        order.verify(gateway) { $0.charge(amount: equal(42)) }
-        order.verify(analytics) { $0.track(event: equal("purchase")) }
+        order.verify(gateway) { $0.charge(amount: Match.equal(42)) }
+        order.verify(analytics) { $0.track(event: Match.equal("purchase")) }
 
         expectReportsIssue {
             order.verifyNoMoreInteractions()
@@ -226,14 +226,14 @@ private final class ConcurrentGatewayStub: @unchecked Sendable {
     @Test func verifyNoMoreInteractionsIgnoresDoublesNeverVerifiedThroughThisSession() throws {
         let gateway = try Stub<any CrossOrderGateway>()
         let analytics = try Stub<any CrossOrderAnalytics>()
-        gateway.when { $0.charge(amount: any()) }.thenDoNothing()
-        analytics.when { $0.track(event: any()) }.thenDoNothing()
+        gateway.when { $0.charge(amount: Match.any()) }.thenDoNothing()
+        analytics.when { $0.track(event: Match.any()) }.thenDoNothing()
 
         gateway().charge(amount: 42)
         analytics().track(event: "purchase")
 
         let order = InvocationOrder()
-        order.verify(gateway) { $0.charge(amount: equal(42)) }
+        order.verify(gateway) { $0.charge(amount: Match.equal(42)) }
 
         // `analytics` recorded a call but was never touched through `order`,
         // so it is out of scope for this session's verifyNoMoreInteractions().
@@ -242,13 +242,13 @@ private final class ConcurrentGatewayStub: @unchecked Sendable {
 
     @Test func verifyNoMoreInteractionsIgnoresDoublesWhoseOrderVerificationFailed() throws {
         let gateway = try Stub<any CrossOrderGateway>()
-        gateway.when { $0.charge(amount: any()) }.thenDoNothing()
+        gateway.when { $0.charge(amount: Match.any()) }.thenDoNothing()
 
         gateway().charge(amount: 42)
 
         let order = InvocationOrder()
         expectReportsIssue {
-            order.verify(gateway) { $0.charge(amount: equal(7)) }
+            order.verify(gateway) { $0.charge(amount: Match.equal(7)) }
         } matching: {
             $0.description.contains("Ordered verification failed")
         }

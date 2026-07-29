@@ -6,19 +6,19 @@ struct ResilientProtocolDiscoveryTests {
     @Test func discoversRequirementsWithoutALinkedConformer() async throws {
         let stub = try Stub<any ResilientRuntimeService>()
 
-        stub.when { try $0.fetch(id: any()) }.then { (value: Int) in
+        stub.when { try $0.fetch(id: Match.any()) }.then { (value: Int) in
             "fetched-\(value)"
         }
-        await stub.when { try await $0.load(id: any()) }.then { (value: Int) async throws in
+        await stub.when { try await $0.load(id: Match.any()) }.then { (value: Int) async throws in
             if value < 0 { throw ResilientRuntimeError.rejected(value) }
             return "loaded-\(value)"
         }
-        stub.when { type(of: $0).label(any()) }.then { (value: Int) in
+        stub.when { type(of: $0).label(Match.any()) }.then { (value: Int) in
             "label-\(value)"
         }
-        stub.when(initializer: { type(of: $0).init(id: any()) }).thenInitialize()
+        stub.when(initializer: { type(of: $0).init(id: Match.any()) }).thenInitialize()
         stub.when { $0.count }.thenReturn(7)
-        stub.when { $0.count = any() }.thenDoNothing()
+        stub.when { $0.count = Match.any() }.thenDoNothing()
 
         var value: any ResilientRuntimeService = stub()
         #expect(try value.fetch(id: 1) == "fetched-1")
@@ -30,11 +30,11 @@ struct ResilientProtocolDiscoveryTests {
         #expect(type(of: value).init(id: 4).count == 7)
         value.count = 5
 
-        stub.verify { try $0.fetch(id: equal(1)) }
-        await stub.verify { try await $0.load(id: equal(2)) }
-        stub.verify { type(of: $0).label(equal(3)) }
-        stub.verify { type(of: $0).init(id: equal(4)) }
-        stub.verify { $0.count = equal(5) }
+        stub.verify { try $0.fetch(id: Match.equal(1)) }
+        await stub.verify { try await $0.load(id: Match.equal(2)) }
+        stub.verify { type(of: $0).label(Match.equal(3)) }
+        stub.verify { type(of: $0).init(id: Match.equal(4)) }
+        stub.verify { $0.count = Match.equal(5) }
     }
 
     @Test func validatesExplicitRequirementsWithoutALinkedConformer() {

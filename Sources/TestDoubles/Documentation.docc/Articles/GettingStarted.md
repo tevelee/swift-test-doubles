@@ -47,26 +47,26 @@ Register specific behavior first, then a broad fallback:
 
 ```swift
 let stub = try Stub<any UserRepository>()
-stub.when { $0.find(id: equal(42)) }.thenReturn("Alice")
+stub.when { $0.find(id: Match.equal(42)) }.thenReturn("Alice")
 stub.when {
-    $0.find(id: matching(description: "positive", where: { $0 > 0 }))
+    $0.find(id: Match.matching(description: "positive", where: { $0 > 0 }))
 }.then { (id: Int) in
     "member-\(id)"
 }
-stub.when { $0.find(id: any()) }.thenReturn("guest")
+stub.when { $0.find(id: Match.any()) }.thenReturn("guest")
 
 let repository: any UserRepository = stub()
 #expect(repository.find(id: -1) == "guest")
 #expect(repository.find(id: 7) == "member-7")
 #expect(repository.find(id: 42) == "Alice")
 
-stub.verify { $0.find(id: equal(42)) }
-stub.verify(.exactly(3)) { $0.find(id: any()) }
-stub.verify(.never()) { $0.find(id: equal(999)) }
+stub.verify { $0.find(id: Match.equal(42)) }
+stub.verify(.exactly(3)) { $0.find(id: Match.any()) }
+stub.verify(.never()) { $0.find(id: Match.equal(999)) }
 ```
 
-`any()` accepts every value, `equal(_:)` uses `Equatable` equality, and
-`matching(description:where:)` accepts values satisfying a predicate. When
+`Match.any()` accepts every value, `Match.equal(_:)` uses `Equatable` equality, and
+`Match.matching(description:where:)` accepts values satisfying a predicate. When
 several registrations match a call, the first one wins, like the cases of a
 `switch`: register specific matchers first and broad fallbacks last, because
 a catch-all registered first swallows everything after it. Verification
@@ -82,14 +82,14 @@ other types that cannot be synthesized safely:
 
 ```swift
 let placeholder = ReferenceUser(id: -1, isActive: false)
-stub.when { $0.save(user: any(using: placeholder)) }.thenReturn("fallback")
+stub.when { $0.save(user: Match.any(using: placeholder)) }.thenReturn("fallback")
 stub.when {
-    $0.save(user: matching(using: placeholder, description: "active") {
+    $0.save(user: Match.matching(using: placeholder, description: "active") {
         $0.isActive
     })
 }.thenReturn("active")
 
-let users = ArgumentCaptor<ReferenceUser>()
+let users = Match.Capture<ReferenceUser>()
 stub.verify { $0.save(user: users.capture(using: placeholder)) }
 ```
 
@@ -104,7 +104,7 @@ determines the protocol existential type:
 
 ```swift
 let repository: any UserRepository = Stub.make {
-    $0.when { $0.find(id: any()) }.then { (id: Int) in "user-\(id)" }
+    $0.when { $0.find(id: Match.any()) }.then { (id: Int) in "user-\(id)" }
 }
 
 #expect(repository.find(id: 42) == "user-42")
@@ -120,13 +120,13 @@ needs to observe or replace only selected interactions:
 
 ```swift
 let spy: Spy<any UserRepository> = Spy.make(forwardingTo: liveRepository)
-spy.when { $0.find(id: equal(42)) }.thenReturn("Fixture User")
+spy.when { $0.find(id: Match.equal(42)) }.thenReturn("Fixture User")
 
 let repository: any UserRepository = spy()
 #expect(repository.find(id: 42) == "Fixture User")
 #expect(repository.find(id: 7) == "live-user-7")
 
-spy.verify(.exactly(2)) { $0.find(id: any()) }
+spy.verify(.exactly(2)) { $0.find(id: Match.any()) }
 ```
 
 Matching registrations take precedence; unmatched supported calls forward and
@@ -143,14 +143,14 @@ test:
 
 ```swift
 let stub = try Stub<any NotificationService>()
-stub.when { try $0.send(to: any(), message: any()) }.thenDoNothing()
+stub.when { try $0.send(to: Match.any(), message: Match.any()) }.thenDoNothing()
 
 let notifications: any NotificationService = stub()
 try notifications.send(to: 1, message: "Welcome")
 try notifications.send(to: 2, message: "Try again")
 
-let recipients = ArgumentCaptor<Int>()
-let messages = ArgumentCaptor<String>()
+let recipients = Match.Capture<Int>()
+let messages = Match.Capture<String>()
 stub.verify(.exactly(2)) {
     try $0.send(to: recipients.capture(), message: messages.capture())
 }
@@ -163,7 +163,7 @@ without polling:
 
 ```swift
 await stub.verify(2..., within: .seconds(1)) {
-    try $0.send(to: any(), message: any())
+    try $0.send(to: Match.any(), message: Match.any())
 }
 ```
 
@@ -188,8 +188,8 @@ _ = repository.find(id: 99)
 _ = repository.find(id: 2)
 
 stub.verifyInOrder {
-    _ = $0.find(id: equal(1))
-    _ = $0.find(id: equal(2))
+    _ = $0.find(id: Match.equal(1))
+    _ = $0.find(id: Match.equal(2))
 }
 ```
 
@@ -208,15 +208,15 @@ Read-write protocol properties support their getter and direct setter:
 
 ```swift
 let stub = try Stub<any MutableProfile>()
-stub.when { $0.displayName = any() }.thenDoNothing()
+stub.when { $0.displayName = Match.any() }.thenDoNothing()
 
 var profile: any MutableProfile = stub()
 profile.displayName = "Blob"
 
-stub.verify { $0.displayName = equal("Blob") }
+stub.verify { $0.displayName = Match.equal("Blob") }
 
 stub.verifyInOrder(mutating: {
-    $0.displayName = equal("Blob")
+    $0.displayName = Match.equal("Blob")
 })
 ```
 
@@ -227,13 +227,13 @@ both normal return and thrown unwind:
 
 ```swift
 stub.when { $0.displayName }.thenReturn("Blob")
-stub.when { $0.displayName = any() }.thenDoNothing()
+stub.when { $0.displayName = Match.any() }.thenDoNothing()
 
 var profile: any MutableProfile = stub()
 profile.displayName += "!"
 
 stub.verify { $0.displayName }
-stub.verify { $0.displayName = equal("Blob!") }
+stub.verify { $0.displayName = Match.equal("Blob!") }
 ```
 
 Swift 6.3's experimental `read` accessor uses the ordinary getter API while
@@ -267,13 +267,13 @@ before its indices:
 
 ```swift
 let stub = try Stub<any KeyValueStore>()
-stub.when { $0[any()] }.thenReturn(nil)
-stub.when { $0[any()] = any() }.thenDoNothing()
+stub.when { $0[Match.any()] }.thenReturn(nil)
+stub.when { $0[Match.any()] = Match.any() }.thenDoNothing()
 
 var store: any KeyValueStore = stub()
 store["theme"] = "dark"
 
-stub.verify { $0[equal("theme")] = equal("dark") }
+stub.verify { $0[Match.equal("theme")] = Match.equal("dark") }
 ```
 
 Automatic discovery supports concrete and bounded associated-type subscript
@@ -345,12 +345,12 @@ struct LoadError: Error, Equatable {
 }
 
 let stub = try Stub<any AsyncDataLoader>()
-await stub.when { try await $0.load(url: equal("/users/42")) }.then {
+await stub.when { try await $0.load(url: Match.equal("/users/42")) }.then {
     (url: String) async throws -> String in
     await Task.yield()
     return "profile:\(url)"
 }
-await stub.when { try await $0.load(url: any()) }
+await stub.when { try await $0.load(url: Match.any()) }
     .thenThrow(LoadError(url: "/missing"))
 
 let loader: any AsyncDataLoader = stub()
@@ -371,7 +371,7 @@ differently:
 
 ```swift
 let stub = try Stub<any AsyncDataLoader>()
-await stub.when { try await $0.load(url: equal("/users/42")) }
+await stub.when { try await $0.load(url: Match.equal("/users/42")) }
     .thenReturn("cached")
     .thenThrow(LoadError(url: "/users/42"))
     .thenReturn("fresh")

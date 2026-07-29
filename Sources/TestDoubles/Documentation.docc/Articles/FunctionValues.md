@@ -31,7 +31,7 @@ let identity: Transform = { $0 }
 let stub = try Stub<any Transformer>()
 
 stub.when(returning: identity) {
-    $0.transform(any(using: identity))
+    $0.transform(Match.any(using: identity))
 }.then { (body: Transform) in
     let captured = body(20) + 1
     return { _ in captured }
@@ -128,8 +128,8 @@ Supplying the substituted concrete function type through
 protocol requirement.
 
 Function values cannot be synthesized as recording placeholders. Use
-``any(using:)``, `matching(using:description:where:)``, or
-``ArgumentCaptor/capture(using:)`` for a function argument. Use
+``Match/any(using:)``, `Match.matching(using:description:where:)``, or
+``Match/Capture/capture(using:)`` for a function argument. Use
 `when(returning:_:)` and `verify(_:returning:_:)` for a function result.
 
 When a callback is the first of several arguments, use the synchronous
@@ -139,7 +139,7 @@ preserved while the trailing arguments are decoded:
 
 ```swift
 stub.when {
-    $0.apply(any(using: identity), to: any())
+    $0.apply(Match.any(using: identity), to: Match.any())
 }.thenEscaping { (body: Transform, value: Int) in
     body(value)
 }

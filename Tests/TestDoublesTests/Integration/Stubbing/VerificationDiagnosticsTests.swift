@@ -19,7 +19,7 @@ private func makeVerificationDiagnosticsStub() throws -> Stub<any VerificationDi
         let stub = try makeVerificationDiagnosticsStub()
         let expectedLine = UInt(#line + 2)
         expectReportsIssue {
-            stub.verify { $0.synchronous(any()) }
+            stub.verify { $0.synchronous(Match.any()) }
         } matching: { issue in
             issue.description.contains("expected at least 1 call, got 0")
                 && String(describing: issue.fileID) == String(describing: #fileID)
@@ -31,11 +31,11 @@ private func makeVerificationDiagnosticsStub() throws -> Stub<any VerificationDi
 
     @Test func exactMismatchReportsWithoutTerminating() throws {
         let stub = try makeVerificationDiagnosticsStub()
-        stub.when { $0.synchronous(any()) }.thenDoNothing()
+        stub.when { $0.synchronous(Match.any()) }.thenDoNothing()
         stub().synchronous(1)
 
         expectReportsIssue {
-            stub.verify(.exactly(2)) { $0.synchronous(any()) }
+            stub.verify(.exactly(2)) { $0.synchronous(Match.any()) }
         } matching: {
             $0.description.contains("expected 2 calls, got 1")
         }
@@ -43,27 +43,27 @@ private func makeVerificationDiagnosticsStub() throws -> Stub<any VerificationDi
 
     @Test func mismatchExplainsTheClosestNonmatchingArguments() throws {
         let stub = try makeVerificationDiagnosticsStub()
-        stub.when { $0.synchronous(any()) }.thenDoNothing()
+        stub.when { $0.synchronous(Match.any()) }.thenDoNothing()
         stub().synchronous(1)
         stub().synchronous(3)
 
         expectReportsIssue {
-            stub.verify { $0.synchronous(equal(2)) }
+            stub.verify { $0.synchronous(Match.equal(2)) }
         } matching: { issue in
             issue.description.contains("Closest nonmatching calls for 'requirement_0'")
                 && issue.description.contains("requirement_0(1)")
-                && issue.description.contains("arg0 rejected: expected equal(2), got 1")
+                && issue.description.contains("arg0 rejected: expected Match.equal(2), got 1")
                 && issue.description.contains("requirement_0(3)")
         }
     }
 
     @Test func asynchronousMismatchReportsWithoutTerminating() async throws {
         let stub = try makeVerificationDiagnosticsStub()
-        await stub.when { await $0.asynchronous(any()) }.thenDoNothing()
+        await stub.when { await $0.asynchronous(Match.any()) }.thenDoNothing()
         await stub().asynchronous(1)
 
         await expectReportsIssue {
-            await stub.verify(.never()) { await $0.asynchronous(any()) }
+            await stub.verify(.never()) { await $0.asynchronous(Match.any()) }
         } matching: {
             $0.description.contains("expected no calls, got 1")
         }
@@ -71,11 +71,11 @@ private func makeVerificationDiagnosticsStub() throws -> Stub<any VerificationDi
 
     @Test func upperBoundMismatchReportsWithoutTerminating() throws {
         let stub = try makeVerificationDiagnosticsStub()
-        stub.when { $0.synchronous(any()) }.thenDoNothing()
+        stub.when { $0.synchronous(Match.any()) }.thenDoNothing()
         stub().synchronous(1)
 
         expectReportsIssue {
-            stub.verify(...0) { $0.synchronous(any()) }
+            stub.verify(...0) { $0.synchronous(Match.any()) }
         } matching: {
             $0.description.contains("expected at most 0 calls, got 1")
         }
@@ -83,11 +83,11 @@ private func makeVerificationDiagnosticsStub() throws -> Stub<any VerificationDi
 
     @Test func successfulSynchronousVerificationReportsNothing() throws {
         let stub = try makeVerificationDiagnosticsStub()
-        stub.when { $0.synchronous(any()) }.thenDoNothing()
+        stub.when { $0.synchronous(Match.any()) }.thenDoNothing()
         stub().synchronous(1)
 
         expectReportsIssue {
-            stub.verify(.exactly(1)) { $0.synchronous(any()) }
+            stub.verify(.exactly(1)) { $0.synchronous(Match.any()) }
             reportIssue("successful-synchronous-verification")
         } matching: {
             $0.description.contains("successful-synchronous-verification")
@@ -96,11 +96,11 @@ private func makeVerificationDiagnosticsStub() throws -> Stub<any VerificationDi
 
     @Test func successfulAsynchronousVerificationReportsNothing() async throws {
         let stub = try makeVerificationDiagnosticsStub()
-        await stub.when { await $0.asynchronous(any()) }.thenDoNothing()
+        await stub.when { await $0.asynchronous(Match.any()) }.thenDoNothing()
         await stub().asynchronous(1)
 
         await expectReportsIssue {
-            await stub.verify(.exactly(1)) { await $0.asynchronous(any()) }
+            await stub.verify(.exactly(1)) { await $0.asynchronous(Match.any()) }
             reportIssue("successful-asynchronous-verification")
         } matching: {
             $0.description.contains("successful-asynchronous-verification")

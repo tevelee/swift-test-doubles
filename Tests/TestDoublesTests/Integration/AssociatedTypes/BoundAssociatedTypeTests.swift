@@ -299,8 +299,8 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
         #expect(transform.argumentConventions == [.associatedType(name: "Element")])
         #expect(mix.argumentConventions == [.concrete, .associatedType(name: "Element")])
         stub.when { $0.value() }.thenReturn(41)
-        stub.when { $0.transform(any()) }.then { (value: Int) in value + 1 }
-        stub.when { $0.mix(any(), any()) }.then { (fixed: Int, value: Int) in fixed * value }
+        stub.when { $0.transform(Match.any()) }.then { (value: Int) in value + 1 }
+        stub.when { $0.mix(Match.any(), Match.any()) }.then { (fixed: Int, value: Int) in fixed * value }
         stub.when { $0.current }.thenReturn(41)
         let probe: any BoundAssociatedTypeProbe<Int> = stub()
         #expect(probe.value() == 41)
@@ -323,8 +323,8 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
             .getter(associated)
         )
         stub.when { $0.value() }.thenReturn(7)
-        stub.when { $0.transform(any()) }.thenReturn(8)
-        stub.when { $0.mix(any(), any()) }.thenReturn(9)
+        stub.when { $0.transform(Match.any()) }.thenReturn(8)
+        stub.when { $0.mix(Match.any(), Match.any()) }.thenReturn(9)
         stub.when { $0.current }.thenReturn(10)
         #expect(stub().value() == 7)
         #expect(stub().transform(0) == 8)
@@ -384,8 +384,8 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
         #expect(useLinkedAssociatedTypeProbe(RealBoundAssociatedTypeProbe()) == 0)
         let stub = try Stub<any BoundAssociatedTypeProbe<String>>()
         stub.when { $0.value() }.thenReturn("bound")
-        stub.when { $0.transform(any()) }.then { (value: String) in value.uppercased() }
-        stub.when { $0.mix(any(), any()) }.thenReturn("mixed")
+        stub.when { $0.transform(Match.any()) }.then { (value: String) in value.uppercased() }
+        stub.when { $0.mix(Match.any(), Match.any()) }.thenReturn("mixed")
         stub.when { $0.current }.thenReturn("bound")
         let probe = stub()
         #expect(probe.transform("value") == "VALUE")
@@ -396,7 +396,7 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
     @Test func inheritedProtocolOwnsTheBoundAssociatedTypeWitness() throws {
         #expect(RealInheritedBoundAssociatedTypeProbe().base(0) == 0)
         let stub = try Stub<any InheritedBoundAssociatedTypeProbe<Int>>()
-        stub.when { $0.base(any()) }.then { (value: Int) in value + 1 }
+        stub.when { $0.base(Match.any()) }.then { (value: Int) in value + 1 }
 
         let probe: any InheritedBoundAssociatedTypeProbe<Int> = stub()
 
@@ -412,7 +412,7 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
         )
         let stub = try Stub<any MixedDeclarationBoundAssociatedTypeProbe<Int>>()
         stub.when { $0.value() }.thenReturn(41)
-        stub.when { $0.transform(any()) }.then { (value: Int) in value + 1 }
+        stub.when { $0.transform(Match.any()) }.then { (value: Int) in value + 1 }
         stub.when { $0.label() }.thenReturn("stubbed")
 
         let probe: any MixedDeclarationBoundAssociatedTypeProbe<Int> = stub()
@@ -440,8 +440,8 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
         }
         let stub = try Stub<Composition>()
         stub.when { $0.value() }.thenReturn(21)
-        stub.when { $0.transform(any()) }.then { (value: Int) in value * 2 }
-        stub.when { $0.mix(any(), any()) }.then { (fixed: Int, value: Int) in
+        stub.when { $0.transform(Match.any()) }.then { (value: Int) in value * 2 }
+        stub.when { $0.mix(Match.any(), Match.any()) }.then { (fixed: Int, value: Int) in
             fixed + value
         }
         stub.when { $0.current }.thenReturn(21)
@@ -485,8 +485,8 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
         }
         let stub = try construct()
         stub.when { $0.value() }.thenReturn(42)
-        stub.when { $0.transform(any()) }.thenReturn(42)
-        stub.when { $0.mix(any(), any()) }.thenReturn(42)
+        stub.when { $0.transform(Match.any()) }.thenReturn(42)
+        stub.when { $0.mix(Match.any(), Match.any()) }.thenReturn(42)
         stub.when { $0.current }.thenReturn(42)
         stub.when { $0.label() }.thenReturn("explicit")
 
@@ -506,7 +506,7 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
         typealias Probe = any ClassAssociatedTypeProbe<Int>
         let stub = try Stub<Probe>()
         stub.when { $0.value() }.thenReturn(42)
-        stub.when { $0.transform(any()) }.then { (value: Int) in value }
+        stub.when { $0.transform(Match.any()) }.then { (value: Int) in value }
 
         let probe: Probe = stub()
 
@@ -580,7 +580,7 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
         typealias Composition = any CompositionProtocol
         let stub = try Stub<Composition>()
         stub.when { $0.value() }.thenReturn(42)
-        stub.when { $0.transform(any()) }.then { (value: Int) in value + 1 }
+        stub.when { $0.transform(Match.any()) }.then { (value: Int) in value + 1 }
         stub.when { $0.label() }.thenReturn("class-composed")
 
         let probe: Composition = stub()
@@ -606,7 +606,7 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
         #expect(transform.isThrowing)
 
         stub.when { try $0.load() }.thenReturn(41)
-        stub.when { try $0.transform(any()) }.then { (value: Int) throws -> Int in
+        stub.when { try $0.transform(Match.any()) }.then { (value: Int) throws -> Int in
             if value < 0 { throw ThrowingProbeError(value: value) }
             return value + 1
         }
@@ -618,7 +618,7 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
             try probe.transform(-1)
         }
         #expect(error?.value == -1)
-        stub.verify(.exactly(2)) { try $0.transform(any()) }
+        stub.verify(.exactly(2)) { try $0.transform(Match.any()) }
     }
 
     @Test func throwingDependentBindingNeedNotMatchTheDiscoveryConformer() throws {
@@ -629,7 +629,7 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
         )
         let stub = try Stub<any ThrowingBoundAssociatedTypeProbe<String>>()
         stub.when { try $0.load() }.thenReturn("bound")
-        stub.when { try $0.transform(any()) }.then { (value: String) throws -> String in
+        stub.when { try $0.transform(Match.any()) }.then { (value: String) throws -> String in
             if value.isEmpty { throw ThrowingProbeError(value: 0) }
             return value.uppercased()
         }
@@ -672,7 +672,7 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
         #expect(advance.isThrowing == false)
 
         await stub.when { try await $0.load() }.thenReturn(41)
-        await stub.when { await $0.advance(any()) }.then { (value: Int) async throws -> Int in
+        await stub.when { await $0.advance(Match.any()) }.then { (value: Int) async throws -> Int in
             await Task.yield()
             return value + 1
         }
@@ -693,7 +693,7 @@ private func inheritedValue<P: InheritedBoundAssociatedTypeProbe>(
             await Task.yield()
             throw ThrowingProbeError(value: -1)
         }
-        await stub.when { await $0.advance(any()) }.then { (value: String) async throws -> String in
+        await stub.when { await $0.advance(Match.any()) }.then { (value: String) async throws -> String in
             await Task.yield()
             return value.uppercased()
         }
@@ -799,7 +799,7 @@ private func exerciseDependentSetter(
     let returned = BoundAssociatedTypeBox()
     let placeholder = BoundAssociatedTypeBox()
     stub.when(returning: returned) { $0.value }.thenReturn(returned)
-    stub.when { $0.value = any(using: placeholder) }.thenDoNothing()
+    stub.when { $0.value = Match.any(using: placeholder) }.thenDoNothing()
     var probe: Probe = stub()
     #expect(probe.value === returned)
 
@@ -812,7 +812,7 @@ private func exerciseDependentSetter(
     assigned = nil
 
     #expect(weakReference.value != nil)
-    stub.verify { $0.value = any(using: placeholder) }
+    stub.verify { $0.value = Match.any(using: placeholder) }
     return (weakReference, deinitCounter)
 }
 
@@ -845,9 +845,9 @@ private func exerciseConsumingDependentArguments(
     #expect(asyncMethod.argumentOwnerships == [.owned])
 
     let placeholder = BoundAssociatedTypeBox()
-    stub.when { $0.consume(any(using: placeholder)) }.thenDoNothing()
+    stub.when { $0.consume(Match.any(using: placeholder)) }.thenDoNothing()
     await stub.when {
-        await $0.consumeAsync(any(using: placeholder))
+        await $0.consumeAsync(Match.any(using: placeholder))
     }.then { (_: BoundAssociatedTypeBox) async in
         await Task.yield()
     }
@@ -871,7 +871,7 @@ private func exerciseConsumingDependentArguments(
     asyncValue = nil
     #expect(weakAsync.value != nil)
 
-    stub.verify { $0.consume(any(using: placeholder)) }
-    await stub.verify { await $0.consumeAsync(any(using: placeholder)) }
+    stub.verify { $0.consume(Match.any(using: placeholder)) }
+    await stub.verify { await $0.consumeAsync(Match.any(using: placeholder)) }
     return (weakSync, weakAsync, syncCounter, asyncCounter)
 }

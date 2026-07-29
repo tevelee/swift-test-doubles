@@ -16,12 +16,12 @@ struct RealCollectionSignatureProbe: CollectionSignatureProbe {
 @Suite struct CollectionSignatureTests {
     @Test func discoveryHandlesCollectionSignatures() throws {
         let stub = try Stub<any CollectionSignatureProbe>()
-        stub.when { $0.digest(equal([1, 2, 3])) }.thenReturn(["count": 3])
+        stub.when { $0.digest(Match.equal([1, 2, 3])) }.thenReturn(["count": 3])
         stub.when { $0.tags() }.thenReturn(["fast", "unit"])
 
         let probe = stub()
         #expect(probe.digest([1, 2, 3]) == ["count": 3])
         #expect(probe.tags() == ["fast", "unit"])
-        stub.verify(.exactly(1)) { $0.digest(any()) }
+        stub.verify(.exactly(1)) { $0.digest(Match.any()) }
     }
 }

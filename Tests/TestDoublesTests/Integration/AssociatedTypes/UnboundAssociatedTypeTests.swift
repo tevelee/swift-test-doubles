@@ -122,8 +122,8 @@ private final class NonEquatableCallerBinding {}
             method.typedErrorAssociatedTypeUse
                 == .associatedType(named: "Failure")
         )
-        stub.when { try $0.load(equal(false)) }.thenReturn(42)
-        stub.when { try $0.load(equal(true)) }.thenThrow(CallerBoundTypedFailure(code: 7))
+        stub.when { try $0.load(Match.equal(false)) }.thenReturn(42)
+        stub.when { try $0.load(Match.equal(true)) }.thenThrow(CallerBoundTypedFailure(code: 7))
 
         let probe = stub()
         #expect(try probe.load(false) == 42)

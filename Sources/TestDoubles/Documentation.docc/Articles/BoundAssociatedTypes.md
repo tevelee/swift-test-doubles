@@ -19,7 +19,7 @@ protocol Source<Element> {
 
 let stub = try Stub<any Source<Int>>()
 stub.when { $0.load() }.thenReturn(41)
-stub.when { $0.transform(any()) }.then { $0 + 1 }
+stub.when { $0.transform(Match.any()) }.then { $0 + 1 }
 ```
 
 It also accepts a complete caller-supplied binding set for an unbound

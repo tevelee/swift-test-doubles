@@ -94,17 +94,17 @@ extension ParameterMatcher {
 
 struct AnyMatcher: ParameterMatcher {
     func prepareMatch(value: Any) -> PreparedMatcherTransaction? { .matched }
-    var diagnosticDescription: String { "any()" }
+    var diagnosticDescription: String { "Match.any()" }
     var acceptsAnyValue: Bool { true }
 }
 
 struct CaptureMatcher<T>: ParameterMatcher {
-    let captor: ArgumentCaptor<T>
+    let capture: Match.Capture<T>
 
     func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
         guard let value = value as? T else { return nil }
         return PreparedMatcherTransaction {
-            captor.append(value)
+            capture.append(value)
         }
     }
 
@@ -124,7 +124,7 @@ struct PredicateMatcher<Value>: ParameterMatcher {
         return predicate(value) ? .matched : nil
     }
 
-    var diagnosticDescription: String { "matching(\(description))" }
+    var diagnosticDescription: String { "Match.matching(\(description))" }
 }
 
 struct DescriptionMatcher: ParameterMatcher {
@@ -162,7 +162,7 @@ struct EqualMatcher<Value: Equatable>: ParameterMatcher {
     func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
         (value as? Value) == expected ? .matched : nil
     }
-    var diagnosticDescription: String { "equal(\(String(describing: expected)))" }
+    var diagnosticDescription: String { "Match.equal(\(String(describing: expected)))" }
     var acceptanceIdentity: String? { diagnosticDescription }
 }
 
@@ -187,7 +187,7 @@ struct NotEqualMatcher<Value: Equatable>: ParameterMatcher {
     func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
         (value as? Value) != expected ? .matched : nil
     }
-    var diagnosticDescription: String { "notEqual(\(String(describing: expected)))" }
+    var diagnosticDescription: String { "Match.notEqual(\(String(describing: expected)))" }
     var acceptanceIdentity: String? { diagnosticDescription }
 }
 
@@ -197,7 +197,7 @@ struct IdenticalMatcher: ParameterMatcher {
     func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
         (value as AnyObject) === expected ? .matched : nil
     }
-    var diagnosticDescription: String { "identical(to: \(expected))" }
+    var diagnosticDescription: String { "Match.identical(to: \(expected))" }
 }
 
 struct ComparisonMatcher<Value: Comparable>: ParameterMatcher {
@@ -236,7 +236,7 @@ struct RangeMatcher<Bound: Comparable>: ParameterMatcher {
         return contains(value) ? .matched : nil
     }
 
-    var diagnosticDescription: String { "inRange(\(boundsDescription))" }
+    var diagnosticDescription: String { "Match.inRange(\(boundsDescription))" }
     var acceptanceIdentity: String? { diagnosticDescription }
 }
 
@@ -246,7 +246,7 @@ struct NilMatcher: ParameterMatcher {
     func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
         valueIsNil(value) == expectsNil ? .matched : nil
     }
-    var diagnosticDescription: String { expectsNil ? "isNil()" : "notNil()" }
+    var diagnosticDescription: String { expectsNil ? "Match.isNil()" : "Match.notNil()" }
     var acceptanceIdentity: String? { diagnosticDescription }
 }
 
@@ -260,7 +260,7 @@ struct SomeMatcher: ParameterMatcher {
     }
 
     var diagnosticDescription: String {
-        "some(\(wrapped.map(\.diagnosticDescription).joined(separator: ", ")))"
+        "Match.some(\(wrapped.map(\.diagnosticDescription).joined(separator: ", ")))"
     }
 }
 
@@ -295,9 +295,9 @@ struct CompositeMatcher: ParameterMatcher {
     var diagnosticDescription: String {
         let inner = matchers.map(\.diagnosticDescription).joined(separator: ", ")
         switch mode {
-            case .all: return "allOf(\(inner))"
-            case .any: return "anyOf(\(inner))"
-            case .not: return "not(\(inner))"
+            case .all: return "Match.allOf(\(inner))"
+            case .any: return "Match.anyOf(\(inner))"
+            case .not: return "Match.not(\(inner))"
         }
     }
 }

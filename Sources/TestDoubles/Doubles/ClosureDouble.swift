@@ -84,7 +84,7 @@ public final class ClosureDouble<Input, Result> {
 
     /// Starts a behavior registration that accepts every invocation.
     public func whenAny() -> Builder {
-        Builder(owner: self, matcher: nil, description: "any()")
+        Builder(owner: self, matcher: nil, description: "Match.any()")
     }
 
     /// Every recorded input, in call order.
@@ -220,7 +220,7 @@ public final class VoidClosureDouble<Result> {
 extension ClosureDouble where Input: Equatable {
     /// Starts a behavior registration for an input equal to `value`.
     public func when(equal value: Input) -> Builder {
-        when({ $0 == value }, describedBy: "equal(\(String(reflecting: value)))")
+        when({ $0 == value }, describedBy: "Match.equal(\(String(reflecting: value)))")
     }
 
     /// Verifies calls that received an input equal to `value`.
@@ -235,7 +235,7 @@ extension ClosureDouble where Input: Equatable {
         verify(
             expectedCounts,
             matching: { $0 == value },
-            describedBy: "equal(\(String(reflecting: value)))",
+            describedBy: "Match.equal(\(String(reflecting: value)))",
             fileID: fileID,
             filePath: filePath,
             line: line,

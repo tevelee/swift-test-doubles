@@ -25,9 +25,9 @@ enum AuthError: Error { case invalidCredentials }
 ```swift
 let auth = try Stub<any AuthService>()
 
-await auth.when { try await $0.signIn(user: equal("blob"), password: equal("sekret")) }
+await auth.when { try await $0.signIn(user: Match.equal("blob"), password: Match.equal("sekret")) }
     .thenReturn("session-42")
-await auth.when { try await $0.signIn(user: any(), password: any()) }
+await auth.when { try await $0.signIn(user: Match.any(), password: Match.any()) }
     .thenThrow(AuthError.invalidCredentials)
 
 // A real `any AuthService`, ready to hand to the code under test.
@@ -38,7 +38,7 @@ await #expect(throws: AuthError.self) {
     try await service.signIn(user: "blob", password: "hunter2")
 }
 
-await auth.verify(.exactly(2)) { try await $0.signIn(user: any(), password: any()) }
+await auth.verify(.exactly(2)) { try await $0.signIn(user: Match.any(), password: Match.any()) }
 ```
 
 There is no `MockAuthService` in this test. Nobody wrote one, no build tool
@@ -90,10 +90,10 @@ protocol FeatureFlags {
 ```swift
 let flags = try Stub<any FeatureFlags>()
 
-flags.when { $0.isEnabled(equal("new_checkout"), for: equal(7)) }.thenReturn(true)
-flags.when { $0.isEnabled(equal("new_checkout"), for: any()) }
+flags.when { $0.isEnabled(Match.equal("new_checkout"), for: Match.equal(7)) }.thenReturn(true)
+flags.when { $0.isEnabled(Match.equal("new_checkout"), for: Match.any()) }
     .then { (_: String, userID: Int) in userID.isMultiple(of: 2) }
-flags.when { $0.isEnabled(any(), for: any()) }.thenReturn(false)
+flags.when { $0.isEnabled(Match.any(), for: Match.any()) }.thenReturn(false)
 
 let sut: any FeatureFlags = flags()
 #expect(sut.isEnabled("dark_mode", for: 1) == false)   // fallback
@@ -101,24 +101,27 @@ let sut: any FeatureFlags = flags()
 #expect(sut.isEnabled("new_checkout", for: 7) == true) // pinned
 ```
 
-`any()` matches everything, `matching(description:where:)` matches a
-predicate, `equal(_:)` matches a value, and `then` computes the answer from
+`Match.any()` matches everything, `Match.matching(description:where:)` matches a
+predicate, `Match.equal(_:)` matches a value, and `then` computes the answer from
 the actual arguments. When several registrations match a call, the first one
 wins, like the cases of a `switch`: register specific matchers first and
 broad fallbacks last, because a catch-all registered first swallows
 everything after it.
 
-There is a richer vocabulary for common cases. `notEqual(_:)` and
-`identical(to:)` refine equality; `greaterThan`, `atLeast`, `lessThan`,
-`atMost`, and `inRange(_:)` match `Comparable` arguments; `isNil()`,
-`notNil()`, and `some(matcher)` match optionals; `isEmpty()`, `nonEmpty()`,
-`hasCount`, `contains`, `containsAll`, `startsWith`, and `endsWith` match
-collections; `hasPrefix`, `hasSuffix`, `containsSubstring`,
-`equalsIgnoringCase`, and `matchesRegex` match strings; and `not`, `allOf`,
-`anyOf`, and `oneOf` compose matchers with boolean logic. Composition stays
-positional, so `allOf(events.capture(), hasPrefix("purchase"))` captures only
-the arguments that satisfy the whole expression. Use matcher functions for
-every argument of a registration or none — a call cannot mix bare literals and
+There is a richer vocabulary for common cases. `Match.notEqual(_:)` and
+`Match.identical(to:)` refine equality; `Match.greaterThan`,
+`Match.atLeast`, `Match.lessThan`, `Match.atMost`, and `Match.inRange(_:)`
+match `Comparable` arguments; `Match.isNil()`, `Match.notNil()`, and
+`Match.some(matcher)` match optionals; `Match.isEmpty()`, `Match.nonEmpty()`,
+`Match.hasCount`, `Match.contains`, `Match.containsAll`, `Match.startsWith`,
+and `Match.endsWith` match collections; `Match.hasPrefix`, `Match.hasSuffix`,
+`Match.containsSubstring`, `Match.equalsIgnoringCase`, and
+`Match.matchesRegex` match strings; and `Match.not`, `Match.allOf`,
+`Match.anyOf`, and `Match.oneOf` compose matchers with boolean logic.
+Composition stays positional, so
+`Match.allOf(events.capture(), Match.hasPrefix("purchase"))` captures only the
+arguments that satisfy the whole expression. Use matcher functions for every
+argument of a registration or none — a call cannot mix bare literals and
 matchers.
 
 ### Simulate failure and recovery
@@ -211,23 +214,23 @@ protocol Analytics {
 
 ```swift
 let analytics = try Stub<any Analytics>()
-analytics.when { $0.track(event: any(), value: any()) }.thenDoNothing()
+analytics.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
 
 let checkout = Checkout(analytics: analytics())
 checkout.add(item: "socks", price: 30)
 checkout.add(item: "hat", price: 12)
 checkout.placeOrder()
 
-analytics.verify { $0.track(event: equal("purchase"), value: equal(42)) }
-analytics.verify(.never()) { $0.track(event: equal("error"), value: any()) }
+analytics.verify { $0.track(event: Match.equal("purchase"), value: Match.equal(42)) }
+analytics.verify(.never()) { $0.track(event: Match.equal("error"), value: Match.any()) }
 
-let events = ArgumentCaptor<String>()
-analytics.verify(.exactly(3)) { $0.track(event: events.capture(), value: any()) }
+let events = Match.Capture<String>()
+analytics.verify(.exactly(3)) { $0.track(event: events.capture(), value: Match.any()) }
 #expect(events.values == ["add_to_cart", "add_to_cart", "purchase"])
 
 analytics.verifyInOrder {
-    $0.track(event: equal("add_to_cart"), value: any())
-    $0.track(event: equal("purchase"), value: any())
+    $0.track(event: Match.equal("add_to_cart"), value: Match.any())
+    $0.track(event: Match.equal("purchase"), value: Match.any())
 }
 ```
 
@@ -235,7 +238,7 @@ When the call happens on another task, wait for it instead of sleeping:
 
 ```swift
 await analytics.verify(1..., within: .seconds(1)) {
-    $0.track(event: equal("sync_completed"), value: any())
+    $0.track(event: Match.equal("sync_completed"), value: Match.any())
 }
 ```
 
@@ -264,7 +267,7 @@ at once; `verifyNoUnusedStubs()` flags registrations no call matched; and
 
 ```swift
 let events: [(String, Int)] = analytics.invocations {
-    $0.track(event: any(), value: any())
+    $0.track(event: Match.any(), value: Match.any())
 }
 #expect(events == [("add_to_cart", 30), ("add_to_cart", 12), ("purchase", 42)])
 ```
@@ -274,7 +277,7 @@ stream is created, without polling:
 
 ```swift
 let events: InvocationStream<(String, Int)> = analytics.invocationStream {
-    $0.track(event: any(), value: any())
+    $0.track(event: Match.any(), value: Match.any())
 }
 
 var iterator = events.makeAsyncIterator()
@@ -299,16 +302,16 @@ struct LiveTranslator: Translator {
 
 ```swift
 let spy: Spy<any Translator> = Spy.make(forwardingTo: LiveTranslator())
-spy.when { $0.translate(equal("greeting.new_user")) }.thenReturn("Howdy, partner")
+spy.when { $0.translate(Match.equal("greeting.new_user")) }.thenReturn("Howdy, partner")
 
 let translator: any Translator = spy()
 #expect(translator.translate("greeting.new_user") == "Howdy, partner") // overridden
 #expect(translator.translate("farewell.title") == "Goodbye")           // forwarded
 
-spy.verify(.exactly(2)) { $0.translate(any()) }
+spy.verify(.exactly(2)) { $0.translate(Match.any()) }
 
 let forwarded: [String] = spy.forwardedInvocations {
-    $0.translate(any())
+    $0.translate(Match.any())
 }
 #expect(forwarded == ["farewell.title"])
 ```
@@ -340,7 +343,7 @@ there is a shorthand:
 
 ```swift
 let translator: any Translator = Stub.make {
-    $0.when { $0.translate(any()) }.then { (key: String) in "«\(key)»" }
+    $0.when { $0.translate(Match.any()) }.then { (key: String) in "«\(key)»" }
 }
 ```
 
@@ -466,7 +469,7 @@ Two cases need a small extra hint:
   record which requirement they name, and that recording pass needs valid
   temporary values. TestDoubles synthesizes them for most types; for class
   instances and existentials you pass any valid instance via the `using:` and
-  `returning:` overloads (for example `any(using: someUser)`). The value is
+  `returning:` overloads (for example `Match.any(using: someUser)`). The value is
   used only during recording. It is never matched against or returned.
 
 See the [Construction Guide](Sources/TestDoubles/Documentation.docc/Articles/ConstructionGuide.md)

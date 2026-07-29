@@ -104,9 +104,9 @@ func useLinkedMarkerComposition(
         #expect(useLinkedAutomaticCompositionA(LinkedAutomaticCompositionA()) == "0")
         #expect(try await useLinkedAutomaticCompositionB(LinkedAutomaticCompositionB()) == false)
         let stub = try Stub<any AutomaticCompositionA & AutomaticCompositionB>()
-        stub.when { $0.transform(any()) }.then { (value: Int) in "value:\(value)" }
+        stub.when { $0.transform(Match.any()) }.then { (value: Int) in "value:\(value)" }
         stub.when { $0.count }.thenReturn(3)
-        await stub.when { try await $0.isEnabled(any()) }.then {
+        await stub.when { try await $0.isEnabled(Match.any()) }.then {
             (key: String) async throws -> Bool in
             key == "feature"
         }
@@ -132,7 +132,7 @@ func useLinkedMarkerComposition(
                 .method(Int.self, returning: String.self)
             )
         )
-        stub.when { $0.transform(any()) }.then { (value: Int) in "explicit:\(value)" }
+        stub.when { $0.transform(Match.any()) }.then { (value: Int) in "explicit:\(value)" }
         stub.when { $0.enabled }.thenReturn(true)
 
         let probe: any ExplicitCompositionA & ExplicitCompositionB = stub()
@@ -166,7 +166,7 @@ func useLinkedMarkerComposition(
         #expect(useLinkedSharedCompositionLeft(LinkedSharedCompositionLeft()) == 0)
         #expect(useLinkedSharedCompositionRight(LinkedSharedCompositionRight()) == "")
         let automatic = try Stub<any SharedCompositionLeft & SharedCompositionRight>()
-        automatic.when { $0.shared(any()) }.then { (value: Int) in "shared:\(value)" }
+        automatic.when { $0.shared(Match.any()) }.then { (value: Int) in "shared:\(value)" }
         automatic.when { $0.left() }.thenReturn(1)
         automatic.when { $0.right }.thenReturn("right")
 
@@ -189,7 +189,7 @@ func useLinkedMarkerComposition(
                 .method(returning: Int.self)
             )
         )
-        explicit.when { $0.shared(any()) }.thenReturn("explicit-shared")
+        explicit.when { $0.shared(Match.any()) }.thenReturn("explicit-shared")
         explicit.when { $0.left() }.thenReturn(2)
         explicit.when { $0.right }.thenReturn("explicit-right")
 

@@ -176,14 +176,14 @@ struct InitializerRequirementTests {
             ) == "real"
         )
         let stub = try Stub<any InitializerRequirementProbe>()
-        stub.when(initializer: { type(of: $0).init(value: any()) }).thenInitialize()
+        stub.when(initializer: { type(of: $0).init(value: Match.any()) }).thenInitialize()
         stub.when { $0.storedValue() }.thenReturn("stubbed")
 
         let seed: any InitializerRequirementProbe = stub()
         let initialized = type(of: seed).init(value: "created")
 
         #expect(initialized.storedValue() == "stubbed")
-        stub.verify { type(of: $0).init(value: equal("created")) }
+        stub.verify { type(of: $0).init(value: Match.equal("created")) }
     }
 
     @Test func explicitInitializersWorkWithoutAConformer() throws {
@@ -191,14 +191,14 @@ struct InitializerRequirementTests {
             .initializer(Int.self),
             .method(returning: Int.self)
         )
-        stub.when(initializer: { type(of: $0).init(value: any()) }).thenInitialize()
+        stub.when(initializer: { type(of: $0).init(value: Match.any()) }).thenInitialize()
         stub.when { $0.storedValue() }.thenReturn(42)
 
         let seed: any ExplicitInitializerRequirementProbe = stub()
         let initialized = type(of: seed).init(value: 7)
 
         #expect(initialized.storedValue() == 42)
-        stub.verify { type(of: $0).init(value: equal(7)) }
+        stub.verify { type(of: $0).init(value: Match.equal(7)) }
     }
 
     @Test func automaticDiscoverySupportsAssociatedTypeInitializerArguments() throws {
@@ -214,7 +214,7 @@ struct InitializerRequirementTests {
             argumentType: Int.self
         )
         stub.when(initializer: {
-            type(of: $0).init(value: any())
+            type(of: $0).init(value: Match.any())
         }).thenInitialize()
         stub.when { $0.storedValue() }.thenReturn(42)
 
@@ -222,7 +222,7 @@ struct InitializerRequirementTests {
         let initialized = type(of: seed).init(value: 7)
 
         #expect(initialized.storedValue() == 42)
-        stub.verify { type(of: $0).init(value: equal(7)) }
+        stub.verify { type(of: $0).init(value: Match.equal(7)) }
     }
 
     @Test func explicitRequirementsSupportAssociatedTypeInitializerArguments() throws {
@@ -239,7 +239,7 @@ struct InitializerRequirementTests {
             argumentType: String.self
         )
         stub.when(initializer: {
-            type(of: $0).init(value: any())
+            type(of: $0).init(value: Match.any())
         }).thenInitialize()
         stub.when { $0.storedValue() }.thenReturn("stubbed")
 
@@ -247,7 +247,7 @@ struct InitializerRequirementTests {
         let initialized = type(of: seed).init(value: "created")
 
         #expect(initialized.storedValue() == "stubbed")
-        stub.verify { type(of: $0).init(value: equal("created")) }
+        stub.verify { type(of: $0).init(value: Match.equal("created")) }
     }
 
     @Test func failableInitializersChooseSuccessOrNilWithMatchers() throws {
@@ -258,10 +258,10 @@ struct InitializerRequirementTests {
         )
         let stub = try Stub<any FailableInitializerRequirementProbe>()
         stub.when(initializer: {
-            type(of: $0).init(value: equal(1))
+            type(of: $0).init(value: Match.equal(1))
         }).thenInitialize()
         stub.when(initializer: {
-            type(of: $0).init(value: any())
+            type(of: $0).init(value: Match.any())
         }).thenReturnNil()
         stub.when { $0.storedValue() }.thenReturn(21)
 
@@ -271,8 +271,8 @@ struct InitializerRequirementTests {
 
         #expect(success?.storedValue() == 21)
         #expect(failure == nil)
-        stub.verify { type(of: $0).init(value: equal(1)) }
-        stub.verify { type(of: $0).init(value: equal(-1)) }
+        stub.verify { type(of: $0).init(value: Match.equal(1)) }
+        stub.verify { type(of: $0).init(value: Match.equal(-1)) }
     }
 
     @Test func throwingInitializerHandlersPropagateErrors() throws {
@@ -283,10 +283,10 @@ struct InitializerRequirementTests {
         )
         let stub = try Stub<any ThrowingInitializerRequirementProbe>()
         stub.when(initializer: {
-            try type(of: $0).init(value: equal(-2))
+            try type(of: $0).init(value: Match.equal(-2))
         }).thenThrow(InitializerRequirementError.rejected(-2))
         stub.when(initializer: {
-            try type(of: $0).init(value: any())
+            try type(of: $0).init(value: Match.any())
         }).thenInitialize()
         stub.when { $0.storedValue() }.thenReturn(34)
 
@@ -305,7 +305,7 @@ struct InitializerRequirementTests {
         )
         let stub = try Stub<any AsyncInitializerRequirementProbe>()
         await stub.when(initializer: {
-            try await type(of: $0).init(value: any())
+            try await type(of: $0).init(value: Match.any())
         }).then { (value: Int) async throws in
             await Task.yield()
             if value < 0 { throw InitializerRequirementError.rejected(value) }
@@ -322,13 +322,13 @@ struct InitializerRequirementTests {
     @Test func asyncFailableInitializersChooseSuccessNilAndError() async throws {
         let stub = try Stub<any AsyncFailableInitializerRequirementProbe>()
         await stub.when(initializer: {
-            try await type(of: $0).init(value: equal(0))
+            try await type(of: $0).init(value: Match.equal(0))
         }).thenReturnNil()
         await stub.when(initializer: {
-            try await type(of: $0).init(value: equal(-1))
+            try await type(of: $0).init(value: Match.equal(-1))
         }).thenThrow(InitializerRequirementError.rejected(-1))
         await stub.when(initializer: {
-            try await type(of: $0).init(value: any())
+            try await type(of: $0).init(value: Match.any())
         }).thenInitialize()
         stub.when { $0.storedValue() }.thenReturn(89)
 
@@ -349,7 +349,7 @@ struct InitializerRequirementTests {
             ) == "real"
         )
         var stub: Stub<any InitializerRequirementProbe>? = try Stub()
-        stub?.when(initializer: { type(of: $0).init(value: any()) }).thenInitialize()
+        stub?.when(initializer: { type(of: $0).init(value: Match.any()) }).thenInitialize()
         stub?.when { $0.storedValue() }.thenReturn("alive")
         let initialized = try #require(stub).withValue { value in
             type(of: value).init(value: "created")
@@ -382,7 +382,7 @@ struct InitializerRequirementTests {
         )
         let stub = try Stub<any ClassInitializerRequirementProbe>()
         stub.when(initializer: {
-            type(of: $0).init(enabled: any())
+            type(of: $0).init(enabled: Match.any())
         }).then { (enabled: Bool) in
             enabled ? .initialize : .returnNil
         }
@@ -403,7 +403,7 @@ struct InitializerRequirementTests {
         )
         let stub = try Stub<any ChildInitializerRequirementProbe>()
         stub.when(initializer: {
-            type(of: $0).init(baseValue: any())
+            type(of: $0).init(baseValue: Match.any())
         }).thenInitialize()
         stub.when { $0.storedValue() }.thenReturn(21)
         stub.when { $0.childValue() }.thenReturn(42)

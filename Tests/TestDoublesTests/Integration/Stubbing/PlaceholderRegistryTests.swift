@@ -35,21 +35,21 @@ struct RealPlaceholderRegistryDirectory: PlaceholderRegistryDirectory {
 
 @Suite struct PlaceholderRegistryTests {
     @Test func registeredFactorySuppliesArgumentRecordingValues() throws {
-        RecordingPlaceholders.register { PlaceholderArgumentUser(name: "recording") }
-        defer { RecordingPlaceholders.unregister(PlaceholderArgumentUser.self) }
+        Match.Placeholders.register { PlaceholderArgumentUser(name: "recording") }
+        defer { Match.Placeholders.unregister(PlaceholderArgumentUser.self) }
 
         let stub = try Stub<any PlaceholderRegistryDirectory>()
-        // Without the registration, any() would halt: a class placeholder
-        // cannot be synthesized and would need any(using:).
-        stub.when { $0.displayName(for: any()) }.thenReturn("stubbed")
+        // Without the registration, Match.any() would halt: a class placeholder
+        // cannot be synthesized and would need Match.any(using:).
+        stub.when { $0.displayName(for: Match.any()) }.thenReturn("stubbed")
 
         let directory: any PlaceholderRegistryDirectory = stub()
         #expect(directory.displayName(for: PlaceholderArgumentUser(name: "eve")) == "stubbed")
     }
 
     @Test func registeredFactorySuppliesReturnRecordingValues() throws {
-        RecordingPlaceholders.register { PlaceholderResultUser(name: "recording") }
-        defer { RecordingPlaceholders.unregister(PlaceholderResultUser.self) }
+        Match.Placeholders.register { PlaceholderResultUser(name: "recording") }
+        defer { Match.Placeholders.unregister(PlaceholderResultUser.self) }
 
         let stub = try Stub<any PlaceholderRegistryDirectory>()
         let configured = PlaceholderResultUser(name: "configured")
@@ -63,14 +63,14 @@ struct RealPlaceholderRegistryDirectory: PlaceholderRegistryDirectory {
 
     @Test func explicitUsingValueWinsOverTheRegisteredFactory() throws {
         let counter = LockedCounter()
-        RecordingPlaceholders.register {
+        Match.Placeholders.register {
             counter.increment()
             return PlaceholderPrecedenceUser(name: "registered")
         }
-        defer { RecordingPlaceholders.unregister(PlaceholderPrecedenceUser.self) }
+        defer { Match.Placeholders.unregister(PlaceholderPrecedenceUser.self) }
 
         let stub = try Stub<any PlaceholderRegistryDirectory>()
-        stub.when { $0.badge(for: any(using: PlaceholderPrecedenceUser(name: "explicit"))) }
+        stub.when { $0.badge(for: Match.any(using: PlaceholderPrecedenceUser(name: "explicit"))) }
             .thenReturn("stubbed")
 
         let directory: any PlaceholderRegistryDirectory = stub()

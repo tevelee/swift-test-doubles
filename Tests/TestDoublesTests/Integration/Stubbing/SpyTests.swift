@@ -184,7 +184,7 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
         #expect(service.fetch(id: 2) == "real:2")
         #expect(target.fetchedIDs == [2])
 
-        spy.verify(.exactly(2)) { $0.fetch(id: any()) }
+        spy.verify(.exactly(2)) { $0.fetch(id: Match.any()) }
     }
 
     @Test func forwardedInvocationsExcludeOverridesAndKeepArgumentsTyped() throws {
@@ -197,7 +197,7 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
         #expect(service.fetch(id: 3) == "real:3")
 
         let forwarded: [Int] = spy.forwardedInvocations {
-            $0.fetch(id: any())
+            $0.fetch(id: Match.any())
         }
         #expect(forwarded == [2, 3])
     }
@@ -210,7 +210,7 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
         #expect(throws: SpyServiceError.missing("missing")) {
             try service.load(path: "missing")
         }
-        spy.verify(.exactly(2)) { try $0.load(path: any()) }
+        spy.verify(.exactly(2)) { try $0.load(path: Match.any()) }
     }
 
     @Test func forwardsAsyncRequirementsAndSupportsOverrides() async throws {
@@ -221,7 +221,7 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
         let service: any SpyService = spy()
         #expect(try await service.fetchLater(id: 1) == "overridden-later")
         #expect(try await service.fetchLater(id: 2) == "later:2")
-        await spy.verify(.exactly(2)) { try await $0.fetchLater(id: any()) }
+        await spy.verify(.exactly(2)) { try await $0.fetchLater(id: Match.any()) }
     }
 
     @Test func forwardedInvocationsSupportAsyncRequirements() async throws {
@@ -234,7 +234,7 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
         _ = try await service.fetchLater(id: 2)
 
         let forwarded: [Int] = await spy.forwardedInvocations {
-            try await $0.fetchLater(id: any())
+            try await $0.fetchLater(id: Match.any())
         }
         #expect(forwarded == [2])
     }
@@ -291,13 +291,13 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
         let spy = try Spy<any InitializerSpyService>(
             forwardingTo: RealInitializerSpyService(value: 0)
         )
-        spy.when(initializer: { type(of: $0).init(value: any()) }).thenInitialize()
+        spy.when(initializer: { type(of: $0).init(value: Match.any()) }).thenInitialize()
         spy.when { $0.value() }.thenReturn(42)
 
         let seed: any InitializerSpyService = spy()
         let initialized = type(of: seed).init(value: 7)
         #expect(initialized.value() == 42)
-        spy.verify { type(of: $0).init(value: equal(7)) }
+        spy.verify { type(of: $0).init(value: Match.equal(7)) }
     }
 
     @Test func rejectsArgumentsThatCannotPreserveTheOriginalStack() {

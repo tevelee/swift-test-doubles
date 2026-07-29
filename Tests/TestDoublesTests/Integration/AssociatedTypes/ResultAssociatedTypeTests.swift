@@ -157,7 +157,7 @@ private func useLinkedGenericResultAssociatedTypeProbe(
 
         stub.when(returning: Result<Int, ResultAssociatedFailure>.success(0)) {
             $0.transform(
-                opaque: any(using: Result<Int, ResultAssociatedFailure>.success(0))
+                opaque: Match.any(using: Result<Int, ResultAssociatedFailure>.success(0))
             )
         }.then {
             (value: Result<Int, ResultAssociatedFailure>) in
@@ -165,7 +165,7 @@ private func useLinkedGenericResultAssociatedTypeProbe(
         }
         stub.when(returning: Result<[Int], ResultAssociatedFailure>.success([])) {
             $0.transform(
-                fixed: any(
+                fixed: Match.any(
                     using: Result<[Int], ResultAssociatedFailure>.success([])
                 )
             )
@@ -238,7 +238,7 @@ private func useLinkedGenericResultAssociatedTypeProbe(
 
         stub.when(returning: Result<[Int], ResultAssociatedFailure>.success([])) {
             $0.transform(
-                opaqueFailure: any(
+                opaqueFailure: Match.any(
                     using: Result<[Int], ResultAssociatedFailure>.success([])
                 )
             )
@@ -247,7 +247,7 @@ private func useLinkedGenericResultAssociatedTypeProbe(
             returning: Result<Set<Int?>, ResultAssociatedFailure>.success([])
         ) {
             $0.transform(
-                set: any(
+                set: Match.any(
                     using: Result<Set<Int?>, ResultAssociatedFailure>.success([])
                 )
             )
@@ -295,7 +295,7 @@ private func useLinkedGenericResultAssociatedTypeProbe(
         let placeholder = Result<ResultAssociatedBox<Int>, ResultAssociatedFailure>
             .success(ResultAssociatedBox(0))
         stub.when(returning: placeholder) {
-            $0.transform(any(using: placeholder))
+            $0.transform(Match.any(using: placeholder))
         }.then { (value: Result<ResultAssociatedBox<Int>, ResultAssociatedFailure>) in
             value.map { ResultAssociatedBox($0.value + 1) }
         }

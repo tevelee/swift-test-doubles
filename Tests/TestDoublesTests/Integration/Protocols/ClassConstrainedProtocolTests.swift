@@ -203,7 +203,7 @@ private func exerciseSuperclassPayloadLifetime() throws -> (
             exerciseLinkedAutomaticClassProbe(LinkedAutomaticClassProbe()) == "linked-1linked"
         )
         let stub = try Stub<any AutomaticClassProbe>()
-        stub.when { $0.transform(any()) }.then { (value: Int) in
+        stub.when { $0.transform(Match.any()) }.then { (value: Int) in
             "stub-\(value)"
         }
         stub.when { $0.label }.thenReturn("class")
@@ -212,7 +212,7 @@ private func exerciseSuperclassPayloadLifetime() throws -> (
 
         #expect(probe.transform(42) == "stub-42")
         #expect(probe.label == "class")
-        stub.verify { $0.transform(equal(42)) }
+        stub.verify { $0.transform(Match.equal(42)) }
         stub.verify { $0.label }
     }
 
@@ -220,14 +220,14 @@ private func exerciseSuperclassPayloadLifetime() throws -> (
         let stub = try Stub<any ExplicitClassProbe>(
             .method(Int.self, returning: Int.self)
         )
-        stub.when { $0.transform(any()) }.then { (value: Int) in
+        stub.when { $0.transform(Match.any()) }.then { (value: Int) in
             value * 3
         }
 
         let probe: any ExplicitClassProbe = stub()
 
         #expect(probe.transform(14) == 42)
-        stub.verify { $0.transform(equal(14)) }
+        stub.verify { $0.transform(Match.equal(14)) }
     }
 
     @Test func inheritedClassProtocolsUseTheirDeclaringWitnessTables() throws {
@@ -271,7 +271,7 @@ private func exerciseSuperclassPayloadLifetime() throws -> (
         let stub = try Stub<any ConcurrentClassProbe>(
             .method(Int.self, returning: Int.self)
         )
-        stub.when { $0.doubled(any()) }.then { (value: Int) in
+        stub.when { $0.doubled(Match.any()) }.then { (value: Int) in
             value * 2
         }
         let probe: any ConcurrentClassProbe = stub()
@@ -286,7 +286,7 @@ private func exerciseSuperclassPayloadLifetime() throws -> (
         }
 
         #expect(results.sorted() == (0 ..< 50).map { $0 * 2 })
-        stub.verify(.exactly(50)) { $0.doubled(any()) }
+        stub.verify(.exactly(50)) { $0.doubled(Match.any()) }
     }
 
     #if canImport(ObjectiveC)

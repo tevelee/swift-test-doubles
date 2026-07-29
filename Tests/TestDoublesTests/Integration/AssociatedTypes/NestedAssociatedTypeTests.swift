@@ -200,10 +200,10 @@ struct NestedAssociatedTypeTests {
             getter.returnAssociatedTypeUse == .associatedType(named: "Element")
         )
 
-        stub.when { $0.transform(optional: any()) }.then { (value: Int?) in
+        stub.when { $0.transform(optional: Match.any()) }.then { (value: Int?) in
             value.map { $0 + 1 }
         }
-        stub.when { $0.transform(array: any()) }.then { (values: [Int]) in
+        stub.when { $0.transform(array: Match.any()) }.then { (values: [Int]) in
             values.map { $0 + 1 }
         }
         stub.when { $0.current }.thenReturn(42)
@@ -240,10 +240,10 @@ struct NestedAssociatedTypeTests {
             returnType: [String].self
         )
 
-        stub.when { $0.transform(optional: any()) }.then { (value: String?) in
+        stub.when { $0.transform(optional: Match.any()) }.then { (value: String?) in
             value?.uppercased()
         }
-        stub.when { $0.transform(array: any()) }.then { (values: [String]) in
+        stub.when { $0.transform(array: Match.any()) }.then { (values: [String]) in
             values.map { $0.uppercased() }
         }
         stub.when { $0.current }.thenReturn("current")
@@ -291,13 +291,13 @@ struct NestedAssociatedTypeTests {
             returnType: Set<Int>.self
         )
 
-        stub.when { $0.transform(set: any()) }.then { (values: Set<Int>) in
+        stub.when { $0.transform(set: Match.any()) }.then { (values: Set<Int>) in
             Set(values.map { $0 + 1 })
         }
         let probe: any SetNestedAssociatedTypeProbe<Int> = stub()
 
         #expect(probe.transform(set: [1, 2, 3]) == [2, 3, 4])
-        stub.verify { $0.transform(set: equal([1, 2, 3])) }
+        stub.verify { $0.transform(set: Match.equal([1, 2, 3])) }
     }
 
     @Test func explicitRequirementsSupportSet() throws {
@@ -313,13 +313,13 @@ struct NestedAssociatedTypeTests {
             returnType: Set<String>.self
         )
 
-        stub.when { $0.transform(set: any()) }.then { (values: Set<String>) in
+        stub.when { $0.transform(set: Match.any()) }.then { (values: Set<String>) in
             Set(values.map { $0.uppercased() })
         }
         let probe: any ExplicitSetNestedAssociatedTypeProbe<String> = stub()
 
         #expect(probe.transform(set: ["one", "two"]) == ["ONE", "TWO"])
-        stub.verify { $0.transform(set: equal(["one", "two"])) }
+        stub.verify { $0.transform(set: Match.equal(["one", "two"])) }
     }
 
     @Test func explicitValidationRejectsConcreteSetConvention() {
@@ -357,13 +357,13 @@ struct NestedAssociatedTypeTests {
             associatedTypeNames: ["Key", "Value"]
         )
 
-        stub.when { $0.transform(values: any()) }.then { (values: [String: String]) in
+        stub.when { $0.transform(values: Match.any()) }.then { (values: [String: String]) in
             values.mapValues { $0.uppercased() }
         }
-        stub.when { $0.transform(keys: any()) }.then { (keys: [String: Int]) in
+        stub.when { $0.transform(keys: Match.any()) }.then { (keys: [String: Int]) in
             keys.mapValues { $0 + 1 }
         }
-        stub.when { $0.transform(entries: any()) }.then { (entries: [String: String]) in
+        stub.when { $0.transform(entries: Match.any()) }.then { (entries: [String: String]) in
             entries.mapValues { $0.uppercased() }
         }
         let probe: Probe = stub()
@@ -411,9 +411,9 @@ struct NestedAssociatedTypeTests {
             associatedTypeNames: ["Key", "Value"]
         )
 
-        stub.when { $0.transform(values: any()) }.thenReturn(["explicit": "value"])
-        stub.when { $0.transform(keys: any()) }.thenReturn(["explicit": 42])
-        stub.when { $0.transform(entries: any()) }.thenReturn(["explicit": "entry"])
+        stub.when { $0.transform(values: Match.any()) }.thenReturn(["explicit": "value"])
+        stub.when { $0.transform(keys: Match.any()) }.thenReturn(["explicit": 42])
+        stub.when { $0.transform(entries: Match.any()) }.thenReturn(["explicit": "entry"])
         let probe = stub()
 
         #expect(probe.transform(values: [:]) == ["explicit": "value"])
@@ -536,7 +536,7 @@ struct NestedAssociatedTypeTests {
         #expect(opaqueDescriptor.returnAssociatedTypeUse.names == ["Element"])
         #expect(optionalArrayDescriptor.returnAssociatedTypeUse.names == ["Element"])
 
-        stub.when { $0.transform(optionalArray: any()) }
+        stub.when { $0.transform(optionalArray: Match.any()) }
             .thenReturn([42])
         let probe: any RecursiveNestedAssociatedTypeProbe<Int> = stub()
         #expect(probe.transform(optionalArray: nil) == [42])
@@ -628,13 +628,13 @@ struct NestedAssociatedTypeTests {
         #expect(initializer.returnConvention == .selfType)
 
         stub.when(initializer: {
-            type(of: $0).init(values: any())
+            type(of: $0).init(values: Match.any())
         }).thenInitialize()
         let seed: any NestedAssociatedInitializerProbe<Int> = stub()
         _ = type(of: seed).init(values: [1, 2, 3])
 
         stub.verify {
-            type(of: $0).init(values: equal([1, 2, 3]))
+            type(of: $0).init(values: Match.equal([1, 2, 3]))
         }
     }
 
@@ -643,7 +643,7 @@ struct NestedAssociatedTypeTests {
         let stub = try Stub<Probe>()
         let placeholder = NestedAssociatedTypeBox()
         stub.when(initializer: {
-            type(of: $0).init(values: any(using: [placeholder]))
+            type(of: $0).init(values: Match.any(using: [placeholder]))
         }).thenInitialize()
         let seed: Probe = stub()
         var (value, lifetime) = makeOptionalNestedAssociatedTypeBox()
@@ -712,13 +712,13 @@ private func exerciseConsumingNestedAssociatedTypes(
     )
 
     let placeholder = NestedAssociatedTypeBox()
-    stub.when { $0.consume(optional: any(using: Optional(placeholder))) }.thenDoNothing()
-    stub.when { $0.consume(array: any(using: [placeholder])) }.thenDoNothing()
+    stub.when { $0.consume(optional: Match.any(using: Optional(placeholder))) }.thenDoNothing()
+    stub.when { $0.consume(array: Match.any(using: [placeholder])) }.thenDoNothing()
     await stub.when {
-        await $0.consumeAsync(optional: any(using: Optional(placeholder)))
+        await $0.consumeAsync(optional: Match.any(using: Optional(placeholder)))
     }.thenDoNothing()
     await stub.when {
-        await $0.consumeAsync(array: any(using: [placeholder]))
+        await $0.consumeAsync(array: Match.any(using: [placeholder]))
     }.thenDoNothing()
 
     let probe: Probe = stub()
