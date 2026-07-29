@@ -15,7 +15,7 @@ import IssueReporting
 /// completion.invokeNext(.success(value))
 /// completion.assertReleased()
 /// ```
-public final class CallbackCapture<Value>: @unchecked Sendable {
+public final class CallbackCapture<Value> {
     /// The captured completion shape.
     public typealias Callback = (Value) -> Void
 

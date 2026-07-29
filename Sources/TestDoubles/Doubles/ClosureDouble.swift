@@ -15,7 +15,7 @@ import IssueReporting
 /// formatter.whenAny().then { "odd-\($0)" }
 /// let format: (Int) -> String = formatter.function
 /// ```
-public final class ClosureDouble<Input, Result>: @unchecked Sendable {
+public final class ClosureDouble<Input, Result> {
     /// The closure shape represented by this double.
     public typealias Function = (Input) -> Result
     /// Predicate used to select a configured behavior.
@@ -27,12 +27,12 @@ public final class ClosureDouble<Input, Result>: @unchecked Sendable {
         let matcher: Matcher?
         let description: String
         let handler: Handler
-        var consumptionCount: Int
     }
 
     private let lock = NSLock()
     private var entries: [Entry] = []
     private var recordedCalls: [Input] = []
+    private var behaviorRevision: UInt64 = 0
 
     /// Creates an empty closure double. Calls require a matching behavior.
     public init() {}
@@ -45,22 +45,33 @@ public final class ClosureDouble<Input, Result>: @unchecked Sendable {
     /// Invokes the double. A call is recorded before its configured behavior
     /// runs, matching `Stub`'s observation semantics.
     public func callAsFunction(_ input: Input) -> Result {
-        let handler: Handler = lock.withLock {
-            recordedCalls.append(input)
-            guard
-                let index = entries.firstIndex(where: { entry in
-                    entry.matcher?(input) ?? true
-                })
-            else {
+        while true {
+            let snapshot = lock.withLock {
+                (revision: behaviorRevision, entries: entries)
+            }
+            let matchingIndex = snapshot.entries.firstIndex { entry in
+                entry.matcher?(input) ?? true
+            }
+            let resolution = lock.withLock { () -> (retry: Bool, handler: Handler?) in
+                guard behaviorRevision == snapshot.revision else {
+                    return (true, nil)
+                }
+                recordedCalls.append(input)
+                return (false, matchingIndex.map { entries[$0].handler })
+            }
+            if resolution.retry {
+                continue
+            }
+            guard let handler = resolution.handler else {
+                let configured = snapshot.entries.map(\.description).joined(separator: ", ")
                 preconditionFailure(
                     "[TestDoubles] No matching closure behavior is configured. "
                         + "Register one with `when { ... }.thenReturn(...)` or `whenAny()`."
+                        + (configured.isEmpty ? "" : " Configured behaviors: \(configured).")
                 )
             }
-            entries[index].consumptionCount += 1
-            return entries[index].handler
+            return handler(input)
         }
-        return handler(input)
     }
 
     /// Starts a behavior registration selected by `matcher`.
@@ -83,7 +94,8 @@ public final class ClosureDouble<Input, Result>: @unchecked Sendable {
 
     /// Number of recorded invocations matching `matcher`.
     public func callCount(matching matcher: Matcher) -> Int {
-        lock.withLock { recordedCalls.count(where: matcher) }
+        let calls = lock.withLock { recordedCalls }
+        return calls.count(where: matcher)
     }
 
     /// Verifies how many recorded invocations satisfy `matcher`.
@@ -138,6 +150,7 @@ public final class ClosureDouble<Input, Result>: @unchecked Sendable {
         lock.withLock {
             entries.removeAll(keepingCapacity: true)
             recordedCalls.removeAll(keepingCapacity: true)
+            behaviorRevision &+= 1
         }
     }
 
@@ -165,17 +178,17 @@ public final class ClosureDouble<Input, Result>: @unchecked Sendable {
                     Entry(
                         matcher: matcher,
                         description: description,
-                        handler: handler,
-                        consumptionCount: 0
+                        handler: handler
                     )
                 )
+                owner.behaviorRevision &+= 1
             }
         }
     }
 }
 
 /// A configurable, recordable double for a nullary synchronous closure.
-public final class VoidClosureDouble<Result>: @unchecked Sendable {
+public final class VoidClosureDouble<Result> {
     private let storage = ClosureDouble<Void, Result>()
 
     /// Creates an empty nullary closure double.

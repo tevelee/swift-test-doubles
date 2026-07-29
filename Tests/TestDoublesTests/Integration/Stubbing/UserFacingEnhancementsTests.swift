@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import TestDoubles
 
@@ -23,6 +24,19 @@ protocol EnhancementThrowingAsyncLoader {
 
 private enum EnhancementFailure: Error, Equatable {
     case expected
+}
+
+private final class LockedValues<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [Value] = []
+
+    var values: [Value] {
+        lock.withLock { storage }
+    }
+
+    func append(_ value: Value) {
+        lock.withLock { storage.append(value) }
+    }
 }
 
 struct RealEnhancementThrowingAsyncLoader: EnhancementThrowingAsyncLoader {
@@ -87,31 +101,44 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
 
     @Test func callbackCaptureControlsCompletionLifetimeAndDelivery() {
         let callbacks = CallbackCapture<String>()
-        var received: [String] = []
+        let received = LockedValues<String>()
         callbacks.capture { received.append($0) }
 
         callbacks.invokeNext(repeating: 2, "ready")
 
-        #expect(received == ["ready", "ready"])
+        #expect(received.values == ["ready", "ready"])
         #expect(callbacks.pendingCount == 0)
         callbacks.assertReleased()
     }
 
     @Test func callbackCaptureInvokesAllAndReleasesCallbacks() {
         let callbacks = CallbackCapture<Int>()
-        var received: [String] = []
+        let received = LockedValues<String>()
         callbacks.capture { received.append("first:\($0)") }
         callbacks.capture { received.append("second:\($0)") }
 
         #expect(callbacks.pendingCount == 2)
         callbacks.invokeAll(3)
-        #expect(received == ["first:3", "second:3"])
+        #expect(received.values == ["first:3", "second:3"])
         #expect(callbacks.pendingCount == 0)
 
         callbacks.capture { received.append("discarded:\($0)") }
         callbacks.releaseAll()
         callbacks.assertReleased()
         #expect(callbacks.pendingCount == 0)
+    }
+
+    @Test func closureDoubleMatchersCanReenterObservationAPIs() {
+        let formatter = ClosureDouble<Int, String>()
+        formatter.when(
+            { _ in formatter.invocations.isEmpty },
+            describedBy: "no earlier calls"
+        ).thenReturn("first")
+        formatter.whenAny().thenReturn("later")
+
+        #expect(formatter(1) == "first")
+        #expect(formatter(2) == "later")
+        #expect(formatter.callCount(matching: { _ in formatter.invocations.count == 2 }) == 2)
     }
 
     @Test func closureDoublesSupportLifecycleAndNullaryInjection() {
