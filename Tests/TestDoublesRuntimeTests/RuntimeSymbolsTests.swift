@@ -58,5 +58,53 @@ import Testing
         #expect(first != nil)
         #expect(first == second)
     }
+
+    @Test func successfulSymbolNameResolutionIsCached() {
+        var marker = 0
+        var attempts = 0
+
+        withUnsafePointer(to: &marker) { pointer in
+            let address = UnsafeRawPointer(pointer)
+            let first = RuntimeSymbols.cachedSymbolName(at: address) {
+                attempts += 1
+                return "first"
+            }
+            let second = RuntimeSymbols.cachedSymbolName(at: address) {
+                attempts += 1
+                return "second"
+            }
+
+            #expect(first == "first")
+            #expect(second == "first")
+        }
+        #expect(attempts == 1)
+    }
+
+    @Test func failedSymbolNameResolutionIsRetried() {
+        var marker = 0
+        var attempts = 0
+
+        withUnsafePointer(to: &marker) { pointer in
+            let address = UnsafeRawPointer(pointer)
+            let missing = RuntimeSymbols.cachedSymbolName(
+                at: address,
+                exact: true
+            ) {
+                attempts += 1
+                return nil
+            }
+            let resolved = RuntimeSymbols.cachedSymbolName(
+                at: address,
+                exact: true
+            ) {
+                attempts += 1
+                return "resolved"
+            }
+
+            #expect(missing == nil)
+            #expect(resolved == "resolved")
+        }
+        #expect(attempts == 2)
+    }
 }
 import TestDoublesRuntime

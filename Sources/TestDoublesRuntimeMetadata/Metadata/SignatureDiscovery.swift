@@ -1,4 +1,3 @@
-import CTestDoublesTrampoline
 import Echo
 import Foundation
 import TestDoublesRuntimeSupport
@@ -176,8 +175,8 @@ private func requirementSymbolNames(
         let wordSize = MemoryLayout<UnsafeRawPointer>.size
         let function = (witnessTable.ptr + (1 + requirementIndex) * wordSize)
             .load(as: UnsafeRawPointer.self)
-        if let symbol = td_symbol_name(function) {
-            names.append(String(cString: symbol))
+        if let symbol = RuntimeSymbols.symbolName(at: function) {
+            names.append(symbol)
         }
     }
 
@@ -200,8 +199,9 @@ package func resilientRequirementSymbolName(
         protocolDescriptor: proto,
         requirementIndex: requirement.witnessIndex
     )
-    guard let symbol = td_exact_symbol_name(descriptor) else { return nil }
-    let name = String(cString: symbol)
+    guard let name = RuntimeSymbols.symbolName(at: descriptor, exact: true) else {
+        return nil
+    }
     return name.hasSuffix("Tq") ? name : nil
 }
 

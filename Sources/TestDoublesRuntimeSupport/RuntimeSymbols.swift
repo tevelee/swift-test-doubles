@@ -14,6 +14,11 @@ import Foundation
 /// cached. Misses are deliberately retried so images loaded later can supply
 /// metadata, runtime entry points, or compiler-emitted thunks.
 package enum RuntimeSymbols {
+    private struct SymbolNameKey: Hashable {
+        let address: UInt
+        let exact: Bool
+    }
+
     private struct Address: @unchecked Sendable {
         let value: UnsafeMutableRawPointer
     }
@@ -31,6 +36,7 @@ package enum RuntimeSymbols {
     // query can invert the runtime's own locks under concurrent fabrication.
     private static let symbolLookupLock = NSLock()
     private nonisolated(unsafe) static var addresses: [String: Address] = [:]
+    private nonisolated(unsafe) static var symbolNames: [SymbolNameKey: String] = [:]
     private nonisolated(unsafe) static var demangledNames: [String: String] = [:]
     private nonisolated(unsafe) static var runtimeTypes: [String: Any.Type] = [:]
 
@@ -56,6 +62,38 @@ package enum RuntimeSymbols {
         as _: Function.Type = Function.self
     ) -> Function? {
         rawSymbol(named: name).map { unsafeBitCast($0, to: Function.self) }
+    }
+
+    package static func symbolName(
+        at address: UnsafeRawPointer,
+        exact: Bool = false
+    ) -> String? {
+        cachedSymbolName(at: address, exact: exact) {
+            let symbol =
+                exact
+                ? td_exact_symbol_name(address)
+                : td_symbol_name(address)
+            return symbol.map { String(cString: $0) }
+        }
+    }
+
+    /// Exposes the cache boundary separately so tests can prove that successful
+    /// lookups are reused while misses remain retryable.
+    package static func cachedSymbolName(
+        at address: UnsafeRawPointer,
+        exact: Bool = false,
+        resolve: () -> String?
+    ) -> String? {
+        let key = SymbolNameKey(
+            address: UInt(bitPattern: address),
+            exact: exact
+        )
+        if let cached = withLock({ symbolNames[key] }) {
+            return cached
+        }
+        guard let resolved = resolve() else { return nil }
+        withLock { symbolNames[key] = resolved }
+        return resolved
     }
 
     package static func demangle(_ mangledName: String) -> String {

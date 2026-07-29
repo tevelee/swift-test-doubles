@@ -2,6 +2,7 @@ import CTestDoublesTrampoline
 import Echo
 import EchoRuntimeReflection
 import TestDoublesRuntimeMetadata
+import TestDoublesRuntimeSupport
 
 package func directFunctionDiscriminator(
     for function: FunctionTypeInfo
@@ -115,8 +116,11 @@ private func pointerAuthNominalSpelling(
     descriptor: any TypeContextDescriptor,
     boundType: Any.Type
 ) -> String? {
-    if let symbol = td_exact_symbol_name(descriptor.ptr) {
-        var spelling = String(cString: symbol)
+    if let symbol = RuntimeSymbols.symbolName(
+        at: descriptor.ptr,
+        exact: true
+    ) {
+        var spelling = symbol
         if spelling.hasPrefix("_$s") {
             spelling.removeFirst()
         }
