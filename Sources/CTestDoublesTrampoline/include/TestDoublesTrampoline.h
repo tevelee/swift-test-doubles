@@ -374,6 +374,7 @@ TDMetadataResponse td_swift_get_tuple_type_metadata(uintptr_t request,
                                                      const void *const *elements,
                                                      uintptr_t count,
                                                      const char *labels);
+uint64_t td_next_global_invocation_sequence(void);
 
 #ifdef __cplusplus
 }

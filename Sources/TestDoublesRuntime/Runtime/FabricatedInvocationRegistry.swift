@@ -75,27 +75,33 @@ package enum FabricatedInvocationRegistry {
         let invocation: RuntimeFabricatedInvocation
     }
 
-    nonisolated(unsafe) private static var storage: [UnsafeRawPointer: Entry] = [:]
-    nonisolated(unsafe) private static var nextIdentifier: UInt64 = 0
-    private static let lock = NSLock()
+    private final class Shard: @unchecked Sendable {
+        let lock = NSLock()
+        var storage: [UnsafeRawPointer: Entry] = [:]
+        var nextIdentifier: UInt64 = 0
+    }
+
+    private static let shards = (0 ..< 16).map { _ in Shard() }
 
     package static func register(
         _ invocation: RuntimeFabricatedInvocation,
         for key: UnsafeRawPointer
     ) -> FabricatedInvocationRegistration {
-        let identifier = lock.withLock {
+        let shard = shard(for: key)
+        let identifier = shard.lock.withLock {
             precondition(
-                storage[key] == nil,
+                shard.storage[key] == nil,
                 "[TestDoubles] A fabricated witness table was registered more than once."
             )
-            let identifier = nextIdentifier
-            let (successor, overflow) = nextIdentifier.addingReportingOverflow(1)
+            let identifier = shard.nextIdentifier
+            let (successor, overflow) =
+                shard.nextIdentifier.addingReportingOverflow(1)
             precondition(
                 overflow == false,
                 "[TestDoubles] Fabricated invocation registration identity overflowed."
             )
-            nextIdentifier = successor
-            storage[key] = Entry(
+            shard.nextIdentifier = successor
+            shard.storage[key] = Entry(
                 identifier: identifier,
                 invocation: invocation
             )
@@ -111,18 +117,28 @@ package enum FabricatedInvocationRegistry {
     package static func resolveOptional(
         _ key: UnsafeRawPointer
     ) -> RuntimeFabricatedInvocation? {
-        lock.lock()
-        defer { lock.unlock() }
-        return storage[key]?.invocation
+        let shard = shard(for: key)
+        return shard.lock.withLock {
+            shard.storage[key]?.invocation
+        }
     }
 
     fileprivate static func remove(
         for key: UnsafeRawPointer,
         identifier: UInt64
     ) {
-        lock.withLock {
-            guard storage[key]?.identifier == identifier else { return }
-            storage.removeValue(forKey: key)
+        let shard = shard(for: key)
+        shard.lock.withLock {
+            guard shard.storage[key]?.identifier == identifier else { return }
+            shard.storage.removeValue(forKey: key)
         }
+    }
+
+    @inline(__always)
+    private static func shard(for key: UnsafeRawPointer) -> Shard {
+        // Veneer/context keys are at least word-aligned; discard those
+        // invariant low bits before selecting a power-of-two shard.
+        let address = UInt(bitPattern: key) >> 3
+        return shards[Int(address & UInt(shards.count - 1))]
     }
 }

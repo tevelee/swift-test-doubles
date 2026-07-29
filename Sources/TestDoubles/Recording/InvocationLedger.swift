@@ -1,18 +1,15 @@
 import InternalRuntimeContract
 import Foundation
 
+@_silgen_name("td_next_global_invocation_sequence")
+private func nextGlobalInvocationSequence() -> UInt64
+
 /// Process-global monotonic stamp shared by every recorder, so ordered
 /// verification can compare invocation order across separate doubles, each of
 /// which otherwise numbers its calls independently.
 enum GlobalInvocationSequence {
-    private static let lock = NSLock()
-    nonisolated(unsafe) private static var current: UInt64 = 0
-
     static func take() -> UInt64 {
-        lock.lock()
-        defer { lock.unlock() }
-        current &+= 1
-        return current
+        nextGlobalInvocationSequence()
     }
 }
 

@@ -2,6 +2,7 @@
 #include "RuntimeDescriptorLayout.h"
 
 #include <stddef.h>
+#include <stdatomic.h>
 #include <stdint.h>
 
 #if __has_include(<ptrauth.h>)
@@ -19,6 +20,14 @@ extern void swift_errorRelease(const void *error);
 extern void *swift_retain(const void *object);
 extern void swift_release(const void *object);
 extern const uint32_t td_swift_dynamic_async_function_entryTu[];
+
+static _Atomic(uint64_t) td_global_invocation_sequence = 0;
+
+uint64_t td_next_global_invocation_sequence(void) {
+  return atomic_fetch_add_explicit(&td_global_invocation_sequence, 1,
+                                   memory_order_relaxed) +
+         1;
+}
 
 #if __has_attribute(swiftcall)
 #define TD_SWIFT_CC __attribute__((swiftcall))

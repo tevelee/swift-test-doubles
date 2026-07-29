@@ -20,6 +20,26 @@ private final class WaitOutcomeRecorder: @unchecked Sendable {
 }
 
 @Suite struct InvocationLedgerTests {
+    @Test func globalSequenceIsUniqueUnderConcurrency() async {
+        let values = await withTaskGroup(of: [UInt64].self) { group in
+            for _ in 0 ..< 8 {
+                group.addTask {
+                    (0 ..< 1_000).map { _ in
+                        GlobalInvocationSequence.take()
+                    }
+                }
+            }
+            var values: [UInt64] = []
+            for await batch in group {
+                values.append(contentsOf: batch)
+            }
+            return values
+        }
+
+        #expect(values.allSatisfy { $0 > 0 })
+        #expect(Set(values).count == values.count)
+    }
+
     @Test func unrelatedMethodAppendDoesNotDetachOrWakeWaiter() {
         var ledger = InvocationLedger()
         let method = 10
