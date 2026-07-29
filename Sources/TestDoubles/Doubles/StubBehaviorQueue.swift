@@ -9,8 +9,22 @@ import IssueReporting
 public final class StubBehaviorQueue: @unchecked Sendable {
     private let sequence: StubRecorder.ConsumableResults
 
-    init(sequence: StubRecorder.ConsumableResults) {
+    init(
+        sequence: StubRecorder.ConsumableResults,
+        recorder: StubRecorder,
+        requirementName: String
+    ) {
         self.sequence = sequence
+        TestDoubleTestingContext.session?.register(
+            TestDoubleTeardownCheck(kind: .behaviorQueue) { [sequence, recorder, requirementName] in
+                guard let remaining = sequence.remainingAnswerCount(), remaining > 0 else {
+                    return nil
+                }
+                let subject = recorder.testDoubleName.map { " for test double '\($0)'" } ?? ""
+                return "Expected every finite behavior queue\(subject) for \(requirementName) to be consumed, "
+                    + "but \(remaining) \(remaining == 1 ? "answer remains" : "answers remain")."
+            }
+        )
     }
 
     /// Remaining finite answers, or `nil` when the queue has an unbounded

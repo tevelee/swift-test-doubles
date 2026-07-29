@@ -16,6 +16,7 @@ final class StubRecorder: @unchecked Sendable {
     private var policy: LockedPolicyState
     private weak var runtimeResourceOwner: AnyObject?
     let allowsForwardingFallback: Bool
+    private var configuredTestDoubleName: String?
 
     /// The recorder is the only owner of the lock protecting its policy state.
     /// Matcher predicates, handlers, and waiter resumes always run after the
@@ -63,6 +64,19 @@ final class StubRecorder: @unchecked Sendable {
 
     var mode: Mode {
         StubCaptureCoordinator.isCapturing(self) ? .capturing : .normal
+    }
+
+    var testDoubleName: String? {
+        lock.withLock { configuredTestDoubleName }
+    }
+
+    func nameTestDouble(_ name: String) {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        precondition(
+            trimmedName.isEmpty == false,
+            "[TestDoubles] A test-double name must not be empty."
+        )
+        lock.withLock { configuredTestDoubleName = trimmedName }
     }
 
     // MARK: - Method catalog and runtime resources

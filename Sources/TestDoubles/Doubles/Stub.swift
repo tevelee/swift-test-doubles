@@ -135,6 +135,20 @@ public class Stub<P> {
         materializeUnchecked()
     }
 
+    /// Assigns a name used in automatic test-double teardown diagnostics.
+    ///
+    /// Naming is optional, but makes a strict scope's report immediately
+    /// useful when a test owns several doubles of the same protocol type.
+    ///
+    /// ```swift
+    /// let gateway = try Stub<any PaymentGateway>().named("payment gateway")
+    /// ```
+    @discardableResult
+    public func named(_ name: String) -> Self {
+        recorder.nameTestDouble(name)
+        return self
+    }
+
     func materializeForRecording() -> P {
         materializeUnchecked()
     }

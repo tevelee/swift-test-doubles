@@ -19,8 +19,23 @@
         /// Reports recorded calls that no successful `verify` covered.
         public static let noMoreInteractions = Self(rawValue: 1 << 1)
 
+        /// Reports finite behavior queues that still have planned answers at teardown.
+        public static let noUnconsumedBehaviorQueues = Self(rawValue: 1 << 2)
+
+        /// Reports calls still parked by `thenSuspend()` at teardown.
+        public static let noPendingSuspensions = Self(rawValue: 1 << 3)
+
+        /// Reports callback captures still retaining callbacks at teardown.
+        public static let noPendingCallbackCaptures = Self(rawValue: 1 << 4)
+
         /// Applies every automatic test-double check.
-        public static let strict: Self = [.noUnusedStubs, .noMoreInteractions]
+        public static let strict: Self = [
+            .noUnusedStubs,
+            .noMoreInteractions,
+            .noUnconsumedBehaviorQueues,
+            .noPendingSuspensions,
+            .noPendingCallbackCaptures
+        ]
     }
 
     /// A Swift Testing scope that checks test doubles created inside a test.
@@ -28,7 +43,8 @@
     /// Apply ``Trait/testDoubles`` to a test or suite. At teardown, the scope
     /// reports every `when` registration that no call matched. Use
     /// ``Trait/strictTestDoubles`` to also require every recorded call to be
-    /// explicitly verified.
+    /// explicitly verified and every tracked queue, suspension, and callback
+    /// capture to be finished.
     ///
     /// ```swift
     /// @Test(.testDoubles)
@@ -46,7 +62,9 @@
         /// Creates a scope with the specified automatic teardown checks.
         ///
         /// The default reports unused registrations. Use ``TestDoubleStrictness/strict``
-        /// to also require every recorded interaction to be explicitly verified.
+        /// to also require every recorded interaction to be explicitly verified,
+        /// consume every finite queue, resume every suspended call, and release
+        /// every captured callback.
         public init(strictness: TestDoubleStrictness = .noUnusedStubs) {
             self.strictness = strictness
         }
@@ -64,17 +82,20 @@
                 }
             } catch {
                 report(
-                    session.diagnostics(
-                        checkingUnusedRegistrations: strictness.contains(.noUnusedStubs),
-                        checkingUnverifiedInteractions: strictness.contains(.noMoreInteractions)
-                    ))
+                    diagnostics(from: session))
                 throw error
             }
-            report(
-                session.diagnostics(
-                    checkingUnusedRegistrations: strictness.contains(.noUnusedStubs),
-                    checkingUnverifiedInteractions: strictness.contains(.noMoreInteractions)
-                ))
+            report(diagnostics(from: session))
+        }
+
+        private func diagnostics(from session: TestDoubleSession) -> [String] {
+            session.diagnostics(
+                checkingUnusedRegistrations: strictness.contains(.noUnusedStubs),
+                checkingUnverifiedInteractions: strictness.contains(.noMoreInteractions),
+                checkingUnconsumedBehaviorQueues: strictness.contains(.noUnconsumedBehaviorQueues),
+                checkingPendingSuspensions: strictness.contains(.noPendingSuspensions),
+                checkingPendingCallbackCaptures: strictness.contains(.noPendingCallbackCaptures)
+            )
         }
 
         private func report(_ diagnostics: [String]) {
@@ -88,7 +109,7 @@
         /// Reports registrations that no call matched for doubles created in this test.
         public static var testDoubles: Self { Self() }
 
-        /// Reports unused registrations and interactions not covered by `verify`.
+        /// Applies every automatic test-double check.
         public static var strictTestDoubles: Self { Self(strictness: .strict) }
 
         /// Applies the specified teardown checks to doubles created in this test.

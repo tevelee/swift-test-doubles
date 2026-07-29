@@ -21,9 +21,28 @@ public final class CallbackCapture<Value>: @unchecked Sendable {
 
     private let lock = NSLock()
     private var callbacks: [Callback] = []
+    private var configuredName: String?
 
     /// Creates an empty callback capture.
-    public init() {}
+    public init() {
+        TestDoubleTestingContext.session?.register(
+            TestDoubleTeardownCheck(kind: .callbackCapture) { [weak self] in
+                self?.teardownDiagnostic()
+            }
+        )
+    }
+
+    /// Assigns a name used in automatic test-double teardown diagnostics.
+    @discardableResult
+    public func named(_ name: String) -> Self {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        precondition(
+            trimmedName.isEmpty == false,
+            "[TestDoubles] A callback capture name must not be empty."
+        )
+        lock.withLock { configuredName = trimmedName }
+        return self
+    }
 
     /// Number of callback closures currently retained for test control.
     public var pendingCount: Int {
@@ -99,5 +118,15 @@ public final class CallbackCapture<Value>: @unchecked Sendable {
             line: line,
             column: column
         )
+    }
+}
+
+extension CallbackCapture {
+    func teardownDiagnostic() -> String? {
+        let (count, name) = lock.withLock { (callbacks.count, configuredName) }
+        guard count > 0 else { return nil }
+        let subject = name.map { " '\($0)'" } ?? ""
+        return "Expected captured callbacks\(subject) to be released, but \(count) "
+            + "\(count == 1 ? "callback remains" : "callbacks remain")."
     }
 }

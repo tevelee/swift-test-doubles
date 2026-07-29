@@ -55,6 +55,17 @@ public final class ManualStub<T: StubConformer>: @unchecked Sendable {
         materialize()
     }
 
+    /// Assigns a name used in automatic test-double teardown diagnostics.
+    ///
+    /// ```swift
+    /// let service = ManualStub<MyServiceStub>().named("service")
+    /// ```
+    @discardableResult
+    public func named(_ name: String) -> Self {
+        recorder.nameTestDouble(name)
+        return self
+    }
+
     func materializeForRecording() -> T {
         materialize()
     }

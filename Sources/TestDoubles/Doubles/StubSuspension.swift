@@ -105,6 +105,16 @@ public final class StubSuspension<Result> {
 /// guarded by the lock.
 extension StubSuspension: @unchecked Sendable where Result: Sendable {}
 
+extension StubSuspension {
+    func teardownDiagnostic() -> String? {
+        let pendingCount = lock.withLock { parked.count }
+        guard pendingCount > 0 else { return nil }
+        let subject = recorder.testDoubleName.map { " for test double '\($0)'" } ?? ""
+        return "Expected every suspended call\(subject) for \(method.name) to be resumed, "
+            + "but \(pendingCount) \(pendingCount == 1 ? "call remains parked" : "calls remain parked")."
+    }
+}
+
 extension StubSuspension where Result == Void {
     /// Completes the oldest parked `Void` call.
     public func resume() {

@@ -300,6 +300,11 @@ public struct StubBuilder<Result> {
         let method = requireOrdinaryResult()
         requireAsyncRequirement(configuring: "thenSuspend")
         let suspension = StubSuspension<Result>(recorder: recorder, method: method)
+        TestDoubleTestingContext.session?.register(
+            TestDoubleTeardownCheck(kind: .suspension) { [weak suspension] in
+                suspension?.teardownDiagnostic()
+            }
+        )
         addAsyncStubBehavior { _, _ in
             try await suspension.park()
         }
@@ -497,7 +502,11 @@ public struct StubBuilder<Result> {
             recorder: recorder,
             recording: recording,
             sequence: sequence,
-            behaviorQueue: StubBehaviorQueue(sequence: sequence)
+            behaviorQueue: StubBehaviorQueue(
+                sequence: sequence,
+                recorder: recorder,
+                requirementName: recording.name
+            )
         )
     }
 
