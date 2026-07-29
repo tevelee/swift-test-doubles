@@ -516,7 +516,7 @@ func benchmarkDefinitions() -> [BenchmarkDefinition] {
             maximumIterations: 25_000
         ) { iterations in
             _ = LinkedReadBenchmarkService()
-            let stub = try Stub<any ReadBenchmarkService>()
+            let stub = try Stub<any ReadBenchmarkService>(.getter(Int.self))
             stub.when { $0.value }.thenReturn(42)
             let service: any ReadBenchmarkService = stub()
             return timedSync(iterations: iterations) { _ in invokeRead(service) }
