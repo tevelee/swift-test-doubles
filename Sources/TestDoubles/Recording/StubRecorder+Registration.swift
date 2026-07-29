@@ -1,5 +1,11 @@
 import IssueReporting
 
+private struct StubEntryRegistrationResult {
+    let signature: String
+    let scenarioName: String?
+    let shadowedBy: StubBehaviorRegistry.ShadowingRegistration?
+}
+
 extension StubRecorder {
     func addAsyncStub(
         method: Int,
@@ -85,46 +91,81 @@ extension StubRecorder {
         location: StubSourceLocation?
     ) {
         let scenarioName = TestDoubleScenarioContext.name
-        let shadow: (new: String, scenario: String?, shadowedBy: StubBehaviorRegistry.ShadowingRegistration)? = withLockedPolicy {
-            let newSignature = $0.methodCatalog.diagnosticSignature(
+        let registration = registerEntry(
+            method: method,
+            matchers: matchers,
+            matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
+            behavior: behavior,
+            location: location,
+            scenarioName: scenarioName
+        )
+
+        // Predicates and issue reporting are user-visible work, kept off the
+        // recorder lock.
+        if let location {
+            reportShadowing(registration, at: location)
+        }
+    }
+
+    private func registerEntry(
+        method: Int,
+        matchers: [ParameterMatcher],
+        matchesEmptyArgumentsExactly: Bool,
+        behavior: StubEntry.Behavior,
+        location: StubSourceLocation?,
+        scenarioName: String?
+    ) -> StubEntryRegistrationResult {
+        withLockedPolicy { policy -> StubEntryRegistrationResult in
+            let signature = policy.methodCatalog.diagnosticSignature(
                 method: method,
                 matchers: matchers
             )
-            let shadowedBy = $0.behaviorRegistry.shadowingSignature(
+            let shadowedBy = policy.behaviorRegistry.shadowingSignature(
                 forMethod: method,
                 newMatchers: matchers,
                 newMatchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly
             )
-            $0.behaviorRegistry.add(
+            policy.behaviorRegistry.add(
                 method: method,
                 matchers: matchers,
                 matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
-                diagnosticSignature: newSignature,
+                diagnosticSignature: signature,
                 scenarioName: scenarioName,
                 sourceLocation: location,
                 behavior: behavior
             )
-            return shadowedBy.map { (newSignature, scenarioName, $0) }
-        }
-
-        // Predicates and issue reporting are user-visible work, kept off the
-        // recorder lock.
-        if let shadow, let location {
-            let newScenario = shadow.scenario.map { " while applying scenario '\($0)'" } ?? ""
-            let previousScenario =
-                shadow.shadowedBy.scenarioName.map {
-                    " (from scenario '\($0)')"
-                } ?? ""
-            reportIssue(
-                "[TestDoubles] Unreachable stub registration\(newScenario): \(shadow.new) can never "
-                    + "match because the earlier registration \(shadow.shadowedBy.signature)\(previousScenario) accepts "
-                    + "every call it would. Under first-match-wins, register specific "
-                    + "matchers before broad fallbacks.",
-                fileID: location.fileID,
-                filePath: location.filePath,
-                line: location.line,
-                column: location.column
+            return StubEntryRegistrationResult(
+                signature: signature,
+                scenarioName: scenarioName,
+                shadowedBy: shadowedBy
             )
         }
+    }
+
+    private func reportShadowing(
+        _ registration: StubEntryRegistrationResult,
+        at location: StubSourceLocation
+    ) {
+        guard let shadowedBy = registration.shadowedBy else { return }
+        let newScenario =
+            registration.scenarioName.map {
+                " while applying scenario '\($0)'"
+            } ?? ""
+        let previousScenario =
+            shadowedBy.scenarioName.map {
+                " (from scenario '\($0)')"
+            } ?? ""
+        let message =
+            "[TestDoubles] Unreachable stub registration\(newScenario): \(registration.signature) can never "
+            + "match because the earlier registration \(shadowedBy.signature)\(previousScenario) accepts "
+            + "every call it would. Under first-match-wins, register specific "
+            + "matchers before broad fallbacks."
+        reportIssue(
+            message,
+            fileID: location.fileID,
+            filePath: location.filePath,
+            line: location.line,
+            column: location.column
+        )
     }
 }
