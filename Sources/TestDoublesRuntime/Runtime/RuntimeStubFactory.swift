@@ -30,7 +30,7 @@ package enum RuntimeStubFactory {
         private let layout: ProtocolLayout
         private let associatedTypeBindings: AssociatedTypeBindings
         private let representation: StubExistentialRepresentation
-        private let descriptors: [MethodDescriptor]
+        private let preparedMethods: [PreparedRuntimeMethod]
         private let forwarder: (any RuntimeForwarding)?
 
         package init(
@@ -44,7 +44,7 @@ package enum RuntimeStubFactory {
             self.layout = layout
             self.associatedTypeBindings = associatedTypeBindings
             self.representation = representation
-            self.descriptors = descriptors
+            preparedMethods = descriptors.map(PreparedRuntimeMethod.init)
             self.forwarder = forwarder
             self.modifyDispatches = modifyDispatches
             methods = descriptors.map(\.runtimeMethod)
@@ -59,7 +59,7 @@ package enum RuntimeStubFactory {
                 layout: layout,
                 associatedTypeBindings: associatedTypeBindings,
                 representation: representation,
-                methods: descriptors,
+                preparedMethods: preparedMethods,
                 endpoint: endpoint,
                 protocolName: protocolName,
                 forwarder: forwarder
@@ -94,7 +94,7 @@ package enum RuntimeStubFactory {
                 layout: layout,
                 associatedTypeBindings: associatedTypeBindings,
                 representation: representation,
-                methods: [],
+                preparedMethods: [],
                 endpoint: endpoint,
                 protocolName: protocolName
             )
@@ -123,7 +123,7 @@ package enum RuntimeStubFactory {
         layout: ProtocolLayout,
         associatedTypeBindings: AssociatedTypeBindings,
         representation: StubExistentialRepresentation,
-        methods: [MethodDescriptor],
+        preparedMethods: [PreparedRuntimeMethod],
         endpoint: any RuntimeInvocationEndpoint,
         protocolName: String,
         forwarder: (any RuntimeForwarding)? = nil
@@ -134,9 +134,7 @@ package enum RuntimeStubFactory {
         )
         let invocation = RuntimeFabricatedInvocation(
             endpoint: endpoint,
-            methodsByIndex: Dictionary(
-                uniqueKeysWithValues: methods.map { ($0.index, $0) }
-            ),
+            preparedMethods: preparedMethods,
             forwarder: forwarder
         )
         let fabricated = try FabricatedWitnessTableFactory.fabricate(

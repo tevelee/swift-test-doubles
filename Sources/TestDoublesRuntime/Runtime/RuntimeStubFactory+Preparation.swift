@@ -10,6 +10,14 @@ extension RuntimeStubFactory {
     package static func prepareStub<P>(
         _ request: RuntimeStubPreparationRequest
     ) throws -> PreparedPlan<P> {
+        let cacheKey = PreparedStubPlanCache.key(for: request)
+        if let cacheKey,
+            let cached: PreparedPlan<P> = PreparedStubPlanCache.plan(
+                for: cacheKey
+            )
+        {
+            return cached
+        }
         let shape = try prepareProtocolShape(request.shape)
         let methods = try methods(
             for: request.requirements,
@@ -20,11 +28,13 @@ extension RuntimeStubFactory {
         if request.shape.callerAssociatedTypeBindings.isEmpty == false {
             try validateCallerBoundAssociatedTypeUse(methods, layout: shape.layout)
         }
-        return try preparedPlan(
+        let plan: PreparedPlan<P> = try preparedPlan(
             shape: shape,
             methods: methods,
             forwarder: nil
         )
+        guard let cacheKey else { return plan }
+        return PreparedStubPlanCache.insert(plan, for: cacheKey)
     }
 
     /// Resolves a forwarding target and source-level getter hints into an

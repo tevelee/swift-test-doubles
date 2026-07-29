@@ -37,6 +37,30 @@ struct StubFactoryTests {
         #expect(service.currency == "EUR")
     }
 
+    @Test func cachedPreparationStillCreatesIndependentRecorders() throws {
+        _ = LiveFactoryCurrencyService()
+        let first = try Stub<any FactoryCurrencyService>()
+        let second = try Stub<any FactoryCurrencyService>()
+        first.when { $0.currency }.thenReturn("EUR")
+        second.when { $0.currency }.thenReturn("HUF")
+
+        #expect(first().currency == "EUR")
+        #expect(second().currency == "HUF")
+    }
+
+    @Test func cachedExplicitPreparationStillCreatesIndependentRecorders() throws {
+        _ = LiveFactoryCurrencyService()
+        let requirement: Stub<any FactoryCurrencyService>.Requirement =
+            .getter(String.self)
+        let first = try Stub<any FactoryCurrencyService>(requirement)
+        let second = try Stub<any FactoryCurrencyService>(requirement)
+        first.when { $0.currency }.thenReturn("EUR")
+        second.when { $0.currency }.thenReturn("HUF")
+
+        #expect(first().currency == "EUR")
+        #expect(second().currency == "HUF")
+    }
+
     @Test func configuresAsyncRequirements() async {
         let service: any FactoryAsyncService = await Stub.make {
             await $0.when { await $0.load() }.then { "loaded" }

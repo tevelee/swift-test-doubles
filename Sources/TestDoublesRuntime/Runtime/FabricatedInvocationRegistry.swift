@@ -27,6 +27,16 @@ package final class RuntimeFabricatedInvocation: @unchecked Sendable {
         }
     }
 
+    package init(
+        endpoint: any RuntimeInvocationEndpoint,
+        preparedMethods: [PreparedRuntimeMethod],
+        forwarder: (any RuntimeForwarding)? = nil
+    ) {
+        self.endpoint = endpoint
+        self.forwarder = forwarder
+        methods = preparedMethods
+    }
+
     package func method(at index: Int) -> PreparedRuntimeMethod? {
         guard methods.indices.contains(index) else { return nil }
         return methods[index]
