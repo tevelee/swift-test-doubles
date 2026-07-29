@@ -4,7 +4,7 @@ import TestDoubles
 
 @Suite struct ManualStubGeneratorIntegrationTests {
     @Test func generatedRoutesDistinguishArgumentTypeOverloads() {
-        let stub = ManualStub<GeneratedManualStubServiceManualStub>()
+        let stub = GeneratedManualStubServiceStub()
         stub.when { $0.render(Match.equal(7)) }.thenReturn("integer")
         stub.when { $0.render(Match.equal("7")) }.thenReturn("string")
 
@@ -14,7 +14,7 @@ import TestDoubles
     }
 
     @Test func generatedTypedThrowsPreserveTheFailureType() async throws {
-        let stub = ManualStub<GeneratedManualStubServiceManualStub>()
+        let stub = GeneratedManualStubServiceStub()
         stub.when { try $0.save(Match.equal(1)) }.thenThrow(GeneratedManualStubFailure.rejected)
         await stub.when { try await $0.refresh(Match.equal(2)) }.thenReturn("fresh")
 

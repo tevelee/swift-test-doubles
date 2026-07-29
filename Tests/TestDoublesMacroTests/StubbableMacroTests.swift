@@ -21,29 +21,47 @@
                     var displayName: String { get set }
                 }
 
-                struct StubbableMacroServiceManualStub: StubbableMacroService, StubConformer {
+                struct StubbableMacroServiceStubConformer: StubbableMacroService, ManualStubConformer {
                     let stub: ManualStub<Self>
 
                     init(stub: ManualStub<Self>) {
                         self.stub = stub
                     }
 
-                    private static func manualStubArgumentType<Value>(of _: Value) -> Value.Type {
-                        Value.self
-                    }
-
                     func fetch(_ identifier: Int) -> String {
-                        return stub.call(identifier, route: ManualRouteID(argumentTypes: Self.manualStubArgumentType(of: identifier)))
+                        stub.call(identifier)
                     }
 
                     var displayName: String {
                         get {
-                            return stub.call()
+                            stub.call()
                         }
                         set {
-                            stub.call(newValue, route: ManualRouteID(argumentTypes: Self.manualStubArgumentType(of: newValue)))
+                            stub.call(newValue)
                         }
                     }
+                }
+
+                typealias StubbableMacroServiceStub = ManualStub<StubbableMacroServiceStubConformer>
+                """
+            }
+        }
+
+        @Test func rejectsStaticRequirementsAtTheirDeclaration() {
+            assertMacro {
+                """
+                @Stubbable
+                protocol SharedService {
+                    static func shared() -> Int
+                }
+                """
+            } diagnostics: {
+                """
+                @Stubbable
+                protocol SharedService {
+                    static func shared() -> Int
+                    ┬───────────────────────────
+                    ╰─ 🛑 cannot generate manual forwarding for `static func shared() -> Int`: static requirements need shared process state and are unsafe in parallel tests
                 }
                 """
             }

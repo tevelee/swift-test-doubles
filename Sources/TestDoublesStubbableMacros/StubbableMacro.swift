@@ -21,22 +21,79 @@
                 return []
             }
 
-            let generatedSource = try ManualStubGenerator(
-                protocolName: protocolDeclaration.name.text,
-                source: protocolDeclaration.description
-            )
-            .render(importingTestDoubles: false)
-            return [DeclSyntax(stringLiteral: generatedSource)]
+            do {
+                let generatedSource = try ManualStubGenerator(
+                    protocolName: protocolDeclaration.name.text,
+                    source: protocolDeclaration.description
+                )
+                .render(importingTestDoubles: false)
+                return generatedDeclarations(from: generatedSource)
+            } catch let error as ManualStubGeneratorError {
+                context.diagnose(
+                    Diagnostic(
+                        node: diagnosticNode(
+                            for: error.requirement,
+                            in: protocolDeclaration
+                        ),
+                        message: StubbableDiagnostic(
+                            message: error.localizedDescription,
+                            id: "unsupported-requirement"
+                        )
+                    )
+                )
+                return []
+            }
+        }
+
+        private static func generatedDeclarations(
+            from source: String
+        ) -> [DeclSyntax] {
+            guard
+                let aliasSeparator = source.range(
+                    of: "\n\ntypealias ",
+                    options: .backwards
+                )
+            else {
+                return [DeclSyntax(stringLiteral: source)]
+            }
+            let conformer = String(source[..<aliasSeparator.lowerBound])
+            let alias =
+                "typealias "
+                + source[aliasSeparator.upperBound...]
+            return [
+                DeclSyntax(stringLiteral: conformer),
+                DeclSyntax(stringLiteral: alias)
+            ]
+        }
+
+        private static func diagnosticNode(
+            for requirement: String?,
+            in declaration: ProtocolDeclSyntax
+        ) -> Syntax {
+            guard let requirement else { return Syntax(declaration) }
+            let normalizedRequirement = normalize(requirement)
+            let matchingMember = declaration.memberBlock.members.first { member in
+                normalize(member.decl.description) == normalizedRequirement
+            }
+            return matchingMember.map { Syntax($0.decl) } ?? Syntax(declaration)
+        }
+
+        private static func normalize(_ source: String) -> String {
+            source.split(whereSeparator: \.isWhitespace).joined(separator: " ")
         }
     }
 
-    private enum StubbableDiagnostic: String, DiagnosticMessage {
-        case protocolsOnly = "@Stubbable can only be applied to a protocol declaration."
+    private struct StubbableDiagnostic: DiagnosticMessage {
+        let message: String
+        let id: String
 
-        var message: String { rawValue }
+        static let protocolsOnly = StubbableDiagnostic(
+            message: "@Stubbable can only be applied to a protocol declaration.",
+            id: "protocols-only"
+        )
 
         var diagnosticID: MessageID {
-            MessageID(domain: "TestDoubles.Stubbable", id: "protocols-only")
+            MessageID(domain: "TestDoubles.Stubbable", id: id)
         }
 
         var severity: DiagnosticSeverity { .error }

@@ -11,28 +11,25 @@ package struct ManualStubGenerator {
 
     package func render(importingTestDoubles: Bool = true) throws -> String {
         let requirements = try protocolBody().requirements
-        let usesStaticStore = requirements.contains { requirement in
-            requirement.hasPrefix("static ") || requirement.hasPrefix("class ")
-                || requirement.hasPrefix("init")
-        }
+        let conformerName = "\(protocolName)StubConformer"
+        let stubName = "\(protocolName)Stub"
         var members = [
             "let stub: ManualStub<Self>",
-            "init(stub: ManualStub<Self>) { self.stub = stub }",
-            "private static func manualStubArgumentType<Value>(of _: Value) -> Value.Type { Value.self }"
+            "init(stub: ManualStub<Self>) { self.stub = stub }"
         ]
-        if usesStaticStore {
-            members.append("static let staticStub = ManualStub<Self>()")
-        }
         for requirement in requirements {
-            if let member = forwarder(for: requirement) {
+            try requireInstanceRequirement(requirement)
+            if let member = try forwarder(for: requirement) {
                 members.append(member)
             }
         }
         let importLine = importingTestDoubles ? "import TestDoubles\n\n" : ""
         return """
-            \(importLine)struct \(protocolName)ManualStub: \(protocolName), StubConformer {
+            \(importLine)struct \(conformerName): \(protocolName), ManualStubConformer {
                 \(members.joined(separator: "\n\n    "))
             }
+
+            typealias \(stubName) = ManualStub<\(conformerName)>
             """ + "\n"
     }
 
@@ -58,33 +55,69 @@ package struct ManualStubGenerator {
         throw ManualStubGeneratorError.protocolNotFound(protocolName)
     }
 
-    private func forwarder(for requirement: String) -> String? {
+    private func forwarder(for requirement: String) throws -> String? {
         if requirement.contains(" func ") || requirement.hasPrefix("func ")
             || requirement.hasPrefix("static func ")
             || requirement.hasPrefix("class func ")
         {
-            return functionForwarder(requirement)
+            guard let result = functionForwarder(requirement) else {
+                throw unsupported(requirement, because: "the function declaration could not be parsed")
+            }
+            return result
         }
         if requirement.contains(" var ") || requirement.hasPrefix("var ")
             || requirement.hasPrefix("static var ")
             || requirement.hasPrefix("class var ")
         {
-            return propertyForwarder(requirement)
+            guard let result = propertyForwarder(requirement) else {
+                throw unsupported(requirement, because: "the property declaration could not be parsed")
+            }
+            return result
         }
         if requirement.contains("subscript") {
-            return subscriptForwarder(requirement)
-        }
-        if requirement.hasPrefix("init") {
-            return "\(requirement) { stub = Self.staticStub }"
+            guard let result = subscriptForwarder(requirement) else {
+                throw unsupported(requirement, because: "the subscript declaration could not be parsed")
+            }
+            return result
         }
         return nil
     }
 
+    private func requireInstanceRequirement(_ requirement: String) throws {
+        let declarationKind =
+            requirement.range(of: "func ").map { requirement[..<$0.lowerBound] }
+            ?? requirement.range(of: "var ").map { requirement[..<$0.lowerBound] }
+            ?? requirement.range(of: "subscript").map { requirement[..<$0.lowerBound] }
+        let modifiers = declarationKind.map(String.init) ?? requirement
+        let modifierWords = modifiers.split(whereSeparator: \.isWhitespace)
+        if modifierWords.contains("static") || modifierWords.contains("class") {
+            throw unsupported(
+                requirement,
+                because:
+                    "static requirements need shared process state and are unsafe in parallel tests"
+            )
+        }
+        if declarationKind == nil,
+            requirement.range(of: "init") != nil
+        {
+            throw unsupported(
+                requirement,
+                because:
+                    "initializer requirements need shared process state and are unsafe in parallel tests"
+            )
+        }
+    }
+
+    private func unsupported(
+        _ requirement: String,
+        because reason: String
+    ) -> ManualStubGeneratorError {
+        .unsupportedRequirement(requirement: requirement, reason: reason)
+    }
+
     private func functionForwarder(_ requirement: String) -> String? {
         guard let funcRange = requirement.range(of: "func ") else { return nil }
-        let prefix = String(requirement[..<funcRange.lowerBound])
-        let isStatic = prefix.contains("static") || prefix.contains("class")
-        let receiver = isStatic ? "Self.staticStub" : "stub"
+        let receiver = "stub"
         guard let opening = requirement[funcRange.upperBound...].firstIndex(of: "(") else {
             return nil
         }
@@ -94,15 +127,11 @@ package struct ManualStubGenerator {
         let arguments = invocationArguments(String(requirement[opening ... closing]))
         let suffix = String(requirement[closing...])
         let effects = effects(in: suffix)
-        let returnType = returnType(in: suffix)
-        return "\(requirement) { \(forwardingInvocation(receiver: receiver, arguments: arguments, effects: effects, returnType: returnType)) }"
+        return "\(requirement) { \(forwardingInvocation(receiver: receiver, arguments: arguments, effects: effects)) }"
     }
 
     private func propertyForwarder(_ requirement: String) -> String? {
-        let isStatic = requirement.hasPrefix("static ") || requirement.hasPrefix("class ")
-        let receiver = isStatic ? "Self.staticStub" : "stub"
-        let prefix =
-            isStatic ? (requirement.hasPrefix("static ") ? "static " : "class ") : ""
+        let receiver = "stub"
         let bodyless =
             requirement.components(separatedBy: "{").first?.trimmingCharacters(
                 in: .whitespaces
@@ -110,6 +139,7 @@ package struct ManualStubGenerator {
         guard let varRange = bodyless.range(of: "var "),
             let colon = bodyless[varRange.upperBound...].firstIndex(of: ":")
         else { return nil }
+        let prefix = String(bodyless[..<varRange.lowerBound])
         let name = bodyless[varRange.upperBound ..< colon].trimmingCharacters(
             in: .whitespaces
         )
@@ -120,28 +150,25 @@ package struct ManualStubGenerator {
         let getter = forwardingInvocation(
             receiver: receiver,
             arguments: [],
-            effects: effects(in: accessorSuffix(requirement, accessor: "get")),
-            returnType: type
+            effects: effects(in: accessorSuffix(requirement, accessor: "get"))
         )
         var accessors = ["get { \(getter) }"]
         if requirement.contains("set") {
             accessors.append(
-                "set { \(forwardingInvocation(receiver: receiver, arguments: ["newValue"], effects: "", returnType: "Void")) }"
+                "set { \(forwardingInvocation(receiver: receiver, arguments: ["newValue"], effects: "")) }"
             )
         }
         return "\(prefix)var \(name): \(type) { \(accessors.joined(separator: " ")) }"
     }
 
     private func subscriptForwarder(_ requirement: String) -> String? {
-        let isStatic = requirement.hasPrefix("static ") || requirement.hasPrefix("class ")
-        let receiver = isStatic ? "Self.staticStub" : "stub"
-        let prefix =
-            isStatic ? (requirement.hasPrefix("static ") ? "static " : "class ") : ""
+        let receiver = "stub"
         guard let subscriptRange = requirement.range(of: "subscript"),
             let opening = requirement[subscriptRange.upperBound...].firstIndex(of: "("),
             let closing = matchingParen(in: requirement, opening: opening),
             let arrow = requirement[closing...].range(of: "->")
         else { return nil }
+        let prefix = String(requirement[..<subscriptRange.lowerBound])
         let header = String(requirement[subscriptRange.lowerBound ..< arrow.upperBound])
         let tail = requirement[arrow.upperBound...]
         let type =
@@ -152,13 +179,12 @@ package struct ManualStubGenerator {
         let getter = forwardingInvocation(
             receiver: receiver,
             arguments: arguments,
-            effects: effects(in: accessorSuffix(requirement, accessor: "get")),
-            returnType: type
+            effects: effects(in: accessorSuffix(requirement, accessor: "get"))
         )
         var accessors = ["get { \(getter) }"]
         if requirement.contains("set") {
             accessors.append(
-                "set { \(forwardingInvocation(receiver: receiver, arguments: arguments + ["newValue"], effects: "", returnType: "Void")) }"
+                "set { \(forwardingInvocation(receiver: receiver, arguments: arguments + ["newValue"], effects: "")) }"
             )
         }
         return "\(prefix)\(header) \(type) { \(accessors.joined(separator: " ")) }"
@@ -167,8 +193,7 @@ package struct ManualStubGenerator {
     private func forwardingInvocation(
         receiver: String,
         arguments: [String],
-        effects: String,
-        returnType: String
+        effects: String
     ) -> String {
         let isAsync = effects.contains("async")
         let isThrowing = effects.contains("throws")
@@ -176,29 +201,20 @@ package struct ManualStubGenerator {
         switch (isAsync, isThrowing) {
             case (false, false): method = "call"
             case (false, true): method = "throwingCall"
-            case (true, false): method = "asyncCall"
-            case (true, true): method = "asyncThrowingCall"
+            case (true, false): method = "call"
+            case (true, true): method = "throwingCall"
         }
         let prefix = [isThrowing ? "try" : nil, isAsync ? "await" : nil]
             .compactMap { $0 }
             .joined(separator: " ")
         var forwardedArguments = arguments
-        if arguments.isEmpty == false {
-            let argumentTypes = arguments.map { argument in
-                let localName = argument.hasPrefix("&") ? String(argument.dropFirst()) : argument
-                return "Self.manualStubArgumentType(of: \(localName))"
-            }
-            forwardedArguments.append(
-                "route: ManualRouteID(argumentTypes: \(argumentTypes.joined(separator: ", ")))"
-            )
-        }
         if let failureType = typedFailureType(in: effects) {
             forwardedArguments.append("throwing: \(failureType).self")
         }
         let expression = [prefix, "\(receiver).\(method)(\(forwardedArguments.joined(separator: ", ")))"]
             .filter { $0.isEmpty == false }
             .joined(separator: " ")
-        return returnType == "Void" || returnType == "()" ? expression : "return \(expression)"
+        return expression
     }
 
     private func typedFailureType(in effects: String) -> String? {
@@ -244,11 +260,6 @@ package struct ManualStubGenerator {
 
     private func effects(in suffix: String) -> String {
         suffix.components(separatedBy: "->").first ?? suffix
-    }
-
-    private func returnType(in suffix: String) -> String {
-        guard let arrow = suffix.range(of: "->") else { return "Void" }
-        return suffix[arrow.upperBound...].trimmingCharacters(in: .whitespaces)
     }
 
     private func accessorSuffix(_ requirement: String, accessor: String) -> String {
@@ -305,11 +316,23 @@ extension String {
 
 package enum ManualStubGeneratorError: LocalizedError {
     case protocolNotFound(String)
+    case unsupportedRequirement(requirement: String, reason: String)
+
+    package var requirement: String? {
+        switch self {
+            case .protocolNotFound:
+                nil
+            case .unsupportedRequirement(let requirement, _):
+                requirement
+        }
+    }
 
     package var errorDescription: String? {
         switch self {
             case .protocolNotFound(let name):
                 "could not find a complete protocol declaration for \(name)"
+            case .unsupportedRequirement(let requirement, let reason):
+                "cannot generate manual forwarding for `\(requirement)`: \(reason)"
         }
     }
 }

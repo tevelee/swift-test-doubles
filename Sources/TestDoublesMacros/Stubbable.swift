@@ -4,8 +4,9 @@ import TestDoubles
     /// Generates a ``ManualStub`` conformer for an ordinary protocol declaration.
     ///
     /// Enable the `StubbableMacros` SwiftPM trait before importing this module.
-    /// The generated type is named by appending `ManualStub` to the protocol name.
-    @attached(peer, names: suffixed(ManualStub))
+    /// The generated controller is named by appending `Stub` to the protocol
+    /// name. Its forwarding implementation appends `StubConformer`.
+    @attached(peer, names: suffixed(Stub), suffixed(StubConformer))
     public macro Stubbable() =
         #externalMacro(
             module: "TestDoublesStubbableMacros",

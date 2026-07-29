@@ -2,7 +2,7 @@ import Testing
 @testable import ManualStubGeneratorCore
 
 @Suite struct ManualStubGeneratorTests {
-    @Test func emitsStaticRoutesForArgumentTypeOverloads() throws {
+    @Test func infersRoutesForArgumentTypeOverloads() throws {
         let output = try render(
             """
             protocol Renderer {
@@ -14,16 +14,16 @@ import Testing
             protocolName: "Renderer"
         )
 
+        #expect(output.contains("func render(_ value: Int) -> String { stub.call(value) }"))
+        #expect(output.contains("func render(_ value: String) -> String { stub.call(value) }"))
+        #expect(output.contains("set { stub.call(value, newValue) }"))
+        #expect(output.contains("struct RendererStubConformer"))
         #expect(
             output.contains(
-                "stub.call(value, route: ManualRouteID(argumentTypes: Self.manualStubArgumentType(of: value)))"
+                "typealias RendererStub = ManualStub<RendererStubConformer>"
             )
         )
-        #expect(
-            output.contains(
-                "stub.call(value, newValue, route: ManualRouteID(argumentTypes: Self.manualStubArgumentType(of: value), Self.manualStubArgumentType(of: newValue)))"
-            )
-        )
+        #expect(output.contains("ManualRouteID") == false)
     }
 
     @Test func emitsTypedThrowsForEveryEffectCombination() throws {
@@ -39,14 +39,10 @@ import Testing
         )
 
         #expect(output.contains("try stub.throwingCall(throwing: LoadFailure.self)"))
+        #expect(output.contains("try stub.throwingCall(value, throwing: LoadFailure.self)"))
         #expect(
             output.contains(
-                "try stub.throwingCall(value, route: ManualRouteID(argumentTypes: Self.manualStubArgumentType(of: value)), throwing: LoadFailure.self)"
-            )
-        )
-        #expect(
-            output.contains(
-                "try await stub.asyncThrowingCall(value, route: ManualRouteID(argumentTypes: Self.manualStubArgumentType(of: value)), throwing: LoadFailure.self)"
+                "try await stub.throwingCall(value, throwing: LoadFailure.self)"
             )
         )
     }
@@ -61,11 +57,36 @@ import Testing
             protocolName: "Mutator"
         )
 
-        #expect(
-            output.contains(
-                "stub.call(&value, route: ManualRouteID(argumentTypes: Self.manualStubArgumentType(of: value)))"
+        #expect(output.contains("stub.call(&value)"))
+    }
+
+    @Test func rejectsStaticAndInitializerRequirements() {
+        for requirement in [
+            "static func shared() -> Int",
+            "init(seed: Int)"
+        ] {
+            #expect(throws: ManualStubGeneratorError.self) {
+                try render(
+                    "protocol Shared { \(requirement) }",
+                    protocolName: "Shared"
+                )
+            }
+        }
+    }
+
+    @Test func reportsRecognizedDeclarationsItCannotParse() {
+        do {
+            _ = try render(
+                "protocol Broken { func missingParentheses }",
+                protocolName: "Broken"
             )
-        )
+            Issue.record("Expected generation to fail")
+        } catch let error as ManualStubGeneratorError {
+            #expect(error.localizedDescription.contains("missingParentheses"))
+            #expect(error.localizedDescription.contains("could not be parsed"))
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
     }
 
     @Test func reportsAMissingProtocol() {
