@@ -142,37 +142,89 @@ public struct ClosureCallPattern<Input, Result>: Sendable {
         return interactions
     }
 
-    /// Computes every matching result from the closure's typed input.
+    /// Computes `times` matching results from the closure's typed input.
+    ///
+    /// Omitting `times:` resolves here when another behavior follows, making
+    /// this intermediate behavior exactly once.
+    @discardableResult
+    @_disfavoredOverload
+    public func then(
+        times: Int = 1,
+        _ handler: @escaping @Sendable (Input) -> Result
+    ) -> StubBehaviorChain<Result> {
+        base.then(times: times, handler)
+    }
+
+    /// Computes every matching result from the closure's typed input from here
+    /// on.
     @discardableResult
     public func then(
+        times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (Input) -> Result
     ) -> CallInteractions {
-        base.then(handler)
+        base.then(times: times, handler)
     }
 
-    /// Computes every matching result without reading the closure's input.
+    /// Computes `times` matching results without reading the closure's input.
+    @discardableResult
+    @_disfavoredOverload
+    public func then(
+        times: Int = 1,
+        _ handler: @escaping @Sendable () -> Result
+    ) -> StubBehaviorChain<Result> {
+        base.then(times: times, handler)
+    }
+
+    /// Computes every matching result from here on without reading the
+    /// closure's input.
     @discardableResult
     public func then(
+        times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable () -> Result
     ) -> CallInteractions {
-        base.then(handler)
+        base.then(times: times, handler)
     }
 
-    /// Computes every matching result from a one-based call count and the
-    /// closure's typed input.
+    /// Computes `times` matching results from a one-based call count and the
+    /// closure's typed input. The count starts at 1 for this behavior.
+    @discardableResult
+    @_disfavoredOverload
+    public func thenForEachCall(
+        times: Int = 1,
+        _ handler: @escaping @Sendable (Int, Input) -> Result
+    ) -> StubBehaviorChain<Result> {
+        base.thenForEachCall(times: times, handler)
+    }
+
+    /// Computes every matching result from here on using a one-based call
+    /// count and the closure's typed input.
     @discardableResult
     public func thenForEachCall(
+        times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (Int, Input) -> Result
     ) -> CallInteractions {
-        base.thenForEachCall(handler)
+        base.thenForEachCall(times: times, handler)
     }
 
-    /// Computes every matching result from only a one-based call count.
+    /// Computes `times` matching results from only a one-based call count. The
+    /// count starts at 1 for this behavior.
+    @discardableResult
+    @_disfavoredOverload
+    public func thenForEachCall(
+        times: Int = 1,
+        _ handler: @escaping @Sendable (Int) -> Result
+    ) -> StubBehaviorChain<Result> {
+        base.thenForEachCall(times: times, handler)
+    }
+
+    /// Computes every matching result from here on using only a one-based call
+    /// count.
     @discardableResult
     public func thenForEachCall(
+        times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (Int) -> Result
     ) -> CallInteractions {
-        base.thenForEachCall(handler)
+        base.thenForEachCall(times: times, handler)
     }
 
     /// Configures a finite, inspectable queue of fixed return values.

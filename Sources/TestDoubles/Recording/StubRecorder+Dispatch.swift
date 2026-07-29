@@ -217,6 +217,10 @@ extension StubRecorder {
                             cancellableDelay: cancellableDelay
                         )
                     })
+            case .immediate(let handler):
+                return .behavior(.immediate(handler))
+            case .suspending(let handler):
+                return .behavior(.suspending(handler))
             case .never:
                 return .behavior(
                     .suspending { _ in

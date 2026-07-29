@@ -69,6 +69,21 @@ private enum ForEachCallError: Error, Equatable {
         #expect(sut.value(for: "b") == 102)
     }
 
+    @Test func countedHandlersComposeWithLaterBehaviors() throws {
+        let loader = try Stub<any ForEachCallLoader>()
+        let calls = loader.when { $0.value(for: Match.any()) }
+            .thenForEachCall(times: 2) { (count: Int, key: String) in
+                count * 100 + key.count
+            }
+            .thenReturn(999)
+
+        let sut: any ForEachCallLoader = loader()
+        #expect(sut.value(for: "a") == 101)
+        #expect(sut.value(for: "abc") == 203)
+        #expect(sut.value(for: "ignored") == 999)
+        calls.verify(3 ... 3)
+    }
+
     @Test func supportsAsyncRequirements() async throws {
         let loader = try Stub<any ForEachCallLoader>()
         await loader.when { try await $0.fetch(page: Match.any()) }
@@ -81,5 +96,20 @@ private enum ForEachCallError: Error, Equatable {
         let sut: any ForEachCallLoader = loader()
         await #expect(throws: ForEachCallError.timeout) { try await sut.fetch(page: 7) }
         #expect(try await sut.fetch(page: 7) == ["page-7"])
+    }
+
+    @Test func asyncHandlersComposeWithTrailingFallbacks() async throws {
+        let loader = try Stub<any ForEachCallLoader>()
+        let calls = await loader.when { try await $0.fetch(page: Match.any()) }
+            .then { (page: Int) async throws -> [String] in
+                await Task.yield()
+                return ["computed-\(page)"]
+            }
+            .thenReturn(["fallback"])
+
+        let sut: any ForEachCallLoader = loader()
+        #expect(try await sut.fetch(page: 3) == ["computed-3"])
+        #expect(try await sut.fetch(page: 4) == ["fallback"])
+        calls.verify(2 ... 2)
     }
 }

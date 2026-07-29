@@ -19,6 +19,8 @@ struct StubBehaviorRegistry {
     enum QueuedAnswer {
         case value(FixedResult)
         case delayed(FixedResult, Duration, any StubClock)
+        case immediate(@Sendable ([Any]) throws -> Any)
+        case suspending(([Any]) async throws -> Any)
         case never
         case awaitCancellation(FixedResult?)
         case forward

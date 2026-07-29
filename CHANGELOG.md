@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Computed `then`, `thenEscaping`, and `thenForEachCall` handlers now compose
+  inside the same fluent behavior chains as `thenReturn` and `thenThrow`.
+  `thenForward` can be intermediate too. A bare intermediate behavior is
+  one-shot, a bare trailing behavior repeats, and `times:` makes either intent
+  explicit, so argument-dependent attempts, fixed fallbacks, and real-target
+  recovery can be described in one `when → then → then` expression.
 - Timeout-safe asynchronous observation: `InvocationStream.Iterator.next`,
   `StubSuspension.waitForCall`, and `CallbackCapture.waitForCallback` now
   accept `within:` deadlines, with `using:` overloads for deterministic

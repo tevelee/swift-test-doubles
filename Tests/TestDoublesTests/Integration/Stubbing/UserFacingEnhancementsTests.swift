@@ -126,6 +126,18 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
         interactions.verify(2 ... 2)
     }
 
+    @Test func closureHandlersComposeWithTrailingFallbacks() {
+        let formatter = ClosureDouble<Int, String>()
+        let calls = formatter.whenAny()
+            .then { input in "computed-\(input)" }
+            .thenReturn("fallback")
+
+        #expect(formatter(7) == "computed-7")
+        #expect(formatter(9) == "fallback")
+        #expect(formatter(11) == "fallback")
+        calls.verify(3 ... 3)
+    }
+
     @Test func callbackCaptureControlsCompletionLifetimeAndDelivery() {
         let callbacks = CallbackCapture<String>()
         let received = LockedValues<String>()

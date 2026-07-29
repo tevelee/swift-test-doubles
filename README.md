@@ -161,6 +161,15 @@ later verified, inspected with `arguments()`, or observed with `stream()`.
 Each registration owns its own chain, so a call that matches a more specific
 registration does not advance a general fallback's chain.
 
+Computed handlers and forwarding use those same rules, so argument-dependent
+work can hand off to a fixed fallback without extracting another registration:
+
+```swift
+loader.when { try await $0.loadFeed() }
+    .thenForEachCall(times: 2) { attempt in try await remote.load(attempt: attempt) }
+    .thenReturn(["offline"])
+```
+
 That observation handle is common to terminal configuration: custom `then`
 handlers, `thenForEachCall`, forwarding, cancellation, record/replay, and
 initializer or dynamic-`Self` builders can all be saved and verified the same
@@ -178,10 +187,10 @@ loader.when { try await $0.loadFeed() }.thenForEachCall { attempt in
 }
 ```
 
-The count starts at 1 and increments once per matching call, scoped to this
-registration just like a behavior chain. Trailing arguments may be omitted, so
-a handler can take the count alone or the count followed by a leading prefix of
-the requirement's arguments.
+The count starts at 1 and increments once per call served by that behavior.
+Appending another counted behavior starts it again at 1. Trailing arguments may
+be omitted, so a handler can take the count alone or the count followed by a
+leading prefix of the requirement's arguments.
 
 ### Double injected closures
 

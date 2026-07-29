@@ -97,6 +97,135 @@ extension StubRegistrationBuilder {
         return .forward
     }
 
+    func unaryImmediateAnswer<Argument, Result>(
+        _ handler: @escaping @Sendable (Argument) throws -> Result
+    ) -> StubRecorder.QueuedAnswer {
+        let methodName = recording.name
+        return .immediate { arguments in
+            try handler(
+                typedArgument(
+                    Argument.self,
+                    from: arguments,
+                    at: 0,
+                    method: methodName
+                )
+            )
+        }
+    }
+
+    func packedImmediateAnswer<each Argument, Result>(
+        _ handler: @escaping @Sendable (repeat each Argument) throws -> Result
+    ) -> StubRecorder.QueuedAnswer {
+        let methodName = recording.name
+        return .immediate { arguments in
+            try invokeTypedHandler(handler, with: arguments, method: methodName)
+        }
+    }
+
+    func packedSuspendingAnswer<each Argument, Result>(
+        _ handler: @escaping (repeat each Argument) async throws -> Result
+    ) -> StubRecorder.QueuedAnswer {
+        requireAsyncRequirement(configuring: "then")
+        let methodName = recording.name
+        return .suspending { arguments in
+            try await invokeTypedHandler(handler, with: arguments, method: methodName)
+        }
+    }
+
+    func escapingImmediateAnswer<FirstArgument, each AdditionalArgument, Result>(
+        _ handler:
+            @escaping @Sendable (
+                FirstArgument,
+                repeat each AdditionalArgument
+            ) throws -> Result
+    ) -> StubRecorder.QueuedAnswer {
+        let methodName = recording.name
+        return .immediate { arguments in
+            var index = 1
+            func nextArgument<T>(_ type: T.Type) -> T {
+                defer { index += 1 }
+                return typedArgument(
+                    type,
+                    from: arguments,
+                    at: index,
+                    method: methodName
+                )
+            }
+            return try handler(
+                typedArgument(
+                    FirstArgument.self,
+                    from: arguments,
+                    at: 0,
+                    method: methodName
+                ),
+                repeat nextArgument((each AdditionalArgument).self)
+            )
+        }
+    }
+
+    func escapingSuspendingAnswer<FirstArgument, each AdditionalArgument, Result>(
+        _ handler:
+            @escaping (
+                FirstArgument,
+                repeat each AdditionalArgument
+            ) async throws -> Result
+    ) -> StubRecorder.QueuedAnswer {
+        requireAsyncRequirement(configuring: "thenEscaping")
+        let methodName = recording.name
+        return .suspending { arguments in
+            var index = 1
+            func nextArgument<T>(_ type: T.Type) -> T {
+                defer { index += 1 }
+                return typedArgument(
+                    type,
+                    from: arguments,
+                    at: index,
+                    method: methodName
+                )
+            }
+            return try await handler(
+                typedArgument(
+                    FirstArgument.self,
+                    from: arguments,
+                    at: 0,
+                    method: methodName
+                ),
+                repeat nextArgument((each AdditionalArgument).self)
+            )
+        }
+    }
+
+    func countingImmediateAnswer<each Argument, Result>(
+        _ handler: @escaping @Sendable (Int, repeat each Argument) throws -> Result
+    ) -> StubRecorder.QueuedAnswer {
+        let counter = InvocationCounter()
+        let methodName = recording.name
+        return .immediate { arguments in
+            try invokeCountingHandler(
+                handler,
+                count: counter.next(),
+                with: arguments,
+                method: methodName
+            )
+        }
+    }
+
+    func countingSuspendingAnswer<each Argument, Result>(
+        _ handler: @escaping (Int, repeat each Argument) async throws -> Result
+    ) -> StubRecorder.QueuedAnswer {
+        requireAsyncRequirement(configuring: "thenForEachCall")
+        let counter = InvocationCounter()
+        let methodName = recording.name
+        return .suspending { arguments in
+            try await invokeCountingHandler(
+                handler,
+                count: counter.next(),
+                with: arguments,
+                method: methodName
+            )
+        }
+    }
+
     /// Validates the bare `thenAwaitCancellation()` form, whose outcome is
     /// implied by the requirement's shape: a throwing requirement rethrows
     /// the cancellation and a `Void` requirement returns. Any other shape has

@@ -62,6 +62,22 @@ struct RealForwardingProbeService: ForwardingProbeService {
         #expect(service.name(for: 2) == "real-2")
     }
 
+    @Test func forwardingCanBeAnIntermediateBehavior() throws {
+        let spy: Spy<any ForwardingProbeService> = Spy.make(
+            forwardingTo: RealForwardingProbeService()
+        )
+        let calls = spy.when { $0.name(for: Match.any()) }
+            .thenForward()
+            .thenReturn("stubbed")
+
+        let service: any ForwardingProbeService = spy()
+        #expect(service.name(for: 2) == "real-2")
+        #expect(service.name(for: 2) == "stubbed")
+        #expect(service.name(for: 3) == "stubbed")
+        calls.forwarded.verify(1 ... 1)
+        calls.stubbed.verify(2 ... 2)
+    }
+
     @Test func forwardedAnswersAreRecordedForVerification() throws {
         let spy: Spy<any ForwardingProbeService> = Spy.make(
             forwardingTo: RealForwardingProbeService()

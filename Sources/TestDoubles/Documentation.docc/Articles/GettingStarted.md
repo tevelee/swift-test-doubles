@@ -399,6 +399,16 @@ handler: synchronous handlers and matcher predicates are `@Sendable`, async
 handlers preserve their creation actor or executor, and mutable captures must
 be synchronized when calls may be concurrent.
 
+Computed handlers, counted handlers, and forwarding follow the same chaining
+rules as fixed results. That keeps an argument-dependent attempt and its fixed
+fallback in one discoverable expression:
+
+```swift
+let loads = await stub.when { try await $0.load(url: Match.any()) }
+    .then(times: 2) { url in try await remote.load(url: url) }
+    .thenReturn("offline")
+```
+
 The same ``CallInteractions`` result is available from custom `then` handlers,
 `thenForEachCall`, forwarding, cancellation, record/replay, and initializer or
 dynamic-`Self` builders. Handles with additional responsibilities compose that

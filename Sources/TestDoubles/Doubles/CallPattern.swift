@@ -203,6 +203,23 @@ public struct CallPattern<Result>: Sendable {
         return interactions
     }
 
+    /// Forwards `times` matching invocations to the spy's real target.
+    ///
+    /// A later behavior takes over after exactly that many matching calls.
+    /// Omitting `times:` resolves here when another behavior follows, making
+    /// this intermediate behavior exactly once.
+    ///
+    /// Only a `Spy` can forward. Forwarded calls are recorded and verifiable
+    /// like any other.
+    @discardableResult
+    @_disfavoredOverload
+    public func thenForward(times: Int = 1) -> StubBehaviorChain<Result> {
+        requireOrdinaryResult()
+        return makeBehaviorChain([
+            (forwardAnswer(), .exactly(validatedRepeatCount(times)))
+        ])
+    }
+
     /// Forwards every matching invocation from here on to the spy's real
     /// target, as if no registration had matched. This is terminal, like the
     /// unbounded `thenReturn`/`thenThrow`: nothing can be chained after it.
@@ -214,8 +231,11 @@ public struct CallPattern<Result>: Sendable {
     /// implementation, such as failing twice and then recovering for real.
     /// Forwarded calls are recorded and verifiable like any other.
     @discardableResult
-    public func thenForward() -> CallInteractions {
+    public func thenForward(
+        times: PartialRangeFrom<Int> = 1...
+    ) -> CallInteractions {
         requireOrdinaryResult()
+        validateUnboundedRepeatCount(times)
         _ = makeBehaviorChain([(forwardAnswer(), .unbounded)])
         return interactions
     }
@@ -299,13 +319,32 @@ public struct CallPattern<Result>: Sendable {
         return interactions
     }
 
-    /// Handles a matching invocation whose first argument needs to preserve
-    /// its concrete value type, including an escaping closure.
+    /// Handles `times` matching invocations while preserving an escaping
+    /// first argument's concrete closure type.
     ///
-    /// This overload preserves the argument's escaping convention, which a
-    /// closure nested inside a parameter pack cannot currently express.
+    /// Omitting `times:` resolves here when another behavior follows, making
+    /// this intermediate handler exactly once.
+    @discardableResult
+    @_disfavoredOverload
+    public func thenEscaping<FirstArgument, each AdditionalArgument>(
+        times: Int = 1,
+        _ handler:
+            @escaping @Sendable (
+                FirstArgument,
+                repeat each AdditionalArgument
+            ) throws -> Result
+    ) -> StubBehaviorChain<Result> {
+        requireOrdinaryResult()
+        return makeBehaviorChain([
+            (escapingImmediateAnswer(handler), .exactly(validatedRepeatCount(times)))
+        ])
+    }
+
+    /// Handles every matching invocation from here on while preserving an
+    /// escaping first argument's concrete closure type.
     @discardableResult
     public func thenEscaping<FirstArgument, each AdditionalArgument>(
+        times: PartialRangeFrom<Int> = 1...,
         _ handler:
             @escaping @Sendable (
                 FirstArgument,
@@ -313,37 +352,34 @@ public struct CallPattern<Result>: Sendable {
             ) throws -> Result
     ) -> CallInteractions {
         requireOrdinaryResult()
-        addStubBehavior { arguments, methodName in
-            var index = 1
-            func nextArgument<T>(_ type: T.Type) -> T {
-                defer { index += 1 }
-                return typedArgument(
-                    type,
-                    from: arguments,
-                    at: index,
-                    method: methodName
-                )
-            }
-            return try handler(
-                typedArgument(
-                    FirstArgument.self,
-                    from: arguments,
-                    at: 0,
-                    method: methodName
-                ),
-                repeat nextArgument((each AdditionalArgument).self)
-            )
-        }
+        validateUnboundedRepeatCount(times)
+        _ = makeBehaviorChain([(escapingImmediateAnswer(handler), .unbounded)])
         return interactions
     }
 
-    /// Asynchronously handles a matching invocation whose first argument needs
-    /// to preserve its concrete value type, including an escaping closure.
-    ///
-    /// This overload preserves the argument's escaping convention, which a
-    /// closure nested inside a parameter pack cannot currently express.
+    /// Asynchronously handles `times` matching invocations while preserving
+    /// an escaping first argument's concrete closure type.
+    @discardableResult
+    @_disfavoredOverload
+    public func thenEscaping<FirstArgument, each AdditionalArgument>(
+        times: Int = 1,
+        _ handler:
+            @escaping (
+                FirstArgument,
+                repeat each AdditionalArgument
+            ) async throws -> Result
+    ) -> StubBehaviorChain<Result> {
+        requireOrdinaryResult()
+        return makeBehaviorChain([
+            (escapingSuspendingAnswer(handler), .exactly(validatedRepeatCount(times)))
+        ])
+    }
+
+    /// Asynchronously handles every matching invocation from here on while
+    /// preserving an escaping first argument's concrete closure type.
     @discardableResult
     public func thenEscaping<FirstArgument, each AdditionalArgument>(
+        times: PartialRangeFrom<Int> = 1...,
         _ handler:
             @escaping (
                 FirstArgument,
@@ -351,86 +387,106 @@ public struct CallPattern<Result>: Sendable {
             ) async throws -> Result
     ) -> CallInteractions {
         requireOrdinaryResult()
-        addAsyncStubBehavior { arguments, methodName in
-            var index = 1
-            func nextArgument<T>(_ type: T.Type) -> T {
-                defer { index += 1 }
-                return typedArgument(
-                    type,
-                    from: arguments,
-                    at: index,
-                    method: methodName
-                )
-            }
-            return try await handler(
-                typedArgument(
-                    FirstArgument.self,
-                    from: arguments,
-                    at: 0,
-                    method: methodName
-                ),
-                repeat nextArgument((each AdditionalArgument).self)
-            )
-        }
+        validateUnboundedRepeatCount(times)
+        _ = makeBehaviorChain([(escapingSuspendingAnswer(handler), .unbounded)])
         return interactions
     }
 
-    /// Handles a matching invocation whose sole argument needs to preserve
-    /// its concrete value type, including an escaping closure.
+    /// Handles `times` matching invocations whose sole argument needs to
+    /// preserve its concrete value type.
+    ///
+    /// A handler that throws at runtime requires a throwing requirement.
+    @discardableResult
+    @_disfavoredOverload
+    public func then<Argument>(
+        times: Int = 1,
+        _ handler: @escaping @Sendable (Argument) throws -> Result
+    ) -> StubBehaviorChain<Result> {
+        requireOrdinaryResult()
+        return makeBehaviorChain([
+            (unaryImmediateAnswer(handler), .exactly(validatedRepeatCount(times)))
+        ])
+    }
+
+    /// Handles every matching invocation from here on whose sole argument
+    /// needs to preserve its concrete value type.
     @discardableResult
     public func then<Argument>(
+        times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (Argument) throws -> Result
     ) -> CallInteractions {
         requireOrdinaryResult()
-        addStubBehavior { arguments, methodName in
-            try handler(
-                typedArgument(
-                    Argument.self,
-                    from: arguments,
-                    at: 0,
-                    method: methodName
-                )
-            )
-        }
+        validateUnboundedRepeatCount(times)
+        _ = makeBehaviorChain([(unaryImmediateAnswer(handler), .unbounded)])
         return interactions
     }
 
-    /// Handles a matching invocation with typed arguments.
+    /// Handles `times` matching invocations with typed arguments.
     ///
-    /// - Precondition: Handler arguments match a leading prefix of the protocol
+    /// Handler arguments match a leading prefix of the requirement's
+    /// arguments. Omitting `times:` resolves here when another behavior
+    /// follows, making this intermediate handler exactly once.
+    ///
+    /// - Precondition: Handler arguments match a leading prefix of the
     ///   requirement's arguments in type and order. Trailing arguments may be
     ///   omitted. A handler that throws at runtime requires a throwing
     ///   requirement.
     @discardableResult
+    @_disfavoredOverload
     public func then<each Argument>(
+        times: Int = 1,
+        _ handler: @escaping @Sendable (repeat each Argument) throws -> Result
+    ) -> StubBehaviorChain<Result> {
+        requireOrdinaryResult()
+        return makeBehaviorChain([
+            (packedImmediateAnswer(handler), .exactly(validatedRepeatCount(times)))
+        ])
+    }
+
+    /// Handles every matching invocation from here on with typed arguments.
+    @discardableResult
+    public func then<each Argument>(
+        times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (repeat each Argument) throws -> Result
     ) -> CallInteractions {
         requireOrdinaryResult()
-        addStubBehavior { arguments, methodName in
-            try invokeTypedHandler(handler, with: arguments, method: methodName)
-        }
+        validateUnboundedRepeatCount(times)
+        _ = makeBehaviorChain([(packedImmediateAnswer(handler), .unbounded)])
         return interactions
     }
 
-    /// Handles a matching async invocation with typed arguments.
+    /// Asynchronously handles `times` matching invocations with typed
+    /// arguments.
     ///
-    /// - Precondition: Handler arguments match a leading prefix of the protocol
-    ///   requirement's arguments in type and order. Trailing arguments may be
-    ///   omitted. The requirement must be async, and a handler that throws at
-    ///   runtime requires a throwing requirement.
+    /// The closure intentionally carries its creation actor or executor, so an
+    /// async stub configured from an actor resumes there.
     ///
-    /// The closure intentionally carries its creation actor/executor so an
-    /// async stub configured from an actor resumes there. When invoking the
-    /// generated existential concurrently, the handler must therefore either
-    /// be actor-isolated or protect any mutable captures itself.
+    /// - Precondition: Handler arguments match a leading prefix of the
+    ///   requirement's arguments in type and order. The requirement must be
+    ///   async, and a handler that throws at runtime requires a throwing
+    ///   requirement.
+    @discardableResult
+    @_disfavoredOverload
+    public func then<each Argument>(
+        times: Int = 1,
+        _ handler: @escaping (repeat each Argument) async throws -> Result
+    ) -> StubBehaviorChain<Result> {
+        requireOrdinaryResult()
+        return makeBehaviorChain([
+            (packedSuspendingAnswer(handler), .exactly(validatedRepeatCount(times)))
+        ])
+    }
+
+    /// Asynchronously handles every matching invocation from here on with
+    /// typed arguments.
     @discardableResult
     public func then<each Argument>(
+        times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping (repeat each Argument) async throws -> Result
     ) -> CallInteractions {
         requireOrdinaryResult()
-        addAsyncStubBehavior { arguments, methodName in
-            try await invokeTypedHandler(handler, with: arguments, method: methodName)
-        }
+        validateUnboundedRepeatCount(times)
+        _ = makeBehaviorChain([(packedSuspendingAnswer(handler), .unbounded)])
         return interactions
     }
 
@@ -563,7 +619,7 @@ extension CallPattern where Result == Void {
 
 /// `times:` counts a behavior's own matching calls, not a position in the
 /// chain.
-private func validatedRepeatCount(_ times: Int) -> Int {
+func validatedRepeatCount(_ times: Int) -> Int {
     guard times >= 1 else {
         fatalError(
             "[TestDoubles] times: must be at least 1; it counts this behavior's own "
@@ -573,7 +629,7 @@ private func validatedRepeatCount(_ times: Int) -> Int {
     return times
 }
 
-private func validateUnboundedRepeatCount(_ times: PartialRangeFrom<Int>) {
+func validateUnboundedRepeatCount(_ times: PartialRangeFrom<Int>) {
     guard times.lowerBound == 1 else {
         fatalError(
             "[TestDoubles] times: must start at 1; it counts this behavior's own "
@@ -582,8 +638,7 @@ private func validateUnboundedRepeatCount(_ times: PartialRangeFrom<Int>) {
     }
 }
 
-/// Extends a stub registration with fixed behaviors for consecutive
-/// invocations.
+/// Extends a stub registration with behaviors for consecutive invocations.
 ///
 /// Matching invocations consume behaviors in registration order. A bare
 /// intermediate behavior runs exactly once, while a bare trailing behavior
@@ -595,7 +650,7 @@ public struct StubBehaviorChain<Result> {
     let recorder: StubRecorder
     let recording: RecordedCall
     let sequence: StubRecorder.ConsumableResults
-    /// An inspectable view of this registration's queued fixed behaviors.
+    /// An inspectable view of this registration's queued behaviors.
     public let behaviorQueue: StubBehaviorQueue
 
     /// An observation-only view of invocations matching this chain's call.
@@ -728,11 +783,29 @@ public struct StubBehaviorChain<Result> {
         return interactions
     }
 
+    /// Forwards `times` matching invocations to the spy's real target.
+    ///
+    /// A later behavior takes over after exactly that many matching calls.
+    /// Omitting `times:` resolves here when another behavior follows, making
+    /// this intermediate behavior exactly once.
+    @discardableResult
+    @_disfavoredOverload
+    public func thenForward(times: Int = 1) -> Self {
+        sequence.append(
+            forwardAnswer(),
+            times: .exactly(validatedRepeatCount(times))
+        )
+        return self
+    }
+
     /// Forwards every matching invocation from here on to the spy's real
     /// target. This is terminal, like the unbounded `thenReturn`/`thenThrow`.
-    /// See ``CallPattern/thenForward()`` for the full contract.
+    /// See ``CallPattern/thenForward(times:)-5bb3v`` for the full contract.
     @discardableResult
-    public func thenForward() -> CallInteractions {
+    public func thenForward(
+        times: PartialRangeFrom<Int> = 1...
+    ) -> CallInteractions {
+        validateUnboundedRepeatCount(times)
         sequence.append(forwardAnswer(), times: .unbounded)
         return interactions
     }

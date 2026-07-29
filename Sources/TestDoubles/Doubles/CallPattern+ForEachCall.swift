@@ -1,11 +1,33 @@
 extension CallPattern {
-    /// Handles each matching invocation with a running call count as the
+    /// Handles `times` matching invocations with a running call count as the
     /// handler's first argument, ahead of the requirement's typed arguments.
     ///
     /// The count starts at 1 and increments once per matching invocation this
-    /// registration serves, including the current one. It is the natural way
-    /// to vary a response by attempt — fail the first two calls and then
-    /// recover, say — without threading a counter through the test yourself:
+    /// behavior serves. Omitting `times:` resolves here when another behavior
+    /// follows, making this intermediate behavior exactly once.
+    ///
+    /// A separate name from `then` keeps the leading count from being mistaken
+    /// for the requirement's first argument under trailing-closure syntax.
+    @discardableResult
+    @_disfavoredOverload
+    public func thenForEachCall<each Argument>(
+        times: Int = 1,
+        _ handler: @escaping @Sendable (Int, repeat each Argument) throws -> Result
+    ) -> StubBehaviorChain<Result> {
+        requireOrdinaryResult()
+        return makeBehaviorChain([
+            (countingImmediateAnswer(handler), .exactly(validatedRepeatCount(times)))
+        ])
+    }
+
+    /// Handles every matching invocation from here on with a running call count
+    /// as the handler's first argument, ahead of the requirement's typed
+    /// arguments.
+    ///
+    /// The count starts at 1 and increments once per matching invocation this
+    /// behavior serves. It is the natural way to vary a response by attempt —
+    /// fail the first two calls and then recover, say — without threading a
+    /// counter through the test yourself:
     ///
     /// ```swift
     /// loader.when { try $0.loadFeed() }.thenForEachCall { attempt in
@@ -14,11 +36,9 @@ extension CallPattern {
     /// }
     /// ```
     ///
-    /// The count is scoped to this registration, so a call that matches a more
-    /// specific registration does not advance a general fallback's count, the
-    /// same as a behavior chain. A separate name from `then` keeps the leading
-    /// count from being mistaken for the requirement's first argument under
-    /// trailing-closure syntax.
+    /// The count is scoped to this behavior. A later counted behavior starts
+    /// again at 1, and a call that matches a more specific registration does
+    /// not advance a general fallback's count.
     ///
     /// - Precondition: Handler arguments after the count match a leading prefix
     ///   of the requirement's arguments in type and order. Trailing arguments
@@ -26,39 +46,98 @@ extension CallPattern {
     ///   that throws at runtime requires a throwing requirement.
     @discardableResult
     public func thenForEachCall<each Argument>(
+        times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (Int, repeat each Argument) throws -> Result
     ) -> CallInteractions {
         requireOrdinaryResult()
-        let counter = InvocationCounter()
-        addStubBehavior { arguments, methodName in
-            try invokeCountingHandler(
-                handler,
-                count: counter.next(),
-                with: arguments,
-                method: methodName
-            )
-        }
+        validateUnboundedRepeatCount(times)
+        _ = makeBehaviorChain([(countingImmediateAnswer(handler), .unbounded)])
         return interactions
     }
 
-    /// Handles each matching async invocation with a running call count as the
-    /// handler's first argument, ahead of the requirement's typed arguments.
-    /// See ``CallPattern/thenForEachCall(_:)-5l0p9`` for the counting contract;
-    /// the requirement must be async.
+    /// Asynchronously handles `times` matching invocations with a running call
+    /// count as the handler's first argument. The requirement must be async.
+    @discardableResult
+    @_disfavoredOverload
+    public func thenForEachCall<each Argument>(
+        times: Int = 1,
+        _ handler: @escaping (Int, repeat each Argument) async throws -> Result
+    ) -> StubBehaviorChain<Result> {
+        requireOrdinaryResult()
+        return makeBehaviorChain([
+            (countingSuspendingAnswer(handler), .exactly(validatedRepeatCount(times)))
+        ])
+    }
+
+    /// Asynchronously handles every matching invocation from here on with a
+    /// running call count as the handler's first argument. The requirement
+    /// must be async.
     @discardableResult
     public func thenForEachCall<each Argument>(
+        times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping (Int, repeat each Argument) async throws -> Result
     ) -> CallInteractions {
         requireOrdinaryResult()
-        let counter = InvocationCounter()
-        addAsyncStubBehavior { arguments, methodName in
-            try await invokeCountingHandler(
-                handler,
-                count: counter.next(),
-                with: arguments,
-                method: methodName
-            )
-        }
+        validateUnboundedRepeatCount(times)
+        _ = makeBehaviorChain([(countingSuspendingAnswer(handler), .unbounded)])
+        return interactions
+    }
+}
+
+extension StubBehaviorChain {
+    /// Appends a counted handler for `times` matching invocations.
+    ///
+    /// The count starts at 1 for this behavior. Omitting `times:` resolves here
+    /// when another behavior follows, making this intermediate behavior exactly
+    /// once.
+    @discardableResult
+    @_disfavoredOverload
+    public func thenForEachCall<each Argument>(
+        times: Int = 1,
+        _ handler: @escaping @Sendable (Int, repeat each Argument) throws -> Result
+    ) -> Self {
+        sequence.append(
+            countingImmediateAnswer(handler),
+            times: .exactly(validatedRepeatCount(times))
+        )
+        return self
+    }
+
+    /// Appends a counted handler for every matching invocation from here on.
+    @discardableResult
+    public func thenForEachCall<each Argument>(
+        times: PartialRangeFrom<Int> = 1...,
+        _ handler: @escaping @Sendable (Int, repeat each Argument) throws -> Result
+    ) -> CallInteractions {
+        validateUnboundedRepeatCount(times)
+        sequence.append(countingImmediateAnswer(handler), times: .unbounded)
+        return interactions
+    }
+
+    /// Appends an asynchronous counted handler for `times` matching
+    /// invocations. The requirement must be async.
+    @discardableResult
+    @_disfavoredOverload
+    public func thenForEachCall<each Argument>(
+        times: Int = 1,
+        _ handler: @escaping (Int, repeat each Argument) async throws -> Result
+    ) -> Self {
+        sequence.append(
+            countingSuspendingAnswer(handler),
+            times: .exactly(validatedRepeatCount(times))
+        )
+        return self
+    }
+
+    /// Appends an asynchronous counted handler for every matching invocation
+    /// from here on. The requirement must be async.
+    @discardableResult
+    public func thenForEachCall<each Argument>(
+        times: PartialRangeFrom<Int> = 1...,
+        _ handler: @escaping (Int, repeat each Argument) async throws -> Result
+    ) -> CallInteractions {
+        validateUnboundedRepeatCount(times)
+        sequence.append(countingSuspendingAnswer(handler), times: .unbounded)
         return interactions
     }
 }
