@@ -49,6 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   case-qualified names in parameterized Swift Testing tests.
 - Batch manual-stub generation for every supported protocol in a Swift source
   file or recursively scanned directory.
+- A SwiftPM build-tool plugin that automatically regenerates and compiles
+  manual-stub conformers when a target's protocol sources change.
 
 ## [0.0.2] - 2026-07-29
 

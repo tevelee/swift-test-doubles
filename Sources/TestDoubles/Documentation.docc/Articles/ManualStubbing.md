@@ -88,6 +88,33 @@ on standard error, while duplicate protocol names fail generation instead of
 silently overwriting one another. The existing protocol-name form remains
 available when only one declaration should be generated.
 
+### Regenerate automatically during builds
+
+Attach the `ManualStubBuildPlugin` to a target that declares protocols and
+depends on `TestDoubles`:
+
+```swift
+.target(
+    name: "Services",
+    dependencies: [
+        .product(name: "TestDoubles", package: "swift-test-doubles")
+    ],
+    plugins: [
+        .plugin(
+            name: "ManualStubBuildPlugin",
+            package: "swift-test-doubles"
+        )
+    ]
+)
+```
+
+SwiftPM scans that target's Swift sources and compiles the generated conformers
+as a derived source file. The build command tracks every source file as an
+input, so edits regenerate the file automatically and unchanged builds reuse
+SwiftPM's cached output. Attach the plugin only to targets intended for
+manual-stub generation; a target with no supported protocol is diagnosed
+instead of producing an empty source file.
+
 The generator deliberately rejects static and initializer requirements. Both
 need process-wide state rather than the test-local recorder owned by a
 ``ManualStub``, which makes an implicit generated implementation unsafe when

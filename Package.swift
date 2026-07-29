@@ -24,7 +24,9 @@ let package = Package(
     products: [
         .library(name: "TestDoubles", targets: ["TestDoubles"]),
         .library(name: "TestDoublesTesting", targets: ["TestDoublesTesting"]),
-        .library(name: "TestDoublesMacros", targets: ["TestDoublesMacros"])
+        .library(name: "TestDoublesMacros", targets: ["TestDoublesMacros"]),
+        .plugin(name: "ManualStubGenerator", targets: ["ManualStubGenerator"]),
+        .plugin(name: "ManualStubBuildPlugin", targets: ["ManualStubBuildPlugin"])
     ],
     traits: [
         .default(enabledTraits: ["RuntimeStubs"]),
@@ -109,6 +111,11 @@ private func allTargets(
                     condition: .when(traits: ["ManualStubGenerator"])
                 )
             ]
+        ),
+        .plugin(
+            name: "ManualStubBuildPlugin",
+            capability: .buildTool(),
+            dependencies: ["ManualStubGeneratorTool"]
         ),
         .target(
             name: "TestDoublesMacros",
@@ -239,6 +246,12 @@ private func allTargets(
             path: "Tests/ManualStubGeneratorIntegrationFixtures"
         ),
         .target(
+            name: "ManualStubBuildPluginIntegrationFixtures",
+            dependencies: ["TestDoubles"],
+            path: "Tests/ManualStubBuildPluginIntegrationFixtures",
+            plugins: [.plugin(name: "ManualStubBuildPlugin")]
+        ),
+        .target(
             name: "TestDoublesResilientFixtures",
             path: "Tests/TestDoublesResilientFixtures",
             swiftSettings: [
@@ -261,6 +274,7 @@ private func allTargets(
                 "TestDoublesRuntimeMetadata",
                 "TestDoublesRuntimeSupport",
                 "InternalRuntimeContract",
+                "ManualStubBuildPluginIntegrationFixtures",
                 "ManualStubGeneratorIntegrationFixtures",
                 "TestDoublesFixtures",
                 "TestDoublesResilientFixtures",
