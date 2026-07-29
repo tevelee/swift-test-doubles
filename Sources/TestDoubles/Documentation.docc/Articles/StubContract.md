@@ -214,10 +214,10 @@ meaningful equality.
 ### Verification
 
 `verify` checks a recorded instance, static, or initializer invocation
-immediately and defaults to `1...`, meaning at least once. It accepts any
-`RangeExpression<Int>`: use `2...`, `...2`, or `2...4` to express lower bounds,
+immediately and defaults to `1 ... 1`, meaning exactly once. It accepts any
+`RangeExpression<Int>`: use `1...`, `...2`, or `2...4` to express lower bounds,
 upper bounds, and closed ranges directly. `.exactly(2)` and `.never` are
-conveniences for the two cases that ranges spell less clearly. A
+secondary conveniences for the two cases that ranges spell less clearly. A
 ``Match/Capture`` in the verification call captures matching arguments for
 later assertions. A failed count expectation is reported through
 IssueReporting at the caller's file, line, and column, allowing Swift Testing

@@ -32,13 +32,14 @@ extension CallPattern {
         Forwarded(recorder: recorder, recording: recording)
     }
 
-    /// Verifies how many recorded invocations match this pattern.
+    /// Verifies how many recorded invocations match this pattern, expecting
+    /// exactly one by default.
     ///
     /// Successful verification marks every matching call as verified and
     /// commits captures. A mismatch is reported at the caller's source
     /// location without terminating the test process.
     public func verify(
-        _ expectedCounts: any RangeExpression<Int> = 1...,
+        _ expectedCounts: any RangeExpression<Int> = 1 ... 1,
         fileID: StaticString = #fileID,
         filePath: StaticString = #filePath,
         line: UInt = #line,
@@ -221,12 +222,13 @@ extension CallPattern {
             callCount > 0
         }
 
-        /// Verifies how many matching calls reached the forwarding target.
+        /// Verifies how many matching calls reached the forwarding target,
+        /// expecting exactly one by default.
         ///
         /// Successful verification marks the forwarded calls as verified and
         /// commits captures. Calls answered by an override do not count.
         public func verify(
-            _ expectedCounts: any RangeExpression<Int> = 1...,
+            _ expectedCounts: any RangeExpression<Int> = 1 ... 1,
             fileID: StaticString = #fileID,
             filePath: StaticString = #filePath,
             line: UInt = #line,

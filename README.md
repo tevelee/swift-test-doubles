@@ -267,9 +267,10 @@ await syncCompleted.verify(1..., within: .seconds(1))
 
 `when` creates a reusable `CallPattern`: configure its behavior, verify it,
 read its typed arguments, and observe future matches without describing the
-same call again. `verify` defaults to "at least once". Use native ranges such
-as `2...`, `...2`, or `2...4` when the count matters; `.exactly(2)` and
-`.never` are conveniences for the two cases that ranges spell less clearly.
+same call again. A plain `verify()` expects exactly one call. Use native ranges
+such as `1...`, `...2`, or `2...4` for every other count shape; `.exactly(2)`
+and `.never` are secondary conveniences for the two cases that ranges spell
+less clearly.
 `verifyInOrder` checks a relative subsequence, so unrelated calls may appear
 between the listed ones. Verification never consumes configured behavior, and
 failures are reported as test issues at the `verify` call's own file and

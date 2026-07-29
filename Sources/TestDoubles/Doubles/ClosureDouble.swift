@@ -98,9 +98,10 @@ public final class ClosureDouble<Input, Result> {
         return calls.count(where: matcher)
     }
 
-    /// Verifies how many recorded invocations satisfy `matcher`.
+    /// Verifies how many recorded invocations satisfy `matcher`, expecting
+    /// exactly one by default.
     public func verify(
-        _ expectedCounts: any RangeExpression<Int> = 1...,
+        _ expectedCounts: any RangeExpression<Int> = 1 ... 1,
         matching matcher: Matcher,
         describedBy description: String = "predicate",
         fileID: StaticString = #fileID,
@@ -225,7 +226,7 @@ extension ClosureDouble where Input: Equatable {
 
     /// Verifies calls that received an input equal to `value`.
     public func verify(
-        _ expectedCounts: any RangeExpression<Int> = 1...,
+        _ expectedCounts: any RangeExpression<Int> = 1 ... 1,
         equal value: Input,
         fileID: StaticString = #fileID,
         filePath: StaticString = #filePath,

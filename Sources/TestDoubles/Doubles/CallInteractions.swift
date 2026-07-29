@@ -40,13 +40,14 @@ public struct CallInteractions: Sendable {
         Forwarded(base: pattern.forwarded)
     }
 
-    /// Verifies how many recorded invocations match this call.
+    /// Verifies how many recorded invocations match this call, expecting
+    /// exactly one by default.
     ///
     /// Successful verification marks every matching call as verified and
     /// commits captures. A mismatch is reported at the caller's source
     /// location without terminating the test process.
     public func verify(
-        _ expectedCounts: any RangeExpression<Int> = 1...,
+        _ expectedCounts: any RangeExpression<Int> = 1 ... 1,
         fileID: StaticString = #fileID,
         filePath: StaticString = #filePath,
         line: UInt = #line,
@@ -145,9 +146,10 @@ public struct CallInteractions: Sendable {
             base.wasCalled
         }
 
-        /// Verifies how many matching calls reached the forwarding target.
+        /// Verifies how many matching calls reached the forwarding target,
+        /// expecting exactly one by default.
         public func verify(
-            _ expectedCounts: any RangeExpression<Int> = 1...,
+            _ expectedCounts: any RangeExpression<Int> = 1 ... 1,
             fileID: StaticString = #fileID,
             filePath: StaticString = #filePath,
             line: UInt = #line,

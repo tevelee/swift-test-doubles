@@ -1,7 +1,8 @@
 extension ManualStub {
-    /// Verifies a method or getter invocation, including throwing requirements.
+    /// Verifies a method or getter invocation, including throwing requirements,
+    /// expecting exactly one by default.
     public func verify<Result>(
-        _ expectedCounts: any RangeExpression<Int> = 1...,
+        _ expectedCounts: any RangeExpression<Int> = 1 ... 1,
         _ call: (T) throws -> Result,
         fileID: StaticString = #fileID,
         filePath: StaticString = #filePath,
@@ -21,7 +22,7 @@ extension ManualStub {
 
     /// Verifies an invocation whose result needs a valid value while recording.
     public func verify<Result>(
-        _ expectedCounts: any RangeExpression<Int> = 1...,
+        _ expectedCounts: any RangeExpression<Int> = 1 ... 1,
         returning placeholder: Result,
         _ call: (T) throws -> Result,
         fileID: StaticString = #fileID,
@@ -92,7 +93,7 @@ extension ManualStub {
 
     /// Verifies a direct property assignment.
     public func verify(
-        _ expectedCounts: any RangeExpression<Int> = 1...,
+        _ expectedCounts: any RangeExpression<Int> = 1 ... 1,
         _ call: (inout T) throws -> Void,
         fileID: StaticString = #fileID,
         filePath: StaticString = #filePath,
@@ -251,7 +252,7 @@ extension ManualStub {
 
     /// Verifies an async method or getter invocation, including throwing requirements.
     public func verify<Result>(
-        _ expectedCounts: any RangeExpression<Int> = 1...,
+        _ expectedCounts: any RangeExpression<Int> = 1 ... 1,
         _ call: (T) async throws -> Result,
         isolation: isolated (any Actor)? = #isolation,
         fileID: StaticString = #fileID,
@@ -272,7 +273,7 @@ extension ManualStub {
 
     /// Verifies an async invocation whose result needs a valid value while recording.
     public func verify<Result>(
-        _ expectedCounts: any RangeExpression<Int> = 1...,
+        _ expectedCounts: any RangeExpression<Int> = 1 ... 1,
         returning placeholder: Result,
         _ call: (T) async throws -> Result,
         isolation: isolated (any Actor)? = #isolation,

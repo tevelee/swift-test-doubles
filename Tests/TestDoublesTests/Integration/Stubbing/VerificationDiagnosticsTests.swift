@@ -21,12 +21,26 @@ private func makeVerificationDiagnosticsStub() throws -> Stub<any VerificationDi
         expectReportsIssue {
             stub.verify { $0.synchronous(Match.any()) }
         } matching: { issue in
-            issue.description.contains("expected at least 1 call, got 0")
+            issue.description.contains("expected 1 call, got 0")
                 && String(describing: issue.fileID) == String(describing: #fileID)
                 && String(describing: issue.filePath) == String(describing: #filePath)
                 && issue.line == expectedLine
                 && issue.column > 0
         }
+    }
+
+    @Test func defaultVerificationRejectsDuplicateCallsWhileRangesRemainExplicit() throws {
+        let stub = try makeVerificationDiagnosticsStub()
+        let calls = stub.when { $0.synchronous(Match.any()) }.thenDoNothing()
+        stub().synchronous(1)
+        stub().synchronous(2)
+
+        expectReportsIssue {
+            calls.verify()
+        } matching: {
+            $0.description.contains("expected 1 call, got 2")
+        }
+        calls.verify(1...)
     }
 
     @Test func exactMismatchReportsWithoutTerminating() throws {

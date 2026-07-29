@@ -11,9 +11,10 @@ extension RangeExpression where Self == ClosedRange<Int> {
 }
 
 extension Stub {
-    /// Verifies an instance, static, or initializer invocation.
+    /// Verifies an instance, static, or initializer invocation, expecting
+    /// exactly one by default.
     public func verify<Result>(
-        _ expectedCounts: any RangeExpression<Int> = 1...,
+        _ expectedCounts: any RangeExpression<Int> = 1 ... 1,
         _ call: (P) throws -> Result,
         fileID: StaticString = #fileID,
         filePath: StaticString = #filePath,
@@ -36,7 +37,7 @@ extension Stub {
     /// Use this overload for reference, existential, and other results for which
     /// the runtime cannot safely synthesize a recording placeholder.
     public func verify<Result>(
-        _ expectedCounts: any RangeExpression<Int> = 1...,
+        _ expectedCounts: any RangeExpression<Int> = 1 ... 1,
         returning placeholder: Result,
         _ call: (P) throws -> Result,
         fileID: StaticString = #fileID,
@@ -107,7 +108,7 @@ extension Stub {
 
     /// Verifies a direct property assignment.
     public func verify(
-        _ expectedCounts: any RangeExpression<Int> = 1...,
+        _ expectedCounts: any RangeExpression<Int> = 1 ... 1,
         _ call: (inout P) throws -> Void,
         fileID: StaticString = #fileID,
         filePath: StaticString = #filePath,
@@ -274,7 +275,7 @@ extension Stub {
 
     /// Verifies an async instance, static, or initializer invocation.
     public func verify<Result>(
-        _ expectedCounts: any RangeExpression<Int> = 1...,
+        _ expectedCounts: any RangeExpression<Int> = 1 ... 1,
         _ call: (P) async throws -> Result,
         isolation: isolated (any Actor)? = #isolation,
         fileID: StaticString = #fileID,
@@ -298,7 +299,7 @@ extension Stub {
     /// Use this overload for reference, existential, and other results for which
     /// the runtime cannot safely synthesize a recording placeholder.
     public func verify<Result>(
-        _ expectedCounts: any RangeExpression<Int> = 1...,
+        _ expectedCounts: any RangeExpression<Int> = 1 ... 1,
         returning placeholder: Result,
         _ call: (P) async throws -> Result,
         isolation: isolated (any Actor)? = #isolation,

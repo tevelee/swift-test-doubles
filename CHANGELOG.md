@@ -221,6 +221,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `.interactions`, keeping observation available alongside resume and
   exhaustion controls. Explicit `thenForward()` calls are now correctly
   classified as forwarded interactions as well.
+- A plain immediate `verify()` now expects exactly one matching call, matching
+  the conventional Mockito-style meaning and catching accidental duplicates.
+  Native ranges remain the primary spelling for every other count expectation,
+  while eventual verification continues to default to the monotonic `1...`.
 - The pre-release `StubBuilder` type and the separate
   `forwardedCallCount`/`forwardedArguments()` pattern members have been
   replaced by `CallPattern` and its composed `forwarded` view.
