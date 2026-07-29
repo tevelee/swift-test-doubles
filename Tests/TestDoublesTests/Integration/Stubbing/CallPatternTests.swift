@@ -189,7 +189,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
     @Test func timesServesABoundedRunThenAdvances() throws {
         let stub = try makeHandlerArityStub()
         stub.when { $0.one(Match.any()) }
-            .thenReturn(0, times: 1 ... 3)
+            .thenReturn(0, times: 3)
             .thenReturn(9)
 
         let probe: any HandlerArityProbe = stub()
@@ -202,7 +202,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
 
     @Test func timesBoundedReturnCanBeTerminal() throws {
         let stub = try makeHandlerArityStub()
-        stub.when { $0.one(Match.any()) }.thenReturn(3, times: 1 ... 2)
+        stub.when { $0.one(Match.any()) }.thenReturn(3, times: 2)
 
         let probe: any HandlerArityProbe = stub()
         #expect(probe.one(0) == 3)
@@ -213,11 +213,11 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
     // `thenThrow` with no `times:` left standalone, or the variadic
     // thenReturn(_:_:_:), whose last entry is always unbounded) is a compile
     // error in one fluent expression: every overload that produces an
-    // unbounded entry returns `Void`, so there is nothing to call a further
-    // `.thenX` on. A captured, explicitly type-annotated handle can still
-    // reach the append across separate statements, though — see
-    // UnstubbedBehaviorExitTests.appendingAfterUnbounded for the guard that
-    // traps that case instead of silently discarding it.
+    // unbounded entry returns `CallInteractions`, which deliberately has no
+    // behavior methods. A captured `StubBehaviorChain` can still reach an
+    // append across separate statements, though — see
+    // UnstubbedBehaviorExitTests.appendingAfterUnbounded for the runtime
+    // guard that traps that aliasing case instead of silently discarding it.
 
     @Test func bareStandaloneRepeatsForever() throws {
         let stub = try makeHandlerArityStub()
@@ -243,7 +243,40 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
         #expect(probe.one(0) == 3)
     }
 
-    @Test func timesIntShorthandMatchesEquivalentRange() throws {
+    @Test func completedBareChainCanBeSavedAndObserved() throws {
+        let stub = try makeHandlerArityStub()
+        let calls = stub.when { $0.one(Match.any()) }
+            .thenReturn(1)
+            .thenReturn(2)
+
+        let probe: any HandlerArityProbe = stub()
+        #expect(probe.one(10) == 1)
+        #expect(probe.one(20) == 2)
+        #expect(probe.one(30) == 2)
+
+        calls.verify(3 ... 3)
+        let arguments: [Int] = calls.arguments()
+        #expect(arguments == [10, 20, 30])
+    }
+
+    @Test func explicitRetryAndFallbackChainCanBeSavedAndObserved() throws {
+        let stub = try makeHandlerArityStub()
+        let calls = stub.when { try $0.throwing(Match.any()) }
+            .thenThrow(HandlerError(value: 7), times: 2)
+            .thenReturn(42, times: 1...)
+
+        let probe: any HandlerArityProbe = stub()
+        #expect(throws: HandlerError(value: 7)) { try probe.throwing(1) }
+        #expect(throws: HandlerError(value: 7)) { try probe.throwing(2) }
+        #expect(try probe.throwing(3) == 42)
+        #expect(try probe.throwing(4) == 42)
+
+        calls.verify(4 ... 4)
+        let arguments: [Int] = calls.arguments()
+        #expect(arguments == [1, 2, 3, 4])
+    }
+
+    @Test func finiteTimesServesExactlyThatManyCalls() throws {
         let stub = try makeHandlerArityStub()
         stub.when { $0.one(Match.any()) }.thenReturn(5, times: 3)
 
@@ -282,8 +315,8 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
     @Test func concurrentCallsReserveEachRunExactlyItsCount() async throws {
         let stub = try makeHandlerArityStub()
         stub.when { try $0.throwing(Match.any()) }
-            .thenReturn(1, times: 1 ... 10)
-            .thenThrow(HandlerError(value: 2), times: 1 ... 10)
+            .thenReturn(1, times: 10)
+            .thenThrow(HandlerError(value: 2), times: 10)
             .thenReturn(3, times: 1...)
         let probe: any HandlerArityProbe = stub()
 
@@ -354,6 +387,36 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
         await stub.verify { await $0.asynchronous(3) }
         await stub.verify { try await $0.asyncThrowing(4) }
     }
+
+    @Test func completedDoNothingChainCanBeSavedAndObserved() throws {
+        let stub = try Stub<any DoNothingProbe>(
+            .method(Int.self, returning: Void.self),
+            .method(Int.self, returning: Void.self, isThrowing: true),
+            .method(Int.self, returning: Void.self, isAsync: true),
+            .method(Int.self, returning: Void.self, isThrowing: true, isAsync: true)
+        )
+        let calls = stub.when { $0.synchronous(Match.any()) }
+            .thenDoNothing(times: 2)
+            .thenDoNothing(times: 1...)
+
+        let probe: any DoNothingProbe = stub()
+        probe.synchronous(1)
+        probe.synchronous(2)
+        probe.synchronous(3)
+
+        calls.verify(3 ... 3)
+        let arguments: [Int] = calls.arguments()
+        #expect(arguments == [1, 2, 3])
+    }
+
+    @Test func fatalErrorTerminalCanBeSavedForVerification() throws {
+        let stub = try makeHandlerArityStub()
+        let forbidden = stub.when { $0.one(Match.any()) }
+            .thenFatalError("must not be called")
+
+        forbidden.verify(0 ... 0)
+        #expect(forbidden.wasCalled == false)
+    }
 }
 
 #if compiler(>=6.2) && (os(macOS) || os(Linux) || targetEnvironment(macCatalyst))
@@ -364,7 +427,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try makeHandlerArityStub()
-                stub.when { $0.one(Match.any()) }.thenReturn(3, times: 1 ... 2)
+                stub.when { $0.one(Match.any()) }.thenReturn(3, times: 2)
 
                 let probe: any HandlerArityProbe = stub()
                 _ = probe.one(0)
@@ -384,7 +447,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
             ) {
                 let stub = try makeHandlerArityStub()
                 stub.when { $0.one(Match.any()) }
-                    .thenReturn(1, times: 1 ... 2)
+                    .thenReturn(1, times: 2)
                     .thenFatalError("no more than 2 calls expected")
 
                 let probe: any HandlerArityProbe = stub()

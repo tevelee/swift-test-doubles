@@ -463,19 +463,15 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                stub.when { $0.greet(name: Match.any()) }.thenReturn("hi", times: 0 ... 3)
+                stub.when { $0.greet(name: Match.any()) }.thenReturn("hi", times: 0)
             }
 
             let diagnostic = try #require(
                 String(bytes: result.standardErrorContent, encoding: .utf8)
             )
-            #expect(diagnostic.contains("times: must start at 1"))
+            #expect(diagnostic.contains("times: must be at least 1"))
         }
 
-        /// The `times: Int` shorthand builds `1...times` internally; a count
-        /// below 1 must still surface the library's own diagnostic instead of
-        /// crashing inside `ClosedRange`'s own precondition first.
-        ///
         /// `CallPattern` and `StubBehaviorChain` each implement this
         /// overload independently, so the first call (a valid count, on
         /// `CallPattern`) chains into the second (the invalid one, on
@@ -499,7 +495,8 @@ private struct UnexpectedTypedError: Error {}
         }
 
         /// A fluent chain can't type-check an append after an unbounded
-        /// entry — every unbounded-producing overload returns `Void`. A
+        /// entry — every unbounded-producing overload returns
+        /// `CallInteractions`, which has no behavior methods. A
         /// captured, explicitly type-annotated handle still reaches the
         /// append at runtime, though: the annotation forces the bounded
         /// call that creates `chain` to resolve to its disfavored
@@ -516,7 +513,7 @@ private struct UnexpectedTypedError: Error {}
                 let chain: StubBehaviorChain<String> = stub.when { $0.greet(name: Match.any()) }
                     .thenReturn("hi", times: 2)
                 chain.thenReturn("bye")
-                chain.thenReturn("late", times: 1 ... 1)
+                chain.thenReturn("late", times: 1)
             }
 
             let diagnostic = try #require(

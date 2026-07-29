@@ -2,6 +2,15 @@ import IssueReporting
 
 /// Interaction queries and verification for a recorded call pattern.
 extension CallPattern {
+    /// An observation-only view of the invocations matching this pattern.
+    ///
+    /// Behavior configuration remains available on the pattern itself. Use
+    /// this view when an API needs to expose interactions without also
+    /// allowing another behavior registration.
+    public var interactions: CallInteractions {
+        CallInteractions(recorder: recorder, recording: recording)
+    }
+
     /// The number of recorded invocations that match this pattern.
     ///
     /// Reading the count does not mark calls as verified or commit captures.

@@ -13,30 +13,22 @@ public struct CallPattern<Result>: Sendable {
 
     // MARK: - thenReturn
 
-    // `times:` selects one of three shapes for a fixed-return behavior, and
+    // `times:` selects one of two shapes for a fixed-return behavior, and
     // which one you get without writing `times:` at all depends on whether
     // you keep chaining:
     //
-    //   .thenReturn(x)                      // bare — see below
-    //   .thenReturn(x, times: 1...3)        // explicit bounded
-    //   .thenReturn(x, times: 1...)         // explicit unbounded
-    //   .thenReturn(x, times: 3)            // explicit bounded, shorthand for 1...3
+    //   .thenReturn(x)               // bare — see below
+    //   .thenReturn(x, times: 3)     // explicit bounded
+    //   .thenReturn(x, times: 1...)  // explicit unbounded
     //
     // The bounded shape returns a `StubBehaviorChain` so more behaviors can
-    // be appended; the unbounded shape returns `Void`, since nothing
-    // sensible can follow "every call from here on." Each pair below shares
-    // one parameter list and differs only in return type, with the
-    // chain-returning half marked `@_disfavoredOverload`. That lets the
-    // compiler pick between them using how the call is actually used:
-    // standalone (result discarded) resolves to the `Void` half; chained
-    // (`.thenReturn(x).thenThrow(y)`) can only type-check against the
-    // `StubBehaviorChain` half, so that's the one selected even though it's
-    // disfavored. The same trick makes the *bare* call position-sensitive:
-    // it's really `times: Int = 1`, competing against `times:
-    // PartialRangeFrom<Int> = 1...`, so a bare call left standalone resolves
-    // to "1 shot, then repeat forever" and a bare call that's chained
-    // further resolves to "exactly 1, then advance" — matching what most
-    // Mockito-style chains want without spelling out `times:` at all.
+    // be appended; the unbounded shape returns `CallInteractions`, since
+    // another behavior cannot sensibly follow "every call from here on," but
+    // the configured call should remain available for verification and
+    // inspection. The bounded overload is marked `@_disfavoredOverload`.
+    // That makes a bare call position-sensitive: left terminal it resolves to
+    // the unbounded interaction handle, while a following `.then...` forces
+    // the bounded chain overload and makes the answer one-shot.
     //
     // A bounded run that reaches the end of the chain with nothing after it
     // is not the same as unbounded: it fails with a diagnostic once its
@@ -45,25 +37,17 @@ public struct CallPattern<Result>: Sendable {
     // which defaults there when nothing follows) — a bounded count means
     // exactly that many, and no more.
 
-    /// Returns `value` for the first matching invocation and starts a
-    /// behavior chain.
+    /// Returns `value` for `times` consecutive matching invocations.
     ///
-    /// With nothing chained after it, this behaves like `times: 1...`
-    /// (repeats forever). Append more behaviors to the returned chain to
-    /// configure the calls that follow instead.
-    ///
-    /// `after:` delivers the value only once that much time has passed, so a
-    /// test can exercise loading states and races against a dependency with
-    /// realistic latency. It requires an async requirement. During the delay a
-    /// throwing requirement observes task cancellation and rethrows it; a
-    /// non-throwing requirement has no error channel for cancellation, so its
-    /// delay always runs to completion. Every `thenReturn`, `thenThrow`, and
-    /// `thenDoNothing` overload takes the same `after:` with the same meaning.
+    /// `times` counts this behavior's own matching calls. A later behavior in
+    /// the chain takes over after exactly that many calls. `after:` delays
+    /// delivery and requires an async requirement.
+    @discardableResult
     @_disfavoredOverload
     public func thenReturn(
         _ value: Result,
         after delay: Duration? = nil,
-        times: ClosedRange<Int>
+        times: Int = 1
     ) -> StubBehaviorChain<Result> {
         requireOrdinaryResult()
         recorder.requireReturnValueMatchesRuntimeType(
@@ -74,58 +58,20 @@ public struct CallPattern<Result>: Sendable {
         return makeBehaviorChain([(fixedAnswer(.success(value), after: delay), .exactly(count))])
     }
 
-    /// Returns `value` for `times` consecutive matching invocations, and
-    /// requires the returned chain to be continued or explicitly discarded.
-    ///
-    /// `times` counts this behavior's own matching calls, starting at 1 —
-    /// not a position in the chain. With nothing appended after it, a call
-    /// beyond `times` fails with a diagnostic instead of repeating `value`;
-    /// use the unbounded overload (`times:` with a `PartialRangeFrom`, or
-    /// the bare `thenReturn(_:)` left standalone) if you want `value` to
-    /// keep repeating instead.
-    public func thenReturn(
-        _ value: Result,
-        after delay: Duration? = nil,
-        times: ClosedRange<Int>
-    ) {
-        requireOrdinaryResult()
-        recorder.requireReturnValueMatchesRuntimeType(
-            value,
-            for: recording.methodIndex
-        )
-        let count = validatedRepeatCount(times)
-        _ = makeBehaviorChain([(fixedAnswer(.success(value), after: delay), .exactly(count))])
-    }
-
-    /// Returns `value` for `times` consecutive matching invocations.
-    /// Shorthand for `times: 1...times`.
-    @_disfavoredOverload
-    public func thenReturn(
-        _ value: Result,
-        after delay: Duration? = nil,
-        times: Int = 1
-    ) -> StubBehaviorChain<Result> {
-        thenReturn(value, after: delay, times: validatedRepeatRange(times: times))
-    }
-
-    /// Returns `value` for `times` consecutive matching invocations.
-    /// Shorthand for `times: 1...times`.
-    public func thenReturn(_ value: Result, after delay: Duration? = nil, times: Int) {
-        thenReturn(value, after: delay, times: validatedRepeatRange(times: times))
-    }
-
     /// Returns `value` to every matching invocation from here on. This is
-    /// terminal: nothing can be chained after it.
+    /// terminal: the returned handle supports interaction operations but no
+    /// further behavior can be chained after it.
     ///
     /// Omitting `times:` entirely also resolves here whenever nothing
     /// follows, so a plain `stub.when { ... }.thenReturn(x)` with no further
     /// configuration means "always return x" — the common case for a
     /// single-behavior stub.
+    @discardableResult
     public func thenReturn(
         _ value: Result,
         after delay: Duration? = nil,
         times: PartialRangeFrom<Int> = 1...
-    ) {
+    ) -> CallInteractions {
         requireOrdinaryResult()
         recorder.requireReturnValueMatchesRuntimeType(
             value,
@@ -133,6 +79,7 @@ public struct CallPattern<Result>: Sendable {
         )
         validateUnboundedRepeatCount(times)
         _ = makeBehaviorChain([(fixedAnswer(.success(value), after: delay), .unbounded)])
+        return interactions
     }
 
     /// Returns the listed values to consecutive matching invocations in
@@ -148,11 +95,12 @@ public struct CallPattern<Result>: Sendable {
     /// trying to apply a count across the whole list. Each registration
     /// consumes its own sequence, so a more specific registration does not
     /// advance a general fallback.
+    @discardableResult
     public func thenReturn(
         _ first: Result,
         _ second: Result,
         _ rest: Result...
-    ) {
+    ) -> CallInteractions {
         requireOrdinaryResult()
         let values = [first, second] + rest
         for value in values {
@@ -165,67 +113,30 @@ public struct CallPattern<Result>: Sendable {
             values.dropLast().map { (.value(.success($0)), .exactly(1)) }
                 + [(.value(.success(rest.last ?? second)), .unbounded)]
         )
+        return interactions
     }
 
     // MARK: - thenThrow
 
-    /// Throws `error` whenever the recorded invocation matches, and starts a
-    /// behavior chain.
-    ///
-    /// The recorded requirement must be throwing. For a concrete
-    /// typed-throws requirement, `error` must be compatible with its
-    /// declared error type. With nothing chained after it, this behaves like
-    /// `times: 1...` (repeats forever). `times:` selects between a bounded
-    /// count, an unbounded repeat, and — left bare — whichever of those fits
-    /// where this call sits in the chain; see `thenReturn(_:times:)` for the
-    /// full explanation, which applies here identically.
-    @_disfavoredOverload
-    public func thenThrow<Failure: Error>(
-        _ error: Failure,
-        after delay: Duration? = nil,
-        times: ClosedRange<Int>
-    ) -> StubBehaviorChain<Result> {
-        let method = requireOrdinaryResult()
-        requireValidThrownError(error, for: method)
-        let count = validatedRepeatCount(times)
-        return makeBehaviorChain([(fixedAnswer(.failure(error), after: delay), .exactly(count))])
-    }
-
-    /// Throws `error` for `times` consecutive matching invocations, and
-    /// requires the returned chain to be continued or explicitly discarded.
-    ///
-    /// The recorded requirement must be throwing. For a concrete
-    /// typed-throws requirement, `error` must be compatible with its
-    /// declared error type. `times` counts this behavior's own matching
-    /// calls, starting at 1 — not a position in the chain. With nothing
-    /// appended after it, a call beyond `times` fails with a diagnostic
-    /// instead of repeating `error`.
-    public func thenThrow<Failure: Error>(
-        _ error: Failure,
-        after delay: Duration? = nil,
-        times: ClosedRange<Int>
-    ) {
-        let method = requireOrdinaryResult()
-        requireValidThrownError(error, for: method)
-        let count = validatedRepeatCount(times)
-        _ = makeBehaviorChain([(fixedAnswer(.failure(error), after: delay), .exactly(count))])
-    }
-
     /// Throws `error` for `times` consecutive matching invocations.
-    /// Shorthand for `times: 1...times`.
+    ///
+    /// The recorded requirement must be throwing. For a concrete
+    /// typed-throws requirement, `error` must be compatible with its declared
+    /// error type.
+    ///
+    /// A later behavior in the chain takes over after exactly that many
+    /// matching calls.
+    @discardableResult
     @_disfavoredOverload
     public func thenThrow<Failure: Error>(
         _ error: Failure,
         after delay: Duration? = nil,
         times: Int = 1
     ) -> StubBehaviorChain<Result> {
-        thenThrow(error, after: delay, times: validatedRepeatRange(times: times))
-    }
-
-    /// Throws `error` for `times` consecutive matching invocations.
-    /// Shorthand for `times: 1...times`.
-    public func thenThrow<Failure: Error>(_ error: Failure, after delay: Duration? = nil, times: Int) {
-        thenThrow(error, after: delay, times: validatedRepeatRange(times: times))
+        let method = requireOrdinaryResult()
+        requireValidThrownError(error, for: method)
+        let count = validatedRepeatCount(times)
+        return makeBehaviorChain([(fixedAnswer(.failure(error), after: delay), .exactly(count))])
     }
 
     /// Throws `error` to every matching invocation from here on. This is
@@ -234,15 +145,17 @@ public struct CallPattern<Result>: Sendable {
     /// Omitting `times:` entirely also resolves here whenever nothing
     /// follows, so a plain `stub.when { ... }.thenThrow(x)` with no further
     /// configuration means "always throw x."
+    @discardableResult
     public func thenThrow<Failure: Error>(
         _ error: Failure,
         after delay: Duration? = nil,
         times: PartialRangeFrom<Int> = 1...
-    ) {
+    ) -> CallInteractions {
         let method = requireOrdinaryResult()
         requireValidThrownError(error, for: method)
         validateUnboundedRepeatCount(times)
         _ = makeBehaviorChain([(fixedAnswer(.failure(error), after: delay), .unbounded)])
+        return interactions
     }
 
     /// Halts the process with an actionable diagnostic for every matching
@@ -255,9 +168,11 @@ public struct CallPattern<Result>: Sendable {
     /// The diagnostic reports the method, its arguments, and every registered
     /// stub, the same as an unstubbed call; `message` is an optional
     /// addendum explaining why this call is unexpected.
-    public func thenFatalError(_ message: String? = nil) {
+    @discardableResult
+    public func thenFatalError(_ message: String? = nil) -> CallInteractions {
         requireOrdinaryResult()
         _ = makeBehaviorChain([(.fatal(message: message), .unbounded)])
+        return interactions
     }
 
     /// Parks every matching invocation from here on, never completing it, to
@@ -577,28 +492,9 @@ public struct CallPattern<Result>: Sendable {
 }
 
 extension CallPattern where Result == Void {
-    /// Completes a matching invocation without performing additional work,
-    /// and starts a behavior chain.
-    ///
-    /// With nothing chained after it, this behaves like `times: 1...`
-    /// (repeats forever).
-    @_disfavoredOverload
-    public func thenDoNothing(
-        after delay: Duration? = nil,
-        times: ClosedRange<Int>
-    ) -> StubBehaviorChain<Void> {
-        thenReturn((), after: delay, times: times)
-    }
-
     /// Completes `times` consecutive matching invocations without performing
-    /// additional work, and requires the returned chain to be continued or
-    /// explicitly discarded.
-    public func thenDoNothing(after delay: Duration? = nil, times: ClosedRange<Int>) {
-        thenReturn((), after: delay, times: times)
-    }
-
-    /// Completes `times` consecutive matching invocations without performing
-    /// additional work. Shorthand for `times: 1...times`.
+    /// additional work.
+    @discardableResult
     @_disfavoredOverload
     public func thenDoNothing(
         after delay: Duration? = nil,
@@ -607,29 +503,29 @@ extension CallPattern where Result == Void {
         thenReturn((), after: delay, times: times)
     }
 
-    /// Completes `times` consecutive matching invocations without performing
-    /// additional work. Shorthand for `times: 1...times`.
-    public func thenDoNothing(after delay: Duration? = nil, times: Int) {
-        thenReturn((), after: delay, times: times)
-    }
-
     /// Completes every matching invocation without performing additional
-    /// work, from here on. This is terminal — nothing can be chained after it.
-    public func thenDoNothing(after delay: Duration? = nil, times: PartialRangeFrom<Int> = 1...) {
+    ///
+    /// The returned handle supports interaction operations but no further
+    /// behavior can be chained after it.
+    @discardableResult
+    public func thenDoNothing(
+        after delay: Duration? = nil,
+        times: PartialRangeFrom<Int> = 1...
+    ) -> CallInteractions {
         thenReturn((), after: delay, times: times)
     }
 }
 
-/// `times:` always counts a behavior's own matching calls starting at 1, not
-/// a position in the chain — so a flat default is correct at every position.
-private func validatedRepeatCount(_ times: ClosedRange<Int>) -> Int {
-    guard times.lowerBound == 1 else {
+/// `times:` counts a behavior's own matching calls, not a position in the
+/// chain.
+private func validatedRepeatCount(_ times: Int) -> Int {
+    guard times >= 1 else {
         fatalError(
-            "[TestDoubles] times: must start at 1; it counts this behavior's own "
+            "[TestDoubles] times: must be at least 1; it counts this behavior's own "
                 + "matching calls, not a position in the chain."
         )
     }
-    return times.upperBound
+    return times
 }
 
 private func validateUnboundedRepeatCount(_ times: PartialRangeFrom<Int>) {
@@ -639,20 +535,6 @@ private func validateUnboundedRepeatCount(_ times: PartialRangeFrom<Int>) {
                 + "matching calls, not a position in the chain."
         )
     }
-}
-
-/// Validates a plain `times: Int` shorthand count and expands it to the
-/// `1...times` range the `ClosedRange` overloads expect. Constructing that
-/// range directly would trap inside `ClosedRange` itself for `times < 1`,
-/// bypassing this library's own diagnostic — so the count is checked first.
-private func validatedRepeatRange(times: Int) -> ClosedRange<Int> {
-    guard times >= 1 else {
-        fatalError(
-            "[TestDoubles] times: must be at least 1; it counts this behavior's own "
-                + "matching calls, not a position in the chain."
-        )
-    }
-    return 1 ... times
 }
 
 /// Extends a stub registration with fixed behaviors for consecutive
@@ -670,17 +552,22 @@ public struct StubBehaviorChain<Result> {
     /// An inspectable view of this registration's queued fixed behaviors.
     public let behaviorQueue: StubBehaviorQueue
 
-    /// Appends a fixed return value to the behavior chain.
+    /// An observation-only view of invocations matching this chain's call.
+    public var interactions: CallInteractions {
+        CallInteractions(recorder: recorder, recording: recording)
+    }
+
+    /// Appends a fixed return value for `times` consecutive matching
+    /// invocations.
     ///
-    /// With nothing appended after it, this behaves like `times: 1...`
-    /// (repeats forever). `after:` delays delivery; see
-    /// `CallPattern.thenReturn(_:after:times:)` for the delay and
-    /// cancellation contract, which applies here identically.
+    /// A later behavior takes over after exactly that many matching calls.
+    /// `after:` delays delivery and requires an async requirement.
+    @discardableResult
     @_disfavoredOverload
     public func thenReturn(
         _ value: Result,
         after delay: Duration? = nil,
-        times: ClosedRange<Int>
+        times: Int = 1
     ) -> Self {
         recorder.requireReturnValueMatchesRuntimeType(
             value,
@@ -691,56 +578,22 @@ public struct StubBehaviorChain<Result> {
         return self
     }
 
-    /// Appends a fixed return value for `times` consecutive matching
-    /// invocations, and requires the chain to be continued or explicitly
-    /// discarded.
-    ///
-    /// With nothing appended after it, a call beyond `times` fails with a
-    /// diagnostic instead of repeating `value`.
-    public func thenReturn(
-        _ value: Result,
-        after delay: Duration? = nil,
-        times: ClosedRange<Int>
-    ) {
-        recorder.requireReturnValueMatchesRuntimeType(
-            value,
-            for: recording.methodIndex
-        )
-        let count = validatedRepeatCount(times)
-        sequence.append(fixedAnswer(.success(value), after: delay), times: .exactly(count))
-    }
-
-    /// Appends a fixed return value for `times` consecutive matching
-    /// invocations. Shorthand for `times: 1...times`.
-    @_disfavoredOverload
-    public func thenReturn(
-        _ value: Result,
-        after delay: Duration? = nil,
-        times: Int = 1
-    ) -> Self {
-        thenReturn(value, after: delay, times: validatedRepeatRange(times: times))
-    }
-
-    /// Appends a fixed return value for `times` consecutive matching
-    /// invocations. Shorthand for `times: 1...times`.
-    public func thenReturn(_ value: Result, after delay: Duration? = nil, times: Int) {
-        thenReturn(value, after: delay, times: validatedRepeatRange(times: times))
-    }
-
     /// Appends a fixed return value for every matching invocation from here
     /// on. This is terminal — nothing can be chained after it — and anything
     /// already appended earlier in the chain is unaffected.
+    @discardableResult
     public func thenReturn(
         _ value: Result,
         after delay: Duration? = nil,
         times: PartialRangeFrom<Int> = 1...
-    ) {
+    ) -> CallInteractions {
         recorder.requireReturnValueMatchesRuntimeType(
             value,
             for: recording.methodIndex
         )
         validateUnboundedRepeatCount(times)
         sequence.append(fixedAnswer(.success(value), after: delay), times: .unbounded)
+        return interactions
     }
 
     /// Appends fixed return values to the behavior chain, in order, then
@@ -752,7 +605,12 @@ public struct StubBehaviorChain<Result> {
     /// each. There's no `times:` form of this overload — to repeat one of
     /// these values a specific number of times, use `times:` on that value's
     /// own `thenReturn` call instead.
-    public func thenReturn(_ first: Result, _ second: Result, _ rest: Result...) {
+    @discardableResult
+    public func thenReturn(
+        _ first: Result,
+        _ second: Result,
+        _ rest: Result...
+    ) -> CallInteractions {
         let values = [first, second] + rest
         for value in values {
             recorder.requireReturnValueMatchesRuntimeType(
@@ -762,19 +620,19 @@ public struct StubBehaviorChain<Result> {
         }
         sequence.append(contentsOf: values.dropLast().map { .value(.success($0)) })
         sequence.append(.value(.success(rest.last ?? second)), times: .unbounded)
+        return interactions
     }
 
-    /// Appends a fixed error to the behavior chain.
+    /// Appends a fixed error for `times` consecutive matching invocations.
     ///
     /// The recorded requirement must be throwing. For a concrete typed-throws
     /// requirement, `error` must be compatible with its declared error type.
-    /// With nothing appended after it, this behaves like `times: 1...`
-    /// (repeats forever).
+    @discardableResult
     @_disfavoredOverload
     public func thenThrow<Failure: Error>(
         _ error: Failure,
         after delay: Duration? = nil,
-        times: ClosedRange<Int>
+        times: Int = 1
     ) -> Self {
         let method = requireRuntimeMethod()
         requireValidThrownError(error, for: method)
@@ -783,61 +641,30 @@ public struct StubBehaviorChain<Result> {
         return self
     }
 
-    /// Appends a fixed error for `times` consecutive matching invocations,
-    /// and requires the chain to be continued or explicitly discarded.
-    ///
-    /// The recorded requirement must be throwing. For a concrete typed-throws
-    /// requirement, `error` must be compatible with its declared error type.
-    /// With nothing appended after it, a call beyond `times` fails with a
-    /// diagnostic instead of repeating `error`.
-    public func thenThrow<Failure: Error>(
-        _ error: Failure,
-        after delay: Duration? = nil,
-        times: ClosedRange<Int>
-    ) {
-        let method = requireRuntimeMethod()
-        requireValidThrownError(error, for: method)
-        let count = validatedRepeatCount(times)
-        sequence.append(fixedAnswer(.failure(error), after: delay), times: .exactly(count))
-    }
-
-    /// Appends a fixed error for `times` consecutive matching invocations.
-    /// Shorthand for `times: 1...times`.
-    @_disfavoredOverload
-    public func thenThrow<Failure: Error>(
-        _ error: Failure,
-        after delay: Duration? = nil,
-        times: Int = 1
-    ) -> Self {
-        thenThrow(error, after: delay, times: validatedRepeatRange(times: times))
-    }
-
-    /// Appends a fixed error for `times` consecutive matching invocations.
-    /// Shorthand for `times: 1...times`.
-    public func thenThrow<Failure: Error>(_ error: Failure, after delay: Duration? = nil, times: Int) {
-        thenThrow(error, after: delay, times: validatedRepeatRange(times: times))
-    }
-
     /// Appends a fixed error for every matching invocation from here on.
     /// This is terminal — nothing can be chained after it — and anything
     /// already appended earlier in the chain is unaffected.
+    @discardableResult
     public func thenThrow<Failure: Error>(
         _ error: Failure,
         after delay: Duration? = nil,
         times: PartialRangeFrom<Int> = 1...
-    ) {
+    ) -> CallInteractions {
         let method = requireRuntimeMethod()
         requireValidThrownError(error, for: method)
         validateUnboundedRepeatCount(times)
         sequence.append(fixedAnswer(.failure(error), after: delay), times: .unbounded)
+        return interactions
     }
 
     /// Halts the process with an actionable diagnostic for every matching
     /// invocation from here on, instead of returning or throwing. This is
     /// terminal, like the unbounded `thenReturn`/`thenThrow`. See
     /// ``CallPattern/thenFatalError(_:)``.
-    public func thenFatalError(_ message: String? = nil) {
+    @discardableResult
+    public func thenFatalError(_ message: String? = nil) -> CallInteractions {
         sequence.append(.fatal(message: message), times: .unbounded)
+        return interactions
     }
 
     /// Parks every matching invocation from here on, never completing it.

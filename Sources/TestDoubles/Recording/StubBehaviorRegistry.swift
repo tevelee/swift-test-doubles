@@ -61,7 +61,7 @@ struct StubBehaviorRegistry {
         /// A snapshot of the queue's finite portion. `nil` means a remaining
         /// unbounded behavior will answer every later matching invocation.
         /// This deliberately counts calls, not distinct behavior entries: a
-        /// `times: 1...3` response has three remaining answers.
+        /// `times: 3` response has three remaining answers.
         func remainingAnswerCount() -> Int? {
             lock.lock()
             defer { lock.unlock() }
