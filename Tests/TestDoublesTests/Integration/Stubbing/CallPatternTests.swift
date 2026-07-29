@@ -33,6 +33,49 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
 }
 
 @Suite struct CallPatternTests {
+    @Test func typedOutcomesExposeReturnsErrorsAndEntryOrder() throws {
+        let stub = try makeHandlerArityStub()
+        let pattern = stub.when { try $0.throwing(Match.any()) }
+        pattern.then { (value: Int) throws in
+            guard value >= 0 else { throw HandlerError(value: value) }
+            return value * 2
+        }
+
+        let probe: any HandlerArityProbe = stub()
+        #expect(try probe.throwing(2) == 4)
+        #expect(throws: HandlerError(value: -1)) {
+            try probe.throwing(-1)
+        }
+
+        #expect(pattern.results() == [4])
+        #expect(pattern.errors(ofType: HandlerError.self) == [HandlerError(value: -1)])
+        let outcomes = pattern.outcomes()
+        #expect(outcomes.count == 2)
+        guard case .returned(4) = outcomes[0] else {
+            Issue.record("Expected the first call to return 4")
+            return
+        }
+        guard case .threw(let error as HandlerError) = pattern.lastOutcome else {
+            Issue.record("Expected the last call to throw HandlerError")
+            return
+        }
+        #expect(error == HandlerError(value: -1))
+    }
+
+    @Test func terminalInteractionsInferTypedResultsFromContext() throws {
+        let stub = try makeHandlerArityStub()
+        let calls = stub.when { $0.one(Match.any()) }.thenReturn(42)
+        let probe: any HandlerArityProbe = stub()
+
+        #expect(probe.one(0) == 42)
+        let results: [Int] = calls.results()
+        #expect(results == [42])
+        guard case .returned(42) = calls.lastOutcome(as: Int.self) else {
+            Issue.record("Expected the terminal interaction to return 42")
+            return
+        }
+    }
+
     @Test func typedThenSupportsZeroThroughSevenArguments() async throws {
         let stub = try makeHandlerArityStub()
         stub.when { $0.zero() }.then { 0 }

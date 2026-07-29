@@ -101,6 +101,34 @@ enum RuntimeTrampolineHandler {
         }
     }
 
+    private final class ForwardingCompletionState:
+        AsyncTrampolineDispatchState,
+        @unchecked Sendable
+    {
+        let base: any AsyncTrampolineDispatchState
+        let endpoint: any RuntimeInvocationEndpoint
+        let token: RuntimeInvocationToken
+
+        init(
+            base: any AsyncTrampolineDispatchState,
+            endpoint: any RuntimeInvocationEndpoint,
+            token: RuntimeInvocationToken
+        ) {
+            self.base = base
+            self.endpoint = endpoint
+            self.token = token
+        }
+
+        func run() async {
+            await base.run()
+            endpoint.completeForwardedInvocation(token)
+        }
+
+        func finish(into frame: TrampolineCallFrame) {
+            base.finish(into: frame)
+        }
+    }
+
     static func handle(_ frame: TrampolineCallFrame) {
         let invocation = invocation(for: frame)
         handle(frame, invocation: invocation)
@@ -132,13 +160,14 @@ enum RuntimeTrampolineHandler {
                 )
                 return
 
-            case .forwarding:
+            case .forwarding(let token):
                 guard let forwarder = invocation.forwarder else {
                     preconditionFailure(
                         "[TestDoubles] A forwarding dispatch has no target transport."
                     )
                 }
                 forwarder.forward(method, frame: frame)
+                invocation.endpoint.completeForwardedInvocation(token)
                 return
 
             case .behavior(let behavior):
@@ -257,15 +286,19 @@ enum RuntimeTrampolineHandler {
                 )
                 return RetainedRuntimeState.retain(state)
 
-            case .forwarding:
+            case .forwarding(let token):
                 guard let forwarder = invocation.forwarder else {
                     preconditionFailure(
                         "[TestDoubles] A forwarding async dispatch has no target transport."
                     )
                 }
-                let state = forwarder.makeAsyncState(
-                    for: invocation.method,
-                    frame: frame
+                let state = ForwardingCompletionState(
+                    base: forwarder.makeAsyncState(
+                        for: invocation.method,
+                        frame: frame
+                    ),
+                    endpoint: invocation.endpoint,
+                    token: token
                 )
                 return RetainedRuntimeState.retain(state)
         }

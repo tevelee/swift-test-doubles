@@ -79,6 +79,43 @@ when its timeout expires; its clock-aware overload accepts ``ManualStubClock``.
 Cancelling a task awaiting `next()` also returns `nil` and removes its waiter
 immediately.
 
+### Inspect returned values, errors, and pending calls
+
+A saved ``CallPattern`` retains its result type, so
+``CallPattern/results()``, ``CallPattern/errors()``, and
+``CallPattern/outcomes()`` expose what matching calls did after they entered
+the double:
+
+```swift
+let load = stub.when { try await $0.load(id: Match.any()) }
+load.then { id in
+    if id < 0 { throw LoadError.invalidID }
+    return "item-\(id)"
+}
+
+_ = try await loader.load(id: 1)
+_ = try? await loader.load(id: -1)
+
+#expect(load.results() == ["item-1"])
+#expect(load.errors(ofType: LoadError.self) == [.invalidID])
+
+if case .threw(let error) = load.lastOutcome {
+    #expect(error is LoadError)
+}
+```
+
+``InvocationOutcome`` preserves invocation-entry order and distinguishes
+returned values, thrown errors, and calls whose async handlers are still
+pending. A completed spy delegation is represented by `.forwarded`, because
+the ABI transport owns its result and cannot safely type-erase every result
+shape. Likewise, a runtime value that cannot be represented by the pattern's
+generic result is `.unavailable`; this principally covers dependent dynamic
+`Self` results.
+
+A terminal ``CallInteractions`` handle no longer carries the result generic,
+so its `results(as:)`, `outcomes(as:)`, and `lastOutcome(as:)` methods infer
+the type from an assignment or accept it explicitly.
+
 ### Inspect the whole double
 
 When a `verify` fails, the useful next question is what actually *did* get

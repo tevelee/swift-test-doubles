@@ -28,10 +28,10 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
         ) {
             case .placeholder:
                 return .recording
-            case .forwarding:
-                return .forwarding
-            case .behavior(let behavior):
-                return .behavior(runtimeBehavior(behavior))
+            case .forwarding(let token):
+                return .forwarding(RuntimeInvocationToken(id: token.id))
+            case .behavior(let token, let behavior):
+                return .behavior(runtimeBehavior(behavior, token: token))
         }
     }
 
@@ -48,9 +48,16 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
                 return .immediate(result)
             case .suspending(let handler):
                 return .suspending(handler)
-            case .forwarding:
-                return .forwarding
+            case .forwarding(let token):
+                return .forwarding(RuntimeInvocationToken(id: token.id))
         }
+    }
+
+    func completeForwardedInvocation(_ token: RuntimeInvocationToken) {
+        recorder.completeInvocation(
+            RecordedCallToken(id: token.id),
+            outcome: .forwarded
+        )
     }
 
     func modifyDispatch(
@@ -174,19 +181,47 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
     }
 
     private func runtimeBehavior(
-        _ behavior: StubRecorder.StubEntry.Behavior
+        _ behavior: StubRecorder.StubEntry.Behavior,
+        token: RecordedCallToken
     ) -> RuntimeDispatchBehavior {
         switch behavior {
             case .fixed(let result):
-                return .fixed(result)
+                return .immediate { [weak recorder] _ in
+                    do {
+                        let value = try result.get()
+                        recorder?.completeInvocation(token, outcome: .returned(value))
+                        return value
+                    } catch {
+                        recorder?.completeInvocation(token, outcome: .threw(error))
+                        throw error
+                    }
+                }
             case .fixedSequence:
                 preconditionFailure(
                     "[TestDoubles] A queued stub result was not reserved during dispatch."
                 )
             case .immediate(let handler):
-                return .immediate(handler)
+                return .immediate { [weak recorder] arguments in
+                    do {
+                        let value = try handler(arguments)
+                        recorder?.completeInvocation(token, outcome: .returned(value))
+                        return value
+                    } catch {
+                        recorder?.completeInvocation(token, outcome: .threw(error))
+                        throw error
+                    }
+                }
             case .suspending(let handler):
-                return .suspending(handler)
+                return .suspending { [weak recorder] arguments in
+                    do {
+                        let value = try await handler(arguments)
+                        recorder?.completeInvocation(token, outcome: .returned(value))
+                        return value
+                    } catch {
+                        recorder?.completeInvocation(token, outcome: .threw(error))
+                        throw error
+                    }
+                }
         }
     }
 

@@ -99,10 +99,14 @@ enum ReadCoroutineRuntime {
             switch invocation.endpoint.prepareDispatch(
                 RuntimeInvocationRequest(slot: method.index, arguments: arguments)
             ) {
-                case .forwarding:
-                    state = forwarder.makeReadState(
-                        for: method,
-                        frame: frame
+                case .forwarding(let token):
+                    state = ForwardingCompletionYieldingState(
+                        base: forwarder.makeReadState(
+                            for: method,
+                            frame: frame
+                        ),
+                        endpoint: invocation.endpoint,
+                        token: token
                     )
 
                 case .recording:

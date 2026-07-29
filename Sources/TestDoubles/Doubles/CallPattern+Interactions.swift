@@ -171,6 +171,43 @@ extension CallPattern {
         matchingCalls().map(typedCallArguments)
     }
 
+    /// Returned values from completed matching calls, in invocation order.
+    ///
+    /// Pending, throwing, forwarded, and ABI-opaque outcomes are omitted.
+    public func results() -> [Result] {
+        matchingCalls().compactMap { call in
+            guard case .returned(let value) = call.typedOutcome(as: Result.self) else {
+                return nil
+            }
+            return value
+        }
+    }
+
+    /// Errors thrown by completed matching calls, in invocation order.
+    public func errors() -> [any Error] {
+        matchingCalls().compactMap { call in
+            guard case .threw(let error) = call.outcome else { return nil }
+            return error
+        }
+    }
+
+    /// Errors of `Failure` thrown by completed matching calls.
+    public func errors<Failure: Error>(
+        ofType type: Failure.Type
+    ) -> [Failure] {
+        errors().compactMap { $0 as? Failure }
+    }
+
+    /// Completion states for all matching calls, in invocation order.
+    public func outcomes() -> [InvocationOutcome<Result>] {
+        matchingCalls().map { $0.typedOutcome(as: Result.self) }
+    }
+
+    /// The most recently entered matching call's completion state.
+    public var lastOutcome: InvocationOutcome<Result>? {
+        matchingCalls().last?.typedOutcome(as: Result.self)
+    }
+
     /// Returns a stream of future matching invocation arguments.
     ///
     /// Calls recorded before this method returns are deliberately excluded.

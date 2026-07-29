@@ -136,6 +136,50 @@ public struct CallInteractions: Sendable {
         pattern.arguments()
     }
 
+    /// Returned values from completed matching calls.
+    ///
+    /// The terminal handle does not retain its result generic, so `Result`
+    /// is inferred from the assignment or supplied explicitly with `as:`.
+    public func results<Result>(
+        as type: Result.Type = Result.self
+    ) -> [Result] {
+        matchingCalls().compactMap { call in
+            guard case .returned(let value) = call.typedOutcome(as: type) else {
+                return nil
+            }
+            return value
+        }
+    }
+
+    /// Errors thrown by completed matching calls.
+    public func errors() -> [any Error] {
+        matchingCalls().compactMap { call in
+            guard case .threw(let error) = call.outcome else { return nil }
+            return error
+        }
+    }
+
+    /// Errors of `Failure` thrown by completed matching calls.
+    public func errors<Failure: Error>(
+        ofType type: Failure.Type
+    ) -> [Failure] {
+        errors().compactMap { $0 as? Failure }
+    }
+
+    /// Completion states for matching calls.
+    public func outcomes<Result>(
+        as type: Result.Type = Result.self
+    ) -> [InvocationOutcome<Result>] {
+        matchingCalls().map { $0.typedOutcome(as: type) }
+    }
+
+    /// The most recently entered matching call's completion state.
+    public func lastOutcome<Result>(
+        as type: Result.Type = Result.self
+    ) -> InvocationOutcome<Result>? {
+        matchingCalls().last?.typedOutcome(as: type)
+    }
+
     /// Returns a stream of future matching invocation arguments.
     ///
     /// Calls recorded before this method returns are deliberately excluded.
@@ -144,4 +188,12 @@ public struct CallInteractions: Sendable {
         pattern.stream()
     }
 
+    private func matchingCalls() -> [RecordedCall] {
+        recorder.verificationMatches(
+            method: recording.methodIndex,
+            matchers: recording.resolvedMatchers,
+            matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly,
+            origin: origin
+        )
+    }
 }

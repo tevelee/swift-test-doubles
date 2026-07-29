@@ -453,6 +453,10 @@ final class DummyInvocationEndpoint: RuntimeInvocationEndpoint,
         rejectInvocation(at: request.slot)
     }
 
+    func completeForwardedInvocation(_ token: RuntimeInvocationToken) {
+        _ = token
+    }
+
     func modifyDispatch(
         forGetterSlot getterSlot: Int
     ) -> RuntimeModifyDispatch? {

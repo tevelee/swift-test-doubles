@@ -1,4 +1,5 @@
 import CTestDoublesTrampoline
+import InternalRuntimeContract
 import TestDoublesRuntimeMetadata
 
 /// Distinguishes retained coroutine states that otherwise share one lifecycle.
@@ -11,6 +12,33 @@ package protocol YieldingAccessorState: AnyObject, Sendable {
     var kind: YieldingAccessorKind { get }
     var yieldedStorage: UnsafeMutableRawPointer? { get }
     func finish(isAborting: Bool)
+}
+
+final class ForwardingCompletionYieldingState:
+    YieldingAccessorState,
+    @unchecked Sendable
+{
+    let base: any YieldingAccessorState
+    let endpoint: any RuntimeInvocationEndpoint
+    let token: RuntimeInvocationToken
+
+    var kind: YieldingAccessorKind { base.kind }
+    var yieldedStorage: UnsafeMutableRawPointer? { base.yieldedStorage }
+
+    init(
+        base: any YieldingAccessorState,
+        endpoint: any RuntimeInvocationEndpoint,
+        token: RuntimeInvocationToken
+    ) {
+        self.base = base
+        self.endpoint = endpoint
+        self.token = token
+    }
+
+    func finish(isAborting: Bool) {
+        base.finish(isAborting: isAborting)
+        endpoint.completeForwardedInvocation(token)
+    }
 }
 
 /// Centralizes the retain/consume boundary shared by `_read` and `_modify`.

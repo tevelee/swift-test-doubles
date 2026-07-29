@@ -88,10 +88,13 @@ private enum ModifyCoroutineRuntime {
                         arguments: arguments
                     )
                 ) {
-                    case .recording, .forwarding:
+                    case .recording:
                         // A getter override owns this outer coroutine. A
                         // falling-through setter must not enter the real
                         // target after the target `_modify` was skipped.
+                        return
+                    case .forwarding(let token):
+                        endpoint.completeForwardedInvocation(token)
                         return
                     case .behavior(let behavior):
                         _ = SynchronousAccessorDispatch.evaluate(
@@ -170,10 +173,14 @@ private enum ModifyCoroutineRuntime {
             switch invocation.endpoint.prepareDispatch(
                 RuntimeInvocationRequest(slot: getter.index, arguments: indices)
             ) {
-                case .forwarding:
-                    state = forwarder.makeModifyState(
-                        for: getter,
-                        frame: frame
+                case .forwarding(let token):
+                    state = ForwardingCompletionYieldingState(
+                        base: forwarder.makeModifyState(
+                            for: getter,
+                            frame: frame
+                        ),
+                        endpoint: invocation.endpoint,
+                        token: token
                     )
 
                 case .recording:

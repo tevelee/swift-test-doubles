@@ -92,5 +92,9 @@ struct RealForwardingProbeService: ForwardingProbeService {
         calls.verify(2 ... 2)
         calls.forwarded.verify(2 ... 2)
         calls.stubbed.verify(.never)
+        guard case .forwarded = calls.lastOutcome else {
+            Issue.record("Expected the forwarded call to be complete")
+            return
+        }
     }
 }

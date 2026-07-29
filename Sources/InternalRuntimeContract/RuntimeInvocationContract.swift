@@ -54,11 +54,21 @@ package enum RuntimeDispatchBehavior: @unchecked Sendable {
     case suspending(([Any]) async throws -> Any)
 }
 
+/// Recorder-local identity for one invocation whose forwarding completion is
+/// reported by the ABI runtime.
+package struct RuntimeInvocationToken: Sendable {
+    package let id: UInt64
+
+    package init(id: UInt64) {
+        self.id = id
+    }
+}
+
 /// The public layer's synchronous dispatch selection.
 package enum RuntimePreparedDispatch: @unchecked Sendable {
     case recording
     case behavior(RuntimeDispatchBehavior)
-    case forwarding
+    case forwarding(RuntimeInvocationToken)
 }
 
 /// The public layer's asynchronous dispatch selection.
@@ -66,7 +76,7 @@ package enum RuntimeAsyncDispatch: @unchecked Sendable {
     case recording
     case immediate(Result<Any, any Error>)
     case suspending(([Any]) async throws -> Any)
-    case forwarding
+    case forwarding(RuntimeInvocationToken)
 }
 
 /// Semantic policy invoked by the ABI runtime. Transports only dispatch
@@ -80,6 +90,12 @@ package protocol RuntimeInvocationEndpoint: AnyObject, Sendable {
     func prepareAsyncDispatch(
         _ request: RuntimeInvocationRequest
     ) -> RuntimeAsyncDispatch
+
+    /// Marks an invocation delegated to a forwarding target as complete.
+    ///
+    /// The ABI transport owns the target call and therefore is the only layer
+    /// that can report its completion boundary reliably.
+    func completeForwardedInvocation(_ token: RuntimeInvocationToken)
 
     var invocationMode: RuntimeInvocationMode { get }
 

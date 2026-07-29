@@ -38,6 +38,32 @@ enum InvocationOrigin: Sendable, Equatable {
     case forwarded
 }
 
+enum RecordedCallOutcome: @unchecked Sendable {
+    case pending
+    case returned(Any)
+    case threw(any Error)
+    case forwarded
+}
+
+struct RecordedCallToken: Sendable {
+    let id: UInt64
+}
+
+struct InvocationLedgerAppendResult: RandomAccessCollection {
+    typealias Index = Int
+    typealias Element = InvocationLedgerWaiter
+
+    let token: RecordedCallToken
+    let waiters: [InvocationLedgerWaiter]
+
+    var startIndex: Int { waiters.startIndex }
+    var endIndex: Int { waiters.endIndex }
+
+    subscript(position: Int) -> InvocationLedgerWaiter {
+        waiters[position]
+    }
+}
+
 /// A recorded playback invocation or a capture-mode expectation.
 struct RecordedCall: @unchecked Sendable {
     private final class WeakPayload {
@@ -146,6 +172,7 @@ struct RecordedCall: @unchecked Sendable {
     let origin: InvocationOrigin
     let registrationSignature: String?
     let taskPriorityRawValue: UInt8
+    var outcome: RecordedCallOutcome
     private let argumentsStorage: ArgumentsStorage
     let matchers: [ParameterMatcher]
     /// Empty matchers normally mean a broad fallback. An empty parameter pack
@@ -162,6 +189,7 @@ struct RecordedCall: @unchecked Sendable {
         name: String,
         origin: InvocationOrigin = .stubbed,
         registrationSignature: String? = nil,
+        outcome: RecordedCallOutcome = .pending,
         args: [Any],
         argumentConventions: [RuntimeValueConvention]? = nil,
         runtimePayloadRecorder: StubRecorder? = nil,
@@ -176,6 +204,7 @@ struct RecordedCall: @unchecked Sendable {
         self.origin = origin
         self.registrationSignature = registrationSignature
         taskPriorityRawValue = Task.currentPriority.rawValue
+        self.outcome = outcome
         if let argumentConventions {
             precondition(
                 argumentConventions.count == args.count,
@@ -203,6 +232,7 @@ struct RecordedCall: @unchecked Sendable {
         origin: InvocationOrigin,
         registrationSignature: String?,
         taskPriorityRawValue: UInt8,
+        outcome: RecordedCallOutcome,
         argumentsStorage: ArgumentsStorage,
         matchers: [ParameterMatcher],
         matchesEmptyArgumentsExactly: Bool,
@@ -215,6 +245,7 @@ struct RecordedCall: @unchecked Sendable {
         self.origin = origin
         self.registrationSignature = registrationSignature
         self.taskPriorityRawValue = taskPriorityRawValue
+        self.outcome = outcome
         self.argumentsStorage = argumentsStorage
         self.matchers = matchers
         self.matchesEmptyArgumentsExactly = matchesEmptyArgumentsExactly
@@ -231,6 +262,7 @@ struct RecordedCall: @unchecked Sendable {
             origin: origin,
             registrationSignature: registrationSignature,
             taskPriorityRawValue: taskPriorityRawValue,
+            outcome: outcome,
             argumentsStorage: argumentsStorage,
             matchers: matchers,
             matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
@@ -306,7 +338,7 @@ struct InvocationLedger {
         args: [Any],
         argumentConventions: [RuntimeValueConvention]? = nil,
         runtimePayloadRecorder: StubRecorder? = nil
-    ) -> [InvocationLedgerWaiter] {
+    ) -> InvocationLedgerAppendResult {
         let callID = nextRecordedCallID
         nextRecordedCallID &+= 1
         calls.append(
@@ -323,7 +355,23 @@ struct InvocationLedger {
                 matchers: []
             ))
         methodGenerations[method, default: 0] &+= 1
-        return takeWaiters(for: method)
+        return InvocationLedgerAppendResult(
+            token: RecordedCallToken(id: callID),
+            waiters: takeWaiters(for: method)
+        )
+    }
+
+    mutating func complete(
+        _ token: RecordedCallToken,
+        outcome: RecordedCallOutcome
+    ) {
+        guard let index = calls.firstIndex(where: { $0.id == token.id }) else {
+            return
+        }
+        guard case .pending = calls[index].outcome else {
+            return
+        }
+        calls[index].outcome = outcome
     }
 
     mutating func clear() -> [InvocationLedgerWaiter] {

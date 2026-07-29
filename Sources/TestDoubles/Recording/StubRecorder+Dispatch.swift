@@ -22,21 +22,29 @@ extension StubRecorder {
             case .placeholder:
                 return zeroValue
 
-            case .behavior(let behavior):
-                switch behavior {
-                    case .fixed(let result):
-                        return try result.get()
-                    case .fixedSequence:
-                        preconditionFailure(
-                            "[TestDoubles] A queued stub result was not reserved during dispatch."
-                        )
-                    case .immediate(let handler):
-                        return try handler(args)
-                    case .suspending:
-                        fatalError(
-                            "[TestDoubles] A suspending handler was selected for synchronous dispatch of \(method.name). "
-                                + "Use it only with an async Stub requirement."
-                        )
+            case .behavior(let token, let behavior):
+                do {
+                    let result: Any
+                    switch behavior {
+                        case .fixed(let fixedResult):
+                            result = try fixedResult.get()
+                        case .fixedSequence:
+                            preconditionFailure(
+                                "[TestDoubles] A queued stub result was not reserved during dispatch."
+                            )
+                        case .immediate(let handler):
+                            result = try handler(args)
+                        case .suspending:
+                            fatalError(
+                                "[TestDoubles] A suspending handler was selected for synchronous dispatch of \(method.name). "
+                                    + "Use it only with an async Stub requirement."
+                            )
+                    }
+                    completeInvocation(token, outcome: .returned(result))
+                    return result
+                } catch {
+                    completeInvocation(token, outcome: .threw(error))
+                    throw error
                 }
 
             case .forwarding:
@@ -76,9 +84,10 @@ extension StubRecorder {
             case .placeholder:
                 return .placeholder
 
-            case .behavior(let behavior):
+            case .behavior(let token, let behavior):
                 switch behavior {
                     case .fixed(let result):
+                        completeInvocation(token, outcome: recordedOutcome(for: result))
                         return .immediate(result)
                     case .fixedSequence:
                         preconditionFailure(
@@ -86,16 +95,28 @@ extension StubRecorder {
                         )
                     case .immediate(let handler):
                         do {
-                            return .immediate(.success(try handler(args)))
+                            let result = try handler(args)
+                            completeInvocation(token, outcome: .returned(result))
+                            return .immediate(.success(result))
                         } catch {
+                            completeInvocation(token, outcome: .threw(error))
                             return .immediate(.failure(error))
                         }
                     case .suspending(let handler):
-                        return .suspending(handler)
+                        return .suspending { [weak self] arguments in
+                            do {
+                                let result = try await handler(arguments)
+                                self?.completeInvocation(token, outcome: .returned(result))
+                                return result
+                            } catch {
+                                self?.completeInvocation(token, outcome: .threw(error))
+                                throw error
+                            }
+                        }
                 }
 
-            case .forwarding:
-                return .forwarding
+            case .forwarding(let token):
+                return .forwarding(token)
         }
     }
 
@@ -116,8 +137,9 @@ extension StubRecorder {
             guard let entries = snapshot.entries else {
                 guard behaviorRegistryIsCurrent(snapshot) else { continue }
                 if allowsForwardingFallback {
-                    recordForwardedInvocation(method: method, args: args)
-                    return .forwarding
+                    return .forwarding(
+                        recordForwardedInvocation(method: method, args: args)
+                    )
                 }
                 fatalError(
                     diagnosticMessage(
@@ -138,8 +160,9 @@ extension StubRecorder {
             else {
                 guard behaviorRegistryIsCurrent(snapshot) else { continue }
                 if allowsForwardingFallback {
-                    recordForwardedInvocation(method: method, args: args)
-                    return .forwarding
+                    return .forwarding(
+                        recordForwardedInvocation(method: method, args: args)
+                    )
                 }
                 fatalError(
                     diagnosticMessage(
@@ -158,19 +181,19 @@ extension StubRecorder {
                         method: methodIndex,
                         entryIndex: preparedMatch.entryIndex
                     )
-                    let dispatch = preparedBehavior(
+                    let selectedDispatch = preparedBehavior(
                         entry.behavior,
                         method: method,
                         args: args,
                         entries: entries
                     )
                     let origin: InvocationOrigin =
-                        if case .forwarding = dispatch {
+                        if case .forwarding = selectedDispatch {
                             .forwarded
                         } else {
                             .stubbed
                         }
-                    let waiters = policy.invocationLedger.append(
+                    let appended = policy.invocationLedger.append(
                         method: methodIndex,
                         name: method.name,
                         origin: origin,
@@ -180,7 +203,14 @@ extension StubRecorder {
                         runtimePayloadRecorder: self
                     )
                     preparedMatch.matcherTransaction.commitCaptures()
-                    return (dispatch, waiters)
+                    let dispatch: PreparedDispatch =
+                        switch selectedDispatch {
+                            case .behavior(let behavior):
+                                .behavior(appended.token, behavior)
+                            case .forwarding:
+                                .forwarding(appended.token)
+                        }
+                    return (dispatch, appended.waiters)
                 }
             guard let (dispatch, waiters) = committed else { continue }
             resumeWaiters(waiters, returning: .changed)
@@ -199,7 +229,7 @@ extension StubRecorder {
         method: RuntimeMethod,
         args: [Any],
         entries: [StubEntry]
-    ) -> PreparedDispatch {
+    ) -> SelectedDispatch {
         guard case .fixedSequence(let results) = behavior else {
             return .behavior(behavior)
         }
@@ -337,8 +367,8 @@ extension StubRecorder {
     private func recordForwardedInvocation(
         method: RuntimeMethod,
         args: [Any]
-    ) {
-        let waiters = withLockedPolicy {
+    ) -> RecordedCallToken {
+        let appended = withLockedPolicy {
             $0.invocationLedger.append(
                 method: method.index,
                 name: method.name,
@@ -348,7 +378,26 @@ extension StubRecorder {
                 runtimePayloadRecorder: self
             )
         }
-        resumeWaiters(waiters, returning: .changed)
+        resumeWaiters(appended.waiters, returning: .changed)
+        return appended.token
+    }
+
+    func completeInvocation(
+        _ token: RecordedCallToken,
+        outcome: RecordedCallOutcome
+    ) {
+        withLockedPolicy {
+            $0.invocationLedger.complete(token, outcome: outcome)
+        }
+    }
+
+    private func recordedOutcome(
+        for result: Result<Any, any Error>
+    ) -> RecordedCallOutcome {
+        switch result {
+            case .success(let value): .returned(value)
+            case .failure(let error): .threw(error)
+        }
     }
 
     private func recordPlaceholder(method: Int, name: String, args: [Any]) {

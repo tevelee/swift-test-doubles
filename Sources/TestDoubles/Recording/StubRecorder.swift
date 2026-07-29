@@ -53,11 +53,16 @@ final class StubRecorder: @unchecked Sendable {
         case placeholder
         case immediate(Result<Any, any Error>)
         case suspending(([Any]) async throws -> Any)
-        case forwarding
+        case forwarding(RecordedCallToken)
     }
 
     enum PreparedDispatch {
         case placeholder
+        case behavior(RecordedCallToken, StubEntry.Behavior)
+        case forwarding(RecordedCallToken)
+    }
+
+    enum SelectedDispatch {
         case behavior(StubEntry.Behavior)
         case forwarding
     }
