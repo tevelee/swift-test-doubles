@@ -461,18 +461,19 @@ even if it cannot be diagnosed during construction.
 
 ### Runtime and platform boundary
 
-CI-executed release support covers macOS 13+ on arm64 and x86_64, Linux on
-arm64 and x86_64 with Swift 6.3+, Mac Catalyst 16+ on arm64, and arm64
-simulators for iOS 16+, tvOS 16+, visionOS 1+, and watchOS 9+. Deployment
-targets are compiled at their declared minimum and executed on CI's available
-runner or simulator OS. macOS x86_64 coverage runs under Rosetta. Android arm64
-and x86_64 are provisional cross-build targets.
+The package declares macOS 13+, Mac Catalyst 16+, iOS 16+, tvOS 16+, visionOS
+1+, and watchOS 9+ deployment targets. CI builds against those minima and
+runtime-tests on pinned macOS 26 arm64 and native x86_64 hosts, Linux arm64 and
+x86_64 hosts with Swift 6.3+, and the oldest available arm64 simulator runtime
+installed with the pinned Xcode. Android arm64 and x86_64 are provisional
+cross-build targets.
 
 Android CI cross-builds debug and release test targets with the official Swift
 6.3.3 Android SDK and NDK r27d or later. The dependency graph must resolve Echo
-0.1.1 or newer for Android ELF image discovery. CI
-does not currently execute the tests on an Android emulator or device, so
-Android is not yet runtime-validated.
+0.1.1 or newer for Android ELF image discovery. CI also runs a focused x86_64
+emulator demonstration that fabricates, configures, invokes, and verifies a
+`Stub`. The full test suites do not currently execute on an Android emulator or
+device, so Android remains provisional.
 
 Physical iOS, tvOS, visionOS, and watchOS devices are unsupported because the
 runtime generates executable trampoline code and CI cannot exercise device

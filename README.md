@@ -405,17 +405,21 @@ explains how to re-enable `RuntimeStubs`; manual stubs keep the same
 <details>
 <summary><strong>Requirements and platforms</strong></summary>
 
-TestDoubles requires Swift 6.3. The CI-executed runtime matrix is macOS 13+ on
-arm64 and x86_64, Linux on arm64 and x86_64, Mac Catalyst 16+ on arm64, and
-arm64 simulators for iOS 16+, tvOS 16+, visionOS 1+, and watchOS 9+. Android
-arm64 and x86_64 are provisional cross-build targets, and wasm32-unknown-wasip1
-is a `ManualStub`-only target.
+TestDoubles requires Swift 6.3. Its declared deployment targets are macOS 13+,
+Mac Catalyst 16+, iOS 16+, tvOS 16+, visionOS 1+, and watchOS 9+. CI builds
+against those minima and runtime-tests on pinned macOS 26 arm64 and x86_64
+hosts, Linux arm64 and x86_64 hosts, and the oldest available arm64 simulator
+runtime installed with the pinned Xcode. Android arm64 and x86_64 are
+provisional cross-build targets, and wasm32-unknown-wasip1 is a
+`ManualStub`-only target.
 
 Android support is cross-build validated in CI for debug and release test
 targets with the official Swift 6.3.3 Android SDK and NDK r27d or later. The
 dependency graph must resolve Echo 0.1.1 or newer for Android ELF image
-discovery. CI does not currently execute the tests
-on an Android emulator or device, so Android is not yet runtime-validated.
+discovery. CI also runs a focused x86_64 emulator demonstration that fabricates,
+configures, invokes, and verifies a `Stub`. The full test suites do not
+currently execute on an Android emulator or device, so Android remains
+provisional.
 
 Physical iOS, tvOS, visionOS, and watchOS devices are unsupported because the
 runtime generates executable trampoline code and CI cannot exercise device
