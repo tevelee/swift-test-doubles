@@ -877,6 +877,7 @@ symbol	TestDoubles	swift.type.method	Match.isEmpty()	static func isEmpty<C>() ->
 symbol	TestDoubles	swift.type.method	Match.isNil()	static func isNil<Wrapped>() -> Wrapped?
 symbol	TestDoubles	swift.type.method	Match.lessThan(_:)	static func lessThan<T>(_ value: T) -> T where T : Comparable
 symbol	TestDoubles	swift.type.method	Match.matchesRegex(_:)	static func matchesRegex(_ pattern: String) -> String
+symbol	TestDoubles	swift.type.method	Match.matchesRegex(_:)	static func matchesRegex<Output>(_ regex: Regex<Output>) -> String
 symbol	TestDoubles	swift.type.method	Match.matching(description:where:)	static func matching<T>(description: String = "predicate", where predicate: @escaping @Sendable (T) -> Bool) -> T
 symbol	TestDoubles	swift.type.method	Match.matching(using:description:where:)	static func matching<T>(using placeholder: T, description: String = "predicate", where predicate: @escaping @Sendable (T) -> Bool) -> T
 symbol	TestDoubles	swift.type.method	Match.nonEmpty()	static func nonEmpty<C>() -> C where C : Collection

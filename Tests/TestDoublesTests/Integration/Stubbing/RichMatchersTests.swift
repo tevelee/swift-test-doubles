@@ -375,11 +375,13 @@ struct RealTagIndex: TagIndex {
 @Suite struct StringMatchersTests {
     @Test func stringMatchers() throws {
         let stub = try Stub<any TagIndex>()
+        let nativeRegex = try Regex(#"^order-(\d+)$"#)
         stub.when { $0.matchName(Match.hasPrefix("com.")) }.thenReturn("reverse-dns")
         stub.when { $0.matchName(Match.hasSuffix(".swift")) }.thenReturn("source")
         stub.when { $0.matchName(Match.containsSubstring("test")) }.thenReturn("test")
         stub.when { $0.matchName(Match.equalsIgnoringCase("readme")) }.thenReturn("readme")
         stub.when { $0.matchName(Match.matchesRegex("^[0-9]+$")) }.thenReturn("numeric")
+        stub.when { $0.matchName(Match.matchesRegex(nativeRegex)) }.thenReturn("order")
         stub.when { $0.matchName(Match.any()) }.thenReturn("other")
 
         let index: any TagIndex = stub()
@@ -388,6 +390,8 @@ struct RealTagIndex: TagIndex {
         #expect(index.matchName("my_test_file") == "test")
         #expect(index.matchName("README") == "readme")
         #expect(index.matchName("12345") == "numeric")
+        #expect(index.matchName("order-42") == "order")
+        #expect(index.matchName("order-nope") == "other")
         #expect(index.matchName("plain") == "other")
     }
 }

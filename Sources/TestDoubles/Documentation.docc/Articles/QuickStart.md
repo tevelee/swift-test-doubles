@@ -187,6 +187,7 @@ Match.hasSuffix(".json")
 Match.containsSubstring("purchase")
 Match.equalsIgnoringCase("READY")
 Match.matchesRegex(#"user-\d+"#)
+Match.matchesRegex(try Regex(#"^user-(\d+)$"#))
 ```
 
 #### Compose matchers

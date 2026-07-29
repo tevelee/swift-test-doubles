@@ -526,6 +526,22 @@ extension Match {
         return ""
     }
 
+    /// Matches a string argument that contains a match for a native Swift
+    /// regular expression.
+    ///
+    /// The regex may have any typed output, including capture tuples. Matching
+    /// uses the regex's native semantic level and options.
+    public static func matchesRegex<Output>(_ regex: Regex<Output>) -> String {
+        MatcherContext.append(
+            TypedPredicateMatcher<String>(
+                diagnosticDescription: "matchesRegex(\(String(describing: regex)))"
+            ) {
+                $0.firstMatch(of: regex) != nil
+            }
+        )
+        return ""
+    }
+
     private static func descriptionOf<Element>(_ values: [Element]) -> String {
         values.map { String(describing: $0) }.joined(separator: ", ")
     }

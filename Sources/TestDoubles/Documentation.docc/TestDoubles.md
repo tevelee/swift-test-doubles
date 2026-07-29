@@ -178,7 +178,8 @@ isolation. See
 - ``Match/hasSuffix(_:)``
 - ``Match/containsSubstring(_:)``
 - ``Match/equalsIgnoringCase(_:)``
-- ``Match/matchesRegex(_:)``
+- ``Match/matchesRegex(_:)-(String)``
+- ``Match/matchesRegex(_:)-(Regex<Output>)``
 
 ### Composing Matchers
 

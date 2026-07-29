@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Key-path property projection matching, with synthesized and explicit root
   placeholders.
 - Enum-case matching with composable matchers for one or two associated values.
+- Native Swift `Regex` matching, including expressions with typed captures.
 
 ## [0.0.2] - 2026-07-29
 
