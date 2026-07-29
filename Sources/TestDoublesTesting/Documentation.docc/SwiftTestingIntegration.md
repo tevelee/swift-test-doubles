@@ -31,7 +31,9 @@ matched. This catches stale setup and registrations shadowed by an earlier
 catch-all matcher.
 
 Use `.strictTestDoubles` when every recorded call must also be explicitly
-verified:
+verified. It also reports finite behavior queues with responses left,
+`thenSuspend()` calls still parked, and `CallbackCapture` values still retaining
+callbacks at teardown:
 
 ```swift
 @Test(.strictTestDoubles)
@@ -40,7 +42,17 @@ func checkoutHasNoSurpriseInteractions() throws {
 }
 ```
 
-For a focused policy, use `@Test(.testDoubles(strictness: .noMoreInteractions))`.
+Name a double when several instances of the same protocol appear in a test; the
+name is included in any teardown diagnostic:
+
+```swift
+let gateway = try Stub<any PaymentGateway>().named("payment gateway")
+```
+
+For a focused policy, use a `TestDoubleStrictness` option such as
+`@Test(.testDoubles(strictness: .noMoreInteractions))` or
+`@Test(.testDoubles(strictness: .noPendingSuspensions))`.
 A double created in a `Task.detached` does not inherit the test scope; verify
 that double explicitly instead. The scope reports issues at teardown but does
-not consume invocations or registrations.
+not consume invocations, registrations, queued responses, suspended calls, or
+captured callbacks.
