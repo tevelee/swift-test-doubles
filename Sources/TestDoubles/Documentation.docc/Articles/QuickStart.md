@@ -36,6 +36,12 @@ call they observe or end through task cancellation. Use
 `.testDoubles(strictness: [.noUnconsumedInvocationStreams])` to enable only
 this stream check.
 
+Scoped doubles receive stable automatic names derived from the current test.
+Parameterized tests add a `case` qualifier and restart the double ordinal for
+each case, so concurrent cases never share a process-global counter. Calling
+`named(_:)` still replaces the automatic name with the domain-specific label
+you supply.
+
 ### Define the dependency
 
 The subject under test should already depend on a protocol:

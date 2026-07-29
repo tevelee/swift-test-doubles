@@ -126,6 +126,42 @@ private func makeScopedSuspendedTestDoubleStub() throws -> Stub<any ScopedSuspen
         #expect(scope.strictness == .noMoreInteractions)
     }
 
+    @Test(.testDoubles, arguments: ["alpha", "beta"])
+    func automaticNamesAreStableWithinParameterizedCases(_ caseName: String) throws {
+        let session = try #require(TestDoubleTestingContext.session)
+        let first = try makeScopedTestDoubleStub()
+        let second = try makeScopedTestDoubleStub()
+        first.when { $0.track(Match.any()) }.thenDoNothing()
+        second.when { $0.track(Match.any()) }.thenDoNothing()
+        first().track(caseName.count)
+        second().track(caseName.count + 1)
+
+        let diagnostics = session.diagnostics(
+            checkingUnusedRegistrations: false,
+            checkingUnverifiedInteractions: true
+        )
+        #expect(diagnostics.contains { $0.contains("case double 1") })
+        #expect(diagnostics.contains { $0.contains("case double 2") })
+    }
+
+    @Test func explicitNamesOverrideAutomaticSessionNames() throws {
+        let session = TestDoubleSession(
+            automaticNamePrefix: "parameterized case"
+        )
+        try TestDoubleTestingContext.$session.withValue(session) {
+            let stub = try makeScopedTestDoubleStub().named("payment gateway")
+            stub.when { $0.track(Match.any()) }.thenDoNothing()
+            stub().track(42)
+        }
+
+        let diagnostics = session.diagnostics(
+            checkingUnusedRegistrations: false,
+            checkingUnverifiedInteractions: true
+        )
+        #expect(diagnostics.contains { $0.contains("Test double 'payment gateway'") })
+        #expect(diagnostics.contains { $0.contains("parameterized case") } == false)
+    }
+
     @Test func scopeReportsUnconsumedFiniteBehaviorQueuesWithDoubleName() throws {
         let session = TestDoubleSession()
         let diagnostics = try TestDoubleTestingContext.$session.withValue(session) {

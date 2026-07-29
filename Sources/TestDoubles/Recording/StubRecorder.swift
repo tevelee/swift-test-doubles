@@ -85,6 +85,13 @@ final class StubRecorder: @unchecked Sendable {
         lock.withLock { configuredTestDoubleName = trimmedName }
     }
 
+    func nameTestDoubleIfUnnamed(_ name: String) {
+        lock.withLock {
+            guard configuredTestDoubleName == nil else { return }
+            configuredTestDoubleName = name
+        }
+    }
+
     func captureCallStacks(maxFrames: Int) {
         precondition(
             maxFrames > 0,

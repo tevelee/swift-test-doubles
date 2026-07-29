@@ -88,7 +88,15 @@
             testCase: Test.Case?,
             performing function: () async throws -> Void
         ) async throws {
-            let session = TestDoubleSession()
+            let testName = test.displayName ?? test.name
+            let isParameterized = testCase?.isParameterized ?? test.isParameterized
+            let automaticNamePrefix =
+                isParameterized
+                ? "\(testName) case"
+                : testName
+            let session = TestDoubleSession(
+                automaticNamePrefix: automaticNamePrefix
+            )
             do {
                 try await TestDoubleTestingContext.$session.withValue(session) {
                     try await function()

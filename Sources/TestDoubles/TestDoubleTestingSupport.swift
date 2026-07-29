@@ -59,15 +59,34 @@ final class TestDoubleFixtureDiffCheck: @unchecked Sendable {
     private var recorders: [StubRecorder] = []
     private var teardownChecks: [TestDoubleTeardownCheck] = []
     private var fixtureDiffChecks: [TestDoubleFixtureDiffCheck] = []
+    private let automaticNamePrefix: String?
+    private var nextAutomaticNameOrdinal = 1
 
     /// Creates an empty test-double session.
-    @_spi(Testing) public init() {}
+    @_spi(Testing) public init() {
+        automaticNamePrefix = nil
+    }
+
+    /// Creates a session that assigns stable, scope-local names to unnamed doubles.
+    @_spi(Testing) public init(automaticNamePrefix: String) {
+        self.automaticNamePrefix = automaticNamePrefix
+    }
 
     func register(_ recorder: StubRecorder) {
         lock.lock()
-        defer { lock.unlock() }
-        guard recorders.contains(where: { $0 === recorder }) == false else { return }
+        guard recorders.contains(where: { $0 === recorder }) == false else {
+            lock.unlock()
+            return
+        }
         recorders.append(recorder)
+        let automaticName = automaticNamePrefix.map {
+            defer { nextAutomaticNameOrdinal += 1 }
+            return "\($0) double \(nextAutomaticNameOrdinal)"
+        }
+        lock.unlock()
+        if let automaticName {
+            recorder.nameTestDoubleIfUnnamed(automaticName)
+        }
     }
 
     func register(_ teardownCheck: TestDoubleTeardownCheck) {

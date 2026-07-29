@@ -49,6 +49,11 @@ name is included in any teardown diagnostic:
 let gateway = try Stub<any PaymentGateway>().named("payment gateway")
 ```
 
+Unnamed doubles receive stable names derived from the current test and their
+creation order. Parameterized tests keep a separate ordinal per case, so
+parallel cases produce deterministic diagnostics and attachment names.
+Explicit `named(_:)` labels take precedence.
+
 For a focused policy, use a `TestDoubleStrictness` option such as
 `@Test(.testDoubles(strictness: .noMoreInteractions))` or
 `@Test(.testDoubles(strictness: .noPendingSuspensions))`.
