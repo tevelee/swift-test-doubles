@@ -240,23 +240,35 @@ package enum RuntimeValueTransport {
             ?? withProjectedValue(of: result) { type, _ in
                 type
             }
-        let temporary = ValueStorage(
-            type: type,
-            minimumByteCount: 16
+        let metadata = reflect(type)
+        let byteCount = max(metadata.vwt.size, 16)
+        let alignment = max(
+            metadata.vwt.flags.alignment,
+            MemoryLayout<UInt>.alignment
         )
-        temporary.zeroBorrowedBytes()
-        if let expectedType {
-            initializeDirectValue(
-                result,
-                expectedType: expectedType,
-                transport: transport,
-                at: temporary.storage
+        withUnsafeTemporaryAllocation(
+            byteCount: byteCount,
+            alignment: alignment
+        ) { temporary in
+            let storage = temporary.baseAddress!
+            storage.initializeMemory(
+                as: UInt8.self,
+                repeating: 0,
+                count: byteCount
             )
-        } else {
-            copyValue(result, expectedType: nil, to: temporary.storage)
+            if let expectedType {
+                initializeDirectValue(
+                    result,
+                    expectedType: expectedType,
+                    transport: transport,
+                    at: storage
+                )
+            } else {
+                copyValue(result, expectedType: nil, to: storage)
+            }
+            body(storage)
+            // Direct return registers now own the initialized bits. Releasing
+            // the stack allocation must not destroy the transferred value.
         }
-        temporary.markInitialized()
-        body(temporary.storage)
-        temporary.markTransferred()
     }
 }

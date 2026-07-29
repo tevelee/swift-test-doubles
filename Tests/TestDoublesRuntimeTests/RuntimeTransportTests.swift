@@ -18,6 +18,8 @@ private struct WideTransportError: Error, Equatable {
     let third: Int
 }
 
+private final class TransportReference {}
+
 @Suite struct RuntimeValueTransportTests {
     @Test func resultPlansPrecomputeFunctionReabstraction() {
         typealias Closure = (Int) -> Int
@@ -49,6 +51,18 @@ private struct WideTransportError: Error, Equatable {
 
         #expect(result.0 == value.0)
         #expect(result.1 == value.1)
+    }
+
+    @Test func directReferenceResultsTransferOwnershipFromTemporaryStorage() {
+        weak var released: TransportReference?
+        do {
+            let value = TransportReference()
+            released = value
+            let result = roundTrip(value)
+
+            #expect(result === value)
+        }
+        #expect(released == nil)
     }
 
     @Test func indirectResultsInitializeCallerOwnedStorage() {
