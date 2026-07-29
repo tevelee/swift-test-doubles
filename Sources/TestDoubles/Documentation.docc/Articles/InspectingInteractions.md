@@ -146,6 +146,17 @@ CompletionOrder {
 `history.completionTimeline` presents the same whole-double log sorted by its
 process-global completion sequence. Calls that remain pending appear last.
 
+Call-stack capture is opt-in because symbolization is comparatively expensive:
+
+```swift
+let stub = try Stub<any Analytics>()
+    .captureCallStacks(maxFrames: 16)
+```
+
+Subsequent timeline events expose the capped symbols through `callStack`.
+`ManualStub`, saved call patterns, and terminal interaction handles provide the
+same opt-in method; enabling it through a pattern applies to its whole double.
+
 ### Inspect the whole double
 
 When a `verify` fails, the useful next question is what actually *did* get

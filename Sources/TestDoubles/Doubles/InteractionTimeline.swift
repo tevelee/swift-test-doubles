@@ -43,6 +43,8 @@ public struct InteractionTimeline: Sendable, CustomStringConvertible {
         public let registration: String?
         /// The task priority observed when the call entered the double.
         public let taskPriorityRawValue: UInt8
+        /// Captured call-stack symbols, when capture was enabled.
+        public let callStack: [String]?
         /// The monotonic instant at which the call entered the double.
         public let startedAt: ContinuousClock.Instant
         /// The monotonic instant at which the call completed.
@@ -76,6 +78,7 @@ public struct InteractionTimeline: Sendable, CustomStringConvertible {
                 dispatch: call.origin == .forwarded ? .forwarded : .stubbed,
                 registration: call.registrationSignature,
                 taskPriorityRawValue: call.taskPriorityRawValue,
+                callStack: call.callStack,
                 startedAt: startedAt,
                 completedAt: call.completedAt,
                 duration: call.completedAt.map { startedAt.duration(to: $0) }

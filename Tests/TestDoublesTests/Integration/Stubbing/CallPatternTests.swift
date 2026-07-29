@@ -161,6 +161,23 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
         )
     }
 
+    @Test func callStackCaptureIsOptInAndFrameLimited() throws {
+        let stub = try makeHandlerArityStub()
+        stub.when { $0.one(Match.any()) }.thenReturn(42)
+        let probe: any HandlerArityProbe = stub()
+
+        _ = probe.one(1)
+        stub.captureCallStacks(maxFrames: 4)
+        _ = probe.one(2)
+
+        let events = stub.history.timeline.events
+        #expect(events.count == 2)
+        #expect(events[0].callStack == nil)
+        let stack = try #require(events[1].callStack)
+        #expect(stack.isEmpty == false)
+        #expect(stack.count <= 4)
+    }
+
     @Test func typedThenSupportsZeroThroughSevenArguments() async throws {
         let stub = try makeHandlerArityStub()
         stub.when { $0.zero() }.then { 0 }

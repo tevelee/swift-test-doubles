@@ -129,6 +129,7 @@ extension StubRecorder {
             recordPlaceholder(method: methodIndex, name: method.name, args: args)
             return .placeholder
         }
+        let callStack = capturedCallStack()
 
         while true {
             let snapshot = withLockedPolicy {
@@ -138,7 +139,11 @@ extension StubRecorder {
                 guard behaviorRegistryIsCurrent(snapshot) else { continue }
                 if allowsForwardingFallback {
                     return .forwarding(
-                        recordForwardedInvocation(method: method, args: args)
+                        recordForwardedInvocation(
+                            method: method,
+                            args: args,
+                            callStack: callStack
+                        )
                     )
                 }
                 fatalError(
@@ -161,7 +166,11 @@ extension StubRecorder {
                 guard behaviorRegistryIsCurrent(snapshot) else { continue }
                 if allowsForwardingFallback {
                     return .forwarding(
-                        recordForwardedInvocation(method: method, args: args)
+                        recordForwardedInvocation(
+                            method: method,
+                            args: args,
+                            callStack: callStack
+                        )
                     )
                 }
                 fatalError(
@@ -198,6 +207,7 @@ extension StubRecorder {
                         name: method.name,
                         origin: origin,
                         registrationSignature: entry.diagnosticSignature,
+                        callStack: callStack,
                         args: args,
                         argumentConventions: recordingArgumentConventions(for: method),
                         runtimePayloadRecorder: self
@@ -366,13 +376,15 @@ extension StubRecorder {
 
     private func recordForwardedInvocation(
         method: RuntimeMethod,
-        args: [Any]
+        args: [Any],
+        callStack: [String]?
     ) -> RecordedCallToken {
         let appended = withLockedPolicy {
             $0.invocationLedger.append(
                 method: method.index,
                 name: method.name,
                 origin: .forwarded,
+                callStack: callStack,
                 args: args,
                 argumentConventions: recordingArgumentConventions(for: method),
                 runtimePayloadRecorder: self
@@ -380,6 +392,15 @@ extension StubRecorder {
         }
         resumeWaiters(appended.waiters, returning: .changed)
         return appended.token
+    }
+
+    private func capturedCallStack() -> [String]? {
+        guard
+            let limit = withLockedPolicy({ $0.callStackCaptureLimit })
+        else {
+            return nil
+        }
+        return Array(Thread.callStackSymbols.dropFirst(2).prefix(limit))
     }
 
     func completeInvocation(

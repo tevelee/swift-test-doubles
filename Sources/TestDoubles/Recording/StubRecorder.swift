@@ -11,6 +11,7 @@ final class StubRecorder: @unchecked Sendable {
         var methodCatalog: ManualMethodCatalog
         var behaviorRegistry = StubBehaviorRegistry()
         var invocationLedger = InvocationLedger()
+        var callStackCaptureLimit: Int?
     }
 
     private var policy: LockedPolicyState
@@ -82,6 +83,16 @@ final class StubRecorder: @unchecked Sendable {
             "[TestDoubles] A test-double name must not be empty."
         )
         lock.withLock { configuredTestDoubleName = trimmedName }
+    }
+
+    func captureCallStacks(maxFrames: Int) {
+        precondition(
+            maxFrames > 0,
+            "[TestDoubles] A call-stack frame limit must be positive."
+        )
+        withLockedPolicy {
+            $0.callStackCaptureLimit = maxFrames
+        }
     }
 
     // MARK: - Method catalog and runtime resources

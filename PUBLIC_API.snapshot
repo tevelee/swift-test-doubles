@@ -299,6 +299,7 @@ symbol	TestDoubles	swift.method	AsyncThrowingClosureDouble.when(_:describedBy:fi
 symbol	TestDoubles	swift.method	AsyncThrowingClosureDouble.when(equal:fileID:filePath:line:column:)	func when(equal value: Input, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> AsyncThrowingClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	AsyncThrowingClosureDouble.whenAny(fileID:filePath:line:column:)	func whenAny(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> AsyncThrowingClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	CallInteractions.arguments()	func arguments<each Argument>() -> [(repeat each Argument)]
+symbol	TestDoubles	swift.method	CallInteractions.captureCallStacks(maxFrames:)	@discardableResult func captureCallStacks(maxFrames: Int = 32) -> CallInteractions
 symbol	TestDoubles	swift.method	CallInteractions.errors()	func errors() -> [any Error]
 symbol	TestDoubles	swift.method	CallInteractions.errors(ofType:)	func errors<Failure>(ofType type: Failure.Type) -> [Failure] where Failure : Error
 symbol	TestDoubles	swift.method	CallInteractions.lastOutcome(as:)	func lastOutcome<Result>(as type: Result.Type = Result.self) -> InvocationOutcome<Result>?
@@ -311,6 +312,7 @@ symbol	TestDoubles	swift.method	CallInteractions.verify(_:within:fileID:filePath
 symbol	TestDoubles	swift.method	CallInteractions.verify(_:within:using:fileID:filePath:line:column:)	func verify(_ expectedCounts: PartialRangeFrom<Int> = 1..., within timeout: Duration, using clock: any StubClock, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
 symbol	TestDoubles	swift.method	CallInteractions.waitForCompletion(count:within:fileID:filePath:line:column:)	func waitForCompletion(count: Int = 1, within timeout: Duration, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
 symbol	TestDoubles	swift.method	CallPattern.arguments()	func arguments<each Argument>() -> [(repeat each Argument)]
+symbol	TestDoubles	swift.method	CallPattern.captureCallStacks(maxFrames:)	@discardableResult func captureCallStacks(maxFrames: Int = 32) -> CallPattern<Result>
 symbol	TestDoubles	swift.method	CallPattern.errors()	func errors() -> [any Error]
 symbol	TestDoubles	swift.method	CallPattern.errors(ofType:)	func errors<Failure>(ofType type: Failure.Type) -> [Failure] where Failure : Error
 symbol	TestDoubles	swift.method	CallPattern.outcomes()	func outcomes() -> [InvocationOutcome<Result>]
@@ -452,6 +454,7 @@ symbol	TestDoubles	swift.method	ManualStub.call(_:function:)	func call<each Argu
 symbol	TestDoubles	swift.method	ManualStub.call(_:route:)	func call(_ args: Any..., route: ManualRouteID)
 symbol	TestDoubles	swift.method	ManualStub.call(_:route:)	func call<R>(_ args: Any..., route: ManualRouteID) -> R
 symbol	TestDoubles	swift.method	ManualStub.callAsFunction()	func callAsFunction() -> T
+symbol	TestDoubles	swift.method	ManualStub.captureCallStacks(maxFrames:)	@discardableResult func captureCallStacks(maxFrames: Int = 32) -> Self
 symbol	TestDoubles	swift.method	ManualStub.clearConfiguredBehaviors()	func clearConfiguredBehaviors()
 symbol	TestDoubles	swift.method	ManualStub.clearRecordedInvocations()	func clearRecordedInvocations()
 symbol	TestDoubles	swift.method	ManualStub.describeInteractions()	func describeInteractions() -> String
@@ -517,6 +520,7 @@ symbol	TestDoubles	swift.method	Stub.Invocation.callThrowing(_:returning:)	func 
 symbol	TestDoubles	swift.method	Stub.Invocation.callThrowing(_:returning:)	func callThrowing<each Argument, Result>(_ arguments: repeat each Argument, returning resultType: Result.Type = Result.self) throws -> Result
 symbol	TestDoubles	swift.method	Stub.Requirement.Value.consuming()	func consuming() -> Stub<P>.Requirement.Value
 symbol	TestDoubles	swift.method	Stub.callAsFunction()	func callAsFunction() -> P
+symbol	TestDoubles	swift.method	Stub.captureCallStacks(maxFrames:)	@discardableResult func captureCallStacks(maxFrames: Int = 32) -> Self
 symbol	TestDoubles	swift.method	Stub.clearConfiguredBehaviors()	func clearConfiguredBehaviors()
 symbol	TestDoubles	swift.method	Stub.clearRecordedInvocations()	func clearRecordedInvocations()
 symbol	TestDoubles	swift.method	Stub.describeInteractions()	func describeInteractions() -> String
@@ -707,6 +711,7 @@ symbol	TestDoubles	swift.property	InteractionHistory.stubbed	var stubbed: `Self`
 symbol	TestDoubles	swift.property	InteractionHistory.timeline	var timeline: InteractionTimeline { get }
 symbol	TestDoubles	swift.property	InteractionHistory.wasCalled	var wasCalled: Bool { get }
 symbol	TestDoubles	swift.property	InteractionTimeline.Event.arguments	let arguments: [String]
+symbol	TestDoubles	swift.property	InteractionTimeline.Event.callStack	let callStack: [String]?
 symbol	TestDoubles	swift.property	InteractionTimeline.Event.completedAt	let completedAt: ContinuousClock.Instant?
 symbol	TestDoubles	swift.property	InteractionTimeline.Event.completionSequence	let completionSequence: UInt64?
 symbol	TestDoubles	swift.property	InteractionTimeline.Event.dispatch	let dispatch: Dispatch

@@ -172,6 +172,7 @@ struct RecordedCall: @unchecked Sendable {
     let origin: InvocationOrigin
     let registrationSignature: String?
     let taskPriorityRawValue: UInt8
+    let callStack: [String]?
     let startedAt: ContinuousClock.Instant?
     var completedAt: ContinuousClock.Instant?
     var completionSequence: UInt64?
@@ -192,6 +193,7 @@ struct RecordedCall: @unchecked Sendable {
         name: String,
         origin: InvocationOrigin = .stubbed,
         registrationSignature: String? = nil,
+        callStack: [String]? = nil,
         startedAt: ContinuousClock.Instant? = nil,
         completedAt: ContinuousClock.Instant? = nil,
         completionSequence: UInt64? = nil,
@@ -210,6 +212,7 @@ struct RecordedCall: @unchecked Sendable {
         self.origin = origin
         self.registrationSignature = registrationSignature
         taskPriorityRawValue = Task.currentPriority.rawValue
+        self.callStack = callStack
         self.startedAt = startedAt
         self.completedAt = completedAt
         self.completionSequence = completionSequence
@@ -241,6 +244,7 @@ struct RecordedCall: @unchecked Sendable {
         origin: InvocationOrigin,
         registrationSignature: String?,
         taskPriorityRawValue: UInt8,
+        callStack: [String]?,
         startedAt: ContinuousClock.Instant?,
         completedAt: ContinuousClock.Instant?,
         completionSequence: UInt64?,
@@ -257,6 +261,7 @@ struct RecordedCall: @unchecked Sendable {
         self.origin = origin
         self.registrationSignature = registrationSignature
         self.taskPriorityRawValue = taskPriorityRawValue
+        self.callStack = callStack
         self.startedAt = startedAt
         self.completedAt = completedAt
         self.completionSequence = completionSequence
@@ -277,6 +282,7 @@ struct RecordedCall: @unchecked Sendable {
             origin: origin,
             registrationSignature: registrationSignature,
             taskPriorityRawValue: taskPriorityRawValue,
+            callStack: callStack,
             startedAt: startedAt,
             completedAt: completedAt,
             completionSequence: completionSequence,
@@ -353,6 +359,7 @@ struct InvocationLedger {
         name: String,
         origin: InvocationOrigin = .stubbed,
         registrationSignature: String? = nil,
+        callStack: [String]? = nil,
         args: [Any],
         argumentConventions: [RuntimeValueConvention]? = nil,
         runtimePayloadRecorder: StubRecorder? = nil
@@ -367,6 +374,7 @@ struct InvocationLedger {
                 name: name,
                 origin: origin,
                 registrationSignature: registrationSignature,
+                callStack: callStack,
                 startedAt: ContinuousClock.now,
                 args: args,
                 argumentConventions: argumentConventions,

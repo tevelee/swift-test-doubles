@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   interactions, including throwing and forwarded calls.
 - Cross-double `CompletionOrder` verification and completion-sorted history
   timelines, independent of invocation-entry order.
+- Opt-in, frame-limited call-stack capture on stubs and saved interaction
+  handles, exposed through timeline events.
 
 ## [0.0.2] - 2026-07-29
 
