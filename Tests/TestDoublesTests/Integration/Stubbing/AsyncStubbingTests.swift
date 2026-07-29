@@ -32,9 +32,9 @@ private actor SuspensionGate {
 @Suite struct AsyncStubbingTests {
     @Test func automaticAsyncConstructionAndDirectVerification() async throws {
         let stub = try Stub<any AsyncDataLoader>()
-        await stub.onCall { try await $0.load(url: Match.any()) }.thenReturn("runtime-data")
-        await stub.onCall { await $0.prefetch(urls: Match.any()) }.thenDoNothing()
-        stub.onCall { $0.cacheSize }.thenReturn(3)
+        await stub.when { try await $0.load(url: Match.any()) }.thenReturn("runtime-data")
+        await stub.when { await $0.prefetch(urls: Match.any()) }.thenDoNothing()
+        stub.when { $0.cacheSize }.thenReturn(3)
 
         let loader: any AsyncDataLoader = stub()
         #expect(try await loader.load(url: "https://example.com") == "runtime-data")
@@ -48,7 +48,7 @@ private actor SuspensionGate {
     @Test func cancellationReachesSuspendedHandler() async throws {
         let stub = try Stub<any AsyncDataLoader>()
         let gate = SuspensionGate()
-        await stub.onCall { try await $0.load(url: Match.any()) }.then {
+        await stub.when { try await $0.load(url: Match.any()) }.then {
             (_: String) async throws -> String in
             await gate.suspend()
             try Task.checkCancellation()

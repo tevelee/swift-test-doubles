@@ -76,8 +76,8 @@ private func useLinkedMultiplePackRequirementProbe(
         let integerCaptor = Match.Capture<Int>()
         let textCaptor = Match.Capture<String>()
         let stub = try Stub<any ExternalPackRequirementProbe>()
-        stub.onCall { $0.pack() }.thenReturn(0)
-        stub.onCall {
+        stub.when { $0.pack() }.thenReturn(0)
+        stub.when {
             $0.pack(
                 integerCaptor.capture(using: 0),
                 textCaptor.capture(using: "")
@@ -85,7 +85,7 @@ private func useLinkedMultiplePackRequirementProbe(
         }.then { (integer: Int, text: String) in
             integer + text.count
         }
-        stub.onCall { $0.pack(1, "two", true) }.thenReturn(3)
+        stub.when { $0.pack(1, "two", true) }.thenReturn(3)
 
         let probe: any ExternalPackRequirementProbe = stub()
         #expect(probe.pack() == 0)
@@ -95,7 +95,7 @@ private func useLinkedMultiplePackRequirementProbe(
         #expect(integerCaptor.values == [40])
         #expect(textCaptor.values == ["go"])
 
-        let pattern = stub.onCall { $0.pack(40, "go") }
+        let pattern = stub.when { $0.pack(40, "go") }
         let recorded: [(Int, String)] = pattern.arguments()
         #expect(recorded.count == 1)
         #expect(recorded[0].0 == 40)
@@ -155,7 +155,7 @@ private func useLinkedMultiplePackRequirementProbe(
         )
 
         let stub = try Stub<any ExternalGenericRequirementProbe>()
-        stub.onCall { $0.generic(Match.any(using: 0)) }.thenReturn(7)
+        stub.when { $0.generic(Match.any(using: 0)) }.thenReturn(7)
 
         let probe: any ExternalGenericRequirementProbe = stub()
         #expect(probe.generic(123) == 7)

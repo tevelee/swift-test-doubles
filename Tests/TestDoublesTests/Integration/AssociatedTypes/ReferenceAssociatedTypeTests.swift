@@ -44,11 +44,11 @@ import Testing
         let output = ExternalReferenceAssociatedBox(id: 2)
         let optionalOutput = ExternalReferenceAssociatedBox(id: 3)
 
-        stub.onCall { $0.accept(Match.identical(to: input)) }.thenDoNothing()
-        stub.onCall(returning: output) {
+        stub.when { $0.accept(Match.identical(to: input)) }.thenDoNothing()
+        stub.when(returning: output) {
             $0.transform(Match.identical(to: input))
         }.thenReturn(output)
-        stub.onCall(returning: Optional(optionalOutput)) {
+        stub.when(returning: Optional(optionalOutput)) {
             $0.optional(Match.any(using: Optional(input)))
         }.thenReturn(Optional(optionalOutput))
 
@@ -87,16 +87,16 @@ import Testing
         let failureInput = ExternalReferenceAssociatedBox(id: 14)
         let asyncFailureInput = ExternalReferenceAssociatedBox(id: 15)
 
-        await stub.onCall(returning: asyncOutput) {
+        await stub.when(returning: asyncOutput) {
             await $0.asynchronous(Match.any(using: asyncInput))
         }.thenReturn(asyncOutput)
-        stub.onCall(returning: successOutput) {
+        stub.when(returning: successOutput) {
             try $0.throwing(Match.identical(to: successInput))
         }.thenReturn(successOutput)
-        stub.onCall(returning: successOutput) {
+        stub.when(returning: successOutput) {
             try $0.throwing(Match.identical(to: failureInput))
         }.thenThrow(ExternalReferenceFixedFailure(code: 16))
-        await stub.onCall(returning: Optional(successOutput)) {
+        await stub.when(returning: Optional(successOutput)) {
             try await $0.throwingAsynchronously(
                 Match.any(using: Optional(asyncFailureInput))
             )
@@ -135,14 +135,14 @@ import Testing
             named: "Failure"
         )
 
-        stub.onCall { try $0.load(Match.equal(false)) }.thenReturn(40)
-        stub.onCall { try $0.load(Match.equal(true)) }.thenThrow(
+        stub.when { try $0.load(Match.equal(false)) }.thenReturn(40)
+        stub.when { try $0.load(Match.equal(true)) }.thenThrow(
             ExternalReferenceAssociatedFailure(code: 41)
         )
-        await stub.onCall {
+        await stub.when {
             try await $0.loadAsynchronously(Match.equal(false))
         }.thenReturn(42)
-        await stub.onCall {
+        await stub.when {
             try await $0.loadAsynchronously(Match.equal(true))
         }.thenThrow(ExternalReferenceAssociatedFailure(code: 43))
 
@@ -186,14 +186,14 @@ import Testing
             named: "Failure"
         )
 
-        stub.onCall { try $0.load(Match.equal(false)) }.thenReturn(50)
-        stub.onCall { try $0.load(Match.equal(true)) }.thenThrow(
+        stub.when { try $0.load(Match.equal(false)) }.thenReturn(50)
+        stub.when { try $0.load(Match.equal(true)) }.thenThrow(
             ExternalAlternateReferenceAssociatedFailure(code: 51)
         )
-        await stub.onCall {
+        await stub.when {
             try await $0.loadAsynchronously(Match.equal(false))
         }.thenReturn(52)
-        await stub.onCall {
+        await stub.when {
             try await $0.loadAsynchronously(Match.equal(true))
         }.thenThrow(ExternalAlternateReferenceAssociatedFailure(code: 53))
 
@@ -237,14 +237,14 @@ import Testing
         let input = ExternalReferenceAssociatedBox(id: 20)
         let output = ExternalReferenceAssociatedBox(id: 21)
 
-        stub.onCall(returning: output) {
+        stub.when(returning: output) {
             $0.transform(Match.any(using: input))
         }.thenReturn(output)
-        stub.onCall(returning: Optional(output)) {
+        stub.when(returning: Optional(output)) {
             $0.optional(Match.any(using: Optional(input)))
         }.thenReturn(Optional(output))
-        stub.onCall { $0.consume(Match.any(using: input)) }.thenDoNothing()
-        await stub.onCall(returning: output) {
+        stub.when { $0.consume(Match.any(using: input)) }.thenDoNothing()
+        await stub.when(returning: output) {
             await $0.asynchronous(Match.any(using: input))
         }.thenReturn(output)
 
@@ -300,7 +300,7 @@ import Testing
             method.typedErrorAssociatedTypeUse,
             named: "Failure"
         )
-        stub.onCall { try $0.load() }.thenThrow(
+        stub.when { try $0.load() }.thenThrow(
             ExternalReferenceAssociatedFailure(code: 44)
         )
         let error = #expect(
@@ -379,35 +379,35 @@ import Testing
         let asynchronousOutput = ExternalReferenceAssociatedBox(id: 36)
         let asynchronousConsumingInput = ExternalReferenceAssociatedBox(id: 37)
 
-        stub.onCall(returning: directOutput) {
+        stub.when(returning: directOutput) {
             callerBoundTransform(
                 $0,
                 directInput,
                 recordsMatcher: true
             )
         }.thenReturn(directOutput)
-        stub.onCall(returning: Optional(optionalOutput)) {
+        stub.when(returning: Optional(optionalOutput)) {
             callerBoundOptional(
                 $0,
                 optionalInput,
                 recordsMatcher: true
             )
         }.thenReturn(Optional(optionalOutput))
-        stub.onCall {
+        stub.when {
             callerBoundConsume(
                 $0,
                 consumingInput,
                 recordsMatcher: true
             )
         }.thenDoNothing()
-        await stub.onCall(returning: asynchronousOutput) {
+        await stub.when(returning: asynchronousOutput) {
             await callerBoundAsynchronous(
                 $0,
                 asynchronousInput,
                 recordsMatcher: true
             )
         }.thenReturn(asynchronousOutput)
-        await stub.onCall {
+        await stub.when {
             await callerBoundConsumeAsynchronously(
                 $0,
                 asynchronousConsumingInput,
@@ -501,8 +501,8 @@ private func exerciseConsumingReferenceArguments() async throws -> (
     let placeholder = ReferenceAssociatedLifetimeBox(
         deinitCounter: placeholderCounter
     )
-    stub.onCall { $0.consume(Match.any(using: placeholder)) }.thenDoNothing()
-    await stub.onCall {
+    stub.when { $0.consume(Match.any(using: placeholder)) }.thenDoNothing()
+    await stub.when {
         await $0.consumeAsynchronously(Match.any(using: placeholder))
     }.thenDoNothing()
 

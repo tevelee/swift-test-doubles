@@ -6,19 +6,19 @@ struct ResilientProtocolDiscoveryTests {
     @Test func discoversRequirementsWithoutALinkedConformer() async throws {
         let stub = try Stub<any ResilientRuntimeService>()
 
-        stub.onCall { try $0.fetch(id: Match.any()) }.then { (value: Int) in
+        stub.when { try $0.fetch(id: Match.any()) }.then { (value: Int) in
             "fetched-\(value)"
         }
-        await stub.onCall { try await $0.load(id: Match.any()) }.then { (value: Int) async throws in
+        await stub.when { try await $0.load(id: Match.any()) }.then { (value: Int) async throws in
             if value < 0 { throw ResilientRuntimeError.rejected(value) }
             return "loaded-\(value)"
         }
-        stub.onCall { type(of: $0).label(Match.any()) }.then { (value: Int) in
+        stub.when { type(of: $0).label(Match.any()) }.then { (value: Int) in
             "label-\(value)"
         }
-        stub.onCall(initializer: { type(of: $0).init(id: Match.any()) }).thenInitialize()
-        stub.onCall { $0.count }.thenReturn(7)
-        stub.onCall { $0.count = Match.any() }.thenDoNothing()
+        stub.when(initializer: { type(of: $0).init(id: Match.any()) }).thenInitialize()
+        stub.when { $0.count }.thenReturn(7)
+        stub.when { $0.count = Match.any() }.thenDoNothing()
 
         var value: any ResilientRuntimeService = stub()
         #expect(try value.fetch(id: 1) == "fetched-1")

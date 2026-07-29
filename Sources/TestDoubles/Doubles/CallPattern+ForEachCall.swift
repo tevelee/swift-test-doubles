@@ -8,7 +8,7 @@ extension CallPattern {
     /// recover, say — without threading a counter through the test yourself:
     ///
     /// ```swift
-    /// loader.onCall { try $0.loadFeed() }.thenForEachCall { attempt in
+    /// loader.when { try $0.loadFeed() }.thenForEachCall { attempt in
     ///     if attempt < 3 { throw URLError(.timedOut) }
     ///     return ["Hello, world"]
     /// }

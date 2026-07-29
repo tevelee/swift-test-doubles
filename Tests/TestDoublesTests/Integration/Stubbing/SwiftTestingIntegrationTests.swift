@@ -33,7 +33,7 @@ private func makeScopedSuspendedTestDoubleStub() throws -> Stub<any ScopedSuspen
     @Test(.testDoubles)
     func testDoubleScopeAllowsUsedRegistrations() throws {
         let stub = try makeScopedTestDoubleStub()
-        stub.onCall { $0.track(42) }.thenDoNothing()
+        stub.when { $0.track(42) }.thenDoNothing()
 
         stub().track(42)
     }
@@ -41,7 +41,7 @@ private func makeScopedSuspendedTestDoubleStub() throws -> Stub<any ScopedSuspen
     @Test(.strictTestDoubles)
     func strictTestDoubleScopeAllowsVerifiedInteractions() throws {
         let stub = try makeScopedTestDoubleStub()
-        stub.onCall { $0.track(42) }.thenDoNothing()
+        stub.when { $0.track(42) }.thenDoNothing()
 
         stub().track(42)
         stub.verify { $0.track(42) }
@@ -51,7 +51,7 @@ private func makeScopedSuspendedTestDoubleStub() throws -> Stub<any ScopedSuspen
         let session = TestDoubleSession()
         try TestDoubleTestingContext.$session.withValue(session) {
             let stub = try makeScopedTestDoubleStub()
-            stub.onCall { $0.track(42) }.thenDoNothing()
+            stub.when { $0.track(42) }.thenDoNothing()
         }
 
         #expect(
@@ -65,7 +65,7 @@ private func makeScopedSuspendedTestDoubleStub() throws -> Stub<any ScopedSuspen
         let session = TestDoubleSession()
         try TestDoubleTestingContext.$session.withValue(session) {
             let stub = try makeScopedTestDoubleStub()
-            stub.onCall { $0.track(42) }.thenDoNothing()
+            stub.when { $0.track(42) }.thenDoNothing()
             stub().track(42)
         }
 
@@ -92,7 +92,7 @@ private func makeScopedSuspendedTestDoubleStub() throws -> Stub<any ScopedSuspen
         let session = TestDoubleSession()
         let diagnostics = try TestDoubleTestingContext.$session.withValue(session) {
             let stub = try makeScopedQueuedTestDoubleStub().named("retry loader")
-            _ = stub.onCall { $0.nextValue() }.thenQueue(1, 2)
+            _ = stub.when { $0.nextValue() }.thenQueue(1, 2)
             return session.diagnostics(
                 checkingUnusedRegistrations: false,
                 checkingUnverifiedInteractions: false,
@@ -112,7 +112,7 @@ private func makeScopedSuspendedTestDoubleStub() throws -> Stub<any ScopedSuspen
         let session = TestDoubleSession()
         let diagnostics = try await TestDoubleTestingContext.$session.withValue(session) {
             let stub = try makeScopedSuspendedTestDoubleStub().named("feed loader")
-            let suspension = await stub.onCall { await $0.load() }.thenSuspend()
+            let suspension = await stub.when { await $0.load() }.thenSuspend()
             let task = Task { await stub().load() }
             await suspension.waitForCall()
 

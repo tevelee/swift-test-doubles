@@ -41,7 +41,7 @@ struct RealPlaceholderRegistryDirectory: PlaceholderRegistryDirectory {
         let stub = try Stub<any PlaceholderRegistryDirectory>()
         // Without the registration, Match.any() would halt: a class placeholder
         // cannot be synthesized and would need Match.any(using:).
-        stub.onCall { $0.displayName(for: Match.any()) }.thenReturn("stubbed")
+        stub.when { $0.displayName(for: Match.any()) }.thenReturn("stubbed")
 
         let directory: any PlaceholderRegistryDirectory = stub()
         #expect(directory.displayName(for: PlaceholderArgumentUser(name: "eve")) == "stubbed")
@@ -55,7 +55,7 @@ struct RealPlaceholderRegistryDirectory: PlaceholderRegistryDirectory {
         let configured = PlaceholderResultUser(name: "configured")
         // Without the registration, recording currentUser() would halt and
         // need the returning: overload.
-        stub.onCall { $0.currentUser() }.thenReturn(configured)
+        stub.when { $0.currentUser() }.thenReturn(configured)
 
         let directory: any PlaceholderRegistryDirectory = stub()
         #expect(directory.currentUser() === configured)
@@ -70,7 +70,7 @@ struct RealPlaceholderRegistryDirectory: PlaceholderRegistryDirectory {
         defer { Match.Placeholders.unregister(PlaceholderPrecedenceUser.self) }
 
         let stub = try Stub<any PlaceholderRegistryDirectory>()
-        stub.onCall { $0.badge(for: Match.any(using: PlaceholderPrecedenceUser(name: "explicit"))) }
+        stub.when { $0.badge(for: Match.any(using: PlaceholderPrecedenceUser(name: "explicit"))) }
             .thenReturn("stubbed")
 
         let directory: any PlaceholderRegistryDirectory = stub()

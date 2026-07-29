@@ -73,9 +73,9 @@ private func todaysHeadlines(using loader: some AsyncDataLoader) async throws ->
 @Suite struct ProductionUsageTests {
     private func makeCatalogStub() throws -> Stub<any PriceCatalog> {
         let stub = try Stub<any PriceCatalog>()
-        stub.onCall { try $0.price(of: Match.equal("apple")) }.thenReturn(3)
-        stub.onCall { try $0.price(of: Match.equal("pear")) }.thenReturn(4)
-        stub.onCall { $0.currency }.thenReturn("EUR")
+        stub.when { try $0.price(of: Match.equal("apple")) }.thenReturn(3)
+        stub.when { try $0.price(of: Match.equal("pear")) }.thenReturn(4)
+        stub.when { $0.currency }.thenReturn("EUR")
         return stub
     }
 
@@ -116,10 +116,10 @@ private func todaysHeadlines(using loader: some AsyncDataLoader) async throws ->
         struct DiscontinuedSKU: Error, Equatable { let sku: String }
 
         let stub = try Stub<any PriceCatalog>()
-        stub.onCall { try $0.price(of: Match.any()) }.then { (sku: String) throws -> Int in
+        stub.when { try $0.price(of: Match.any()) }.then { (sku: String) throws -> Int in
             throw DiscontinuedSKU(sku: sku)
         }
-        stub.onCall { $0.currency }.thenReturn("EUR")
+        stub.when { $0.currency }.thenReturn("EUR")
         let catalog: any PriceCatalog = stub()
 
         let error = #expect(throws: DiscontinuedSKU.self) {
@@ -132,7 +132,7 @@ private func todaysHeadlines(using loader: some AsyncDataLoader) async throws ->
         struct TransientFailure: Error, Equatable {}
 
         let stub = try Stub<any PriceCatalog>()
-        stub.onCall { try $0.price(of: Match.any()) }
+        stub.when { try $0.price(of: Match.any()) }
             .thenReturn(3)
             .thenThrow(TransientFailure())
             .thenReturn(4)
@@ -146,7 +146,7 @@ private func todaysHeadlines(using loader: some AsyncDataLoader) async throws ->
 
     @Test func asyncComponentsConsumeTheStubThroughStoredGenerics() async throws {
         let stub = try Stub<any AsyncDataLoader>()
-        await stub.onCall { try await $0.load(url: Match.any()) }.thenReturn("first\nsecond")
+        await stub.when { try await $0.load(url: Match.any()) }.thenReturn("first\nsecond")
         let loader: any AsyncDataLoader = stub()
 
         let headlines = try await todaysHeadlines(using: loader)

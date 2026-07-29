@@ -7,7 +7,7 @@ import Testing
         _ = RealExternalClosureService()
         let identity: ExternalTransform = { $0 }
         let stub = try Stub<any ExternalClosureService>()
-        stub.onCall(returning: identity) {
+        stub.when(returning: identity) {
             $0.transform(Match.any(using: identity))
         }.then { (body: ExternalTransform) in
             let captured = body(20) + 2
@@ -22,7 +22,7 @@ import Testing
         _ = RealExternalClosureService()
         let identity: ExternalTransform = { $0 }
         let stub = try Stub<any ExternalClosureService>()
-        stub.onCall {
+        stub.when {
             $0.apply(Match.any(using: identity), to: Match.any())
         }.thenEscaping { (body: ExternalTransform, value: Int) in
             body(value) + 2
@@ -37,7 +37,7 @@ import Testing
         let offset = 22
         let formatter: ExternalFormatter = { $0 + offset }
         let stub = try Stub<any ExternalClosureService>()
-        stub.onCall(returning: placeholder) { $0.formatter }
+        stub.when(returning: placeholder) { $0.formatter }
             .thenReturn(formatter)
 
         #expect(stub().formatter(20) == 42)

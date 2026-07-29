@@ -95,9 +95,9 @@ private func uppercasedTextValue<P: TextAssociatedRoot>(_ value: P) -> String {
             ) == "0:"
         )
         let stub = try Stub<any MultipleAssociatedTypeProbe<Int, String>>()
-        stub.onCall { $0.number() }.thenReturn(41)
-        stub.onCall { $0.text() }.thenReturn("bound")
-        stub.onCall { $0.render(Match.any(), as: Match.any()) }.then {
+        stub.when { $0.number() }.thenReturn(41)
+        stub.when { $0.text() }.thenReturn("bound")
+        stub.when { $0.render(Match.any(), as: Match.any()) }.then {
             (number: Int, text: String) in "\(number):\(text)"
         }
 
@@ -122,9 +122,9 @@ private func uppercasedTextValue<P: TextAssociatedRoot>(_ value: P) -> String {
                 .method(number, text, returning: text)
             )
         )
-        stub.onCall { $0.number() }.thenReturn(42)
-        stub.onCall { $0.text() }.thenReturn("explicit")
-        stub.onCall { $0.render(Match.any(), as: Match.any()) }.thenReturn("rendered")
+        stub.when { $0.number() }.thenReturn(42)
+        stub.when { $0.text() }.thenReturn("explicit")
+        stub.when { $0.render(Match.any(), as: Match.any()) }.thenReturn("rendered")
 
         let probe: Probe = stub()
 
@@ -147,8 +147,8 @@ private func uppercasedTextValue<P: TextAssociatedRoot>(_ value: P) -> String {
             return
         }
         let stub = try Stub<Composition>()
-        stub.onCall { $0.numericValue() }.thenReturn(21)
-        stub.onCall { $0.textValue() }.thenReturn("composed")
+        stub.when { $0.numericValue() }.thenReturn(21)
+        stub.when { $0.textValue() }.thenReturn("composed")
 
         let probe: Composition = stub()
 
@@ -184,8 +184,8 @@ private func uppercasedTextValue<P: TextAssociatedRoot>(_ value: P) -> String {
             return
         }
         let stub = try construct()
-        stub.onCall { $0.numericValue() }.thenReturn(42)
-        stub.onCall { $0.textValue() }.thenReturn("explicit composition")
+        stub.when { $0.numericValue() }.thenReturn(42)
+        stub.when { $0.textValue() }.thenReturn("explicit composition")
 
         let probe: Composition = stub()
 
@@ -206,9 +206,9 @@ private func uppercasedTextValue<P: TextAssociatedRoot>(_ value: P) -> String {
                 .method(number, text, returning: text)
             )
         )
-        stub.onCall { $0.number() }.thenReturn(42)
-        stub.onCall { $0.text() }.thenReturn("inherited")
-        stub.onCall { $0.render(Match.any(), as: Match.any()) }.thenReturn("inherited render")
+        stub.when { $0.number() }.thenReturn(42)
+        stub.when { $0.text() }.thenReturn("inherited")
+        stub.when { $0.render(Match.any(), as: Match.any()) }.thenReturn("inherited render")
 
         let probe: Probe = stub()
 
@@ -220,9 +220,9 @@ private func uppercasedTextValue<P: TextAssociatedRoot>(_ value: P) -> String {
     @Test func prefixAssociatedTypeNamesResolveTheExactBindingFirst() throws {
         _ = LinkedPrefixAssociatedTypeProbe().transform(indexes: [])
         let stub = try Stub<any PrefixAssociatedTypeProbe<String, Int>>()
-        stub.onCall { $0.element() }.thenReturn("element")
-        stub.onCall { $0.index() }.thenReturn(41)
-        stub.onCall { $0.transform(indexes: Match.any()) }.then { (indexes: [Int]) in
+        stub.when { $0.element() }.thenReturn("element")
+        stub.when { $0.index() }.thenReturn(41)
+        stub.when { $0.transform(indexes: Match.any()) }.then { (indexes: [Int]) in
             indexes.map { $0 + 1 }
         }
 

@@ -36,7 +36,7 @@ enum RecordingReturnPlaceholderContext {
         guard let placeholder = RuntimeStubFactory.makeRecordingPlaceholder(for: type) else {
             fatalError(
                 "[TestDoubles] Cannot synthesize a recording placeholder for \(type). "
-                    + "Use the `returning:` placeholder overload of `onCall`/`verify`, or "
+                    + "Use the `returning:` placeholder overload of `when`/`verify`, or "
                     + "register a suite-wide factory with Match.Placeholders.register."
             )
         }

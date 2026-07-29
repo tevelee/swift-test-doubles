@@ -25,9 +25,9 @@ enum AuthError: Error { case invalidCredentials }
 ```swift
 let auth = try Stub<any AuthService>()
 
-await auth.onCall { try await $0.signIn(user: Match.equal("blob"), password: Match.equal("sekret")) }
+await auth.when { try await $0.signIn(user: Match.equal("blob"), password: Match.equal("sekret")) }
     .thenReturn("session-42")
-await auth.onCall { try await $0.signIn(user: Match.any(), password: Match.any()) }
+await auth.when { try await $0.signIn(user: Match.any(), password: Match.any()) }
     .thenThrow(AuthError.invalidCredentials)
 
 // A real `any AuthService`, ready to hand to the code under test.
@@ -45,7 +45,7 @@ There is no `MockAuthService` in this test. Nobody wrote one, no build tool
 generated one, and no macro expanded one. `Stub` built a genuine
 `AuthService` conformance at runtime and returned it as an ordinary
 existential. Sync, throwing, async, and async-throwing requirements all use
-the same vocabulary: `onCall`, `thenReturn`, `verify`.
+the same vocabulary: `when`, `thenReturn`, `verify`.
 
 The only thing `Stub` needs is a source for the protocol's signatures. In
 most projects that is your production conformance, which is inspected but
@@ -90,10 +90,10 @@ protocol FeatureFlags {
 ```swift
 let flags = try Stub<any FeatureFlags>()
 
-flags.onCall { $0.isEnabled(Match.equal("new_checkout"), for: Match.equal(7)) }.thenReturn(true)
-flags.onCall { $0.isEnabled(Match.equal("new_checkout"), for: Match.any()) }
+flags.when { $0.isEnabled(Match.equal("new_checkout"), for: Match.equal(7)) }.thenReturn(true)
+flags.when { $0.isEnabled(Match.equal("new_checkout"), for: Match.any()) }
     .then { (_: String, userID: Int) in userID.isMultiple(of: 2) }
-flags.onCall { $0.isEnabled(Match.any(), for: Match.any()) }.thenReturn(false)
+flags.when { $0.isEnabled(Match.any(), for: Match.any()) }.thenReturn(false)
 
 let sut: any FeatureFlags = flags()
 #expect(sut.isEnabled("dark_mode", for: 1) == false)   // fallback
@@ -139,7 +139,7 @@ protocol FeedLoader {
 ```swift
 let loader = try Stub<any FeedLoader>()
 
-await loader.onCall { try await $0.loadFeed() }
+await loader.when { try await $0.loadFeed() }
     .thenThrow(URLError(.timedOut))
     .thenThrow(URLError(.networkConnectionLost))
     .thenReturn(["Hello, world"])
@@ -161,7 +161,7 @@ When the response depends on *which* attempt this is rather than a fixed list,
 argument, ahead of the requirement's typed arguments:
 
 ```swift
-loader.onCall { try await $0.loadFeed() }.thenForEachCall { attempt in
+loader.when { try await $0.loadFeed() }.thenForEachCall { attempt in
     if attempt < 3 { throw URLError(.timedOut) }
     return ["Hello, world"]
 }
@@ -180,7 +180,7 @@ same vocabulary, no `Task.sleep` required.
 
 ```swift
 let loader = try Stub<any FeedLoader>()
-let suspension = await loader.onCall { try await $0.loadFeed() }.thenSuspend()
+let suspension = await loader.when { try await $0.loadFeed() }.thenSuspend()
 
 let feed = FeedViewModel(loader: loader())
 let refresh = Task { await feed.refresh() }
@@ -214,7 +214,7 @@ protocol Analytics {
 
 ```swift
 let analytics = try Stub<any Analytics>()
-let allEvents = analytics.onCall {
+let allEvents = analytics.when {
     $0.track(event: Match.any(), value: Match.any())
 }
 allEvents.thenDoNothing()
@@ -224,12 +224,12 @@ checkout.add(item: "socks", price: 30)
 checkout.add(item: "hat", price: 12)
 checkout.placeOrder()
 
-let purchase = analytics.onCall {
+let purchase = analytics.when {
     $0.track(event: Match.equal("purchase"), value: Match.equal(42))
 }
 purchase.verify()
 
-let errors = analytics.onCall {
+let errors = analytics.when {
     $0.track(event: Match.equal("error"), value: Match.any())
 }
 errors.verify(.never)
@@ -247,13 +247,13 @@ analytics.verifyInOrder {
 When the call happens on another task, wait for it instead of sleeping:
 
 ```swift
-let syncCompleted = analytics.onCall {
+let syncCompleted = analytics.when {
     $0.track(event: Match.equal("sync_completed"), value: Match.any())
 }
 await syncCompleted.verify(1..., within: .seconds(1))
 ```
 
-`onCall` creates a reusable `CallPattern`: configure its behavior, verify it,
+`when` creates a reusable `CallPattern`: configure its behavior, verify it,
 read its typed arguments, and observe future matches without describing the
 same call again. `verify` defaults to "at least once". Use native ranges such
 as `2...`, `...2`, or `2...4` when the count matters; `.exactly(2)` and
@@ -312,8 +312,8 @@ struct LiveTranslator: Translator {
 
 ```swift
 let spy: Spy<any Translator> = Spy.make(forwardingTo: LiveTranslator())
-spy.onCall { $0.translate(Match.equal("greeting.new_user")) }.thenReturn("Howdy, partner")
-let translations = spy.onCall { $0.translate(Match.any()) }
+spy.when { $0.translate(Match.equal("greeting.new_user")) }.thenReturn("Howdy, partner")
+let translations = spy.when { $0.translate(Match.any()) }
 
 let translator: any Translator = spy()
 #expect(translator.translate("greeting.new_user") == "Howdy, partner") // overridden
@@ -325,7 +325,7 @@ let forwarded: [String] = translations.forwardedArguments()
 #expect(forwarded == ["farewell.title"])
 ```
 
-A matching `onCall` registration wins, and the first matching one is used,
+A matching `when` registration wins, and the first matching one is used,
 just as with `Stub`. Every other supported call forwards to the target and
 is recorded, so verification covers overridden and forwarded calls alike. The target's conformance also supplies the signature metadata,
 so a spy needs no other discovery source. A registration can also hand a call
@@ -352,7 +352,7 @@ there is a shorthand:
 
 ```swift
 let translator: any Translator = Stub.make {
-    $0.onCall { $0.translate(Match.any()) }.then { (key: String) in "«\(key)»" }
+    $0.when { $0.translate(Match.any()) }.then { (key: String) in "«\(key)»" }
 }
 ```
 
@@ -361,12 +361,12 @@ the generated value more than once.
 
 ### Reuse named setup
 
-Use a scenario to share ordinary `onCall` registrations while keeping the test's
+Use a scenario to share ordinary `when` registrations while keeping the test's
 stub and verification close to the behavior under test:
 
 ```swift
 let signedOut: StubScenario<any AccountService> = .init {
-    $0.onCall { $0.currentUser() }.thenReturn(nil)
+    $0.when { $0.currentUser() }.thenReturn(nil)
 }
 
 let account = try Stub<any AccountService>()
@@ -436,7 +436,7 @@ provisional.
 Physical iOS, tvOS, visionOS, and watchOS devices are unsupported because the
 runtime generates executable trampoline code and CI cannot exercise device
 execution policy. [`ManualStub`](Sources/TestDoubles/Documentation.docc/Articles/ManualStubbing.md)
-provides the same `onCall`/`then`/`verify` API on those targets with a small
+provides the same `when`/`then`/`verify` API on those targets with a small
 hand-written conformer.
 
 WebAssembly (`wasm32-unknown-wasip1`) has no facility for executable memory
@@ -473,8 +473,8 @@ Two cases need a small extra hint:
   throw, so a protocol with `get async` or `get throws` properties takes a
   `getterEffects:` list at construction, with one `.throwing` or
   `.nonthrowing` hint per getter. The hints only fix the calling convention;
-  `onCall` still configures values as usual.
-- **Class and existential values.** `onCall` and `verify` closures run once to
+  `when` still configures values as usual.
+- **Class and existential values.** `when` and `verify` closures run once to
   record which requirement they name, and that recording pass needs valid
   temporary values. TestDoubles synthesizes them for most types; for class
   instances and existentials you pass any valid instance via the `using:` and

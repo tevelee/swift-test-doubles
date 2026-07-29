@@ -185,17 +185,17 @@ private func callWithValue(
                 == ObjectIdentifier(TypedThrowsPayloadError.self)
         )
 
-        await stub.onCall { try await $0.load(Match.equal(0)) }.thenReturn("immediate")
-        await stub.onCall { try await $0.load(Match.equal(1)) }.then {
+        await stub.when { try await $0.load(Match.equal(0)) }.thenReturn("immediate")
+        await stub.when { try await $0.load(Match.equal(1)) }.then {
             (_: Int) throws -> String in
             throw TypedThrowsPayloadError(code: 1, message: "immediate")
         }
-        await stub.onCall { try await $0.load(Match.equal(2)) }.then {
+        await stub.when { try await $0.load(Match.equal(2)) }.then {
             (_: Int) async throws -> String in
             await Task.yield()
             return "suspending"
         }
-        await stub.onCall { try await $0.load(Match.equal(3)) }.then {
+        await stub.when { try await $0.load(Match.equal(3)) }.then {
             (_: Int) async throws -> String in
             await Task.yield()
             throw TypedThrowsPayloadError(code: 3, message: "suspending")
@@ -232,8 +232,8 @@ private func callWithValue(
                 == .associatedType(named: "Failure")
         )
 
-        await stub.onCall { try await $0.load(Match.equal(false)) }.thenReturn("loaded")
-        await stub.onCall { try await $0.load(Match.equal(true)) }.then {
+        await stub.when { try await $0.load(Match.equal(false)) }.thenReturn("loaded")
+        await stub.when { try await $0.load(Match.equal(true)) }.then {
             (_: Bool) async throws -> String in
             await Task.yield()
             throw AsyncAssociatedTypedThrowsError(code: 42)
@@ -252,8 +252,8 @@ private func callWithValue(
         _ = RealAsyncIndirectTypedResultProbe()
 
         let indirectError = try Stub<any AsyncIndirectTypedErrorProbe>()
-        await indirectError.onCall { try await $0.load(Match.equal(false)) }.thenReturn(42)
-        await indirectError.onCall { try await $0.load(Match.equal(true)) }.then {
+        await indirectError.when { try await $0.load(Match.equal(false)) }.thenReturn(42)
+        await indirectError.when { try await $0.load(Match.equal(true)) }.then {
             (_: Bool) async throws -> Int in
             await Task.yield()
             throw IndirectTypedThrowsRequirementError(
@@ -287,12 +287,12 @@ private func callWithValue(
             fourth: 2,
             fifth: 1
         )
-        await indirectResult.onCall { try await $0.load(Match.equal(false)) }.then {
+        await indirectResult.when { try await $0.load(Match.equal(false)) }.then {
             (_: Bool) async throws -> IndirectTypedThrowsResult in
             await Task.yield()
             return expected
         }
-        await indirectResult.onCall { try await $0.load(Match.equal(true)) }.then {
+        await indirectResult.when { try await $0.load(Match.equal(true)) }.then {
             (_: Bool) async throws -> IndirectTypedThrowsResult in
             await Task.yield()
             throw TypedThrowsPayloadError(code: 42, message: "failed")
@@ -312,7 +312,7 @@ private func callWithValue(
             }
         #else
             let stub = try Stub<any AsyncSpilledTypedErrorBufferProbe>()
-            await stub.onCall {
+            await stub.when {
                 try await $0.load(
                     Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any()
                 )
@@ -385,10 +385,10 @@ private func callWithValue(
         #if arch(x86_64)
             _ = RealAsyncIndirectTypedErrorThreeArgumentProbe()
             let stub = try Stub<any AsyncIndirectTypedErrorThreeArgumentProbe>()
-            await stub.onCall {
+            await stub.when {
                 try await $0.load(Match.any(), Match.any(), Match.equal(false))
             }.thenReturn(3)
-            await stub.onCall {
+            await stub.when {
                 try await $0.load(Match.any(), Match.any(), Match.equal(true))
             }.thenThrow(expectedError)
             #expect(try await stub().load(1, 2, false) == 3)
@@ -404,10 +404,10 @@ private func callWithValue(
                     isAsync: true
                 )
             )
-            await stub.onCall {
+            await stub.when {
                 try await $0.load(Match.any(), Match.any(), Match.any(), Match.any(), Match.equal(false))
             }.thenReturn(10)
-            await stub.onCall {
+            await stub.when {
                 try await $0.load(Match.any(), Match.any(), Match.any(), Match.any(), Match.equal(true))
             }.thenThrow(expectedError)
             #expect(try await stub().load(1, 2, 3, 4, false) == 10)
@@ -423,14 +423,14 @@ private func callWithValue(
         #if arch(x86_64)
             _ = RealAsyncIndirectTypedErrorFourArgumentProbe()
             let stub = try Stub<any AsyncIndirectTypedErrorFourArgumentProbe>()
-            await stub.onCall {
+            await stub.when {
                 try await $0.load(Match.any(), Match.any(), Match.any(), Match.equal(false))
             }.thenReturn(6)
             #expect(try await stub().load(1, 2, 3, false) == 6)
         #else
             _ = RealAsyncIndirectTypedErrorSixArgumentProbe()
             let stub = try Stub<any AsyncIndirectTypedErrorSixArgumentProbe>()
-            await stub.onCall {
+            await stub.when {
                 try await $0.load(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.equal(false))
             }.thenReturn(15)
             #expect(try await stub().load(1, 2, 3, 4, 5, false) == 15)
@@ -441,7 +441,7 @@ private func callWithValue(
     @Test func suspendingTypedHandlersPreserveTheirCreationExecutor() async throws {
         _ = RealAsyncTypedThrowsRequirementProbe()
         let stub = try Stub<any AsyncTypedThrowsRequirementProbe>()
-        await stub.onCall { try await $0.load(Match.any()) }.then {
+        await stub.when { try await $0.load(Match.any()) }.then {
             (_: Int) async throws -> String in
             MainActor.preconditionIsolated()
             await Task.yield()
@@ -465,7 +465,7 @@ private func callWithValue(
                 isAsync: true
             )
         )
-        await stub.onCall { try await $0.load(Match.equal(1)) }.thenReturn("loaded")
+        await stub.when { try await $0.load(Match.equal(1)) }.thenReturn("loaded")
         #expect(try await stub().load(1) == "loaded")
 
         typealias AssociatedStub =
@@ -480,7 +480,7 @@ private func callWithValue(
                 isAsync: true
             )
         )
-        await associated.onCall { try await $0.load() }.thenReturn(42)
+        await associated.when { try await $0.load() }.thenReturn(42)
         #expect(try await associated().load() == 42)
     }
 

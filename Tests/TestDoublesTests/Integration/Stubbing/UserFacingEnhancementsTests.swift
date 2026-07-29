@@ -89,8 +89,8 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
 @Suite struct UserFacingEnhancementsTests {
     @Test func closureDoubleRecordsAndInjectsAUnaryClosure() {
         let formatter = ClosureDouble<Int, String>()
-        formatter.onCall { $0 == 2 }.thenReturn("two")
-        formatter.onAnyCall().then { "other-\($0)" }
+        formatter.when { $0 == 2 }.thenReturn("two")
+        formatter.whenAny().then { "other-\($0)" }
 
         let function: (Int) -> String = formatter.function
         #expect(function(2) == "two")
@@ -130,11 +130,11 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
 
     @Test func closureDoubleMatchersCanReenterObservationAPIs() {
         let formatter = ClosureDouble<Int, String>()
-        formatter.onCall(
+        formatter.when(
             { _ in formatter.invocations.isEmpty },
             describedBy: "no earlier calls"
         ).thenReturn("first")
-        formatter.onAnyCall().thenReturn("later")
+        formatter.whenAny().thenReturn("later")
 
         #expect(formatter(1) == "first")
         #expect(formatter(2) == "later")
@@ -143,8 +143,8 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
 
     @Test func closureDoublesSupportLifecycleAndNullaryInjection() {
         let formatter = ClosureDouble<Int, String>()
-        formatter.onCall(equal: 1).thenReturn("one")
-        formatter.onAnyCall().then { "value:\($0)" }
+        formatter.when(equal: 1).thenReturn("one")
+        formatter.whenAny().then { "value:\($0)" }
 
         let function = formatter.function
         #expect(function(1) == "one")
@@ -156,7 +156,7 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
         formatter.reset()
 
         let nullary = VoidClosureDouble<String>()
-        nullary.onCall().thenReturn("ready")
+        nullary.when().thenReturn("ready")
         #expect(nullary.function() == "ready")
         #expect(nullary() == "ready")
         #expect(nullary.callCount == 2)
@@ -167,7 +167,7 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
 
     @Test func finiteBehaviorQueueReportsRemainingAnswers() throws {
         let loader = try Stub<any ForEachCallLoader>()
-        let queue = loader.onCall { $0.value(for: Match.any()) }.thenQueue(1, 2)
+        let queue = loader.when { $0.value(for: Match.any()) }.thenQueue(1, 2)
         let service: any ForEachCallLoader = loader()
 
         #expect(queue.remainingAnswerCount == 2)
@@ -181,7 +181,7 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
     @Test func throwingBehaviorQueuesExposeTheirRemainingAnswers() async throws {
         #expect(try await useLinkedThrowingAsyncLoader(RealEnhancementThrowingAsyncLoader()) == 0)
         let loader = try Stub<any EnhancementThrowingAsyncLoader>()
-        let queue = await loader.onCall { try await $0.load() }
+        let queue = await loader.when { try await $0.load() }
             .thenThrowQueue(EnhancementFailure.expected, EnhancementFailure.expected)
         let service: any EnhancementThrowingAsyncLoader = loader()
 
@@ -197,7 +197,7 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
         #expect(await useLinkedAsyncLoader(RealEnhancementAsyncLoader()) == 0)
         let loader = try Stub<any EnhancementAsyncLoader>()
         let clock = ManualStubClock()
-        await loader.onCall { await $0.load() }
+        await loader.when { await $0.load() }
             .thenReturn(42, after: .seconds(1), using: clock)
 
         let task = Task { await loader().load() }
@@ -211,7 +211,7 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
         #expect(try await useLinkedThrowingAsyncLoader(RealEnhancementThrowingAsyncLoader()) == 0)
         let loader = try Stub<any EnhancementThrowingAsyncLoader>()
         let clock = ManualStubClock()
-        await loader.onCall { try await $0.load() }
+        await loader.when { try await $0.load() }
             .thenThrow(EnhancementFailure.expected, after: .seconds(1), using: clock)
         let service: any EnhancementThrowingAsyncLoader = loader()
 
@@ -233,7 +233,7 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
 
     @Test func timelinesIncludeTheMatchedRegistration() throws {
         let loader = try Stub<any ForEachCallLoader>()
-        loader.onCall { $0.value(for: Match.equal("timeline")) }.thenReturn(3)
+        loader.when { $0.value(for: Match.equal("timeline")) }.thenReturn(3)
 
         #expect(loader().value(for: "timeline") == 3)
 
@@ -250,7 +250,7 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
     @Test func spyCanAssertExactlyWhichCallsForwarded() throws {
         #expect(useLinkedForwarder(RealEnhancementForwarder()) == "live-linked")
         let spy: Spy<any EnhancementForwarder> = .make(forwardingTo: RealEnhancementForwarder())
-        spy.onCall { $0.value(for: Match.equal("override")) }.thenReturn("fixture")
+        spy.when { $0.value(for: Match.equal("override")) }.thenReturn("fixture")
         let service: any EnhancementForwarder = spy()
 
         #expect(service.value(for: "override") == "fixture")
@@ -264,7 +264,7 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
     @Test func spyCanAssertThatNoCallsWereForwarded() throws {
         #expect(useLinkedForwarder(RealEnhancementForwarder()) == "live-linked")
         let spy: Spy<any EnhancementForwarder> = .make(forwardingTo: RealEnhancementForwarder())
-        spy.onCall { $0.value(for: Match.any()) }.thenReturn("fixture")
+        spy.when { $0.value(for: Match.any()) }.thenReturn("fixture")
 
         #expect(spy().value(for: "overridden") == "fixture")
         spy.verifyNoForwardedInteractions()
@@ -287,7 +287,7 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
         let scenario: ParameterizedStubScenario<any ForEachCallLoader, Int> = .init(named: "page") {
             stub,
             value in
-            stub.onCall { $0.value(for: Match.any()) }.thenReturn(value)
+            stub.when { $0.value(for: Match.any()) }.thenReturn(value)
         }
         let loader = try Stub<any ForEachCallLoader>()
 
@@ -300,7 +300,7 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
         let scenario: ParameterizedStubScenario<any ForEachCallLoader, Int> = .init(named: "page") {
             stub,
             value in
-            stub.onCall { $0.value(for: Match.any()) }.thenReturn(value)
+            stub.when { $0.value(for: Match.any()) }.thenReturn(value)
         }
         let bound = scenario.scenario(for: 11)
         let loader = try Stub<any ForEachCallLoader>()
@@ -316,7 +316,7 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
         let scenario: AsyncParameterizedStubScenario<any EnhancementAsyncLoader, Int> = .init(
             named: "async page"
         ) { stub, value in
-            await stub.onCall { await $0.load() }.thenReturn(value)
+            await stub.when { await $0.load() }.thenReturn(value)
         }
         let bound = scenario.scenario(for: 8)
         let loader = try Stub<any EnhancementAsyncLoader>()
@@ -330,7 +330,7 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
     @Test func clockDrivenVerificationFinishesWhenTheCallArrives() async throws {
         useLinkedClockVerifier(RealEnhancementClockVerifier())
         let stub = try Stub<any EnhancementClockVerifier>()
-        stub.onCall { $0.notify(Match.any()) }.thenDoNothing()
+        stub.when { $0.notify(Match.any()) }.thenDoNothing()
         let service: any EnhancementClockVerifier = stub()
         let clock = ManualStubClock()
 

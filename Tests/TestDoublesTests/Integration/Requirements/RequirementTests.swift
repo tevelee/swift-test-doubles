@@ -147,12 +147,12 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
             ),
             .getter(String.self)
         )
-        stub.onCall { $0.zero() }.thenReturn(7)
-        stub.onCall { $0.many(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any()) }.then {
+        stub.when { $0.zero() }.thenReturn(7)
+        stub.when { $0.many(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any()) }.then {
             (a: Int, b: String, c: Bool, d: Double, e: UInt, f: Float, g: Character) in
             "\(a):\(b):\(c):\(d):\(e):\(f):\(g)"
         }
-        stub.onCall { $0.name }.thenReturn("before")
+        stub.when { $0.name }.thenReturn("before")
 
         let probe: any RequirementProbe = stub()
         #expect(probe.zero() == 7)
@@ -176,7 +176,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
                 using: adapter
             )
         )
-        stub.onCall(returning: identity) {
+        stub.when(returning: identity) {
             $0.transform(Match.any(using: identity))
         }.then { (closure: RequirementClosure) in
             let transformed = closure(20) + 2
@@ -248,7 +248,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
                 using: adapter
             )
         )
-        stub.onCall(returning: identity) {
+        stub.when(returning: identity) {
             try $0.transform(Match.any(using: identity))
         }.thenThrow(ClosureRequirementError.failed)
 
@@ -276,7 +276,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
                 using: adapter
             )
         )
-        stub.onCall {
+        stub.when {
             $0.apply(Match.any(using: identity), to: Match.any())
         }.thenEscaping { (closure: RequirementClosure, value: Int) in
             closure(value) + 2
@@ -302,7 +302,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
                 using: adapter
             )
         )
-        await stub.onCall(returning: identity) {
+        await stub.when(returning: identity) {
             await $0.transform(Match.any(using: identity))
         }.thenEscaping { (closure: RequirementClosure) async -> RequirementClosure in
             let transformed = closure(20) + 2
@@ -335,7 +335,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
                 using: adapter
             )
         )
-        await stub.onCall(returning: identity) {
+        await stub.when(returning: identity) {
             try await $0.transform(Match.any(using: identity))
         }.thenEscaping { (closure: RequirementClosure) async throws -> RequirementClosure in
             let transformed = closure(20) + 2
@@ -368,7 +368,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
                 using: adapter
             )
         )
-        await stub.onCall(returning: identity) {
+        await stub.when(returning: identity) {
             try await $0.transform(Match.any(using: identity))
         }.thenThrow(ClosureRequirementError.failed)
 
@@ -400,7 +400,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
                 using: adapter
             )
         )
-        await stub.onCall(returning: identity) {
+        await stub.when(returning: identity) {
             try await $0.transform(Match.any(using: identity))
         }.thenEscaping { (closure: RequirementClosure) async throws -> RequirementClosure in
             let transformed = closure(20) + 2
@@ -438,7 +438,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
                 using: adapter
             )
         )
-        await stub.onCall(returning: identity) {
+        await stub.when(returning: identity) {
             try await $0.transform(Match.any(using: identity))
         }.thenThrow(ClosureRequirementError.failed)
 
@@ -451,7 +451,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
         _ = RealClosureRequirementProbe()
         let identity: RequirementClosure = { $0 }
         let stub = try Stub<any ClosureRequirementProbe>()
-        stub.onCall(returning: identity) {
+        stub.when(returning: identity) {
             $0.transform(Match.any(using: identity))
         }.then { (closure: RequirementClosure) in
             let transformed = closure(20) + 2
@@ -468,7 +468,7 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
         _ = RealManagedClosureRequirementProbe()
         let identity: ManagedClosure = { $0 }
         let stub = try Stub<any ManagedClosureRequirementProbe>()
-        stub.onCall(returning: identity) {
+        stub.when(returning: identity) {
             $0.transform(Match.any(using: identity))
         }.then { (closure: ManagedClosure) in
             let captured = closure("forty-")

@@ -22,14 +22,14 @@ protocol Analytics: Sendable {
 ### Read recorded arguments as typed values
 
 When an assertion is more naturally expressed over the recorded arguments than
-as a count, save the ``CallPattern`` returned by `onCall` and call
+as a count, save the ``CallPattern`` returned by `when` and call
 ``CallPattern/arguments()``. It returns typed tuples in call order. The result
 annotation selects the tuple shape, and components bind to the requirement's
 arguments from the front:
 
 ```swift
 let stub = try Stub<any Analytics>()
-let allEvents = stub.onCall {
+let allEvents = stub.when {
     $0.track(event: Match.any(), value: Match.any())
 }
 allEvents.thenDoNothing()
@@ -49,7 +49,7 @@ and matchers filter which calls are included:
 let events: [String] = allEvents.arguments()
 #expect(events == ["add_to_cart", "purchase"])
 
-let largeEvents = stub.onCall {
+let largeEvents = stub.when {
     $0.track(event: Match.any(), value: Match.greaterThan(40))
 }
 let large: [(String, Int)] = largeEvents.arguments()
@@ -117,8 +117,8 @@ fired when each lives on its own stub:
 ```swift
 let gateway = try Stub<any PaymentGateway>()
 let analytics = try Stub<any Analytics>()
-gateway.onCall { $0.charge(amount: Match.any()) }.thenDoNothing()
-analytics.onCall { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
+gateway.when { $0.charge(amount: Match.any()) }.thenDoNothing()
+analytics.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
 
 Checkout(gateway: gateway(), analytics: analytics()).placeOrder()
 
@@ -152,7 +152,7 @@ even if it has recorded calls of its own — check that one directly.
 
 ### Catch stale and unreachable registrations
 
-`verifyNoUnusedStubs()` reports every `onCall` registration that no recorded call
+`verifyNoUnusedStubs()` reports every `when` registration that no recorded call
 ever matched. This catches setup that has drifted out of sync with the code, and
 more subtly, a specific registration left unreachable behind an earlier
 catch-all under first-match-wins ordering:
@@ -161,8 +161,8 @@ catch-all under first-match-wins ordering:
 let stub = try Stub<any Analytics>()
 // Registered in the wrong order: the catch-all answers every call, so the
 // specific registration below it can never match.
-stub.onCall { $0.track(event: Match.any(), value: Match.any()) }.thenReturn(())
-stub.onCall { $0.track(event: Match.equal("purchase"), value: Match.any()) }.thenReturn(())
+stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenReturn(())
+stub.when { $0.track(event: Match.equal("purchase"), value: Match.any()) }.thenReturn(())
 
 stub().track(event: "purchase", value: 42)
 
@@ -173,8 +173,8 @@ Call it at the end of a test to keep registrations honest. It reads the same
 consumption tracking the matcher engine already maintains, so it costs nothing
 during the test itself.
 
-A shadowed registration is also caught eagerly: when a new `onCall` is provably
-unreachable behind an earlier one, an issue is reported at that `onCall` site as
+A shadowed registration is also caught eagerly: when a new `when` is provably
+unreachable behind an earlier one, an issue is reported at that `when` site as
 you register it, without waiting for `verifyNoUnusedStubs()`. The check is
 sound, flagging only registrations proven unreachable (a universal earlier
 matcher such as `Match.any()`, or the identical accepted set at every argument
@@ -183,7 +183,7 @@ specific-before-broad ordering is never flagged.
 
 ### Register recording placeholders once
 
-The recording pass behind every `onCall` and one-shot `verify` closure
+The recording pass behind every `when` and one-shot `verify` closure
 needs one valid temporary value per argument and result. TestDoubles synthesizes
 these for most value types, but class instances and existentials normally take a
 value at each site through the `using:` and `returning:` overloads.
@@ -198,7 +198,7 @@ Match.Placeholders.register { User(name: "placeholder") }
 
 let stub = try Stub<any Directory>()
 // No Match.any(using:) needed: the registered factory supplies the recording value.
-stub.onCall { $0.displayName(for: Match.any()) }.thenReturn("Blob")
+stub.when { $0.displayName(for: Match.any()) }.thenReturn("Blob")
 ```
 
 A registered value is used only while recording; it is never matched against,
@@ -214,13 +214,13 @@ than registering inside individual parallel tests.
 
 `clearRecordedInvocations()` clears the invocation log while preserving
 configured behavior. Two more tools complete the picture.
-`clearConfiguredBehaviors()` removes every `onCall` registration while preserving
+`clearConfiguredBehaviors()` removes every `when` registration while preserving
 the log, which returns a ``Spy`` to pure forwarding and lets a test replace a
 registration that first-match-wins would otherwise shadow:
 
 ```swift
 stub.clearConfiguredBehaviors()
-stub.onCall { $0.track(event: Match.any(), value: Match.any()) }.thenReturn(())  // fresh
+stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenReturn(())  // fresh
 ```
 
 `reset()` on ``Stub`` and ``Spy`` does both at once, restoring the
@@ -230,7 +230,7 @@ parameterized cases:
 ```swift
 for scenario in scenarios {
     stub.reset()
-    stub.onCall { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
+    stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
     // exercise `scenario` against a clean double
 }
 ```

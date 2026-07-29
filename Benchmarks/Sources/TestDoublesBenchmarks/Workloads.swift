@@ -84,11 +84,11 @@ func configureAsyncStack(
     _ stub: Stub<any AsyncStackBenchmarkService>
 ) async {
     #if arch(x86_64)
-        await stub.onCall {
+        await stub.when {
             await $0.transform(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any())
         }.thenReturn(1)
     #else
-        await stub.onCall {
+        await stub.when {
             await $0.transform(
                 Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any()
             )
@@ -222,7 +222,7 @@ func concurrentInvocationBenchmark() -> BenchmarkDefinition {
         let services: [any UnaryBenchmarkService] = try (0 ..< workerCount)
             .map { _ in
                 let stub = try Stub<any UnaryBenchmarkService>()
-                stub.onCall { $0.transform(Match.any()) }
+                stub.when { $0.transform(Match.any()) }
                     .then { (value: Int) in value &+ 1 }
                 return stub()
             }
@@ -285,7 +285,7 @@ func benchmarkDefinitions() -> [BenchmarkDefinition] {
         ) { iterations in
             _ = LinkedArityBenchmarkService()
             let stub = try Stub<any ArityBenchmarkService>()
-            stub.onCall { $0.zero() }.thenReturn(1)
+            stub.when { $0.zero() }.thenReturn(1)
             let service: any ArityBenchmarkService = stub()
             return timedSync(iterations: iterations) { _ in invokeZero(service) }
         },
@@ -297,7 +297,7 @@ func benchmarkDefinitions() -> [BenchmarkDefinition] {
         ) { iterations in
             _ = LinkedArityBenchmarkService()
             let stub = try Stub<any ArityBenchmarkService>()
-            stub.onCall { $0.one(Match.any()) }.then { (value: Int) in value &+ 1 }
+            stub.when { $0.one(Match.any()) }.then { (value: Int) in value &+ 1 }
             let service: any ArityBenchmarkService = stub()
             return timedSync(iterations: iterations) {
                 invokeOne(service, value: $0)
@@ -312,7 +312,7 @@ func benchmarkDefinitions() -> [BenchmarkDefinition] {
         ) { iterations in
             _ = LinkedArityBenchmarkService()
             let stub = try Stub<any ArityBenchmarkService>()
-            stub.onCall {
+            stub.when {
                 $0.six(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any())
             }.then {
                 (
@@ -338,7 +338,7 @@ func benchmarkDefinitions() -> [BenchmarkDefinition] {
         ) { iterations in
             _ = LinkedVoidBenchmarkService()
             let stub = try Stub<any VoidBenchmarkService>()
-            stub.onCall { $0.consume(Match.any()) }.thenDoNothing()
+            stub.when { $0.consume(Match.any()) }.thenDoNothing()
             let service: any VoidBenchmarkService = stub()
             return timedSync(iterations: iterations) { iteration in
                 invokeVoid(service, value: iteration)
@@ -354,7 +354,7 @@ func benchmarkDefinitions() -> [BenchmarkDefinition] {
             _ = LinkedReferenceBenchmarkService()
             let placeholder = BenchmarkBox(value: -1)
             let stub = try Stub<any ReferenceBenchmarkService>()
-            stub.onCall(returning: placeholder) {
+            stub.when(returning: placeholder) {
                 $0.echo(Match.any(using: placeholder))
             }.then { (value: BenchmarkBox) in value }
             let service: any ReferenceBenchmarkService = stub()
@@ -372,7 +372,7 @@ func benchmarkDefinitions() -> [BenchmarkDefinition] {
             _ = LinkedUnaryBenchmarkService()
             let stub = try Stub<any UnaryBenchmarkService>()
             for value in 0 ..< 8 {
-                stub.onCall { $0.transform(value) }.thenReturn(value)
+                stub.when { $0.transform(value) }.thenReturn(value)
             }
             let service: any UnaryBenchmarkService = stub()
             return timedSync(iterations: iterations) { _ in
@@ -388,7 +388,7 @@ func benchmarkDefinitions() -> [BenchmarkDefinition] {
             _ = LinkedUnaryBenchmarkService()
             let captor = Match.Capture<Int>()
             let stub = try Stub<any UnaryBenchmarkService>()
-            stub.onCall { $0.transform(captor.capture()) }.thenReturn(1)
+            stub.when { $0.transform(captor.capture()) }.thenReturn(1)
             let service: any UnaryBenchmarkService = stub()
             return timedSync(iterations: iterations) {
                 invokeUnary(service, value: $0)
@@ -402,7 +402,7 @@ func benchmarkDefinitions() -> [BenchmarkDefinition] {
         ) { iterations in
             _ = LinkedUnaryBenchmarkService()
             let stub = try Stub<any UnaryBenchmarkService>()
-            stub.onCall { $0.transform(Match.any()) }.thenReturn(1)
+            stub.when { $0.transform(Match.any()) }.thenReturn(1)
             let service: any UnaryBenchmarkService = stub()
             for iteration in 0 ..< iterations {
                 _ = invokeUnary(service, value: iteration)
@@ -438,7 +438,7 @@ func benchmarkDefinitions() -> [BenchmarkDefinition] {
         ) { iterations in
             _ = LinkedAsyncBenchmarkService()
             let stub = try Stub<any AsyncBenchmarkService>()
-            await stub.onCall { await $0.transform(Match.any()) }.then {
+            await stub.when { await $0.transform(Match.any()) }.then {
                 (value: Int) async in value &+ 1
             }
             let service: any AsyncBenchmarkService = stub()
@@ -468,8 +468,8 @@ func benchmarkDefinitions() -> [BenchmarkDefinition] {
         ) { iterations in
             _ = LinkedSelfBenchmarkService()
             let stub = try Stub<any SelfBenchmarkService>()
-            stub.onCall { captureSelfArgument($0) }.thenDoNothing()
-            stub.onCall { $0.marker() }.thenReturn(1)
+            stub.when { captureSelfArgument($0) }.thenDoNothing()
+            stub.when { $0.marker() }.thenReturn(1)
             let service: any SelfBenchmarkService = stub()
             return timedSync(iterations: iterations) { _ in
                 invokeSelfArgument(service)
@@ -484,7 +484,7 @@ func benchmarkDefinitions() -> [BenchmarkDefinition] {
             _ = LinkedClosureBenchmarkService()
             let identity: BenchmarkClosure = { $0 &+ 1 }
             let stub = try Stub<any ClosureBenchmarkService>()
-            stub.onCall(returning: identity) {
+            stub.when(returning: identity) {
                 $0.echo(Match.any(using: identity))
             }.then { (closure: @escaping BenchmarkClosure) in closure }
             let service: any ClosureBenchmarkService = stub()
@@ -513,7 +513,7 @@ func benchmarkDefinitions() -> [BenchmarkDefinition] {
             _ = LinkedDictionaryBenchmarkService()
             let placeholder = ["placeholder": -1]
             let stub = try Stub<any DictionaryBenchmarkService<Int>>()
-            stub.onCall(returning: placeholder) { $0.values() }
+            stub.when(returning: placeholder) { $0.values() }
                 .thenReturn(["value": 42])
             let service: any DictionaryBenchmarkService<Int> = stub()
             return timedSync(iterations: iterations) { _ in
@@ -546,7 +546,7 @@ func benchmarkDefinitions() -> [BenchmarkDefinition] {
                 AssociatedBenchmarkFailure
             >
             let stub = try Stub<Service>()
-            stub.onCall { try $0.load(Match.any()) }.then {
+            stub.when { try $0.load(Match.any()) }.then {
                 (value: Int) throws(AssociatedBenchmarkFailure) -> Int in
                 value &+ 1
             }
@@ -566,7 +566,7 @@ func benchmarkDefinitions() -> [BenchmarkDefinition] {
                 AssociatedBenchmarkFailure
             >
             let stub = try Stub<Service>()
-            stub.onCall { try $0.load(Match.any()) }
+            stub.when { try $0.load(Match.any()) }
                 .thenThrow(AssociatedBenchmarkFailure(code: 42))
             let service: Service = stub()
             return timedSync(iterations: iterations) { iteration in
@@ -587,7 +587,7 @@ func benchmarkDefinitions() -> [BenchmarkDefinition] {
         ) { iterations in
             _ = LinkedReadBenchmarkService()
             let stub = try Stub<any ReadBenchmarkService>(.getter(Int.self))
-            stub.onCall { $0.value }.thenReturn(42)
+            stub.when { $0.value }.thenReturn(42)
             let service: any ReadBenchmarkService = stub()
             return timedSync(iterations: iterations) { _ in invokeRead(service) }
         },
@@ -616,7 +616,7 @@ func benchmarkDefinitions() -> [BenchmarkDefinition] {
                 .method(signatureOf: VectorBenchmarkService.transform)
             )
             let placeholder = SIMD4<Float>(repeating: 0)
-            stub.onCall(returning: placeholder) {
+            stub.when(returning: placeholder) {
                 $0.transform(Match.any(using: placeholder))
             }.then {
                 (value: SIMD4<Float>) in value

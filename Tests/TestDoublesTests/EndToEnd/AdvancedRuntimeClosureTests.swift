@@ -41,7 +41,7 @@ private func configureManagedClosure(
     returnedToken: WeakClosureLifetimeTokenBox
 ) throws {
     let stub = try #require(stub)
-    stub.onCall(returning: identity) {
+    stub.when(returning: identity) {
         $0.managed(Match.any(using: identity))
     }.then { (closure: ExternalManagedClosure) in
         let token = ClosureLifetimeToken(closure("forty"))
@@ -122,7 +122,7 @@ private actor ClosureIsolationActor {
         _ = RealExternalAdvancedClosureService()
         let identity: ExternalThrowingClosure = { "\($0)" }
         let stub = try Stub<any ExternalAdvancedClosureService>()
-        stub.onCall(returning: identity) {
+        stub.when(returning: identity) {
             $0.throwing(Match.any(using: identity))
         }.then { (closure: ExternalThrowingClosure) in
             let captured = Result { try closure(21) }
@@ -137,7 +137,7 @@ private actor ClosureIsolationActor {
         _ = RealExternalAdvancedClosureService()
         let identity: ExternalAsyncClosure = { "\($0)" }
         let stub = try Stub<any ExternalAdvancedClosureService>()
-        stub.onCall(returning: identity) {
+        stub.when(returning: identity) {
             $0.asynchronous(Match.any(using: identity))
         }.then { (_: ExternalAsyncClosure) in
             { @Sendable value in
@@ -157,7 +157,7 @@ private actor ClosureIsolationActor {
         _ = RealExternalAdvancedClosureService()
         let identity: ExternalAsyncThrowingClosure = { $0.count }
         let stub = try Stub<any ExternalAdvancedClosureService>()
-        stub.onCall(returning: identity) {
+        stub.when(returning: identity) {
             $0.asynchronousThrowing(Match.any(using: identity))
         }.then { (_: ExternalAsyncThrowingClosure) in
             { @Sendable value in
@@ -188,7 +188,7 @@ private actor ClosureIsolationActor {
         }
         let identity: ExternalAsyncTypedThrowingClosure = { "\($0)" }
         let stub = try Stub<any ExternalExtendedClosureService>()
-        stub.onCall(returning: identity) {
+        stub.when(returning: identity) {
             $0.asyncTypedThrowing(Match.any(using: identity))
         }.then { (_: ExternalAsyncTypedThrowingClosure) in
             { @Sendable value async throws(ExternalClosureError) in
@@ -217,7 +217,7 @@ private actor ClosureIsolationActor {
         let throwingIdentity: ExternalAsyncThrowingClosure = { $0.count }
         let stub = try Stub<any ExternalAdvancedClosureService>()
 
-        await stub.onCall(returning: "") {
+        await stub.when(returning: "") {
             await $0.invokeAsyncClosure(
                 Match.any(using: stringIdentity),
                 value: Match.any()
@@ -226,7 +226,7 @@ private actor ClosureIsolationActor {
             await Task.yield()
             return await closure(value) + "!"
         }
-        await stub.onCall(returning: 0) {
+        await stub.when(returning: 0) {
             try await $0.invokeAsyncThrowingClosure(
                 Match.any(using: throwingIdentity),
                 value: Match.any()
@@ -277,7 +277,7 @@ private actor ClosureIsolationActor {
         }
         let stub = try Stub<any ExternalAdvancedClosureService>()
 
-        stub.onCall(returning: placeholder) {
+        stub.when(returning: placeholder) {
             $0.asynchronousMixed(Match.any(using: placeholder))
         }.then { (_: ExternalAsyncMixedClosure) in
             { @Sendable value, floating, enabled, label in
@@ -310,13 +310,13 @@ private actor ClosureIsolationActor {
         let borrowingResult: ExternalBorrowingClosure = { $0.uppercased() }
         let stub = try Stub<any ExternalAdvancedClosureService>()
 
-        stub.onCall(returning: inoutIdentity) {
+        stub.when(returning: inoutIdentity) {
             $0.inoutValue(Match.any(using: inoutIdentity))
         }.then { (_: ExternalInoutClosure) in inoutResult }
-        stub.onCall(returning: consumingIdentity) {
+        stub.when(returning: consumingIdentity) {
             $0.consuming(Match.any(using: consumingIdentity))
         }.then { (_: ExternalConsumingClosure) in consumingResult }
-        stub.onCall(returning: borrowingIdentity) {
+        stub.when(returning: borrowingIdentity) {
             $0.borrowing(Match.any(using: borrowingIdentity))
         }.then { (_: ExternalBorrowingClosure) in borrowingResult }
 
@@ -337,13 +337,13 @@ private actor ClosureIsolationActor {
         let nestedIdentity: ExternalNestedClosure = { $0 }
         let stub = try Stub<any ExternalAdvancedClosureService>()
 
-        stub.onCall(returning: variadicIdentity) {
+        stub.when(returning: variadicIdentity) {
             $0.variadic(Match.any(using: variadicIdentity))
         }.then { (_: ExternalVariadicClosure) in variadicResult }
-        stub.onCall(returning: autoclosureIdentity) {
+        stub.when(returning: autoclosureIdentity) {
             $0.autoclosure(Match.any(using: autoclosureIdentity))
         }.then { (_: ExternalAutoclosureClosure) in autoclosureResult }
-        stub.onCall(returning: nestedIdentity) {
+        stub.when(returning: nestedIdentity) {
             $0.nested(Match.any(using: nestedIdentity))
         }.then { (closure: ExternalNestedClosure) in
             let inner = closure { $0 * 2 }
@@ -363,13 +363,13 @@ private actor ClosureIsolationActor {
         let throwingIdentity: ExternalThrowingClosure = { "\($0)" }
         let stub = try Stub<any ExternalAdvancedClosureService>()
 
-        await stub.onCall(returning: managedIdentity) {
+        await stub.when(returning: managedIdentity) {
             await $0.asynchronousRequirement(Match.any(using: managedIdentity))
         }.thenEscaping { (closure: ExternalManagedClosure) async in
             let captured = closure("forty-")
             return { captured + $0 }
         }
-        await stub.onCall(returning: throwingIdentity) {
+        await stub.when(returning: throwingIdentity) {
             try await $0.asyncThrowingRequirement(Match.any(using: throwingIdentity))
         }.thenEscaping { (closure: ExternalThrowingClosure) async throws in
             let captured = try closure(21)
@@ -391,7 +391,7 @@ private actor ClosureIsolationActor {
             (value: consuming ExternalMoveOnlyValue) in value.value * 2
         }
         let stub = try Stub<any ExternalMoveOnlyClosureService>()
-        stub.onCall(returning: identity) {
+        stub.when(returning: identity) {
             $0.transform(Match.any(using: identity))
         }.then { (_: ExternalMoveOnlyClosure) in result }
 
@@ -421,7 +421,7 @@ private actor ClosureIsolationActor {
             return "\(value * 2)!"
         }
         let stub = try Stub<any ExternalExtendedClosureService>()
-        stub.onCall(returning: identity) {
+        stub.when(returning: identity) {
             $0.typedThrowing(Match.any(using: identity))
         }.then { (_: ExternalTypedThrowingClosure) in result }
 
@@ -444,7 +444,7 @@ private actor ClosureIsolationActor {
         let identity: ExternalMainActorClosure = { "\($0)" }
         let result: ExternalMainActorClosure = { "\($0 * 2)!" }
         let stub = try Stub<any ExternalExtendedClosureService>()
-        stub.onCall(returning: identity) {
+        stub.when(returning: identity) {
             $0.mainActor(Match.any(using: identity))
         }.then { (_: ExternalMainActorClosure) in result }
 
@@ -478,10 +478,10 @@ private actor ClosureIsolationActor {
             )
         else { return }
         let stub = try Stub<any ExternalConcurrencyClosureService>()
-        stub.onCall(returning: identity) {
+        stub.when(returning: identity) {
             $0.isolated(Match.any(using: identity))
         }.then { (_: ExternalIsolatedClosure) in result }
-        stub.onCall(returning: throwingIdentity) {
+        stub.when(returning: throwingIdentity) {
             $0.isolatedThrowing(Match.any(using: throwingIdentity))
         }.then { (_: ExternalIsolatedThrowingClosure) in throwingResult }
 
@@ -520,10 +520,10 @@ private actor ClosureIsolationActor {
         )
         let stub = try Stub<any ExternalConcurrencyClosureService>()
 
-        stub.onCall(returning: sendingIdentity) {
+        stub.when(returning: sendingIdentity) {
             $0.sending(Match.any(using: sendingIdentity))
         }.then { (_: ExternalSendingClosure) in sendingResult }
-        stub.onCall(returning: nonsendingIdentity) {
+        stub.when(returning: nonsendingIdentity) {
             $0.nonsending(Match.any(using: nonsendingIdentity))
         }.then { (_: ExternalNonsendingClosure) in nonsendingResult }
 

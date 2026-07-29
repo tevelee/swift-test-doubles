@@ -155,7 +155,7 @@ private func useLinkedGenericResultAssociatedTypeProbe(
             convention: .concrete
         )
 
-        stub.onCall(returning: Result<Int, ResultAssociatedFailure>.success(0)) {
+        stub.when(returning: Result<Int, ResultAssociatedFailure>.success(0)) {
             $0.transform(
                 opaque: Match.any(using: Result<Int, ResultAssociatedFailure>.success(0))
             )
@@ -163,7 +163,7 @@ private func useLinkedGenericResultAssociatedTypeProbe(
             (value: Result<Int, ResultAssociatedFailure>) in
             value.map { $0 + 1 }
         }
-        stub.onCall(returning: Result<[Int], ResultAssociatedFailure>.success([])) {
+        stub.when(returning: Result<[Int], ResultAssociatedFailure>.success([])) {
             $0.transform(
                 fixed: Match.any(
                     using: Result<[Int], ResultAssociatedFailure>.success([])
@@ -236,14 +236,14 @@ private func useLinkedGenericResultAssociatedTypeProbe(
             stub.recorder.runtimeMethod(for: 2)?.returnConvention == .concrete
         )
 
-        stub.onCall(returning: Result<[Int], ResultAssociatedFailure>.success([])) {
+        stub.when(returning: Result<[Int], ResultAssociatedFailure>.success([])) {
             $0.transform(
                 opaqueFailure: Match.any(
                     using: Result<[Int], ResultAssociatedFailure>.success([])
                 )
             )
         }.thenReturn(.success([7]))
-        stub.onCall(
+        stub.when(
             returning: Result<Set<Int?>, ResultAssociatedFailure>.success([])
         ) {
             $0.transform(
@@ -294,7 +294,7 @@ private func useLinkedGenericResultAssociatedTypeProbe(
         )
         let placeholder = Result<ResultAssociatedBox<Int>, ResultAssociatedFailure>
             .success(ResultAssociatedBox(0))
-        stub.onCall(returning: placeholder) {
+        stub.when(returning: placeholder) {
             $0.transform(Match.any(using: placeholder))
         }.then { (value: Result<ResultAssociatedBox<Int>, ResultAssociatedFailure>) in
             value.map { ResultAssociatedBox($0.value + 1) }

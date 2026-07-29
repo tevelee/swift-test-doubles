@@ -6,11 +6,11 @@ or per-stub compiler invocations.
 ## Overview
 
 ``Stub`` fabricates a protocol conformance and routes witness calls through a
-fixed runtime trampoline. Configure behavior with `onCall`, `thenReturn`,
+fixed runtime trampoline. Configure behavior with `when`, `thenReturn`,
 `thenThrow`, and `then`, then verify the interactions that matter to the test.
 
 Use ``Spy`` to keep a real implementation as the default. Unmatched calls
-forward to its target while matching `onCall` registrations override behavior;
+forward to its target while matching `when` registrations override behavior;
 both paths are recorded for verification.
 
 Use ``Dummy`` when an API requires a protocol value that the exercised code path

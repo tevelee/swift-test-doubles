@@ -23,10 +23,10 @@ struct WasmDemoServiceStub: WasmDemoService, StubConformer {
 @Suite struct WasmPlatformTests {
     @Test func manualStubConfiguresRecordsAndVerifiesOnEveryPlatform() {
         let stub = ManualStub<WasmDemoServiceStub>()
-        stub.onCall { $0.fetch(id: Match.equal(42)) }.thenReturn("Alice")
-        stub.onCall { $0.fetch(id: Match.any()) }.thenReturn("stranger")
-        stub.onCall { $0.count }.thenReturn(3)
-        stub.onCall { $0.reset() }.thenDoNothing()
+        stub.when { $0.fetch(id: Match.equal(42)) }.thenReturn("Alice")
+        stub.when { $0.fetch(id: Match.any()) }.thenReturn("stranger")
+        stub.when { $0.count }.thenReturn(3)
+        stub.when { $0.reset() }.thenDoNothing()
 
         let sut: any WasmDemoService = stub()
 

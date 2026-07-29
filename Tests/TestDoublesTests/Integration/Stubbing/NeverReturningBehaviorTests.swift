@@ -24,7 +24,7 @@ private actor CompletionFlag {
 @Suite struct NeverReturningBehaviorTests {
     @Test func neverReturnKeepsTheCallerSuspended() async throws {
         let stub = try Stub<any AsyncDataLoader>()
-        await stub.onCall { try await $0.load(url: Match.any()) }.thenNeverReturn()
+        await stub.when { try await $0.load(url: Match.any()) }.thenNeverReturn()
 
         let completed = CompletionFlag()
         let task = Task {
@@ -45,7 +45,7 @@ private actor CompletionFlag {
 
     @Test func neverReturnParticipatesInChains() async throws {
         let stub = try Stub<any AsyncDataLoader>()
-        await stub.onCall { try await $0.load(url: Match.any()) }
+        await stub.when { try await $0.load(url: Match.any()) }
             .thenThrow(NeverReturnTestError.transient)
             .thenNeverReturn()
 
@@ -66,7 +66,7 @@ private actor CompletionFlag {
 
     @Test func parkedCallsRemainObservableThroughVerification() async throws {
         let stub = try Stub<any NeverReturningWedgedService>()
-        await stub.onCall { try await $0.fetch(id: Match.any()) }.thenNeverReturn()
+        await stub.when { try await $0.fetch(id: Match.any()) }.thenNeverReturn()
 
         let service: any NeverReturningWedgedService = stub()
         Task {

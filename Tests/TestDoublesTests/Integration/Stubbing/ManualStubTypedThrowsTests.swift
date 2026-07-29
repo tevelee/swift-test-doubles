@@ -85,11 +85,11 @@ private struct ManualTypedThrowsServiceStub: ManualTypedThrowsService, StubConfo
 @Suite struct ManualStubTypedThrowsTests {
     @Test func typedGetterAndSyncMethodReturnAndPropagateExactFailures() throws {
         let stub = ManualStub<ManualTypedThrowsServiceStub>()
-        stub.onCall { try $0.token }
+        stub.when { try $0.token }
             .thenReturn("secret")
             .thenThrow(ManualStubTypedFailure.rejected(1))
-        stub.onCall { try $0.save(Match.equal(2)) }.thenDoNothing()
-        stub.onCall { try $0.save(Match.equal(3)) }
+        stub.when { try $0.save(Match.equal(2)) }.thenDoNothing()
+        stub.when { try $0.save(Match.equal(3)) }
             .thenThrow(ManualStubTypedFailure.rejected(3))
 
         let service: any ManualTypedThrowsService = stub()
@@ -108,11 +108,11 @@ private struct ManualTypedThrowsServiceStub: ManualTypedThrowsService, StubConfo
 
     @Test func typedAsyncMethodsReturnAndPropagateExactFailures() async throws {
         let stub = ManualStub<ManualTypedThrowsServiceStub>()
-        await stub.onCall { try await $0.refresh(Match.equal(4)) }.thenReturn("fresh")
-        await stub.onCall { try await $0.refresh(Match.equal(5)) }
+        await stub.when { try await $0.refresh(Match.equal(4)) }.thenReturn("fresh")
+        await stub.when { try await $0.refresh(Match.equal(5)) }
             .thenThrow(ManualStubTypedFailure.rejected(5))
-        await stub.onCall { try await $0.synchronize(Match.equal(6)) }.thenDoNothing()
-        await stub.onCall { try await $0.synchronize(Match.equal(7)) }
+        await stub.when { try await $0.synchronize(Match.equal(6)) }.thenDoNothing()
+        await stub.when { try await $0.synchronize(Match.equal(7)) }
             .thenThrow(ManualStubTypedFailure.rejected(7))
 
         let service: any ManualTypedThrowsService = stub()
@@ -131,11 +131,11 @@ private struct ManualTypedThrowsServiceStub: ManualTypedThrowsService, StubConfo
 
     @Test func typedRouteIDsCoverEveryThrowingResultAndEffectCombination() async throws {
         let stub = ManualStub<ManualTypedThrowsServiceStub>()
-        stub.onCall { try $0.routedLoad(Match.equal(8)) }.thenReturn("routed")
-        stub.onCall { try $0.routedReset(Match.equal(9)) }.thenDoNothing()
-        await stub.onCall { try await $0.routedRefresh(Match.equal(10)) }
+        stub.when { try $0.routedLoad(Match.equal(8)) }.thenReturn("routed")
+        stub.when { try $0.routedReset(Match.equal(9)) }.thenDoNothing()
+        await stub.when { try await $0.routedRefresh(Match.equal(10)) }
             .thenReturn("async-routed")
-        await stub.onCall { try await $0.routedSynchronize(Match.equal(11)) }
+        await stub.when { try await $0.routedSynchronize(Match.equal(11)) }
             .thenDoNothing()
 
         let service: any ManualTypedThrowsService = stub()
@@ -160,7 +160,7 @@ private struct ManualTypedThrowsServiceStub: ManualTypedThrowsService, StubConfo
                 observing: [\.standardErrorContent]
             ) {
                 let stub = ManualStub<ManualTypedThrowsServiceStub>()
-                stub.onCall { try $0.save(Match.equal(42)) }
+                stub.when { try $0.save(Match.equal(42)) }
                     .thenThrow(ManualStubUnexpectedFailure())
                 let service: any ManualTypedThrowsService = stub()
                 try service.save(42)
@@ -175,7 +175,7 @@ private struct ManualTypedThrowsServiceStub: ManualTypedThrowsService, StubConfo
                 observing: [\.standardErrorContent]
             ) {
                 let stub = ManualStub<ManualTypedThrowsServiceStub>()
-                await stub.onCall { try await $0.synchronize(Match.equal(42)) }
+                await stub.when { try await $0.synchronize(Match.equal(42)) }
                     .thenThrow(ManualStubUnexpectedFailure())
                 let service: any ManualTypedThrowsService = stub()
                 try await service.synchronize(42)

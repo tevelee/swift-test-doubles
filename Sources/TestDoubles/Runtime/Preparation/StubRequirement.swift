@@ -88,7 +88,7 @@ extension Stub {
             ///
             /// Dynamic `Self` is supported only as a direct result. Complete
             /// the recorded
-            /// ``Stub/onCall(returningSelf:)->StubSelfResultBuilder`` invocation
+            /// ``Stub/when(returningSelf:)->StubSelfResultBuilder`` invocation
             /// with ``StubSelfResultBuilder/thenReturnValue()`` so the runtime
             /// creates a fresh value backed by this stub's resources.
             public static var dynamicSelf: Self {
@@ -98,7 +98,7 @@ extension Stub {
             /// Describes an optional dynamic `Self` result of a method or getter.
             ///
             /// Complete the recorded
-            /// ``Stub/onCall(returningOptionalSelf:)->StubOptionalSelfResultBuilder``
+            /// ``Stub/when(returningOptionalSelf:)->StubOptionalSelfResultBuilder``
             /// invocation with ``StubOptionalSelfResultBuilder/thenReturnValue()``,
             /// ``StubOptionalSelfResultBuilder/thenReturnNil()``, or a typed
             /// handler that returns ``StubOptionalSelfResultBuilder/Outcome``.

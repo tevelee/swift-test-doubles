@@ -37,7 +37,7 @@ private final class SequencedResponder: @unchecked Sendable {
         let spy: Spy<any RecordingReplayWeatherService> = .make(forwardingTo: live)
         let session = RecordingSession()
 
-        spy.onCall { try $0.currentConditions(for: Match.any()) }
+        spy.when { try $0.currentConditions(for: Match.any()) }
             .thenRecord(as: "currentConditions", into: session) { city in
                 try live.currentConditions(for: city)
             }
@@ -47,7 +47,7 @@ private final class SequencedResponder: @unchecked Sendable {
 
         let fixture = session.snapshot()
         let stub = try Stub<any RecordingReplayWeatherService>()
-        stub.onCall { try $0.currentConditions(for: Match.any()) }
+        stub.when { try $0.currentConditions(for: Match.any()) }
             .thenReplay(as: "currentConditions", from: fixture)
 
         let replayedService: any RecordingReplayWeatherService = stub()
@@ -65,7 +65,7 @@ private final class SequencedResponder: @unchecked Sendable {
             forwardingTo: RealRecordingReplayWeatherService()
         )
         let session = RecordingSession()
-        spy.onCall { try $0.currentConditions(for: Match.any()) }
+        spy.when { try $0.currentConditions(for: Match.any()) }
             .thenRecord(as: "currentConditions", into: session) { (_: String) in
                 responder.next()
             }
@@ -76,7 +76,7 @@ private final class SequencedResponder: @unchecked Sendable {
         }
 
         let stub = try Stub<any RecordingReplayWeatherService>()
-        stub.onCall { try $0.currentConditions(for: Match.any()) }
+        stub.when { try $0.currentConditions(for: Match.any()) }
             .thenReplay(as: "currentConditions", from: session.snapshot())
 
         let replayedService: any RecordingReplayWeatherService = stub()
@@ -91,7 +91,7 @@ private final class SequencedResponder: @unchecked Sendable {
         let spy: Spy<any RecordingReplayWeatherService> = .make(
             forwardingTo: RealRecordingReplayWeatherService()
         )
-        spy.onCall { try $0.currentConditions(for: Match.any()) }
+        spy.when { try $0.currentConditions(for: Match.any()) }
             .thenRecord(as: "currentConditions", into: session, recording: { (city: String) in city }) { city in
                 "weather:\(city)"
             }
@@ -100,7 +100,7 @@ private final class SequencedResponder: @unchecked Sendable {
         _ = try recordedService.currentConditions(for: "Vienna")
 
         let stub = try Stub<any RecordingReplayWeatherService>()
-        stub.onCall { try $0.currentConditions(for: Match.any()) }
+        stub.when { try $0.currentConditions(for: Match.any()) }
             .thenReplay(
                 as: "currentConditions",
                 from: session.snapshot(),
@@ -117,7 +117,7 @@ private final class SequencedResponder: @unchecked Sendable {
         let spy: Spy<any RecordingReplayWeatherService> = .make(forwardingTo: live)
         let session = RecordingSession()
 
-        await spy.onCall { try await $0.forecast(for: Match.any()) }
+        await spy.when { try await $0.forecast(for: Match.any()) }
             .thenRecord(as: "forecast", into: session) { city in
                 try await live.forecast(for: city)
             }
@@ -126,7 +126,7 @@ private final class SequencedResponder: @unchecked Sendable {
         #expect(try await recordedService.forecast(for: "Berlin") == ["sunny", "cloudy"])
 
         let stub = try Stub<any RecordingReplayWeatherService>()
-        await stub.onCall { try await $0.forecast(for: Match.any()) }
+        await stub.when { try await $0.forecast(for: Match.any()) }
             .thenReplay(as: "forecast", from: session.snapshot())
 
         let replayedService: any RecordingReplayWeatherService = stub()
@@ -137,7 +137,7 @@ private final class SequencedResponder: @unchecked Sendable {
         let live = RealRecordingReplayWeatherService()
         let spy: Spy<any RecordingReplayWeatherService> = .make(forwardingTo: live)
         let session = RecordingSession()
-        spy.onCall { try $0.currentConditions(for: Match.any()) }
+        spy.when { try $0.currentConditions(for: Match.any()) }
             .thenRecord(as: "currentConditions", into: session) { city in
                 try live.currentConditions(for: city)
             }
@@ -150,7 +150,7 @@ private final class SequencedResponder: @unchecked Sendable {
 
         let loaded = try InteractionFixture.load(from: url)
         let stub = try Stub<any RecordingReplayWeatherService>()
-        stub.onCall { try $0.currentConditions(for: Match.any()) }
+        stub.when { try $0.currentConditions(for: Match.any()) }
             .thenReplay(as: "currentConditions", from: loaded)
 
         let replayedService: any RecordingReplayWeatherService = stub()
@@ -162,7 +162,7 @@ private final class SequencedResponder: @unchecked Sendable {
         let spy: Spy<any RecordingReplayWeatherService> = .make(
             forwardingTo: RealRecordingReplayWeatherService()
         )
-        spy.onCall { try $0.currentConditions(for: Match.any()) }
+        spy.when { try $0.currentConditions(for: Match.any()) }
             .thenRecord(
                 as: "currentConditions",
                 into: session,
@@ -178,7 +178,7 @@ private final class SequencedResponder: @unchecked Sendable {
         }
 
         let stub = try Stub<any RecordingReplayWeatherService>()
-        stub.onCall { try $0.currentConditions(for: Match.any()) }
+        stub.when { try $0.currentConditions(for: Match.any()) }
             .thenReplay(
                 as: "currentConditions",
                 from: session.snapshot(),
@@ -199,14 +199,14 @@ private final class SequencedResponder: @unchecked Sendable {
         let spy: Spy<any RecordingReplayWeatherService> = .make(
             forwardingTo: RealRecordingReplayWeatherService()
         )
-        spy.onCall { try $0.currentConditions(for: Match.any()) }
+        spy.when { try $0.currentConditions(for: Match.any()) }
             .thenRecord(as: "currentConditions", into: session, recording: { (city: String) in city }) { city in
                 "weather:\(city)"
             }
         _ = try (spy() as any RecordingReplayWeatherService).currentConditions(for: "Berlin")
 
         let stub = try Stub<any RecordingReplayWeatherService>()
-        stub.onCall { try $0.currentConditions(for: Match.any()) }
+        stub.when { try $0.currentConditions(for: Match.any()) }
             .thenReplay(
                 as: "currentConditions",
                 from: session.snapshot(),
@@ -230,7 +230,7 @@ private final class SequencedResponder: @unchecked Sendable {
         try legacy.write(to: url)
 
         let stub = try Stub<any RecordingReplayWeatherService>()
-        stub.onCall { try $0.currentConditions(for: Match.any()) }
+        stub.when { try $0.currentConditions(for: Match.any()) }
             .thenReplay(as: "currentConditions", from: try InteractionFixture.load(from: url))
         #expect(
             try (stub() as any RecordingReplayWeatherService)
@@ -254,7 +254,7 @@ private final class SequencedResponder: @unchecked Sendable {
             forwardingTo: RealRecordingReplayWeatherService()
         )
         let session = RecordingSession()
-        spy.onCall { try $0.currentConditions(for: Match.any()) }
+        spy.when { try $0.currentConditions(for: Match.any()) }
             .thenRecord(as: "currentConditions", into: session) { (_: String) -> String in
                 throw RecordingReplayFailure()
             }
@@ -279,7 +279,7 @@ private final class SequencedResponder: @unchecked Sendable {
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any RecordingReplayWeatherService>()
-                stub.onCall { try $0.currentConditions(for: Match.any()) }
+                stub.when { try $0.currentConditions(for: Match.any()) }
                     .thenReplay(as: "never-recorded", from: InteractionFixture())
             }
             let diagnostic = try requireStandardErrorDiagnostic(from: result)

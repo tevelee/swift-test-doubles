@@ -103,7 +103,7 @@ private func useLinkedAssociatedReadWriteSubscript(
     @Test func automaticGetOnlySubscriptRecordsHandlesAndVerifiesIndices() throws {
         #expect(useLinkedGetOnlySubscript(LinkedAutomaticGetOnlySubscriptProbe()) == "1")
         let stub = try Stub<any AutomaticGetOnlySubscriptProbe>()
-        stub.onCall { $0[Match.any()] }.then { (index: Int) in
+        stub.when { $0[Match.any()] }.then { (index: Int) in
             "value-\(index)"
         }
 
@@ -126,7 +126,7 @@ private func useLinkedAssociatedReadWriteSubscript(
         let stub = try Stub<any ExplicitNoLinkedSubscriptProbe>(
             .subscriptGetter(indexedBy: Int.self, returning: String.self)
         )
-        stub.onCall { $0[Match.equal(3)] }.thenReturn("three")
+        stub.when { $0[Match.equal(3)] }.thenReturn("three")
 
         let probe: any ExplicitNoLinkedSubscriptProbe = stub()
         #expect(probe[3] == "three")
@@ -138,10 +138,10 @@ private func useLinkedAssociatedReadWriteSubscript(
             useLinkedConcreteReadWriteSubscript(LinkedConcreteReadWriteSubscriptProbe()) == 7
         )
         let stub = try Stub<any ConcreteReadWriteSubscriptProbe>()
-        stub.onCall { $0[Match.any(), named: Match.any()] }.thenReturn(11)
+        stub.when { $0[Match.any(), named: Match.any()] }.thenReturn(11)
 
         let handledArguments = LockedHandledArguments()
-        stub.onCall {
+        stub.when {
             $0[Match.equal(4), named: Match.equal("four")] = Match.equal(44)
         }.then { (value: Int, index: Int, name: String) in
             handledArguments.store(value: value, index: index, name: name)
@@ -179,8 +179,8 @@ private func useLinkedAssociatedReadWriteSubscript(
                 assigning: Bool.self
             )
         )
-        stub.onCall { $0[Match.any(), named: Match.any()] }.thenReturn(true)
-        stub.onCall { $0[Match.any(), named: Match.any()] = Match.any() }.thenDoNothing()
+        stub.when { $0[Match.any(), named: Match.any()] }.thenReturn(true)
+        stub.when { $0[Match.any(), named: Match.any()] = Match.any() }.thenDoNothing()
 
         var probe: any ExplicitNoLinkedReadWriteSubscriptProbe = stub()
         #expect(probe[1, named: "one"])
@@ -205,8 +205,8 @@ private func useLinkedAssociatedReadWriteSubscript(
                 assigning: optionalValue
             )
         )
-        stub.onCall { $0[Match.equal("answer")] }.thenReturn(42)
-        stub.onCall { $0[Match.any()] = Match.any() }.thenDoNothing()
+        stub.when { $0[Match.equal("answer")] }.thenReturn(42)
+        stub.when { $0[Match.any()] = Match.any() }.thenDoNothing()
 
         var probe: any AssociatedReadWriteSubscriptProbe<Int> = stub()
         #expect(probe["answer"] == 42)
@@ -239,8 +239,8 @@ private func useLinkedAssociatedReadWriteSubscript(
     @Test func matcherOrderAppliesToSubscriptIndices() throws {
         #expect(useLinkedGetOnlySubscript(LinkedAutomaticGetOnlySubscriptProbe()) == "1")
         let stub = try Stub<any AutomaticGetOnlySubscriptProbe>()
-        stub.onCall { $0[Match.equal(7)] }.thenReturn("specific")
-        stub.onCall { $0[Match.any()] }.thenReturn("fallback")
+        stub.when { $0[Match.equal(7)] }.thenReturn("specific")
+        stub.when { $0[Match.any()] }.thenReturn("fallback")
 
         let probe: any AutomaticGetOnlySubscriptProbe = stub()
         #expect(probe[7] == "specific")
@@ -252,9 +252,9 @@ private func useLinkedAssociatedReadWriteSubscript(
             useLinkedConcreteReadWriteSubscript(LinkedConcreteReadWriteSubscriptProbe()) == 7
         )
         let stub = try Stub<any ConcreteReadWriteSubscriptProbe>()
-        stub.onCall { $0[Match.equal(3), named: Match.equal("three")] }.thenReturn(10)
+        stub.when { $0[Match.equal(3), named: Match.equal("three")] }.thenReturn(10)
         let handledArguments = LockedHandledArguments()
-        stub.onCall { $0[Match.any(), named: Match.any()] = Match.any() }.then {
+        stub.when { $0[Match.any(), named: Match.any()] = Match.any() }.then {
             (value: Int, index: Int, name: String) in
             handledArguments.store(value: value, index: index, name: name)
         }
@@ -288,7 +288,7 @@ private func useLinkedAssociatedReadWriteSubscript(
                 using: adapter
             )
         )
-        stub.onCall(returning: placeholder) { $0.transform }.thenReturn { $0 + 1 }
+        stub.when(returning: placeholder) { $0.transform }.thenReturn { $0 + 1 }
 
         let probe: any FunctionValuedPropertyProbe = stub()
         #expect(probe.transform(41) == 42)
@@ -311,7 +311,7 @@ private func useLinkedAssociatedReadWriteSubscript(
                 using: adapter
             )
         )
-        stub.onCall(returning: placeholder) { $0[Match.any()] }.then { (offset: Int) in
+        stub.when(returning: placeholder) { $0[Match.any()] }.then { (offset: Int) in
             { $0 + offset }
         }
 
@@ -325,7 +325,7 @@ private func useLinkedAssociatedReadWriteSubscript(
         let placeholder: SubscriptFunctionValue = { $0 }
         let offset = 1
         let stub = try Stub<any FunctionValuedPropertyProbe>()
-        stub.onCall(returning: placeholder) { $0.transform }
+        stub.when(returning: placeholder) { $0.transform }
             .thenReturn { $0 + offset }
 
         let probe: any FunctionValuedPropertyProbe = stub()

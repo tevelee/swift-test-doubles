@@ -27,7 +27,7 @@ private actor CompletionFlag {
 @Suite struct AwaitCancellationBehaviorTests {
     @Test func bareFormThrowsCancellationErrorOnAThrowingRequirement() async throws {
         let stub = try Stub<any AwaitCancellationService>()
-        await stub.onCall { try await $0.fetch(id: Match.any()) }.thenAwaitCancellation()
+        await stub.when { try await $0.fetch(id: Match.any()) }.thenAwaitCancellation()
 
         let service: any AwaitCancellationService = stub()
         let task = Task {
@@ -43,7 +43,7 @@ private actor CompletionFlag {
 
     @Test func returningFormCompletesWithTheValueAfterCancellation() async throws {
         let stub = try Stub<any AwaitCancellationService>()
-        await stub.onCall { await $0.poll() }.thenAwaitCancellation(returning: -1)
+        await stub.when { await $0.poll() }.thenAwaitCancellation(returning: -1)
 
         let service: any AwaitCancellationService = stub()
         let task = Task {
@@ -57,7 +57,7 @@ private actor CompletionFlag {
 
     @Test func throwingFormThrowsTheConfiguredErrorAfterCancellation() async throws {
         let stub = try Stub<any AwaitCancellationService>()
-        await stub.onCall { try await $0.fetch(id: Match.any()) }
+        await stub.when { try await $0.fetch(id: Match.any()) }
             .thenAwaitCancellation(throwing: AwaitCancellationTestError.aborted)
 
         let service: any AwaitCancellationService = stub()
@@ -74,7 +74,7 @@ private actor CompletionFlag {
 
     @Test func bareFormReturnsOnANonThrowingVoidRequirement() async throws {
         let stub = try Stub<any AwaitCancellationService>()
-        await stub.onCall { await $0.run() }.thenAwaitCancellation()
+        await stub.when { await $0.run() }.thenAwaitCancellation()
 
         let service: any AwaitCancellationService = stub()
         let completed = CompletionFlag()
@@ -92,7 +92,7 @@ private actor CompletionFlag {
 
     @Test func awaitCancellationTerminatesAChain() async throws {
         let stub = try Stub<any AwaitCancellationService>()
-        await stub.onCall { try await $0.fetch(id: Match.any()) }
+        await stub.when { try await $0.fetch(id: Match.any()) }
             .thenReturn("ok")
             .thenAwaitCancellation()
 
@@ -112,7 +112,7 @@ private actor CompletionFlag {
 
     @Test func alreadyCancelledTaskCompletesImmediately() async throws {
         let stub = try Stub<any AwaitCancellationService>()
-        await stub.onCall { await $0.poll() }.thenAwaitCancellation(returning: -1)
+        await stub.when { await $0.poll() }.thenAwaitCancellation(returning: -1)
 
         let service: any AwaitCancellationService = stub()
         let task = Task {

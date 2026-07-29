@@ -206,7 +206,7 @@ struct RealNestedSIMDABIProbe: NestedSIMDABIProbe {
             0x1020_3040_5060_7080
         )
 
-        stub.onCall(returning: SIMD2<UInt64>(repeating: 0)) {
+        stub.when(returning: SIMD2<UInt64>(repeating: 0)) {
             $0.mix(
                 Match.any(using: SIMD4<Float>(repeating: 0)),
                 tag: Match.equal(41),
@@ -248,7 +248,7 @@ struct RealNestedSIMDABIProbe: NestedSIMDABIProbe {
             0x33, 0x22, 0x11, 0x00
         )
 
-        stub.onCall(returning: SIMD16<UInt8>(repeating: 0)) {
+        stub.when(returning: SIMD16<UInt8>(repeating: 0)) {
             $0.bytes(Match.equal(input))
         }.thenReturn(expected)
 
@@ -294,7 +294,7 @@ struct RealNestedSIMDABIProbe: NestedSIMDABIProbe {
         let stub = try Stub<any WideSIMDABIProbe>(
             .method(signatureOf: WideSIMDABIProbe.echo)
         )
-        stub.onCall(returning: SIMD8<Float>()) {
+        stub.when(returning: SIMD8<Float>()) {
             $0.echo(Match.equal(input))
         }.thenReturn(expected)
         #expect(stub().echo(input) == expected)
@@ -312,7 +312,7 @@ struct RealNestedSIMDABIProbe: NestedSIMDABIProbe {
         let stub = try Stub<any FourRegisterReturnSIMDABIProbe>(
             .method(signatureOf: FourRegisterReturnSIMDABIProbe.widen)
         )
-        stub.onCall(returning: SIMD16<Float>()) {
+        stub.when(returning: SIMD16<Float>()) {
             $0.widen(Match.equal(input))
         }.thenReturn(expected)
         #expect(stub().widen(input) == expected)
@@ -404,7 +404,7 @@ struct RealNestedSIMDABIProbe: NestedSIMDABIProbe {
         let stub = try Stub<any ConcreteSIMDABIProbe>()
         let service: any ConcreteSIMDABIProbe = stub()
         let bits = SIMD2<UInt64>(1, 2)
-        stub.onCall(returning: SIMD2<UInt64>(repeating: 0)) {
+        stub.when(returning: SIMD2<UInt64>(repeating: 0)) {
             $0.mix(
                 Match.any(using: SIMD4<Float>(repeating: 0)),
                 tag: Match.equal(1),

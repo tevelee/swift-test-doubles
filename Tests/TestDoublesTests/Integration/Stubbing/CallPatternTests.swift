@@ -35,23 +35,23 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
 @Suite struct CallPatternTests {
     @Test func typedThenSupportsZeroThroughSevenArguments() async throws {
         let stub = try makeHandlerArityStub()
-        stub.onCall { $0.zero() }.then { 0 }
-        stub.onCall { $0.one(Match.any()) }.then { (a: Int) in a }
-        stub.onCall { $0.two(Match.any(), Match.any()) }.then { (a: Int, b: Int) in a + b }
-        stub.onCall { $0.three(Match.any(), Match.any(), Match.any()) }.then {
+        stub.when { $0.zero() }.then { 0 }
+        stub.when { $0.one(Match.any()) }.then { (a: Int) in a }
+        stub.when { $0.two(Match.any(), Match.any()) }.then { (a: Int, b: Int) in a + b }
+        stub.when { $0.three(Match.any(), Match.any(), Match.any()) }.then {
             (a: Int, b: Int, c: Int) in a + b + c
         }
-        stub.onCall { $0.four(Match.any(), Match.any(), Match.any(), Match.any()) }.then {
+        stub.when { $0.four(Match.any(), Match.any(), Match.any(), Match.any()) }.then {
             (a: Int, b: Int, c: Int, d: Int) in a + b + c + d
         }
-        stub.onCall { $0.five(Match.any(), Match.any(), Match.any(), Match.any(), Match.any()) }.then {
+        stub.when { $0.five(Match.any(), Match.any(), Match.any(), Match.any(), Match.any()) }.then {
             (a: Int, b: Int, c: Int, d: Int, e: Int) in a + b + c + d + e
         }
-        stub.onCall { $0.six(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any()) }.then {
+        stub.when { $0.six(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any()) }.then {
             (a: Int, b: Int, c: Int, d: Int, e: Int, f: Int) in
             a + b + c + d + e + f
         }
-        stub.onCall { $0.seven(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any()) }.then {
+        stub.when { $0.seven(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any()) }.then {
             (a: Int, b: Int, c: Int, d: Int, e: Int, f: Int, g: Int) in
             a + b + c + d + e + f + g
         }
@@ -69,16 +69,16 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
 
     @Test func unifiedThenSupportsThrowingAsyncAndAsyncThrowingHandlers() async throws {
         let stub = try makeHandlerArityStub()
-        stub.onCall { try $0.throwing(Match.any()) }.then { (value: Int) throws in
+        stub.when { try $0.throwing(Match.any()) }.then { (value: Int) throws in
             if value < 0 { throw HandlerError(value: value) }
             return value * 2
         }
-        await stub.onCall { await $0.asynchronous(Match.any()) }.then {
+        await stub.when { await $0.asynchronous(Match.any()) }.then {
             (value: Int) async throws -> Int in
             await Task.yield()
             return value + 1
         }
-        await stub.onCall { try await $0.asyncThrowing(Match.any()) }.then {
+        await stub.when { try await $0.asyncThrowing(Match.any()) }.then {
             (value: Int) async throws -> Int in
             await Task.yield()
             if value < 0 { throw HandlerError(value: value) }
@@ -97,7 +97,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
 
     @Test func thenReturnSequenceServesConsecutiveValuesAndRepeatsTheLast() throws {
         let stub = try makeHandlerArityStub()
-        stub.onCall { $0.one(Match.any()) }.thenReturn(1, 2, 3)
+        stub.when { $0.one(Match.any()) }.thenReturn(1, 2, 3)
 
         let probe: any HandlerArityProbe = stub()
         #expect(probe.one(0) == 1)
@@ -108,7 +108,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
 
     @Test func thenReturnSequenceServesAsyncRequirements() async throws {
         let stub = try makeHandlerArityStub()
-        await stub.onCall { try await $0.asyncThrowing(Match.any()) }.thenReturn(1, 2)
+        await stub.when { try await $0.asyncThrowing(Match.any()) }.thenReturn(1, 2)
 
         let probe: any HandlerArityProbe = stub()
         #expect(try await probe.asyncThrowing(0) == 1)
@@ -118,11 +118,11 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
 
     @Test func behaviorChainMixesReturnsAndErrorsThenRepeatsTheLast() async throws {
         let stub = try makeHandlerArityStub()
-        stub.onCall { try $0.throwing(Match.any()) }
+        stub.when { try $0.throwing(Match.any()) }
             .thenReturn(1)
             .thenThrow(HandlerError(value: 2))
             .thenReturn(3, 4)
-        await stub.onCall { try await $0.asyncThrowing(Match.any()) }
+        await stub.when { try await $0.asyncThrowing(Match.any()) }
             .thenThrow(HandlerError(value: 5))
             .thenReturn(6)
 
@@ -142,7 +142,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
 
     @Test func concurrentCallsReserveEachMixedBehaviorOnce() async throws {
         let stub = try makeHandlerArityStub()
-        stub.onCall { try $0.throwing(Match.any()) }
+        stub.when { try $0.throwing(Match.any()) }
             .thenReturn(1)
             .thenThrow(HandlerError(value: 2))
             .thenReturn(3)
@@ -174,8 +174,8 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
 
     @Test func thenReturnSequencesAdvanceIndependentlyPerRegistration() throws {
         let stub = try makeHandlerArityStub()
-        stub.onCall { $0.one(Match.equal(9)) }.thenReturn(90, 91)
-        stub.onCall { $0.one(Match.any()) }.thenReturn(1, 2)
+        stub.when { $0.one(Match.equal(9)) }.thenReturn(90, 91)
+        stub.when { $0.one(Match.any()) }.thenReturn(1, 2)
 
         let probe: any HandlerArityProbe = stub()
         #expect(probe.one(0) == 1)
@@ -188,7 +188,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
 
     @Test func timesServesABoundedRunThenAdvances() throws {
         let stub = try makeHandlerArityStub()
-        stub.onCall { $0.one(Match.any()) }
+        stub.when { $0.one(Match.any()) }
             .thenReturn(0, times: 1 ... 3)
             .thenReturn(9)
 
@@ -202,7 +202,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
 
     @Test func timesBoundedReturnCanBeTerminal() throws {
         let stub = try makeHandlerArityStub()
-        stub.onCall { $0.one(Match.any()) }.thenReturn(3, times: 1 ... 2)
+        stub.when { $0.one(Match.any()) }.thenReturn(3, times: 1 ... 2)
 
         let probe: any HandlerArityProbe = stub()
         #expect(probe.one(0) == 3)
@@ -221,7 +221,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
 
     @Test func bareStandaloneRepeatsForever() throws {
         let stub = try makeHandlerArityStub()
-        stub.onCall { $0.one(Match.any()) }.thenReturn(7)
+        stub.when { $0.one(Match.any()) }.thenReturn(7)
 
         let probe: any HandlerArityProbe = stub()
         #expect(probe.one(0) == 7)
@@ -231,7 +231,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
 
     @Test func bareChainedDefaultsToBoundedOnce() throws {
         let stub = try makeHandlerArityStub()
-        stub.onCall { $0.one(Match.any()) }
+        stub.when { $0.one(Match.any()) }
             .thenReturn(1)
             .thenReturn(2)
             .thenReturn(3)
@@ -245,7 +245,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
 
     @Test func timesIntShorthandMatchesEquivalentRange() throws {
         let stub = try makeHandlerArityStub()
-        stub.onCall { $0.one(Match.any()) }.thenReturn(5, times: 3)
+        stub.when { $0.one(Match.any()) }.thenReturn(5, times: 3)
 
         let probe: any HandlerArityProbe = stub()
         #expect(probe.one(0) == 5)
@@ -255,7 +255,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
 
     @Test func timesIntShorthandAdvancesWhenChained() throws {
         let stub = try makeHandlerArityStub()
-        stub.onCall { try $0.throwing(Match.any()) }
+        stub.when { try $0.throwing(Match.any()) }
             .thenReturn(1, times: 2)
             .thenThrow(HandlerError(value: 9), times: 2)
             .thenReturn(3)
@@ -271,7 +271,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
 
     @Test func variadicThenReturnWorksWithExactlyTwoValues() throws {
         let stub = try makeHandlerArityStub()
-        stub.onCall { $0.one(Match.any()) }.thenReturn(10, 20)
+        stub.when { $0.one(Match.any()) }.thenReturn(10, 20)
 
         let probe: any HandlerArityProbe = stub()
         #expect(probe.one(0) == 10)
@@ -281,7 +281,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
 
     @Test func concurrentCallsReserveEachRunExactlyItsCount() async throws {
         let stub = try makeHandlerArityStub()
-        stub.onCall { try $0.throwing(Match.any()) }
+        stub.when { try $0.throwing(Match.any()) }
             .thenReturn(1, times: 1 ... 10)
             .thenThrow(HandlerError(value: 2), times: 1 ... 10)
             .thenReturn(3, times: 1...)
@@ -313,15 +313,15 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
 
     @Test func thenReturnAndThenShareResolutionRules() async throws {
         let stub = try makeHandlerArityStub()
-        await stub.onCall { try await $0.asyncThrowing(Match.equal(42)) }.then {
+        await stub.when { try await $0.asyncThrowing(Match.equal(42)) }.then {
             (_: Int) async throws -> Int in 100
         }
-        await stub.onCall {
+        await stub.when {
             try await $0.asyncThrowing(
                 Match.matching(description: "positive", where: { $0 > 0 })
             )
         }.thenReturn(10)
-        await stub.onCall { try await $0.asyncThrowing(Match.any()) }.then {
+        await stub.when { try await $0.asyncThrowing(Match.any()) }.then {
             (value: Int) async throws -> Int in value
         }
 
@@ -338,10 +338,10 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
             .method(Int.self, returning: Void.self, isAsync: true),
             .method(Int.self, returning: Void.self, isThrowing: true, isAsync: true)
         )
-        stub.onCall { $0.synchronous(Match.any()) }.thenDoNothing()
-        stub.onCall { try $0.throwing(Match.any()) }.thenDoNothing()
-        await stub.onCall { await $0.asynchronous(Match.any()) }.thenDoNothing()
-        await stub.onCall { try await $0.asyncThrowing(Match.any()) }.thenDoNothing()
+        stub.when { $0.synchronous(Match.any()) }.thenDoNothing()
+        stub.when { try $0.throwing(Match.any()) }.thenDoNothing()
+        await stub.when { await $0.asynchronous(Match.any()) }.thenDoNothing()
+        await stub.when { try await $0.asyncThrowing(Match.any()) }.thenDoNothing()
 
         let probe: any DoNothingProbe = stub()
         probe.synchronous(1)
@@ -364,7 +364,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try makeHandlerArityStub()
-                stub.onCall { $0.one(Match.any()) }.thenReturn(3, times: 1 ... 2)
+                stub.when { $0.one(Match.any()) }.thenReturn(3, times: 1 ... 2)
 
                 let probe: any HandlerArityProbe = stub()
                 _ = probe.one(0)
@@ -383,7 +383,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try makeHandlerArityStub()
-                stub.onCall { $0.one(Match.any()) }
+                stub.when { $0.one(Match.any()) }
                     .thenReturn(1, times: 1 ... 2)
                     .thenFatalError("no more than 2 calls expected")
 

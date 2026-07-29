@@ -13,7 +13,7 @@ reproduce against a live dependency and easy to get wrong with `Task.sleep`,
 which trades determinism for wall-clock time.
 
 TestDoubles configures the *timing* of an async completion with the same
-`onCall`/`then` vocabulary used for values. Four behaviors cover the common
+`when`/`then` vocabulary used for values. Four behaviors cover the common
 shapes:
 
 | Behavior | Completes | Use for |
@@ -25,7 +25,7 @@ shapes:
 
 Every one of these requires an async requirement. Configuring a delay or a park
 on a synchronous requirement, which has nowhere to suspend, fails with a
-diagnostic at the `onCall` site rather than at the eventual call. The examples
+diagnostic at the `when` site rather than at the eventual call. The examples
 below use one protocol:
 
 ```swift
@@ -44,7 +44,7 @@ chain:
 
 ```swift
 let stub = try Stub<any FeedService>()
-await stub.onCall { try await $0.loadFeed() }
+await stub.when { try await $0.loadFeed() }
     .thenReturn(["Hello, world"], after: .milliseconds(200))
 
 let feed = FeedViewModel(service: stub())
@@ -66,7 +66,7 @@ Delays compose with behavior chains and repeat counts. This models a dependency
 that is slow twice, then recovers instantly:
 
 ```swift
-await stub.onCall { try await $0.loadFeed() }
+await stub.when { try await $0.loadFeed() }
     .thenThrow(URLError(.timedOut), after: .milliseconds(100), times: 2)
     .thenReturn(["recovered"])
 ```
@@ -80,7 +80,7 @@ should win the race:
 
 ```swift
 let stub = try Stub<any FeedService>()
-await stub.onCall { try await $0.loadFeed() }.thenNeverReturn()
+await stub.when { try await $0.loadFeed() }.thenNeverReturn()
 
 let feed = FeedViewModel(service: stub())
 let result = await feed.refreshWithTimeout(.milliseconds(200))
@@ -107,7 +107,7 @@ throws `CancellationError`, and a non-throwing `Void` requirement returns.
 
 ```swift
 let stub = try Stub<any FeedService>()
-await stub.onCall { try await $0.loadFeed() }.thenAwaitCancellation()
+await stub.when { try await $0.loadFeed() }.thenAwaitCancellation()
 
 let task = Task { try await stub().loadFeed() }
 await stub.verify(1..., within: .seconds(1)) { try await $0.loadFeed() }
@@ -122,8 +122,8 @@ rather than the implicit one, name it. Use
 ``CallPattern/thenAwaitCancellation(throwing:)`` for an error:
 
 ```swift
-await stub.onCall { await $0.pendingCount() }.thenAwaitCancellation(returning: 0)
-await stub.onCall { try await $0.loadFeed() }
+await stub.when { await $0.pendingCount() }.thenAwaitCancellation(returning: 0)
+await stub.when { try await $0.loadFeed() }
     .thenAwaitCancellation(throwing: FeedError.cancelled)
 ```
 
@@ -141,7 +141,7 @@ finish, then assert the result" into a straight-line, sleep-free test:
 
 ```swift
 let stub = try Stub<any FeedService>()
-let suspension = await stub.onCall { try await $0.loadFeed() }.thenSuspend()
+let suspension = await stub.when { try await $0.loadFeed() }.thenSuspend()
 
 let feed = FeedViewModel(service: stub())
 let refresh = Task { await feed.refresh() }
@@ -168,7 +168,7 @@ under the test's control. This drives two concurrent requests to resolve in a
 deliberate order:
 
 ```swift
-let suspension = await stub.onCall { try await $0.loadFeed() }.thenSuspend()
+let suspension = await stub.when { try await $0.loadFeed() }.thenSuspend()
 let first = Task { try await stub().loadFeed() }
 await suspension.waitForCall()
 let second = Task { try await stub().loadFeed() }

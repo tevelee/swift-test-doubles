@@ -17,7 +17,7 @@ import TestDoublesFixtures
     @Test func automaticStubRecordsAPublishedEvent() throws {
         let captor = Match.Capture<UserRegistered>()
         let stub = try Stub<any EventBus>()
-        stub.onCall { $0.publish(captor.capture()) }.thenReturn(())
+        stub.when { $0.publish(captor.capture()) }.thenReturn(())
 
         let bus: any EventBus = stub()
         bus.publish(UserRegistered(userID: 42))
@@ -31,9 +31,9 @@ import TestDoublesFixtures
     /// `Match.equal(_:)` discriminates by type via its internal cast; `Match.any()` does not.
     @Test func automaticStubDistinguishesDifferentEventTypesAtTheSameRequirement() throws {
         let stub = try Stub<any EventBus>()
-        stub.onCall { $0.publish(Match.equal(UserRegistered(userID: 1))) }.thenReturn(())
-        stub.onCall { $0.publish(Match.equal(UserRegistered(userID: 2))) }.thenReturn(())
-        stub.onCall { $0.publish(Match.equal(OrderShipped(orderID: "A-1"))) }.thenReturn(())
+        stub.when { $0.publish(Match.equal(UserRegistered(userID: 1))) }.thenReturn(())
+        stub.when { $0.publish(Match.equal(UserRegistered(userID: 2))) }.thenReturn(())
+        stub.when { $0.publish(Match.equal(OrderShipped(orderID: "A-1"))) }.thenReturn(())
 
         let bus: any EventBus = stub()
         bus.publish(UserRegistered(userID: 1))
@@ -47,8 +47,8 @@ import TestDoublesFixtures
 
     @Test func automaticStubHandlesTwoArgumentsSharingOneGenericParameter() throws {
         let stub = try Stub<any EqualityChecker>()
-        stub.onCall { $0.areEqual(Match.equal(1), Match.equal(1)) }.thenReturn(true)
-        stub.onCall { $0.areEqual(Match.equal("a"), Match.equal("b")) }.thenReturn(false)
+        stub.when { $0.areEqual(Match.equal(1), Match.equal(1)) }.thenReturn(true)
+        stub.when { $0.areEqual(Match.equal("a"), Match.equal("b")) }.thenReturn(false)
 
         let checker: any EqualityChecker = stub()
 
@@ -58,7 +58,7 @@ import TestDoublesFixtures
 
     @Test func automaticStubHandlesTwoDistinctGenericParameters() throws {
         let stub = try Stub<any GenericCache>()
-        stub.onCall { $0.store(Match.equal("value"), forKey: Match.equal(7)) }.thenReturn(())
+        stub.when { $0.store(Match.equal("value"), forKey: Match.equal(7)) }.thenReturn(())
 
         let cache: any GenericCache = stub()
         cache.store("value", forKey: 7)
@@ -72,7 +72,7 @@ import TestDoublesFixtures
         let stub = try Stub<any EventBus>(
             .method(.methodGenericParameter(), returning: .concrete(Void.self))
         )
-        stub.onCall { $0.publish(Match.any(using: UserRegistered(userID: 0))) }.thenReturn(())
+        stub.when { $0.publish(Match.any(using: UserRegistered(userID: 0))) }.thenReturn(())
 
         let bus: any EventBus = stub()
         bus.publish(UserRegistered(userID: 9))
@@ -90,7 +90,7 @@ import TestDoublesFixtures
                 returning: .concrete(Void.self)
             )
         )
-        stub.onCall { $0.store(Match.equal("value"), forKey: Match.equal(7)) }.thenReturn(())
+        stub.when { $0.store(Match.equal("value"), forKey: Match.equal(7)) }.thenReturn(())
 
         let cache: any GenericCache = stub()
         cache.store("value", forKey: 7)

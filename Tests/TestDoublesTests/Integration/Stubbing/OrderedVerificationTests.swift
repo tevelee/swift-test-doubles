@@ -38,9 +38,9 @@ private func makeOrderedVerificationStub() throws -> Stub<any OrderedVerificatio
 @Suite struct OrderedVerificationTests {
     @Test func matchesRelativeSubsequenceWithPerInvocationMatchers() throws {
         let stub = try makeOrderedVerificationStub()
-        stub.onCall { $0.first(Match.any()) }.thenReturn(0)
-        stub.onCall { $0.second(Match.any()) }.thenReturn(0)
-        stub.onCall { $0.third(Match.any()) }.thenReturn(0)
+        stub.when { $0.first(Match.any()) }.thenReturn(0)
+        stub.when { $0.second(Match.any()) }.thenReturn(0)
+        stub.when { $0.third(Match.any()) }.thenReturn(0)
         let probe: any OrderedVerificationProbe = stub()
 
         _ = probe.first(1)
@@ -65,8 +65,8 @@ private func makeOrderedVerificationStub() throws -> Stub<any OrderedVerificatio
 
     @Test func matchesTheCompleteTimelineWithoutExtraCalls() throws {
         let stub = try makeOrderedVerificationStub()
-        stub.onCall { $0.first(Match.any()) }.thenReturn(0)
-        stub.onCall { $0.second(Match.any()) }.thenReturn(0)
+        stub.when { $0.first(Match.any()) }.thenReturn(0)
+        stub.when { $0.second(Match.any()) }.thenReturn(0)
         let probe: any OrderedVerificationProbe = stub()
         _ = probe.first(1)
         _ = probe.second(2)
@@ -79,8 +79,8 @@ private func makeOrderedVerificationStub() throws -> Stub<any OrderedVerificatio
 
     @Test func exactTimelineReportsExtraCalls() throws {
         let stub = try makeOrderedVerificationStub()
-        stub.onCall { $0.first(Match.any()) }.thenReturn(0)
-        stub.onCall { $0.second(Match.any()) }.thenReturn(0)
+        stub.when { $0.first(Match.any()) }.thenReturn(0)
+        stub.when { $0.second(Match.any()) }.thenReturn(0)
         let probe: any OrderedVerificationProbe = stub()
         _ = probe.first(1)
         _ = probe.second(2)
@@ -97,8 +97,8 @@ private func makeOrderedVerificationStub() throws -> Stub<any OrderedVerificatio
 
     @Test func reversedOrderReportsAtTheCallerWithoutTerminating() throws {
         let stub = try makeOrderedVerificationStub()
-        stub.onCall { $0.first(Match.any()) }.thenReturn(0)
-        stub.onCall { $0.second(Match.any()) }.thenReturn(0)
+        stub.when { $0.first(Match.any()) }.thenReturn(0)
+        stub.when { $0.second(Match.any()) }.thenReturn(0)
         let probe: any OrderedVerificationProbe = stub()
         _ = probe.first(1)
         _ = probe.second(2)
@@ -123,7 +123,7 @@ private func makeOrderedVerificationStub() throws -> Stub<any OrderedVerificatio
 
     @Test func repeatedExpectationsConsumeDistinctCalls() throws {
         let stub = try makeOrderedVerificationStub()
-        stub.onCall { $0.first(Match.any()) }.thenReturn(0)
+        stub.when { $0.first(Match.any()) }.thenReturn(0)
         let probe: any OrderedVerificationProbe = stub()
         _ = probe.first(1)
 
@@ -145,8 +145,8 @@ private func makeOrderedVerificationStub() throws -> Stub<any OrderedVerificatio
 
     @Test func captorsCommitOnlyAfterTheEntireSequenceMatches() throws {
         let stub = try makeOrderedVerificationStub()
-        stub.onCall { $0.first(Match.any()) }.thenReturn(0)
-        stub.onCall { $0.second(Match.any()) }.thenReturn(0)
+        stub.when { $0.first(Match.any()) }.thenReturn(0)
+        stub.when { $0.second(Match.any()) }.thenReturn(0)
         let probe: any OrderedVerificationProbe = stub()
         _ = probe.first(7)
         let values = Match.Capture<Int>()
@@ -182,12 +182,12 @@ private func makeOrderedVerificationStub() throws -> Stub<any OrderedVerificatio
     @Test func mutatingSequenceSupportsMixedMethodsGettersAndSetters() throws {
         let stub = try makeOrderedVerificationStub()
         let setterExecutions = LockedCounter()
-        stub.onCall { $0.first(Match.any()) }.thenReturn(0)
-        stub.onCall { $0.value }.thenReturn(7)
-        stub.onCall { $0.value = Match.any() }.then { (_: Int) in
+        stub.when { $0.first(Match.any()) }.thenReturn(0)
+        stub.when { $0.value }.thenReturn(7)
+        stub.when { $0.value = Match.any() }.then { (_: Int) in
             setterExecutions.increment()
         }
-        stub.onCall { $0.second(Match.any()) }.thenReturn(0)
+        stub.when { $0.second(Match.any()) }.thenReturn(0)
         var probe: any OrderedVerificationProbe = stub()
 
         _ = probe.first(1)
@@ -213,8 +213,8 @@ private func makeOrderedVerificationStub() throws -> Stub<any OrderedVerificatio
 
     @Test func exactMutatingSequenceRejectsUnlistedInteractions() throws {
         let stub = try makeOrderedVerificationStub()
-        stub.onCall { $0.value = Match.any() }.thenDoNothing()
-        stub.onCall { $0.first(Match.any()) }.thenReturn(0)
+        stub.when { $0.value = Match.any() }.thenDoNothing()
+        stub.when { $0.first(Match.any()) }.thenReturn(0)
         var probe: any OrderedVerificationProbe = stub()
         probe.value = 1
         _ = probe.first(2)
@@ -227,8 +227,8 @@ private func makeOrderedVerificationStub() throws -> Stub<any OrderedVerificatio
 
     @Test func mutatingSequenceReportsSetterOrderFailuresAtTheCaller() throws {
         let stub = try makeOrderedVerificationStub()
-        stub.onCall { $0.first(Match.any()) }.thenReturn(0)
-        stub.onCall { $0.value = Match.any() }.thenDoNothing()
+        stub.when { $0.first(Match.any()) }.thenReturn(0)
+        stub.when { $0.value = Match.any() }.thenDoNothing()
         var probe: any OrderedVerificationProbe = stub()
         _ = probe.first(1)
         probe.value = 2
@@ -257,11 +257,11 @@ private func makeOrderedVerificationStub() throws -> Stub<any OrderedVerificatio
         let stub = try makeOrderedVerificationStub()
         let synchronousExecutions = LockedCounter()
         let asynchronousExecutions = LockedCounter()
-        stub.onCall { $0.first(Match.any()) }.then { (value: Int) in
+        stub.when { $0.first(Match.any()) }.then { (value: Int) in
             synchronousExecutions.increment()
             return value
         }
-        await stub.onCall { await $0.asynchronous(Match.any()) }.then {
+        await stub.when { await $0.asynchronous(Match.any()) }.then {
             (value: Int) async throws -> Int in
             asynchronousExecutions.increment()
             await Task.yield()
@@ -282,9 +282,9 @@ private func makeOrderedVerificationStub() throws -> Stub<any OrderedVerificatio
 
     @Test func asyncSequenceSupportsSynchronousAndThrowingRequirements() async throws {
         let stub = try makeOrderedVerificationStub()
-        stub.onCall { try $0.throwing(Match.any()) }.thenReturn(0)
-        await stub.onCall { await $0.asynchronous(Match.any()) }.thenReturn(0)
-        await stub.onCall { try await $0.asynchronousThrowing(Match.any()) }.thenReturn(0)
+        stub.when { try $0.throwing(Match.any()) }.thenReturn(0)
+        await stub.when { await $0.asynchronous(Match.any()) }.thenReturn(0)
+        await stub.when { try await $0.asynchronousThrowing(Match.any()) }.thenReturn(0)
         let probe: any OrderedVerificationProbe = stub()
 
         _ = try probe.throwing(1)
@@ -300,8 +300,8 @@ private func makeOrderedVerificationStub() throws -> Stub<any OrderedVerificatio
 
     @Test func exactAsyncSequenceRejectsUnlistedInteractions() async throws {
         let stub = try makeOrderedVerificationStub()
-        stub.onCall { $0.first(Match.any()) }.thenReturn(0)
-        await stub.onCall { await $0.asynchronous(Match.any()) }.thenReturn(0)
+        stub.when { $0.first(Match.any()) }.thenReturn(0)
+        await stub.when { await $0.asynchronous(Match.any()) }.thenReturn(0)
         let probe: any OrderedVerificationProbe = stub()
         _ = probe.first(1)
         _ = await probe.asynchronous(2)
@@ -314,7 +314,7 @@ private func makeOrderedVerificationStub() throws -> Stub<any OrderedVerificatio
 
     @Test func asynchronousFailureReportsAtTheCaller() async throws {
         let stub = try makeOrderedVerificationStub()
-        await stub.onCall { await $0.asynchronous(Match.any()) }.thenReturn(0)
+        await stub.when { await $0.asynchronous(Match.any()) }.thenReturn(0)
         let probe: any OrderedVerificationProbe = stub()
         _ = await probe.asynchronous(1)
 

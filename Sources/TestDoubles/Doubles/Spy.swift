@@ -10,7 +10,7 @@ import IssueReporting
 ///
 /// ```swift
 /// let spy: Spy<any UserService> = .make(forwardingTo: liveService)
-/// spy.onCall { $0.displayName(for: "guest") }.thenReturn("Test Guest")
+/// spy.when { $0.displayName(for: "guest") }.thenReturn("Test Guest")
 ///
 /// let service: any UserService = spy()
 /// _ = service.displayName(for: "guest") // overridden
@@ -19,7 +19,7 @@ import IssueReporting
 
 public final class Spy<P>: Stub<P> {
     /// Creates a spy that forwards unmatched instance and static requirements to `target`.
-    /// Initializer requirements use an explicit `onCall(initializer:)` override.
+    /// Initializer requirements use an explicit `when(initializer:)` override.
     ///
     /// The target's own witness tables provide signature discovery, so this
     /// initializer does not need a separately linked conformer or explicit
@@ -97,7 +97,7 @@ extension Spy {
     }
 
     /// Verifies that these, and only these, calls reached the real forwarding
-    /// target in the listed order. Calls answered by a `onCall` override are
+    /// target in the listed order. Calls answered by a `when` override are
     /// ignored, so this checks the spy's forwarding boundary directly.
     public func verifyOnlyForwarded(
         _ calls: (P) throws -> Void,

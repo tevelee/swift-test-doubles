@@ -27,7 +27,7 @@ choose a hand-written spy.
 Use the same matching and response API as ``Stub``:
 
 ```swift
-spy.onCall { $0.displayName(for: Match.equal("guest")) }
+spy.when { $0.displayName(for: Match.equal("guest")) }
     .thenReturn("Test Guest")
 
 #expect(service.displayName(for: "guest") == "Test Guest")
@@ -44,7 +44,7 @@ verification work across both paths.
 
 An initializer's result must retain the fabricated existential type used by the
 caller, so an initializer requirement cannot transparently return the
-forwarding target's distinct concrete type. Register `onCall(initializer:)` with
+forwarding target's distinct concrete type. Register `when(initializer:)` with
 `thenInitialize()` when a test needs the initialized value to remain backed by
 the spy's recorder and overrides.
 
@@ -56,9 +56,9 @@ needs to prove an override intercepted one input while all other inputs still
 delegated:
 
 ```swift
-spy.onCall { $0.displayName(for: Match.equal("guest")) }
+spy.when { $0.displayName(for: Match.equal("guest")) }
     .thenReturn("Test Guest")
-let displayNames = spy.onCall {
+let displayNames = spy.when {
     $0.displayName(for: Match.any())
 }
 
@@ -114,7 +114,7 @@ let spy = try Spy<any CachedProfile & NetworkProfile>(
 ```
 
 The hints affect calling-convention discovery only. Unmatched calls still use
-the target implementation, and an override still uses the normal `onCall` API.
+the target implementation, and an override still uses the normal `when` API.
 Typed-throwing getters cannot be represented by the forwarding trampoline; use
 ``ManualStub`` or a hand-written spy for that shape.
 
@@ -166,7 +166,7 @@ that modern entry. The fabricated witness table deliberately leaves the legacy
 dispatch through that slot cannot access that property or subscript on a
 generated double.
 
-Initializer requirements must use an explicit `onCall(initializer:)` override.
+Initializer requirements must use an explicit `when(initializer:)` override.
 
 Construction fails with ``StubError/unsupportedProtocolShape(protocolName:reason:)``
 when the protocol requires any of these other unsupported forwarding shapes:

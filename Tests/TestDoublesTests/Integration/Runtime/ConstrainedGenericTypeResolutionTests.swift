@@ -54,26 +54,26 @@ struct RealSixArgumentGenericNominalProbe: SixArgumentGenericNominalProbe {
         // could supply before, so signature discovery failed before
         // construction ever reached ABI-classification concerns.
         let stub = try Stub<any ConstrainedGenericArgumentProbe>()
-        stub.onCall(returning: 0) {
+        stub.when(returning: 0) {
             $0.unwrap(Match.any(using: ExternalConstrainedAssociatedBox(0)))
         }.then { (box: ExternalConstrainedAssociatedBox<Int>) in
             box.value * 2
         }
-        stub.onCall(returning: 0) {
+        stub.when(returning: 0) {
             $0.combine(
                 Match.any(using: ExternalBothParametersConstrainedPair(0, 0))
             )
         }.then { (pair: ExternalBothParametersConstrainedPair<Int, Int>) in
             pair.first + pair.second
         }
-        stub.onCall(returning: 0) {
+        stub.when(returning: 0) {
             $0.multiplyConstrained(
                 Match.any(using: ExternalMultiplyConstrainedBox(0))
             )
         }.then { (box: ExternalMultiplyConstrainedBox<Int>) in
             box.value * 2
         }
-        stub.onCall(returning: 0) {
+        stub.when(returning: 0) {
             $0.severalConstrained(
                 Match.any(
                     using: ExternalSeveralConstrainedArguments<
@@ -122,7 +122,7 @@ struct RealSixArgumentGenericNominalProbe: SixArgumentGenericNominalProbe {
 
         let captor = Match.Capture<Box>()
         let stub = try Stub<any SixArgumentGenericNominalProbe>()
-        stub.onCall(returning: 0) {
+        stub.when(returning: 0) {
             $0.first(captor.capture(using: Box(0)))
         }.then { (box: Box) in
             box.first * 2
@@ -132,7 +132,7 @@ struct RealSixArgumentGenericNominalProbe: SixArgumentGenericNominalProbe {
         #expect(probe.first(Box(21)) == 42)
         #expect(captor.first?.first == 21)
 
-        let pattern = stub.onCall {
+        let pattern = stub.when {
             $0.first(Match.any(using: Box(0)))
         }
         let recorded: [Box] = pattern.arguments()

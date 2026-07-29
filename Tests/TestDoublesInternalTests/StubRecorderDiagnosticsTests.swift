@@ -71,10 +71,10 @@ private protocol AsyncFailureProbe {
         #expect(message.contains("arg0: 42"))
         #expect(message.contains("arg1: \"alice\""))
         #expect(message.contains("Registered stubs:\n  <none>"))
-        #expect(message.contains("Register behavior with `stub.onCall { ... }` before invoking"))
+        #expect(message.contains("Register behavior with `stub.when { ... }` before invoking"))
         #expect(
             message.contains(
-                "stub.onCall { $0.fetch(id: Match.equal(42), name: Match.equal(\"alice\")) }.thenReturn(...)"
+                "stub.when { $0.fetch(id: Match.equal(42), name: Match.equal(\"alice\")) }.thenReturn(...)"
             )
         )
     }
@@ -121,15 +121,15 @@ private protocol AsyncFailureProbe {
             entries: []
         )
 
-        #expect(staticMethod.contains("stub.onCall { type(of: $0).name() }.thenReturn(...)"))
+        #expect(staticMethod.contains("stub.when { type(of: $0).name() }.thenReturn(...)"))
         #expect(
             initializer.contains(
-                "stub.onCall(initializer: { type(of: $0).init(id: Match.equal(1)) }).thenInitialize()"
+                "stub.when(initializer: { type(of: $0).init(id: Match.equal(1)) }).thenInitialize()"
             )
         )
         #expect(
             dynamicSelf.contains(
-                "stub.onCall(returningSelf: { $0.duplicate() }).thenReturnValue()"
+                "stub.when(returningSelf: { $0.duplicate() }).thenReturnValue()"
             )
         )
     }
@@ -203,10 +203,10 @@ private protocol AsyncFailureProbe {
 
         #expect(
             asyncThrowing.contains(
-                "await stub.onCall { try await $0.load(id: Match.equal(42)) }.thenReturn(...)"
+                "await stub.when { try await $0.load(id: Match.equal(42)) }.thenReturn(...)"
             )
         )
-        #expect(void.contains("stub.onCall { $0.reset() }.thenDoNothing()"))
+        #expect(void.contains("stub.when { $0.reset() }.thenDoNothing()"))
     }
 
     @Test func suggestionsHandleUnlabeledAndUnparenthesizedNames() {
@@ -218,7 +218,7 @@ private protocol AsyncFailureProbe {
             args: [1, 2],
             entries: []
         )
-        #expect(unlabeled.contains("stub.onCall { $0.add(Match.equal(1), Match.equal(2)) }.thenReturn(...)"))
+        #expect(unlabeled.contains("stub.when { $0.add(Match.equal(1), Match.equal(2)) }.thenReturn(...)"))
 
         let property = recorder.diagnosticMessage(
             title: "No stub configured",
@@ -226,7 +226,7 @@ private protocol AsyncFailureProbe {
             args: [3],
             entries: []
         )
-        #expect(property.contains("stub.onCall { $0.count(Match.equal(3)) }.thenReturn(...)"))
+        #expect(property.contains("stub.when { $0.count(Match.equal(3)) }.thenReturn(...)"))
 
         let mismatchedLabels = recorder.diagnosticMessage(
             title: "No stub configured",
@@ -234,7 +234,7 @@ private protocol AsyncFailureProbe {
             args: [1, 2],
             entries: []
         )
-        #expect(mismatchedLabels.contains("stub.onCall { $0.route(Match.equal(1), Match.equal(2)) }.thenReturn(...)"))
+        #expect(mismatchedLabels.contains("stub.when { $0.route(Match.equal(1), Match.equal(2)) }.thenReturn(...)"))
     }
 
     @Test func suggestedLiteralsEscapeStringsAndCharacters() {
@@ -280,7 +280,7 @@ private protocol AsyncFailureProbe {
         let stub = try Stub<any AsyncFailureProbe>(
             .method(returning: Int.self, isThrowing: true, isAsync: true)
         )
-        await stub.onCall { try await $0.run() }.then { () throws -> Int in
+        await stub.when { try await $0.run() }.then { () throws -> Int in
             throw AsyncFailureProbeError()
         }
 

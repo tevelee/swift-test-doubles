@@ -3,7 +3,7 @@ import InternalRuntimeContract
 /// A reusable description of one method, property, subscript, static member,
 /// or initializer call.
 ///
-/// Create a pattern with `onCall`, then use the same value to configure its
+/// Create a pattern with `when`, then use the same value to configure its
 /// behavior, verify its call count, read prior arguments, or observe future
 /// calls. Matchers remain attached to the pattern, so the invocation only
 /// needs to be described once.
@@ -118,7 +118,7 @@ public struct CallPattern<Result>: Sendable {
     /// terminal: nothing can be chained after it.
     ///
     /// Omitting `times:` entirely also resolves here whenever nothing
-    /// follows, so a plain `stub.onCall { ... }.thenReturn(x)` with no further
+    /// follows, so a plain `stub.when { ... }.thenReturn(x)` with no further
     /// configuration means "always return x" — the common case for a
     /// single-behavior stub.
     public func thenReturn(
@@ -232,7 +232,7 @@ public struct CallPattern<Result>: Sendable {
     /// terminal: nothing can be chained after it.
     ///
     /// Omitting `times:` entirely also resolves here whenever nothing
-    /// follows, so a plain `stub.onCall { ... }.thenThrow(x)` with no further
+    /// follows, so a plain `stub.when { ... }.thenThrow(x)` with no further
     /// configuration means "always throw x."
     public func thenThrow<Failure: Error>(
         _ error: Failure,

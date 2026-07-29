@@ -150,7 +150,7 @@ struct AsyncStackSplitValue: Sendable {
     private func configureImmediate(
         _ stub: Stub<any FirstSpilledAsyncStubProbe>
     ) async {
-        await stub.onCall {
+        await stub.when {
             await $0.immediate(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.equal(7))
         }.thenReturn(28)
     }
@@ -162,7 +162,7 @@ struct AsyncStackSplitValue: Sendable {
     private func suspendingBehavior(
         _ stub: Stub<any FirstSpilledAsyncStubProbe>
     ) async -> StubSuspension<Int> {
-        await stub.onCall {
+        await stub.when {
             await $0.suspending(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any())
         }.thenSuspend()
     }
@@ -174,7 +174,7 @@ struct AsyncStackSplitValue: Sendable {
     private func throwingBehavior(
         _ stub: Stub<any FirstSpilledAsyncStubProbe>
     ) async -> StubSuspension<Int> {
-        await stub.onCall {
+        await stub.when {
             try await $0.throwing(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any())
         }.thenSuspend()
     }
@@ -188,7 +188,7 @@ struct AsyncStackSplitValue: Sendable {
     private func indirectBehavior(
         _ stub: Stub<any FirstSpilledAsyncStubProbe>
     ) async -> StubSuspension<AsyncStackLargeResult> {
-        await stub.onCall {
+        await stub.when {
             await $0.indirect(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any())
         }.thenSuspend()
     }
@@ -202,7 +202,7 @@ struct AsyncStackSplitValue: Sendable {
     private func typedBehavior(
         _ stub: Stub<any FirstSpilledAsyncStubProbe>
     ) async -> StubSuspension<Int> {
-        await stub.onCall {
+        await stub.when {
             try await $0.typed(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any())
         }.thenSuspend()
     }
@@ -216,7 +216,7 @@ struct AsyncStackSplitValue: Sendable {
     private func configureSecondSpill(
         _ stub: Stub<any SecondSpilledAsyncStubProbe>
     ) async {
-        await stub.onCall {
+        await stub.when {
             await $0.call(
                 Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.equal(7), Match.equal(8)
             )
@@ -232,7 +232,7 @@ struct AsyncStackSplitValue: Sendable {
     private func threeSpillBehavior(
         _ stub: Stub<any WiderSpilledAsyncStubProbe>
     ) async -> StubSuspension<Int> {
-        await stub.onCall {
+        await stub.when {
             await $0.three(
                 Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(),
                 Match.equal(7), Match.equal(8), Match.equal(9)
@@ -249,7 +249,7 @@ struct AsyncStackSplitValue: Sendable {
     private func severalSpillThrowingBehavior(
         _ stub: Stub<any WiderSpilledAsyncStubProbe>
     ) async -> StubSuspension<Int> {
-        await stub.onCall {
+        await stub.when {
             try await $0.throwing(
                 Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(),
                 Match.equal(7), Match.equal(8), Match.equal(9), Match.equal(10), Match.equal(11), Match.equal(12)
@@ -266,7 +266,7 @@ struct AsyncStackSplitValue: Sendable {
     private func severalSpillIndirectBehavior(
         _ stub: Stub<any WiderSpilledAsyncStubProbe>
     ) async -> StubSuspension<AsyncStackLargeResult> {
-        await stub.onCall {
+        await stub.when {
             await $0.indirect(
                 Match.any(), Match.any(), Match.any(), Match.any(), Match.any(),
                 Match.equal(6), Match.equal(7), Match.equal(8), Match.equal(9), Match.equal(10), Match.equal(11)
@@ -413,7 +413,7 @@ struct AsyncStackSplitValue: Sendable {
     private func configureImmediate(
         _ stub: Stub<any FirstSpilledAsyncStubProbe>
     ) async {
-        await stub.onCall {
+        await stub.when {
             await $0.immediate(
                 Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.equal(9)
             )
@@ -427,7 +427,7 @@ struct AsyncStackSplitValue: Sendable {
     private func suspendingBehavior(
         _ stub: Stub<any FirstSpilledAsyncStubProbe>
     ) async -> StubSuspension<Int> {
-        await stub.onCall {
+        await stub.when {
             await $0.suspending(
                 Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any()
             )
@@ -441,7 +441,7 @@ struct AsyncStackSplitValue: Sendable {
     private func throwingBehavior(
         _ stub: Stub<any FirstSpilledAsyncStubProbe>
     ) async -> StubSuspension<Int> {
-        await stub.onCall {
+        await stub.when {
             try await $0.throwing(
                 Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any()
             )
@@ -457,7 +457,7 @@ struct AsyncStackSplitValue: Sendable {
     private func indirectBehavior(
         _ stub: Stub<any FirstSpilledAsyncStubProbe>
     ) async -> StubSuspension<AsyncStackLargeResult> {
-        await stub.onCall {
+        await stub.when {
             await $0.indirect(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any())
         }.thenSuspend()
     }
@@ -471,7 +471,7 @@ struct AsyncStackSplitValue: Sendable {
     private func typedBehavior(
         _ stub: Stub<any FirstSpilledAsyncStubProbe>
     ) async -> StubSuspension<Int> {
-        await stub.onCall {
+        await stub.when {
             try await $0.typed(Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any())
         }.thenSuspend()
     }
@@ -485,7 +485,7 @@ struct AsyncStackSplitValue: Sendable {
     private func configureSecondSpill(
         _ stub: Stub<any SecondSpilledAsyncStubProbe>
     ) async {
-        await stub.onCall {
+        await stub.when {
             await $0.call(
                 Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(),
                 Match.equal(9), Match.equal(10)
@@ -502,7 +502,7 @@ struct AsyncStackSplitValue: Sendable {
     private func threeSpillBehavior(
         _ stub: Stub<any WiderSpilledAsyncStubProbe>
     ) async -> StubSuspension<Int> {
-        await stub.onCall {
+        await stub.when {
             await $0.three(
                 Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(),
                 Match.equal(9), Match.equal(10), Match.equal(11)
@@ -519,7 +519,7 @@ struct AsyncStackSplitValue: Sendable {
     private func severalSpillThrowingBehavior(
         _ stub: Stub<any WiderSpilledAsyncStubProbe>
     ) async -> StubSuspension<Int> {
-        await stub.onCall {
+        await stub.when {
             try await $0.throwing(
                 Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(),
                 Match.equal(9), Match.equal(10), Match.equal(11), Match.equal(12), Match.equal(13), Match.equal(14)
@@ -538,7 +538,7 @@ struct AsyncStackSplitValue: Sendable {
     private func severalSpillIndirectBehavior(
         _ stub: Stub<any WiderSpilledAsyncStubProbe>
     ) async -> StubSuspension<AsyncStackLargeResult> {
-        await stub.onCall {
+        await stub.when {
             await $0.indirect(
                 Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(), Match.any(),
                 Match.equal(8), Match.equal(9), Match.equal(10), Match.equal(11), Match.equal(12), Match.equal(13)

@@ -26,7 +26,7 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
 @Suite struct TypedInvocationAccessTests {
     @Test func callPatternComposesBehaviorHistoryVerificationAndStreaming() async throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
-        let pattern = stub.onCall {
+        let pattern = stub.when {
             $0.track(event: Match.any(), value: Match.any())
         }
         pattern.thenDoNothing()
@@ -53,7 +53,7 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
 
     @Test func callPatternSupportsEventualVerification() async throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
-        let pattern = stub.onCall {
+        let pattern = stub.when {
             $0.track(event: Match.equal("late"), value: Match.any())
         }
         pattern.thenDoNothing()
@@ -69,7 +69,7 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
 
     @Test func manualStubReturnsTypedArgumentTuples() {
         let stub = ManualStub<ManualInvocationAccessServiceStub>()
-        let allEvents = stub.onCall {
+        let allEvents = stub.when {
             $0.track(event: Match.any(), value: Match.any())
         }
         allEvents.thenDoNothing()
@@ -86,7 +86,7 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
 
     @Test func returnsTypedArgumentTuplesInCallOrder() throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
-        let allEvents = stub.onCall {
+        let allEvents = stub.when {
             $0.track(event: Match.any(), value: Match.any())
         }
         allEvents.thenDoNothing()
@@ -103,7 +103,7 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
 
     @Test func bindsALeadingPrefixOfArguments() throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
-        let allEvents = stub.onCall {
+        let allEvents = stub.when {
             $0.track(event: Match.any(), value: Match.any())
         }
         allEvents.thenDoNothing()
@@ -118,14 +118,14 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
 
     @Test func matchersFilterWhichInvocationsAreIncluded() throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
-        stub.onCall { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
+        stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
 
         let analytics: any InvocationAccessAnalytics = stub()
         analytics.track(event: "add_to_cart", value: 30)
         analytics.track(event: "error", value: 1)
         analytics.track(event: "purchase", value: 42)
 
-        let largeEvents = stub.onCall {
+        let largeEvents = stub.when {
             $0.track(event: Match.any(), value: Match.greaterThan(10))
         }
         let large: [(String, Int)] = largeEvents.arguments()
@@ -134,7 +134,7 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
 
     @Test func readsAsyncRequirementInvocations() async throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
-        let loads = await stub.onCall { try await $0.load(url: Match.any()) }
+        let loads = await stub.when { try await $0.load(url: Match.any()) }
         loads.thenReturn("data")
 
         let analytics: any InvocationAccessAnalytics = stub()
@@ -147,7 +147,7 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
 
     @Test func streamYieldsFutureTypedArgumentsInOrder() async throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
-        let allEvents = stub.onCall {
+        let allEvents = stub.when {
             $0.track(event: Match.any(), value: Match.any())
         }
         allEvents.thenDoNothing()
@@ -172,9 +172,9 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
 
     @Test func streamFiltersFutureCallsWithMatchers() async throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
-        stub.onCall { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
+        stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
         let analytics: any InvocationAccessAnalytics = stub()
-        let largeEvents = stub.onCall {
+        let largeEvents = stub.when {
             $0.track(event: Match.any(), value: Match.greaterThan(10))
         }
         let stream: InvocationStream<String> = largeEvents.stream()
@@ -188,7 +188,7 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
 
     @Test func streamSupportsAsyncRequirements() async throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
-        let loads = await stub.onCall { try await $0.load(url: Match.any()) }
+        let loads = await stub.when { try await $0.load(url: Match.any()) }
         loads.thenReturn("data")
         let analytics: any InvocationAccessAnalytics = stub()
         let stream: InvocationStream<String> = loads.stream()
@@ -200,7 +200,7 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
 
     @Test func manualStubStreamsFutureCalls() async throws {
         let stub = ManualStub<ManualInvocationAccessServiceStub>()
-        let allEvents = stub.onCall {
+        let allEvents = stub.when {
             $0.track(event: Match.any(), value: Match.any())
         }
         allEvents.thenDoNothing()
@@ -216,7 +216,7 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
 
     @Test func streamCancellationFinishesTheAwaitingIterator() async throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
-        let allEvents = stub.onCall {
+        let allEvents = stub.when {
             $0.track(event: Match.any(), value: Match.any())
         }
         allEvents.thenDoNothing()
@@ -248,12 +248,12 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
 
     @Test func returnsEmptyWhenNothingMatched() throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
-        stub.onCall { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
+        stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
 
         let analytics: any InvocationAccessAnalytics = stub()
         analytics.track(event: "add_to_cart", value: 30)
 
-        let errorEvents = stub.onCall {
+        let errorEvents = stub.when {
             $0.track(event: Match.equal("error"), value: Match.any())
         }
         let errors: [(String, Int)] = errorEvents.arguments()
@@ -262,7 +262,7 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
 
     @Test func readingDoesNotConsumeConfiguredBehavior() async throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
-        let loads = await stub.onCall { try await $0.load(url: Match.any()) }
+        let loads = await stub.when { try await $0.load(url: Match.any()) }
         loads
             .thenReturn("first")
             .thenReturn("second")

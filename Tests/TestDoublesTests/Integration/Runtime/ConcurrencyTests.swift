@@ -64,14 +64,14 @@
                     .method(returning: Int.self, isAsync: true),
                     .method(returning: Int.self, isThrowing: true, isAsync: true)
                 )
-                await stub.onCall { await $0.immediate() }.thenReturn(1)
-                await stub.onCall { await $0.suspending() }.then {
+                await stub.when { await $0.immediate() }.thenReturn(1)
+                await stub.when { await $0.suspending() }.then {
                     () async throws -> Int in
                     let enteredOnExecutor = self.executor.isCurrent
                     await Task.yield()
                     return enteredOnExecutor && self.executor.isCurrent ? 2 : -1
                 }
-                await stub.onCall { try await $0.failing() }.then {
+                await stub.when { try await $0.failing() }.then {
                     () async throws -> Int in
                     guard self.executor.isCurrent else { throw CustomExecutorError.wrongExecutor }
                     await Task.yield()
@@ -188,7 +188,7 @@
             let predicateCalls = LockedCounter()
             let syncHandlerCalls = LockedCounter()
             let asyncHandlerCalls = LockedCounter()
-            stub.onCall {
+            stub.when {
                 $0.synchronous(
                     Match.matching(
                         description: "nonnegative",
@@ -201,7 +201,7 @@
                 syncHandlerCalls.increment()
                 return value * 2
             }
-            await stub.onCall { await $0.asynchronous(Match.any()) }.then {
+            await stub.when { await $0.asynchronous(Match.any()) }.then {
                 (value: Int) async throws -> Int in
                 asyncHandlerCalls.increment()
                 await Task.yield()
@@ -237,7 +237,7 @@
                 .method(Int.self, returning: Int.self, isAsync: true)
             )
             let gate = BlockedMatcherCompletionGate()
-            stub.onCall {
+            stub.when {
                 $0.synchronous(
                     Match.matching(description: "gated", where: gate.matches)
                 )

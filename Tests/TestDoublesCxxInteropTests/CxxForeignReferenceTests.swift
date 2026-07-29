@@ -54,7 +54,7 @@ private func useLinkedWidgetTransporter(
         #expect(useLinkedGreeter(RealGreeter()) == "hello")
 
         let stub = try! Stub<any Greeter>()
-        stub.onCall { $0.greet() }.thenReturn("hello, stub")
+        stub.when { $0.greet() }.thenReturn("hello, stub")
 
         let greeter: any Greeter = stub()
         #expect(greeter.greet() == "hello, stub")
@@ -78,7 +78,7 @@ private func useLinkedWidgetTransporter(
         let stub = try Stub<any WidgetTransporter>(
             .method(Widget.self, returning: Widget.self)
         )
-        stub.onCall(returning: response) {
+        stub.when(returning: response) {
             $0.replace(captor.capture(using: request))
         }.thenReturn(response)
 

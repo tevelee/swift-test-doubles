@@ -16,8 +16,8 @@ struct RealCollectionSignatureProbe: CollectionSignatureProbe {
 @Suite struct CollectionSignatureTests {
     @Test func discoveryHandlesCollectionSignatures() throws {
         let stub = try Stub<any CollectionSignatureProbe>()
-        stub.onCall { $0.digest(Match.equal([1, 2, 3])) }.thenReturn(["count": 3])
-        stub.onCall { $0.tags() }.thenReturn(["fast", "unit"])
+        stub.when { $0.digest(Match.equal([1, 2, 3])) }.thenReturn(["count": 3])
+        stub.when { $0.tags() }.thenReturn(["fast", "unit"])
 
         let probe = stub()
         #expect(probe.digest([1, 2, 3]) == ["count": 3])

@@ -11,8 +11,8 @@ import IssueReporting
 ///
 /// ```swift
 /// let formatter = ClosureDouble<Int, String>()
-/// formatter.onCall { $0.isMultiple(of: 2) }.thenReturn("even")
-/// formatter.onAnyCall().then { "odd-\($0)" }
+/// formatter.when { $0.isMultiple(of: 2) }.thenReturn("even")
+/// formatter.whenAny().then { "odd-\($0)" }
 /// let format: (Int) -> String = formatter.function
 /// ```
 public final class ClosureDouble<Input, Result> {
@@ -66,7 +66,7 @@ public final class ClosureDouble<Input, Result> {
                 let configured = snapshot.entries.map(\.description).joined(separator: ", ")
                 preconditionFailure(
                     "[TestDoubles] No matching closure behavior is configured. "
-                        + "Register one with `onCall { ... }.thenReturn(...)` or `onAnyCall()`."
+                        + "Register one with `when { ... }.thenReturn(...)` or `whenAny()`."
                         + (configured.isEmpty ? "" : " Configured behaviors: \(configured).")
                 )
             }
@@ -75,7 +75,7 @@ public final class ClosureDouble<Input, Result> {
     }
 
     /// Starts a behavior registration selected by `matcher`.
-    public func onCall(
+    public func when(
         _ matcher: @escaping Matcher,
         describedBy description: String = "predicate"
     ) -> Builder {
@@ -83,7 +83,7 @@ public final class ClosureDouble<Input, Result> {
     }
 
     /// Starts a behavior registration that accepts every invocation.
-    public func onAnyCall() -> Builder {
+    public func whenAny() -> Builder {
         Builder(owner: self, matcher: nil, description: "Match.any()")
     }
 
@@ -201,7 +201,7 @@ public final class VoidClosureDouble<Result> {
     public func callAsFunction() -> Result { storage(()) }
 
     /// Starts an always-matching behavior registration.
-    public func onCall() -> ClosureDouble<Void, Result>.Builder { storage.onAnyCall() }
+    public func when() -> ClosureDouble<Void, Result>.Builder { storage.whenAny() }
 
     /// Number of recorded invocations.
     public var callCount: Int { storage.invocations.count }
@@ -219,8 +219,8 @@ public final class VoidClosureDouble<Result> {
 
 extension ClosureDouble where Input: Equatable {
     /// Starts a behavior registration for an input equal to `value`.
-    public func onCall(equal value: Input) -> Builder {
-        onCall({ $0 == value }, describedBy: "Match.equal(\(String(reflecting: value)))")
+    public func when(equal value: Input) -> Builder {
+        when({ $0 == value }, describedBy: "Match.equal(\(String(reflecting: value)))")
     }
 
     /// Verifies calls that received an input equal to `value`.

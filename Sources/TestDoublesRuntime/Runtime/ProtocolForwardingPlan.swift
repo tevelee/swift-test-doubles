@@ -89,7 +89,7 @@ struct ProtocolForwardingPlanBuilder<P> {
         for method in methods {
             // An initializer's `Self` result must retain the fabricated
             // existential metadata and witness tables used by the caller.
-            // It can be explicitly overridden with `onCall(initializer:)`, but
+            // It can be explicitly overridden with `when(initializer:)`, but
             // cannot safely return the forwarding target's distinct type.
             if method.kind == .initializer {
                 continue

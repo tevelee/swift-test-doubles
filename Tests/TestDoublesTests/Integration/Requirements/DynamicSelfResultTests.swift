@@ -111,15 +111,15 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
             ),
             .method(returning: Int.self)
         )
-        stub.onCall(returningSelf: { $0.duplicate() }).thenReturnValue()
-        stub.onCall(
+        stub.when(returningSelf: { $0.duplicate() }).thenReturnValue()
+        stub.when(
             returningOptionalSelf: {
                 $0.optionalDuplicate(returnValue: Match.any())
             }
         ).then { (returnValue: Bool) -> StubOptionalSelfResultBuilder.Outcome in
             returnValue ? .returnValue : .returnNil
         }
-        stub.onCall { $0.marker() }.thenReturn(42)
+        stub.when { $0.marker() }.thenReturn(42)
 
         let duplicate = stub().duplicate()
         let optionalDuplicate = stub().optionalDuplicate(returnValue: true)
@@ -136,13 +136,13 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
     @Test func automaticMethodsAndGetterReturnValuesFromTheSameRuntimeGraph() throws {
         _ = RealDynamicSelfEffectsProbe()
         let stub = try Stub<any DynamicSelfEffectsProbe>()
-        stub.onCall(returningSelf: { $0.duplicate() }).thenReturnValue()
-        stub.onCall(returningSelf: { $0.copied(marker: Match.equal(5)) }).then {
+        stub.when(returningSelf: { $0.duplicate() }).thenReturnValue()
+        stub.when(returningSelf: { $0.copied(marker: Match.equal(5)) }).then {
             (marker: Int) throws -> Void in
             #expect(marker == 5)
         }
-        stub.onCall(returningSelf: { $0.twin }).thenReturnValue()
-        stub.onCall { $0.marker() }.thenReturn(7)
+        stub.when(returningSelf: { $0.twin }).thenReturnValue()
+        stub.when { $0.marker() }.thenReturn(7)
 
         let source = stub()
         let duplicate = source.duplicate()
@@ -159,8 +159,8 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
     @Test func staticMethodReturnsAValueFromTheSameRuntimeGraph() throws {
         _ = RealStaticDynamicSelfProbe()
         let stub = try Stub<any StaticDynamicSelfProbe>()
-        stub.onCall(returningSelf: { type(of: $0).make() }).thenReturnValue()
-        stub.onCall { $0.marker() }.thenReturn(17)
+        stub.when(returningSelf: { type(of: $0).make() }).thenReturnValue()
+        stub.when { $0.marker() }.thenReturn(17)
 
         let made = stub.withValue { type(of: $0).make() }
 
@@ -171,12 +171,12 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
     @Test func asyncThrowingHandlersPreserveSuccessAndFailure() async throws {
         _ = RealDynamicSelfEffectsProbe()
         let stub = try Stub<any DynamicSelfEffectsProbe>()
-        await stub.onCall(returningSelf: { try await $0.refreshed() }).then {
+        await stub.when(returningSelf: { try await $0.refreshed() }).then {
             () async throws -> Void in
         }
-        await stub.onCall(returningSelf: { try await $0.rejected() })
+        await stub.when(returningSelf: { try await $0.rejected() })
             .thenThrow(DynamicSelfProbeError.rejected)
-        stub.onCall { $0.marker() }.thenReturn(9)
+        stub.when { $0.marker() }.thenReturn(9)
 
         let source = stub()
         let refreshed = try await source.refreshed()
@@ -191,8 +191,8 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
         func makeReturnedValue() throws -> any DynamicSelfEffectsProbe {
             _ = RealDynamicSelfEffectsProbe()
             let stub = try Stub<any DynamicSelfEffectsProbe>()
-            stub.onCall(returningSelf: { $0.duplicate() }).thenReturnValue()
-            stub.onCall { $0.marker() }.thenReturn(23)
+            stub.when(returningSelf: { $0.duplicate() }).thenReturnValue()
+            stub.when { $0.marker() }.thenReturn(23)
             let source = stub()
             return source.duplicate()
         }
@@ -205,8 +205,8 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
     @Test func classConstrainedResultsAreFreshAndShareTheRecorder() throws {
         _ = RealClassDynamicSelfProbe()
         let stub = try Stub<any ClassDynamicSelfProbe>()
-        stub.onCall(returningSelf: { $0.duplicate() }).thenReturnValue()
-        stub.onCall { $0.marker() }.thenReturn(31)
+        stub.when(returningSelf: { $0.duplicate() }).thenReturnValue()
+        stub.when { $0.marker() }.thenReturn(31)
 
         let source = stub()
         let first = source.duplicate()
@@ -220,17 +220,17 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
     @Test func optionalSelfMethodsGettersAndStaticRequirementsReturnValueOrNil() throws {
         _ = RealOptionalDynamicSelfProbe()
         let stub = try Stub<any OptionalDynamicSelfProbe>()
-        stub.onCall(
+        stub.when(
             returningOptionalSelf: { $0.duplicate(marker: Match.equal(1)) }
         ).thenReturnValue()
-        stub.onCall(
+        stub.when(
             returningOptionalSelf: { $0.duplicate(marker: Match.equal(2)) }
         ).thenReturnNil()
-        stub.onCall(returningOptionalSelf: { $0.twin }).thenReturnValue()
-        stub.onCall(
+        stub.when(returningOptionalSelf: { $0.twin }).thenReturnValue()
+        stub.when(
             returningOptionalSelf: { type(of: $0).make() }
         ).thenReturnNil()
-        stub.onCall { $0.marker() }.thenReturn(47)
+        stub.when { $0.marker() }.thenReturn(47)
 
         let source = stub()
         let duplicate = source.duplicate(marker: 1)
@@ -251,7 +251,7 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
     @Test func optionalSelfAsyncHandlersAndUntypedThrowsPreserveOutcomes() async throws {
         _ = RealOptionalDynamicSelfProbe()
         let stub = try Stub<any OptionalDynamicSelfProbe>()
-        await stub.onCall(
+        await stub.when(
             returningOptionalSelf: {
                 try await $0.refreshed(returnValue: Match.any())
             }
@@ -259,9 +259,9 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
             (returnValue: Bool) async throws -> StubOptionalSelfResultBuilder.Outcome in
             returnValue ? .returnValue : .returnNil
         }
-        stub.onCall(returningOptionalSelf: { try $0.rejected() })
+        stub.when(returningOptionalSelf: { try $0.rejected() })
             .thenThrow(DynamicSelfProbeError.rejected)
-        stub.onCall { $0.marker() }.thenReturn(53)
+        stub.when { $0.marker() }.thenReturn(53)
 
         let source = stub()
         let refreshed = try await source.refreshed(returnValue: true)
@@ -276,10 +276,10 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
     @Test func classConstrainedOptionalSelfReturnsFreshValues() throws {
         _ = RealClassDynamicSelfProbe()
         let stub = try Stub<any ClassDynamicSelfProbe>()
-        stub.onCall(
+        stub.when(
             returningOptionalSelf: { $0.optionalDuplicate() }
         ).thenReturnValue()
-        stub.onCall { $0.marker() }.thenReturn(59)
+        stub.when { $0.marker() }.thenReturn(59)
 
         let source = stub()
         let first = try #require(source.optionalDuplicate())
@@ -294,10 +294,10 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
         func makeReturnedValue() throws -> (any OptionalDynamicSelfProbe)? {
             _ = RealOptionalDynamicSelfProbe()
             let stub = try Stub<any OptionalDynamicSelfProbe>()
-            stub.onCall(
+            stub.when(
                 returningOptionalSelf: { $0.duplicate(marker: Match.equal(1)) }
             ).thenReturnValue()
-            stub.onCall { $0.marker() }.thenReturn(61)
+            stub.when { $0.marker() }.thenReturn(61)
             return stub().duplicate(marker: 1)
         }
 
@@ -356,7 +356,7 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
 
         #expect(
             message.contains(
-                "stub.onCall(returningOptionalSelf: { $0.duplicate() }).thenReturnValue()"
+                "stub.when(returningOptionalSelf: { $0.duplicate() }).thenReturnValue()"
             )
         )
     }
@@ -376,8 +376,8 @@ private protocol TypedThrowingOptionalDynamicSelfProbe {
             .method(returning: (any ExistentialPeerProbe).self, isThrowing: true)
         )
         let peer: any ExistentialPeerProbe = RealExistentialPeerProbe()
-        stub.onCall(returning: peer) { type(of: $0).makePeer() }.thenReturn(peer)
-        stub.onCall(returning: peer) { try type(of: $0).failingPeer() }
+        stub.when(returning: peer) { type(of: $0).makePeer() }.thenReturn(peer)
+        stub.when(returning: peer) { try type(of: $0).failingPeer() }
             .thenThrow(DynamicSelfProbeError.rejected)
 
         let value: any ExistentialPeerProbe = stub()
@@ -402,12 +402,12 @@ private func configureOrdinaryPeer(
     _ stub: Stub<any ExistentialPeerProbe>,
     returning peer: any ExistentialPeerProbe
 ) {
-    stub.onCall { $0.peer() }.thenReturn(peer)
+    stub.when { $0.peer() }.thenReturn(peer)
 }
 
 private func configureOrdinaryOptionalPeer(
     _ stub: Stub<any OptionalExistentialPeerProbe>,
     returning peer: (any OptionalExistentialPeerProbe)?
 ) {
-    stub.onCall(returning: peer) { $0.peer() }.thenReturn(peer)
+    stub.when(returning: peer) { $0.peer() }.thenReturn(peer)
 }

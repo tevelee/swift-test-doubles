@@ -91,7 +91,7 @@ private final class ConsumingClassAsyncInvocation<
     @Test func inheritedOpaqueSelfRequirementsRemainIndirect() throws {
         _ = RealExternalInheritedClassSelfArgumentProbe()
         let stub = try Stub<any ExternalInheritedClassSelfArgumentProbe>()
-        stub.onCall { captureAccept($0) }.thenDoNothing()
+        stub.when { captureAccept($0) }.thenDoNothing()
         let source = stub()
         invokeAccept(source)
         stub.verify { captureAccept($0) }
@@ -157,8 +157,8 @@ private final class ConsumingClassAsyncInvocation<
         var sourceStub: Stub<any ExternalClassSelfArgumentProbe>? = try Stub()
         do {
             let stub = try #require(targetStub)
-            stub.onCall { captureClassAccept($0) }.thenDoNothing()
-            stub.onCall { $0.marker() }.thenReturn(83)
+            stub.when { captureClassAccept($0) }.thenDoNothing()
+            stub.when { $0.marker() }.thenReturn(83)
         }
 
         var target: (any ExternalClassSelfArgumentProbe)?
@@ -199,7 +199,7 @@ private final class ConsumingClassAsyncInvocation<
     @Test func recordedClassArgumentPreservesIdentityWhileOriginalLives() throws {
         _ = RealExternalClassSelfArgumentProbe()
         let stub = try Stub<any ExternalClassSelfArgumentProbe>()
-        stub.onCall { captureClassAccept($0) }.thenDoNothing()
+        stub.when { captureClassAccept($0) }.thenDoNothing()
 
         let source = stub()
         invokeClassAccept(source)
@@ -209,7 +209,7 @@ private final class ConsumingClassAsyncInvocation<
     @Test func recordedNilOptionalSelfRemainsNil() throws {
         _ = RealExternalClassSelfArgumentProbe()
         let stub = try Stub<any ExternalClassSelfArgumentProbe>()
-        stub.onCall { captureClassOptional($0) }.thenDoNothing()
+        stub.when { captureClassOptional($0) }.thenDoNothing()
 
         let source = stub()
         invokeClassOptional(source, includesValue: false)
@@ -268,35 +268,35 @@ private final class ConsumingClassAsyncInvocation<
 private func configureOpaqueSelfArgumentStub(
     _ stub: Stub<any ExternalSelfArgumentProbe>
 ) async {
-    stub.onCall { captureAccept($0) }.thenDoNothing()
-    stub.onCall { captureBorrow($0) }.thenDoNothing()
-    stub.onCall { captureConsume($0) }.thenDoNothing()
-    stub.onCall { captureOptional($0) }.thenDoNothing()
-    stub.onCall { captureConsumingOptional($0) }.thenDoNothing()
-    await stub.onCall { await captureAsync($0) }.thenDoNothing()
-    await stub.onCall { await captureConsumingAsync($0) }.thenDoNothing()
-    stub.onCall(returningSelf: { captureRoundTrip($0) }).thenReturnValue()
-    stub.onCall(
+    stub.when { captureAccept($0) }.thenDoNothing()
+    stub.when { captureBorrow($0) }.thenDoNothing()
+    stub.when { captureConsume($0) }.thenDoNothing()
+    stub.when { captureOptional($0) }.thenDoNothing()
+    stub.when { captureConsumingOptional($0) }.thenDoNothing()
+    await stub.when { await captureAsync($0) }.thenDoNothing()
+    await stub.when { await captureConsumingAsync($0) }.thenDoNothing()
+    stub.when(returningSelf: { captureRoundTrip($0) }).thenReturnValue()
+    stub.when(
         returningOptionalSelf: { captureOptionalRoundTrip($0) }
     ).thenReturnValue()
-    stub.onCall { $0.marker() }.thenReturn(42)
+    stub.when { $0.marker() }.thenReturn(42)
 }
 
 private func configureClassSelfArgumentStub(
     _ stub: Stub<any ExternalClassSelfArgumentProbe>
 ) async {
-    stub.onCall { captureClassAccept($0) }.thenDoNothing()
-    stub.onCall { captureClassBorrow($0) }.thenDoNothing()
-    stub.onCall { captureClassConsume($0) }.thenDoNothing()
-    stub.onCall { captureClassOptional($0) }.thenDoNothing()
-    stub.onCall { captureClassConsumingOptional($0) }.thenDoNothing()
-    await stub.onCall { await captureClassAsync($0) }.thenDoNothing()
-    await stub.onCall { await captureClassConsumingAsync($0) }.thenDoNothing()
-    stub.onCall(returningSelf: { captureClassRoundTrip($0) }).thenReturnValue()
-    stub.onCall(
+    stub.when { captureClassAccept($0) }.thenDoNothing()
+    stub.when { captureClassBorrow($0) }.thenDoNothing()
+    stub.when { captureClassConsume($0) }.thenDoNothing()
+    stub.when { captureClassOptional($0) }.thenDoNothing()
+    stub.when { captureClassConsumingOptional($0) }.thenDoNothing()
+    await stub.when { await captureClassAsync($0) }.thenDoNothing()
+    await stub.when { await captureClassConsumingAsync($0) }.thenDoNothing()
+    stub.when(returningSelf: { captureClassRoundTrip($0) }).thenReturnValue()
+    stub.when(
         returningOptionalSelf: { captureClassOptionalRoundTrip($0) }
     ).thenReturnValue()
-    stub.onCall { $0.marker() }.thenReturn(42)
+    stub.when { $0.marker() }.thenReturn(42)
 }
 
 private func exerciseSelfArgumentProbe<P: ExternalSelfArgumentProbe>(
@@ -390,9 +390,9 @@ private func verifyClassAsyncSelfArgumentCalls(
 private func exerciseConsumingClassLifetime() async throws -> WeakReference<AnyObject> {
     _ = RealExternalClassSelfArgumentProbe()
     let stub = try Stub<any ExternalClassSelfArgumentProbe>()
-    stub.onCall { captureClassConsume($0) }.thenDoNothing()
-    await stub.onCall { await captureClassConsumingAsync($0) }.thenDoNothing()
-    stub.onCall { $0.marker() }.thenReturn(71)
+    stub.when { captureClassConsume($0) }.thenDoNothing()
+    await stub.when { await captureClassConsumingAsync($0) }.thenDoNothing()
+    stub.when { $0.marker() }.thenReturn(71)
 
     let source = stub()
     let weakReference = WeakReference(source as AnyObject)
@@ -409,7 +409,7 @@ private func configureSuspendingClassConsume<
     placeholder: P,
     gate: SelfArgumentSuspensionGate
 ) async {
-    await stub.onCall { await captureClassConsumingAsync($0) }.then {
+    await stub.when { await captureClassConsumingAsync($0) }.then {
         (argument: P) async in
         await gate.suspend()
         withExtendedLifetime(argument) {}
@@ -458,7 +458,7 @@ private func accessRecordedClassAccept<P: ExternalClassSelfArgumentProbe>(
     _ stub: Stub<any ExternalClassSelfArgumentProbe>,
     placeholder: P
 ) throws -> any ExternalClassSelfArgumentProbe {
-    let pattern: CallPattern<Void> = stub.onCall {
+    let pattern: CallPattern<Void> = stub.when {
         _ = Match.any(using: placeholder)
         recordClassAccept($0)
     }
@@ -491,7 +491,7 @@ private func assertRecordedNilClassOptional<P: ExternalClassSelfArgumentProbe>(
     #expect(captor.values.count == 1, sourceLocation: sourceLocation)
     #expect(captor.values[0] == nil, sourceLocation: sourceLocation)
 
-    let pattern: CallPattern<Void> = stub.onCall {
+    let pattern: CallPattern<Void> = stub.when {
         captureClassOptional($0)
     }
     let values: [P?] = pattern.arguments()

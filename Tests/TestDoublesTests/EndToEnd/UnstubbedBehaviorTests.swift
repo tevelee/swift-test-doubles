@@ -131,7 +131,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                stub.onCall { $0.greet(name: Match.any()) }.thenForward()
+                stub.when { $0.greet(name: Match.any()) }.thenForward()
             }
 
             let diagnostic = try #require(
@@ -146,7 +146,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                _ = stub.onCall { $0.greet(name: Match.any()) }.thenSuspend()
+                _ = stub.when { $0.greet(name: Match.any()) }.thenSuspend()
             }
 
             let diagnostic = try #require(
@@ -162,7 +162,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any AsyncOutcomeProbe>()
-                let suspension = await stub.onCall { await $0.currentValue() }.thenSuspend()
+                let suspension = await stub.when { await $0.currentValue() }.thenSuspend()
                 suspension.resume(returning: 1)
             }
 
@@ -179,7 +179,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any AsyncOutcomeProbe>()
-                let suspension = await stub.onCall { await $0.currentValue() }.thenSuspend()
+                let suspension = await stub.when { await $0.currentValue() }.thenSuspend()
                 suspension.resume(throwing: ManualLoadError())
             }
 
@@ -195,7 +195,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                stub.onCall { try $0.total(of: Match.any()) }.thenAwaitCancellation()
+                stub.when { try $0.total(of: Match.any()) }.thenAwaitCancellation()
             }
 
             let diagnostic = try #require(
@@ -211,7 +211,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any AsyncOutcomeProbe>()
-                await stub.onCall { await $0.currentValue() }.thenAwaitCancellation()
+                await stub.when { await $0.currentValue() }.thenAwaitCancellation()
             }
 
             let diagnostic = try #require(
@@ -227,7 +227,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                stub.onCall { $0.greet(name: Match.any()) }.thenNeverReturn()
+                stub.when { $0.greet(name: Match.any()) }.thenNeverReturn()
             }
 
             let diagnostic = try #require(
@@ -243,7 +243,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                stub.onCall { $0.greet(name: Match.any()) }
+                stub.when { $0.greet(name: Match.any()) }
                     .thenReturn("hi", after: .milliseconds(1))
             }
 
@@ -269,7 +269,7 @@ private struct UnexpectedTypedError: Error {}
             #expect(diagnostic.contains("No stub configured for greet(name:)"))
             #expect(diagnostic.contains("arg0: \"eve\""))
             #expect(
-                diagnostic.contains("stub.onCall { $0.greet(name: Match.equal(\"eve\")) }.thenReturn(...)")
+                diagnostic.contains("stub.when { $0.greet(name: Match.equal(\"eve\")) }.thenReturn(...)")
             )
         }
 
@@ -303,7 +303,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                stub.onCall { $0.greet(name: Match.equal("alice")) }.thenReturn("hi")
+                stub.when { $0.greet(name: Match.equal("alice")) }.thenReturn("hi")
                 _ = stub().greet(name: "bob")
             }
 
@@ -338,7 +338,7 @@ private struct UnexpectedTypedError: Error {}
             ) {
                 _ = RealUnfinishedVoidConfigurationProbe()
                 let stub = try Stub<any UnfinishedVoidConfigurationProbe>()
-                _ = stub.onCall { $0.reset() }
+                _ = stub.when { $0.reset() }
                 stub().reset()
             }
 
@@ -346,7 +346,7 @@ private struct UnexpectedTypedError: Error {}
                 String(bytes: result.standardErrorContent, encoding: .utf8)
             )
             #expect(diagnostic.contains("No stub configured for reset()"))
-            #expect(diagnostic.contains("stub.onCall { $0.reset() }.thenDoNothing()"))
+            #expect(diagnostic.contains("stub.when { $0.reset() }.thenDoNothing()"))
         }
 
         private func recordingClosuresMustInvokeARequirement() async throws {
@@ -355,7 +355,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                stub.onCall { (_: any UnstubbedBehaviorProbe) -> String in "no invocation" }
+                stub.when { (_: any UnstubbedBehaviorProbe) -> String in "no invocation" }
                     .thenReturn("unreachable")
             }
 
@@ -363,7 +363,7 @@ private struct UnexpectedTypedError: Error {}
                 String(bytes: result.standardErrorContent, encoding: .utf8)
             )
             #expect(diagnostic.contains("recording closure did not invoke a protocol requirement"))
-            #expect(diagnostic.contains("Call exactly one requirement inside `onCall` or `verify`"))
+            #expect(diagnostic.contains("Call exactly one requirement inside `when` or `verify`"))
         }
 
         private func singleInvocationRecordingClosuresRejectMultipleRequirements() async throws {
@@ -372,7 +372,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                stub.onCall { probe in
+                stub.when { probe in
                     _ = probe.greet(name: "first")
                     return probe.greet(name: "second")
                 }.thenReturn("unreachable")
@@ -392,7 +392,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                stub.onCall { $0.greet(name: Match.any()) }.thenThrow(ManualLoadError())
+                stub.when { $0.greet(name: Match.any()) }.thenThrow(ManualLoadError())
             }
             let diagnostic = try requireStandardErrorDiagnostic(from: result)
             #expect(diagnostic.contains("thenThrow requires a throwing requirement"))
@@ -405,7 +405,7 @@ private struct UnexpectedTypedError: Error {}
             ) {
                 _ = RealTypedThrowsRequirementProbe()
                 let stub = try Stub<any TypedThrowsRequirementProbe>()
-                stub.onCall { try $0.load() }.thenThrow(UnexpectedTypedError())
+                stub.when { try $0.load() }.thenThrow(UnexpectedTypedError())
             }
             let diagnostic = try requireStandardErrorDiagnostic(from: result)
             #expect(diagnostic.contains("Typed error must be"))
@@ -418,7 +418,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = ManualStub<UnstubbedManualProbeStub>()
-                stub.onCall { $0.load() }.then { () throws -> String in
+                stub.when { $0.load() }.then { () throws -> String in
                     throw ManualLoadError()
                 }
                 _ = stub().load()
@@ -440,7 +440,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                stub.onCall { $0.greet(name: Match.any()) }
+                stub.when { $0.greet(name: Match.any()) }
                     .thenFatalError("greet should not be called more than expected")
                 _ = stub().greet(name: "eve")
             }
@@ -463,7 +463,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                stub.onCall { $0.greet(name: Match.any()) }.thenReturn("hi", times: 0 ... 3)
+                stub.when { $0.greet(name: Match.any()) }.thenReturn("hi", times: 0 ... 3)
             }
 
             let diagnostic = try #require(
@@ -487,7 +487,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                stub.onCall { $0.greet(name: Match.any()) }
+                stub.when { $0.greet(name: Match.any()) }
                     .thenReturn("hi", times: 2)
                     .thenReturn("bye", times: 0)
             }
@@ -513,7 +513,7 @@ private struct UnexpectedTypedError: Error {}
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any UnstubbedBehaviorProbe>()
-                let chain: StubBehaviorChain<String> = stub.onCall { $0.greet(name: Match.any()) }
+                let chain: StubBehaviorChain<String> = stub.when { $0.greet(name: Match.any()) }
                     .thenReturn("hi", times: 2)
                 chain.thenReturn("bye")
                 chain.thenReturn("late", times: 1 ... 1)

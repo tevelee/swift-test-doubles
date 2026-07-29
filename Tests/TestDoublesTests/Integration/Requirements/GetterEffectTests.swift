@@ -110,7 +110,7 @@ struct RealAssociatedGetterEffectProbe: AssociatedGetterEffectProbe {
         let stub = try Stub<any EffectfulGetterProbe>(
             .getter(Int.self, isThrowing: true, isAsync: true)
         )
-        await stub.onCall { try await $0.value }.thenReturn(7)
+        await stub.when { try await $0.value }.thenReturn(7)
         #expect(try await stub().value == 7)
 
         expectStubError({
@@ -134,10 +134,10 @@ struct RealAssociatedGetterEffectProbe: AssociatedGetterEffectProbe {
             .nonthrowing,
             .throwing
         )
-        stub.onCall { $0.syncValue }.thenReturn(10)
-        stub.onCall { try $0.syncThrowingValue }.thenReturn(20)
-        await stub.onCall { await $0.asyncValue }.thenReturn(30)
-        await stub.onCall { try await $0.asyncThrowingValue }.thenReturn(40)
+        stub.when { $0.syncValue }.thenReturn(10)
+        stub.when { try $0.syncThrowingValue }.thenReturn(20)
+        await stub.when { await $0.asyncValue }.thenReturn(30)
+        await stub.when { try await $0.asyncThrowingValue }.thenReturn(40)
 
         let probe: any GetterEffectMatrixProbe = stub()
         #expect(probe.syncValue == 10)
@@ -170,10 +170,10 @@ struct RealAssociatedGetterEffectProbe: AssociatedGetterEffectProbe {
             .nonthrowing,
             .throwing
         )
-        stub.onCall { try $0.syncThrowingValue }.then { () throws -> Int in
+        stub.when { try $0.syncThrowingValue }.then { () throws -> Int in
             throw EffectfulGetterProbeError.failed
         }
-        await stub.onCall { try await $0.asyncThrowingValue }.then {
+        await stub.when { try await $0.asyncThrowingValue }.then {
             () async throws -> Int in
             throw EffectfulGetterProbeError.failed
         }
@@ -192,8 +192,8 @@ struct RealAssociatedGetterEffectProbe: AssociatedGetterEffectProbe {
         let stub = try Stub<any ReadWriteGetterEffectProbe>(
             getterEffects: .nonthrowing
         )
-        stub.onCall { $0.value }.thenReturn(7)
-        stub.onCall { $0.value = Match.any() }.thenDoNothing()
+        stub.when { $0.value }.thenReturn(7)
+        stub.when { $0.value = Match.any() }.thenDoNothing()
 
         var probe: any ReadWriteGetterEffectProbe = stub()
         #expect(probe.value == 7)
@@ -229,8 +229,8 @@ struct RealAssociatedGetterEffectProbe: AssociatedGetterEffectProbe {
                 .throwing
             )
         )
-        await stub.onCall { await $0.baseValue }.thenReturn(11)
-        stub.onCall { try $0.childValue }.thenReturn("hinted")
+        await stub.when { await $0.baseValue }.thenReturn(11)
+        stub.when { try $0.childValue }.thenReturn("hinted")
 
         let probe: any ChildGetterEffectProbe = stub()
         #expect(await probe.baseValue == 11)
@@ -252,11 +252,11 @@ struct RealAssociatedGetterEffectProbe: AssociatedGetterEffectProbe {
                 .throwing
             )
         )
-        await stub.onCall { value in
+        await stub.when { value in
             let first: any FirstRepeatedGetterEffectProbe = value
             return await first.repeated
         }.thenReturn(11)
-        await stub.onCall { value in
+        await stub.when { value in
             let second: any SecondRepeatedGetterEffectProbe = value
             return try await second.repeated
         }.thenReturn(22)
@@ -273,7 +273,7 @@ struct RealAssociatedGetterEffectProbe: AssociatedGetterEffectProbe {
         let stub = try Stub<any StaticGetterEffectProbe>(
             getterEffects: .throwing
         )
-        await stub.onCall { try await type(of: $0).value }.thenReturn(42)
+        await stub.when { try await type(of: $0).value }.thenReturn(42)
 
         #expect(
             try await stub.withValue {
@@ -287,7 +287,7 @@ struct RealAssociatedGetterEffectProbe: AssociatedGetterEffectProbe {
         let stub = try Stub<any AssociatedGetterEffectProbe<Int>>(
             getterEffects: .throwing
         )
-        await stub.onCall { try await $0.current }.thenReturn(42)
+        await stub.when { try await $0.current }.thenReturn(42)
 
         #expect(try await stub().current == 42)
         let descriptor = try #require(stub.recorder.runtimeMethod(for: 0))

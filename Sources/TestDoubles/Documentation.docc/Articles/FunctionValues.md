@@ -30,7 +30,7 @@ protocol Transformer {
 let identity: Transform = { $0 }
 let stub = try Stub<any Transformer>()
 
-stub.onCall(returning: identity) {
+stub.when(returning: identity) {
     $0.transform(Match.any(using: identity))
 }.then { (body: Transform) in
     let captured = body(20) + 1
@@ -130,7 +130,7 @@ protocol requirement.
 Function values cannot be synthesized as recording placeholders. Use
 ``Match/any(using:)``, `Match.matching(using:description:where:)``, or
 ``Match/Capture/capture(using:)`` for a function argument. Use
-`onCall(returning:_:)` and `verify(_:returning:_:)` for a function result.
+`when(returning:_:)` and `verify(_:returning:_:)` for a function result.
 
 When a callback is the first of several arguments, use the synchronous
 ``CallPattern/thenEscaping(_:)-1hvu8`` or asynchronous
@@ -138,7 +138,7 @@ When a callback is the first of several arguments, use the synchronous
 preserved while the trailing arguments are decoded:
 
 ```swift
-stub.onCall {
+stub.when {
     $0.apply(Match.any(using: identity), to: Match.any())
 }.thenEscaping { (body: Transform, value: Int) in
     body(value)

@@ -13,7 +13,7 @@ import Foundation
 /// let spy: Spy<any WeatherService> = .make(forwardingTo: live)
 /// let session = RecordingSession()
 ///
-/// spy.onCall { try await $0.currentConditions(for: Match.any()) }
+/// spy.when { try await $0.currentConditions(for: Match.any()) }
 ///     .thenRecord(as: "currentConditions", into: session) { city in
 ///         try await live.currentConditions(for: city)
 ///     }

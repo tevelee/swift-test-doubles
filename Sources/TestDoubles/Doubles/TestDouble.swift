@@ -146,7 +146,7 @@ extension TestDouble {
         guard let recording = recordings.first else {
             fatalError(
                 "[TestDoubles] The recording closure did not invoke a protocol requirement. "
-                    + "Call exactly one requirement inside `onCall` or `verify`. "
+                    + "Call exactly one requirement inside `when` or `verify`. "
                     + "If this was a method declared only in a protocol extension, Swift dispatches "
                     + "it statically and TestDoubles cannot intercept it; declare it as a protocol "
                     + "requirement instead."
@@ -155,7 +155,7 @@ extension TestDouble {
         guard recordings.count == 1 else {
             fatalError(
                 "[TestDoubles] The recording closure invoked \(recordings.count) protocol requirements, "
-                    + "but `onCall` and `verify` accept exactly one. Split them into separate operations; "
+                    + "but `when` and `verify` accept exactly one. Split them into separate operations; "
                     + "use `verifyInOrder` when checking an ordered sequence."
             )
         }

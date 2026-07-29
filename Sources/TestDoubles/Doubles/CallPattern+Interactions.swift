@@ -135,7 +135,7 @@ extension CallPattern {
     /// the front, so a narrower tuple reads a leading argument prefix:
     ///
     /// ```swift
-    /// let pattern = analytics.onCall {
+    /// let pattern = analytics.when {
     ///     $0.track(event: Match.any(), value: Match.any())
     /// }
     /// let events: [(String, Int)] = pattern.arguments()

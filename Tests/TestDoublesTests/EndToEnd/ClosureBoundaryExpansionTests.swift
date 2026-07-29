@@ -18,7 +18,7 @@ struct ClosureBoundaryExpansionTests {
         let cCaptor = Match.Capture<ExternalCFunction>()
         let stub = try Stub<any ExternalFunctionConventionService>()
 
-        stub.onCall(returning: cIdentity) {
+        stub.when(returning: cIdentity) {
             $0.cFunction(cCaptor.capture(using: cIdentity))
         }.thenReturn(cResult)
 
@@ -35,7 +35,7 @@ struct ClosureBoundaryExpansionTests {
             let result: ExternalBlockFunction = { $0 + captured }
             let captor = Match.Capture<ExternalBlockFunction>()
             let stub = try Stub<any ExternalFunctionConventionService>()
-            stub.onCall(returning: identity) {
+            stub.when(returning: identity) {
                 $0.blockFunction(captor.capture(using: identity))
             }.thenReturn(result)
 
@@ -53,7 +53,7 @@ struct ClosureBoundaryExpansionTests {
         let result: ExternalContainerClosure = { "\($0 * 2)!" }
         let stub = try Stub<any ExternalClosureContainerService>()
 
-        stub.onCall(returning: identity) {
+        stub.when(returning: identity) {
             $0.optional(Match.any(using: identity))
         }.thenReturn(result)
 
@@ -66,7 +66,7 @@ struct ClosureBoundaryExpansionTests {
         let result: ExternalContainerClosure = { "\($0 * 2)!" }
         let stub = try Stub<any ExternalClosureContainerService>()
 
-        stub.onCall(returning: [identity]) {
+        stub.when(returning: [identity]) {
             $0.array(Match.any(using: [identity]))
         }.thenReturn([result])
 
@@ -81,7 +81,7 @@ struct ClosureBoundaryExpansionTests {
         let tupleResult: ExternalClosureTuple = ("tuple", result)
         let stub = try Stub<any ExternalClosureContainerService>()
 
-        stub.onCall(returning: tuplePlaceholder) {
+        stub.when(returning: tuplePlaceholder) {
             $0.tuple(Match.any(using: tuplePlaceholder))
         }.thenReturn(tupleResult)
 
@@ -98,7 +98,7 @@ struct ClosureBoundaryExpansionTests {
         let boxResult = ExternalClosureBox(label: "box", transform: result)
         let stub = try Stub<any ExternalClosureContainerService>()
 
-        stub.onCall(returning: boxPlaceholder) {
+        stub.when(returning: boxPlaceholder) {
             $0.nominal(Match.any(using: boxPlaceholder))
         }.thenReturn(boxResult)
 
@@ -119,7 +119,7 @@ struct ClosureBoundaryExpansionTests {
         }
         let captor = Match.Capture<ExternalNestedNonescapingClosure>()
         let stub = try Stub<any ExternalNestedNonescapingClosureService>()
-        stub.onCall(returning: identity) {
+        stub.when(returning: identity) {
             $0.nested(captor.capture(using: identity))
         }.thenReturn(result)
 
@@ -142,7 +142,7 @@ struct ClosureBoundaryExpansionTests {
         }
         let captor = Match.Capture<ExternalIsolatedParameterClosure>()
         let stub = try Stub<any ExternalIsolatedParameterClosureService>()
-        stub.onCall(returning: identity) {
+        stub.when(returning: identity) {
             $0.isolatedParameter(captor.capture(using: identity))
         }.thenReturn(result)
 
@@ -170,7 +170,7 @@ struct ClosureBoundaryExpansionTests {
             return "\(value * 2)!"
         }
         let stub = try Stub<any ExternalIndirectTypedThrowingClosureService>()
-        stub.onCall(returning: identity) {
+        stub.when(returning: identity) {
             $0.typedThrowing(Match.any(using: identity))
         }.thenReturn(result)
 
@@ -226,7 +226,7 @@ struct ClosureBoundaryExpansionTests {
         }
         let captor = Match.Capture<ExternalAsyncIndirectTypedThrowingClosure>()
         let stub = try Stub<any ExternalIndirectTypedThrowingClosureService>()
-        stub.onCall(returning: placeholder) {
+        stub.when(returning: placeholder) {
             $0.asyncTypedThrowing(captor.capture(using: placeholder))
         }.thenReturn(result)
 
@@ -249,8 +249,8 @@ struct ClosureBoundaryExpansionTests {
         let replacement: ExternalContainerClosure = { "\($0 * 2)!" }
         let captor = Match.Capture<ExternalContainerClosure>()
         let stub = try Stub<any ExternalMutableClosureService>()
-        stub.onCall(returning: initial) { $0.transform }.thenReturn(initial)
-        stub.onCall {
+        stub.when(returning: initial) { $0.transform }.thenReturn(initial)
+        stub.when {
             $0.transform = captor.capture(using: initial)
         }.thenReturn(())
 
@@ -266,12 +266,12 @@ struct ClosureBoundaryExpansionTests {
         let identity: ExternalContainerClosure = { "\($0)" }
         let captor = Match.Capture<ExternalContainerClosure>()
         let stub = try Stub<any ExternalClosureInitializerService>()
-        stub.onCall(initializer: {
+        stub.when(initializer: {
             type(of: $0).init(
                 transform: captor.capture(using: identity)
             )
         }).thenInitialize()
-        stub.onCall { $0.apply(Match.any()) }.thenReturn("stubbed")
+        stub.when { $0.apply(Match.any()) }.thenReturn("stubbed")
 
         let seed: any ExternalClosureInitializerService = stub()
         _ = type(of: seed).init(transform: { "\($0 * 2)!" })
@@ -286,13 +286,13 @@ struct ClosureBoundaryExpansionTests {
         let result: ExternalContainerClosure = { "\($0 * 2)!" }
         let stub = try Stub<any ExternalClosureRequirementPositionsService>()
 
-        stub.onCall(returning: identity) {
+        stub.when(returning: identity) {
             type(of: $0).staticTransform(Match.any(using: identity))
         }.thenReturn(result)
-        stub.onCall(returning: [identity]) {
+        stub.when(returning: [identity]) {
             $0.variadic(Match.any(using: identity))
         }.thenReturn([result])
-        stub.onCall(returning: identity) {
+        stub.when(returning: identity) {
             $0[Match.any(using: identity)]
         }.thenReturn(result)
 
@@ -323,7 +323,7 @@ struct ClosureBoundaryExpansionTests {
         let identity: ExternalContainerClosure = { "\($0)" }
         let stub = try Stub<any ExternalBorrowingClosureParameterService>()
 
-        stub.onCall {
+        stub.when {
             $0.borrow(Match.any(using: identity))
         }.then { (closure: ExternalContainerClosure) in closure(21) + "?" }
 
@@ -348,19 +348,19 @@ struct ClosureBoundaryExpansionTests {
         }
         let stub = try Stub<any ExternalAutoclosureParameterService>()
 
-        stub.onCall {
+        stub.when {
             let matched = Match.any(using: integerPlaceholder)
             return $0.evaluate(matched())
         }.then { (value: @Sendable () -> Int) in value() * 2 }
-        stub.onCall {
+        stub.when {
             let matched = Match.any(using: floatingPlaceholder)
             return $0.evaluateFloating(matched())
         }.then { (value: @Sendable () -> Double) in value() + 0.5 }
-        stub.onCall {
+        stub.when {
             let matched = Match.any(using: aggregatePlaceholder)
             return $0.evaluateAggregate(matched())
         }.then { (value: @Sendable () -> ExternalNullaryAggregate) in value() }
-        stub.onCall {
+        stub.when {
             let matched = Match.any(using: largePlaceholder)
             return $0.evaluateLarge(matched())
         }.then { (value: @Sendable () -> ExternalNullaryLargeResult) in value() }
@@ -427,12 +427,12 @@ struct ClosureBoundaryExpansionTests {
             Match.Capture<ExternalOptionalHigherOrderClosure>()
         let stub = try Stub<any ExternalDynamicArityClosureService>()
 
-        stub.onCall(returning: widePlaceholder) {
+        stub.when(returning: widePlaceholder) {
             $0.wideUnary(wideCaptor.capture(using: widePlaceholder))
         }.thenReturn { value in
             "\(value.label)-\(value.first + value.second + value.third + value.fourth)"
         }
-        stub.onCall(returning: binaryPlaceholder) {
+        stub.when(returning: binaryPlaceholder) {
             $0.mixedBinary(binaryCaptor.capture(using: binaryPlaceholder))
         }.thenReturn { value, floating in
             ExternalNullaryAggregate(
@@ -441,31 +441,31 @@ struct ClosureBoundaryExpansionTests {
                 enabled: true
             )
         }
-        stub.onCall(returning: ternaryPlaceholder) {
+        stub.when(returning: ternaryPlaceholder) {
             $0.mixedTernary(ternaryCaptor.capture(using: ternaryPlaceholder))
         }.thenReturn { floating, value, label in
             Double(floating) + Double(value + label.count)
         }
-        stub.onCall(returning: quaternaryPlaceholder) {
+        stub.when(returning: quaternaryPlaceholder) {
             $0.mixedQuaternary(
                 quaternaryCaptor.capture(using: quaternaryPlaceholder)
             )
         }.thenReturn { value, floating, enabled, label in
             "\(label)-\(value)-\(floating)-\(enabled)"
         }
-        stub.onCall(returning: quinaryPlaceholder) {
+        stub.when(returning: quinaryPlaceholder) {
             $0.mixedQuinary(
                 quinaryCaptor.capture(using: quinaryPlaceholder)
             )
         }.thenReturn { value, floating, enabled, short, label in
             "\(label)-\(value)-\(floating)-\(enabled)-\(short)"
         }
-        stub.onCall(returning: senaryPlaceholder) {
+        stub.when(returning: senaryPlaceholder) {
             $0.senary(senaryCaptor.capture(using: senaryPlaceholder))
         }.thenReturn { first, second, third, fourth, fifth, sixth in
             first * second * third * fourth * fifth * sixth
         }
-        stub.onCall(returning: higherOrderPlaceholder) {
+        stub.when(returning: higherOrderPlaceholder) {
             $0.optionalHigherOrder(
                 higherOrderCaptor.capture(using: higherOrderPlaceholder)
             )
@@ -560,7 +560,7 @@ struct ClosureBoundaryExpansionTests {
         }
         let captor = Match.Capture<ExternalThrowingQuaternaryClosure>()
         let stub = try Stub<any ExternalDynamicArityClosureService>()
-        stub.onCall(returning: placeholder) {
+        stub.when(returning: placeholder) {
             $0.throwingQuaternary(captor.capture(using: placeholder))
         }.thenReturn { value, floating, enabled, label in
             guard enabled else {
@@ -636,12 +636,12 @@ struct ClosureBoundaryExpansionTests {
         let mixedCaptor = Match.Capture<ExternalMixedTypedBinaryClosure>()
         let stub = try Stub<any ExternalDynamicTypedClosureService>()
 
-        stub.onCall(returning: quaternaryPlaceholder) {
+        stub.when(returning: quaternaryPlaceholder) {
             $0.quaternary(
                 quaternaryCaptor.capture(using: quaternaryPlaceholder)
             )
         }.thenReturn(quaternaryResult)
-        stub.onCall(returning: mixedPlaceholder) {
+        stub.when(returning: mixedPlaceholder) {
             $0.mixedError(mixedCaptor.capture(using: mixedPlaceholder))
         }.thenReturn(mixedResult)
 
@@ -712,7 +712,7 @@ struct ClosureBoundaryExpansionTests {
         }
         let captor = Match.Capture<ExternalTypedIndirectSuccessClosure>()
         let stub = try Stub<any ExternalDynamicTypedClosureService>()
-        stub.onCall(returning: placeholder) {
+        stub.when(returning: placeholder) {
             $0.indirectSuccess(captor.capture(using: placeholder))
         }.thenReturn(result)
 
@@ -764,10 +764,10 @@ struct ClosureBoundaryExpansionTests {
         }
         let higherCaptor = Match.Capture<ExternalTypedHigherOrderClosure>()
         let stub = try Stub<any ExternalDynamicTypedClosureService>()
-        stub.onCall(returning: nullaryPlaceholder) {
+        stub.when(returning: nullaryPlaceholder) {
             $0.nullary(nullaryCaptor.capture(using: nullaryPlaceholder))
         }.thenReturn(nullaryResult)
-        stub.onCall(returning: higherPlaceholder) {
+        stub.when(returning: higherPlaceholder) {
             $0.higherOrder(higherCaptor.capture(using: higherPlaceholder))
         }.thenReturn(higherResult)
 
@@ -797,13 +797,13 @@ struct ClosureBoundaryExpansionTests {
         let choicePlaceholder = ExternalClosureChoice.transform(identity)
         let stub = try Stub<any ExternalClosureCollectionService>()
 
-        stub.onCall(returning: dictionaryPlaceholder) {
+        stub.when(returning: dictionaryPlaceholder) {
             $0.dictionary(Match.any(using: dictionaryPlaceholder))
         }.then { (value: [String: ExternalContainerClosure]) in value }
-        stub.onCall(returning: resultPlaceholder) {
+        stub.when(returning: resultPlaceholder) {
             $0.result(Match.any(using: resultPlaceholder))
         }.then { (value: ExternalClosureResult) in value }
-        stub.onCall(returning: choicePlaceholder) {
+        stub.when(returning: choicePlaceholder) {
             $0.choice(Match.any(using: choicePlaceholder))
         }.then { (value: ExternalClosureChoice) in value }
 
@@ -851,10 +851,10 @@ struct ClosureBoundaryExpansionTests {
         let captor = Match.Capture<ExternalResultHigherOrderClosure>()
         let boxedCaptor = Match.Capture<ExternalBoxHigherOrderClosure>()
         let stub = try Stub<any ExternalResultHigherOrderClosureService>()
-        stub.onCall(returning: placeholder) {
+        stub.when(returning: placeholder) {
             $0.transform(captor.capture(using: placeholder))
         }.thenReturn(configured)
-        stub.onCall(returning: boxedPlaceholder) {
+        stub.when(returning: boxedPlaceholder) {
             $0.boxed(boxedCaptor.capture(using: boxedPlaceholder))
         }.thenReturn(boxedResult)
 
