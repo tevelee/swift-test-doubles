@@ -25,9 +25,11 @@ states, timeouts, and cancellation, and <doc:InspectingInteractions> to read
 recorded arguments, order calls across doubles, and reset a double between
 cases. Use <doc:ConstructionGuide> when choosing a construction path,
 <doc:StubContract> when checking the supported runtime boundary, and
-<doc:ManualStubbing> when a hand-written conformer is a better fit. No
-construction path launches an external tool. The generated existential owns its
-runtime resources and may outlive the ``Stub`` that created it.
+<doc:ManualStubbing> when a hand-written conformer is a better fit. Use
+<doc:ClosureClients> when dependencies are concrete structs whose operations
+are stored closures. No construction path launches an external tool. The
+generated existential owns its runtime resources and may outlive the ``Stub``
+that created it.
 
 Runtime stubs support synchronous, throwing, async, and async-throwing
 requirements, inherited protocols, protocol compositions, direct property and
@@ -60,6 +62,7 @@ isolation. See
 - <doc:ForwardingSpies>
 - <doc:StubContract>
 - <doc:ManualStubbing>
+- <doc:ClosureClients>
 
 ### Runtime Stub API
 
@@ -126,6 +129,12 @@ isolation. See
 - ``ManualStubConformer``
 - ``ManualRequirementRoute``
 - ``ManualThrowingRequirementRoute``
+
+### Closure-Based Dependencies
+
+- <doc:ClosureClients>
+- ``ClientStub``
+- ``ClientStubEndpoints``
 
 ### Matching and Capture
 

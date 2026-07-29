@@ -55,6 +55,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   preparation plans without constructing a test double.
 - Per-stub construction and dispatch performance snapshots with phase timing,
   pending/completed counts, and slowest-method aggregates.
+- `ClientStub` now gives concrete closure-field dependency clients the same
+  `when`/behavior/verification engine as protocol and manual stubs. One typed
+  endpoint router supports nullary and arbitrary-arity synchronous, throwing,
+  async, async-throwing, and typed-throws operations without runtime protocol
+  metadata or executable trampolines.
+- Tuple-input closure doubles can expand to arbitrary-arity functions and use
+  separate typed arguments in matchers and computed behaviors across every
+  synchronous, throwing, async, and async-throwing variant.
 
 ### Fixed
 

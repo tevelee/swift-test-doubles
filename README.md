@@ -6,9 +6,10 @@
 [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Ftevelee%2Fswift-test-doubles%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/tevelee/swift-test-doubles)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Mocks for Swift protocols, created at runtime.** No macros, no code
-generation, no hand-written mock classes. Point `Stub` at a protocol and get a
-real, configurable, verifiable implementation back while your test is running.
+**Configurable Swift test doubles for protocols and closure-based
+dependencies.** Point `Stub` at a protocol for a runtime-created conformance, or
+build a concrete closure-field client with `ClientStub`. Both use the same
+matching, behavior, recording, and verification vocabulary.
 
 ## Quick start
 
@@ -240,6 +241,50 @@ loads.verify()
 `AsyncThrowingClosureDouble` models `(Input) async throws -> Result`. Async
 patterns also share delayed results, suspension, and cancellation controls with
 protocol stubs.
+
+Multi-argument closures use a tuple input and expand back to an ordinary
+function of any arity:
+
+```swift
+let format = AsyncThrowingClosureDouble<(Int, String, Bool), String>()
+format.whenArguments { (count: Int, _: String, enabled: Bool) in
+    count > 0 && enabled
+}.thenArguments { (count: Int, unit: String, _: Bool) async throws in
+    "\(count) \(unit)"
+}
+
+let function: (Int, String, Bool) async throws -> String =
+    format.expandedFunction()
+```
+
+Use `ClientStub` when those closures belong to one concrete dependency value:
+
+```swift
+struct APIClient {
+    var fetch: @Sendable (Int, String) async throws -> Data
+    var track: @Sendable (String) -> Void
+}
+
+let api = ClientStub<APIClient> { endpoints in
+    APIClient(
+        fetch: endpoints.asyncThrowingFunction("fetch"),
+        track: endpoints.function("track")
+    )
+}
+
+await api.when {
+    try await $0.fetch(Match.equal(42), Match.any())
+}.thenReturn(Data())
+api.when { $0.track(Match.any()) }.thenDoNothing()
+
+let client: APIClient = api()
+```
+
+All client endpoints share one recorder, including nullary and high-arity
+sync, throwing, async, and async-throwing operations. This construction path
+does not use protocol metadata or executable trampolines, and works with the
+`RuntimeStubs` package trait disabled. See
+[Closure-Based Dependencies](Sources/TestDoubles/Documentation.docc/Articles/ClosureClients.md).
 
 ### Control async timing
 
@@ -676,6 +721,7 @@ The DocC catalog covers the rest of the surface, with examples:
 - [Forwarding Spies](Sources/TestDoubles/Documentation.docc/Articles/ForwardingSpies.md): the forwarding boundary and diagnostics.
 - [Dummy Test Doubles](Sources/TestDoubles/Documentation.docc/Articles/DummyTestDoubles.md): fail-on-use placeholders.
 - [Manual Stubbing](Sources/TestDoubles/Documentation.docc/Articles/ManualStubbing.md): the same API via a hand-written conformer, for device targets and out-of-boundary shapes.
+- [Closure-Based Dependencies](Sources/TestDoubles/Documentation.docc/Articles/ClosureClients.md): concrete closure-field clients and arbitrary-arity standalone function doubles.
 - [Stub Contract](Sources/TestDoubles/Documentation.docc/Articles/StubContract.md): the normative support and failure contract, including static and initializer requirements, dynamic `Self`, subscripts, and setters.
 
 ## Contributing
