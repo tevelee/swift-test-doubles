@@ -1,4 +1,4 @@
-@_exported import TestDoubles
+import TestDoubles
 
 #if TESTDOUBLES_STUBBABLE_MACROS
     /// Generates a ``ManualStub`` conformer for an ordinary protocol declaration.

@@ -102,6 +102,7 @@ Add the macro product to the target that declares the protocol:
 Then annotate the protocol and configure the generated `ManualStub` normally:
 
 ```swift
+import TestDoubles
 import TestDoublesMacros
 
 @Stubbable
