@@ -85,6 +85,12 @@ Registrations use first-match-wins ordering, like the cases in a `switch`.
 Register specific matchers before general fallbacks. TestDoubles reports a new
 registration when an earlier registration provably makes it unreachable.
 
+When a call has no matching registration, its diagnostic ends with
+copy/paste-ready `when` code built from the actual argument labels and values.
+Non-`Void` suggestions use a deliberate `fatalError("TODO: configure …")`
+handler, so the pasted registration compiles for any result type and keeps the
+unfinished return behavior visible.
+
 Every argument in one recorded invocation must either use a matcher or use its
 literal value. Do not mix the two styles in one call.
 

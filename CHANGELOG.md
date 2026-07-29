@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Native Swift `Regex` matching, including expressions with typed captures.
 - A public `CustomMatcher` protocol and `Match.custom` adapter for reusable
   matcher packages.
+- Copy/paste-ready `when` registrations in missing and nonmatching stub
+  diagnostics, with escaped literals and a compiling TODO return handler.
 
 ## [0.0.2] - 2026-07-29
 

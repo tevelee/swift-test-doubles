@@ -288,8 +288,12 @@ private struct UnexpectedTypedError: Error {}
             )
             #expect(diagnostic.contains("No stub configured for greet(name:)"))
             #expect(diagnostic.contains("arg0: \"eve\""))
+            #expect(diagnostic.contains("Suggested (copy/paste):"))
             #expect(
-                diagnostic.contains("stub.when { $0.greet(name: Match.equal(\"eve\")) }.thenReturn(...)")
+                diagnostic.contains(
+                    "stub.when { $0.greet(name: Match.equal(\"eve\")) }"
+                        + ".then { fatalError(\"TODO: configure greet(name:)\") }"
+                )
             )
         }
 
@@ -334,6 +338,12 @@ private struct UnexpectedTypedError: Error {}
             #expect(diagnostic.contains("greet(name:)(Match.equal(alice))"))
             #expect(
                 diagnostic.contains("arg0 rejected: expected Match.equal(alice), got \"bob\"")
+            )
+            #expect(
+                diagnostic.contains(
+                    "stub.when { $0.greet(name: Match.equal(\"bob\")) }"
+                        + ".then { fatalError(\"TODO: configure greet(name:)\") }"
+                )
             )
         }
 

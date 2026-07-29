@@ -53,7 +53,7 @@ enum StubRecorderDiagnostics {
 
         if method.origin != .explicit {
             lines.append("")
-            lines.append("Suggested:")
+            lines.append("Suggested (copy/paste):")
             lines.append("  \(suggestedStubSnippet(method: method, args: args))")
         }
         return lines.joined(separator: "\n")
@@ -277,7 +277,7 @@ enum StubRecorderDiagnostics {
         let behavior =
             method.returnType == Void.self
             ? ".thenDoNothing()"
-            : ".thenReturn(...)"
+            : ".then { fatalError(\(String(reflecting: "TODO: configure \(method.name)"))) }"
         return "\(configurationPrefix)stub.when { \(requirementCall("\(receiver).\(invocation)")) }\(behavior)"
     }
 
@@ -320,12 +320,25 @@ enum StubRecorderDiagnostics {
     private static func swiftLiteralDescription(_ value: Any) -> String {
         switch value {
             case let value as String:
-                return "\"\(value.replacingOccurrences(of: "\"", with: "\\\""))\""
+                return String(reflecting: value)
             case let value as Character:
-                return "\"\(value)\""
+                return String(reflecting: value)
+            case let value as Float:
+                return floatingPointLiteral(value)
+            case let value as Double:
+                return floatingPointLiteral(value)
             default:
                 return String(describing: value)
         }
+    }
+
+    private static func floatingPointLiteral<Value: BinaryFloatingPoint>(
+        _ value: Value
+    ) -> String {
+        if value.isNaN { return ".nan" }
+        if value == .infinity { return ".infinity" }
+        if value == -.infinity { return "-.infinity" }
+        return String(describing: value)
     }
 }
 

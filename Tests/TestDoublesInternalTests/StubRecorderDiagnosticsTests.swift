@@ -72,9 +72,11 @@ private protocol AsyncFailureProbe {
         #expect(message.contains("arg1: \"alice\""))
         #expect(message.contains("Registered stubs:\n  <none>"))
         #expect(message.contains("Register behavior with `stub.when { ... }` before invoking"))
+        #expect(message.contains("Suggested (copy/paste):"))
         #expect(
             message.contains(
-                "stub.when { $0.fetch(id: Match.equal(42), name: Match.equal(\"alice\")) }.thenReturn(...)"
+                "stub.when { $0.fetch(id: Match.equal(42), name: Match.equal(\"alice\")) }"
+                    + ".then { fatalError(\"TODO: configure fetch(id:name:)\") }"
             )
         )
     }
@@ -91,7 +93,7 @@ private protocol AsyncFailureProbe {
         )
 
         #expect(message.contains("  <no arguments>"))
-        #expect(message.contains("Suggested:") == false)
+        #expect(message.contains("Suggested (copy/paste):") == false)
     }
 
     @Test func suggestionsUseStaticAndGeneratedResultBuilders() {
@@ -121,7 +123,12 @@ private protocol AsyncFailureProbe {
             entries: []
         )
 
-        #expect(staticMethod.contains("stub.when { type(of: $0).name() }.thenReturn(...)"))
+        #expect(
+            staticMethod.contains(
+                "stub.when { type(of: $0).name() }"
+                    + ".then { fatalError(\"TODO: configure name()\") }"
+            )
+        )
         #expect(
             initializer.contains(
                 "stub.when(initializer: { type(of: $0).init(id: Match.equal(1)) }).thenInitialize()"
@@ -203,7 +210,8 @@ private protocol AsyncFailureProbe {
 
         #expect(
             asyncThrowing.contains(
-                "await stub.when { try await $0.load(id: Match.equal(42)) }.thenReturn(...)"
+                "await stub.when { try await $0.load(id: Match.equal(42)) }"
+                    + ".then { fatalError(\"TODO: configure load(id:)\") }"
             )
         )
         #expect(void.contains("stub.when { $0.reset() }.thenDoNothing()"))
@@ -218,7 +226,12 @@ private protocol AsyncFailureProbe {
             args: [1, 2],
             entries: []
         )
-        #expect(unlabeled.contains("stub.when { $0.add(Match.equal(1), Match.equal(2)) }.thenReturn(...)"))
+        #expect(
+            unlabeled.contains(
+                "stub.when { $0.add(Match.equal(1), Match.equal(2)) }"
+                    + ".then { fatalError(\"TODO: configure add(_:_:)\") }"
+            )
+        )
 
         let property = recorder.diagnosticMessage(
             title: "No stub configured",
@@ -226,7 +239,12 @@ private protocol AsyncFailureProbe {
             args: [3],
             entries: []
         )
-        #expect(property.contains("stub.when { $0.count(Match.equal(3)) }.thenReturn(...)"))
+        #expect(
+            property.contains(
+                "stub.when { $0.count(Match.equal(3)) }"
+                    + ".then { fatalError(\"TODO: configure count\") }"
+            )
+        )
 
         let mismatchedLabels = recorder.diagnosticMessage(
             title: "No stub configured",
@@ -234,7 +252,12 @@ private protocol AsyncFailureProbe {
             args: [1, 2],
             entries: []
         )
-        #expect(mismatchedLabels.contains("stub.when { $0.route(Match.equal(1), Match.equal(2)) }.thenReturn(...)"))
+        #expect(
+            mismatchedLabels.contains(
+                "stub.when { $0.route(Match.equal(1), Match.equal(2)) }"
+                    + ".then { fatalError(\"TODO: configure route(a:)\") }"
+            )
+        )
     }
 
     @Test func suggestedLiteralsEscapeStringsAndCharacters() {
@@ -245,12 +268,34 @@ private protocol AsyncFailureProbe {
                 name: "mark(text:grade:)",
                 argumentTypes: [String.self, Character.self]
             ),
-            args: ["say \"hi\"", Character("A")],
+            args: ["say \"hi\" on C:\\tmp\nnext", Character("\n")],
             entries: []
         )
 
-        #expect(message.contains("text: Match.equal(\"say \\\"hi\\\"\")"))
-        #expect(message.contains("grade: Match.equal(\"A\")"))
+        #expect(
+            message.contains(
+                #"text: Match.equal("say \"hi\" on C:\\tmp\nnext")"#
+            )
+        )
+        #expect(message.contains(#"grade: Match.equal("\n")"#))
+    }
+
+    @Test func suggestedFloatingPointLiteralsCoverSpecialValues() {
+        let recorder = makeRecorder()
+
+        let message = recorder.diagnosticMessage(
+            title: "No matching stub",
+            method: makeMethod(
+                name: "measure(nan:positive:negative:)",
+                argumentTypes: [Double.self, Double.self, Double.self]
+            ),
+            args: [Double.nan, Double.infinity, -Double.infinity],
+            entries: []
+        )
+
+        #expect(message.contains("nan: Match.equal(.nan)"))
+        #expect(message.contains("positive: Match.equal(.infinity)"))
+        #expect(message.contains("negative: Match.equal(-.infinity)"))
     }
 
     @Test func lookupsFailSoftlyForUnknownIndices() {
