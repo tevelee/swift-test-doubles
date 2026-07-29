@@ -1,6 +1,10 @@
 import BenchmarkFixtures
 import TestDoubles
 
+private struct UncheckedSendable<Value>: @unchecked Sendable {
+    let value: Value
+}
+
 @inline(never)
 func invokeUnary(_ service: any UnaryBenchmarkService, value: Int) -> Int {
     service.transform(value)
@@ -170,6 +174,71 @@ func timedAsync(
     )
 }
 
+func timedConcurrent(
+    iterations: Int,
+    workerCount: Int,
+    operation: @escaping @Sendable (_ worker: Int, _ iteration: Int) -> Int
+) async -> TimedMeasurement {
+    let clock = ContinuousClock()
+    let start = clock.now
+    let checksum = await withTaskGroup(of: UInt64.self) { group in
+        let quotient = iterations / workerCount
+        let remainder = iterations % workerCount
+        for worker in 0 ..< workerCount {
+            let count = quotient + (worker < remainder ? 1 : 0)
+            let first = worker * quotient + min(worker, remainder)
+            group.addTask {
+                var checksum: UInt64 = 0
+                for offset in 0 ..< count {
+                    checksum &+= UInt64(
+                        truncatingIfNeeded: operation(worker, first + offset)
+                    )
+                }
+                return checksum
+            }
+        }
+        var checksum: UInt64 = 0
+        for await partial in group {
+            checksum &+= partial
+        }
+        return checksum
+    }
+    let end = clock.now
+    return TimedMeasurement(
+        elapsedNanoseconds: elapsedNanoseconds(from: start, to: end),
+        checksum: checksum
+    )
+}
+
+func concurrentInvocationBenchmark() -> BenchmarkDefinition {
+    BenchmarkDefinition(
+        name: "stub.concurrent.independent",
+        preExpansionComparable: false,
+        pilotIterations: 1_000,
+        maximumIterations: 100_000
+    ) { iterations in
+        let workerCount = 8
+        _ = LinkedUnaryBenchmarkService()
+        let services: [any UnaryBenchmarkService] = try (0 ..< workerCount)
+            .map { _ in
+                let stub = try Stub<any UnaryBenchmarkService>()
+                stub.when { $0.transform(any()) }
+                    .then { (value: Int) in value &+ 1 }
+                return stub()
+            }
+        let captured = UncheckedSendable(value: services)
+        return await timedConcurrent(
+            iterations: iterations,
+            workerCount: workerCount
+        ) { worker, iteration in
+            invokeUnary(
+                captured.value[worker],
+                value: iteration
+            )
+        }
+    }
+}
+
 func benchmarkDefinitions() -> [BenchmarkDefinition] {
     [
         BenchmarkDefinition(
@@ -234,6 +303,7 @@ func benchmarkDefinitions() -> [BenchmarkDefinition] {
                 invokeOne(service, value: $0)
             }
         },
+        concurrentInvocationBenchmark(),
         BenchmarkDefinition(
             name: "stub.invoke.arity6",
             preExpansionComparable: true,
