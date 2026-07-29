@@ -103,6 +103,177 @@ private final class ConcurrentGatewayStub: @unchecked Sendable {
             .verifyNoMoreInteractions()
     }
 
+    @Test func savedPatternsReadAsAnOrderedBuilder() throws {
+        let gateway = try Stub<any CrossOrderGateway>()
+        let analytics = try Stub<any CrossOrderAnalytics>()
+        let charge = gateway.when {
+            $0.charge(amount: Match.equal(42))
+        }
+        charge.thenDoNothing()
+        let purchase = analytics.when {
+            $0.track(event: Match.equal("purchase"))
+        }.thenDoNothing()
+
+        gateway().charge(amount: 42)
+        analytics().track(event: "purchase")
+
+        InvocationOrder(exhaustive: true) {
+            charge
+            purchase
+        }
+    }
+
+    @Test func directInvocationsReadAsAnOrderedBuilder() throws {
+        let gateway = try Stub<any CrossOrderGateway>()
+        let analytics = try Stub<any CrossOrderAnalytics>()
+        gateway.when { $0.charge(amount: Match.any()) }.thenDoNothing()
+        analytics.when { $0.track(event: Match.any()) }.thenDoNothing()
+        let gatewayValue: any CrossOrderGateway = gateway()
+        let analyticsValue: any CrossOrderAnalytics = analytics()
+
+        gatewayValue.charge(amount: 42)
+        analyticsValue.track(event: "purchase")
+
+        InvocationOrder(exhaustive: true) {
+            gatewayValue.charge(amount: 42)
+            analyticsValue.track(event: Match.equal("purchase"))
+        }
+
+        #expect(gateway.history.callCount == 1)
+        #expect(analytics.history.callCount == 1)
+    }
+
+    @Test func directAsyncInvocationsReadAsAnOrderedBuilder() async throws {
+        let gateway = try Stub<any CrossOrderGateway>()
+        let analytics = try Stub<any CrossOrderAnalytics>()
+        await gateway.when { await $0.settle() }.thenDoNothing()
+        analytics.when { $0.track(event: Match.any()) }.thenDoNothing()
+        let gatewayValue: any CrossOrderGateway = gateway()
+        let analyticsValue: any CrossOrderAnalytics = analytics()
+
+        await gatewayValue.settle()
+        analyticsValue.track(event: "settled")
+
+        await InvocationOrder(exhaustive: true) {
+            await gatewayValue.settle()
+            analyticsValue.track(event: "settled")
+        }
+
+        #expect(gateway.history.callCount == 1)
+        #expect(analytics.history.callCount == 1)
+    }
+
+    @Test func nonexhaustiveBuilderAcceptsAnOrderedSubsequence() throws {
+        let gateway = try Stub<any CrossOrderGateway>()
+        let analytics = try Stub<any CrossOrderAnalytics>()
+        let charge = gateway.when {
+            $0.charge(amount: Match.equal(42))
+        }
+        charge.thenDoNothing()
+        let purchase = analytics.when {
+            $0.track(event: Match.equal("purchase"))
+        }
+        purchase.thenDoNothing()
+        analytics.when { $0.track(event: Match.any()) }.thenDoNothing()
+
+        gateway().charge(amount: 42)
+        analytics().track(event: "noise")
+        analytics().track(event: "purchase")
+        analytics().track(event: "after")
+
+        InvocationOrder {
+            charge
+            purchase
+        }
+    }
+
+    @Test func exhaustiveBuilderReportsInteractionsOutsideTheSequence() throws {
+        let gateway = try Stub<any CrossOrderGateway>()
+        let analytics = try Stub<any CrossOrderAnalytics>()
+        let charge = gateway.when {
+            $0.charge(amount: Match.equal(42))
+        }
+        charge.thenDoNothing()
+        let purchase = analytics.when {
+            $0.track(event: Match.equal("purchase"))
+        }
+        purchase.thenDoNothing()
+        analytics.when { $0.track(event: Match.any()) }.thenDoNothing()
+
+        gateway().charge(amount: 42)
+        analytics().track(event: "noise")
+        analytics().track(event: "purchase")
+
+        expectReportsIssue {
+            InvocationOrder(exhaustive: true) {
+                charge
+                purchase
+            }
+        } matching: {
+            $0.description.contains("noise")
+        }
+    }
+
+    @Test func builderSupportsConditionalsAndLoops() throws {
+        let gateway = try Stub<any CrossOrderGateway>()
+        let first = gateway.when {
+            $0.charge(amount: Match.equal(1))
+        }
+        first.thenDoNothing()
+        let second = gateway.when {
+            $0.charge(amount: Match.equal(2))
+        }
+        second.thenDoNothing()
+        let patterns = [first, second]
+        let includeSettledState = false
+
+        gateway().charge(amount: 1)
+        gateway().charge(amount: 2)
+
+        InvocationOrder(exhaustive: true) {
+            for pattern in patterns {
+                pattern
+            }
+            if includeSettledState {
+                first
+            }
+        }
+    }
+
+    @Test func scopedContextClosesDirectExpectationsExhaustively() throws {
+        let gateway = try Stub<any CrossOrderGateway>()
+        let analytics = try Stub<any CrossOrderAnalytics>()
+        gateway.when { $0.charge(amount: Match.any()) }.thenDoNothing()
+        analytics.when { $0.track(event: Match.any()) }.thenDoNothing()
+
+        gateway().charge(amount: 42)
+        analytics().track(event: "purchase")
+
+        InvocationOrder(exhaustive: true) { order in
+            order.verify(gateway) { $0.charge(amount: Match.equal(42)) }
+            order.verify(analytics) {
+                $0.track(event: Match.equal("purchase"))
+            }
+        }
+    }
+
+    @Test func asyncScopedContextClosesDirectExpectationsExhaustively() async throws {
+        let gateway = try Stub<any CrossOrderGateway>()
+        let analytics = try Stub<any CrossOrderAnalytics>()
+        await gateway.when { await $0.settle() }.thenDoNothing()
+        analytics.when { $0.track(event: Match.any()) }.thenDoNothing()
+
+        await gateway().settle()
+        analytics().track(event: "settled")
+
+        await InvocationOrder(exhaustive: true) { order in
+            await order.verify(gateway) { await $0.settle() }
+            order.verify(analytics) {
+                $0.track(event: Match.equal("settled"))
+            }
+        }
+    }
+
     @Test func reportsWhenInteractionsHappenedInTheOppositeOrder() throws {
         let gateway = try Stub<any CrossOrderGateway>()
         let analytics = try Stub<any CrossOrderAnalytics>()

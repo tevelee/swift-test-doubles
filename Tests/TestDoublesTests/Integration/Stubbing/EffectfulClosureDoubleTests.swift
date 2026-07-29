@@ -102,6 +102,65 @@ private enum EffectfulClosureFailure: Error, Equatable {
             .verifyNoMoreInteractions()
     }
 
+    @Test func everySavedClosurePatternParticipatesInTheOrderBuilder() async throws {
+        let ordinary = ClosureDouble<Int, String>()
+        let ordinaryPattern = ordinary.whenAny()
+        ordinaryPattern.thenReturn("ordinary")
+        let terminalDouble = ClosureDouble<Int, String>()
+        let terminal = terminalDouble.whenAny().thenReturn("terminal")
+        let throwing = ThrowingClosureDouble<Int, String>()
+        let throwingPattern = throwing.whenAny()
+        throwingPattern.thenReturn("throwing")
+        let asynchronous = AsyncClosureDouble<Int, String>()
+        let asyncPattern = asynchronous.whenAny()
+        asyncPattern.thenReturn("async")
+        let asyncThrowing = AsyncThrowingClosureDouble<Int, String>()
+        let asyncThrowingPattern = asyncThrowing.whenAny()
+        asyncThrowingPattern.thenReturn("async-throwing")
+
+        #expect(ordinary(1) == "ordinary")
+        #expect(try throwing(2) == "throwing")
+        #expect(await asynchronous(3) == "async")
+        #expect(try await asyncThrowing(4) == "async-throwing")
+        #expect(terminalDouble(5) == "terminal")
+
+        InvocationOrder(exhaustive: true) {
+            ordinaryPattern
+            throwingPattern
+            asyncPattern
+            asyncThrowingPattern
+            terminal
+        }
+    }
+
+    @Test func directEffectfulClosureInvocationsParticipateInTheOrderBuilder() async throws {
+        let ordinary = ClosureDouble<Int, String>()
+        ordinary.whenAny().thenReturn("ordinary")
+        let throwing = ThrowingClosureDouble<Int, String>()
+        throwing.whenAny().thenReturn("throwing")
+        let asynchronous = AsyncClosureDouble<Int, String>()
+        asynchronous.whenAny().thenReturn("async")
+        let asyncThrowing = AsyncThrowingClosureDouble<Int, String>()
+        asyncThrowing.whenAny().thenReturn("async-throwing")
+
+        #expect(ordinary(1) == "ordinary")
+        #expect(try throwing(2) == "throwing")
+        #expect(await asynchronous(3) == "async")
+        #expect(try await asyncThrowing(4) == "async-throwing")
+
+        try await InvocationOrder(exhaustive: true) {
+            ordinary(1)
+            try throwing(2)
+            await asynchronous(3)
+            try await asyncThrowing(4)
+        }
+
+        #expect(ordinary.invocations == [1])
+        #expect(throwing.invocations == [2])
+        #expect(asynchronous.invocations == [3])
+        #expect(asyncThrowing.invocations == [4])
+    }
+
     @Test func throwingClosureForwardsEveryBehaviorShape() throws {
         let closure = ThrowingClosureDouble<Int, String>()
 

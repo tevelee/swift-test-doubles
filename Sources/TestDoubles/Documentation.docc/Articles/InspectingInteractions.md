@@ -141,35 +141,48 @@ let purchase = analytics.when {
 
 Checkout(gateway: gateway(), analytics: analytics()).placeOrder()
 
-InvocationOrder()
-    .verify(charge)
-    .verify(purchase)
-    .verifyNoMoreInteractions()
+InvocationOrder(exhaustive: true) {
+    gateway().charge(amount: 42)
+    analytics().track(event: "purchase", value: 42)
+}
 ```
 
-Each `verify(_:_:)` step matches the earliest recorded call after the
-previously verified one and advances a
-shared cursor there. Unrelated calls may appear between the verified ones, just
-as with `verifyInOrder`. Ordering is by a process-wide sequence stamped on every
-recorded call, so it holds across `Stub`, `Spy`, and `ManualStub`, and across
-sync and async requirements. A step that finds no later matching call reports a
-test issue at its own source location and leaves the cursor unchanged;
-successful steps commit their captors and count toward
-`verifyNoMoreInteractions()`.
+Each builder expression matches the earliest recorded call after the previous
+one and advances a shared cursor there. Calls in the builder run in capture
+mode, so they do not record additional interactions or consume behavior.
+`exhaustive: true` additionally requires every interaction on each participating
+double to appear in the sequence. Omit the flag for subsequence verification,
+where unrelated calls may appear before, between, or after the listed
+expectations, just as with `verifyInOrder`. Ordering is by a process-wide
+sequence stamped on every recorded call, so it holds across `Stub`, `Spy`, and
+`ManualStub`, and across sync and async requirements. A step that finds no later
+matching call reports a test issue at its own source location and leaves the
+cursor unchanged; successful steps commit their captors.
 
 Both a ``CallPattern`` saved directly from `when` and the
-``CallInteractions`` returned by a terminal `then` method can be passed to
-`InvocationOrder`. The older stub-and-capture overloads remain available when
-the expectation was not saved during setup.
+``CallInteractions`` returned by a terminal `then` method can be listed
+directly instead of repeating a call. This is useful when the same description
+also configures behavior, reads arguments, or uses rich matchers:
+
+```swift
+InvocationOrder(exhaustive: true) {
+    charge
+    purchase
+}
+```
+
+Conditionals and loops are supported. Async and throwing invocations use the
+ordinary `await` and `try` spellings. Like `when` and `verify`, a direct
+invocation whose return type has no safe recording placeholder needs a factory
+registered with ``Match/Placeholders``; saving a pattern through the
+`returning:` overload is the explicit alternative.
 
 `InvocationOrder` has its own ``InvocationOrder/verifyNoMoreInteractions(fileID:filePath:line:column:)``,
-which closes out every double the session touched in one call instead of one
-per double:
-
-It reports the same per-double diagnostic as `Stub.verifyNoMoreInteractions()`
-and `ManualStub.verifyNoMoreInteractions()`, for every double this session
-verified at least once. A double the session never touched is out of scope,
-even if it has recorded calls of its own — check that one directly.
+which remains the explicit strict terminator for the older fluent chain. It
+reports the same per-double diagnostic as `Stub.verifyNoMoreInteractions()` and
+`ManualStub.verifyNoMoreInteractions()`, for every double this session verified
+at least once. A double the session never touched is out of scope, even if it
+has recorded calls of its own — check that one directly.
 
 ### Catch stale and unreachable registrations
 

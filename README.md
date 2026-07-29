@@ -357,16 +357,20 @@ and every `CallbackCapture` is released.
 For custom assertions, read a pattern's recorded arguments as typed tuples with
 `arguments()`; `describeInteractions()` dumps the whole call log as a
 human-readable, ordered string when a failing `verify` leaves you asking what
-actually got called; `InvocationOrder` accepts saved patterns and terminal
-interaction handles in a fluent chain to check call order across several
-doubles without repeating capture closures; `verifyNoUnusedStubs()` flags
-registrations no call matched; and `reset()` restores a double between
-parameterized cases. See
+actually got called; `InvocationOrder` captures repeated method invocations in
+an ordered builder and also accepts saved patterns or terminal interaction
+handles; `verifyNoUnusedStubs()` flags registrations no call matched; and
+`reset()` restores a double between parameterized cases. See
 [Inspecting Interactions](Sources/TestDoubles/Documentation.docc/Articles/InspectingInteractions.md).
 
 ```swift
 let events: [(String, Int)] = allEvents.arguments()
 #expect(events == [("add_to_cart", 30), ("add_to_cart", 12), ("purchase", 42)])
+
+InvocationOrder(exhaustive: true) {
+    gateway().charge(amount: 42)
+    analytics().track(event: "purchase", value: 42)
+}
 ```
 
 For event-driven code, `stream()` yields matching calls made after the stream

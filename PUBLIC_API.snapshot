@@ -28,6 +28,7 @@ conformance	TestDoubles	InteractionTimeline.Dispatch	Swift.Sendable	[]
 conformance	TestDoubles	InteractionTimeline.Event	Swift.Identifiable	[]
 conformance	TestDoubles	InteractionTimeline.Event	Swift.Sendable	[]
 conformance	TestDoubles	InvocationOrder	Swift.Sendable	[]
+conformance	TestDoubles	InvocationOrder.Expectation	Swift.Sendable	[]
 conformance	TestDoubles	InvocationStream	_Concurrency.AsyncSequence	[]
 conformance	TestDoubles	InvocationStream.Iterator	_Concurrency.AsyncIteratorProtocol	[]
 conformance	TestDoubles	ManualRouteID	Swift.Equatable	[]
@@ -92,6 +93,7 @@ symbol	TestDoubles	swift.class	ThrowingClosureDouble	final class ThrowingClosure
 symbol	TestDoubles	swift.class	VoidClosureDouble	final class VoidClosureDouble<Result>
 symbol	TestDoubles	swift.enum	FixtureValueRole	enum FixtureValueRole
 symbol	TestDoubles	swift.enum	InteractionTimeline.Dispatch	enum Dispatch
+symbol	TestDoubles	swift.enum	InvocationOrder.Builder	@resultBuilder enum Builder
 symbol	TestDoubles	swift.enum	Match	enum Match
 symbol	TestDoubles	swift.enum	Match.Placeholders	enum Placeholders
 symbol	TestDoubles	swift.enum	Stub.GetterEffect	enum GetterEffect
@@ -143,6 +145,10 @@ symbol	TestDoubles	swift.init	InteractionFixture.init()	init()
 symbol	TestDoubles	swift.init	InteractionFixture.init(from:)	init(from decoder: any Decoder) throws
 symbol	TestDoubles	swift.init	InteractionTimeline.Dispatch.init(rawValue:)	init?(rawValue: String)
 symbol	TestDoubles	swift.init	InvocationOrder.init()	init()
+symbol	TestDoubles	swift.init	InvocationOrder.init(exhaustive:fileID:filePath:line:column:_:)	@discardableResult convenience init(exhaustive: Bool = false, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column, @InvocationOrder.Builder _ expectations: () throws -> [Expectation]) rethrows
+symbol	TestDoubles	swift.init	InvocationOrder.init(exhaustive:fileID:filePath:line:column:_:)	@discardableResult convenience init(exhaustive: Bool = false, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column, _ verification: (InvocationOrder) async throws -> Void) async rethrows
+symbol	TestDoubles	swift.init	InvocationOrder.init(exhaustive:fileID:filePath:line:column:_:)	@discardableResult convenience init(exhaustive: Bool = false, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column, _ verification: (InvocationOrder) throws -> Void) rethrows
+symbol	TestDoubles	swift.init	InvocationOrder.init(exhaustive:isolation:fileID:filePath:line:column:_:)	@discardableResult convenience init(exhaustive: Bool = false, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column, @InvocationOrder.Builder _ expectations: () async throws -> [Expectation]) async rethrows
 symbol	TestDoubles	swift.init	ManualRouteID.init(_:argumentTypes:)	init(_ signature: String = #function, argumentTypes: Any.Type...)
 symbol	TestDoubles	swift.init	ManualStub.init()	init()
 symbol	TestDoubles	swift.init	ManualStubClock.init()	init()
@@ -687,6 +693,7 @@ symbol	TestDoubles	swift.struct	InteractionFixture	struct InteractionFixture
 symbol	TestDoubles	swift.struct	InteractionHistory	struct InteractionHistory
 symbol	TestDoubles	swift.struct	InteractionTimeline	struct InteractionTimeline
 symbol	TestDoubles	swift.struct	InteractionTimeline.Event	struct Event
+symbol	TestDoubles	swift.struct	InvocationOrder.Expectation	struct Expectation
 symbol	TestDoubles	swift.struct	InvocationStream	struct InvocationStream<Element>
 symbol	TestDoubles	swift.struct	InvocationStream.Iterator	struct Iterator
 symbol	TestDoubles	swift.struct	ManualMethodProxy	@dynamicCallable struct ManualMethodProxy<T> where T : StubConformer
@@ -712,6 +719,19 @@ symbol	TestDoubles	swift.subscript	ManualThrowingRoute.subscript(dynamicMember:)
 symbol	TestDoubles	swift.subscript	ManualThrowingRoute.subscript(dynamicMember:)	subscript<R>(dynamicMember member: String) -> R { get throws }
 symbol	TestDoubles	swift.type.method	Dummy.make(_:)	static func make(_ protocolType: P.Type = P.self) -> P
 symbol	TestDoubles	swift.type.method	InteractionFixture.load(from:)	static func load(from url: URL) throws -> InteractionFixture
+symbol	TestDoubles	swift.type.method	InvocationOrder.Builder.buildArray(_:)	static func buildArray(_ components: [[Expectation]]) -> [Expectation]
+symbol	TestDoubles	swift.type.method	InvocationOrder.Builder.buildBlock(_:)	static func buildBlock(_ components: [Expectation]...) -> [Expectation]
+symbol	TestDoubles	swift.type.method	InvocationOrder.Builder.buildEither(first:)	static func buildEither(first component: [Expectation]) -> [Expectation]
+symbol	TestDoubles	swift.type.method	InvocationOrder.Builder.buildEither(second:)	static func buildEither(second component: [Expectation]) -> [Expectation]
+symbol	TestDoubles	swift.type.method	InvocationOrder.Builder.buildExpression(_:fileID:filePath:line:column:)	static func buildExpression(_ interactions: CallInteractions, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> [Expectation]
+symbol	TestDoubles	swift.type.method	InvocationOrder.Builder.buildExpression(_:fileID:filePath:line:column:)	static func buildExpression<Input, Result>(_ pattern: AsyncClosureCallPattern<Input, Result>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> [Expectation]
+symbol	TestDoubles	swift.type.method	InvocationOrder.Builder.buildExpression(_:fileID:filePath:line:column:)	static func buildExpression<Input, Result>(_ pattern: AsyncThrowingClosureCallPattern<Input, Result>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> [Expectation]
+symbol	TestDoubles	swift.type.method	InvocationOrder.Builder.buildExpression(_:fileID:filePath:line:column:)	static func buildExpression<Input, Result>(_ pattern: ClosureCallPattern<Input, Result>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> [Expectation]
+symbol	TestDoubles	swift.type.method	InvocationOrder.Builder.buildExpression(_:fileID:filePath:line:column:)	static func buildExpression<Input, Result>(_ pattern: ThrowingClosureCallPattern<Input, Result>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> [Expectation]
+symbol	TestDoubles	swift.type.method	InvocationOrder.Builder.buildExpression(_:fileID:filePath:line:column:)	static func buildExpression<Result>(_ pattern: CallPattern<Result>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> [Expectation]
+symbol	TestDoubles	swift.type.method	InvocationOrder.Builder.buildExpression(_:fileID:filePath:line:column:)	static func buildExpression<Value>(_ value: Value, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> [Expectation]
+symbol	TestDoubles	swift.type.method	InvocationOrder.Builder.buildLimitedAvailability(_:)	static func buildLimitedAvailability(_ component: [Expectation]) -> [Expectation]
+symbol	TestDoubles	swift.type.method	InvocationOrder.Builder.buildOptional(_:)	static func buildOptional(_ component: [Expectation]?) -> [Expectation]
 symbol	TestDoubles	swift.type.method	Match.Placeholders.register(_:_:)	static func register<Value>(_ type: Value.Type = Value.self, _ make: @escaping @Sendable () -> Value)
 symbol	TestDoubles	swift.type.method	Match.Placeholders.unregister(_:)	static func unregister<Value>(_ type: Value.Type)
 symbol	TestDoubles	swift.type.method	Match.allOf(_:_:)	static func allOf<T>(_ first: @autoclosure () -> T, _ second: @autoclosure () -> T) -> T
