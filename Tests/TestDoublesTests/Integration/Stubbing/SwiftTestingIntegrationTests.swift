@@ -15,6 +15,14 @@ private protocol ScopedSuspendedTestDoubleProbe {
     func load() async -> Int
 }
 
+private struct ScopedTestDoubleProbeStub: ScopedTestDoubleProbe, ManualStubConformer {
+    let stub: ManualStub<Self>
+
+    func track(_ value: Int) {
+        stub.call(value)
+    }
+}
+
 private func makeScopedTestDoubleStub() throws -> Stub<any ScopedTestDoubleProbe> {
     try Stub<any ScopedTestDoubleProbe>(.method(Int.self, returning: Void.self))
 }
@@ -80,6 +88,7 @@ private func makeScopedSuspendedTestDoubleStub() throws -> Stub<any ScopedSuspen
         #expect(TestDoubleStrictness.strict.contains(.noUnconsumedBehaviorQueues))
         #expect(TestDoubleStrictness.strict.contains(.noPendingSuspensions))
         #expect(TestDoubleStrictness.strict.contains(.noPendingCallbackCaptures))
+        #expect(TestDoubleStrictness.strict.contains(.noEscapedTestDoubles))
     }
 
     @Test(.testDoubles(strictness: []))
@@ -192,5 +201,64 @@ private func makeScopedSuspendedTestDoubleStub() throws -> Stub<any ScopedSuspen
         }
 
         #expect(attachments.isEmpty)
+    }
+
+    @Test func scopeReportsEscapedGeneratedProtocolValues() throws {
+        let session = TestDoubleSession()
+        var escapedValue: (any ScopedQueuedTestDoubleProbe)?
+        try TestDoubleTestingContext.$session.withValue(session) {
+            let stub = try makeScopedQueuedTestDoubleStub().named("escaped loader")
+            escapedValue = stub()
+        }
+        let diagnostics = session.diagnostics(
+            checkingUnusedRegistrations: false,
+            checkingUnverifiedInteractions: false,
+            checkingEscapedTestDoubles: true
+        )
+
+        #expect(
+            diagnostics.contains {
+                $0.contains("Test double 'escaped loader' outlived its test scope")
+            }
+        )
+        withExtendedLifetime(escapedValue) {}
+    }
+
+    @Test func scopeReportsEscapedManualControllersAndInjectedClosures() {
+        let session = TestDoubleSession()
+        var escapedFunction: ((Int) -> Void)?
+        TestDoubleTestingContext.$session.withValue(session) {
+            let stub = ManualStub<ScopedTestDoubleProbeStub>().named("event sink")
+            let value = stub()
+            escapedFunction = { value.track($0) }
+        }
+        let diagnostics = session.diagnostics(
+            checkingUnusedRegistrations: false,
+            checkingUnverifiedInteractions: false,
+            checkingEscapedTestDoubles: true
+        )
+
+        #expect(
+            diagnostics.contains {
+                $0.contains("Test double 'event sink' outlived its test scope")
+            }
+        )
+        withExtendedLifetime(escapedFunction) {}
+    }
+
+    @Test func scopeAcceptsDoublesReleasedBeforeTeardown() throws {
+        let session = TestDoubleSession()
+        try TestDoubleTestingContext.$session.withValue(session) {
+            let stub = try makeScopedQueuedTestDoubleStub()
+            withExtendedLifetime(stub()) {}
+        }
+
+        #expect(
+            session.diagnostics(
+                checkingUnusedRegistrations: false,
+                checkingUnverifiedInteractions: false,
+                checkingEscapedTestDoubles: true
+            ).isEmpty
+        )
     }
 }

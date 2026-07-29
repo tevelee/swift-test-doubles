@@ -22,7 +22,13 @@ public class Stub<P> {
     init(prepared: PreparedStub) {
         self.recorder = prepared.recorder
         self.storage = prepared.storage
-        TestDoubleTestingContext.session?.register(prepared.recorder)
+        if let session = TestDoubleTestingContext.session {
+            session.register(prepared.recorder)
+            let recorder = prepared.recorder
+            session.registerLifetime(of: recorder) {
+                recorder.hasLiveRuntimeResources
+            }
+        }
     }
 
     /// Creates a stub from runtime-discovered or explicitly supplied

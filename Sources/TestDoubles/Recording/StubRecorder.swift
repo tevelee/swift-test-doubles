@@ -169,6 +169,10 @@ final class StubRecorder: @unchecked Sendable {
             .map { RuntimeStubFactory.makePayload(resources: $0) }
     }
 
+    var hasLiveRuntimeResources: Bool {
+        withLockedPolicy { _ in runtimeResourceOwner != nil }
+    }
+
     // MARK: - Manual stub method interning
 
     /// Interns a manually-dispatched method, getter, or setter by identity.

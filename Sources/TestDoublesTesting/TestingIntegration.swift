@@ -28,13 +28,18 @@
         /// Reports callback captures still retaining callbacks at teardown.
         public static let noPendingCallbackCaptures = Self(rawValue: 1 << 4)
 
+        /// Reports generated values, injected closures, or controllers that
+        /// remain alive after the scoped test body returns.
+        public static let noEscapedTestDoubles = Self(rawValue: 1 << 5)
+
         /// Applies every automatic test-double check.
         public static let strict: Self = [
             .noUnusedStubs,
             .noMoreInteractions,
             .noUnconsumedBehaviorQueues,
             .noPendingSuspensions,
-            .noPendingCallbackCaptures
+            .noPendingCallbackCaptures,
+            .noEscapedTestDoubles
         ]
     }
 
@@ -95,7 +100,8 @@
                 checkingUnverifiedInteractions: strictness.contains(.noMoreInteractions),
                 checkingUnconsumedBehaviorQueues: strictness.contains(.noUnconsumedBehaviorQueues),
                 checkingPendingSuspensions: strictness.contains(.noPendingSuspensions),
-                checkingPendingCallbackCaptures: strictness.contains(.noPendingCallbackCaptures)
+                checkingPendingCallbackCaptures: strictness.contains(.noPendingCallbackCaptures),
+                checkingEscapedTestDoubles: strictness.contains(.noEscapedTestDoubles)
             )
         }
 

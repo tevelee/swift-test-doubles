@@ -22,6 +22,11 @@ Tests using `.testDoubles` or `.strictTestDoubles` also record nonempty
 interaction timelines as Swift Testing text attachments. They appear with the
 test result when a failure needs deeper diagnosis.
 
+Strict scopes additionally report a double whose generated protocol value,
+injected closure, or controller remains alive after the test body returns. Use
+`.testDoubles(strictness: [.noEscapedTestDoubles])` to enable only this lifetime
+check.
+
 ### Define the dependency
 
 The subject under test should already depend on a protocol:

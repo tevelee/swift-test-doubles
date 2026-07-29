@@ -39,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   diagnostics, with escaped literals and a compiling TODO return handler.
 - Swift Testing failure artifacts for scoped interaction timelines and lazy
   recording-session diffs against committed fixtures.
+- Strict-scope detection of generated values, injected closures, and
+  controllers that outlive their Swift Testing test body.
 
 ## [0.0.2] - 2026-07-29
 

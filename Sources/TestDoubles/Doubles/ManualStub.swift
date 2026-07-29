@@ -49,7 +49,12 @@ public final class ManualStub<T: ManualStubConformer>: @unchecked Sendable {
     /// front — every requirement is discovered the first time your
     /// conformer forwards to it.
     public init() {
-        TestDoubleTestingContext.session?.register(recorder)
+        if let session = TestDoubleTestingContext.session {
+            session.register(recorder)
+            session.registerLifetime(of: recorder) { [weak self] in
+                self != nil
+            }
+        }
     }
 
     /// Returns a `T` backed by this stub, for use as the protocol type.

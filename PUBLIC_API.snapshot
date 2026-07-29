@@ -1014,6 +1014,7 @@ symbol	TestDoublesTesting	swift.property	TestDoubleScope.strictness	let strictne
 symbol	TestDoublesTesting	swift.property	TestDoubleStrictness.rawValue	let rawValue: UInt8
 symbol	TestDoublesTesting	swift.struct	TestDoubleScope	struct TestDoubleScope
 symbol	TestDoublesTesting	swift.struct	TestDoubleStrictness	struct TestDoubleStrictness
+symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.noEscapedTestDoubles	static let noEscapedTestDoubles: TestDoubleStrictness
 symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.noMoreInteractions	static let noMoreInteractions: TestDoubleStrictness
 symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.noPendingCallbackCaptures	static let noPendingCallbackCaptures: TestDoubleStrictness
 symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.noPendingSuspensions	static let noPendingSuspensions: TestDoubleStrictness

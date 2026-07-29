@@ -9,6 +9,7 @@ final class TestDoubleTeardownCheck: @unchecked Sendable {
         case behaviorQueue
         case suspension
         case callbackCapture
+        case testDoubleLifetime
     }
 
     let kind: Kind
@@ -74,6 +75,21 @@ final class TestDoubleFixtureDiffCheck: @unchecked Sendable {
         teardownChecks.append(teardownCheck)
     }
 
+    func registerLifetime(
+        of recorder: StubRecorder,
+        isAlive: @escaping () -> Bool
+    ) {
+        register(
+            TestDoubleTeardownCheck(kind: .testDoubleLifetime) {
+                guard isAlive() else { return nil }
+                let label = recorder.testDoubleName.map { " '\($0)'" } ?? ""
+                return "Test double\(label) outlived its test scope. "
+                    + "Release generated values, injected closures, and controller references "
+                    + "before the scoped test returns."
+            }
+        )
+    }
+
     func registerFixtureDiff(
         named name: String,
         difference: @escaping () -> String?
@@ -91,7 +107,8 @@ final class TestDoubleFixtureDiffCheck: @unchecked Sendable {
         checkingUnverifiedInteractions: Bool,
         checkingUnconsumedBehaviorQueues: Bool = false,
         checkingPendingSuspensions: Bool = false,
-        checkingPendingCallbackCaptures: Bool = false
+        checkingPendingCallbackCaptures: Bool = false,
+        checkingEscapedTestDoubles: Bool = false
     ) -> [String] {
         let (recorders, teardownChecks, _) = snapshot()
         let recorderDiagnostics = recorders.flatMap { recorder in
@@ -112,6 +129,7 @@ final class TestDoubleFixtureDiffCheck: @unchecked Sendable {
         if checkingUnconsumedBehaviorQueues { enabledChecks.insert(.behaviorQueue) }
         if checkingPendingSuspensions { enabledChecks.insert(.suspension) }
         if checkingPendingCallbackCaptures { enabledChecks.insert(.callbackCapture) }
+        if checkingEscapedTestDoubles { enabledChecks.insert(.testDoubleLifetime) }
         let lifecycleDiagnostics: [String] = teardownChecks.compactMap { teardownCheck -> String? in
             guard enabledChecks.contains(teardownCheck.kind) else {
                 return nil
