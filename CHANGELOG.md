@@ -194,6 +194,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- CI now snapshots every exported product API, rejects undocumented public
+  symbols, compiles generated manual stubs against their protocols, and
+  enforces coverage for the generator, Swift Testing integration, and C
+  trampoline sources.
 - The "no matching stub" diagnostic now shows, for each registered stub, which
   argument its matcher accepted or rejected with the actual value against the
   expected matcher, so the closest near-miss is visible at a glance instead of
@@ -224,6 +228,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `ClosureDouble`, `VoidClosureDouble`, and `CallbackCapture` no longer claim
+  unconditional `Sendable` safety, and user matchers and handlers execute
+  outside internal locks so reentrant calls cannot deadlock.
+- Cancelling `StubSuspension.waitForCall(count:)` now removes and resumes its
+  waiter without leaking a continuation, including cancellation races.
+- Manual-stub generation preserves static argument types in route identities,
+  emits typed-throws metadata, routes property and subscript setters, and
+  produces a compiling trailing-newline-stable file.
+- `InteractionFixture` decoding now rejects invalid and unsupported future
+  schema versions instead of interpreting them as the current format.
+- Native macOS test bundles no longer link a current-runtime custom-executor
+  hook when built for the package's older deployment target.
 - Constructing a test double for a bound existential composition that needs
   two or more witness tables (for example `any A<Int> & B<String>`) on an OS
   runtime older than the 26.4 releases now fails with a descriptive
