@@ -1,7 +1,7 @@
 /// The collision-free dynamic-member route returned by
 /// ``ManualStub/requirements``.
 @dynamicMemberLookup
-public struct ManualRequirementRoute<T: ManualStubConformer> {
+public struct ManualRequirementRoute<T> {
     let stub: ManualStub<T>
 
     /// Method access such as `stub.requirements.fetch(id: id)`.
@@ -39,7 +39,7 @@ public struct ManualRequirementRoute<T: ManualStubConformer> {
 /// A dynamic-call proxy used by manual requirement forwarding.
 @dynamicCallable
 @_documentation(visibility: internal)
-public struct ManualMethodProxy<T: ManualStubConformer> {
+public struct ManualMethodProxy<T> {
     let stub: ManualStub<T>
     let name: String
 
@@ -76,7 +76,7 @@ public struct ManualMethodProxy<T: ManualStubConformer> {
 /// The collision-free dynamic-member route returned by
 /// ``ManualStub/throwingRequirements``.
 @dynamicMemberLookup
-public struct ManualThrowingRequirementRoute<T: ManualStubConformer> {
+public struct ManualThrowingRequirementRoute<T> {
     let stub: ManualStub<T>
 
     /// Method access: `try stub.throwingRequirements.save(item: item)`.
@@ -104,13 +104,13 @@ public struct ManualThrowingRequirementRoute<T: ManualStubConformer> {
 
 /// Compatibility name for ``ManualThrowingRequirementRoute``.
 @available(*, deprecated, renamed: "ManualThrowingRequirementRoute")
-public typealias ManualThrowingRoute<T: ManualStubConformer> =
+public typealias ManualThrowingRoute<T> =
     ManualThrowingRequirementRoute<T>
 
 /// A dynamic-call proxy used by throwing manual requirement forwarding.
 @dynamicCallable
 @_documentation(visibility: internal)
-public struct ManualThrowingMethodProxy<T: ManualStubConformer> {
+public struct ManualThrowingMethodProxy<T> {
     let stub: ManualStub<T>
     let name: String
 

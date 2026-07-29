@@ -25,14 +25,14 @@ public protocol ManualStubConformer {
 @available(*, deprecated, renamed: "ManualStubConformer")
 public typealias StubConformer = ManualStubConformer
 
-/// A hand-written test double for a protocol that ``Stub`` can't represent —
-/// new language features, requirement shapes the runtime trampoline doesn't
-/// cover, or platforms the runtime strategy doesn't run on.
+/// An explicitly constructed test double backed by the shared recording and
+/// behavior engine.
 ///
-/// Unlike ``Stub``, `ManualStub` never introspects a witness table or
-/// generates executable code: your conformer struct forwards each
-/// requirement explicitly, and `ManualStub` supplies the same matching,
-/// verification, and diagnostic behavior ``Stub`` uses internally.
+/// Unlike ``Stub``, `ManualStub` never introspects a witness table or generates
+/// executable code. A ``ManualStubConformer`` can forward protocol
+/// requirements explicitly, while ``ClientStub`` constructs closure-field
+/// dependency values through ``ClientStubEndpoints``. Both paths use the same
+/// matching, verification, and diagnostic behavior as ``Stub``.
 ///
 /// ```swift
 /// let stub = ManualStub<MyServiceStub>()
@@ -42,13 +42,15 @@ public typealias StubConformer = ManualStubConformer
 /// // service.fetch(id: 42) == "Alice"
 /// ```
 @dynamicMemberLookup
-public final class ManualStub<T: ManualStubConformer>: @unchecked Sendable {
-    let recorder = StubRecorder(methods: [])
+public final class ManualStub<T>: @unchecked Sendable {
+    let recorder: StubRecorder
+    private let materializer: (ManualStub<T>) -> T
 
-    /// Creates an empty manual stub. No requirements are validated up
-    /// front — every requirement is discovered the first time your
-    /// conformer forwards to it.
-    public init() {
+    init(
+        materializing materializer: @escaping (ManualStub<T>) -> T
+    ) {
+        recorder = StubRecorder(methods: [])
+        self.materializer = materializer
         if let session = TestDoubleTestingContext.session {
             session.register(recorder)
             session.registerLifetime(of: recorder) { [weak self] in
@@ -81,7 +83,7 @@ public final class ManualStub<T: ManualStubConformer>: @unchecked Sendable {
     }
 
     private func materialize() -> T {
-        T(stub: self)
+        materializer(self)
     }
 
     // MARK: - Requirement routes
@@ -786,5 +788,15 @@ public final class ManualStub<T: ManualStubConformer>: @unchecked Sendable {
                 + "expected \(expected), got \(type(of: actual)). Configure a \(expected) "
                 + "error or use the untyped `\(forwardingMethod)` overload."
         )
+    }
+}
+
+extension ManualStub where T: ManualStubConformer {
+    /// Creates an empty manual stub backed by `T.init(stub:)`.
+    ///
+    /// No requirements are validated up front. Each requirement is discovered
+    /// the first time the conformer forwards to it.
+    public convenience init() {
+        self.init(materializing: { T(stub: $0) })
     }
 }
