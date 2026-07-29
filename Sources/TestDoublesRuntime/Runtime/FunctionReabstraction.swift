@@ -9,6 +9,86 @@ import TestDoublesRuntimeMetadata
 /// reabstraction pair in the client that performs the erased conversion, so no
 /// protocol source annotation or generated forwarding body is required.
 package enum FunctionReabstraction {
+    package static func prepare(
+        type: Any.Type,
+        direction: FunctionBridgeDirection
+    ) -> PreparedFunctionReabstraction? {
+        guard let function = FunctionTypeInfo(reflecting: type),
+            let convention = function.convention
+        else {
+            return nil
+        }
+        switch convention {
+            case .c, .block:
+                guard direction == .directToGeneric else { return nil }
+                return PreparedFunctionReabstraction(
+                    type: type,
+                    function: function,
+                    execution: .copy
+                )
+            case .thin:
+                return PreparedFunctionReabstraction(
+                    type: type,
+                    function: function,
+                    execution: .unsupported(
+                        direction == .directToGeneric
+                            ? "[TestDoubles] Thin function arguments are not supported automatically."
+                            : "[TestDoubles] Thin function results are not supported automatically."
+                    )
+                )
+            case .swift:
+                break
+        }
+
+        let analysis = FunctionBridgeAnalysis(function)
+        if let bridge = analysis.validated(for: direction),
+            let discriminator = directFunctionDiscriminator(for: function)
+        {
+            return PreparedFunctionReabstraction(
+                type: type,
+                function: function,
+                execution: .dynamic(
+                    bridge,
+                    discriminator: discriminator
+                )
+            )
+        }
+
+        let thunk: UnsafeRawPointer?
+        let discriminator: UInt16?
+        switch direction {
+            case .directToGeneric:
+                thunk = ReabstractionThunkRegistry.shared.directToGeneric(
+                    for: function.type
+                )
+                discriminator = td_generic_function_discriminator(
+                    UInt16(function.parameters.count),
+                    function.resultType != Void.self
+                )
+            case .genericToDirect:
+                thunk = ReabstractionThunkRegistry.shared.genericToDirect(
+                    for: function.type
+                )
+                discriminator = directFunctionDiscriminator(for: function)
+        }
+
+        let execution: PreparedFunctionReabstraction.Execution
+        if let thunk, let discriminator {
+            execution = .thunk(thunk, discriminator: discriminator)
+        } else {
+            execution = .unsupported(
+                direction == .directToGeneric
+                    ? "[TestDoubles] No compiler-emitted reabstraction thunk is linked for function argument \(type)."
+                    : "[TestDoubles] No compiler-emitted generic-to-direct reabstraction thunk is linked for function result \(type)."
+            )
+        }
+        return PreparedFunctionReabstraction(
+            type: type,
+            function: function,
+            execution: execution
+        )
+    }
+
     package static func hasLinkedThunks(for type: Any.Type) -> Bool {
         ReabstractionThunkRegistry.shared.hasBothDirections(for: type)
     }
@@ -144,25 +224,26 @@ package enum FunctionReabstraction {
         type: Any.Type,
         source: UnsafeMutableRawPointer
     ) -> Any {
-        guard let function = FunctionTypeInfo(reflecting: type) else {
+        guard
+            let prepared = prepare(
+                type: type,
+                direction: .directToGeneric
+            )
+        else {
             preconditionFailure(
                 "[TestDoubles] Expected function metadata for argument \(type)."
             )
         }
-        guard let convention = function.convention else {
-            preconditionFailure(
-                "[TestDoubles] Function argument \(type) has an unknown calling convention."
-            )
-        }
-        switch convention {
-            case .c, .block:
-                return boxValue(type: type, source: source)
-            case .thin:
-                preconditionFailure(
-                    "[TestDoubles] Thin function arguments are not supported automatically."
-                )
-            case .swift:
-                break
+        return boxDirectArgument(prepared, source: source)
+    }
+
+    package static func boxDirectArgument(
+        _ prepared: borrowing PreparedFunctionReabstraction,
+        source: UnsafeMutableRawPointer
+    ) -> Any {
+        let type = prepared.type
+        if case .copy = prepared.execution {
+            return boxValue(type: type, source: source)
         }
         guard let code = source.load(as: UnsafeRawPointer?.self) else {
             preconditionFailure(
@@ -171,50 +252,43 @@ package enum FunctionReabstraction {
         }
         let context = (source + MemoryLayout<UInt>.size)
             .load(as: UnsafeRawPointer?.self)
-        if let plan = FunctionBridgeAnalysis(function).validated(
-            for: .directToGeneric
-        ),
-            let discriminator = directFunctionDiscriminator(for: function)
-        {
-            return dynamicallyBoxFunctionArgument(
-                function: code,
-                context: context,
-                plan: plan,
-                discriminator: discriminator
-            )
+
+        switch prepared.execution {
+            case .copy:
+                preconditionFailure(
+                    "[TestDoubles] Copy-only closure transport was handled before native function decoding."
+                )
+            case .dynamic(let plan, let discriminator):
+                return dynamicallyBoxFunctionArgument(
+                    function: code,
+                    context: context,
+                    plan: plan,
+                    discriminator: discriminator
+                )
+            case .thunk(let thunk, let discriminator):
+                let state = ReabstractionContext(
+                    function: code,
+                    context: context,
+                    isIsolatedAny: prepared.function.effects.isIsolatedAny
+                )
+                state.validateStoredLayout()
+                let signedThunk =
+                    td_sign_function_pointer(thunk, discriminator) ?? thunk
+                func boxOpened<T>(_ type: T.Type) -> Any {
+                    let storage = UnsafeMutablePointer<T>.allocate(capacity: 1)
+                    defer { storage.deallocate() }
+                    let raw = UnsafeMutableRawPointer(storage)
+                    raw.storeBytes(of: signedThunk, as: UnsafeRawPointer.self)
+                    (raw + MemoryLayout<UInt>.size).storeBytes(
+                        of: UnsafeRawPointer(RetainedRuntimeState.retain(state)),
+                        as: UnsafeRawPointer.self
+                    )
+                    return storage.move()
+                }
+                return _openExistential(type, do: boxOpened)
+            case .unsupported(let message):
+                preconditionFailure(message)
         }
-        guard
-            let thunk = ReabstractionThunkRegistry.shared.directToGeneric(
-                for: function.type
-            )
-        else {
-            preconditionFailure(
-                "[TestDoubles] No compiler-emitted reabstraction thunk is linked for function argument \(type)."
-            )
-        }
-        let state = ReabstractionContext(
-            function: code,
-            context: context,
-            isIsolatedAny: function.effects.isIsolatedAny
-        )
-        state.validateStoredLayout()
-        let discriminator = td_generic_function_discriminator(
-            UInt16(function.parameters.count),
-            function.resultType != Void.self
-        )
-        let signedThunk = td_sign_function_pointer(thunk, discriminator) ?? thunk
-        func boxOpened<T>(_ type: T.Type) -> Any {
-            let storage = UnsafeMutablePointer<T>.allocate(capacity: 1)
-            defer { storage.deallocate() }
-            let raw = UnsafeMutableRawPointer(storage)
-            raw.storeBytes(of: signedThunk, as: UnsafeRawPointer.self)
-            (raw + MemoryLayout<UInt>.size).storeBytes(
-                of: UnsafeRawPointer(RetainedRuntimeState.retain(state)),
-                as: UnsafeRawPointer.self
-            )
-            return storage.move()
-        }
-        return _openExistential(type, do: boxOpened)
     }
 
     package static func initializeGenericSource(
@@ -222,6 +296,32 @@ package enum FunctionReabstraction {
         type: Any.Type,
         at destination: UnsafeMutableRawPointer
     ) {
+        guard
+            let prepared = prepare(
+                type: type,
+                direction: .genericToDirect
+            )
+        else {
+            ValueOperations.initializeCopy(
+                of: type,
+                from: source,
+                to: destination
+            )
+            return
+        }
+        initializeGenericSource(
+            source,
+            prepared: prepared,
+            at: destination
+        )
+    }
+
+    package static func initializeGenericSource(
+        _ source: UnsafeMutableRawPointer,
+        prepared: borrowing PreparedFunctionReabstraction,
+        at destination: UnsafeMutableRawPointer
+    ) {
+        let type = prepared.type
         guard let code = source.load(as: UnsafeRawPointer?.self) else {
             ValueOperations.initializeCopy(
                 of: type,
@@ -233,44 +333,39 @@ package enum FunctionReabstraction {
         let context = (source + MemoryLayout<UInt>.size)
             .load(as: UnsafeRawPointer?.self)
 
-        guard let function = FunctionTypeInfo(reflecting: type),
-            let discriminator = directFunctionDiscriminator(for: function)
-        else {
-            preconditionFailure(
-                "[TestDoubles] No compiler-emitted generic-to-direct reabstraction thunk is linked for function result \(type)."
-            )
+        switch prepared.execution {
+            case .copy:
+                ValueOperations.initializeCopy(
+                    of: type,
+                    from: source,
+                    to: destination
+                )
+            case .dynamic(let plan, let discriminator):
+                initializeDynamicFunctionResult(
+                    source,
+                    plan: plan,
+                    discriminator: discriminator,
+                    at: destination
+                )
+            case .thunk(let thunk, let discriminator):
+                let state = ReabstractionContext(
+                    function: code,
+                    context: context,
+                    isIsolatedAny: prepared.function.effects.isIsolatedAny
+                )
+                state.validateStoredLayout()
+                let signedThunk =
+                    td_sign_function_pointer(thunk, discriminator) ?? thunk
+                destination.storeBytes(
+                    of: signedThunk,
+                    as: UnsafeRawPointer.self
+                )
+                (destination + MemoryLayout<UInt>.size).storeBytes(
+                    of: UnsafeRawPointer(RetainedRuntimeState.retain(state)),
+                    as: UnsafeRawPointer.self
+                )
+            case .unsupported(let message):
+                preconditionFailure(message)
         }
-        if let plan = FunctionBridgeAnalysis(function).validated(
-            for: .genericToDirect
-        ) {
-            initializeDynamicFunctionResult(
-                source,
-                plan: plan,
-                discriminator: discriminator,
-                at: destination
-            )
-            return
-        }
-        guard
-            let thunk = ReabstractionThunkRegistry.shared.genericToDirect(
-                for: function.type
-            )
-        else {
-            preconditionFailure(
-                "[TestDoubles] No compiler-emitted generic-to-direct reabstraction thunk is linked for function result \(type)."
-            )
-        }
-        let state = ReabstractionContext(
-            function: code,
-            context: context,
-            isIsolatedAny: function.effects.isIsolatedAny
-        )
-        state.validateStoredLayout()
-        let signedThunk = td_sign_function_pointer(thunk, discriminator) ?? thunk
-        destination.storeBytes(of: signedThunk, as: UnsafeRawPointer.self)
-        (destination + MemoryLayout<UInt>.size).storeBytes(
-            of: UnsafeRawPointer(RetainedRuntimeState.retain(state)),
-            as: UnsafeRawPointer.self
-        )
     }
 }

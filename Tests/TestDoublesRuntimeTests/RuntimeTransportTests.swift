@@ -23,14 +23,15 @@ private struct WideTransportError: Error, Equatable {
         typealias Closure = (Int) -> Int
         typealias NestedClosure = (Int, Closure?)
 
+        let closurePlan = RuntimeResultTransportPlan(
+            resultType: Closure.self
+        )
         #expect(
             RuntimeResultTransportPlan(resultType: Int.self)
                 .requiresFunctionReabstraction == false
         )
-        #expect(
-            RuntimeResultTransportPlan(resultType: Closure.self)
-                .requiresFunctionReabstraction
-        )
+        #expect(closurePlan.requiresFunctionReabstraction)
+        #expect(closurePlan.functionReabstraction != nil)
         #expect(
             RuntimeResultTransportPlan(resultType: NestedClosure.self)
                 .requiresFunctionReabstraction

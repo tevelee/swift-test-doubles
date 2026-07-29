@@ -61,6 +61,7 @@ package enum RuntimeValueTransport {
             FunctionReabstraction.initializeDirectReturn(
                 value,
                 expectedType: expectedType,
+                prepared: transport.functionReabstraction,
                 at: destination
             )
         {

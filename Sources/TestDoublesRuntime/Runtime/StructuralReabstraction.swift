@@ -36,8 +36,26 @@ extension FunctionReabstraction {
         expectedType: Any.Type,
         at destination: UnsafeMutableRawPointer
     ) -> Bool {
+        initializeDirectReturn(
+            value,
+            expectedType: expectedType,
+            prepared: prepare(
+                type: expectedType,
+                direction: .genericToDirect
+            ),
+            at: destination
+        )
+    }
+
+    package static func initializeDirectReturn(
+        _ value: Any,
+        expectedType: Any.Type,
+        prepared: PreparedFunctionReabstraction?,
+        at destination: UnsafeMutableRawPointer
+    ) -> Bool {
         let isNativeFunction =
-            FunctionTypeInfo(reflecting: expectedType)?.convention == .swift
+            prepared != nil
+            || FunctionTypeInfo(reflecting: expectedType)?.convention == .swift
         guard isNativeFunction || requiresStructuralReabstraction(expectedType) else {
             return false
         }
@@ -46,11 +64,19 @@ extension FunctionReabstraction {
         func initializeOpened<T>(_ type: T.Type) {
             guard var typed = value as? T else { return }
             withUnsafeMutablePointer(to: &typed) { source in
-                initializeDirectValue(
-                    UnsafeMutableRawPointer(source),
-                    type: expectedType,
-                    at: destination
-                )
+                if let prepared {
+                    initializeGenericSource(
+                        UnsafeMutableRawPointer(source),
+                        prepared: prepared,
+                        at: destination
+                    )
+                } else {
+                    initializeDirectValue(
+                        UnsafeMutableRawPointer(source),
+                        type: expectedType,
+                        at: destination
+                    )
+                }
             }
             initialized = true
         }

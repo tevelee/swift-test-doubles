@@ -6,6 +6,7 @@ package struct RuntimeArgumentSpec: Sendable {
     package let convention: WitnessValueConvention
     package let layout: ABIClass
     package let ownership: WitnessArgumentOwnership
+    package let functionReabstraction: PreparedFunctionReabstraction?
 }
 
 package struct RuntimeArgumentDecodingPlan: Sendable {
@@ -95,7 +96,11 @@ package struct RuntimeArgumentDecodingPlan: Sendable {
                     convention: $0.value.convention,
                     layout: $0.value.layout,
                     ownership:
-                        consumeOwnedArguments ? $0.ownership : .borrowed
+                        consumeOwnedArguments ? $0.ownership : .borrowed,
+                    functionReabstraction: FunctionReabstraction.prepare(
+                        type: $0.value.type,
+                        direction: .directToGeneric
+                    )
                 )
             },
             argumentLocations: transport.argumentLocations,
@@ -182,6 +187,7 @@ package enum RuntimeArgumentDecoder {
                         values.append(
                             copyArgument(
                                 type: argument.type,
+                                prepared: argument.functionReabstraction,
                                 source: storage,
                                 consuming: consumesArgument
                             )
@@ -196,6 +202,7 @@ package enum RuntimeArgumentDecoder {
                         values.append(
                             copyArgument(
                                 type: Float.self,
+                                prepared: argument.functionReabstraction,
                                 source: &raw,
                                 consuming: consumesArgument
                             ))
@@ -204,6 +211,7 @@ package enum RuntimeArgumentDecoder {
                         values.append(
                             copyArgument(
                                 type: argument.type,
+                                prepared: argument.functionReabstraction,
                                 source: &raw,
                                 consuming: consumesArgument
                             ))
@@ -225,6 +233,7 @@ package enum RuntimeArgumentDecoder {
                         withUnsafeMutablePointer(to: &storage) {
                             copyArgument(
                                 type: argument.type,
+                                prepared: argument.functionReabstraction,
                                 source: UnsafeMutableRawPointer($0),
                                 consuming: consumesArgument
                             )
@@ -234,6 +243,7 @@ package enum RuntimeArgumentDecoder {
                     values.append(
                         decodeAggregateArgument(
                             type: argument.type,
+                            prepared: argument.functionReabstraction,
                             parts: parts,
                             locations: locations,
                             from: frame,
@@ -259,6 +269,10 @@ package enum RuntimeArgumentDecoder {
                     values.append(
                         copyArgument(
                             type: runtimeType,
+                            prepared:
+                                runtimeType == argument.type
+                                ? argument.functionReabstraction
+                                : nil,
                             source: source,
                             consuming: consumesArgument
                         ))
@@ -284,6 +298,7 @@ package enum RuntimeArgumentDecoder {
 
     private static func decodeAggregateArgument(
         type: Any.Type,
+        prepared: PreparedFunctionReabstraction?,
         parts: [DirectValuePart],
         locations: [CallFrameArgumentLocation],
         from frame: TrampolineCallFrame,
@@ -306,6 +321,7 @@ package enum RuntimeArgumentDecoder {
         }
         return copyArgument(
             type: type,
+            prepared: prepared,
             source: temporary,
             consuming: consuming
         )
@@ -377,7 +393,14 @@ package enum RuntimeArgumentDecoder {
                 fatalError(diagnosticContext.missingParameterPackElementMetadata(index))
             }
             let type = unsafeBitCast(typeMetadata, to: Any.Type.self)
-            values.append(copyArgument(type: type, source: source, consuming: false))
+            values.append(
+                copyArgument(
+                    type: type,
+                    prepared: nil,
+                    source: source,
+                    consuming: false
+                )
+            )
         }
         return values
     }
@@ -387,13 +410,22 @@ package enum RuntimeArgumentDecoder {
     /// arguments are never destroyed here.
     private static func copyArgument(
         type: Any.Type,
+        prepared: PreparedFunctionReabstraction?,
         source: UnsafeMutableRawPointer,
         consuming: Bool
     ) -> Any {
-        let value = FunctionReabstraction.boxDirectValue(
-            type: type,
-            source: source
-        )
+        let value =
+            if let prepared {
+                FunctionReabstraction.boxDirectArgument(
+                    prepared,
+                    source: source
+                )
+            } else {
+                FunctionReabstraction.boxDirectValue(
+                    type: type,
+                    source: source
+                )
+            }
         if consuming {
             ValueOperations.destroy(type, at: source)
         }

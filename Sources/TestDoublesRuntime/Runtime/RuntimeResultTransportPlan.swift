@@ -3,9 +3,15 @@ import TestDoublesRuntimeMetadata
 /// generic recorder boundary.
 package struct RuntimeResultTransportPlan: Sendable {
     package let requiresFunctionReabstraction: Bool
+    package let functionReabstraction: PreparedFunctionReabstraction?
 
     package init(resultType: Any.Type) {
+        functionReabstraction = FunctionReabstraction.prepare(
+            type: resultType,
+            direction: .genericToDirect
+        )
         requiresFunctionReabstraction =
-            FunctionReabstraction.requiresStructuralReabstraction(resultType)
+            functionReabstraction != nil
+            || FunctionReabstraction.requiresStructuralReabstraction(resultType)
     }
 }
