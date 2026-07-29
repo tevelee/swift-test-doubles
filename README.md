@@ -383,6 +383,23 @@ targets: [
 ]
 ```
 
+`RuntimeStubs` is enabled by default, preserving the complete `Stub`, `Spy`,
+and `Dummy` API. A target that uses only `ManualStub` can omit runtime
+fabrication, Echo, and swift-atomics from its build graph by disabling this
+package's default traits:
+
+```swift
+.package(
+    url: "https://github.com/tevelee/swift-test-doubles",
+    .upToNextMinor(from: "0.0.1"),
+    traits: []
+)
+```
+
+Runtime-generated double construction then fails with a diagnostic that
+explains how to re-enable `RuntimeStubs`; manual stubs keep the same
+`TestDoubles` import and API.
+
 ## The fine print
 
 <details>

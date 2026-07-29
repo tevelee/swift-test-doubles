@@ -1,6 +1,8 @@
 import InternalRuntimeContract
-import TestDoublesRuntime
-import TestDoublesRuntimeSupport
+#if TESTDOUBLES_RUNTIME_STUBS
+    import TestDoublesRuntime
+    import TestDoublesRuntimeSupport
+#endif
 
 /// The public target's opaque gateway to runtime-generated existential values.
 ///
@@ -10,11 +12,19 @@ import TestDoublesRuntimeSupport
 /// cross this facade.
 enum RuntimeStubFactory {
     static func makePayload(resources: AnyObject) -> AnyObject {
-        TestDoublesRuntime.RuntimeStubFactory.makePayload(resources: resources)
+        #if TESTDOUBLES_RUNTIME_STUBS
+            TestDoublesRuntime.RuntimeStubFactory.makePayload(resources: resources)
+        #else
+            resources
+        #endif
     }
 
     static func makeRecordingPlaceholder<T>(for type: T.Type) -> T? {
-        TestDoublesRuntime.RuntimeStubFactory.makeRecordingPlaceholder(for: type)
+        #if TESTDOUBLES_RUNTIME_STUBS
+            TestDoublesRuntime.RuntimeStubFactory.makeRecordingPlaceholder(for: type)
+        #else
+            sourceRecordingPlaceholder(for: type)
+        #endif
     }
 
     static func makeTypedWitnessAdapter<P, Adapter>(
@@ -38,87 +48,183 @@ enum RuntimeStubFactory {
     }
 
     struct Storage<P> {
-        private let storage: TestDoublesRuntime.RuntimeStubFactory.Storage<P>
+        #if TESTDOUBLES_RUNTIME_STUBS
+            private let storage: TestDoublesRuntime.RuntimeStubFactory.Storage<P>
 
-        fileprivate init(storage: TestDoublesRuntime.RuntimeStubFactory.Storage<P>) {
-            self.storage = storage
-        }
+            fileprivate init(storage: TestDoublesRuntime.RuntimeStubFactory.Storage<P>) {
+                self.storage = storage
+            }
 
-        func materialize() -> P {
-            storage.materialize()
-        }
+            func materialize() -> P {
+                storage.materialize()
+            }
+        #else
+            func materialize() -> P {
+                failBecauseRuntimeStubsAreDisabled()
+            }
+        #endif
     }
 
-    struct PreparedPlan<P> {
-        let methods: [RuntimeMethod]
-        let modifyDispatches: [Int: RuntimeModifyDispatch]
-        let allowsForwardingFallback: Bool
+    #if TESTDOUBLES_RUNTIME_STUBS
+        struct PreparedPlan<P> {
+            let methods: [RuntimeMethod]
+            let modifyDispatches: [Int: RuntimeModifyDispatch]
+            let allowsForwardingFallback: Bool
 
-        private let plan: TestDoublesRuntime.RuntimeStubFactory.PreparedPlan<P>
+            private let plan: TestDoublesRuntime.RuntimeStubFactory.PreparedPlan<P>
 
-        fileprivate init(plan: TestDoublesRuntime.RuntimeStubFactory.PreparedPlan<P>) {
-            self.plan = plan
-            methods = plan.methods
-            modifyDispatches = plan.modifyDispatches
-            allowsForwardingFallback = plan.allowsForwardingFallback
+            fileprivate init(plan: TestDoublesRuntime.RuntimeStubFactory.PreparedPlan<P>) {
+                self.plan = plan
+                methods = plan.methods
+                modifyDispatches = plan.modifyDispatches
+                allowsForwardingFallback = plan.allowsForwardingFallback
+            }
+
+            fileprivate func materialize(
+                endpoint: any RuntimeInvocationEndpoint,
+                protocolName: String
+            ) throws -> Storage<P> {
+                Storage(
+                    storage: try plan.materialize(
+                        endpoint: endpoint,
+                        protocolName: protocolName
+                    ))
+            }
         }
 
-        fileprivate func materialize(
-            endpoint: any RuntimeInvocationEndpoint,
-            protocolName: String
-        ) throws -> Storage<P> {
-            Storage(
-                storage: try plan.materialize(
-                    endpoint: endpoint,
-                    protocolName: protocolName
+        struct PreparedDummyPlan<P> {
+            let requirements: [RuntimeDummyRequirement]
+            private let plan: TestDoublesRuntime.RuntimeStubFactory.PreparedDummyPlan<P>
+
+            fileprivate init(plan: TestDoublesRuntime.RuntimeStubFactory.PreparedDummyPlan<P>) {
+                self.plan = plan
+                requirements = plan.requirements
+            }
+
+            fileprivate func materialize(
+                endpoint: any RuntimeInvocationEndpoint,
+                protocolName: String
+            ) throws -> Storage<P> {
+                Storage(
+                    storage: try plan.materialize(
+                        endpoint: endpoint,
+                        protocolName: protocolName
+                    ))
+            }
+        }
+
+        static func prepareStub<P>(
+            _ request: RuntimeStubPreparationRequest
+        ) throws -> PreparedPlan<P> {
+            PreparedPlan(plan: try TestDoublesRuntime.RuntimeStubFactory.prepareStub(request))
+        }
+
+        static func prepareForwardingStub<P>(
+            to target: P,
+            request: RuntimeStubPreparationRequest
+        ) throws -> PreparedPlan<P> {
+            PreparedPlan(
+                plan: try TestDoublesRuntime.RuntimeStubFactory.prepareForwardingStub(
+                    to: target,
+                    request: request
                 ))
         }
-    }
 
-    struct PreparedDummyPlan<P> {
-        let requirements: [RuntimeDummyRequirement]
-        private let plan: TestDoublesRuntime.RuntimeStubFactory.PreparedDummyPlan<P>
+        static func prepareDummy<P>(
+            _ request: RuntimeProtocolShapeRequest
+        ) throws -> PreparedDummyPlan<P> {
+            PreparedDummyPlan(plan: try TestDoublesRuntime.RuntimeStubFactory.prepareDummy(request))
+        }
+    #else
+        struct PreparedPlan<P> {
+            let methods: [RuntimeMethod]
+            let modifyDispatches: [Int: RuntimeModifyDispatch]
+            let allowsForwardingFallback: Bool
 
-        fileprivate init(plan: TestDoublesRuntime.RuntimeStubFactory.PreparedDummyPlan<P>) {
-            self.plan = plan
-            requirements = plan.requirements
+            fileprivate func materialize(
+                endpoint: any RuntimeInvocationEndpoint,
+                protocolName: String
+            ) throws -> Storage<P> {
+                _ = endpoint
+                throw runtimeStubsDisabledError(protocolName: protocolName)
+            }
         }
 
-        fileprivate func materialize(
-            endpoint: any RuntimeInvocationEndpoint,
-            protocolName: String
-        ) throws -> Storage<P> {
-            Storage(
-                storage: try plan.materialize(
-                    endpoint: endpoint,
-                    protocolName: protocolName
-                ))
+        struct PreparedDummyPlan<P> {
+            let requirements: [RuntimeDummyRequirement]
+
+            fileprivate func materialize(
+                endpoint: any RuntimeInvocationEndpoint,
+                protocolName: String
+            ) throws -> Storage<P> {
+                _ = endpoint
+                throw runtimeStubsDisabledError(protocolName: protocolName)
+            }
         }
-    }
 
-    static func prepareStub<P>(
-        _ request: RuntimeStubPreparationRequest
-    ) throws -> PreparedPlan<P> {
-        PreparedPlan(plan: try TestDoublesRuntime.RuntimeStubFactory.prepareStub(request))
-    }
+        static func prepareStub<P>(
+            _ request: RuntimeStubPreparationRequest
+        ) throws -> PreparedPlan<P> {
+            throw runtimeStubsDisabledError(protocolName: request.shape.typeDescription)
+        }
 
-    static func prepareForwardingStub<P>(
-        to target: P,
-        request: RuntimeStubPreparationRequest
-    ) throws -> PreparedPlan<P> {
-        PreparedPlan(
-            plan: try TestDoublesRuntime.RuntimeStubFactory.prepareForwardingStub(
-                to: target,
-                request: request
-            ))
-    }
+        static func prepareForwardingStub<P>(
+            to target: P,
+            request: RuntimeStubPreparationRequest
+        ) throws -> PreparedPlan<P> {
+            _ = target
+            throw runtimeStubsDisabledError(protocolName: request.shape.typeDescription)
+        }
 
-    static func prepareDummy<P>(
-        _ request: RuntimeProtocolShapeRequest
-    ) throws -> PreparedDummyPlan<P> {
-        PreparedDummyPlan(plan: try TestDoublesRuntime.RuntimeStubFactory.prepareDummy(request))
-    }
+        static func prepareDummy<P>(
+            _ request: RuntimeProtocolShapeRequest
+        ) throws -> PreparedDummyPlan<P> {
+            throw runtimeStubsDisabledError(protocolName: request.typeDescription)
+        }
+    #endif
 }
+
+#if !TESTDOUBLES_RUNTIME_STUBS
+    private let runtimeStubsDisabledReason =
+        "Runtime-generated test doubles are disabled for this build. "
+        + "Enable the package's default `RuntimeStubs` trait, or use `ManualStub`."
+
+    private func runtimeStubsDisabledError(protocolName: String) -> StubError {
+        .unsupportedProtocolShape(
+            protocolName: protocolName,
+            reason: runtimeStubsDisabledReason
+        )
+    }
+
+    // swiftlint:disable:next unavailable_function
+    private func failBecauseRuntimeStubsAreDisabled<Result>() -> Result {
+        preconditionFailure(runtimeStubsDisabledReason)
+    }
+
+    private func sourceRecordingPlaceholder<T>(for type: T.Type) -> T? {
+        switch type {
+            case is Void.Type: () as? T
+            case is Bool.Type: false as? T
+            case is Int.Type: 0 as? T
+            case is Int8.Type: Int8.zero as? T
+            case is Int16.Type: Int16.zero as? T
+            case is Int32.Type: Int32.zero as? T
+            case is Int64.Type: Int64.zero as? T
+            case is UInt.Type: UInt.zero as? T
+            case is UInt8.Type: UInt8.zero as? T
+            case is UInt16.Type: UInt16.zero as? T
+            case is UInt32.Type: UInt32.zero as? T
+            case is UInt64.Type: UInt64.zero as? T
+            case is Float.Type: Float.zero as? T
+            case is Double.Type: Double.zero as? T
+            #if !((os(macOS) || targetEnvironment(macCatalyst)) && arch(x86_64))
+                case is Float16.Type: Float16.zero as? T
+            #endif
+            case is String.Type: "" as? T
+            default: nil
+        }
+    }
+#endif
 
 enum SpyGetterEffectInput<P> {
     case automatic
@@ -403,19 +509,36 @@ func withStubConstructionError<Result>(
     for protocolType: Any.Type,
     _ operation: () throws -> Result
 ) throws(StubError) -> Result {
-    do {
-        return try operation()
-    } catch let error as StubError {
-        throw error
-    } catch let error as RuntimeConstructionError {
-        throw StubError(error)
-    } catch {
-        preconditionFailure(
-            "[TestDoubles] Construction for '\(String(reflecting: protocolType))' "
-                + "threw unexpected internal error type "
-                + "'\(String(reflecting: Swift.type(of: error)))': \(error)"
-        )
-    }
+    #if TESTDOUBLES_RUNTIME_STUBS
+        do {
+            return try operation()
+        } catch let error as StubError {
+            throw error
+        } catch let error as RuntimeConstructionError {
+            throw StubError(error)
+        } catch {
+            unexpectedConstructionError(error, for: protocolType)
+        }
+    #else
+        do {
+            return try operation()
+        } catch let error as StubError {
+            throw error
+        } catch {
+            unexpectedConstructionError(error, for: protocolType)
+        }
+    #endif
+}
+
+private func unexpectedConstructionError(
+    _ error: any Error,
+    for protocolType: Any.Type
+) -> Never {
+    preconditionFailure(
+        "[TestDoubles] Construction for '\(String(reflecting: protocolType))' "
+            + "threw unexpected internal error type "
+            + "'\(String(reflecting: Swift.type(of: error)))': \(error)"
+    )
 }
 
 enum TestDoubleConstructionKind: String {
@@ -439,98 +562,100 @@ func constructTestDoubleOrFail<Result>(
     }
 }
 
-extension StubError {
-    init(_ runtimeError: RuntimeConstructionError) {
-        switch runtimeError {
-            case .typeIsNotProtocol(let typeDescription):
-                self = .typeIsNotProtocol(typeDescription: typeDescription)
-            case .compositionRequiresGroupedRequirements(let typeDescription):
-                self = .compositionRequiresGroupedRequirements(typeDescription: typeDescription)
-            case .compositionRequiresGroupedGetterEffects(let typeDescription):
-                self = .compositionRequiresGroupedGetterEffects(typeDescription: typeDescription)
-            case .invalidProtocolRequirementGroup(let typeDescription):
-                self = .invalidProtocolRequirementGroup(typeDescription: typeDescription)
-            case .missingProtocolRequirementGroup(let protocolName):
-                self = .missingProtocolRequirementGroup(protocolName: protocolName)
-            case .duplicateProtocolRequirementGroup(let protocolName):
-                self = .duplicateProtocolRequirementGroup(protocolName: protocolName)
-            case .foreignProtocolRequirementGroup(let protocolName, let typeDescription):
-                self = .foreignProtocolRequirementGroup(
-                    protocolName: protocolName,
-                    typeDescription: typeDescription
-                )
-            case .invalidProtocolGetterEffectGroup(let typeDescription):
-                self = .invalidProtocolGetterEffectGroup(typeDescription: typeDescription)
-            case .missingProtocolGetterEffectGroup(let protocolName):
-                self = .missingProtocolGetterEffectGroup(protocolName: protocolName)
-            case .duplicateProtocolGetterEffectGroup(let protocolName):
-                self = .duplicateProtocolGetterEffectGroup(protocolName: protocolName)
-            case .foreignProtocolGetterEffectGroup(let protocolName, let typeDescription):
-                self = .foreignProtocolGetterEffectGroup(
-                    protocolName: protocolName,
-                    typeDescription: typeDescription
-                )
-            case .getterEffectCountMismatch(let protocolName, let expected, let actual):
-                self = .getterEffectCountMismatch(
-                    protocolName: protocolName,
-                    expected: expected,
-                    actual: actual
-                )
-            case .unsupportedTypeKind(let typeName):
-                self = .unsupportedTypeKind(typeName: typeName)
-            case .unsupportedProtocolShape(let protocolName, let reason):
-                self = .unsupportedProtocolShape(protocolName: protocolName, reason: reason)
-            case .noConformanceFound(let protocolName):
-                self = .noConformanceFound(protocolName: protocolName)
-            case .signatureDiscoveryFailed(let protocolName, let requirementIndex, let details):
-                self = .signatureDiscoveryFailed(
-                    protocolName: protocolName,
-                    requirementIndex: requirementIndex,
-                    details: details
-                )
-            case .requirementCountMismatch(let protocolName, let expected, let actual):
-                self = .requirementCountMismatch(
-                    protocolName: protocolName,
-                    expected: expected,
-                    actual: actual
-                )
-            case .requirementMismatch(let protocolName, let requirementIndex, let expected, let actual):
-                self = .requirementMismatch(
-                    protocolName: protocolName,
-                    requirementIndex: requirementIndex,
-                    expected: expected,
-                    actual: actual
-                )
-            case .forwardingUnsupported(let protocolName, let reason):
-                self = .unsupportedProtocolShape(
-                    protocolName: protocolName,
-                    reason: Self.forwardingDiagnostic(reason)
-                )
-            case .trampolineAllocationFailed(let requirementIndex):
-                self = .trampolineAllocationFailed(requirementIndex: requirementIndex)
+#if TESTDOUBLES_RUNTIME_STUBS
+    extension StubError {
+        init(_ runtimeError: RuntimeConstructionError) {
+            switch runtimeError {
+                case .typeIsNotProtocol(let typeDescription):
+                    self = .typeIsNotProtocol(typeDescription: typeDescription)
+                case .compositionRequiresGroupedRequirements(let typeDescription):
+                    self = .compositionRequiresGroupedRequirements(typeDescription: typeDescription)
+                case .compositionRequiresGroupedGetterEffects(let typeDescription):
+                    self = .compositionRequiresGroupedGetterEffects(typeDescription: typeDescription)
+                case .invalidProtocolRequirementGroup(let typeDescription):
+                    self = .invalidProtocolRequirementGroup(typeDescription: typeDescription)
+                case .missingProtocolRequirementGroup(let protocolName):
+                    self = .missingProtocolRequirementGroup(protocolName: protocolName)
+                case .duplicateProtocolRequirementGroup(let protocolName):
+                    self = .duplicateProtocolRequirementGroup(protocolName: protocolName)
+                case .foreignProtocolRequirementGroup(let protocolName, let typeDescription):
+                    self = .foreignProtocolRequirementGroup(
+                        protocolName: protocolName,
+                        typeDescription: typeDescription
+                    )
+                case .invalidProtocolGetterEffectGroup(let typeDescription):
+                    self = .invalidProtocolGetterEffectGroup(typeDescription: typeDescription)
+                case .missingProtocolGetterEffectGroup(let protocolName):
+                    self = .missingProtocolGetterEffectGroup(protocolName: protocolName)
+                case .duplicateProtocolGetterEffectGroup(let protocolName):
+                    self = .duplicateProtocolGetterEffectGroup(protocolName: protocolName)
+                case .foreignProtocolGetterEffectGroup(let protocolName, let typeDescription):
+                    self = .foreignProtocolGetterEffectGroup(
+                        protocolName: protocolName,
+                        typeDescription: typeDescription
+                    )
+                case .getterEffectCountMismatch(let protocolName, let expected, let actual):
+                    self = .getterEffectCountMismatch(
+                        protocolName: protocolName,
+                        expected: expected,
+                        actual: actual
+                    )
+                case .unsupportedTypeKind(let typeName):
+                    self = .unsupportedTypeKind(typeName: typeName)
+                case .unsupportedProtocolShape(let protocolName, let reason):
+                    self = .unsupportedProtocolShape(protocolName: protocolName, reason: reason)
+                case .noConformanceFound(let protocolName):
+                    self = .noConformanceFound(protocolName: protocolName)
+                case .signatureDiscoveryFailed(let protocolName, let requirementIndex, let details):
+                    self = .signatureDiscoveryFailed(
+                        protocolName: protocolName,
+                        requirementIndex: requirementIndex,
+                        details: details
+                    )
+                case .requirementCountMismatch(let protocolName, let expected, let actual):
+                    self = .requirementCountMismatch(
+                        protocolName: protocolName,
+                        expected: expected,
+                        actual: actual
+                    )
+                case .requirementMismatch(let protocolName, let requirementIndex, let expected, let actual):
+                    self = .requirementMismatch(
+                        protocolName: protocolName,
+                        requirementIndex: requirementIndex,
+                        expected: expected,
+                        actual: actual
+                    )
+                case .forwardingUnsupported(let protocolName, let reason):
+                    self = .unsupportedProtocolShape(
+                        protocolName: protocolName,
+                        reason: Self.forwardingDiagnostic(reason)
+                    )
+                case .trampolineAllocationFailed(let requirementIndex):
+                    self = .trampolineAllocationFailed(requirementIndex: requirementIndex)
+            }
         }
-    }
 
-    private static func forwardingDiagnostic(
-        _ reason: RuntimeForwardingUnsupportedReason
-    ) -> String {
-        switch reason {
-            case .pairedLegacyReadAndYieldingBorrow:
-                return "Forwarding Spy does not yet support Swift 6.4's paired legacy read and yielding-borrow witnesses. Use a Stub or a hand-written spy."
-            case .nonInstanceRequirement(let index):
-                return "Forwarding Spy supports instance requirements only; requirement \(index) uses a metatype receiver."
-            case .simd(let index):
-                return "Forwarding Spy does not yet support SIMD arguments or results in requirement \(index)."
-            case .functionValues(let index):
-                return "Forwarding Spy does not yet support function-valued arguments or results in requirement \(index)."
-            case .outgoingStackWords(let index, let limit):
-                return "Forwarding Spy requirement \(index) needs more outgoing stack transport than \(limit) words support. Use fewer arguments or a hand-written spy."
-            case .dynamicSelfResult(let index):
-                return "Forwarding Spy does not yet support dynamic Self results in requirement \(index)."
-            case .selfArguments(let index):
-                return "Forwarding Spy does not support direct or Optional Self arguments in requirement \(index). Use an automatic Stub or a hand-written spy."
-            case .hiddenArguments(let index):
-                return "Forwarding Spy requirement \(index) uses stack arguments or leaves no registers for its target metadata and witness table. Use fewer arguments or a hand-written spy."
+        private static func forwardingDiagnostic(
+            _ reason: RuntimeForwardingUnsupportedReason
+        ) -> String {
+            switch reason {
+                case .pairedLegacyReadAndYieldingBorrow:
+                    return "Forwarding Spy does not yet support Swift 6.4's paired legacy read and yielding-borrow witnesses. Use a Stub or a hand-written spy."
+                case .nonInstanceRequirement(let index):
+                    return "Forwarding Spy supports instance requirements only; requirement \(index) uses a metatype receiver."
+                case .simd(let index):
+                    return "Forwarding Spy does not yet support SIMD arguments or results in requirement \(index)."
+                case .functionValues(let index):
+                    return "Forwarding Spy does not yet support function-valued arguments or results in requirement \(index)."
+                case .outgoingStackWords(let index, let limit):
+                    return "Forwarding Spy requirement \(index) needs more outgoing stack transport than \(limit) words support. Use fewer arguments or a hand-written spy."
+                case .dynamicSelfResult(let index):
+                    return "Forwarding Spy does not yet support dynamic Self results in requirement \(index)."
+                case .selfArguments(let index):
+                    return "Forwarding Spy does not support direct or Optional Self arguments in requirement \(index). Use an automatic Stub or a hand-written spy."
+                case .hiddenArguments(let index):
+                    return "Forwarding Spy requirement \(index) uses stack arguments or leaves no registers for its target metadata and witness table. Use fewer arguments or a hand-written spy."
+            }
         }
     }
-}
+#endif

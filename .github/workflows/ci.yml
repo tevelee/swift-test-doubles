@@ -183,6 +183,12 @@ jobs:
         run: swift --version
       - name: Resolve dependency checkouts
         run: swift package --scratch-path .build/linux resolve
+      - name: Test lightweight ManualStub configuration
+        if: matrix.architecture == 'x86_64'
+        run: >-
+          swift test
+          --package-path Tests/ManualOnlyClient
+          --scratch-path .build/manual-only
       - name: Test debug
         run: >-
           swift test

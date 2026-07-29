@@ -25,6 +25,11 @@ let package = Package(
         .library(name: "TestDoublesMacros", targets: ["TestDoublesMacros"])
     ],
     traits: [
+        .default(enabledTraits: ["RuntimeStubs"]),
+        .trait(
+            name: "RuntimeStubs",
+            description: "Enables runtime-generated Stub, Spy, and Dummy values."
+        ),
         .trait(
             name: "ManualStubGenerator",
             description: "Enables the ManualStubGenerator command plugin."
@@ -145,9 +150,21 @@ private func allTargets(includesCxxInteropTarget: Bool) -> [Target] {
             name: "TestDoubles",
             dependencies: [
                 "InternalRuntimeContract",
-                "TestDoublesRuntime",
-                "TestDoublesRuntimeSupport",
+                .target(
+                    name: "TestDoublesRuntime",
+                    condition: .when(traits: ["RuntimeStubs"])
+                ),
+                .target(
+                    name: "TestDoublesRuntimeSupport",
+                    condition: .when(traits: ["RuntimeStubs"])
+                ),
                 .product(name: "IssueReporting", package: "swift-issue-reporting")
+            ],
+            swiftSettings: [
+                .define(
+                    "TESTDOUBLES_RUNTIME_STUBS",
+                    .when(traits: ["RuntimeStubs"])
+                )
             ]
         ),
         .target(

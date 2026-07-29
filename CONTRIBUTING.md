@@ -50,6 +50,15 @@ and its reachable runtime dependencies. A package-wide build also compiles
 optional macros, generators, demos, and fixtures; use the test commands when
 you need that complete graph.
 
+When working only on hand-written `ManualStub` behavior, disable the default
+`RuntimeStubs` trait. This preserves the `TestDoubles` module and public manual
+API while leaving Echo, swift-atomics, and runtime fabrication out of the build
+graph:
+
+```bash
+swift build --disable-default-traits --target TestDoubles
+```
+
 Swift Testing randomizes execution order when parallelization is enabled. Keep
 `--parallel` explicit so local and CI runs exercise both concurrent execution
 and order independence even when SwiftPM's command-line default is serial.
