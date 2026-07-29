@@ -2,8 +2,7 @@ import InternalRuntimeContract
 import Foundation
 
 #if TESTDOUBLES_RUNTIME_STUBS
-    @_silgen_name("td_next_global_invocation_sequence")
-    private func nextGlobalInvocationSequence() -> UInt64
+    import CTestDoublesTrampoline
 #endif
 
 /// Process-global monotonic stamp shared by every recorder, so ordered
@@ -17,7 +16,7 @@ enum GlobalInvocationSequence {
 
     static func take() -> UInt64 {
         #if TESTDOUBLES_RUNTIME_STUBS
-            nextGlobalInvocationSequence()
+            td_next_global_invocation_sequence()
         #else
             lock.lock()
             defer { lock.unlock() }

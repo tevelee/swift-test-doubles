@@ -170,6 +170,10 @@ private func allTargets(
                     name: "TestDoublesRuntimeSupport",
                     condition: .when(traits: ["RuntimeStubs"])
                 ),
+                .target(
+                    name: "CTestDoublesTrampoline",
+                    condition: .when(traits: ["RuntimeStubs"])
+                ),
                 .product(name: "IssueReporting", package: "swift-issue-reporting")
             ],
             swiftSettings: [
