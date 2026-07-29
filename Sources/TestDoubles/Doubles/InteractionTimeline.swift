@@ -31,6 +31,8 @@ public struct InteractionTimeline: Sendable, CustomStringConvertible {
     public struct Event: Sendable, Identifiable {
         /// The process-global order shared by all test doubles.
         public let id: UInt64
+        /// The process-global completion order, or `nil` while pending.
+        public let completionSequence: UInt64?
         /// The requirement name, with its ordinary Swift argument labels.
         public let requirement: String
         /// Arguments rendered for diagnostics.
@@ -52,13 +54,23 @@ public struct InteractionTimeline: Sendable, CustomStringConvertible {
     /// Events in global call order.
     public let events: [Event]
 
-    init(calls: [RecordedCall]) {
-        events = calls.compactMap { call in
+    init(calls: [RecordedCall], orderedByCompletion: Bool = false) {
+        let orderedCalls =
+            if orderedByCompletion {
+                calls.sorted {
+                    ($0.completionSequence ?? .max)
+                        < ($1.completionSequence ?? .max)
+                }
+            } else {
+                calls
+            }
+        events = orderedCalls.compactMap { call in
             guard let sequence = call.sequence, let startedAt = call.startedAt else {
                 return nil
             }
             return Event(
                 id: sequence,
+                completionSequence: call.completionSequence,
                 requirement: call.name,
                 arguments: call.args.map { String(reflecting: $0) },
                 dispatch: call.origin == .forwarded ? .forwarded : .stubbed,

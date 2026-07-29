@@ -58,6 +58,13 @@ public struct InteractionHistory: Sendable, CustomStringConvertible {
         InteractionTimeline(calls: calls)
     }
 
+    /// A diagnostic timeline sorted by handler completion rather than entry.
+    ///
+    /// Calls that remain pending appear after completed calls.
+    public var completionTimeline: InteractionTimeline {
+        InteractionTimeline(calls: calls, orderedByCompletion: true)
+    }
+
     /// A compact ordered log of the calls in this history.
     ///
     /// Reading the description does not mark calls as verified.

@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   call patterns, terminal handles, and whole-double timeline events.
 - Event-driven `waitForCompletion(count:within:)` synchronization for matching
   interactions, including throwing and forwarded calls.
+- Cross-double `CompletionOrder` verification and completion-sorted history
+  timelines, independent of invocation-entry order.
 
 ## [0.0.2] - 2026-07-29
 

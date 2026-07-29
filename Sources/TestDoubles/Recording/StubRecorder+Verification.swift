@@ -235,6 +235,42 @@ extension StubRecorder {
         return nil
     }
 
+    /// Returns the earliest completed call matching `recording` whose global
+    /// completion stamp is later than `cursor`.
+    func earliestCompletionOrderedMatch(
+        recording: RecordedCall,
+        after cursor: UInt64,
+        origin: InvocationOrigin? = nil
+    ) -> PreparedRecordedCallMatch? {
+        let calls = withLockedPolicy {
+            $0.invocationLedger.allCalls.sorted { lhs, rhs in
+                (lhs.completionSequence ?? .max)
+                    < (rhs.completionSequence ?? .max)
+            }
+        }
+        let matchers = recording.resolvedMatchers
+        for call in calls {
+            guard
+                let sequence = call.completionSequence,
+                sequence > cursor,
+                call.methodIndex == recording.methodIndex,
+                origin == nil || call.origin == origin,
+                let transaction = StubBehaviorRegistry.prepareArgumentsMatch(
+                    call.args,
+                    against: matchers,
+                    matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly
+                )
+            else {
+                continue
+            }
+            return PreparedRecordedCallMatch(
+                call: call,
+                matcherTransaction: transaction
+            )
+        }
+        return nil
+    }
+
     func commitSuccessfulVerification(of matches: [PreparedRecordedCallMatch]) {
         for match in matches {
             match.matcherTransaction.commitCaptures()

@@ -174,6 +174,7 @@ struct RecordedCall: @unchecked Sendable {
     let taskPriorityRawValue: UInt8
     let startedAt: ContinuousClock.Instant?
     var completedAt: ContinuousClock.Instant?
+    var completionSequence: UInt64?
     var outcome: RecordedCallOutcome
     private let argumentsStorage: ArgumentsStorage
     let matchers: [ParameterMatcher]
@@ -193,6 +194,7 @@ struct RecordedCall: @unchecked Sendable {
         registrationSignature: String? = nil,
         startedAt: ContinuousClock.Instant? = nil,
         completedAt: ContinuousClock.Instant? = nil,
+        completionSequence: UInt64? = nil,
         outcome: RecordedCallOutcome = .pending,
         args: [Any],
         argumentConventions: [RuntimeValueConvention]? = nil,
@@ -210,6 +212,7 @@ struct RecordedCall: @unchecked Sendable {
         taskPriorityRawValue = Task.currentPriority.rawValue
         self.startedAt = startedAt
         self.completedAt = completedAt
+        self.completionSequence = completionSequence
         self.outcome = outcome
         if let argumentConventions {
             precondition(
@@ -240,6 +243,7 @@ struct RecordedCall: @unchecked Sendable {
         taskPriorityRawValue: UInt8,
         startedAt: ContinuousClock.Instant?,
         completedAt: ContinuousClock.Instant?,
+        completionSequence: UInt64?,
         outcome: RecordedCallOutcome,
         argumentsStorage: ArgumentsStorage,
         matchers: [ParameterMatcher],
@@ -255,6 +259,7 @@ struct RecordedCall: @unchecked Sendable {
         self.taskPriorityRawValue = taskPriorityRawValue
         self.startedAt = startedAt
         self.completedAt = completedAt
+        self.completionSequence = completionSequence
         self.outcome = outcome
         self.argumentsStorage = argumentsStorage
         self.matchers = matchers
@@ -274,6 +279,7 @@ struct RecordedCall: @unchecked Sendable {
             taskPriorityRawValue: taskPriorityRawValue,
             startedAt: startedAt,
             completedAt: completedAt,
+            completionSequence: completionSequence,
             outcome: outcome,
             argumentsStorage: argumentsStorage,
             matchers: matchers,
@@ -385,6 +391,7 @@ struct InvocationLedger {
             return []
         }
         calls[index].completedAt = ContinuousClock.now
+        calls[index].completionSequence = GlobalInvocationSequence.take()
         calls[index].outcome = outcome
         let method = calls[index].methodIndex
         methodGenerations[method, default: 0] &+= 1

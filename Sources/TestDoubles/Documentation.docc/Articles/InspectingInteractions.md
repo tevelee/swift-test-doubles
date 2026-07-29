@@ -128,6 +128,24 @@ least the requested number of matching calls have returned, thrown, or
 finished forwarding. A timeout reports a test issue and waiting does not mark
 the calls as verified.
 
+Entry order and completion order are tracked independently. ``InvocationOrder``
+continues to verify when calls entered their doubles; ``CompletionOrder``
+verifies when their handlers returned, threw, or finished forwarding:
+
+```swift
+InvocationOrder {
+    slowLoad
+    fastLoad
+}
+CompletionOrder {
+    fastLoad
+    slowLoad
+}
+```
+
+`history.completionTimeline` presents the same whole-double log sorted by its
+process-global completion sequence. Calls that remain pending appear last.
+
 ### Inspect the whole double
 
 When a `verify` fails, the useful next question is what actually *did* get

@@ -120,6 +120,47 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
         #expect(await task.value == 42)
     }
 
+    @Test func completionOrderIsIndependentFromInvocationEntryOrder() async throws {
+        let stub = try makeHandlerArityStub()
+        let slow = await stub.when {
+            await $0.asynchronous(Match.equal(1))
+        }
+        slow.then { (_: Int) async -> Int in
+            try? await ContinuousClock().sleep(for: .milliseconds(50))
+            return 1
+        }
+        let fast = await stub.when {
+            await $0.asynchronous(Match.equal(2))
+        }
+        fast.then { (_: Int) async -> Int in
+            try? await ContinuousClock().sleep(for: .milliseconds(5))
+            return 2
+        }
+        let probe: any HandlerArityProbe = stub()
+
+        let slowTask = Task { await probe.asynchronous(1) }
+        await slow.verify(1..., within: .seconds(1))
+        let fastTask = Task { await probe.asynchronous(2) }
+        #expect(await fastTask.value == 2)
+        #expect(await slowTask.value == 1)
+
+        InvocationOrder {
+            slow
+            fast
+        }
+        CompletionOrder {
+            fast
+            slow
+        }
+
+        let completionEvents = stub.history.completionTimeline.events
+        #expect(completionEvents.map(\.arguments) == [["2"], ["1"]])
+        #expect(
+            completionEvents.compactMap(\.completionSequence)
+                == completionEvents.compactMap(\.completionSequence).sorted()
+        )
+    }
+
     @Test func typedThenSupportsZeroThroughSevenArguments() async throws {
         let stub = try makeHandlerArityStub()
         stub.when { $0.zero() }.then { 0 }
