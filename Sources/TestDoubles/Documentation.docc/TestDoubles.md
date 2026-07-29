@@ -17,7 +17,9 @@ Use ``Dummy`` when an API requires a protocol value that the exercised code path
 must not use. A dummy has no behavior or recorder, and every invocation fails
 closed with an actionable diagnostic.
 
-Start with <doc:GettingStarted> for task-oriented examples. Use
+Start with <doc:QuickStart> for the complete everyday API workflow, then use
+<doc:GettingStarted> for properties, subscripts, initializers, dynamic `Self`,
+and associated types. Use
 <doc:AsyncBehaviors> to control when async requirements complete, for loading
 states, timeouts, and cancellation, and <doc:InspectingInteractions> to read
 recorded arguments, order calls across doubles, and reset a double between
@@ -51,6 +53,7 @@ isolation. See
 
 ### Start Here
 
+- <doc:QuickStart>
 - <doc:GettingStarted>
 - <doc:AsyncBehaviors>
 - <doc:InspectingInteractions>

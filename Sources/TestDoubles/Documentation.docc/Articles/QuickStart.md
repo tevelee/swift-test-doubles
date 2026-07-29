@@ -1,0 +1,745 @@
+# Quick Start
+
+Create a protocol double, configure its behavior, pass the generated value to
+the subject under test, and inspect the calls that came back.
+
+## Overview
+
+TestDoubles follows one small workflow:
+
+1. Construct a ``Stub``, ``Spy``, or closure double.
+2. Describe a call once with `when`.
+3. Attach its behavior with a `then` method.
+4. Inject the generated protocol value or function.
+5. Verify or inspect the saved call pattern.
+
+This page introduces the complete everyday vocabulary. Continue with
+<doc:GettingStarted> for properties, subscripts, initializers, dynamic `Self`,
+and associated types; <doc:AsyncBehaviors> for precise async control; and
+<doc:InspectingInteractions> for deeper observation and ordering.
+
+### Define the dependency
+
+The subject under test should already depend on a protocol:
+
+```swift
+protocol AuthService: Sendable {
+    func signIn(
+        user: String,
+        password: String
+    ) async throws -> String
+
+    func signOut() async
+}
+
+enum AuthError: Error {
+    case invalidCredentials
+}
+```
+
+### Construct a stub
+
+When a concrete conformer is linked into the test process, or the protocol
+exports resilient requirement descriptors, zero-argument construction discovers
+the requirement signatures automatically:
+
+```swift
+let auth = try Stub<any AuthService>()
+```
+
+The production conformer is inspected but never invoked. Construction throws a
+``StubError`` if the protocol cannot be represented safely.
+
+### Match calls and attach behavior
+
+`when` records one requirement invocation and returns a reusable
+``CallPattern``:
+
+```swift
+let blobSignIns = await auth.when {
+    try await $0.signIn(
+        user: Match.equal("blob"),
+        password: Match.equal("sekret")
+    )
+}
+
+blobSignIns.thenReturn("session-42")
+```
+
+Add a broad fallback after the specific registration:
+
+```swift
+await auth.when {
+    try await $0.signIn(
+        user: Match.any(),
+        password: Match.any()
+    )
+}.thenThrow(AuthError.invalidCredentials)
+
+await auth.when {
+    await $0.signOut()
+}.thenDoNothing()
+```
+
+Registrations use first-match-wins ordering, like the cases in a `switch`.
+Register specific matchers before general fallbacks. TestDoubles reports a new
+registration when an earlier registration provably makes it unreachable.
+
+Every argument in one recorded invocation must either use a matcher or use its
+literal value. Do not mix the two styles in one call.
+
+### Inject the generated value
+
+Calling the controller produces an ordinary protocol existential:
+
+```swift
+let service: any AuthService = auth()
+
+let session = try await service.signIn(
+    user: "blob",
+    password: "sekret"
+)
+
+#expect(session == "session-42")
+```
+
+The generated value owns its runtime resources and may outlive the ``Stub``
+controller that created it.
+
+### Verify the saved pattern
+
+The pattern returned by `when` keeps the call and its matchers available:
+
+```swift
+blobSignIns.verify()
+
+let arguments: [(String, String)] = blobSignIns.arguments()
+#expect(arguments == [("blob", "sekret")])
+```
+
+A plain immediate `verify()` expects exactly one call. Use native integer
+ranges for every other count:
+
+```swift
+blobSignIns.verify(2 ... 2)  // exactly two
+blobSignIns.verify(2...)     // at least two
+blobSignIns.verify(...2)     // at most two
+blobSignIns.verify(2 ... 4)  // between two and four
+blobSignIns.verify(.never)   // exactly zero
+```
+
+When the call arrives from another task, wait for a monotonic lower bound:
+
+```swift
+await blobSignIns.verify(
+    1...,
+    within: .seconds(1)
+)
+```
+
+A timeout reports a test issue at the verification call site.
+
+### Match arguments
+
+The `Match` namespace keeps the common matcher vocabulary discoverable through
+autocomplete.
+
+#### Values and predicates
+
+```swift
+Match.any()
+Match.equal(42)
+Match.notEqual(0)
+Match.greaterThan(10)
+Match.atLeast(10)
+Match.lessThan(100)
+Match.atMost(100)
+Match.inRange(10 ..< 20)
+
+Match.matching(description: "positive") {
+    $0 > 0
+}
+```
+
+Use ``Match/any(using:)`` or
+``Match/matching(using:description:where:)`` when the recording pass cannot
+safely synthesize a temporary class or existential value. The supplied value
+is never matched against or returned.
+
+#### Optionals, collections, and strings
+
+```swift
+Match.isNil()
+Match.notNil()
+Match.some(Match.greaterThan(0))
+
+Match.isEmpty()
+Match.nonEmpty()
+Match.hasCount(3)
+Match.hasCount(matching: Match.atLeast(2))
+Match.contains("admin")
+Match.containsAll("read", "write")
+Match.startsWith(1, 2)
+Match.endsWith(9, 10)
+
+Match.hasPrefix("user-")
+Match.hasSuffix(".json")
+Match.containsSubstring("purchase")
+Match.equalsIgnoringCase("READY")
+Match.matchesRegex(#"user-\d+"#)
+```
+
+#### Compose matchers
+
+```swift
+Match.not(Match.equal(0))
+
+Match.allOf(
+    Match.greaterThan(0),
+    Match.atMost(100)
+)
+
+Match.anyOf(
+    Match.equal("draft"),
+    Match.equal("published")
+)
+
+Match.oneOf("small", "medium", "large")
+```
+
+Nested matchers remain one positional matcher. This also makes capture and a
+constraint compose safely:
+
+```swift
+let positiveIDs = Match.Capture<Int>()
+
+stub.when {
+    $0.load(
+        id: Match.allOf(
+            positiveIDs.capture(),
+            Match.greaterThan(0)
+        )
+    )
+}.thenReturn(value)
+```
+
+Only arguments accepted by the complete `allOf` expression are captured.
+``Match/Capture`` exposes `values`, `first`, `last`, and `reset()`.
+
+For placeholders used throughout a suite, register one exact-type factory:
+
+```swift
+Match.Placeholders.register {
+    User(name: "recording-placeholder")
+}
+```
+
+Explicit `using:` and `returning:` values take precedence over registered
+factories, and registered factories take precedence over synthesized values.
+See <doc:InspectingInteractions> for the process-wide registry contract.
+
+### Configure consecutive behavior
+
+A bare standalone behavior repeats for every matching call:
+
+```swift
+pattern.thenReturn("ready")
+pattern.thenThrow(NetworkError.offline)
+```
+
+A bare intermediate behavior is one-shot, while the bare trailing behavior
+repeats:
+
+```swift
+let loads = await loader.when {
+    try await $0.load()
+}
+.thenThrow(URLError(.timedOut))
+.thenThrow(URLError(.networkConnectionLost))
+.thenReturn(["recovered"])
+```
+
+This serves two failures followed by an indefinitely repeating success.
+
+Use `times: Int` for an exact finite run and `times: 1...` for an explicit
+unbounded terminal:
+
+```swift
+let calls = await loader.when {
+    try await $0.load()
+}
+.thenThrow(URLError(.timedOut), times: 2)
+.thenReturn(["offline"], times: 1...)
+```
+
+Finite behavior returns a ``StubBehaviorChain`` so another behavior can
+follow. An unbounded terminal returns observation-only ``CallInteractions``;
+it supports `verify`, `arguments()`, and `stream()` but deliberately has no
+behavior methods.
+
+Several return values are shorthand for a chain whose final value repeats:
+
+```swift
+pattern.thenReturn("first", "second", "last")
+```
+
+Use an inspectable finite queue when no answer should repeat:
+
+```swift
+let queue = pattern.thenQueue("first", "second")
+
+#expect(queue.remainingAnswerCount == 2)
+
+_ = service.load()
+_ = service.load()
+
+#expect(queue.isExhausted)
+queue.assertExhausted()
+queue.interactions.verify(2 ... 2)
+```
+
+Throwing requirements also support `thenThrowQueue`.
+
+### Compute behavior from the call
+
+`then` receives a typed leading prefix of the requirement's arguments:
+
+```swift
+stub.when {
+    $0.format(
+        name: Match.any(),
+        count: Match.any()
+    )
+}.then { name, count in
+    "\(name): \(count)"
+}
+```
+
+Trailing arguments may be omitted:
+
+```swift
+stub.when {
+    $0.format(
+        name: Match.any(),
+        count: Match.any()
+    )
+}.then { name in
+    name.uppercased()
+}
+```
+
+Computed handlers compose with fixed fallbacks:
+
+```swift
+let calls = await loader.when {
+    try await $0.load(url: Match.any())
+}
+.then(times: 2) { (url: URL) in
+    try await remote.load(url: url)
+}
+.thenReturn("offline")
+```
+
+When the response depends on the attempt, `thenForEachCall` supplies a
+one-based count before the typed arguments:
+
+```swift
+await loader.when {
+    try await $0.load(url: Match.any())
+}.thenForEachCall { attempt, url in
+    if attempt < 3 {
+        throw URLError(.timedOut)
+    }
+    return try await remote.load(url: url)
+}
+```
+
+Each counted behavior owns its own counter. A later counted behavior starts
+again at one.
+
+Use `thenEscaping` when the first requirement argument is an escaping closure
+that the handler retains:
+
+```swift
+let callbacks = CallbackCapture<Result>()
+
+stub.when {
+    $0.load(completion: Match.any())
+}.thenEscaping { completion in
+    callbacks.capture(completion)
+}
+```
+
+### Control async completion
+
+Async requirements can control both their outcome and when they complete.
+
+#### Delay a fixed outcome
+
+```swift
+await loader.when {
+    try await $0.load()
+}.thenReturn(
+    ["ready"],
+    after: .milliseconds(200)
+)
+```
+
+`thenThrow` and `thenDoNothing` accept the same `after:` argument. Pass a
+``ManualStubClock`` through the `using:` overload when the delay itself must be
+deterministic.
+
+#### Model a wedged dependency
+
+```swift
+let calls = await loader.when {
+    try await $0.load()
+}.thenNeverReturn()
+```
+
+The call never completes, even after cancellation, but it is recorded before
+parking and remains verifiable.
+
+#### Complete on cancellation
+
+```swift
+await loader.when {
+    try await $0.load()
+}.thenAwaitCancellation()
+```
+
+The bare form throws `CancellationError` for a throwing requirement and returns
+from a nonthrowing `Void` requirement. Other shapes use an explicit outcome:
+
+```swift
+await stub.when {
+    await $0.pendingCount()
+}.thenAwaitCancellation(returning: 0)
+
+await loader.when {
+    try await $0.load()
+}.thenAwaitCancellation(throwing: FeedError.cancelled)
+```
+
+#### Resume the call from the test
+
+```swift
+let suspension = await loader.when {
+    try await $0.load()
+}.thenSuspend()
+
+let task = Task {
+    try await loader().load()
+}
+
+await suspension.waitForCall(within: .seconds(1))
+#expect(viewModel.isLoading)
+
+suspension.interactions.verify()
+suspension.resume(returning: ["ready"])
+
+#expect(try await task.value == ["ready"])
+```
+
+`resume()`, `resume(returning:)`, and `resume(throwing:)` complete one parked
+call in arrival order. See <doc:AsyncBehaviors> for cancellation, multiple
+parked calls, and clock-aware timeout behavior.
+
+### Inspect interactions
+
+Reading a pattern's arguments is a pure query:
+
+```swift
+let calls: [(String, Int)] = events.arguments()
+let eventNames: [String] = events.arguments()
+```
+
+The result annotation selects the leading tuple shape. Reading arguments does
+not verify calls, consume behavior, advance a chain, or commit captures.
+
+Observe future matching calls without polling:
+
+```swift
+let stream: InvocationStream<(String, Int)> = events.stream()
+var iterator = stream.makeAsyncIterator()
+
+subject.performWork()
+
+let event = try #require(
+    await iterator.next(within: .seconds(1))
+)
+```
+
+Streams begin after creation. Timeout or task cancellation returns `nil`.
+
+Use `history` when the assertion concerns the whole double:
+
+```swift
+#expect(stub.history.callCount == 3)
+stub.history.verify(3 ... 3)
+
+print(stub.history)
+print(stub.history.timeline)
+```
+
+``InteractionHistory`` also exposes `wasCalled`, `forwarded`, `stubbed`, and
+`verifyNoMoreInteractions()`. The diagnostic timeline records each
+requirement, rendered arguments, dispatch decision, selected registration, and
+task priority.
+
+### Verify order
+
+Within one double, `verifyInOrder` checks a relative subsequence:
+
+```swift
+stub.verifyInOrder {
+    $0.start()
+    $0.finish()
+}
+```
+
+`verifyExactlyInOrder` permits no extra calls:
+
+```swift
+stub.verifyExactlyInOrder {
+    $0.start()
+    $0.finish()
+}
+```
+
+Across doubles, save patterns and use ``InvocationOrder``:
+
+```swift
+let charge = gateway.when {
+    $0.charge(amount: Match.equal(42))
+}.thenDoNothing()
+
+let purchase = analytics.when {
+    $0.track(event: Match.equal("purchase"))
+}
+purchase.thenDoNothing()
+
+InvocationOrder(exhaustive: true) {
+    charge
+    purchase
+}
+```
+
+Without `exhaustive: true`, unrelated calls may appear before, between, or
+after the expected sequence. The builder also supports direct invocations,
+conditionals, loops, async calls, and terminal ``CallInteractions`` values.
+
+### Forward through a spy
+
+Use ``Spy`` when a real implementation should handle calls by default:
+
+```swift
+let spy: Spy<any Translator> = .make(
+    forwardingTo: LiveTranslator()
+)
+
+spy.when {
+    $0.translate(Match.equal("greeting"))
+}.thenReturn("Howdy")
+
+let translator: any Translator = spy()
+
+#expect(translator.translate("greeting") == "Howdy")
+#expect(translator.translate("farewell") == "Goodbye")
+```
+
+Both paths are recorded:
+
+```swift
+let translations = spy.when {
+    $0.translate(Match.any())
+}
+
+translations.stubbed.verify()
+translations.forwarded.verify()
+
+let forwardedKeys: [String] =
+    translations.forwarded.arguments()
+```
+
+A registration can explicitly return to the live implementation:
+
+```swift
+let calls = spy.when {
+    try $0.load()
+}
+.thenThrow(NetworkError.offline, times: 2)
+.thenForward(times: 1...)
+```
+
+See <doc:ForwardingSpies> for initializer overrides, getter-effect hints, and
+the precise forwarding boundary.
+
+### Double an injected function
+
+Use ``ClosureDouble`` for a synchronous unary function:
+
+```swift
+let formatter = ClosureDouble<Int, String>()
+
+let twos = formatter.when(equal: 2)
+    .thenReturn("first")
+    .thenReturn("later")
+
+formatter.whenAny().then {
+    "value-\($0)"
+}
+
+let function: (Int) -> String = formatter.function
+
+#expect(function(2) == "first")
+#expect(function(2) == "later")
+#expect(function(9) == "value-9")
+
+twos.verify(2 ... 2)
+```
+
+Choose the double matching the injected function's effects:
+
+| Double | Function type |
+| --- | --- |
+| ``ClosureDouble`` | `(Input) -> Result` |
+| ``ThrowingClosureDouble`` | `(Input) throws -> Result` |
+| ``AsyncClosureDouble`` | `(Input) async -> Result` |
+| ``AsyncThrowingClosureDouble`` | `(Input) async throws -> Result` |
+| ``VoidClosureDouble`` | `() -> Result` |
+
+For example:
+
+```swift
+let load = AsyncThrowingClosureDouble<URL, Data>()
+
+let calls = load.whenAny()
+    .thenThrow(URLError(.timedOut))
+    .then { url async throws in
+        try await cache.data(for: url)
+    }
+    .thenReturn(Data())
+
+let function: (URL) async throws -> Data = load.function
+```
+
+Effect-aware patterns expose only behavior valid for their function type.
+Closure doubles share behavior chains, argument history, streams, ordering,
+async controls, and lifecycle operations with protocol doubles.
+
+### Keep setup strict
+
+At the end of an ordinary test, check both stale setup and surprise calls:
+
+```swift
+stub.verifyNoUnusedStubs()
+stub.verifyNoMoreInteractions()
+```
+
+`verifyNoUnusedStubs()` reports every behavior registration no invocation
+selected. `verifyNoMoreInteractions()` reports every call not covered by a
+successful verification.
+
+With the `TestDoublesTesting` product, Swift Testing can apply these checks at
+teardown:
+
+```swift
+import TestDoubles
+import TestDoublesTesting
+import Testing
+
+@Test(.testDoubles)
+func checkoutUsesItsGateway() throws {
+    // Unused registrations are reported automatically.
+}
+```
+
+Full strictness also requires every call to be verified, every finite queue to
+be consumed, every suspension to be resumed, and every callback capture to be
+released:
+
+```swift
+@Test(.strictTestDoubles)
+func checkoutHasNoSurpriseInteractions() throws {
+    // ...
+}
+```
+
+Individual policies are available through
+`testDoubles(strictness:)`. The `TestDoublesTesting` product's documentation
+covers the complete option set and task-inheritance behavior.
+
+### Reset between cases
+
+Manage behavior and calls independently:
+
+```swift
+stub.clearRecordedInvocations()   // Keep behavior and chain position.
+stub.clearConfiguredBehaviors()   // Keep the call history.
+stub.reset()                      // Clear both.
+```
+
+Clearing a ``Spy``'s behavior returns it to pure forwarding. Calls already
+parked by a suspending behavior remain parked because their behavior began
+before the clear.
+
+### Choose the right construction path
+
+- Use ``Stub`` for a runtime-generated configurable protocol value.
+- Use ``Spy`` when a real implementation should remain the default.
+- Use ``Dummy`` when the exercised path must not touch the dependency.
+- Use ``ManualStub`` when the runtime trampoline cannot represent the
+  requirement or cannot run on the platform.
+- Use a closure double when the injected dependency is a function rather than
+  a protocol.
+
+The fail-fast factories are convenient when construction failure is a test
+configuration error:
+
+```swift
+let service: any Service = Stub.make {
+    $0.when { $0.value() }.thenReturn("fixture")
+}
+
+let unused: any Service = Dummy.make()
+
+let spy: Spy<any Service> = .make(
+    forwardingTo: liveService
+)
+```
+
+Use the throwing initializers when the caller needs to recover:
+
+```swift
+let stub = try Stub<any Service>()
+let dummy = try Dummy<any Service>()
+let spy = try Spy<any Service>(
+    forwardingTo: liveService
+)
+```
+
+When automatic signature discovery is unavailable, prefer
+``Stub/Requirement`` factories using `signatureOf:` member references. Use
+getter-effect hints for an ordinary throwing getter, and caller-supplied
+associated-type bindings for the documented covariant-result slice. The
+complete decision tree and explicit schema examples are in
+<doc:ConstructionGuide>.
+
+Runtime-generated doubles require executable trampoline support. Use
+<doc:ManualStubbing> on physical Apple devices, WASI, or for a requirement
+outside the runtime boundary. The normative support and failure contract is
+<doc:StubContract>.
+
+### Next steps
+
+- <doc:GettingStarted> covers properties, subscripts, associated types,
+  initializers, static requirements, and dynamic `Self`.
+- <doc:AsyncBehaviors> covers delays, wedged calls, cancellation, and
+  test-controlled completion.
+- <doc:InspectingInteractions> covers typed arguments, future-call streams,
+  whole-double history, cross-double order, placeholders, and reset.
+- <doc:ForwardingSpies> covers forwarding behavior and limitations.
+- <doc:RecordAndReplay> captures real results into versioned fixtures.
+- <doc:ReusableScenarios> packages named, composable setup.
+- <doc:ManualStubbing> provides the portable and language-feature escape hatch.
