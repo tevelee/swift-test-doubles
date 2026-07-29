@@ -180,6 +180,11 @@ public struct CallInteractions: Sendable {
         matchingCalls().last?.typedOutcome(as: type)
     }
 
+    /// Monotonic timing information for matching calls.
+    public func timings() -> [InvocationTiming] {
+        matchingCalls().compactMap(\.timing)
+    }
+
     /// Returns a stream of future matching invocation arguments.
     ///
     /// Calls recorded before this method returns are deliberately excluded.

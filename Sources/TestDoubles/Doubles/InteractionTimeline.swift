@@ -41,6 +41,12 @@ public struct InteractionTimeline: Sendable, CustomStringConvertible {
         public let registration: String?
         /// The task priority observed when the call entered the double.
         public let taskPriorityRawValue: UInt8
+        /// The monotonic instant at which the call entered the double.
+        public let startedAt: ContinuousClock.Instant
+        /// The monotonic instant at which the call completed.
+        public let completedAt: ContinuousClock.Instant?
+        /// Elapsed time from entry to completion, or `nil` while pending.
+        public let duration: Duration?
     }
 
     /// Events in global call order.
@@ -48,14 +54,19 @@ public struct InteractionTimeline: Sendable, CustomStringConvertible {
 
     init(calls: [RecordedCall]) {
         events = calls.compactMap { call in
-            guard let sequence = call.sequence else { return nil }
+            guard let sequence = call.sequence, let startedAt = call.startedAt else {
+                return nil
+            }
             return Event(
                 id: sequence,
                 requirement: call.name,
                 arguments: call.args.map { String(reflecting: $0) },
                 dispatch: call.origin == .forwarded ? .forwarded : .stubbed,
                 registration: call.registrationSignature,
-                taskPriorityRawValue: call.taskPriorityRawValue
+                taskPriorityRawValue: call.taskPriorityRawValue,
+                startedAt: startedAt,
+                completedAt: call.completedAt,
+                duration: call.completedAt.map { startedAt.duration(to: $0) }
             )
         }
     }

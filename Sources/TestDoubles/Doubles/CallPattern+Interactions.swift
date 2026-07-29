@@ -208,6 +208,11 @@ extension CallPattern {
         matchingCalls().last?.typedOutcome(as: Result.self)
     }
 
+    /// Monotonic timing information for matching calls, in invocation order.
+    public func timings() -> [InvocationTiming] {
+        matchingCalls().compactMap(\.timing)
+    }
+
     /// Returns a stream of future matching invocation arguments.
     ///
     /// Calls recorded before this method returns are deliberately excluded.

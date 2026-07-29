@@ -76,6 +76,29 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
         }
     }
 
+    @Test func invocationTimingRecordsEntryCompletionAndDuration() throws {
+        let stub = try makeHandlerArityStub()
+        let pattern = stub.when { $0.one(Match.any()) }
+        pattern.thenReturn(42)
+        let probe: any HandlerArityProbe = stub()
+
+        #expect(probe.one(0) == 42)
+
+        let timings = pattern.timings()
+        #expect(timings.count == 1)
+        let timing = try #require(timings.first)
+        let completedAt = try #require(timing.completedAt)
+        #expect(timing.startedAt <= completedAt)
+        #expect(try #require(timing.duration) >= .zero)
+
+        let events = stub.history.timeline.events
+        #expect(events.count == 1)
+        let event = try #require(events.first)
+        #expect(event.startedAt == timing.startedAt)
+        #expect(event.completedAt == timing.completedAt)
+        #expect(event.duration == timing.duration)
+    }
+
     @Test func typedThenSupportsZeroThroughSevenArguments() async throws {
         let stub = try makeHandlerArityStub()
         stub.when { $0.zero() }.then { 0 }

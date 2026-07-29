@@ -83,5 +83,10 @@ private actor CompletionFlag {
             Issue.record("Expected a parked invocation to remain pending")
             return
         }
+        let timings = calls.timings()
+        #expect(timings.count == 1)
+        let timing = try #require(timings.first)
+        #expect(timing.completedAt == nil)
+        #expect(timing.duration == nil)
     }
 }

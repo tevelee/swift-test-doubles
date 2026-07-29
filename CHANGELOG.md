@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Typed invocation outcome inspection through `results()`, `errors()`,
   `outcomes()`, and `lastOutcome`, including pending async calls and completed
   spy forwarding.
+- Monotonic invocation start/completion timestamps and elapsed durations on
+  call patterns, terminal handles, and whole-double timeline events.
 
 ## [0.0.2] - 2026-07-29
 

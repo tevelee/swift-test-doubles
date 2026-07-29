@@ -172,6 +172,8 @@ struct RecordedCall: @unchecked Sendable {
     let origin: InvocationOrigin
     let registrationSignature: String?
     let taskPriorityRawValue: UInt8
+    let startedAt: ContinuousClock.Instant?
+    var completedAt: ContinuousClock.Instant?
     var outcome: RecordedCallOutcome
     private let argumentsStorage: ArgumentsStorage
     let matchers: [ParameterMatcher]
@@ -189,6 +191,8 @@ struct RecordedCall: @unchecked Sendable {
         name: String,
         origin: InvocationOrigin = .stubbed,
         registrationSignature: String? = nil,
+        startedAt: ContinuousClock.Instant? = nil,
+        completedAt: ContinuousClock.Instant? = nil,
         outcome: RecordedCallOutcome = .pending,
         args: [Any],
         argumentConventions: [RuntimeValueConvention]? = nil,
@@ -204,6 +208,8 @@ struct RecordedCall: @unchecked Sendable {
         self.origin = origin
         self.registrationSignature = registrationSignature
         taskPriorityRawValue = Task.currentPriority.rawValue
+        self.startedAt = startedAt
+        self.completedAt = completedAt
         self.outcome = outcome
         if let argumentConventions {
             precondition(
@@ -232,6 +238,8 @@ struct RecordedCall: @unchecked Sendable {
         origin: InvocationOrigin,
         registrationSignature: String?,
         taskPriorityRawValue: UInt8,
+        startedAt: ContinuousClock.Instant?,
+        completedAt: ContinuousClock.Instant?,
         outcome: RecordedCallOutcome,
         argumentsStorage: ArgumentsStorage,
         matchers: [ParameterMatcher],
@@ -245,6 +253,8 @@ struct RecordedCall: @unchecked Sendable {
         self.origin = origin
         self.registrationSignature = registrationSignature
         self.taskPriorityRawValue = taskPriorityRawValue
+        self.startedAt = startedAt
+        self.completedAt = completedAt
         self.outcome = outcome
         self.argumentsStorage = argumentsStorage
         self.matchers = matchers
@@ -262,6 +272,8 @@ struct RecordedCall: @unchecked Sendable {
             origin: origin,
             registrationSignature: registrationSignature,
             taskPriorityRawValue: taskPriorityRawValue,
+            startedAt: startedAt,
+            completedAt: completedAt,
             outcome: outcome,
             argumentsStorage: argumentsStorage,
             matchers: matchers,
@@ -349,6 +361,7 @@ struct InvocationLedger {
                 name: name,
                 origin: origin,
                 registrationSignature: registrationSignature,
+                startedAt: ContinuousClock.now,
                 args: args,
                 argumentConventions: argumentConventions,
                 runtimePayloadRecorder: runtimePayloadRecorder,
@@ -371,6 +384,7 @@ struct InvocationLedger {
         guard case .pending = calls[index].outcome else {
             return
         }
+        calls[index].completedAt = ContinuousClock.now
         calls[index].outcome = outcome
     }
 

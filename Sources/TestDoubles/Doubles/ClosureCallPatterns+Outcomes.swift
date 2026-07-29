@@ -10,6 +10,9 @@ extension ClosureCallPattern {
 
     /// The most recently entered matching call's completion state.
     public var lastOutcome: InvocationOutcome<Result>? { base.lastOutcome }
+
+    /// Monotonic timing information for matching calls.
+    public func timings() -> [InvocationTiming] { base.timings() }
 }
 
 extension ThrowingClosureCallPattern {
@@ -24,6 +27,9 @@ extension ThrowingClosureCallPattern {
 
     /// The most recently entered matching call's completion state.
     public var lastOutcome: InvocationOutcome<Result>? { base.lastOutcome }
+
+    /// Monotonic timing information for matching calls.
+    public func timings() -> [InvocationTiming] { base.timings() }
 }
 
 extension AsyncClosureCallPattern {
@@ -38,6 +44,9 @@ extension AsyncClosureCallPattern {
 
     /// The most recently entered matching call's completion state.
     public var lastOutcome: InvocationOutcome<Result>? { base.lastOutcome }
+
+    /// Monotonic timing information for matching calls.
+    public func timings() -> [InvocationTiming] { base.timings() }
 }
 
 extension AsyncThrowingClosureCallPattern {
@@ -52,4 +61,7 @@ extension AsyncThrowingClosureCallPattern {
 
     /// The most recently entered matching call's completion state.
     public var lastOutcome: InvocationOutcome<Result>? { base.lastOutcome }
+
+    /// Monotonic timing information for matching calls.
+    public func timings() -> [InvocationTiming] { base.timings() }
 }
