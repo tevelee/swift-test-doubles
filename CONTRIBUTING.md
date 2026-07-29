@@ -38,12 +38,17 @@ Run the smallest relevant checks while iterating, then the complete baseline
 before opening a pull request:
 
 ```bash
-swift build
+swift build --target TestDoubles
 swift test --parallel
 swift test -c release --parallel
 Scripts/validate-documentation.sh
 git diff --check
 ```
+
+The target-specific build keeps the fast edit/build loop on the public library
+and its reachable runtime dependencies. A package-wide build also compiles
+optional macros, generators, demos, and fixtures; use the test commands when
+you need that complete graph.
 
 Swift Testing randomizes execution order when parallelization is enabled. Keep
 `--parallel` explicit so local and CI runs exercise both concurrent execution
