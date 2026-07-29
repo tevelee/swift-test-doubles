@@ -141,6 +141,31 @@ private struct Modify2AbortFailure: Error {}
         #expect(weakReference.value == nil)
     }
 
+    @Test func readOutcomeCompletesWithoutRetainingBorrowedResult() throws {
+        _ = LinkedReadLifetimeProbe()
+        let stub = try Stub<any ReadLifetimeProbe>()
+        let weakReference = WeakReadReference(nil)
+        let pattern = stub.when(
+            returning: ReadLifetimeValue(reference: ReadLifetimeReference(value: -1))
+        ) {
+            $0.value
+        }
+        pattern.then { () -> ReadLifetimeValue in
+            let reference = ReadLifetimeReference(value: 42)
+            weakReference.value = reference
+            return ReadLifetimeValue(reference: reference)
+        }
+        let probe: any ReadLifetimeProbe = stub()
+
+        #expect(consumeReadLifetimeValue(probe) == 42)
+        #expect(weakReference.value == nil)
+        guard case .unavailable = pattern.lastOutcome else {
+            Issue.record("Expected a completed borrowed accessor outcome to be unavailable")
+            return
+        }
+        #expect(pattern.timings().first?.completedAt != nil)
+    }
+
     @Test func readResultReleasesExactlyOnceAfterAbort() throws {
         _ = LinkedReadLifetimeProbe()
         let stub = try Stub<any ReadLifetimeProbe>()

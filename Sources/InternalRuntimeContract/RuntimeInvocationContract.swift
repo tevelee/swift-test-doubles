@@ -64,10 +64,18 @@ package struct RuntimeInvocationToken: Sendable {
     }
 }
 
+/// A completion payload reported by the ABI runtime after the result has
+/// crossed its ownership boundary.
+package enum RuntimeInvocationOutcome: @unchecked Sendable {
+    case returned(Any)
+    case threw(any Error)
+    case unavailable
+}
+
 /// The public layer's synchronous dispatch selection.
 package enum RuntimePreparedDispatch: @unchecked Sendable {
     case recording
-    case behavior(RuntimeDispatchBehavior)
+    case behavior(RuntimeInvocationToken, RuntimeDispatchBehavior)
     case forwarding(RuntimeInvocationToken)
 }
 
@@ -96,6 +104,13 @@ package protocol RuntimeInvocationEndpoint: AnyObject, Sendable {
     /// The ABI transport owns the target call and therefore is the only layer
     /// that can report its completion boundary reliably.
     func completeForwardedInvocation(_ token: RuntimeInvocationToken)
+
+    /// Marks a configured invocation complete with the result representation
+    /// available at the ABI boundary.
+    func completeInvocation(
+        _ token: RuntimeInvocationToken,
+        outcome: RuntimeInvocationOutcome
+    )
 
     var invocationMode: RuntimeInvocationMode { get }
 

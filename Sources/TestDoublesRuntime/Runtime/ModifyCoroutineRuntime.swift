@@ -37,6 +37,7 @@ private enum ModifyCoroutineRuntime {
         let indices: [Any]
         let buffer: ValueStorage
         let skipsForwardingSetter: Bool
+        let getterCompletionToken: RuntimeInvocationToken?
 
         var yieldedStorage: UnsafeMutableRawPointer? { buffer.storage }
         private var storage: UnsafeMutableRawPointer { buffer.storage }
@@ -47,7 +48,8 @@ private enum ModifyCoroutineRuntime {
             endpoint: any RuntimeInvocationEndpoint,
             indices: [Any],
             buffer: ValueStorage,
-            skipsForwardingSetter: Bool
+            skipsForwardingSetter: Bool,
+            getterCompletionToken: RuntimeInvocationToken?
         ) {
             self.getter = getter
             self.setter = setter
@@ -55,6 +57,7 @@ private enum ModifyCoroutineRuntime {
             self.indices = indices
             self.buffer = buffer
             self.skipsForwardingSetter = skipsForwardingSetter
+            self.getterCompletionToken = getterCompletionToken
         }
 
         func finish(isAborting: Bool) {
@@ -77,6 +80,12 @@ private enum ModifyCoroutineRuntime {
             // same configured writeback as normal completion.
             _ = isAborting
             dispatchSetter(value)
+            if let getterCompletionToken {
+                endpoint.completeInvocation(
+                    getterCompletionToken,
+                    outcome: .unavailable
+                )
+            }
         }
 
         private func dispatchSetter(_ value: Any) {
@@ -96,12 +105,16 @@ private enum ModifyCoroutineRuntime {
                     case .forwarding(let token):
                         endpoint.completeForwardedInvocation(token)
                         return
-                    case .behavior(let behavior):
-                        _ = SynchronousAccessorDispatch.evaluate(
+                    case .behavior(let token, let behavior):
+                        let result = SynchronousAccessorDispatch.evaluate(
                             behavior,
                             method: setter,
                             arguments: arguments,
                             role: .modify
+                        )
+                        endpoint.completeInvocation(
+                            token,
+                            outcome: .returned(result)
                         )
                         return
                 }
@@ -112,12 +125,16 @@ private enum ModifyCoroutineRuntime {
             ) {
                 case .recording:
                     _ = endpoint.recordingAccessorResult(at: setter.index)
-                case .behavior(let behavior):
-                    _ = SynchronousAccessorDispatch.evaluate(
+                case .behavior(let token, let behavior):
+                    let result = SynchronousAccessorDispatch.evaluate(
                         behavior,
                         method: setter,
                         arguments: arguments,
                         role: .modify
+                    )
+                    endpoint.completeInvocation(
+                        token,
+                        outcome: .returned(result)
                     )
                 case .forwarding:
                     preconditionFailure(
@@ -188,7 +205,7 @@ private enum ModifyCoroutineRuntime {
                         "[TestDoubles] _modify capture must fail before dispatch."
                     )
 
-                case .behavior(let behavior):
+                case .behavior(let token, let behavior):
                     state = makeConfiguredState(
                         result: SynchronousAccessorDispatch.evaluate(
                             behavior,
@@ -200,22 +217,25 @@ private enum ModifyCoroutineRuntime {
                         setter: setter,
                         endpoint: invocation.endpoint,
                         indices: indices,
-                        skipsForwardingSetter: true
+                        skipsForwardingSetter: true,
+                        completionToken: token
                     )
             }
         } else {
+            let prepared = SynchronousAccessorDispatch.dispatch(
+                method: getter,
+                arguments: indices,
+                endpoint: invocation.endpoint,
+                role: .modify
+            )
             state = makeConfiguredState(
-                result: SynchronousAccessorDispatch.dispatch(
-                    method: getter,
-                    arguments: indices,
-                    endpoint: invocation.endpoint,
-                    role: .modify
-                ),
+                result: prepared.value,
                 getter: getter,
                 setter: setter,
                 endpoint: invocation.endpoint,
                 indices: indices,
-                skipsForwardingSetter: false
+                skipsForwardingSetter: false,
+                completionToken: prepared.completionToken
             )
         }
         guard let yieldedStorage = state.yieldedStorage else {
@@ -248,7 +268,8 @@ private enum ModifyCoroutineRuntime {
         setter: MethodDescriptor,
         endpoint: any RuntimeInvocationEndpoint,
         indices: [Any],
-        skipsForwardingSetter: Bool
+        skipsForwardingSetter: Bool,
+        completionToken: RuntimeInvocationToken?
     ) -> any YieldingAccessorState {
         let buffer = ValueStorage(type: getter.returnType)
         RuntimeValueTransport.initializeDirectValue(
@@ -263,7 +284,8 @@ private enum ModifyCoroutineRuntime {
             endpoint: endpoint,
             indices: indices,
             buffer: buffer,
-            skipsForwardingSetter: skipsForwardingSetter
+            skipsForwardingSetter: skipsForwardingSetter,
+            getterCompletionToken: completionToken
         )
     }
 }

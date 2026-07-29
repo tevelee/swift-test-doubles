@@ -457,6 +457,14 @@ final class DummyInvocationEndpoint: RuntimeInvocationEndpoint,
         _ = token
     }
 
+    func completeInvocation(
+        _ token: RuntimeInvocationToken,
+        outcome: RuntimeInvocationOutcome
+    ) {
+        _ = token
+        _ = outcome
+    }
+
     func modifyDispatch(
         forGetterSlot getterSlot: Int
     ) -> RuntimeModifyDispatch? {

@@ -43,6 +43,7 @@ enum RecordedCallOutcome: @unchecked Sendable {
     case returned(Any)
     case threw(any Error)
     case forwarded
+    case unavailable
 }
 
 struct RecordedCallToken: Sendable {

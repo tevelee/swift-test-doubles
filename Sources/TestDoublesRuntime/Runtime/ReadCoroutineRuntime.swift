@@ -32,12 +32,18 @@ enum ReadCoroutineRuntime {
         let kind = YieldingAccessorKind.read
         let yieldedStorage: UnsafeMutableRawPointer?
         let buffer: ValueStorage
+        let endpoint: (any RuntimeInvocationEndpoint)?
+        let completionToken: RuntimeInvocationToken?
 
         init(
             result: Any,
             method: MethodDescriptor,
-            frame: TrampolineCallFrame
+            frame: TrampolineCallFrame,
+            endpoint: (any RuntimeInvocationEndpoint)? = nil,
+            completionToken: RuntimeInvocationToken? = nil
         ) {
+            self.endpoint = endpoint
+            self.completionToken = completionToken
             buffer = ValueStorage(
                 type: method.returnType,
                 minimumByteCount: 32
@@ -61,7 +67,16 @@ enum ReadCoroutineRuntime {
             }
         }
 
-        func finish(isAborting: Bool) { _ = isAborting }
+        func finish(isAborting: Bool) {
+            _ = isAborting
+            buffer.destroyInitializedValue()
+            if let endpoint, let completionToken {
+                endpoint.completeInvocation(
+                    completionToken,
+                    outcome: .unavailable
+                )
+            }
+        }
     }
 
     static func prepare(
@@ -116,7 +131,7 @@ enum ReadCoroutineRuntime {
                         frame: frame
                     )
 
-                case .behavior(let behavior):
+                case .behavior(let token, let behavior):
                     state = ConfiguredState(
                         result: SynchronousAccessorDispatch.evaluate(
                             behavior,
@@ -125,19 +140,24 @@ enum ReadCoroutineRuntime {
                             role: .read
                         ),
                         method: method,
-                        frame: frame
+                        frame: frame,
+                        endpoint: invocation.endpoint,
+                        completionToken: token
                     )
             }
         } else {
-            state = ConfiguredState(
-                result: SynchronousAccessorDispatch.dispatch(
-                    method: method,
-                    arguments: arguments,
-                    endpoint: invocation.endpoint,
-                    role: .read
-                ),
+            let prepared = SynchronousAccessorDispatch.dispatch(
                 method: method,
-                frame: frame
+                arguments: arguments,
+                endpoint: invocation.endpoint,
+                role: .read
+            )
+            state = ConfiguredState(
+                result: prepared.value,
+                method: method,
+                frame: frame,
+                endpoint: invocation.endpoint,
+                completionToken: prepared.completionToken
             )
         }
 

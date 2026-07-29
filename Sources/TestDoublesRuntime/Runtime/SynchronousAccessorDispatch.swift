@@ -37,23 +37,34 @@ enum SynchronousAccessorRole {
 /// Evaluates endpoint-selected accessor behavior before the runtime constructs
 /// coroutine storage for the yielded value.
 enum SynchronousAccessorDispatch {
+    struct PreparedResult {
+        let value: Any
+        let completionToken: RuntimeInvocationToken?
+    }
+
     static func dispatch(
         method: MethodDescriptor,
         arguments: [Any],
         endpoint: any RuntimeInvocationEndpoint,
         role: SynchronousAccessorRole
-    ) -> Any {
+    ) -> PreparedResult {
         switch endpoint.prepareDispatch(
             RuntimeInvocationRequest(slot: method.index, arguments: arguments)
         ) {
             case .recording:
-                return endpoint.recordingAccessorResult(at: method.index)
-            case .behavior(let behavior):
-                return evaluate(
-                    behavior,
-                    method: method,
-                    arguments: arguments,
-                    role: role
+                return PreparedResult(
+                    value: endpoint.recordingAccessorResult(at: method.index),
+                    completionToken: nil
+                )
+            case .behavior(let token, let behavior):
+                return PreparedResult(
+                    value: evaluate(
+                        behavior,
+                        method: method,
+                        arguments: arguments,
+                        role: role
+                    ),
+                    completionToken: token
                 )
             case .forwarding:
                 preconditionFailure(

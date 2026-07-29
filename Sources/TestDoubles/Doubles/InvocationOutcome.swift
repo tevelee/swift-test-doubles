@@ -31,6 +31,8 @@ extension RecordedCall {
                 return .threw(error)
             case .forwarded:
                 return .forwarded
+            case .unavailable:
+                return .unavailable
         }
     }
 }

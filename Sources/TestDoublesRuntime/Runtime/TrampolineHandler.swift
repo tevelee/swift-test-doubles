@@ -140,6 +140,7 @@ enum RuntimeTrampolineHandler {
     ) {
         let method = invocation.method
         let result: Any
+        let completionToken: RuntimeInvocationToken
         switch invocation.endpoint.prepareDispatch(
             RuntimeInvocationRequest(
                 slot: method.index,
@@ -170,7 +171,8 @@ enum RuntimeTrampolineHandler {
                 invocation.endpoint.completeForwardedInvocation(token)
                 return
 
-            case .behavior(let behavior):
+            case .behavior(let token, let behavior):
+                completionToken = token
                 if invocation.forwarder != nil {
                     _ = RuntimeArgumentDecoder.decode(
                         for: method,
@@ -195,6 +197,10 @@ enum RuntimeTrampolineHandler {
                         frame.storeReturnError(frame.incomingSwiftError)
                     }
                 } catch {
+                    invocation.endpoint.completeInvocation(
+                        token,
+                        outcome: .threw(error)
+                    )
                     encodeThrown(
                         error,
                         from: method,
@@ -211,6 +217,10 @@ enum RuntimeTrampolineHandler {
             for: invocation.runtimeMethod,
             endpoint: invocation.endpoint,
             into: frame
+        )
+        invocation.endpoint.completeInvocation(
+            completionToken,
+            outcome: .returned(result)
         )
     }
 

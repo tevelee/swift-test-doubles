@@ -110,7 +110,9 @@ pending. A completed spy delegation is represented by `.forwarded`, because
 the ABI transport owns its result and cannot safely type-erase every result
 shape. Likewise, a runtime value that cannot be represented by the pattern's
 generic result is `.unavailable`; this principally covers dependent dynamic
-`Self` results.
+`Self` results. Yielding `_read` and `_modify` accessors also report
+`.unavailable`: retaining their borrowed result beyond coroutine resume would
+violate the accessor's ownership boundary.
 
 A terminal ``CallInteractions`` handle no longer carries the result generic,
 so its `results(as:)`, `outcomes(as:)`, and `lastOutcome(as:)` methods infer

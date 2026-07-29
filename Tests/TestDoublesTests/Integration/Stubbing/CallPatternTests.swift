@@ -101,20 +101,27 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
 
     @Test func completionWaiterResumesAfterAsyncHandlerReturns() async throws {
         let stub = try makeHandlerArityStub()
+        let clock = ManualStubClock()
         let pattern = await stub.when {
             await $0.asynchronous(Match.any())
         }
         pattern.then { (value: Int) async -> Int in
-            try? await ContinuousClock().sleep(for: .milliseconds(25))
+            try? await clock.sleep(for: .milliseconds(25))
             return value * 2
         }
         let probe: any HandlerArityProbe = stub()
 
         let task = Task { await probe.asynchronous(21) }
-        await pattern.interactions.waitForCompletion(
-            count: 1,
-            within: .seconds(1)
-        )
+        await clock.waitForSleepers(atLeast: 1)
+        let waiter = Task {
+            await pattern.interactions.waitForCompletion(
+                count: 1,
+                within: .seconds(1)
+            )
+        }
+        await Task.yield()
+        clock.advance(by: .milliseconds(25))
+        await waiter.value
 
         #expect(pattern.results() == [42])
         #expect(await task.value == 42)
@@ -122,18 +129,19 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
 
     @Test func completionOrderIsIndependentFromInvocationEntryOrder() async throws {
         let stub = try makeHandlerArityStub()
+        let clock = ManualStubClock()
         let slow = await stub.when {
             await $0.asynchronous(Match.equal(1))
         }
         slow.then { (_: Int) async -> Int in
-            try? await ContinuousClock().sleep(for: .milliseconds(50))
+            try? await clock.sleep(for: .milliseconds(50))
             return 1
         }
         let fast = await stub.when {
             await $0.asynchronous(Match.equal(2))
         }
         fast.then { (_: Int) async -> Int in
-            try? await ContinuousClock().sleep(for: .milliseconds(5))
+            try? await clock.sleep(for: .milliseconds(5))
             return 2
         }
         let probe: any HandlerArityProbe = stub()
@@ -141,7 +149,10 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
         let slowTask = Task { await probe.asynchronous(1) }
         await slow.verify(1..., within: .seconds(1))
         let fastTask = Task { await probe.asynchronous(2) }
+        await clock.waitForSleepers(atLeast: 2)
+        clock.advance(by: .milliseconds(5))
         #expect(await fastTask.value == 2)
+        clock.advance(by: .milliseconds(45))
         #expect(await slowTask.value == 1)
 
         InvocationOrder {
