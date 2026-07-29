@@ -1,10 +1,6 @@
 import InternalRuntimeContract
 import Foundation
 
-#if TESTDOUBLES_RUNTIME_STUBS
-    import CTestDoublesTrampoline
-#endif
-
 /// Process-global monotonic stamp shared by every recorder, so ordered
 /// verification can compare invocation order across separate doubles, each of
 /// which otherwise numbers its calls independently.
@@ -16,7 +12,7 @@ enum GlobalInvocationSequence {
 
     static func take() -> UInt64 {
         #if TESTDOUBLES_RUNTIME_STUBS
-            td_next_global_invocation_sequence()
+            RuntimeStubFactory.takeGlobalInvocationSequence()
         #else
             lock.lock()
             defer { lock.unlock() }

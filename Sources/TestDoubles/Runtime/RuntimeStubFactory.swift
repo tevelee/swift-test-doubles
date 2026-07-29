@@ -11,6 +11,12 @@ import InternalRuntimeContract
 /// opaque materialization storage; descriptors, layouts, and ABI plans do not
 /// cross this facade.
 enum RuntimeStubFactory {
+    #if TESTDOUBLES_RUNTIME_STUBS
+        static func takeGlobalInvocationSequence() -> UInt64 {
+            RuntimeSymbols.nextGlobalInvocationSequence()
+        }
+    #endif
+
     static func makePayload(resources: AnyObject) -> AnyObject {
         #if TESTDOUBLES_RUNTIME_STUBS
             TestDoublesRuntime.RuntimeStubFactory.makePayload(resources: resources)

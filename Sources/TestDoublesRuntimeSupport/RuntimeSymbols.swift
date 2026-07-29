@@ -57,6 +57,11 @@ package enum RuntimeSymbols {
         return address
     }
 
+    /// Returns the next process-global monotonic invocation sequence number.
+    package static func nextGlobalInvocationSequence() -> UInt64 {
+        td_next_global_invocation_sequence()
+    }
+
     package static func function<Function>(
         named name: String,
         as _: Function.Type = Function.self
