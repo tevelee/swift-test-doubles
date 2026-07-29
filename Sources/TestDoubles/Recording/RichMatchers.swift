@@ -197,6 +197,50 @@ extension Match {
         return value
     }
 
+    // MARK: - Projection
+
+    /// Matches a value whose property at `keyPath` equals `expected`.
+    ///
+    /// This overload synthesizes the root placeholder used while recording.
+    /// Use ``property(using:_:equalTo:)`` for reference, existential, or other
+    /// root types that require an explicit placeholder.
+    public static func property<Root, Value: Equatable>(
+        _ keyPath: KeyPath<Root, Value>,
+        equalTo expected: Value
+    ) -> Root {
+        appendPropertyMatcher(keyPath, equalTo: expected)
+        return synthesizedPlaceholder(
+            for: "Match.property(_:equalTo:)",
+            fallback: "Match.property(using:_:equalTo:)"
+        )
+    }
+
+    /// Matches a value whose property at `keyPath` equals `expected`, using
+    /// `placeholder` only while recording the call.
+    public static func property<Root, Value: Equatable>(
+        using placeholder: Root,
+        _ keyPath: KeyPath<Root, Value>,
+        equalTo expected: Value
+    ) -> Root {
+        appendPropertyMatcher(keyPath, equalTo: expected)
+        return placeholder
+    }
+
+    private static func appendPropertyMatcher<Root, Value: Equatable>(
+        _ keyPath: KeyPath<Root, Value>,
+        equalTo expected: Value
+    ) {
+        MatcherContext.append(
+            ProjectionMatcher(
+                label: "property(\(keyPath))",
+                matchers: [EqualMatcher(expected: expected)]
+            ) { value in
+                guard let root = value as? Root else { return nil }
+                return root[keyPath: keyPath]
+            }
+        )
+    }
+
     // MARK: - Optionals
 
     /// Matches a `nil` optional argument.

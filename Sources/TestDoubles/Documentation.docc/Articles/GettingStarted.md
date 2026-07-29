@@ -92,6 +92,17 @@ stub.when {
 }.thenDoNothing()
 ```
 
+Project a domain value through a key path when only one property matters:
+
+```swift
+stub.when {
+    $0.save(Match.property(\.id, equalTo: 42))
+}.thenReturn("saved")
+```
+
+For a root type that needs an explicit recording value, use
+`Match.property(using:placeholder, \.id, equalTo: 42)`.
+
 The zero-argument matcher forms synthesize valid recording placeholders for
 supported value types. Supply a valid value for references, existentials, and
 other types that cannot be synthesized safely:

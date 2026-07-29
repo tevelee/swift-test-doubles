@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   probability sequence while returning an explicit success value otherwise.
 - Approximate floating-point matching with combined absolute and relative
   tolerances.
+- Key-path property projection matching, with synthesized and explicit root
+  placeholders.
 
 ## [0.0.2] - 2026-07-29
 

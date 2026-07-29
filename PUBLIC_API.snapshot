@@ -880,6 +880,8 @@ symbol	TestDoubles	swift.type.method	Match.not(_:)	static func not<T>(_ matcher:
 symbol	TestDoubles	swift.type.method	Match.notEqual(_:)	static func notEqual<T>(_ value: T) -> T where T : Equatable
 symbol	TestDoubles	swift.type.method	Match.notNil()	static func notNil<Wrapped>() -> Wrapped?
 symbol	TestDoubles	swift.type.method	Match.oneOf(_:)	static func oneOf<T>(_ values: T...) -> T where T : Equatable
+symbol	TestDoubles	swift.type.method	Match.property(_:equalTo:)	static func property<Root, Value>(_ keyPath: KeyPath<Root, Value>, equalTo expected: Value) -> Root where Value : Equatable
+symbol	TestDoubles	swift.type.method	Match.property(using:_:equalTo:)	static func property<Root, Value>(using placeholder: Root, _ keyPath: KeyPath<Root, Value>, equalTo expected: Value) -> Root where Value : Equatable
 symbol	TestDoubles	swift.type.method	Match.some(_:)	static func some<Wrapped>(_ matcher: @autoclosure () -> Wrapped) -> Wrapped?
 symbol	TestDoubles	swift.type.method	Match.startsWith(_:)	static func startsWith<C>(_ prefix: C.Element...) -> C where C : Collection, C.Element : Equatable, C.Element : Sendable
 symbol	TestDoubles	swift.type.method	Spy.make(_:forwardingTo:)	static func make(_ protocolType: P.Type = P.self, forwardingTo target: P) -> Spy<P>

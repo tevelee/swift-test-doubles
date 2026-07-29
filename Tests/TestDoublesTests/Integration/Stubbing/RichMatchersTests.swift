@@ -15,6 +15,30 @@ struct RealMeasurementLedger: MeasurementLedger {
     func classify(_ value: Double) -> String { "\(value)" }
 }
 
+private struct LedgerEntry {
+    let id: Int
+}
+
+private protocol EntryLedger {
+    func classify(_ entry: LedgerEntry) -> String
+}
+
+private struct RealEntryLedger: EntryLedger {
+    func classify(_ entry: LedgerEntry) -> String { "\(entry.id)" }
+}
+
+private final class ReferenceLedgerEntry {
+    let id: Int
+
+    init(id: Int) {
+        self.id = id
+    }
+}
+
+private protocol ReferenceEntryLedger {
+    func classify(_ entry: ReferenceLedgerEntry) -> String
+}
+
 struct RealLedger: Ledger {
     func classify(amount: Int) -> String { "" }
     func lookup(id: Int?) -> String { "" }
@@ -24,6 +48,41 @@ struct RealLedger: Ledger {
 final class LedgerNode {}
 
 @Suite struct RichMatchersTests {
+    @Test func keyPathProjectionMatchesAProperty() throws {
+        _ = RealEntryLedger()
+        let stub = try Stub<any EntryLedger>(
+            .method(LedgerEntry.self, returning: String.self)
+        )
+        stub.when { $0.classify(Match.property(\.id, equalTo: 42)) }
+            .thenReturn("answer")
+        stub.when { $0.classify(Match.any()) }.thenReturn("other")
+        let ledger: any EntryLedger = stub()
+
+        #expect(ledger.classify(LedgerEntry(id: 42)) == "answer")
+        #expect(ledger.classify(LedgerEntry(id: 7)) == "other")
+    }
+
+    @Test func keyPathProjectionAcceptsAnExplicitRootPlaceholder() throws {
+        let placeholder = ReferenceLedgerEntry(id: -1)
+        let stub = try Stub<any ReferenceEntryLedger>(
+            .method(ReferenceLedgerEntry.self, returning: String.self)
+        )
+        stub.when {
+            $0.classify(
+                Match.property(
+                    using: placeholder,
+                    \.id,
+                    equalTo: 42
+                )
+            )
+        }.thenReturn("answer")
+        stub.when { $0.classify(Match.any(using: placeholder)) }.thenReturn("other")
+        let ledger: any ReferenceEntryLedger = stub()
+
+        #expect(ledger.classify(ReferenceLedgerEntry(id: 42)) == "answer")
+        #expect(ledger.classify(ReferenceLedgerEntry(id: 7)) == "other")
+    }
+
     @Test func approximateMatcherSupportsAbsoluteAndRelativeTolerance() throws {
         _ = RealMeasurementLedger()
         let stub = try Stub<any MeasurementLedger>()
