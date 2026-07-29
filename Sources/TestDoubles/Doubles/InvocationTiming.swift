@@ -1,6 +1,6 @@
 /// Monotonic timing information for one invocation.
 ///
-/// `startedAt` and `completedAt` use ``ContinuousClock`` so elapsed durations
+/// `startedAt` and `completedAt` use `ContinuousClock` so elapsed durations
 /// are unaffected by wall-clock changes.
 public struct InvocationTiming: Sendable, Identifiable {
     /// The invocation's process-global entry order.

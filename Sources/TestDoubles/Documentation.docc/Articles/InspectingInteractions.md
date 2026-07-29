@@ -117,7 +117,7 @@ so its `results(as:)`, `outcomes(as:)`, and `lastOutcome(as:)` methods infer
 the type from an assignment or accept it explicitly.
 
 Each pattern and terminal handle also exposes `timings()`. Its
-``InvocationTiming`` values use a monotonic ``ContinuousClock`` instant for
+``InvocationTiming`` values use a monotonic `ContinuousClock` instant for
 entry and completion, plus a derived `Duration`. Pending calls have no
 completion instant or duration. The same fields appear on
 ``InteractionTimeline/Event`` for whole-double traces.
