@@ -168,7 +168,7 @@ private struct SaveError: Error, Equatable {}
         _ = service.fetch(id: 2)
 
         let captor = Match.Capture<Int>()
-        stub.verify { $0.fetch(id: captor.capture()) }
+        stub.verify(2 ... 2) { $0.fetch(id: captor.capture()) }
         #expect(captor.values == [1, 2])
     }
 
