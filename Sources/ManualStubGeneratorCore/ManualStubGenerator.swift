@@ -136,11 +136,18 @@ package struct ManualStubGenerator {
             in: .whitespaces
         )
         guard requirement.contains("get") else { return nil }
+        let getterEffects = effects(in: accessorSuffix(requirement, accessor: "get"))
         let getter = forwardingInvocation(
             receiver: receiver,
             arguments: [],
-            effects: effects(in: accessorSuffix(requirement, accessor: "get"))
+            effects: getterEffects
         )
+        if requirement.contains("set") == false,
+            getterEffects.contains("async") == false,
+            getterEffects.contains("throws") == false
+        {
+            return "\(prefix)var \(name): \(type) { \(getter) }"
+        }
         var accessors = ["get { \(getter) }"]
         if requirement.contains("set") {
             accessors.append(
@@ -165,11 +172,18 @@ package struct ManualStubGenerator {
                 in: .whitespaces
             ) ?? "Void"
         let arguments = invocationArguments(String(requirement[opening ... closing]))
+        let getterEffects = effects(in: accessorSuffix(requirement, accessor: "get"))
         let getter = forwardingInvocation(
             receiver: receiver,
             arguments: arguments,
-            effects: effects(in: accessorSuffix(requirement, accessor: "get"))
+            effects: getterEffects
         )
+        if requirement.contains("set") == false,
+            getterEffects.contains("async") == false,
+            getterEffects.contains("throws") == false
+        {
+            return "\(prefix)\(header) \(type) { \(getter) }"
+        }
         var accessors = ["get { \(getter) }"]
         if requirement.contains("set") {
             accessors.append(

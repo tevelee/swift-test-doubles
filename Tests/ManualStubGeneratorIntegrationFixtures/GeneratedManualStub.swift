@@ -35,7 +35,7 @@ struct GeneratedManualStubCounterStubConformer: GeneratedManualStubCounter, Manu
 
     func increment(by amount: Int) { stub.call(amount) }
 
-    var value: Int { get { stub.call() } }
+    var value: Int { stub.call() }
 }
 
 typealias GeneratedManualStubCounterStub = ManualStub<GeneratedManualStubCounterStubConformer>

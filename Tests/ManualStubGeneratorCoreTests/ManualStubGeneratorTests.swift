@@ -47,6 +47,21 @@ import Testing
         )
     }
 
+    @Test func emitsImplicitGettersForReadOnlySynchronousRequirements() throws {
+        let output = try render(
+            """
+            protocol Counter {
+                var value: Int { get }
+                subscript(_ index: Int) -> String { get }
+            }
+            """,
+            protocolName: "Counter"
+        )
+
+        #expect(output.contains("var value: Int { stub.call() }"))
+        #expect(output.contains("subscript(_ index: Int) -> String { stub.call(index) }"))
+    }
+
     @Test func preservesInoutForwardingWhileRoutingItsStaticType() throws {
         let output = try render(
             """
