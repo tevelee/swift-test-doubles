@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Timeout-safe asynchronous observation: `InvocationStream.Iterator.next`,
+  `StubSuspension.waitForCall`, and `CallbackCapture.waitForCallback` now
+  accept `within:` deadlines, with `using:` overloads for deterministic
+  `ManualStubClock` tests. Stream timeouts return `nil`; suspension and
+  callback timeouts report issues at the waiting call site.
 - `when` now returns a reusable `CallPattern` that composes behavior
   registration with call-count verification, typed argument history, and
   future-call streaming. A spy pattern's `forwarded` view provides the same

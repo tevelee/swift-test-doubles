@@ -67,15 +67,17 @@ let events: InvocationStream<(String, Int)> = allEvents.stream()
 
 analytics.track(event: "feed_refreshed", value: 1)
 var iterator = events.makeAsyncIterator()
-let call = try #require(await iterator.next())
+let call = try #require(await iterator.next(within: .seconds(1)))
 
 #expect(call.0 == "feed_refreshed")
 #expect(call.1 == 1)
 ```
 
 The pattern's matchers determine which calls the stream observes. Reading it
-does not mark a call verified or commit captures. Cancelling a task awaiting
-`next()` returns `nil` and removes its waiter immediately.
+does not mark a call verified or commit captures. A timed `next` returns `nil`
+when its timeout expires; its clock-aware overload accepts ``ManualStubClock``.
+Cancelling a task awaiting `next()` also returns `nil` and removes its waiter
+immediately.
 
 ### Dump the whole call log
 

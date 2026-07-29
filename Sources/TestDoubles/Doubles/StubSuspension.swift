@@ -1,5 +1,6 @@
 import InternalRuntimeContract
 import Foundation
+import IssueReporting
 
 /// A handle to calls parked by `thenSuspend()`.
 ///
@@ -35,49 +36,89 @@ public final class StubSuspension<Result> {
     /// total of arrivals. Cancelling the waiting task also returns immediately
     /// without affecting parked calls.
     public func waitForCall(count: Int = 1) async {
+        _ = await waitForParkedCalls(in: state, count: count)
+    }
+
+    /// Waits up to `timeout` for at least `count` calls to be parked.
+    ///
+    /// A timeout reports a test issue at this call site. Cancelling the
+    /// awaiting task returns without reporting and does not affect parked
+    /// calls.
+    public func waitForCall(
+        count: Int = 1,
+        within timeout: Duration,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) async {
+        await waitForCall(
+            count: count,
+            within: timeout,
+            using: StubClocks.continuous,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
+    /// Waits for parked calls using `clock` rather than wall time.
+    ///
+    /// Use ``ManualStubClock`` to advance timeout-sensitive tests
+    /// deterministically.
+    public func waitForCall(
+        count: Int = 1,
+        within timeout: Duration,
+        using clock: any StubClock,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) async {
         precondition(
             count >= 1,
             "[TestDoubles] waitForCall(count:) requires a count of at least 1."
         )
+        precondition(
+            timeout >= .zero,
+            "[TestDoubles] waitForCall(within:) requires a nonnegative timeout."
+        )
 
         let state = self.state
-        let waiterID = state.lock.withLock {
-            defer { state.nextArrivalWaiterID &+= 1 }
-            state.pendingArrivalWaiterIDs.insert(state.nextArrivalWaiterID)
-            return state.nextArrivalWaiterID
-        }
-        await withTaskCancellationHandler {
-            await withCheckedContinuation { continuation in
-                let shouldResume = state.lock.withLock { () -> Bool in
-                    if state.cancelledArrivalWaiterIDs.remove(waiterID) != nil {
-                        return true
-                    }
-                    state.pendingArrivalWaiterIDs.remove(waiterID)
-                    if state.parked.count >= count {
-                        return true
-                    }
-                    state.arrivalWaiters[waiterID] = StubSuspensionArrivalWaiter(
-                        minimumCount: count,
-                        continuation: continuation
-                    )
-                    return false
-                }
-                if shouldResume {
-                    continuation.resume()
+        let outcome = await withTaskGroup(of: StubSuspensionWaitOutcome.self) { group in
+            group.addTask {
+                await waitForParkedCalls(in: state, count: count)
+                    ? .satisfied
+                    : .cancelled
+            }
+            group.addTask {
+                do {
+                    try await clock.sleep(for: timeout)
+                    return .timedOut
+                } catch {
+                    return .cancelled
                 }
             }
-        } onCancel: {
-            let continuation = state.lock.withLock { () -> CheckedContinuation<Void, Never>? in
-                if let waiter = state.arrivalWaiters.removeValue(forKey: waiterID) {
-                    return waiter.continuation
-                }
-                if state.pendingArrivalWaiterIDs.remove(waiterID) != nil {
-                    state.cancelledArrivalWaiterIDs.insert(waiterID)
-                }
-                return nil
+
+            guard let result = await group.next() else {
+                return StubSuspensionWaitOutcome.cancelled
             }
-            continuation?.resume()
+            group.cancelAll()
+            return result
         }
+
+        guard outcome == .timedOut else { return }
+        let actualCount = state.lock.withLock { state.parked.count }
+        reportIssue(
+            "[TestDoubles] Expected at least \(count) suspended "
+                + "\(count == 1 ? "call" : "calls") within \(timeout), "
+                + "but \(actualCount) \(actualCount == 1 ? "call is" : "calls are") parked.",
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
     }
 
     /// Completes the oldest parked call by returning `value`.
@@ -157,6 +198,12 @@ private struct StubSuspensionArrivalWaiter {
     let continuation: CheckedContinuation<Void, Never>
 }
 
+private enum StubSuspensionWaitOutcome: Sendable {
+    case satisfied
+    case timedOut
+    case cancelled
+}
+
 private final class StubSuspensionState: @unchecked Sendable {
     let lock = NSLock()
     var parked: [CheckedContinuation<Swift.Result<Any, any Error>, Never>] = []
@@ -164,6 +211,55 @@ private final class StubSuspensionState: @unchecked Sendable {
     var arrivalWaiters: [UInt64: StubSuspensionArrivalWaiter] = [:]
     var pendingArrivalWaiterIDs: Set<UInt64> = []
     var cancelledArrivalWaiterIDs: Set<UInt64> = []
+}
+
+private func waitForParkedCalls(
+    in state: StubSuspensionState,
+    count: Int
+) async -> Bool {
+    precondition(
+        count >= 1,
+        "[TestDoubles] waitForCall(count:) requires a count of at least 1."
+    )
+
+    let waiterID = state.lock.withLock {
+        defer { state.nextArrivalWaiterID &+= 1 }
+        state.pendingArrivalWaiterIDs.insert(state.nextArrivalWaiterID)
+        return state.nextArrivalWaiterID
+    }
+    await withTaskCancellationHandler {
+        await withCheckedContinuation { continuation in
+            let shouldResume = state.lock.withLock { () -> Bool in
+                if state.cancelledArrivalWaiterIDs.remove(waiterID) != nil {
+                    return true
+                }
+                state.pendingArrivalWaiterIDs.remove(waiterID)
+                if state.parked.count >= count {
+                    return true
+                }
+                state.arrivalWaiters[waiterID] = StubSuspensionArrivalWaiter(
+                    minimumCount: count,
+                    continuation: continuation
+                )
+                return false
+            }
+            if shouldResume {
+                continuation.resume()
+            }
+        }
+    } onCancel: {
+        let continuation = state.lock.withLock { () -> CheckedContinuation<Void, Never>? in
+            if let waiter = state.arrivalWaiters.removeValue(forKey: waiterID) {
+                return waiter.continuation
+            }
+            if state.pendingArrivalWaiterIDs.remove(waiterID) != nil {
+                state.cancelledArrivalWaiterIDs.insert(waiterID)
+            }
+            return nil
+        }
+        continuation?.resume()
+    }
+    return Task.isCancelled == false
 }
 
 extension StubSuspension where Result == Void {

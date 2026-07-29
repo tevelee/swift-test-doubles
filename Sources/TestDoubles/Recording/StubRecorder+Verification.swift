@@ -304,6 +304,42 @@ extension StubRecorder {
         return nil
     }
 
+    /// Waits for the next matching invocation or until `clock` reaches the
+    /// supplied timeout.
+    func nextMatchingInvocation(
+        after lastSeenCallID: UInt64?,
+        matching recording: RecordedCall,
+        origin: InvocationOrigin? = nil,
+        within timeout: Duration,
+        using clock: any StubClock
+    ) async -> RecordedCall? {
+        precondition(
+            timeout >= .zero,
+            "[TestDoubles] An invocation-stream timeout must be nonnegative."
+        )
+        return await withTaskGroup(of: RecordedCall?.self) { group in
+            group.addTask { [self] in
+                await nextMatchingInvocation(
+                    after: lastSeenCallID,
+                    matching: recording,
+                    origin: origin
+                )
+            }
+            group.addTask {
+                do {
+                    try await clock.sleep(for: timeout)
+                } catch {
+                    return nil
+                }
+                return nil
+            }
+
+            guard let result = await group.next() else { return nil }
+            group.cancelAll()
+            return result
+        }
+    }
+
     func waitForCallCount(
         recording: RecordedCall,
         minimumCount: Int,

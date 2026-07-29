@@ -1,4 +1,5 @@
 import Foundation
+import IssueReporting
 import Testing
 @testable import TestDoubles
 
@@ -152,6 +153,44 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
         callbacks.releaseAll()
         callbacks.assertReleased()
         #expect(callbacks.pendingCount == 0)
+    }
+
+    @Test func callbackCaptureWaitsWithAManualClock() async {
+        let callbacks = CallbackCapture<Int>()
+        let clock = ManualStubClock()
+        let wait = Task {
+            await callbacks.waitForCallback(
+                within: .seconds(1),
+                using: clock
+            )
+        }
+        await clock.waitForSleepers(atLeast: 1)
+
+        callbacks.capture { _ in }
+        await wait.value
+
+        #expect(clock.pendingSleepCount == 0)
+        callbacks.releaseAll()
+    }
+
+    @Test func callbackCaptureTimeoutReportsAtTheCaller() async {
+        let callbacks = CallbackCapture<Int>()
+        let clock = ManualStubClock()
+
+        await expectReportsIssue {
+            let wait = Task {
+                await callbacks.waitForCallback(
+                    within: .seconds(1),
+                    using: clock
+                )
+            }
+            await clock.waitForSleepers(atLeast: 1)
+            clock.advance(by: .seconds(1))
+            await wait.value
+        } matching: {
+            $0.description.contains("Expected at least 1 captured callback")
+                && $0.description.contains("but 0 callbacks are pending")
+        }
     }
 
     @Test func closureDoubleMatchersCanReenterObservationAPIs() {

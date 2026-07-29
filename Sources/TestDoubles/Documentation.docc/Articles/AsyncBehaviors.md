@@ -146,7 +146,7 @@ let suspension = await stub.when { try await $0.loadFeed() }.thenSuspend()
 let feed = FeedViewModel(service: stub())
 let refresh = Task { await feed.refresh() }
 
-await suspension.waitForCall()   // the call has arrived and parked
+await suspension.waitForCall(within: .seconds(1))
 #expect(feed.isLoading)
 suspension.interactions.verify(1 ... 1)
 
@@ -165,6 +165,10 @@ completes the oldest parked call, one per call, in arrival order:
 the parked set, so `count` describes calls in flight now, not a running total.
 The composed ``StubSuspension/interactions`` view verifies and inspects every
 matching invocation, including calls that are still parked.
+Prefer ``StubSuspension/waitForCall(count:within:fileID:filePath:line:column:)``
+in tests that should fail instead of hanging when the call never arrives. Its
+clock-aware overload accepts ``ManualStubClock`` for deterministic timeout
+coverage.
 
 Because the handle is the only thing that completes a parked call, ordering is
 under the test's control. This drives two concurrent requests to resolve in a
@@ -173,9 +177,9 @@ deliberate order:
 ```swift
 let suspension = await stub.when { try await $0.loadFeed() }.thenSuspend()
 let first = Task { try await stub().loadFeed() }
-await suspension.waitForCall()
+await suspension.waitForCall(within: .seconds(1))
 let second = Task { try await stub().loadFeed() }
-await suspension.waitForCall(count: 2)
+await suspension.waitForCall(count: 2, within: .seconds(1))
 
 suspension.resume(returning: ["first"])
 suspension.resume(returning: ["second"])

@@ -43,6 +43,38 @@ public struct InvocationStream<Element>: AsyncSequence {
             lastSeenCallID = call.id
             return transform(call)
         }
+
+        /// Waits up to `timeout` for the next matching invocation.
+        ///
+        /// Returns `nil` when the timeout expires or the awaiting task is
+        /// cancelled. Use the clock-aware overload with ``ManualStubClock``
+        /// when the timeout itself must be deterministic.
+        public mutating func next(within timeout: Duration) async -> Element? {
+            await next(within: timeout, using: StubClocks.continuous)
+        }
+
+        /// Waits for the next matching invocation using `clock`.
+        ///
+        /// Returns `nil` when the timeout expires or the awaiting task is
+        /// cancelled.
+        public mutating func next(
+            within timeout: Duration,
+            using clock: any StubClock
+        ) async -> Element? {
+            guard
+                let call = await recorder.nextMatchingInvocation(
+                    after: lastSeenCallID,
+                    matching: recording,
+                    origin: origin,
+                    within: timeout,
+                    using: clock
+                )
+            else {
+                return nil
+            }
+            lastSeenCallID = call.id
+            return transform(call)
+        }
     }
 
     private let recorder: StubRecorder

@@ -1,3 +1,4 @@
+import IssueReporting
 import Testing
 @testable import TestDoubles
 
@@ -130,5 +131,47 @@ private actor CompletionFlag {
         await suspension.waitForCall()
         suspension.resume(returning: "after cancellation")
         #expect(try await call.value == "after cancellation")
+    }
+
+    @Test func waitForCallSupportsDeterministicTimeouts() async throws {
+        let stub = try Stub<any SuspensionProbeService>()
+        let suspension = await stub.when { try await $0.fetch(id: Match.any()) }.thenSuspend()
+        let clock = ManualStubClock()
+
+        await expectReportsIssue {
+            let wait = Task {
+                await suspension.waitForCall(
+                    within: .seconds(1),
+                    using: clock
+                )
+            }
+            await clock.waitForSleepers(atLeast: 1)
+            clock.advance(by: .seconds(1))
+            await wait.value
+        } matching: {
+            $0.description.contains("Expected at least 1 suspended call")
+                && $0.description.contains("but 0 calls are parked")
+        }
+    }
+
+    @Test func parkedCallCancelsItsTimeout() async throws {
+        let stub = try Stub<any SuspensionProbeService>()
+        let suspension = await stub.when { try await $0.fetch(id: Match.any()) }.thenSuspend()
+        let service: any SuspensionProbeService = stub()
+        let clock = ManualStubClock()
+
+        let wait = Task {
+            await suspension.waitForCall(
+                within: .seconds(1),
+                using: clock
+            )
+        }
+        await clock.waitForSleepers(atLeast: 1)
+        let call = Task { try await service.fetch(id: 5) }
+        await wait.value
+
+        #expect(clock.pendingSleepCount == 0)
+        suspension.resume(returning: "ready")
+        #expect(try await call.value == "ready")
     }
 }

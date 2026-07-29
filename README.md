@@ -224,7 +224,7 @@ let suspension = await loader.when { try await $0.loadFeed() }.thenSuspend()
 let feed = FeedViewModel(loader: loader())
 let refresh = Task { await feed.refresh() }
 
-await suspension.waitForCall()   // the call has arrived and parked
+await suspension.waitForCall(within: .seconds(1))
 #expect(feed.isLoading)
 suspension.interactions.verify(1 ... 1)
 
@@ -333,7 +333,7 @@ is created, without polling:
 let events: InvocationStream<(String, Int)> = allEvents.stream()
 
 var iterator = events.makeAsyncIterator()
-let call = try #require(await iterator.next())
+let call = try #require(await iterator.next(within: .seconds(1)))
 #expect(call.0 == "purchase")
 ```
 

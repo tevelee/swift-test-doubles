@@ -2,6 +2,7 @@
 # Format: entry type, module, symbol information, and public conformances.
 conformance	TestDoubles	CallInteractions	Swift.Sendable	[]
 conformance	TestDoubles	CallPattern	Swift.Sendable	[]
+conformance	TestDoubles	CallbackCapture	Swift.Sendable	[]
 conformance	TestDoubles	ClosureCallPattern	Swift.Sendable	[]
 conformance	TestDoubles	ClosureDouble	Swift.Sendable	[{"kind":"conformance","lhs":"Input","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Input","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Input","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 conformance	TestDoubles	Dummy	Swift.Sendable	[{"kind":"conformance","lhs":"P","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"P","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"P","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
@@ -203,6 +204,8 @@ symbol	TestDoubles	swift.method	CallbackCapture.invokeNext(_:)	func invokeNext(_
 symbol	TestDoubles	swift.method	CallbackCapture.invokeNext(repeating:_:)	func invokeNext(repeating count: Int, _ value: Value)
 symbol	TestDoubles	swift.method	CallbackCapture.named(_:)	@discardableResult func named(_ name: String) -> Self
 symbol	TestDoubles	swift.method	CallbackCapture.releaseAll()	func releaseAll()
+symbol	TestDoubles	swift.method	CallbackCapture.waitForCallback(count:within:fileID:filePath:line:column:)	func waitForCallback(count: Int = 1, within timeout: Duration, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
+symbol	TestDoubles	swift.method	CallbackCapture.waitForCallback(count:within:using:fileID:filePath:line:column:)	func waitForCallback(count: Int = 1, within timeout: Duration, using clock: any StubClock, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
 symbol	TestDoubles	swift.method	ClosureCallPattern.arguments()	func arguments() -> [Input]
 symbol	TestDoubles	swift.method	ClosureCallPattern.stream()	func stream() -> InvocationStream<Input>
 symbol	TestDoubles	swift.method	ClosureCallPattern.then(_:)	@discardableResult func then(_ handler: @escaping @Sendable () -> Result) -> CallInteractions
@@ -247,6 +250,8 @@ symbol	TestDoubles	swift.method	InvocationOrder.verify(_:fileID:filePath:line:co
 symbol	TestDoubles	swift.method	InvocationOrder.verify(_:fileID:filePath:line:column:)	func verify<Result>(_ pattern: CallPattern<Result>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	TestDoubles	swift.method	InvocationOrder.verifyNoMoreInteractions(fileID:filePath:line:column:)	func verifyNoMoreInteractions(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	TestDoubles	swift.method	InvocationStream.Iterator.next()	mutating func next() async -> Element?
+symbol	TestDoubles	swift.method	InvocationStream.Iterator.next(within:)	mutating func next(within timeout: Duration) async -> Element?
+symbol	TestDoubles	swift.method	InvocationStream.Iterator.next(within:using:)	mutating func next(within timeout: Duration, using clock: any StubClock) async -> Element?
 symbol	TestDoubles	swift.method	InvocationStream.makeAsyncIterator()	func makeAsyncIterator() -> Iterator
 symbol	TestDoubles	swift.method	ManualMethodProxy.dynamicallyCall(withKeywordArguments:)	func dynamicallyCall(withKeywordArguments args: KeyValuePairs<String, Any>)
 symbol	TestDoubles	swift.method	ManualMethodProxy.dynamicallyCall(withKeywordArguments:)	func dynamicallyCall(withKeywordArguments args: KeyValuePairs<String, Any>) async
@@ -411,6 +416,8 @@ symbol	TestDoubles	swift.method	StubSuspension.resume()	func resume()
 symbol	TestDoubles	swift.method	StubSuspension.resume(returning:)	func resume(returning value: sending Result)
 symbol	TestDoubles	swift.method	StubSuspension.resume(throwing:)	func resume<Failure>(throwing error: Failure) where Failure : Error
 symbol	TestDoubles	swift.method	StubSuspension.waitForCall(count:)	func waitForCall(count: Int = 1) async
+symbol	TestDoubles	swift.method	StubSuspension.waitForCall(count:within:fileID:filePath:line:column:)	func waitForCall(count: Int = 1, within timeout: Duration, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
+symbol	TestDoubles	swift.method	StubSuspension.waitForCall(count:within:using:fileID:filePath:line:column:)	func waitForCall(count: Int = 1, within timeout: Duration, using clock: any StubClock, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
 symbol	TestDoubles	swift.method	TestDoubleScenario.appending(_:)	func appending(_ next: `Self`) -> TestDoubleScenario<Subject>
 symbol	TestDoubles	swift.method	TestDoubleScenario.apply(to:)	func apply(to subject: Subject)
 symbol	TestDoubles	swift.method	VoidClosureDouble.callAsFunction()	func callAsFunction() -> Result

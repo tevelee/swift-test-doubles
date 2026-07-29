@@ -246,6 +246,47 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
             } == 0)
     }
 
+    @Test func streamTimeoutUsesTheSuppliedClock() async throws {
+        let stub = try Stub<any InvocationAccessAnalytics>()
+        let calls = stub.when {
+            $0.track(event: Match.any(), value: Match.any())
+        }
+        calls.thenDoNothing()
+        let clock = ManualStubClock()
+        let stream: InvocationStream<(String, Int)> = calls.stream()
+
+        let next = Task {
+            var iterator = stream.makeAsyncIterator()
+            return await iterator.next(within: .seconds(1), using: clock)
+        }
+        await clock.waitForSleepers(atLeast: 1)
+        clock.advance(by: .seconds(1))
+
+        #expect(await next.value == nil)
+    }
+
+    @Test func streamTimeoutIsCancelledWhenACallArrives() async throws {
+        let stub = try Stub<any InvocationAccessAnalytics>()
+        let calls = stub.when {
+            $0.track(event: Match.any(), value: Match.any())
+        }
+        calls.thenDoNothing()
+        let analytics: any InvocationAccessAnalytics = stub()
+        let clock = ManualStubClock()
+        let stream: InvocationStream<(String, Int)> = calls.stream()
+
+        let next = Task {
+            var iterator = stream.makeAsyncIterator()
+            return await iterator.next(within: .seconds(1), using: clock)
+        }
+        await clock.waitForSleepers(atLeast: 1)
+        analytics.track(event: "ready", value: 42)
+
+        let value = try #require(await next.value)
+        #expect(value == ("ready", 42))
+        #expect(clock.pendingSleepCount == 0)
+    }
+
     @Test func returnsEmptyWhenNothingMatched() throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
         stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenDoNothing()
