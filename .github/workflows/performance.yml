@@ -80,12 +80,12 @@ jobs:
       - name: Show toolchain
         if: steps.relevance.outputs.should_benchmark == 'true'
         run: swift --version
-      - name: Install the candidate benchmark driver on the baseline
+      - name: Align benchmark dependencies
         if: steps.relevance.outputs.should_benchmark == 'true'
         run: |
-          mkdir -p baseline/Benchmarks baseline/Scripts
-          rsync -a --delete candidate/Benchmarks/ baseline/Benchmarks/
-          cp candidate/Scripts/run-benchmarks.sh baseline/Scripts/run-benchmarks.sh
+          # Compile each revision's native driver so intentional public API
+          # changes do not make the baseline source-incompatible. The report
+          # harness version and workload names still guard comparability.
           # Both source revisions must resolve the candidate dependency graph.
           # Otherwise an Echo update is measured as a TestDoubles regression.
           cp candidate/Package.resolved baseline/Benchmarks/Package.resolved
