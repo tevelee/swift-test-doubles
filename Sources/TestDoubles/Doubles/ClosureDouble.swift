@@ -383,6 +383,11 @@ public final class ClosureDouble<Input, Result> {
         pattern(matching: AnyMatcher()).interactions
     }
 
+    /// A whole-double view of every recorded closure invocation.
+    public var history: InteractionHistory {
+        storage.history
+    }
+
     /// Number of recorded invocations.
     public var callCount: Int {
         interactions.callCount
@@ -576,6 +581,11 @@ public final class VoidClosureDouble<Result> {
     /// An observation-only view of every invocation.
     public var interactions: CallInteractions {
         storage.interactions
+    }
+
+    /// A whole-double view of every recorded invocation.
+    public var history: InteractionHistory {
+        storage.history
     }
 
     /// Number of recorded invocations.

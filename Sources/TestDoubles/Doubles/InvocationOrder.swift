@@ -18,9 +18,9 @@ import IssueReporting
 ///     $0.track(event: Match.equal("purchase"))
 /// }.thenDoNothing()
 ///
-/// let order = InvocationOrder()
-/// order.verify(charges)
-/// order.verify(purchases)
+/// InvocationOrder()
+///     .verify(charges)
+///     .verify(purchases)
 /// ```
 ///
 /// A failed step reports a test issue at its own call site and leaves the
@@ -40,13 +40,14 @@ public final class InvocationOrder: @unchecked Sendable {
     ///
     /// Saving a `when` pattern lets behavior configuration, ordinary
     /// verification, and cross-double ordering share one call description.
+    @discardableResult
     public func verify<Result>(
         _ pattern: CallPattern<Result>,
         fileID: StaticString = #fileID,
         filePath: StaticString = #filePath,
         line: UInt = #line,
         column: UInt = #column
-    ) {
+    ) -> Self {
         verify(
             pattern.interactions,
             fileID: fileID,
@@ -58,13 +59,14 @@ public final class InvocationOrder: @unchecked Sendable {
 
     /// Verifies that a saved unary-closure pattern has a matching interaction
     /// after the previously verified interaction.
+    @discardableResult
     public func verify<Input, Result>(
         _ pattern: ClosureCallPattern<Input, Result>,
         fileID: StaticString = #fileID,
         filePath: StaticString = #filePath,
         line: UInt = #line,
         column: UInt = #column
-    ) {
+    ) -> Self {
         verify(
             pattern.interactions,
             fileID: fileID,
@@ -80,13 +82,14 @@ public final class InvocationOrder: @unchecked Sendable {
     /// Terminal `then` methods return this handle, so an inline fluent
     /// configuration can be reused for ordering without recording its call
     /// again.
+    @discardableResult
     public func verify(
         _ interactions: CallInteractions,
         fileID: StaticString = #fileID,
         filePath: StaticString = #filePath,
         line: UInt = #line,
         column: UInt = #column
-    ) {
+    ) -> Self {
         advance(
             recording: interactions.recording,
             recorder: interactions.recorder,
@@ -96,9 +99,11 @@ public final class InvocationOrder: @unchecked Sendable {
             line: line,
             column: column
         )
+        return self
     }
 
     /// Verifies the next in-order interaction on a runtime stub or spy.
+    @discardableResult
     public func verify<P, Result>(
         _ stub: Stub<P>,
         _ call: (P) throws -> Result,
@@ -106,7 +111,7 @@ public final class InvocationOrder: @unchecked Sendable {
         filePath: StaticString = #filePath,
         line: UInt = #line,
         column: UInt = #column
-    ) {
+    ) -> Self {
         advance(
             recording: stub.recordInvocation(call),
             recorder: stub.recorder,
@@ -115,9 +120,11 @@ public final class InvocationOrder: @unchecked Sendable {
             line: line,
             column: column
         )
+        return self
     }
 
     /// Verifies the next in-order async interaction on a runtime stub or spy.
+    @discardableResult
     public func verify<P, Result>(
         _ stub: Stub<P>,
         _ call: (P) async throws -> Result,
@@ -126,7 +133,7 @@ public final class InvocationOrder: @unchecked Sendable {
         filePath: StaticString = #filePath,
         line: UInt = #line,
         column: UInt = #column
-    ) async {
+    ) async -> Self {
         advance(
             recording: await stub.recordAsyncInvocation(call, isolation: isolation),
             recorder: stub.recorder,
@@ -135,9 +142,11 @@ public final class InvocationOrder: @unchecked Sendable {
             line: line,
             column: column
         )
+        return self
     }
 
     /// Verifies the next in-order interaction on a manual stub.
+    @discardableResult
     public func verify<T, Result>(
         _ stub: ManualStub<T>,
         _ call: (T) throws -> Result,
@@ -145,7 +154,7 @@ public final class InvocationOrder: @unchecked Sendable {
         filePath: StaticString = #filePath,
         line: UInt = #line,
         column: UInt = #column
-    ) {
+    ) -> Self {
         advance(
             recording: stub.recordInvocation(call),
             recorder: stub.recorder,
@@ -154,9 +163,11 @@ public final class InvocationOrder: @unchecked Sendable {
             line: line,
             column: column
         )
+        return self
     }
 
     /// Verifies the next in-order async interaction on a manual stub.
+    @discardableResult
     public func verify<T, Result>(
         _ stub: ManualStub<T>,
         _ call: (T) async throws -> Result,
@@ -165,7 +176,7 @@ public final class InvocationOrder: @unchecked Sendable {
         filePath: StaticString = #filePath,
         line: UInt = #line,
         column: UInt = #column
-    ) async {
+    ) async -> Self {
         advance(
             recording: await stub.recordAsyncInvocation(call, isolation: isolation),
             recorder: stub.recorder,
@@ -174,6 +185,7 @@ public final class InvocationOrder: @unchecked Sendable {
             line: line,
             column: column
         )
+        return self
     }
 
     /// Reports every recorded invocation, across every double this session has
@@ -186,22 +198,23 @@ public final class InvocationOrder: @unchecked Sendable {
     /// together too, instead of calling each double's own method in turn.
     ///
     /// ```swift
-    /// let order = InvocationOrder()
-    /// order.verify(gateway) { $0.charge(amount: Match.equal(42)) }
-    /// order.verify(analytics) { $0.track(event: Match.equal("purchase")) }
-    /// order.verifyNoMoreInteractions()
+    /// InvocationOrder()
+    ///     .verify(gateway) { $0.charge(amount: Match.equal(42)) }
+    ///     .verify(analytics) { $0.track(event: Match.equal("purchase")) }
+    ///     .verifyNoMoreInteractions()
     /// ```
     ///
     /// A double this session never verified is not included, even if it has
     /// recorded interactions of its own; call its own `verifyNoMoreInteractions()`
     /// for that. Every reported diagnostic points at this call's own source
     /// location, same as the per-double method.
+    @discardableResult
     public func verifyNoMoreInteractions(
         fileID: StaticString = #fileID,
         filePath: StaticString = #filePath,
         line: UInt = #line,
         column: UInt = #column
-    ) {
+    ) -> Self {
         let recorders = lock.withLock { Array(touchedRecorders.values) }
         for recorder in recorders {
             guard let diagnostic = recorder.unverifiedInteractionsDiagnostic() else {
@@ -215,6 +228,7 @@ public final class InvocationOrder: @unchecked Sendable {
                 column: column
             )
         }
+        return self
     }
 
     private func advance(

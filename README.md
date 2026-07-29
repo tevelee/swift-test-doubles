@@ -314,6 +314,18 @@ failures are reported as test issues at the `verify` call's own file and
 line. There is also `verifyNoMoreInteractions()` to catch calls no successful
 verification has covered.
 
+Use `history` when the assertion concerns the double as a whole rather than one
+requirement. The same handle composes spy dispatch filtering and diagnostics:
+
+```swift
+#expect(analytics.history.callCount == 3)
+analytics.history.verify(3 ... 3)
+print(analytics.history.timeline)
+
+spy.history.forwarded.verify(1...)
+spy.history.stubbed.verify()
+```
+
 With Swift Testing, add the `TestDoublesTesting` product to your test target,
 then write `@Test(.testDoubles)` to make unused registrations a teardown
 failure for every `Stub`, `Spy`, or `ManualStub` created in that test. Use
@@ -325,9 +337,10 @@ For custom assertions, read a pattern's recorded arguments as typed tuples with
 `arguments()`; `describeInteractions()` dumps the whole call log as a
 human-readable, ordered string when a failing `verify` leaves you asking what
 actually got called; `InvocationOrder` accepts saved patterns and terminal
-interaction handles to check call order across several doubles without
-repeating capture closures; `verifyNoUnusedStubs()` flags registrations no call
-matched; and `reset()` restores a double between parameterized cases. See
+interaction handles in a fluent chain to check call order across several
+doubles without repeating capture closures; `verifyNoUnusedStubs()` flags
+registrations no call matched; and `reset()` restores a double between
+parameterized cases. See
 [Inspecting Interactions](Sources/TestDoubles/Documentation.docc/Articles/InspectingInteractions.md).
 
 ```swift

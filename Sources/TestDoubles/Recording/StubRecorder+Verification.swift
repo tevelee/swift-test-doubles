@@ -248,9 +248,31 @@ extension StubRecorder {
         )
     }
 
+    func interactionHistoryCalls(origin: InvocationOrigin?) -> [RecordedCall] {
+        withLockedPolicy {
+            $0.invocationLedger.allCalls.filter { call in
+                origin == nil || call.origin == origin
+            }
+        }
+    }
+
+    func commitInteractionHistoryVerification(_ calls: [RecordedCall]) {
+        markVerified(calls)
+    }
+
     func unverifiedInteractionsDiagnostic() -> String? {
         StubRecorderDiagnostics.unverifiedInteractions(
             withLockedPolicy { $0.invocationLedger.unverifiedCalls() }
+        )
+    }
+
+    func unverifiedInteractionsDiagnostic(origin: InvocationOrigin?) -> String? {
+        StubRecorderDiagnostics.unverifiedInteractions(
+            withLockedPolicy {
+                $0.invocationLedger.unverifiedCalls().filter { call in
+                    origin == nil || call.origin == origin
+                }
+            }
         )
     }
 

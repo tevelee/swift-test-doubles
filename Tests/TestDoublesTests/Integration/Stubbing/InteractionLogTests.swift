@@ -1,3 +1,4 @@
+import IssueReporting
 import Testing
 @testable import TestDoubles
 
@@ -89,5 +90,43 @@ private struct ManualInteractionLogServiceStub: ManualInteractionLogService, Stu
                   #1  track(event: "add_to_cart", value: 30)
                 """
         )
+    }
+
+    @Test func wholeDoubleHistoryComposesCountsDispatchAndTimeline() throws {
+        let spy: Spy<any InteractionLogAnalytics> = Spy.make(
+            forwardingTo: RealInteractionLogAnalytics()
+        )
+        spy.when {
+            $0.track(event: Match.any(), value: Match.any())
+        }.thenDoNothing()
+
+        let analytics: any InteractionLogAnalytics = spy()
+        analytics.track(event: "purchase", value: 42)
+        analytics.flush()
+
+        #expect(spy.history.callCount == 2)
+        #expect(spy.history.wasCalled)
+        #expect(spy.history.stubbed.callCount == 1)
+        #expect(spy.history.forwarded.callCount == 1)
+        #expect(spy.history.timeline.events.map(\.dispatch.rawValue) == ["stubbed", "forwarded"])
+        #expect(spy.history.description == spy.describeInteractions())
+
+        spy.history.stubbed.verify()
+        spy.history.forwarded.verify()
+        spy.history.verifyNoMoreInteractions()
+    }
+
+    @Test func wholeDoubleHistoryReportsRangeMismatches() throws {
+        let stub = try Stub<any InteractionLogAnalytics>()
+        stub.when { $0.flush() }.thenDoNothing()
+        stub().flush()
+
+        expectReportsIssue {
+            stub.history.verify(2 ... 3)
+        } matching: {
+            $0.description.contains("Interaction history")
+                && $0.description.contains("between 2 calls and 3 calls")
+                && $0.description.contains("got 1")
+        }
     }
 }

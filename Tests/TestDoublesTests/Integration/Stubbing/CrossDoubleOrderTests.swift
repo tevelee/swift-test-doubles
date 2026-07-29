@@ -97,10 +97,10 @@ private final class ConcurrentGatewayStub: @unchecked Sendable {
         gateway().charge(amount: 42)
         analytics().track(event: "purchase")
 
-        let order = InvocationOrder()
-        order.verify(charge)
-        order.verify(purchase)
-        order.verifyNoMoreInteractions()
+        InvocationOrder()
+            .verify(charge)
+            .verify(purchase)
+            .verifyNoMoreInteractions()
     }
 
     @Test func reportsWhenInteractionsHappenedInTheOppositeOrder() throws {

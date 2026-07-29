@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Every `Stub`, `Spy`, `ManualStub`, and closure double now exposes a composed
+  `history` view with whole-double `callCount`, `wasCalled`, range verification,
+  human-readable description, timeline, and `forwarded`/`stubbed` filtering.
+  `InvocationOrder.verify` now returns the same session, so saved patterns and
+  terminal interaction handles read as one fluent ordered assertion.
 - Computed `then`, `thenEscaping`, and `thenForEachCall` handlers now compose
   inside the same fluent behavior chains as `thenReturn` and `thenThrow`.
   `thenForward` can be intermediate too. A bare intermediate behavior is

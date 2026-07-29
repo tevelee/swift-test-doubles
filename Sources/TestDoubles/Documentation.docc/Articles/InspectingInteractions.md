@@ -79,28 +79,40 @@ when its timeout expires; its clock-aware overload accepts ``ManualStubClock``.
 Cancelling a task awaiting `next()` also returns `nil` and removes its waiter
 immediately.
 
-### Dump the whole call log
+### Inspect the whole double
 
 When a `verify` fails, the useful next question is what actually *did* get
-called. ``Stub/describeInteractions()`` answers it directly, returning a
-human-readable, ordered log of every recorded invocation — one call per line,
-with the recorded arguments woven back into the requirement's labels — so a
-call reads the way it was written at the call site:
+called. ``InteractionHistory`` brings whole-double counts, range verification,
+spy dispatch filtering, and diagnostics under `history`:
+
+```swift
+#expect(stub.history.callCount == 2)
+stub.history.verify(2 ... 2)
+print(stub.history.timeline)
+
+spy.history.forwarded.verify(1...)
+spy.history.stubbed.verify()
+```
+
+Its `description` is a human-readable, ordered log of every invocation — one
+call per line, with arguments woven back into the requirement's labels — so a
+call reads the way it was written:
 
 ```swift
 analytics.track(event: "add_to_cart", value: 30)
 analytics.track(event: "purchase", value: 42)
 
-print(stub.describeInteractions())
+print(stub.history)
 // [TestDoubles] Recorded 2 interactions in order:
 //   #1  track(event: "add_to_cart", value: 30)
 //   #2  track(event: "purchase", value: 42)
 ```
 
-Like reading pattern arguments, it is a pure query: it does not verify, consume
-behavior, or commit captures, and on a `Spy` it includes forwarded calls
-alongside overridden ones. Reach for it while debugging; keep `verify` for the
-assertion itself.
+Reading count, description, or timeline is a pure query: it does not verify,
+consume behavior, or commit captures. Successful `history.verify` marks every
+call in that view for `verifyNoMoreInteractions()`. The older
+`describeInteractions()` and `interactionTimeline()` methods remain equivalent
+diagnostic conveniences.
 
 Reading arguments is a pure query. Unlike `verify`, it does not report an
 issue on a mismatch, consume configured behavior, advance a chain, or commit
@@ -129,9 +141,10 @@ let purchase = analytics.when {
 
 Checkout(gateway: gateway(), analytics: analytics()).placeOrder()
 
-let order = InvocationOrder()
-order.verify(charge)
-order.verify(purchase)
+InvocationOrder()
+    .verify(charge)
+    .verify(purchase)
+    .verifyNoMoreInteractions()
 ```
 
 Each `verify(_:_:)` step matches the earliest recorded call after the
@@ -152,10 +165,6 @@ the expectation was not saved during setup.
 `InvocationOrder` has its own ``InvocationOrder/verifyNoMoreInteractions(fileID:filePath:line:column:)``,
 which closes out every double the session touched in one call instead of one
 per double:
-
-```swift
-order.verifyNoMoreInteractions()
-```
 
 It reports the same per-double diagnostic as `Stub.verifyNoMoreInteractions()`
 and `ManualStub.verifyNoMoreInteractions()`, for every double this session

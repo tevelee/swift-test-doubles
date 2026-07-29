@@ -13,6 +13,8 @@ conformance	TestDoubles	FixtureValueRole	Swift.Sendable	[]
 conformance	TestDoubles	InteractionFixture	Swift.Decodable	[]
 conformance	TestDoubles	InteractionFixture	Swift.Encodable	[]
 conformance	TestDoubles	InteractionFixture	Swift.Sendable	[]
+conformance	TestDoubles	InteractionHistory	Swift.CustomStringConvertible	[]
+conformance	TestDoubles	InteractionHistory	Swift.Sendable	[]
 conformance	TestDoubles	InteractionTimeline	Swift.CustomStringConvertible	[]
 conformance	TestDoubles	InteractionTimeline	Swift.Sendable	[]
 conformance	TestDoubles	InteractionTimeline.Dispatch	Swift.Equatable	[]
@@ -253,14 +255,16 @@ symbol	TestDoubles	swift.method	ClosureDouble.whenAny(fileID:filePath:line:colum
 symbol	TestDoubles	swift.method	Dummy.callAsFunction()	func callAsFunction() -> P
 symbol	TestDoubles	swift.method	InteractionFixture.encode(to:)	func encode(to encoder: any Encoder) throws
 symbol	TestDoubles	swift.method	InteractionFixture.save(to:)	func save(to url: URL) throws
-symbol	TestDoubles	swift.method	InvocationOrder.verify(_:_:fileID:filePath:line:column:)	func verify<P, Result>(_ stub: Stub<P>, _ call: (P) throws -> Result, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
-symbol	TestDoubles	swift.method	InvocationOrder.verify(_:_:fileID:filePath:line:column:)	func verify<T, Result>(_ stub: ManualStub<T>, _ call: (T) throws -> Result, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) where T : StubConformer
-symbol	TestDoubles	swift.method	InvocationOrder.verify(_:_:isolation:fileID:filePath:line:column:)	func verify<P, Result>(_ stub: Stub<P>, _ call: (P) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
-symbol	TestDoubles	swift.method	InvocationOrder.verify(_:_:isolation:fileID:filePath:line:column:)	func verify<T, Result>(_ stub: ManualStub<T>, _ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async where T : StubConformer
-symbol	TestDoubles	swift.method	InvocationOrder.verify(_:fileID:filePath:line:column:)	func verify(_ interactions: CallInteractions, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
-symbol	TestDoubles	swift.method	InvocationOrder.verify(_:fileID:filePath:line:column:)	func verify<Input, Result>(_ pattern: ClosureCallPattern<Input, Result>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
-symbol	TestDoubles	swift.method	InvocationOrder.verify(_:fileID:filePath:line:column:)	func verify<Result>(_ pattern: CallPattern<Result>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
-symbol	TestDoubles	swift.method	InvocationOrder.verifyNoMoreInteractions(fileID:filePath:line:column:)	func verifyNoMoreInteractions(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
+symbol	TestDoubles	swift.method	InteractionHistory.verify(_:fileID:filePath:line:column:)	func verify(_ expectedCounts: any RangeExpression<Int> = 1 ... 1, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
+symbol	TestDoubles	swift.method	InteractionHistory.verifyNoMoreInteractions(fileID:filePath:line:column:)	func verifyNoMoreInteractions(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
+symbol	TestDoubles	swift.method	InvocationOrder.verify(_:_:fileID:filePath:line:column:)	@discardableResult func verify<P, Result>(_ stub: Stub<P>, _ call: (P) throws -> Result, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> Self
+symbol	TestDoubles	swift.method	InvocationOrder.verify(_:_:fileID:filePath:line:column:)	@discardableResult func verify<T, Result>(_ stub: ManualStub<T>, _ call: (T) throws -> Result, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> Self where T : StubConformer
+symbol	TestDoubles	swift.method	InvocationOrder.verify(_:_:isolation:fileID:filePath:line:column:)	@discardableResult func verify<P, Result>(_ stub: Stub<P>, _ call: (P) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> Self
+symbol	TestDoubles	swift.method	InvocationOrder.verify(_:_:isolation:fileID:filePath:line:column:)	@discardableResult func verify<T, Result>(_ stub: ManualStub<T>, _ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> Self where T : StubConformer
+symbol	TestDoubles	swift.method	InvocationOrder.verify(_:fileID:filePath:line:column:)	@discardableResult func verify(_ interactions: CallInteractions, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> Self
+symbol	TestDoubles	swift.method	InvocationOrder.verify(_:fileID:filePath:line:column:)	@discardableResult func verify<Input, Result>(_ pattern: ClosureCallPattern<Input, Result>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> Self
+symbol	TestDoubles	swift.method	InvocationOrder.verify(_:fileID:filePath:line:column:)	@discardableResult func verify<Result>(_ pattern: CallPattern<Result>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> Self
+symbol	TestDoubles	swift.method	InvocationOrder.verifyNoMoreInteractions(fileID:filePath:line:column:)	@discardableResult func verifyNoMoreInteractions(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> Self
 symbol	TestDoubles	swift.method	InvocationStream.Iterator.next()	mutating func next() async -> Element?
 symbol	TestDoubles	swift.method	InvocationStream.Iterator.next(within:)	mutating func next(within timeout: Duration) async -> Element?
 symbol	TestDoubles	swift.method	InvocationStream.Iterator.next(within:using:)	mutating func next(within timeout: Duration, using clock: any StubClock) async -> Element?
@@ -476,9 +480,16 @@ symbol	TestDoubles	swift.property	ClosureCallPattern.interactions	var interactio
 symbol	TestDoubles	swift.property	ClosureCallPattern.wasCalled	var wasCalled: Bool { get }
 symbol	TestDoubles	swift.property	ClosureDouble.callCount	var callCount: Int { get }
 symbol	TestDoubles	swift.property	ClosureDouble.function	var function: Function { get }
+symbol	TestDoubles	swift.property	ClosureDouble.history	var history: InteractionHistory { get }
 symbol	TestDoubles	swift.property	ClosureDouble.interactions	var interactions: CallInteractions { get }
 symbol	TestDoubles	swift.property	ClosureDouble.invocations	var invocations: [Input] { get }
 symbol	TestDoubles	swift.property	ClosureDouble.wasCalled	var wasCalled: Bool { get }
+symbol	TestDoubles	swift.property	InteractionHistory.callCount	var callCount: Int { get }
+symbol	TestDoubles	swift.property	InteractionHistory.description	var description: String { get }
+symbol	TestDoubles	swift.property	InteractionHistory.forwarded	var forwarded: `Self` { get }
+symbol	TestDoubles	swift.property	InteractionHistory.stubbed	var stubbed: `Self` { get }
+symbol	TestDoubles	swift.property	InteractionHistory.timeline	var timeline: InteractionTimeline { get }
+symbol	TestDoubles	swift.property	InteractionHistory.wasCalled	var wasCalled: Bool { get }
 symbol	TestDoubles	swift.property	InteractionTimeline.Event.arguments	let arguments: [String]
 symbol	TestDoubles	swift.property	InteractionTimeline.Event.dispatch	let dispatch: Dispatch
 symbol	TestDoubles	swift.property	InteractionTimeline.Event.id	let id: UInt64
@@ -487,12 +498,14 @@ symbol	TestDoubles	swift.property	InteractionTimeline.Event.requirement	let requ
 symbol	TestDoubles	swift.property	InteractionTimeline.Event.taskPriorityRawValue	let taskPriorityRawValue: UInt8
 symbol	TestDoubles	swift.property	InteractionTimeline.description	var description: String { get }
 symbol	TestDoubles	swift.property	InteractionTimeline.events	let events: [Event]
+symbol	TestDoubles	swift.property	ManualStub.history	var history: InteractionHistory { get }
 symbol	TestDoubles	swift.property	ManualStub.throwing	var throwing: ManualThrowingRoute<T> { get }
 symbol	TestDoubles	swift.property	ManualStubClock.pendingSleepCount	var pendingSleepCount: Int { get }
 symbol	TestDoubles	swift.property	Match.Capture.first	var first: T? { get }
 symbol	TestDoubles	swift.property	Match.Capture.last	var last: T? { get }
 symbol	TestDoubles	swift.property	Match.Capture.values	var values: [T] { get }
 symbol	TestDoubles	swift.property	ParameterizedTestDoubleScenario.name	let name: String?
+symbol	TestDoubles	swift.property	Stub.history	var history: InteractionHistory { get }
 symbol	TestDoubles	swift.property	StubBehaviorChain.behaviorQueue	let behaviorQueue: StubBehaviorQueue
 symbol	TestDoubles	swift.property	StubBehaviorChain.interactions	var interactions: CallInteractions { get }
 symbol	TestDoubles	swift.property	StubBehaviorQueue.interactions	let interactions: CallInteractions
@@ -503,6 +516,7 @@ symbol	TestDoubles	swift.property	StubSuspension.interactions	let interactions: 
 symbol	TestDoubles	swift.property	TestDoubleScenario.name	let name: String?
 symbol	TestDoubles	swift.property	VoidClosureDouble.callCount	var callCount: Int { get }
 symbol	TestDoubles	swift.property	VoidClosureDouble.function	var function: () -> Result { get }
+symbol	TestDoubles	swift.property	VoidClosureDouble.history	var history: InteractionHistory { get }
 symbol	TestDoubles	swift.property	VoidClosureDouble.interactions	var interactions: CallInteractions { get }
 symbol	TestDoubles	swift.property	VoidClosureDouble.wasCalled	var wasCalled: Bool { get }
 symbol	TestDoubles	swift.protocol	StubClock	protocol StubClock : Sendable
@@ -514,6 +528,7 @@ symbol	TestDoubles	swift.struct	CallPattern	struct CallPattern<Result>
 symbol	TestDoubles	swift.struct	ClosureCallPattern	struct ClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.struct	FixtureRedactor	struct FixtureRedactor
 symbol	TestDoubles	swift.struct	InteractionFixture	struct InteractionFixture
+symbol	TestDoubles	swift.struct	InteractionHistory	struct InteractionHistory
 symbol	TestDoubles	swift.struct	InteractionTimeline	struct InteractionTimeline
 symbol	TestDoubles	swift.struct	InteractionTimeline.Event	struct Event
 symbol	TestDoubles	swift.struct	InvocationStream	struct InvocationStream<Element>
