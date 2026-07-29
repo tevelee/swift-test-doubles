@@ -14,13 +14,14 @@ for stale_symbol_graph in "$symbols"/TestDoubles*.symbols.json; do
     rm "$stale_symbol_graph"
 done
 
-swift build \
-    --target TestDoubles \
-    --scratch-path "$build_path/package" \
-    -Xswiftc -emit-symbol-graph \
-    -Xswiftc -emit-symbol-graph-dir \
-    -Xswiftc "$symbols" \
-    -Xswiftc -symbol-graph-minimum-access-level \
-    -Xswiftc public
-
-test -f "$symbols/TestDoubles.symbols.json"
+for target in TestDoubles TestDoublesTesting TestDoublesMacros; do
+    swift build \
+        --target "$target" \
+        --scratch-path "$build_path/package" \
+        -Xswiftc -emit-symbol-graph \
+        -Xswiftc -emit-symbol-graph-dir \
+        -Xswiftc "$symbols" \
+        -Xswiftc -symbol-graph-minimum-access-level \
+        -Xswiftc public
+    test -f "$symbols/$target.symbols.json"
+done

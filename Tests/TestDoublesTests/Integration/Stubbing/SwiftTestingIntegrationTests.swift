@@ -82,6 +82,12 @@ private func makeScopedSuspendedTestDoubleStub() throws -> Stub<any ScopedSuspen
         #expect(TestDoubleStrictness.strict.contains(.noPendingCallbackCaptures))
     }
 
+    @Test(.testDoubles(strictness: []))
+    func customStrictnessCanDisableAutomaticChecks() {
+        let scope = TestDoubleScope(strictness: .noMoreInteractions)
+        #expect(scope.strictness == .noMoreInteractions)
+    }
+
     @Test func scopeReportsUnconsumedFiniteBehaviorQueuesWithDoubleName() throws {
         let session = TestDoubleSession()
         let diagnostics = try TestDoubleTestingContext.$session.withValue(session) {

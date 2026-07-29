@@ -10,14 +10,14 @@ if ! [[ "$threshold" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
   exit 2
 fi
 
-swift test \
+TESTDOUBLES_ENABLE_C_COVERAGE=1 swift test \
   --parallel \
   --experimental-maximum-parallelization-width 4 \
   --enable-code-coverage \
   --scratch-path "$scratch_path"
 
 coverage_path="$(
-  swift test \
+  TESTDOUBLES_ENABLE_C_COVERAGE=1 swift test \
     --show-codecov-path \
     --scratch-path "$scratch_path"
 )"
@@ -39,25 +39,28 @@ with coverage_path.open(encoding="utf-8") as coverage_file:
     report = json.load(coverage_file)
 
 source_roots = (
+    "ManualStubGeneratorCore",
     "InternalRuntimeContract",
     "TestDoubles",
+    "TestDoublesTesting",
     "TestDoublesRuntimeMetadata",
     "TestDoublesRuntime",
     "TestDoublesRuntimeSupport",
+    "CTestDoublesTrampoline",
 )
 totals = {root: {"covered": 0, "count": 0, "files": 0} for root in source_roots}
 
 for data in report.get("data", []):
     for file in data.get("files", []):
         filename = file.get("filename", "").replace("\\", "/")
-        if not filename.endswith(".swift"):
-            continue
-
         root = next(
             (root for root in source_roots if f"/Sources/{root}/" in filename),
             None,
         )
         if root is None:
+            continue
+        expected_extension = ".c" if root == "CTestDoublesTrampoline" else ".swift"
+        if not filename.endswith(expected_extension):
             continue
 
         lines = file.get("summary", {}).get("lines", {})
@@ -68,9 +71,11 @@ for data in report.get("data", []):
 failed = False
 for root in source_roots:
     total = totals[root]
+    language = "C" if root == "CTestDoublesTrampoline" else "Swift"
+    minimum = min(threshold, 70) if root == "CTestDoublesTrampoline" else threshold
     if total["files"] == 0 or total["count"] == 0:
         print(
-            f"error: coverage report contains no {root} Swift sources",
+            f"error: coverage report contains no {root} {language} sources",
             file=sys.stderr,
         )
         failed = True
@@ -78,14 +83,14 @@ for root in source_roots:
 
     percentage = total["covered"] * 100 / total["count"]
     print(
-        f"{root} Swift source coverage: {percentage:.2f}% "
+        f"{root} {language} source coverage: {percentage:.2f}% "
         f"({total['covered']}/{total['count']} lines across {total['files']} files; "
-        f"minimum {threshold:.2f}%)"
+        f"minimum {minimum:.2f}%)"
     )
-    if percentage < threshold:
+    if percentage < minimum:
         print(
-            f"error: {root} Swift source coverage {percentage:.2f}% is below "
-            f"the {threshold:.2f}% minimum",
+            f"error: {root} {language} source coverage {percentage:.2f}% is below "
+            f"the {minimum:.2f}% minimum",
             file=sys.stderr,
         )
         failed = True
@@ -93,3 +98,5 @@ for root in source_roots:
 if failed:
     sys.exit(1)
 PY
+
+echo "CTestDoublesTrampoline assembly is validated by architecture-specific ABI integration tests; LLVM has no source-line mapping for the hand-written trampoline."

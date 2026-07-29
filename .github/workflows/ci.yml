@@ -13,6 +13,7 @@ on:
       - Benchmarks/**
       - Package.resolved
       - Package.swift
+      - PUBLIC_API.snapshot
       - Scripts/**
       - Sources/**
       - "!Sources/TestDoubles/Documentation.docc/**"
@@ -28,6 +29,7 @@ on:
       - Benchmarks/**
       - Package.resolved
       - Package.swift
+      - PUBLIC_API.snapshot
       - Scripts/**
       - Sources/**
       - "!Sources/TestDoubles/Documentation.docc/**"
@@ -45,7 +47,7 @@ concurrency:
 
 jobs:
   swift-quality:
-    name: swift-format and swiftlint
+    name: Format, lint, generation, and boundaries
     runs-on: macos-26
     timeout-minutes: 10
     steps:
@@ -61,6 +63,8 @@ jobs:
       - name: Check benchmark dependency lock
         run: bash Scripts/check-benchmark-dependencies.sh
       - uses: ./.github/actions/brew-bundle
+      - name: Check manual-stub command generation
+        run: Scripts/check-manual-stub-generator.sh
       - name: Run swift-format
         run: swift-format lint --strict --recursive Sources Tests
       - name: Run SwiftLint
@@ -69,7 +73,7 @@ jobs:
   minimum-toolchain:
     name: Swift 6.3 / arm64
     runs-on: macos-26
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -114,6 +118,8 @@ jobs:
           --scratch-path .build/ci
       - name: Validate documentation
         run: Scripts/validate-documentation.sh
+      - name: Check public API
+        run: Scripts/check-public-api.sh
 
   current-toolchain:
     name: Current Xcode / arm64
@@ -708,7 +714,7 @@ jobs:
           --scratch-path .build/ci-${{ matrix.sanitizer }}-sanitizer
 
   coverage:
-    name: Swift source coverage
+    name: Swift and C source coverage
     runs-on: macos-26
     timeout-minutes: 20
     steps:
@@ -726,7 +732,7 @@ jobs:
             swift-build-v1-${{ runner.os }}-${{ runner.arch }}-coverage-
       - name: Select Xcode 26.4.1
         run: sudo xcode-select --switch /Applications/Xcode_26.4.1.app/Contents/Developer
-      - name: Enforce 85% Swift source coverage
+      - name: Enforce source coverage
         run: Scripts/check-coverage.sh 85 .build/ci-coverage
       - name: Convert coverage to lcov
         run: |

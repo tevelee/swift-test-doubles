@@ -10,6 +10,7 @@ Closes #
 - [ ] `swift test --parallel` passes.
 - [ ] `swift test -c release --parallel` passes.
 - [ ] Public usage examples remain covered by focused package tests.
+- [ ] `Scripts/check-public-api.sh` passes, or I reviewed and updated the public API snapshot.
 - [ ] `Scripts/validate-documentation.sh` passes; public source and DocC documentation are current.
 - [ ] `git diff --check` passes.
 

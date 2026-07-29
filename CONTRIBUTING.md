@@ -41,6 +41,8 @@ before opening a pull request:
 swift build --target TestDoubles
 swift test --parallel
 swift test -c release --parallel
+Scripts/check-manual-stub-generator.sh
+Scripts/check-public-api.sh
 Scripts/validate-documentation.sh
 git diff --check
 ```
@@ -62,6 +64,13 @@ swift build --disable-default-traits --target TestDoubles
 Swift Testing randomizes execution order when parallelization is enabled. Keep
 `--parallel` explicit so local and CI runs exercise both concurrent execution
 and order independence even when SwiftPM's command-line default is serial.
+
+When a public declaration changes intentionally, review the snapshot diff,
+update its source and DocC documentation, then refresh the canonical snapshot:
+
+```bash
+Scripts/check-public-api.sh --update
+```
 
 Changes to runtime preparation, ABI classification, executable memory,
 assembly, dispatch, ownership, or concurrency also need the extended tier:

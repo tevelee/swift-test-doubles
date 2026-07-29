@@ -9,6 +9,8 @@ import PackageDescription
 // sets this to exclude it from that one build.
 let includesCxxInteropTarget =
     ProcessInfo.processInfo.environment["TESTDOUBLES_SKIP_CXX_INTEROP"] == nil
+let enablesCCoverage =
+    ProcessInfo.processInfo.environment["TESTDOUBLES_ENABLE_C_COVERAGE"] == "1"
 
 let package = Package(
     name: "swift-test-doubles",
@@ -69,13 +71,19 @@ let package = Package(
             ]
         )
     ],
-    targets: allTargets(includesCxxInteropTarget: includesCxxInteropTarget),
+    targets: allTargets(
+        includesCxxInteropTarget: includesCxxInteropTarget,
+        enablesCCoverage: enablesCCoverage
+    ),
     // Tools version 6.3 already defaults to this; pinned explicitly so a
     // future tools-version bump can't silently change the language mode.
     swiftLanguageModes: [.v6]
 )
 
-private func allTargets(includesCxxInteropTarget: Bool) -> [Target] {
+private func allTargets(
+    includesCxxInteropTarget: Bool,
+    enablesCCoverage: Bool
+) -> [Target] {
     var targets: [Target] = [
         .target(name: "ManualStubGeneratorCore"),
         .testTarget(
@@ -216,7 +224,10 @@ private func allTargets(includesCxxInteropTarget: Bool) -> [Target] {
         .target(name: "InternalRuntimeContract"),
         .target(
             name: "CTestDoublesTrampoline",
-            publicHeadersPath: "include"
+            publicHeadersPath: "include",
+            cSettings: enablesCCoverage
+                ? [.unsafeFlags(["-fprofile-instr-generate", "-fcoverage-mapping"])]
+                : []
         ),
         .target(
             name: "TestDoublesFixtures",
