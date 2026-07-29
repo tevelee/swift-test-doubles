@@ -136,6 +136,28 @@ public class Stub<P> {
         self.init(prepared: prepared)
     }
 
+    /// Resolves and caches this protocol's automatic construction plan.
+    ///
+    /// Call this during suite setup when the first stub should not pay for
+    /// protocol layout inspection, signature discovery, and trampoline-plan
+    /// preparation. Prewarming creates no recorder or generated protocol value;
+    /// every later ``Stub`` still owns independent behavior and interaction
+    /// state.
+    ///
+    /// Successful plans are shared process-wide and repeated calls are safe
+    /// from concurrent tasks. Failures are not cached, so a conformance or
+    /// resilient protocol image loaded later can make a subsequent call
+    /// succeed.
+    ///
+    /// ```swift
+    /// try Stub<any PaymentGateway>.prewarm()
+    /// ```
+    public static func prewarm() throws(StubError) {
+        try withStubConstructionError(for: P.self) {
+            try prewarmAutomaticPlan()
+        }
+    }
+
     /// Returns the generated protocol existential.
     public func callAsFunction() -> P {
         materializeUnchecked()

@@ -61,6 +61,26 @@ struct StubFactoryTests {
         #expect(second().currency == "HUF")
     }
 
+    @Test func prewarmingAutomaticPreparationCreatesNoSharedRecorderState() throws {
+        _ = LiveFactoryCurrencyService()
+        try Stub<any FactoryCurrencyService>.prewarm()
+        try Stub<any FactoryCurrencyService>.prewarm()
+
+        let first = try Stub<any FactoryCurrencyService>()
+        let second = try Stub<any FactoryCurrencyService>()
+        first.when { $0.currency }.thenReturn("EUR")
+        second.when { $0.currency }.thenReturn("HUF")
+
+        #expect(first().currency == "EUR")
+        #expect(second().currency == "HUF")
+    }
+
+    @Test func prewarmingReportsTheSameTypedConstructionError() {
+        #expect(throws: StubError.self) {
+            try Stub<Int>.prewarm()
+        }
+    }
+
     @Test func configuresAsyncRequirements() async {
         let service: any FactoryAsyncService = await Stub.make {
             await $0.when { await $0.load() }.then { "loaded" }

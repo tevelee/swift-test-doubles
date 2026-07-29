@@ -239,6 +239,16 @@ enum SpyGetterEffectInput<P> {
 }
 
 extension Stub {
+    static func prewarmAutomaticPlan() throws {
+        let _: RuntimeStubFactory.PreparedPlan<P> =
+            try RuntimeStubFactory.prepareStub(
+                runtimePreparationRequest(
+                    requirements: .automatic,
+                    getterEffects: .automatic
+                )
+            )
+    }
+
     static func prepareSpy(
         forwardingTo target: P,
         getterEffects: SpyGetterEffectInput<P>

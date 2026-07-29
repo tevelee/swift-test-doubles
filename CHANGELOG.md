@@ -51,6 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   file or recursively scanned directory.
 - A SwiftPM build-tool plugin that automatically regenerates and compiles
   manual-stub conformers when a target's protocol sources change.
+- Public `Stub.prewarm()` support for resolving and caching automatic protocol
+  preparation plans without constructing a test double.
 
 ## [0.0.2] - 2026-07-29
 

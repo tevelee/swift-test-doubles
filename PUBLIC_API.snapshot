@@ -976,6 +976,7 @@ symbol	TestDoubles	swift.type.method	Stub.Requirement.subscriptSetter(indexedBy:
 symbol	TestDoubles	swift.type.method	Stub.Requirement.subscriptSetter(indexedBy:assigning:)	static func subscriptSetter<each Index, AssignedValue>(indexedBy indices: repeat (each Index).Type, assigning value: AssignedValue.Type) -> Stub<P>.Requirement
 symbol	TestDoubles	swift.type.method	Stub.make(_:)	static func make(_ configure: (Stub<P>) -> Void) -> P
 symbol	TestDoubles	swift.type.method	Stub.make(_:isolation:)	static func make(_ configure: (Stub<P>) async -> Void, isolation: isolated (any Actor)? = #isolation) async -> P
+symbol	TestDoubles	swift.type.method	Stub.prewarm()	static func prewarm() throws(StubError)
 symbol	TestDoubles	swift.type.property	FixtureRedactor.none	static let none: FixtureRedactor
 symbol	TestDoubles	swift.type.property	InteractionFixture.currentSchemaVersion	static let currentSchemaVersion: Int
 symbol	TestDoubles	swift.type.property	Stub.Requirement.Value.dynamicSelf	static var dynamicSelf: `Self` { get }

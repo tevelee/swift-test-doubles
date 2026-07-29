@@ -15,6 +15,24 @@ effectful getter precisely.
 For the complete support boundary, see <doc:StubContract>. For bounded
 associated-type signatures, see <doc:BoundAssociatedTypes>.
 
+### Prewarm automatic preparation
+
+Protocol layout inspection, signature discovery, and trampoline-plan
+preparation happen once per automatically discovered protocol shape. Suites
+that create a heavily used double can move that work into setup:
+
+```swift
+try Stub<any UserRepository>.prewarm()
+```
+
+``Stub/prewarm()`` runs the same validation as the zero-argument initializer
+and throws the same ``StubError`` without creating a recorder or generated
+value. The successful immutable plan is shared process-wide; every constructed
+stub still gets independent behavior and interaction state. Repeated and
+concurrent calls are safe. Failed preparation is deliberately not cached, so
+loading a conformance or resilient protocol image can make a later attempt
+succeed.
+
 ### Automatic discovery
 
 The zero-argument initializer first discovers requirement signatures from
