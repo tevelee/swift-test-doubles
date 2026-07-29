@@ -43,17 +43,75 @@ public final class ManualStubClock: StubClock, @unchecked Sendable {
         let continuation: CheckedContinuation<Void, any Error>
     }
 
+    private struct SleepCountWaiter {
+        let minimumCount: Int
+        let continuation: CheckedContinuation<Void, Never>
+    }
+
     private let lock = NSLock()
     private var elapsed: Duration = .zero
     private var nextSleeperID: UInt64 = 0
     private var sleepers: [UInt64: Sleeper] = [:]
     private var cancelledSleeperIDs: Set<UInt64> = []
+    private var nextSleepCountWaiterID: UInt64 = 0
+    private var sleepCountWaiters: [UInt64: SleepCountWaiter] = [:]
+    private var pendingSleepCountWaiterIDs: Set<UInt64> = []
+    private var cancelledSleepCountWaiterIDs: Set<UInt64> = []
 
     public init() {}
 
     /// Number of delayed behaviors currently waiting on this clock.
     public var pendingSleepCount: Int {
         lock.withLock { sleepers.count }
+    }
+
+    /// Suspends until at least `count` delayed behaviors are waiting on this
+    /// clock.
+    ///
+    /// Use this to synchronize a task that starts delayed work before
+    /// advancing the clock. It returns immediately when the condition is
+    /// already satisfied or the waiting task is cancelled.
+    public func waitForSleepers(atLeast count: Int) async {
+        precondition(count >= 0, "[TestDoubles] A sleeper count must be nonnegative.")
+        guard count > 0 else { return }
+
+        let waiterID = lock.withLock {
+            defer { nextSleepCountWaiterID &+= 1 }
+            pendingSleepCountWaiterIDs.insert(nextSleepCountWaiterID)
+            return nextSleepCountWaiterID
+        }
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                let shouldResume = lock.withLock { () -> Bool in
+                    if cancelledSleepCountWaiterIDs.remove(waiterID) != nil {
+                        return true
+                    }
+                    pendingSleepCountWaiterIDs.remove(waiterID)
+                    if sleepers.count >= count {
+                        return true
+                    }
+                    sleepCountWaiters[waiterID] = SleepCountWaiter(
+                        minimumCount: count,
+                        continuation: continuation
+                    )
+                    return false
+                }
+                if shouldResume {
+                    continuation.resume()
+                }
+            }
+        } onCancel: {
+            let continuation = lock.withLock { () -> CheckedContinuation<Void, Never>? in
+                if let waiter = sleepCountWaiters.removeValue(forKey: waiterID) {
+                    return waiter.continuation
+                }
+                if pendingSleepCountWaiterIDs.remove(waiterID) != nil {
+                    cancelledSleepCountWaiterIDs.insert(waiterID)
+                }
+                return nil
+            }
+            continuation?.resume()
+        }
     }
 
     public func sleep(for duration: Duration) async throws {
@@ -64,16 +122,23 @@ public final class ManualStubClock: StubClock, @unchecked Sendable {
         }
         try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
-                let cancellation = lock.withLock { () -> Bool in
+                let (cancellation, readyWaiters) = lock.withLock { () -> (Bool, [CheckedContinuation<Void, Never>]) in
                     if cancelledSleeperIDs.remove(sleeperID) != nil {
-                        return true
+                        return (true, [])
                     }
                     sleepers[sleeperID] = Sleeper(
                         deadline: elapsed + duration,
                         continuation: continuation
                     )
-                    return false
+                    let readyWaiterIDs = sleepCountWaiters.compactMap { id, waiter in
+                        waiter.minimumCount <= sleepers.count ? id : nil
+                    }
+                    let readyWaiters = readyWaiterIDs.compactMap {
+                        sleepCountWaiters.removeValue(forKey: $0)?.continuation
+                    }
+                    return (false, readyWaiters)
                 }
+                readyWaiters.forEach { $0.resume() }
                 if cancellation {
                     continuation.resume(throwing: CancellationError())
                 }

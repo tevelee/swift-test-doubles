@@ -174,9 +174,7 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
             .thenReturn(42, after: .seconds(1), using: clock)
 
         let task = Task { await loader().load() }
-        for _ in 0 ..< 100 where clock.pendingSleepCount == 0 {
-            await Task.yield()
-        }
+        await clock.waitForSleepers(atLeast: 1)
         #expect(clock.pendingSleepCount == 1)
         clock.advance(by: .seconds(1))
         #expect(await task.value == 42)
@@ -191,9 +189,7 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
         let service: any EnhancementThrowingAsyncLoader = loader()
 
         let invocation = Task { try await service.load() }
-        for _ in 0 ..< 100 where clock.pendingSleepCount == 0 {
-            await Task.yield()
-        }
+        await clock.waitForSleepers(atLeast: 1)
         #expect(clock.pendingSleepCount == 1)
         clock.advance(by: .seconds(1))
         await #expect(throws: EnhancementFailure.expected) { try await invocation.value }
@@ -202,9 +198,7 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
             try await clock.sleep(for: .seconds(10))
             return "released"
         }
-        for _ in 0 ..< 100 where clock.pendingSleepCount == 0 {
-            await Task.yield()
-        }
+        await clock.waitForSleepers(atLeast: 1)
         clock.advanceToEnd()
         #expect(try await sleeper.value == "released")
         try await StubClocks.immediate.sleep(for: .zero)
@@ -318,9 +312,7 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
                 $0.notify(equal(7))
             }
         }
-        for _ in 0 ..< 100 where clock.pendingSleepCount == 0 {
-            await Task.yield()
-        }
+        await clock.waitForSleepers(atLeast: 1)
         #expect(clock.pendingSleepCount == 1)
         service.notify(7)
         await verification.value
