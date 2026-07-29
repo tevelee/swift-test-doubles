@@ -3,7 +3,11 @@
     import Testing
     import TestDoublesStubbableMacros
 
-    @Suite(.macros([StubbableMacro.self]))
+    @Suite(
+        .macros([
+            StubbableMacro.self,
+            StubbableClientMacro.self
+        ]))
     struct StubbableMacroTests {
         @Test func generatesAManualStubConformer() {
             assertMacro {
@@ -78,6 +82,51 @@
                 @Stubbable
                 ╰─ 🛑 @Stubbable can only be applied to a protocol declaration.
                 struct NotAProtocol {}
+                """
+            }
+        }
+
+        @Test func generatesAClosureClientPreset() {
+            assertMacro {
+                """
+                @StubbableClient
+                struct StatusClient {
+                    var status: @Sendable (Int) async throws -> String
+                }
+                """
+            } expansion: {
+                """
+                struct StatusClient {
+                    var status: @Sendable (Int) async throws -> String
+                }
+
+                enum StatusClientDoubles {
+                    static let preset = ClientDoublePreset<StatusClient> { endpoints in
+                        StatusClient(
+                            status: endpoints.asyncThrowingFunction(
+                                "status",
+                                forwarding: { live, argument0 in
+                                    try await live.status(argument0)
+                                }
+                            )
+                        )
+                    }
+                }
+                """
+            }
+        }
+
+        @Test func rejectsNonStructClientDeclarations() {
+            assertMacro {
+                """
+                @StubbableClient
+                protocol NotAClient {}
+                """
+            } diagnostics: {
+                """
+                @StubbableClient
+                ╰─ 🛑 @StubbableClient can only be applied to a struct declaration.
+                protocol NotAClient {}
                 """
             }
         }

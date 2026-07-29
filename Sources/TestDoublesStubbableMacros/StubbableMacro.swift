@@ -105,7 +105,10 @@
 
     @main
     struct TestDoublesStubbablePlugin: CompilerPlugin {
-        let providingMacros: [Macro.Type] = [StubbableMacro.self]
+        let providingMacros: [Macro.Type] = [
+            StubbableMacro.self,
+            StubbableClientMacro.self
+        ]
     }
 #else
     @main

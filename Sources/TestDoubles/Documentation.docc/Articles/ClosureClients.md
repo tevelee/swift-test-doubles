@@ -106,6 +106,92 @@ argument types form its route identity, so overloads with different argument
 types remain independent. Use distinct names for separate fields with the same
 signature so their behaviors and histories do not overlap.
 
+### Forward and selectively override a live client
+
+``ClientSpy`` delegates unmatched calls while retaining the same configuration,
+verification, ordering, and history API as a stub. A forwarding adapter receives
+the live client followed by the endpoint's ordinary arguments:
+
+```swift
+let apiClients = ClientDoublePreset<APIClient> { endpoints in
+    APIClient(
+        fetchUser: endpoints.asyncThrowingFunction(
+            "fetchUser",
+            forwarding: { live, identifier in
+                try await live.fetchUser(identifier)
+            }
+        ),
+        track: endpoints.function(
+            "track",
+            forwarding: { live, event in
+                live.track(event)
+            }
+        )
+    )
+}
+
+let spy = apiClients.spy(forwardingTo: liveAPI)
+await spy.when {
+    try await $0.fetchUser(Match.equal(42))
+}.thenReturn(testUser)
+
+let client = spy()
+#expect(try await client.fetchUser(42) == testUser) // stubbed
+#expect(try await client.fetchUser(7) == liveUser)  // forwarded
+
+spy.history.stubbed.verify()
+spy.history.forwarded.verify()
+```
+
+The adapter form keeps the field mapping reusable without trying to extract a
+variadic closure through a generic key path. For one-off construction, each
+endpoint also has a `forwardingTo:` overload that accepts the live closure
+directly.
+
+A configured answer always wins over the fallback. End a sequence with
+`thenForward()`, or attach `thenForward()` to a narrower pattern, to explicitly
+punch through a broader override. Forwarded calls remain visible through
+`pattern.forwarded`, `spy.history.forwarded`, timelines, streams, and order
+verification.
+
+### Reuse live, failing, and partial variants
+
+``ClientDoublePreset`` owns structural endpoint wiring, not test behavior. Use
+one preset to choose among:
+
+- `live(_:)`, which passes a production client through unchanged
+- `failing()` (or `stub()`), which requires every used endpoint to be stubbed
+- `spy(forwardingTo:)`, which records and delegates unmatched calls
+- `overriding(_:configure:)`, which prepares selected overrides before
+  returning the spy controller
+
+Because the result of `failing()`, `spy(forwardingTo:)`, and
+`overriding(_:configure:)` is still callable, the test keeps the controller for
+verification and injects `controller()` as the concrete client.
+
+When the `StubbableMacros` package trait is enabled, `@StubbableClient` can
+derive the preset from stored closure fields:
+
+```swift
+import TestDoubles
+import TestDoublesMacros
+
+@StubbableClient
+struct StatusClient {
+    var status: @Sendable (Int) async throws -> String
+    var record: @Sendable (String) -> Void
+}
+
+let stub = StatusClientDoubles.preset.failing()
+let spy = StatusClientDoubles.preset.spy(forwardingTo: liveStatus)
+```
+
+The opt-in macro generates a peer namespace named by appending `Doubles`.
+Closure fields need explicit function types. Non-closure stored properties may
+remain when they have defaults. Generic clients, `inout` parameters, and
+variadic closure parameters are diagnosed rather than generating partial
+wiring.
+
 ### Double one standalone function
 
 Use ``ClosureDouble`` and its effectful variants when a test needs a controller
@@ -162,6 +248,7 @@ let authenticated = AsyncManualStubScenario<APIClient> { stub in
 }
 ```
 
-Prefer a small factory for the endpoint wiring and scenarios for
-test-specific behavior. That keeps the dependency's structural definition
-separate from the cases each test intends to override.
+Prefer a ``ClientDoublePreset`` for endpoint wiring and scenarios for
+test-specific behavior. This keeps the dependency's structural definition
+separate from the cases each test intends to override, and the same preset can
+produce a failing stub or a forwarding spy.

@@ -278,6 +278,10 @@ private func allTargets(
                 "ManualStubGeneratorIntegrationFixtures",
                 "TestDoublesFixtures",
                 "TestDoublesResilientFixtures",
+                .target(
+                    name: "TestDoublesMacros",
+                    condition: .when(traits: ["StubbableMacros"])
+                ),
                 .product(
                     name: "IssueReportingTestSupport",
                     package: "swift-issue-reporting",
@@ -286,6 +290,12 @@ private func allTargets(
                     moduleAliases: [
                         "IssueReportingTestSupport": "TestDoublesIssueReportingTestSupport"
                     ]
+                )
+            ],
+            swiftSettings: [
+                .define(
+                    "TESTDOUBLES_STUBBABLE_MACROS",
+                    .when(traits: ["StubbableMacros"])
                 )
             ]
         ),

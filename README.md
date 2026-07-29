@@ -286,6 +286,38 @@ does not use protocol metadata or executable trampolines, and works with the
 `RuntimeStubs` package trait disabled. See
 [Closure-Based Dependencies](Sources/TestDoubles/Documentation.docc/Articles/ClosureClients.md).
 
+Reuse the wiring for fail-closed tests and live forwarding with
+`ClientDoublePreset`:
+
+```swift
+let apiClients = ClientDoublePreset<APIClient> { endpoints in
+    APIClient(
+        fetch: endpoints.asyncThrowingFunction(
+            "fetch",
+            forwarding: { live, id, category in
+                try await live.fetch(id, category)
+            }
+        ),
+        track: endpoints.function(
+            "track",
+            forwarding: { live, event in live.track(event) }
+        )
+    )
+}
+
+let spy = apiClients.spy(forwardingTo: liveAPI)
+await spy.when {
+    try await $0.fetch(Match.equal(42), Match.any())
+}.thenReturn(Data())
+
+let client = spy() // unmatched calls forward and every call is recorded
+```
+
+`live(_:)`, `failing()`, `spy(forwardingTo:)`, and
+`overriding(_:configure:)` cover environment-style dependency presets without
+repeating field mappings. With the opt-in `StubbableMacros` trait,
+`@StubbableClient` derives this wiring as `APIClientDoubles.preset`.
+
 ### Control async timing
 
 Testing async code often means asserting what happens *while* a call is in

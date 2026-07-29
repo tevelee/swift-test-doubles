@@ -134,6 +134,8 @@ isolation. See
 
 - <doc:ClosureClients>
 - ``ClientStub``
+- ``ClientSpy``
+- ``ClientDoublePreset``
 - ``ClientStubEndpoints``
 
 ### Matching and Capture

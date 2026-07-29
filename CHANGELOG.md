@@ -60,6 +60,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   endpoint router supports nullary and arbitrary-arity synchronous, throwing,
   async, async-throwing, and typed-throws operations without runtime protocol
   metadata or executable trampolines.
+- `ClientSpy` forwards unmatched closure endpoints to a live client while
+  recording delegated calls, and selective overrides compose with
+  `thenForward()`. `ClientDoublePreset` reuses one endpoint mapping for live,
+  failing, spying, and partially overridden variants.
+- The opt-in `@StubbableClient` macro derives a `ClientDoublePreset` namespace
+  from a concrete struct's stored closure fields.
 - Tuple-input closure doubles can expand to arbitrary-arity functions and use
   separate typed arguments in matchers and computed behaviors across every
   synchronous, throwing, async, and async-throwing variant.
