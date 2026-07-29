@@ -187,7 +187,7 @@ private actor MatcherEvaluationGate {
         expectReportsIssue {
             stub.verify { $0.value(for: Match.equal(1)) }
         } matching: {
-            $0.description.contains("expected at least 1 call, got 0")
+            $0.description.contains("expected 1 call, got 0")
         }
 
         #expect(service.value(for: 2) == "configured")

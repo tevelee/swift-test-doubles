@@ -99,9 +99,11 @@ struct RealFileLoader: FileLoader {
 
         let calculator: any Calculator = stub()
         _ = calculator.describe(1)
-        _ = calculator.describe(2)
 
         stub.verify { $0.describe(Match.any()) }
+
+        _ = calculator.describe(2)
+
         stub.verify(.exactly(2)) { $0.describe(Match.any()) }
         stub.verify(.never) { $0.add(Match.any(), Match.any()) }
 
