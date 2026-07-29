@@ -161,6 +161,12 @@ later verified, inspected with `arguments()`, or observed with `stream()`.
 Each registration owns its own chain, so a call that matches a more specific
 registration does not advance a general fallback's chain.
 
+That observation handle is common to terminal configuration: custom `then`
+handlers, `thenForEachCall`, forwarding, cancellation, record/replay, and
+initializer or dynamic-`Self` builders can all be saved and verified the same
+way. Specialized controls compose it instead: use `suspension.interactions` or
+`queue.interactions` while retaining their resume or exhaustion operations.
+
 When the response depends on *which* attempt this is rather than a fixed list,
 `thenForEachCall` hands the computed handler a running call count as its first
 argument, ahead of the requirement's typed arguments:
@@ -192,6 +198,7 @@ let refresh = Task { await feed.refresh() }
 
 await suspension.waitForCall()   // the call has arrived and parked
 #expect(feed.isLoading)
+suspension.interactions.verify(1 ... 1)
 
 suspension.resume(returning: ["Hello, world"])
 await refresh.value

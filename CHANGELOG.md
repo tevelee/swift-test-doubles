@@ -214,6 +214,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `CallInteractions` handle, so a completed fluent chain can be saved and
   later verified, queried for arguments, streamed, or narrowed to forwarded
   spy calls without allowing another behavior after its terminal answer.
+- Every ordinary terminal configuration now returns the same
+  `CallInteractions` view, including custom and counted handlers, forwarding,
+  cancellation, record/replay, initializer, and dynamic-`Self` behaviors.
+  `StubSuspension` and `StubBehaviorQueue` compose that view through
+  `.interactions`, keeping observation available alongside resume and
+  exhaustion controls. Explicit `thenForward()` calls are now correctly
+  classified as forwarded interactions as well.
 - The pre-release `StubBuilder` type and the separate
   `forwardedCallCount`/`forwardedArguments()` pattern members have been
   replaced by `CallPattern` and its composed `forwarded` view.

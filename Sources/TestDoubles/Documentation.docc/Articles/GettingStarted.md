@@ -398,6 +398,13 @@ handler: synchronous handlers and matcher predicates are `@Sendable`, async
 handlers preserve their creation actor or executor, and mutable captures must
 be synchronized when calls may be concurrent.
 
+The same ``CallInteractions`` result is available from custom `then` handlers,
+`thenForEachCall`, forwarding, cancellation, record/replay, and initializer or
+dynamic-`Self` builders. Handles with additional responsibilities compose that
+view: ``StubSuspension/interactions`` keeps resume control beside verification,
+and ``StubBehaviorQueue/interactions`` keeps exhaustion state beside the calls
+that consumed it.
+
 ### Choose a construction path
 
 The examples above use automatic discovery from a linked conformance. For

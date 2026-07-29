@@ -107,7 +107,7 @@ extension CallPattern where Result: Encodable & Sendable {
         return interactions
     }
 
-    /// The async form of ``thenRecord(as:into:calling:)-2d9h6``, for an async
+    /// The async form of ``thenRecord(as:into:calling:)-9smp6``, for an async
     /// requirement forwarding to an async real dependency.
     @discardableResult
     public func thenRecord<each Argument>(

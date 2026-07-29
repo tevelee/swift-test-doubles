@@ -1,13 +1,13 @@
 /// An observation-only handle for every invocation matching one recorded call.
 ///
 /// Terminal behaviors return this value so a complete fluent configuration can
-/// be saved and inspected later without allowing another behavior to be
-/// appended after an unbounded answer:
+/// be saved and inspected later. Unbounded fixed terminals additionally prevent
+/// another behavior from being appended:
 ///
 /// ```swift
 /// let loads = stub.when { try $0.load() }
 ///     .thenThrow(APIError(), times: 2)
-///     .thenReturn("fallback", times: 1...)
+///     .thenReturn("fallback")
 ///
 /// loads.verify(3...)
 /// ```

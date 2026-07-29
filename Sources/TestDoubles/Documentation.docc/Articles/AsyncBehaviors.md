@@ -148,6 +148,7 @@ let refresh = Task { await feed.refresh() }
 
 await suspension.waitForCall()   // the call has arrived and parked
 #expect(feed.isLoading)
+suspension.interactions.verify(1 ... 1)
 
 suspension.resume(returning: ["Hello, world"])
 await refresh.value
@@ -162,6 +163,8 @@ completes the oldest parked call, one per call, in arrival order:
 ``StubSuspension/resume(throwing:)`` throws an error, and
 ``StubSuspension/resume()`` completes a parked `Void` call. Resumed calls leave
 the parked set, so `count` describes calls in flight now, not a running total.
+The composed ``StubSuspension/interactions`` view verifies and inspects every
+matching invocation, including calls that are still parked.
 
 Because the handle is the only thing that completes a parked call, ordering is
 under the test's control. This drives two concurrent requests to resolve in a

@@ -133,8 +133,8 @@ Function values cannot be synthesized as recording placeholders. Use
 `when(returning:_:)` and `verify(_:returning:_:)` for a function result.
 
 When a callback is the first of several arguments, use the synchronous
-``CallPattern/thenEscaping(_:)-1hvu8`` or asynchronous
-``CallPattern/thenEscaping(_:)-9cai3`` overload so its escaping convention is
+``CallPattern/thenEscaping(_:)-1zglr`` or asynchronous
+``CallPattern/thenEscaping(_:)-4blsn`` overload so its escaping convention is
 preserved while the trailing arguments are decoded:
 
 ```swift

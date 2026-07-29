@@ -43,7 +43,7 @@ extension CallPattern {
 
     /// Handles each matching async invocation with a running call count as the
     /// handler's first argument, ahead of the requirement's typed arguments.
-    /// See ``CallPattern/thenForEachCall(_:)-5yw9y`` for the counting contract;
+    /// See ``CallPattern/thenForEachCall(_:)-5l0p9`` for the counting contract;
     /// the requirement must be async.
     @discardableResult
     public func thenForEachCall<each Argument>(

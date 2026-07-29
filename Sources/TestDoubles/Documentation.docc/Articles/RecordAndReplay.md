@@ -14,13 +14,14 @@ let live = LiveWeatherService()
 let spy: Spy<any WeatherService> = .make(forwardingTo: live)
 let session = RecordingSession()
 
-spy.when { try await $0.currentConditions(for: Match.any()) }
+let recordings = spy.when { try await $0.currentConditions(for: Match.any()) }
     .thenRecord(as: "currentConditions", into: session) { city in
         try await live.currentConditions(for: city)
     }
 
 let service: any WeatherService = spy()
 _ = try await service.currentConditions(for: "Berlin")
+recordings.verify(1 ... 1)
 
 try session.save(to: fixtureURL)
 ```
@@ -41,19 +42,21 @@ dependency involved:
 let fixture = try InteractionFixture.load(from: fixtureURL)
 let stub = try Stub<any WeatherService>()
 
-stub.when { try await $0.currentConditions(for: Match.any()) }
+let replays = stub.when { try await $0.currentConditions(for: Match.any()) }
     .thenReplay(as: "currentConditions", from: fixture)
 
 let service: any WeatherService = stub()
 try await service.currentConditions(for: "Berlin") // the recorded value
-stub.verify { try await $0.currentConditions(for: Match.equal("Berlin")) }
+replays.verify(1 ... 1)
 ```
 
 `thenReplay(as:from:)` configures fixed responses from the fixture's calls
 recorded under `key`, in recording order — exactly like a `thenReturn(_:_:_:)`
 chain built from playback: the last recorded response repeats for every call
 after that. `key` must match the one recording used and have at least one
-recorded call, or this halts with a diagnostic naming the missing key.
+recorded call, or this halts with a diagnostic naming the missing key. Both
+recording and replay terminals return ``CallInteractions`` so their configured
+calls can be verified without repeating the capture closure.
 
 ### Redact requests and migrate old fixtures
 
