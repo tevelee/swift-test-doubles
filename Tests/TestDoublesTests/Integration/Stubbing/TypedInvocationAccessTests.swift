@@ -17,7 +17,7 @@ private protocol ManualInvocationAccessService {
     func track(event: String, value: Int)
 }
 
-private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService, StubConformer {
+private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService, ManualStubConformer {
     let stub: ManualStub<Self>
 
     func track(event: String, value: Int) { stub.track(event: event, value: value) }

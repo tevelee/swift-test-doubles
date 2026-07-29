@@ -27,7 +27,7 @@ protocol ManualEventualVerificationService: Sendable {
     func notify(_ value: Int)
 }
 
-struct ManualEventualVerificationServiceStub: ManualEventualVerificationService, StubConformer,
+struct ManualEventualVerificationServiceStub: ManualEventualVerificationService, ManualStubConformer,
     @unchecked Sendable
 {
     let stub: ManualStub<Self>

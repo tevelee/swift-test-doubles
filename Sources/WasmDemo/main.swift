@@ -12,12 +12,12 @@ protocol WasmDemoService {
     var count: Int { get }
 }
 
-struct WasmDemoServiceStub: WasmDemoService, StubConformer {
+struct WasmDemoServiceStub: WasmDemoService, ManualStubConformer {
     let stub: ManualStub<Self>
 
-    func fetch(id: Int) -> String { stub.fetch(id: id) }
-    func reset() { stub.reset() }
-    var count: Int { stub.count }
+    func fetch(id: Int) -> String { stub.requirements.fetch(id: id) }
+    func reset() { stub.requirements.reset() }
+    var count: Int { stub.requirements.count }
 }
 
 func demonstrateManualStub() {

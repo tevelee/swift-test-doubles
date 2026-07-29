@@ -16,23 +16,23 @@ private protocol ManualService {
     var asyncToken: String { get async throws }
 }
 
-private struct ManualServiceStub: ManualService, StubConformer {
+private struct ManualServiceStub: ManualService, ManualStubConformer {
     let stub: ManualStub<Self>
 
-    func fetch(id: Int) -> String { stub.fetch(id: id) }
-    func add(_ a: Int, _ b: Int) -> Int { stub.add(a, b) }
-    func reset() { stub.reset() }
+    func fetch(id: Int) -> String { stub.requirements.fetch(id: id) }
+    func add(_ a: Int, _ b: Int) -> Int { stub.requirements.add(a, b) }
+    func reset() { stub.requirements.reset() }
     var count: Int {
-        get { stub.count }
-        set { stub.count = newValue }
+        get { stub.requirements.count }
+        set { stub.requirements.count = newValue }
     }
-    func load() async -> String { await stub.load() }
-    func tick() async { await stub.tick() }
-    func save(_ item: String) throws { try stub.throwing.save(item) }
-    func refresh() async throws -> String { try await stub.throwing.refresh() }
-    var token: String { get throws { try stub.throwing.token } }
-    var asyncCount: Int { get async { await stub.asyncCall() } }
-    var asyncToken: String { get async throws { try await stub.asyncThrowingCall() } }
+    func load() async -> String { await stub.requirements.load() }
+    func tick() async { await stub.requirements.tick() }
+    func save(_ item: String) throws { try stub.throwingRequirements.save(item) }
+    func refresh() async throws -> String { try await stub.throwingRequirements.refresh() }
+    var token: String { get throws { try stub.throwingRequirements.token } }
+    var asyncCount: Int { get async { await stub.call() } }
+    var asyncToken: String { get async throws { try await stub.throwingCall() } }
 }
 
 private struct SaveError: Error, Equatable {}
@@ -120,8 +120,8 @@ private struct SaveError: Error, Equatable {}
     }
 
     @Test func explicitFallbacksReachAsyncPropertyGetters() async throws {
-        // asyncCount/asyncToken forward to `stub.asyncCall()`/`stub.asyncThrowingCall()`
-        // internally (see ManualServiceStub above) — the only reachable route
+        // asyncCount/asyncToken forward to the async overloads of
+        // `stub.call()`/`stub.throwingCall()` internally — the only reachable route
         // for an async property getter. Registration goes through the
         // conformer's own property, exactly as playback does, so both calls
         // intern to the same key regardless of what #function evaluates to

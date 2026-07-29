@@ -5,7 +5,7 @@ private protocol ManualOnlyService {
     func value(for id: Int) -> String
 }
 
-private struct ManualOnlyServiceStub: ManualOnlyService, StubConformer {
+private struct ManualOnlyServiceStub: ManualOnlyService, ManualStubConformer {
     let stub: ManualStub<Self>
 
     func value(for id: Int) -> String {

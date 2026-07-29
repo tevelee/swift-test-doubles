@@ -21,12 +21,12 @@ private protocol ManualInvocationManagementService {
 }
 
 private struct ManualInvocationManagementServiceStub: ManualInvocationManagementService,
-    StubConformer
+    ManualStubConformer
 {
     let stub: ManualStub<Self>
 
     func value(for id: Int) -> String { stub.value(for: id) }
-    func reset() { stub.reset() }
+    func reset() { stub.requirements.reset() }
 }
 
 private final class BlockedBehaviorMatcherGate: @unchecked Sendable {
@@ -195,7 +195,7 @@ private actor MatcherEvaluationGate {
         stub.verify(.exactly(1)) { $0.value(for: Match.any()) }
     }
 
-    @Test func manualStubHasClearingParityWithoutInterceptingReset() {
+    @Test func manualStubResetIsDistinctFromAResetRequirement() {
         let stub = ManualStub<ManualInvocationManagementServiceStub>()
         stub.when { $0.value(for: Match.any()) }.thenReturn("configured")
         stub.when { $0.reset() }.thenDoNothing()
@@ -206,11 +206,13 @@ private actor MatcherEvaluationGate {
         stub.verify(.exactly(1)) { $0.value(for: Match.any()) }
         stub.verify(.exactly(1)) { $0.reset() }
 
-        stub.clearRecordedInvocations()
+        stub.reset()
 
         stub.verify(.never) { $0.value(for: Match.any()) }
         stub.verify(.never) { $0.reset() }
-        #expect(service.value(for: 2) == "configured")
+        stub.when { $0.value(for: Match.any()) }.thenReturn("reconfigured")
+        stub.when { $0.reset() }.thenDoNothing()
+        #expect(service.value(for: 2) == "reconfigured")
         service.reset()
         stub.verify(.exactly(1)) { $0.value(for: Match.equal(2)) }
         stub.verify(.exactly(1)) { $0.reset() }

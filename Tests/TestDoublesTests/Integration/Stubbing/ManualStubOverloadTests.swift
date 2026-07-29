@@ -39,26 +39,26 @@ private protocol ManualTypedRouteService {
     func asyncThrowingEffect(_ value: Int) async throws
 }
 
-private struct ManualOverloadServiceStub: ManualOverloadService, StubConformer {
+private struct ManualOverloadServiceStub: ManualOverloadService, ManualStubConformer {
     let stub: ManualStub<Self>
 
     func makeSession() -> ManualSession { stub.makeSession() }
     func acquire() async -> ManualSession { await stub.acquire() }
-    func purge() async throws { try await stub.throwing.purge() }
-    func flush() throws -> Int { try stub.throwing.flush() }
+    func purge() async throws { try await stub.throwingRequirements.purge() }
+    func flush() throws -> Int { try stub.throwingRequirements.flush() }
     func labelFor(_ id: Int) -> String { stub.call(id) }
     func clear() { stub.call() }
     func code() throws -> Int { try stub.throwingCall() }
     func commit() throws { try stub.throwingCall() }
-    func warmup() async { await stub.asyncCall() }
-    func syncUp() async throws { try await stub.asyncThrowingCall() }
+    func warmup() async { await stub.call() }
+    func syncUp() async throws { try await stub.throwingCall() }
     var count: Int {
         get { stub.count }
         set { stub.count = newValue }
     }
 }
 
-private struct ManualTrueOverloadServiceStub: ManualTrueOverloadService, StubConformer {
+private struct ManualTrueOverloadServiceStub: ManualTrueOverloadService, ManualStubConformer {
     let stub: ManualStub<Self>
 
     func status() -> Int { stub.status() }
@@ -67,49 +67,43 @@ private struct ManualTrueOverloadServiceStub: ManualTrueOverloadService, StubCon
     func decoded() -> String { stub.decoded() }
 }
 
-private struct ManualTypedRouteServiceStub: ManualTypedRouteService, StubConformer {
+private struct ManualTypedRouteServiceStub: ManualTypedRouteService, ManualStubConformer {
     let stub: ManualStub<Self>
 
     func render(_ value: Int) -> String {
-        stub.call(value, route: ManualRouteID(argumentTypes: Int.self))
+        stub.call(value)
     }
 
     func render(_ value: String) -> String {
-        stub.call(value, route: ManualRouteID(argumentTypes: String.self))
+        stub.call(value)
     }
 
     func consume(_ value: Int) {
-        stub.call(value, route: ManualRouteID(argumentTypes: Int.self))
+        stub.call(value)
     }
 
     func throwingValue(_ value: Int) throws -> String {
-        try stub.throwingCall(value, route: ManualRouteID(argumentTypes: Int.self))
+        try stub.throwingCall(value)
     }
 
     func throwingEffect(_ value: Int) throws {
-        try stub.throwingCall(value, route: ManualRouteID(argumentTypes: Int.self))
+        try stub.throwingCall(value)
     }
 
     func asyncValue(_ value: Int) async -> String {
-        await stub.asyncCall(value, route: ManualRouteID(argumentTypes: Int.self))
+        await stub.call(value)
     }
 
     func asyncEffect(_ value: Int) async {
-        await stub.asyncCall(value, route: ManualRouteID(argumentTypes: Int.self))
+        await stub.call(value)
     }
 
     func asyncThrowingValue(_ value: Int) async throws -> String {
-        try await stub.asyncThrowingCall(
-            value,
-            route: ManualRouteID(argumentTypes: Int.self)
-        )
+        try await stub.throwingCall(value)
     }
 
     func asyncThrowingEffect(_ value: Int) async throws {
-        try await stub.asyncThrowingCall(
-            value,
-            route: ManualRouteID(argumentTypes: Int.self)
-        )
+        try await stub.throwingCall(value)
     }
 }
 
@@ -120,20 +114,20 @@ private func synchronousStatus(_ service: any ManualTrueOverloadService) -> Int 
 private struct PurgeError: Error, Equatable {}
 
 @Suite struct ManualStubOverloadTests {
-    @Test func typedRouteIdentityIsSeparateFromDiagnosticsAndImplicitRoutes() {
+    @Test func inferredRouteIdentityIncludesStaticArgumentTypes() {
         let recorder = StubRecorder(methods: [])
-        let intRoute = ManualRouteID("render(_:)", argumentTypes: Int.self)
-        let stringRoute = ManualRouteID("render(_:)", argumentTypes: String.self)
+        let intRoute = manualPackedArguments(0).route(for: "render(_:)")
+        let stringRoute = manualPackedArguments("").route(for: "render(_:)")
 
         let typedInt = recorder.internManualMethod(
-            route: .typed(intRoute),
+            route: intRoute,
             kind: .method,
             returnType: String.self,
             isAsync: false,
             isThrowing: false
         )
         let typedString = recorder.internManualMethod(
-            route: .typed(stringRoute),
+            route: stringRoute,
             kind: .method,
             returnType: String.self,
             isAsync: false,
@@ -147,7 +141,7 @@ private struct PurgeError: Error, Equatable {}
             isThrowing: false
         )
         let repeatedInt = recorder.internManualMethod(
-            route: .typed(intRoute),
+            route: intRoute,
             kind: .method,
             returnType: String.self,
             isAsync: false,

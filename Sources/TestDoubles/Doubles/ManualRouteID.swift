@@ -1,19 +1,21 @@
 /// Identifies a manually forwarded requirement whose printed signature is not
 /// sufficient to distinguish it from another overload.
 ///
-/// Use a typed route from a ``ManualStub`` explicit fallback when requirements
-/// have the same argument labels, result type, and effects but different
-/// argument types:
+/// Older manually generated conformers used this explicit route to distinguish
+/// argument-type overloads:
 ///
 /// ```swift
 /// func render(_ value: Int) -> String {
-///     stub.call(value, route: ManualRouteID(argumentTypes: Int.self))
+///     stub.call(
+///         value,
+///         route: ManualRouteID(argumentTypes: Int.self)
+///     )
 /// }
 /// ```
 ///
-/// The default signature is evaluated in the forwarding requirement, just like
-/// the string-based fallback's `#function` default. Argument types participate
-/// only in route identity; diagnostics continue to show the readable signature.
+/// New conformers should call `stub.call(value)` directly. Parameter-pack
+/// forwarding now preserves static argument types automatically. This type
+/// remains available for source compatibility with existing conformers.
 public struct ManualRouteID: Hashable, Sendable {
     let signature: String
     let argumentTypeIDs: [ObjectIdentifier]
@@ -25,12 +27,22 @@ public struct ManualRouteID: Hashable, Sendable {
     ///     is the forwarding requirement's `#function` value.
     ///   - argumentTypes: The requirement's static argument types, in declaration
     ///     order.
+    @available(
+        *,
+        deprecated,
+        message: "ManualStub.call now preserves argument types automatically."
+    )
     public init(
         _ signature: String = #function,
         argumentTypes: Any.Type...
     ) {
         self.signature = signature
         self.argumentTypeIDs = argumentTypes.map(ObjectIdentifier.init)
+    }
+
+    init(_ signature: String, argumentTypeIDs: [ObjectIdentifier]) {
+        self.signature = signature
+        self.argumentTypeIDs = argumentTypeIDs
     }
 }
 
@@ -46,4 +58,34 @@ enum ManualMethodRouteIdentity: Hashable, Sendable {
                 route.signature
         }
     }
+}
+
+struct ManualPackedArguments {
+    let values: [Any]
+    let typeIDs: [ObjectIdentifier]
+
+    func route(for signature: String) -> ManualMethodRouteIdentity {
+        typeIDs.isEmpty
+            ? .implicit(signature)
+            : .typed(
+                ManualRouteID(
+                    signature,
+                    argumentTypeIDs: typeIDs
+                )
+            )
+    }
+}
+
+func manualPackedArguments<each Argument>(
+    _ arguments: repeat each Argument
+) -> ManualPackedArguments {
+    var values: [Any] = []
+    var typeIDs: [ObjectIdentifier] = []
+    for argument in repeat each arguments {
+        values.append(argument)
+    }
+    for type in repeat (each Argument).self {
+        typeIDs.append(ObjectIdentifier(type))
+    }
+    return ManualPackedArguments(values: values, typeIDs: typeIDs)
 }

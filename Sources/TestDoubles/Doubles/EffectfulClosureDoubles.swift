@@ -1,4 +1,4 @@
-private struct EffectfulClosureDoubleConformer<Input, Result>: StubConformer {
+private struct EffectfulClosureDoubleConformer<Input, Result>: ManualStubConformer {
     let stub: ManualStub<Self>
 }
 
@@ -12,20 +12,25 @@ private final class EffectfulClosureDoubleStorage<Input, Result> {
         self.isThrowing = isThrowing
     }
 
-    private var route: ManualRouteID {
-        ManualRouteID("callAsFunction(_:)", argumentTypes: Input.self)
+    private var route: ManualMethodRouteIdentity {
+        .typed(
+            ManualRouteID(
+                "callAsFunction(_:)",
+                argumentTypeIDs: [ObjectIdentifier(Input.self)]
+            )
+        )
     }
 
     func callThrowing(_ input: Input) throws -> Result {
-        try stub.dispatchThrowingMethod(route: .typed(route), args: [input])
+        try stub.dispatchThrowingMethod(route: route, args: [input])
     }
 
     func callAsync(_ input: Input) async -> Result {
-        await stub.dispatchAsyncMethod(route: .typed(route), args: [input])
+        await stub.dispatchAsyncMethod(route: route, args: [input])
     }
 
     func callAsyncThrowing(_ input: Input) async throws -> Result {
-        try await stub.dispatchAsyncThrowingMethod(route: .typed(route), args: [input])
+        try await stub.dispatchAsyncThrowingMethod(route: route, args: [input])
     }
 
     func pattern(
@@ -33,7 +38,7 @@ private final class EffectfulClosureDoubleStorage<Input, Result> {
         location: StubSourceLocation? = nil
     ) -> CallPattern<Result> {
         let method = stub.recorder.internManualMethod(
-            route: .typed(route),
+            route: route,
             kind: .method,
             returnType: Result.self,
             isAsync: isAsync,

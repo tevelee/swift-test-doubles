@@ -1,4 +1,4 @@
-private struct ClosureDoubleConformer<Input, Result>: StubConformer {
+private struct ClosureDoubleConformer<Input, Result>: ManualStubConformer {
     let stub: ManualStub<Self>
 }
 
@@ -304,10 +304,12 @@ public final class ClosureDouble<Input, Result> {
 
     private let storage = ManualStub<ClosureDoubleConformer<Input, Result>>()
 
-    private var route: ManualRouteID {
-        ManualRouteID(
-            "callAsFunction(_:)",
-            argumentTypes: Input.self
+    private var route: ManualMethodRouteIdentity {
+        .typed(
+            ManualRouteID(
+                "callAsFunction(_:)",
+                argumentTypeIDs: [ObjectIdentifier(Input.self)]
+            )
         )
     }
 
@@ -322,7 +324,7 @@ public final class ClosureDouble<Input, Result> {
     /// Invokes the double. A call is recorded before its configured behavior
     /// runs, matching ``Stub`` and ``ManualStub`` observation semantics.
     public func callAsFunction(_ input: Input) -> Result {
-        storage.dispatchMethod(route: .typed(route), args: [input])
+        storage.dispatchMethod(route: route, args: [input])
     }
 
     /// Assigns a name used in strict-scope and interaction diagnostics.
@@ -516,7 +518,7 @@ public final class ClosureDouble<Input, Result> {
         location: StubSourceLocation? = nil
     ) -> CallPattern<Result> {
         let method = storage.recorder.internManualMethod(
-            route: .typed(route),
+            route: route,
             kind: .method,
             returnType: Result.self,
             isAsync: false,

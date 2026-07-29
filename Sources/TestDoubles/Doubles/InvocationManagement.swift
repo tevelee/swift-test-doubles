@@ -77,13 +77,20 @@ extension ManualStub {
     /// invocations.
     ///
     /// A later matching call behaves like a call to an unconfigured double
-    /// and halts with a diagnostic. Pair with `clearRecordedInvocations()`
-    /// to restore the just-constructed state. There is deliberately no
-    /// `reset()` on `ManualStub`: member names dispatch requirements here,
-    /// and a concrete `reset` would shadow a protocol's own `reset`
-    /// requirement.
+    /// and halts with a diagnostic.
     public func clearConfiguredBehaviors() {
         recorder.clearConfiguredBehaviors()
+    }
+
+    /// Restores the just-constructed state by removing configured behavior
+    /// and recorded invocations.
+    ///
+    /// Hand-written conformers should forward a protocol requirement named
+    /// `reset` through ``ManualStub/requirements`` so it cannot collide with
+    /// this control operation.
+    public func reset() {
+        clearConfiguredBehaviors()
+        clearRecordedInvocations()
     }
 
     /// Reports every recorded invocation that has not been covered by a

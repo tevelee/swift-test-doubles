@@ -18,7 +18,7 @@ private protocol ManualNoMoreInteractionsService {
 }
 
 private struct ManualNoMoreInteractionsServiceStub: ManualNoMoreInteractionsService,
-    StubConformer
+    ManualStubConformer
 {
     let stub: ManualStub<Self>
 

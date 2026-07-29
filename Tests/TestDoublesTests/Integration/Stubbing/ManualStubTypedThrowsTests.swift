@@ -19,7 +19,7 @@ private protocol ManualTypedThrowsService {
     func routedSynchronize(_ value: Int) async throws(ManualStubTypedFailure)
 }
 
-private struct ManualTypedThrowsServiceStub: ManualTypedThrowsService, StubConformer {
+private struct ManualTypedThrowsServiceStub: ManualTypedThrowsService, ManualStubConformer {
     let stub: ManualStub<Self>
 
     var token: String {
@@ -36,14 +36,14 @@ private struct ManualTypedThrowsServiceStub: ManualTypedThrowsService, StubConfo
     }
 
     func refresh(_ value: Int) async throws(ManualStubTypedFailure) -> String {
-        try await stub.asyncThrowingCall(
+        try await stub.throwingCall(
             value,
             throwing: ManualStubTypedFailure.self
         )
     }
 
     func synchronize(_ value: Int) async throws(ManualStubTypedFailure) {
-        try await stub.asyncThrowingCall(
+        try await stub.throwingCall(
             value,
             throwing: ManualStubTypedFailure.self
         )
@@ -52,7 +52,6 @@ private struct ManualTypedThrowsServiceStub: ManualTypedThrowsService, StubConfo
     func routedLoad(_ value: Int) throws(ManualStubTypedFailure) -> String {
         try stub.throwingCall(
             value,
-            route: ManualRouteID(argumentTypes: Int.self),
             throwing: ManualStubTypedFailure.self
         )
     }
@@ -60,23 +59,20 @@ private struct ManualTypedThrowsServiceStub: ManualTypedThrowsService, StubConfo
     func routedReset(_ value: Int) throws(ManualStubTypedFailure) {
         try stub.throwingCall(
             value,
-            route: ManualRouteID(argumentTypes: Int.self),
             throwing: ManualStubTypedFailure.self
         )
     }
 
     func routedRefresh(_ value: Int) async throws(ManualStubTypedFailure) -> String {
-        try await stub.asyncThrowingCall(
+        try await stub.throwingCall(
             value,
-            route: ManualRouteID(argumentTypes: Int.self),
             throwing: ManualStubTypedFailure.self
         )
     }
 
     func routedSynchronize(_ value: Int) async throws(ManualStubTypedFailure) {
-        try await stub.asyncThrowingCall(
+        try await stub.throwingCall(
             value,
-            route: ManualRouteID(argumentTypes: Int.self),
             throwing: ManualStubTypedFailure.self
         )
     }

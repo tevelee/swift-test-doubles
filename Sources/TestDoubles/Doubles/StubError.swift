@@ -1,7 +1,7 @@
 /// Errors reported while constructing a runtime-generated test double.
 public enum StubError: Error, Sendable, CustomStringConvertible {
     private static let manualStubbingRecovery =
-        "Recovery: Use `ManualStub` with a hand-written `StubConformer`, or write a "
+        "Recovery: Use `ManualStub` with a hand-written `ManualStubConformer`, or write a "
         + "hand-written fake, when this protocol must be stubbed."
 
     /// The generic argument is not a protocol existential.
@@ -135,7 +135,7 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                     + "Recovery: Prefer a `Stub.Requirement` using `signatureOf:` when it "
                     + "supports the declaration. Use a source-less factory only when "
                     + "necessary and match the ABI shape exactly. Otherwise use `ManualStub` "
-                    + "with a hand-written `StubConformer`."
+                    + "with a hand-written `ManualStubConformer`."
 
             case .trampolineAllocationFailed(let requirementIndex):
                 return "Could not allocate an executable trampoline for requirement \(requirementIndex).\n"

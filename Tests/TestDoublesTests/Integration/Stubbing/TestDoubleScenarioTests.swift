@@ -10,7 +10,7 @@ private protocol ManualScenarioServiceProtocol {
     func user(id: Int) -> String
 }
 
-private struct ManualScenarioService: ManualScenarioServiceProtocol, StubConformer {
+private struct ManualScenarioService: ManualScenarioServiceProtocol, ManualStubConformer {
     let stub: ManualStub<Self>
 
     func user(id: Int) -> String { stub.user(id: id) }

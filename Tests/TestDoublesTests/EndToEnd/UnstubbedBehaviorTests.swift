@@ -38,7 +38,7 @@ struct RealUnfinishedVoidConfigurationProbe: UnfinishedVoidConfigurationProbe {
     func reset() {}
 }
 
-private struct UnstubbedManualProbeStub: UnstubbedManualProbe, StubConformer {
+private struct UnstubbedManualProbeStub: UnstubbedManualProbe, ManualStubConformer {
     let stub: ManualStub<Self>
     func load() -> String { stub.load() }
 }
@@ -428,7 +428,11 @@ private struct UnexpectedTypedError: Error {}
                 String(bytes: result.standardErrorContent, encoding: .utf8)
             )
             #expect(diagnostic.contains("A nonthrowing stub handler for 'load()' threw"))
-            #expect(diagnostic.contains("Forward this requirement through `stub.throwing`"))
+            #expect(
+                diagnostic.contains(
+                    "Forward this requirement through `stub.throwingRequirements`"
+                )
+            )
         }
 
         /// An overrun on an exhausted chain is a test bug the same way an

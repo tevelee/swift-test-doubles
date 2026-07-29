@@ -18,7 +18,7 @@ private protocol ManualUnusedStubService {
     func value(for id: Int) -> String
 }
 
-private struct ManualUnusedStubServiceStub: ManualUnusedStubService, StubConformer {
+private struct ManualUnusedStubServiceStub: ManualUnusedStubService, ManualStubConformer {
     let stub: ManualStub<Self>
 
     func value(for id: Int) -> String { stub.value(for: id) }
@@ -97,6 +97,18 @@ private struct ManualUnusedStubServiceStub: ManualUnusedStubService, StubConform
             stub.verifyNoUnusedStubs()
         } matching: {
             $0.description.contains("Unused stub registrations")
+        }
+    }
+
+    @Test func manualStubReportsShadowingAtTheWhenSite() {
+        let stub = ManualStub<ManualUnusedStubServiceStub>()
+        stub.when { $0.value(for: Match.any()) }.thenReturn("broad")
+
+        expectReportsIssue {
+            stub.when { $0.value(for: Match.equal(7)) }.thenReturn("specific")
+        } matching: {
+            $0.description.contains("Unreachable stub registration")
+                && $0.description.contains("value(for:)")
         }
     }
 }

@@ -1,20 +1,54 @@
-/// A dynamic-call proxy returned by ``ManualStub``'s base dynamic-member
-/// subscript.
-///
-/// Use it only from forwarding implementations on a ``StubConformer``. It
-/// routes non-throwing method calls, synchronous or asynchronous, including
-/// `Void` methods.
+/// The collision-free dynamic-member route returned by
+/// ``ManualStub/requirements``.
+@dynamicMemberLookup
+public struct ManualRequirementRoute<T: ManualStubConformer> {
+    let stub: ManualStub<T>
+
+    /// Method access such as `stub.requirements.fetch(id: id)`.
+    @_documentation(visibility: internal)
+    public subscript(dynamicMember member: String) -> ManualMethodProxy<T> {
+        ManualMethodProxy(stub: stub, name: member)
+    }
+
+    /// Property access such as `stub.requirements.count`.
+    @_disfavoredOverload
+    public subscript<R>(dynamicMember member: String) -> R {
+        get {
+            let method = stub.recorder.internManualMethod(
+                signature: member,
+                kind: .getter,
+                returnType: R.self,
+                isAsync: false,
+                isThrowing: false
+            )
+            return stub.dispatchValue(method: method, args: [])
+        }
+        nonmutating set {
+            let method = stub.recorder.internManualMethod(
+                signature: "\(member)=",
+                kind: .setter,
+                returnType: Void.self,
+                isAsync: false,
+                isThrowing: false
+            )
+            let _: Void = stub.dispatchValue(method: method, args: [newValue])
+        }
+    }
+}
+
+/// A dynamic-call proxy used by manual requirement forwarding.
 @dynamicCallable
-public struct ManualMethodProxy<T: StubConformer> {
+@_documentation(visibility: internal)
+public struct ManualMethodProxy<T: ManualStubConformer> {
     let stub: ManualStub<T>
     let name: String
 
-    /// Sync, non-void: `stub.fetch(id: id)`.
+    /// Sync, non-void: `stub.requirements.fetch(id: id)`.
     public func dynamicallyCall<R>(withKeywordArguments args: KeyValuePairs<String, Any>) -> R {
         stub.dispatchMethod(key: manualStubSignature(name, args), args: args.map(\.value))
     }
 
-    /// Sync, void: `stub.reset()`.
+    /// Sync, void: `stub.requirements.reset()`.
     public func dynamicallyCall(withKeywordArguments args: KeyValuePairs<String, Any>) {
         let _: Void = stub.dispatchMethod(
             key: manualStubSignature(name, args),
@@ -22,7 +56,7 @@ public struct ManualMethodProxy<T: StubConformer> {
         )
     }
 
-    /// Async, non-void: `await stub.load()`.
+    /// Async, non-void: `await stub.requirements.load()`.
     public func dynamicallyCall<R>(withKeywordArguments args: KeyValuePairs<String, Any>) async -> R {
         await stub.dispatchAsyncMethod(
             key: manualStubSignature(name, args),
@@ -30,7 +64,7 @@ public struct ManualMethodProxy<T: StubConformer> {
         )
     }
 
-    /// Async, void: `await stub.refresh()`.
+    /// Async, void: `await stub.requirements.refresh()`.
     public func dynamicallyCall(withKeywordArguments args: KeyValuePairs<String, Any>) async {
         let _: Void = await stub.dispatchAsyncMethod(
             key: manualStubSignature(name, args),
@@ -39,19 +73,20 @@ public struct ManualMethodProxy<T: StubConformer> {
     }
 }
 
-/// Returned by ``ManualStub/throwing``. Routes sync-throwing and
-/// async-throwing methods, and throwing getters.
+/// The collision-free dynamic-member route returned by
+/// ``ManualStub/throwingRequirements``.
 @dynamicMemberLookup
-public struct ManualThrowingRoute<T: StubConformer> {
+public struct ManualThrowingRequirementRoute<T: ManualStubConformer> {
     let stub: ManualStub<T>
 
-    /// Method access: `try stub.throwing.save(item: item)`.
+    /// Method access: `try stub.throwingRequirements.save(item: item)`.
+    @_documentation(visibility: internal)
     public subscript(dynamicMember member: String) -> ManualThrowingMethodProxy<T> {
         ManualThrowingMethodProxy(stub: stub, name: member)
     }
 
-    /// Throwing getter access: `try stub.throwing.token`.
-    /// Disfavored so Swift prefers ``ManualThrowingMethodProxy`` at call sites.
+    /// Throwing getter access: `try stub.throwingRequirements.token`.
+    /// Disfavored so Swift prefers throwing method forwarding at call sites.
     @_disfavoredOverload
     public subscript<R>(dynamicMember member: String) -> R {
         get throws {
@@ -67,17 +102,20 @@ public struct ManualThrowingRoute<T: StubConformer> {
     }
 }
 
-/// A dynamic-call proxy returned by ``ManualThrowingRoute``'s dynamic-member
-/// subscript.
-///
-/// Use it only from throwing forwarding implementations on a
-/// ``StubConformer``.
+/// Compatibility name for ``ManualThrowingRequirementRoute``.
+@available(*, deprecated, renamed: "ManualThrowingRequirementRoute")
+public typealias ManualThrowingRoute<T: ManualStubConformer> =
+    ManualThrowingRequirementRoute<T>
+
+/// A dynamic-call proxy used by throwing manual requirement forwarding.
 @dynamicCallable
-public struct ManualThrowingMethodProxy<T: StubConformer> {
+@_documentation(visibility: internal)
+public struct ManualThrowingMethodProxy<T: ManualStubConformer> {
     let stub: ManualStub<T>
     let name: String
 
-    /// Sync-throwing, non-void: `try stub.throwing.save(item: item)`.
+    /// Sync-throwing, non-void:
+    /// `try stub.throwingRequirements.save(item: item)`.
     public func dynamicallyCall<R>(withKeywordArguments args: KeyValuePairs<String, Any>) throws -> R {
         try stub.dispatchThrowingMethod(
             key: manualStubSignature(name, args),
@@ -85,7 +123,7 @@ public struct ManualThrowingMethodProxy<T: StubConformer> {
         )
     }
 
-    /// Sync-throwing, void: `try stub.throwing.save(item)`.
+    /// Sync-throwing, void: `try stub.throwingRequirements.save(item)`.
     public func dynamicallyCall(withKeywordArguments args: KeyValuePairs<String, Any>) throws {
         let _: Void = try stub.dispatchThrowingMethod(
             key: manualStubSignature(name, args),
@@ -93,7 +131,8 @@ public struct ManualThrowingMethodProxy<T: StubConformer> {
         )
     }
 
-    /// Async-throwing, non-void: `try await stub.throwing.refresh()`.
+    /// Async-throwing, non-void:
+    /// `try await stub.throwingRequirements.refresh()`.
     public func dynamicallyCall<R>(withKeywordArguments args: KeyValuePairs<String, Any>) async throws -> R {
         try await stub.dispatchAsyncThrowingMethod(
             key: manualStubSignature(name, args),
@@ -101,7 +140,8 @@ public struct ManualThrowingMethodProxy<T: StubConformer> {
         )
     }
 
-    /// Async-throwing, void: `try await stub.throwing.refresh()`.
+    /// Async-throwing, void:
+    /// `try await stub.throwingRequirements.refresh()`.
     public func dynamicallyCall(withKeywordArguments args: KeyValuePairs<String, Any>) async throws {
         let _: Void = try await stub.dispatchAsyncThrowingMethod(
             key: manualStubSignature(name, args),

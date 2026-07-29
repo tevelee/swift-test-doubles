@@ -103,7 +103,7 @@ private let stubErrorDescriptions: [(StubError, String)] = [
             + "Recovery: Prefer a `Stub.Requirement` using `signatureOf:` when it "
             + "supports the declaration. Use a source-less factory only when "
             + "necessary and match the ABI shape exactly. Otherwise use `ManualStub` "
-            + "with a hand-written `StubConformer`."
+            + "with a hand-written `ManualStubConformer`."
     ),
     (
         .trampolineAllocationFailed(requirementIndex: 3),
@@ -118,5 +118,5 @@ private let stubErrorDescriptions: [(StubError, String)] = [
 ]
 
 private let manualStubbingRecovery =
-    "Recovery: Use `ManualStub` with a hand-written `StubConformer`, or write a "
+    "Recovery: Use `ManualStub` with a hand-written `ManualStubConformer`, or write a "
     + "hand-written fake, when this protocol must be stubbed."

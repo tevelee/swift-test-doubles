@@ -48,7 +48,7 @@ public struct TestDoubleScenario<Subject> {
 public typealias StubScenario<P> = TestDoubleScenario<Stub<P>>
 
 /// Reusable synchronous configuration for a ``ManualStub``.
-public typealias ManualStubScenario<T: StubConformer> = TestDoubleScenario<ManualStub<T>>
+public typealias ManualStubScenario<T: ManualStubConformer> = TestDoubleScenario<ManualStub<T>>
 
 /// A reusable synchronous scenario that receives test-specific input when it
 /// is applied.
@@ -92,7 +92,7 @@ public typealias ParameterizedStubScenario<P, Parameter> =
     ParameterizedTestDoubleScenario<Stub<P>, Parameter>
 
 /// A parameterized scenario for a ``ManualStub``.
-public typealias ParameterizedManualStubScenario<T: StubConformer, Parameter> =
+public typealias ParameterizedManualStubScenario<T: ManualStubConformer, Parameter> =
     ParameterizedTestDoubleScenario<ManualStub<T>, Parameter>
 
 /// Reusable asynchronous configuration for a test double.
@@ -140,7 +140,7 @@ public struct AsyncTestDoubleScenario<Subject> {
 public typealias AsyncStubScenario<P> = AsyncTestDoubleScenario<Stub<P>>
 
 /// Reusable asynchronous configuration for a ``ManualStub``.
-public typealias AsyncManualStubScenario<T: StubConformer> = AsyncTestDoubleScenario<ManualStub<T>>
+public typealias AsyncManualStubScenario<T: ManualStubConformer> = AsyncTestDoubleScenario<ManualStub<T>>
 
 /// A reusable asynchronous scenario that receives test-specific input when it
 /// is applied.
@@ -184,5 +184,5 @@ public typealias AsyncParameterizedStubScenario<P, Parameter> =
     AsyncParameterizedTestDoubleScenario<Stub<P>, Parameter>
 
 /// A parameterized asynchronous scenario for a ``ManualStub``.
-public typealias AsyncParameterizedManualStubScenario<T: StubConformer, Parameter> =
+public typealias AsyncParameterizedManualStubScenario<T: ManualStubConformer, Parameter> =
     AsyncParameterizedTestDoubleScenario<ManualStub<T>, Parameter>

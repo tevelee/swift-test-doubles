@@ -1,7 +1,20 @@
 extension ManualStub {
     /// Describes a method or getter for behavior and interaction operations.
-    public func when<Result>(_ call: (T) throws -> Result) -> CallPattern<Result> {
-        let recording = recordInvocation(call)
+    public func when<Result>(
+        _ call: (T) throws -> Result,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) -> CallPattern<Result> {
+        let recording = recordInvocation(call).taggingRegistrationLocation(
+            StubSourceLocation(
+                fileID: fileID,
+                filePath: filePath,
+                line: line,
+                column: column
+            )
+        )
         return CallPattern(recorder: recorder, recording: recording)
     }
 
@@ -13,24 +26,63 @@ extension ManualStub {
     /// resulting builder.
     public func when<Result>(
         returning placeholder: Result,
-        _ call: (T) throws -> Result
+        _ call: (T) throws -> Result,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
     ) -> CallPattern<Result> {
         let recording = recordInvocation(returning: placeholder, call)
+            .taggingRegistrationLocation(
+                StubSourceLocation(
+                    fileID: fileID,
+                    filePath: filePath,
+                    line: line,
+                    column: column
+                )
+            )
         return CallPattern(recorder: recorder, recording: recording)
     }
 
     /// Describes a direct property assignment.
-    public func when(_ call: (inout T) throws -> Void) -> CallPattern<Void> {
-        let recording = recordMutation(call)
+    public func when(
+        _ call: (inout T) throws -> Void,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) -> CallPattern<Void> {
+        let recording = recordMutation(call).taggingRegistrationLocation(
+            StubSourceLocation(
+                fileID: fileID,
+                filePath: filePath,
+                line: line,
+                column: column
+            )
+        )
         return CallPattern(recorder: recorder, recording: recording)
     }
 
     /// Describes an async method or getter for behavior and interaction operations.
     public func when<Result>(
         _ call: (T) async throws -> Result,
-        isolation: isolated (any Actor)? = #isolation
+        isolation: isolated (any Actor)? = #isolation,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
     ) async -> CallPattern<Result> {
-        let recording = await recordAsyncInvocation(call, isolation: isolation)
+        let recording = await recordAsyncInvocation(
+            call,
+            isolation: isolation
+        ).taggingRegistrationLocation(
+            StubSourceLocation(
+                fileID: fileID,
+                filePath: filePath,
+                line: line,
+                column: column
+            )
+        )
         return CallPattern(recorder: recorder, recording: recording)
     }
 
@@ -38,12 +90,23 @@ extension ManualStub {
     public func when<Result>(
         returning placeholder: Result,
         _ call: (T) async throws -> Result,
-        isolation: isolated (any Actor)? = #isolation
+        isolation: isolated (any Actor)? = #isolation,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
     ) async -> CallPattern<Result> {
         let recording = await recordAsyncInvocation(
             returning: placeholder,
             call,
             isolation: isolation
+        ).taggingRegistrationLocation(
+            StubSourceLocation(
+                fileID: fileID,
+                filePath: filePath,
+                line: line,
+                column: column
+            )
         )
         return CallPattern(recorder: recorder, recording: recording)
     }

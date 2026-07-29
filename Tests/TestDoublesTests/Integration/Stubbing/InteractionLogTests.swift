@@ -18,7 +18,7 @@ private protocol ManualInteractionLogService {
     func track(event: String, value: Int)
 }
 
-private struct ManualInteractionLogServiceStub: ManualInteractionLogService, StubConformer {
+private struct ManualInteractionLogServiceStub: ManualInteractionLogService, ManualStubConformer {
     let stub: ManualStub<Self>
 
     func track(event: String, value: Int) { stub.track(event: event, value: value) }

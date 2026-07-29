@@ -1,24 +1,29 @@
 /// Marks a hand-written struct as a manually stubbed conformer.
 ///
-/// Conform your stub struct to both your protocol and `StubConformer`, and
+/// Conform your stub struct to both your protocol and
+/// `ManualStubConformer`, and
 /// forward each requirement to a `ManualStub<Self>`:
 ///
 /// ```swift
-/// struct MyServiceStub: MyService, StubConformer {
+/// struct MyServiceStub: MyService, ManualStubConformer {
 ///     let stub: ManualStub<Self>
-///     func fetch(id: Int) -> String { stub.fetch(id: id) }
-///     func reset() { stub.reset() }
+///     func fetch(id: Int) -> String { stub.requirements.fetch(id: id) }
+///     func reset() { stub.requirements.reset() }
 /// }
 /// ```
 ///
 /// The synthesized memberwise initializer satisfies `init(stub:)` for free.
-public protocol StubConformer {
+public protocol ManualStubConformer {
     /// Creates a conformer backed by `stub`.
     ///
     /// Most stub structs satisfy this requirement with a synthesized
     /// memberwise initializer for a stored `let stub: ManualStub<Self>`.
     init(stub: ManualStub<Self>)
 }
+
+/// Compatibility name for ``ManualStubConformer``.
+@available(*, deprecated, renamed: "ManualStubConformer")
+public typealias StubConformer = ManualStubConformer
 
 /// A hand-written test double for a protocol that ``Stub`` can't represent —
 /// new language features, requirement shapes the runtime trampoline doesn't
@@ -37,7 +42,7 @@ public protocol StubConformer {
 /// // service.fetch(id: 42) == "Alice"
 /// ```
 @dynamicMemberLookup
-public final class ManualStub<T: StubConformer>: @unchecked Sendable {
+public final class ManualStub<T: ManualStubConformer>: @unchecked Sendable {
     let recorder = StubRecorder(methods: [])
 
     /// Creates an empty manual stub. No requirements are validated up
@@ -74,13 +79,38 @@ public final class ManualStub<T: StubConformer>: @unchecked Sendable {
         T(stub: self)
     }
 
-    // MARK: - Base route (non-throwing methods, sync and async; getters; setters)
+    // MARK: - Requirement routes
+
+    /// A collision-free namespace for forwarding non-throwing requirements.
+    ///
+    /// Use this route from hand-written conformers so requirement names never
+    /// collide with `ManualStub`'s configuration and verification API:
+    ///
+    /// ```swift
+    /// func reset() { stub.requirements.reset() }
+    /// var count: Int { stub.requirements.count }
+    /// ```
+    public var requirements: ManualRequirementRoute<T> {
+        ManualRequirementRoute(stub: self)
+    }
+
+    /// A collision-free namespace for forwarding throwing requirements.
+    ///
+    /// ```swift
+    /// func save(_ item: Item) throws {
+    ///     try stub.throwingRequirements.save(item)
+    /// }
+    /// ```
+    public var throwingRequirements: ManualThrowingRequirementRoute<T> {
+        ManualThrowingRequirementRoute(stub: self)
+    }
 
     /// Forwards a non-throwing method through dynamic-member syntax.
     ///
     /// ```swift
     /// func fetch(id: Int) -> String { stub.fetch(id: id) }
     /// ```
+    @_documentation(visibility: internal)
     public subscript(dynamicMember member: String) -> ManualMethodProxy<T> {
         ManualMethodProxy(stub: self, name: member)
     }
@@ -95,7 +125,7 @@ public final class ManualStub<T: StubConformer>: @unchecked Sendable {
     /// }
     /// ```
     ///
-    /// Disfavored so Swift prefers ``ManualMethodProxy`` at call sites.
+    /// Disfavored so Swift prefers method forwarding at call sites.
     @_disfavoredOverload
     public subscript<R>(dynamicMember member: String) -> R {
         get {
@@ -124,17 +154,23 @@ public final class ManualStub<T: StubConformer>: @unchecked Sendable {
         }
     }
 
-    // MARK: - `.throwing` route (sync/async-throwing methods; throwing getters)
+    // MARK: - Compatibility route
 
     /// Routes throwing methods and throwing getters, which can't share a
     /// dynamic-member subscript with their non-throwing counterparts —
     /// Swift does not allow overloading a subscript getter purely on
     /// `throws`.
     /// ```swift
-    /// func save(_ item: Item) throws { try stub.throwing.save(item) }
-    /// var token: String { get throws { try stub.throwing.token } }
+    /// func save(_ item: Item) throws {
+    ///     try stub.throwingRequirements.save(item)
+    /// }
+    /// var token: String {
+    ///     get throws { try stub.throwingRequirements.token }
+    /// }
     /// ```
-    public var throwing: ManualThrowingRoute<T> { ManualThrowingRoute(stub: self) }
+    public var throwing: ManualThrowingRequirementRoute<T> {
+        ManualThrowingRequirementRoute(stub: self)
+    }
 
     // MARK: - Explicit fallback methods
     //
@@ -145,76 +181,202 @@ public final class ManualStub<T: StubConformer>: @unchecked Sendable {
     // forwarding body doesn't retype the requirement's name.
 
     /// Forwards a synchronous non-throwing requirement through its `#function`
-    /// key.
+    /// key and the static types of its arguments.
     ///
     /// Use this fallback when dynamic-member forwarding cannot express the
     /// requirement shape.
-    public func call<R>(_ args: Any..., function: String = #function) -> R {
-        dispatchMethod(key: function, args: args)
+    public func call<each Argument, R>(
+        _ args: repeat each Argument,
+        function: String = #function
+    ) -> R {
+        let packed = manualPackedArguments(repeat each args)
+        return dispatchMethod(
+            route: packed.route(for: function),
+            args: packed.values
+        )
     }
 
     /// Void variant of `call(_:function:)`.
-    public func call(_ args: Any..., function: String = #function) {
-        let _: Void = dispatchMethod(key: function, args: args)
+    public func call<each Argument>(
+        _ args: repeat each Argument,
+        function: String = #function
+    ) {
+        let packed = manualPackedArguments(repeat each args)
+        let _: Void = dispatchMethod(
+            route: packed.route(for: function),
+            args: packed.values
+        )
     }
 
-    /// Typed-route variant of `call(_:function:)` for overloads whose
-    /// argument labels, result, and effects are otherwise identical.
+    /// Asynchronous variant of `call(_:function:)`.
+    public func call<each Argument, R>(
+        _ args: repeat each Argument,
+        function: String = #function
+    ) async -> R {
+        let packed = manualPackedArguments(repeat each args)
+        return await dispatchAsyncMethod(
+            route: packed.route(for: function),
+            args: packed.values
+        )
+    }
+
+    /// Asynchronous `Void` variant of `call(_:function:)`.
+    public func call<each Argument>(
+        _ args: repeat each Argument,
+        function: String = #function
+    ) async {
+        let packed = manualPackedArguments(repeat each args)
+        let _: Void = await dispatchAsyncMethod(
+            route: packed.route(for: function),
+            args: packed.values
+        )
+    }
+
+    /// Compatibility overload for an explicitly constructed route.
+    @available(
+        *,
+        deprecated,
+        message: "Argument types are now inferred; remove the route argument."
+    )
     public func call<R>(_ args: Any..., route: ManualRouteID) -> R {
         dispatchMethod(route: .typed(route), args: args)
     }
 
-    /// Void typed-route variant of `call(_:function:)`.
+    /// Compatibility `Void` overload for an explicitly constructed route.
+    @available(
+        *,
+        deprecated,
+        message: "Argument types are now inferred; remove the route argument."
+    )
     public func call(_ args: Any..., route: ManualRouteID) {
         let _: Void = dispatchMethod(route: .typed(route), args: args)
     }
 
-    /// Forwards a synchronous throwing requirement through its `#function` key.
-    public func throwingCall<R>(_ args: Any..., function: String = #function) throws -> R {
-        try dispatchThrowingMethod(key: function, args: args)
+    /// Forwards a synchronous throwing requirement through its `#function`
+    /// key and the static types of its arguments.
+    public func throwingCall<each Argument, R>(
+        _ args: repeat each Argument,
+        function: String = #function
+    ) throws -> R {
+        let packed = manualPackedArguments(repeat each args)
+        return try dispatchThrowingMethod(
+            route: packed.route(for: function),
+            args: packed.values
+        )
     }
 
     /// Typed-throws variant of `throwingCall(_:function:)`.
     ///
     /// The configured handler must throw `Failure`; any other error fails
     /// closed with an expected/actual type diagnostic.
-    public func throwingCall<R, Failure: Error>(
-        _ args: Any...,
+    public func throwingCall<each Argument, R, Failure: Error>(
+        _ args: repeat each Argument,
         throwing failureType: Failure.Type,
         function: String = #function
     ) throws(Failure) -> R {
-        try dispatchThrowingMethod(
-            key: function,
-            args: args,
+        let packed = manualPackedArguments(repeat each args)
+        return try dispatchThrowingMethod(
+            route: packed.route(for: function),
+            args: packed.values,
             throwing: failureType
         )
     }
 
     /// Void variant of `throwingCall(_:function:)`.
-    public func throwingCall(_ args: Any..., function: String = #function) throws {
-        let _: Void = try dispatchThrowingMethod(key: function, args: args)
+    public func throwingCall<each Argument>(
+        _ args: repeat each Argument,
+        function: String = #function
+    ) throws {
+        let packed = manualPackedArguments(repeat each args)
+        let _: Void = try dispatchThrowingMethod(
+            route: packed.route(for: function),
+            args: packed.values
+        )
     }
 
     /// Void typed-throws variant of `throwingCall(_:function:)`.
-    public func throwingCall<Failure: Error>(
-        _ args: Any...,
+    public func throwingCall<each Argument, Failure: Error>(
+        _ args: repeat each Argument,
         throwing failureType: Failure.Type,
         function: String = #function
     ) throws(Failure) {
+        let packed = manualPackedArguments(repeat each args)
         let _: Void = try dispatchThrowingMethod(
-            key: function,
-            args: args,
+            route: packed.route(for: function),
+            args: packed.values,
             throwing: failureType
         )
     }
 
-    /// Typed-route variant of `throwingCall(_:function:)` for overloads whose
-    /// argument labels, result, and effects are otherwise identical.
+    /// Asynchronous throwing variant of `throwingCall(_:function:)`.
+    public func throwingCall<each Argument, R>(
+        _ args: repeat each Argument,
+        function: String = #function
+    ) async throws -> R {
+        let packed = manualPackedArguments(repeat each args)
+        return try await dispatchAsyncThrowingMethod(
+            route: packed.route(for: function),
+            args: packed.values
+        )
+    }
+
+    /// Asynchronous typed-throws variant of `throwingCall(_:function:)`.
+    public func throwingCall<each Argument, R, Failure: Error>(
+        _ args: repeat each Argument,
+        throwing failureType: Failure.Type,
+        function: String = #function
+    ) async throws(Failure) -> R {
+        let packed = manualPackedArguments(repeat each args)
+        return try await dispatchAsyncThrowingMethod(
+            route: packed.route(for: function),
+            args: packed.values,
+            throwing: failureType
+        )
+    }
+
+    /// Asynchronous throwing `Void` variant of `throwingCall(_:function:)`.
+    public func throwingCall<each Argument>(
+        _ args: repeat each Argument,
+        function: String = #function
+    ) async throws {
+        let packed = manualPackedArguments(repeat each args)
+        let _: Void = try await dispatchAsyncThrowingMethod(
+            route: packed.route(for: function),
+            args: packed.values
+        )
+    }
+
+    /// Asynchronous typed-throws `Void` variant of
+    /// `throwingCall(_:function:)`.
+    public func throwingCall<each Argument, Failure: Error>(
+        _ args: repeat each Argument,
+        throwing failureType: Failure.Type,
+        function: String = #function
+    ) async throws(Failure) {
+        let packed = manualPackedArguments(repeat each args)
+        let _: Void = try await dispatchAsyncThrowingMethod(
+            route: packed.route(for: function),
+            args: packed.values,
+            throwing: failureType
+        )
+    }
+
+    /// Compatibility overload for an explicitly constructed route.
+    @available(
+        *,
+        deprecated,
+        message: "Argument types are now inferred; remove the route argument."
+    )
     public func throwingCall<R>(_ args: Any..., route: ManualRouteID) throws -> R {
         try dispatchThrowingMethod(route: .typed(route), args: args)
     }
 
-    /// Typed-throws variant of `throwingCall(_:route:)`.
+    /// Compatibility typed-throws overload for an explicit route.
+    @available(
+        *,
+        deprecated,
+        message: "Argument types are now inferred; remove the route argument."
+    )
     public func throwingCall<R, Failure: Error>(
         _ args: Any...,
         route: ManualRouteID,
@@ -227,12 +389,22 @@ public final class ManualStub<T: StubConformer>: @unchecked Sendable {
         )
     }
 
-    /// Void typed-route variant of `throwingCall(_:function:)`.
+    /// Compatibility `Void` overload for an explicit route.
+    @available(
+        *,
+        deprecated,
+        message: "Argument types are now inferred; remove the route argument."
+    )
     public func throwingCall(_ args: Any..., route: ManualRouteID) throws {
         let _: Void = try dispatchThrowingMethod(route: .typed(route), args: args)
     }
 
-    /// Void typed-throws variant of `throwingCall(_:route:)`.
+    /// Compatibility typed-throws `Void` overload for an explicit route.
+    @available(
+        *,
+        deprecated,
+        message: "Argument types are now inferred; remove the route argument."
+    )
     public func throwingCall<Failure: Error>(
         _ args: Any...,
         route: ManualRouteID,
@@ -245,38 +417,51 @@ public final class ManualStub<T: StubConformer>: @unchecked Sendable {
         )
     }
 
-    /// Forwards an asynchronous non-throwing requirement through its
-    /// `#function` key.
+    /// Compatibility spelling for asynchronous `call(_:function:)`.
+    @available(*, deprecated, renamed: "call(_:function:)")
     public func asyncCall<R>(_ args: Any..., function: String = #function) async -> R {
         await dispatchAsyncMethod(key: function, args: args)
     }
 
-    /// Void variant of `asyncCall(_:function:)`.
+    /// Compatibility `Void` spelling for asynchronous `call(_:function:)`.
+    @available(*, deprecated, renamed: "call(_:function:)")
     public func asyncCall(_ args: Any..., function: String = #function) async {
         let _: Void = await dispatchAsyncMethod(key: function, args: args)
     }
 
-    /// Typed-route variant of `asyncCall(_:function:)` for overloads whose
-    /// argument labels, result, and effects are otherwise identical.
+    /// Compatibility spelling with an explicitly constructed route.
+    @available(
+        *,
+        deprecated,
+        message: "Use call(_:function:); argument types are now inferred."
+    )
     public func asyncCall<R>(_ args: Any..., route: ManualRouteID) async -> R {
         await dispatchAsyncMethod(route: .typed(route), args: args)
     }
 
-    /// Void typed-route variant of `asyncCall(_:function:)`.
+    /// Compatibility `Void` spelling with an explicit route.
+    @available(
+        *,
+        deprecated,
+        message: "Use call(_:function:); argument types are now inferred."
+    )
     public func asyncCall(_ args: Any..., route: ManualRouteID) async {
         let _: Void = await dispatchAsyncMethod(route: .typed(route), args: args)
     }
 
-    /// Forwards an asynchronous throwing requirement through its `#function`
-    /// key.
+    /// Compatibility spelling for asynchronous
+    /// `throwingCall(_:function:)`.
+    @available(*, deprecated, renamed: "throwingCall(_:function:)")
     public func asyncThrowingCall<R>(_ args: Any..., function: String = #function) async throws -> R {
         try await dispatchAsyncThrowingMethod(key: function, args: args)
     }
 
-    /// Typed-throws variant of `asyncThrowingCall(_:function:)`.
+    /// Compatibility typed-throws spelling for asynchronous
+    /// `throwingCall(_:throwing:function:)`.
     ///
     /// The configured handler must throw `Failure`; any other error fails
     /// closed with an expected/actual type diagnostic.
+    @available(*, deprecated, renamed: "throwingCall(_:throwing:function:)")
     public func asyncThrowingCall<R, Failure: Error>(
         _ args: Any...,
         throwing failureType: Failure.Type,
@@ -289,12 +474,16 @@ public final class ManualStub<T: StubConformer>: @unchecked Sendable {
         )
     }
 
-    /// Void variant of `asyncThrowingCall(_:function:)`.
+    /// Compatibility `Void` spelling for asynchronous
+    /// `throwingCall(_:function:)`.
+    @available(*, deprecated, renamed: "throwingCall(_:function:)")
     public func asyncThrowingCall(_ args: Any..., function: String = #function) async throws {
         let _: Void = try await dispatchAsyncThrowingMethod(key: function, args: args)
     }
 
-    /// Void typed-throws variant of `asyncThrowingCall(_:function:)`.
+    /// Compatibility typed-throws `Void` spelling for asynchronous
+    /// `throwingCall(_:throwing:function:)`.
+    @available(*, deprecated, renamed: "throwingCall(_:throwing:function:)")
     public func asyncThrowingCall<Failure: Error>(
         _ args: Any...,
         throwing failureType: Failure.Type,
@@ -307,13 +496,22 @@ public final class ManualStub<T: StubConformer>: @unchecked Sendable {
         )
     }
 
-    /// Typed-route variant of `asyncThrowingCall(_:function:)` for overloads
-    /// whose argument labels, result, and effects are otherwise identical.
+    /// Compatibility asynchronous spelling with an explicit route.
+    @available(
+        *,
+        deprecated,
+        message: "Use throwingCall(_:function:); argument types are inferred."
+    )
     public func asyncThrowingCall<R>(_ args: Any..., route: ManualRouteID) async throws -> R {
         try await dispatchAsyncThrowingMethod(route: .typed(route), args: args)
     }
 
-    /// Typed-throws variant of `asyncThrowingCall(_:route:)`.
+    /// Compatibility typed-throws asynchronous spelling with an explicit route.
+    @available(
+        *,
+        deprecated,
+        message: "Use throwingCall(_:throwing:function:); argument types are inferred."
+    )
     public func asyncThrowingCall<R, Failure: Error>(
         _ args: Any...,
         route: ManualRouteID,
@@ -326,12 +524,23 @@ public final class ManualStub<T: StubConformer>: @unchecked Sendable {
         )
     }
 
-    /// Void typed-route variant of `asyncThrowingCall(_:function:)`.
+    /// Compatibility asynchronous `Void` spelling with an explicit route.
+    @available(
+        *,
+        deprecated,
+        message: "Use throwingCall(_:function:); argument types are inferred."
+    )
     public func asyncThrowingCall(_ args: Any..., route: ManualRouteID) async throws {
         let _: Void = try await dispatchAsyncThrowingMethod(route: .typed(route), args: args)
     }
 
-    /// Void typed-throws variant of `asyncThrowingCall(_:route:)`.
+    /// Compatibility typed-throws asynchronous `Void` spelling with an
+    /// explicit route.
+    @available(
+        *,
+        deprecated,
+        message: "Use throwingCall(_:throwing:function:); argument types are inferred."
+    )
     public func asyncThrowingCall<Failure: Error>(
         _ args: Any...,
         route: ManualRouteID,
@@ -485,7 +694,7 @@ public final class ManualStub<T: StubConformer>: @unchecked Sendable {
                 method: method.name,
                 expected: failureType,
                 actual: error,
-                forwardingMethod: "asyncThrowingCall"
+                forwardingMethod: "throwingCall"
             )
         }
     }
@@ -516,7 +725,8 @@ public final class ManualStub<T: StubConformer>: @unchecked Sendable {
             return try dispatchThrowingValue(method: method, args: args)
         } catch {
             fatalError(
-                "[TestDoubles] A nonthrowing stub handler for '\(method.name)' threw \(error). " + "Forward this requirement through `stub.throwing` instead."
+                "[TestDoubles] A nonthrowing stub handler for '\(method.name)' threw \(error). "
+                    + "Forward this requirement through `stub.throwingRequirements` instead."
             )
         }
     }
@@ -530,7 +740,8 @@ public final class ManualStub<T: StubConformer>: @unchecked Sendable {
             return try await dispatchAsyncThrowingValue(method: method, args: args)
         } catch {
             fatalError(
-                "[TestDoubles] A nonthrowing async stub handler for '\(method.name)' threw \(error). " + "Forward this requirement through `stub.throwing` instead."
+                "[TestDoubles] A nonthrowing async stub handler for '\(method.name)' threw \(error). "
+                    + "Forward this requirement through `stub.throwingRequirements` instead."
             )
         }
     }
