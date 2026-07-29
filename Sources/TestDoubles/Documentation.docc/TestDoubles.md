@@ -136,6 +136,7 @@ isolation. See
 - ``Match/matching(using:description:where:)``
 - ``Match/Capture``
 - ``ClosureDouble``
+- ``ClosureCallPattern``
 - ``VoidClosureDouble``
 - ``CallbackCapture``
 

@@ -1,38 +1,263 @@
-import Foundation
-import IssueReporting
+private struct ClosureDoubleConformer<Input, Result>: StubConformer {
+    let stub: ManualStub<Self>
+}
+
+/// A reusable unary-closure call description for behavior and interaction
+/// operations.
+///
+/// This façade preserves `Input` for handler and stream inference while
+/// delegating storage, fixed behavior chains, verification, and ordering to
+/// the same engine as ``CallPattern``.
+public struct ClosureCallPattern<Input, Result>: Sendable {
+    let base: CallPattern<Result>
+
+    init(base: CallPattern<Result>) {
+        self.base = base
+    }
+
+    /// An observation-only view of matching invocations.
+    public var interactions: CallInteractions {
+        base.interactions
+    }
+
+    /// The number of matching invocations.
+    public var callCount: Int {
+        base.callCount
+    }
+
+    /// Whether at least one invocation matches this pattern.
+    public var wasCalled: Bool {
+        base.wasCalled
+    }
+
+    /// Verifies matching invocations, expecting exactly one by default.
+    public func verify(
+        _ expectedCounts: any RangeExpression<Int> = 1 ... 1,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) {
+        base.verify(
+            expectedCounts,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
+    /// Waits up to `timeout` for the lower-bound count of matching calls.
+    public func verify(
+        _ expectedCounts: PartialRangeFrom<Int> = 1...,
+        within timeout: Duration,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) async {
+        await base.verify(
+            expectedCounts,
+            within: timeout,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
+    /// Waits for matching calls using `clock` rather than wall time.
+    public func verify(
+        _ expectedCounts: PartialRangeFrom<Int> = 1...,
+        within timeout: Duration,
+        using clock: any StubClock,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) async {
+        await base.verify(
+            expectedCounts,
+            within: timeout,
+            using: clock,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
+    /// Returns matching inputs in call order.
+    public func arguments() -> [Input] {
+        base.arguments()
+    }
+
+    /// Returns a stream of future matching inputs.
+    public func stream() -> InvocationStream<Input> {
+        base.stream()
+    }
+
+    /// Returns `value` for `times` consecutive matching invocations.
+    ///
+    /// A later behavior takes over after the explicit count. Omitting
+    /// `times:` makes an intermediate behavior one-shot.
+    @discardableResult
+    @_disfavoredOverload
+    public func thenReturn(
+        _ value: Result,
+        times: Int = 1
+    ) -> StubBehaviorChain<Result> {
+        base.thenReturn(value, times: times)
+    }
+
+    /// Returns `value` to every matching invocation from here on.
+    ///
+    /// Omitting `times:` resolves here when this is the trailing behavior.
+    @discardableResult
+    public func thenReturn(
+        _ value: Result,
+        times: PartialRangeFrom<Int> = 1...
+    ) -> CallInteractions {
+        base.thenReturn(value, times: times)
+    }
+
+    /// Returns the listed values in order, then repeats the final value.
+    @discardableResult
+    public func thenReturn(
+        _ first: Result,
+        _ second: Result,
+        _ rest: Result...
+    ) -> CallInteractions {
+        let values = [first, second] + rest
+        for value in values {
+            base.recorder.requireReturnValueMatchesRuntimeType(
+                value,
+                for: base.recording.methodIndex
+            )
+        }
+        _ = base.makeBehaviorChain(
+            values.dropLast().map { (.value(.success($0)), .exactly(1)) }
+                + [(.value(.success(rest.last ?? second)), .unbounded)]
+        )
+        return interactions
+    }
+
+    /// Computes every matching result from the closure's typed input.
+    @discardableResult
+    public func then(
+        _ handler: @escaping @Sendable (Input) -> Result
+    ) -> CallInteractions {
+        base.then(handler)
+    }
+
+    /// Computes every matching result without reading the closure's input.
+    @discardableResult
+    public func then(
+        _ handler: @escaping @Sendable () -> Result
+    ) -> CallInteractions {
+        base.then(handler)
+    }
+
+    /// Computes every matching result from a one-based call count and the
+    /// closure's typed input.
+    @discardableResult
+    public func thenForEachCall(
+        _ handler: @escaping @Sendable (Int, Input) -> Result
+    ) -> CallInteractions {
+        base.thenForEachCall(handler)
+    }
+
+    /// Computes every matching result from only a one-based call count.
+    @discardableResult
+    public func thenForEachCall(
+        _ handler: @escaping @Sendable (Int) -> Result
+    ) -> CallInteractions {
+        base.thenForEachCall(handler)
+    }
+
+    /// Configures a finite, inspectable queue of fixed return values.
+    public func thenQueue(
+        _ first: Result,
+        _ rest: Result...
+    ) -> StubBehaviorQueue {
+        let values = [first] + rest
+        for value in values {
+            base.recorder.requireReturnValueMatchesRuntimeType(
+                value,
+                for: base.recording.methodIndex
+            )
+        }
+        return base.makeBehaviorChain(
+            values.map { (.value(.success($0)), .exactly(1)) }
+        ).behaviorQueue
+    }
+
+    /// Halts with an actionable diagnostic for every matching invocation.
+    @discardableResult
+    public func thenFatalError(_ message: String? = nil) -> CallInteractions {
+        base.thenFatalError(message)
+    }
+}
+
+extension ClosureCallPattern where Result == Void {
+    /// Completes `times` consecutive matching invocations without additional
+    /// work.
+    @discardableResult
+    @_disfavoredOverload
+    public func thenDoNothing(times: Int = 1) -> StubBehaviorChain<Void> {
+        base.thenDoNothing(times: times)
+    }
+
+    /// Completes every matching invocation without additional work.
+    ///
+    /// Omitting `times:` resolves here when this is the trailing behavior.
+    @discardableResult
+    public func thenDoNothing(
+        times: PartialRangeFrom<Int> = 1...
+    ) -> CallInteractions {
+        base.thenDoNothing(times: times)
+    }
+}
 
 /// A configurable, recordable double for an injected synchronous unary
 /// closure.
 ///
 /// `ClosureDouble<Input, Result>` represents `(Input) -> Result`; its
 /// ``function`` property can be passed directly where that closure type is
-/// required. Use a small value type as `Input` when a dependency has several
-/// logical inputs.
+/// required. `when` returns a typed ``ClosureCallPattern`` backed by the same
+/// behavior and observation engine as protocol stubs, so fixed chains, custom
+/// handlers, call-count ranges, typed arguments, streams, and
+/// ``InvocationOrder`` compose the same way.
 ///
 /// ```swift
 /// let formatter = ClosureDouble<Int, String>()
-/// formatter.when { $0.isMultiple(of: 2) }.thenReturn("even")
+/// let evens = formatter.when { $0.isMultiple(of: 2) }
+///     .thenReturn("first even")
+///     .thenReturn("even")
 /// formatter.whenAny().then { "odd-\($0)" }
+///
 /// let format: (Int) -> String = formatter.function
+/// _ = format(2)
+/// evens.verify()
 /// ```
 public final class ClosureDouble<Input, Result> {
     /// The closure shape represented by this double.
     public typealias Function = (Input) -> Result
+
     /// Predicate used to select a configured behavior.
-    public typealias Matcher = (Input) -> Bool
+    public typealias Matcher = @Sendable (Input) -> Bool
+
     /// Typed behavior used to calculate a result.
-    public typealias Handler = (Input) -> Result
+    public typealias Handler = @Sendable (Input) -> Result
 
-    private struct Entry {
-        let matcher: Matcher?
-        let description: String
-        let handler: Handler
+    private let storage = ManualStub<ClosureDoubleConformer<Input, Result>>()
+
+    private var route: ManualRouteID {
+        ManualRouteID(
+            "callAsFunction(_:)",
+            argumentTypes: Input.self
+        )
     }
-
-    private let lock = NSLock()
-    private var entries: [Entry] = []
-    private var recordedCalls: [Input] = []
-    private var behaviorRevision: UInt64 = 0
 
     /// Creates an empty closure double. Calls require a matching behavior.
     public init() {}
@@ -43,97 +268,113 @@ public final class ClosureDouble<Input, Result> {
     }
 
     /// Invokes the double. A call is recorded before its configured behavior
-    /// runs, matching `Stub`'s observation semantics.
+    /// runs, matching ``Stub`` and ``ManualStub`` observation semantics.
     public func callAsFunction(_ input: Input) -> Result {
-        while true {
-            let snapshot = lock.withLock {
-                (revision: behaviorRevision, entries: entries)
-            }
-            let matchingIndex = snapshot.entries.firstIndex { entry in
-                entry.matcher?(input) ?? true
-            }
-            let resolution = lock.withLock { () -> (retry: Bool, handler: Handler?) in
-                guard behaviorRevision == snapshot.revision else {
-                    return (true, nil)
-                }
-                recordedCalls.append(input)
-                return (false, matchingIndex.map { entries[$0].handler })
-            }
-            if resolution.retry {
-                continue
-            }
-            guard let handler = resolution.handler else {
-                let configured = snapshot.entries.map(\.description).joined(separator: ", ")
-                preconditionFailure(
-                    "[TestDoubles] No matching closure behavior is configured. "
-                        + "Register one with `when { ... }.thenReturn(...)` or `whenAny()`."
-                        + (configured.isEmpty ? "" : " Configured behaviors: \(configured).")
-                )
-            }
-            return handler(input)
-        }
+        storage.dispatchMethod(route: .typed(route), args: [input])
+    }
+
+    /// Assigns a name used in strict-scope and interaction diagnostics.
+    @discardableResult
+    public func named(_ name: String) -> Self {
+        storage.named(name)
+        return self
     }
 
     /// Starts a behavior registration selected by `matcher`.
+    ///
+    /// The returned ``ClosureCallPattern`` can be retained for later
+    /// verification or completed inline with any behavior supported by a
+    /// synchronous nonthrowing call.
     public func when(
         _ matcher: @escaping Matcher,
-        describedBy description: String = "predicate"
-    ) -> Builder {
-        Builder(owner: self, matcher: matcher, description: description)
+        describedBy description: String = "predicate",
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) -> ClosureCallPattern<Input, Result> {
+        ClosureCallPattern(
+            base: pattern(
+                matching: PredicateMatcher(description: description, predicate: matcher),
+                location: StubSourceLocation(
+                    fileID: fileID,
+                    filePath: filePath,
+                    line: line,
+                    column: column
+                )
+            )
+        )
     }
 
     /// Starts a behavior registration that accepts every invocation.
-    public func whenAny() -> Builder {
-        Builder(owner: self, matcher: nil, description: "Match.any()")
+    public func whenAny(
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) -> ClosureCallPattern<Input, Result> {
+        ClosureCallPattern(
+            base: pattern(
+                matching: AnyMatcher(),
+                location: StubSourceLocation(
+                    fileID: fileID,
+                    filePath: filePath,
+                    line: line,
+                    column: column
+                )
+            )
+        )
+    }
+
+    /// An observation-only view of every closure invocation.
+    public var interactions: CallInteractions {
+        pattern(matching: AnyMatcher()).interactions
+    }
+
+    /// Number of recorded invocations.
+    public var callCount: Int {
+        interactions.callCount
+    }
+
+    /// Whether at least one invocation was recorded.
+    public var wasCalled: Bool {
+        interactions.wasCalled
     }
 
     /// Every recorded input, in call order.
     public var invocations: [Input] {
-        lock.withLock { recordedCalls }
+        interactions.arguments()
     }
 
     /// Number of recorded invocations matching `matcher`.
-    public func callCount(matching matcher: Matcher) -> Int {
-        let calls = lock.withLock { recordedCalls }
-        return calls.count(where: matcher)
+    public func callCount(
+        matching matcher: @escaping Matcher,
+        describedBy description: String = "predicate"
+    ) -> Int {
+        pattern(
+            matching: PredicateMatcher(description: description, predicate: matcher)
+        ).callCount
     }
 
     /// Verifies how many recorded invocations satisfy `matcher`, expecting
     /// exactly one by default.
+    ///
+    /// Prefer retaining the ``ClosureCallPattern`` returned by `when` when the
+    /// same matcher also configured behavior; this direct form remains useful
+    /// for verification-only predicates.
     public func verify(
         _ expectedCounts: any RangeExpression<Int> = 1 ... 1,
-        matching matcher: Matcher,
+        matching matcher: @escaping Matcher,
         describedBy description: String = "predicate",
         fileID: StaticString = #fileID,
         filePath: StaticString = #filePath,
         line: UInt = #line,
         column: UInt = #column
     ) {
-        let actual = callCount(matching: matcher)
-        guard expectedCounts.contains(actual) else {
-            reportIssue(
-                "[TestDoubles] Closure double expected \(callCountDescription(for: expectedCounts)) "
-                    + "for \(description), got \(actual).",
-                fileID: fileID,
-                filePath: filePath,
-                line: line,
-                column: column
-            )
-            return
-        }
-    }
-
-    /// Verifies that no calls were recorded.
-    public func verifyNoInteractions(
-        fileID: StaticString = #fileID,
-        filePath: StaticString = #filePath,
-        line: UInt = #line,
-        column: UInt = #column
-    ) {
-        let count = lock.withLock { recordedCalls.count }
-        guard count > 0 else { return }
-        reportIssue(
-            "[TestDoubles] Expected no closure invocations, got \(count).",
+        pattern(
+            matching: PredicateMatcher(description: description, predicate: matcher)
+        ).verify(
+            expectedCounts,
             fileID: fileID,
             filePath: filePath,
             line: line,
@@ -141,54 +382,107 @@ public final class ClosureDouble<Input, Result> {
         )
     }
 
-    /// Clears calls while preserving configured behavior.
+    /// Verifies that no calls were recorded.
+    public func verifyNoInteractions(
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) {
+        interactions.verify(
+            .never,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
+    /// Reports every call not covered by a successful verification.
+    public func verifyNoMoreInteractions(
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) {
+        storage.verifyNoMoreInteractions(
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
+    /// Reports every behavior registration that no invocation matched.
+    public func verifyNoUnusedStubs(
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) {
+        storage.verifyNoUnusedStubs(
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
+    /// Clears calls while preserving configured behavior and chain position.
     public func clearRecordedInvocations() {
-        lock.withLock { recordedCalls.removeAll(keepingCapacity: true) }
+        storage.clearRecordedInvocations()
+    }
+
+    /// Clears configured behavior while preserving recorded calls.
+    public func clearConfiguredBehaviors() {
+        storage.clearConfiguredBehaviors()
     }
 
     /// Clears configured behavior and recorded invocations.
     public func reset() {
-        lock.withLock {
-            entries.removeAll(keepingCapacity: true)
-            recordedCalls.removeAll(keepingCapacity: true)
-            behaviorRevision &+= 1
-        }
+        clearConfiguredBehaviors()
+        clearRecordedInvocations()
     }
 
-    /// Configures a closure-double behavior.
-    public struct Builder {
-        private let owner: ClosureDouble
-        private let matcher: Matcher?
-        private let description: String
+    /// Returns a human-readable ordered log of every closure invocation.
+    public func describeInteractions() -> String {
+        storage.describeInteractions()
+    }
 
-        fileprivate init(owner: ClosureDouble, matcher: Matcher?, description: String) {
-            self.owner = owner
-            self.matcher = matcher
-            self.description = description
-        }
+    /// Returns a chronological diagnostic view of every closure invocation.
+    public func interactionTimeline() -> InteractionTimeline {
+        storage.interactionTimeline()
+    }
 
-        /// Returns `value` for matching invocations.
-        public func thenReturn(_ value: Result) {
-            then { _ in value }
-        }
-
-        /// Computes a result from the closure's typed input.
-        public func then(_ handler: @escaping Handler) {
-            owner.lock.withLock {
-                owner.entries.append(
-                    Entry(
-                        matcher: matcher,
-                        description: description,
-                        handler: handler
-                    )
-                )
-                owner.behaviorRevision &+= 1
-            }
-        }
+    private func pattern(
+        matching matcher: ParameterMatcher,
+        location: StubSourceLocation? = nil
+    ) -> CallPattern<Result> {
+        let method = storage.recorder.internManualMethod(
+            route: .typed(route),
+            kind: .method,
+            returnType: Result.self,
+            isAsync: false,
+            isThrowing: false
+        )
+        let recording = RecordedCall(
+            methodIndex: method.index,
+            name: method.name,
+            args: [],
+            matchers: [matcher]
+        ).taggingRegistrationLocation(location)
+        return CallPattern<Result>(recorder: storage.recorder, recording: recording)
     }
 }
 
+/// A closure double is safe to share when its input and result values are safe
+/// to transfer. Its recorder serializes registration and invocation state.
+extension ClosureDouble: @unchecked Sendable where Input: Sendable, Result: Sendable {}
+
 /// A configurable, recordable double for a nullary synchronous closure.
+///
+/// `when()` returns a ``ClosureCallPattern`` backed by the same behavior and
+/// observation engine as unary closure and protocol doubles.
 public final class VoidClosureDouble<Result> {
     private let storage = ClosureDouble<Void, Result>()
 
@@ -196,16 +490,68 @@ public final class VoidClosureDouble<Result> {
     public init() {}
 
     /// The ordinary nullary closure ready to inject into a subject.
-    public var function: () -> Result { { self() } }
+    public var function: () -> Result {
+        { self() }
+    }
 
     /// Invokes the double.
-    public func callAsFunction() -> Result { storage(()) }
+    public func callAsFunction() -> Result {
+        storage(())
+    }
+
+    /// Assigns a name used in strict-scope and interaction diagnostics.
+    @discardableResult
+    public func named(_ name: String) -> Self {
+        storage.named(name)
+        return self
+    }
 
     /// Starts an always-matching behavior registration.
-    public func when() -> ClosureDouble<Void, Result>.Builder { storage.whenAny() }
+    public func when(
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) -> ClosureCallPattern<Void, Result> {
+        storage.whenAny(
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
+    /// An observation-only view of every invocation.
+    public var interactions: CallInteractions {
+        storage.interactions
+    }
 
     /// Number of recorded invocations.
-    public var callCount: Int { storage.invocations.count }
+    public var callCount: Int {
+        interactions.callCount
+    }
+
+    /// Whether at least one invocation was recorded.
+    public var wasCalled: Bool {
+        interactions.wasCalled
+    }
+
+    /// Verifies the number of invocations, expecting exactly one by default.
+    public func verify(
+        _ expectedCounts: any RangeExpression<Int> = 1 ... 1,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) {
+        interactions.verify(
+            expectedCounts,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
 
     /// Verifies that no calls were recorded.
     public func verifyNoInteractions(
@@ -214,17 +560,100 @@ public final class VoidClosureDouble<Result> {
         line: UInt = #line,
         column: UInt = #column
     ) {
-        storage.verifyNoInteractions(fileID: fileID, filePath: filePath, line: line, column: column)
+        storage.verifyNoInteractions(
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
+    /// Reports every call not covered by a successful verification.
+    public func verifyNoMoreInteractions(
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) {
+        storage.verifyNoMoreInteractions(
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
+    /// Reports every behavior registration that no invocation matched.
+    public func verifyNoUnusedStubs(
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) {
+        storage.verifyNoUnusedStubs(
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
+    /// Clears calls while preserving configured behavior and chain position.
+    public func clearRecordedInvocations() {
+        storage.clearRecordedInvocations()
+    }
+
+    /// Clears configured behavior while preserving recorded calls.
+    public func clearConfiguredBehaviors() {
+        storage.clearConfiguredBehaviors()
+    }
+
+    /// Clears configured behavior and recorded invocations.
+    public func reset() {
+        storage.reset()
+    }
+
+    /// Returns a human-readable ordered log of every invocation.
+    public func describeInteractions() -> String {
+        storage.describeInteractions()
+    }
+
+    /// Returns a chronological diagnostic view of every invocation.
+    public func interactionTimeline() -> InteractionTimeline {
+        storage.interactionTimeline()
     }
 }
 
+/// A nullary closure double is safe to share when its result values are safe
+/// to transfer. Its recorder serializes registration and invocation state.
+extension VoidClosureDouble: @unchecked Sendable where Result: Sendable {}
+
 extension ClosureDouble where Input: Equatable {
     /// Starts a behavior registration for an input equal to `value`.
-    public func when(equal value: Input) -> Builder {
-        when({ $0 == value }, describedBy: "Match.equal(\(String(reflecting: value)))")
+    public func when(
+        equal value: Input,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) -> ClosureCallPattern<Input, Result> {
+        ClosureCallPattern(
+            base: pattern(
+                matching: EqualMatcher(expected: value),
+                location: StubSourceLocation(
+                    fileID: fileID,
+                    filePath: filePath,
+                    line: line,
+                    column: column
+                )
+            )
+        )
     }
 
     /// Verifies calls that received an input equal to `value`.
+    ///
+    /// Prefer retaining the ``ClosureCallPattern`` returned by `when(equal:)`
+    /// when it also configured behavior.
     public func verify(
         _ expectedCounts: any RangeExpression<Int> = 1 ... 1,
         equal value: Input,
@@ -233,10 +662,8 @@ extension ClosureDouble where Input: Equatable {
         line: UInt = #line,
         column: UInt = #column
     ) {
-        verify(
+        pattern(matching: EqualMatcher(expected: value)).verify(
             expectedCounts,
-            matching: { $0 == value },
-            describedBy: "Match.equal(\(String(reflecting: value)))",
             fileID: fileID,
             filePath: filePath,
             line: line,

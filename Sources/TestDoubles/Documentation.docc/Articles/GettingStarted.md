@@ -405,6 +405,35 @@ view: ``StubSuspension/interactions`` keeps resume control beside verification,
 and ``StubBehaviorQueue/interactions`` keeps exhaustion state beside the calls
 that consumed it.
 
+### Double an injected closure
+
+Use ``ClosureDouble`` when the dependency is a synchronous unary function
+rather than a protocol. Its ``ClosureCallPattern`` preserves the input type for
+handler inference while delegating behavior chains and observations to the same
+engine:
+
+```swift
+let formatter = ClosureDouble<Int, String>()
+let twos = formatter.when(equal: 2)
+let twoCalls = twos
+    .thenReturn("first two")
+    .thenReturn("two")
+formatter.whenAny().then { "other-\($0)" }
+
+let format: (Int) -> String = formatter.function
+#expect(format(2) == "first two")
+#expect(format(2) == "two")
+#expect(format(9) == "other-9")
+
+twoCalls.verify(2 ... 2)
+#expect(twos.arguments() == [2, 2])
+```
+
+The terminal result is the same ``CallInteractions`` used by a protocol stub,
+so ranges, eventual verification, streams, and ``InvocationOrder`` compose
+without closure-specific alternatives. ``VoidClosureDouble`` applies the same
+model to `() -> Result`.
+
 ### Choose a construction path
 
 The examples above use automatic discovery from a linked conformance. For

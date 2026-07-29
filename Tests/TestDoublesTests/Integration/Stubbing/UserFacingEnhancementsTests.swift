@@ -89,14 +89,40 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
 @Suite struct UserFacingEnhancementsTests {
     @Test func closureDoubleRecordsAndInjectsAUnaryClosure() {
         let formatter = ClosureDouble<Int, String>()
-        formatter.when { $0 == 2 }.thenReturn("two")
-        formatter.whenAny().then { "other-\($0)" }
+        let twos = formatter.when(equal: 2)
+        let twoCalls =
+            twos
+            .thenReturn("first two")
+            .thenReturn("two")
+        let otherCalls = formatter.whenAny().then { "other-\($0)" }
 
         let function: (Int) -> String = formatter.function
+        #expect(function(2) == "first two")
         #expect(function(2) == "two")
         #expect(function(9) == "other-9")
-        #expect(formatter.invocations == [2, 9])
-        formatter.verify(.exactly(1), matching: { $0 == 2 })
+        #expect(formatter.callCount == 3)
+        #expect(formatter.wasCalled)
+        #expect(formatter.invocations == [2, 2, 9])
+        #expect(twos.arguments() == [2, 2])
+        twoCalls.verify(2 ... 2)
+        otherCalls.verify(3 ... 3)
+
+        let order = InvocationOrder()
+        order.verify(twos)
+        order.verify(formatter.when(equal: 9))
+    }
+
+    @Test func closureCallPatternsPreserveTypedCountingHandlers() {
+        let formatter = ClosureDouble<Int, String>()
+        let calls = formatter.whenAny()
+        let interactions = calls.thenForEachCall { attempt, input in
+            "\(attempt):\(input)"
+        }
+
+        #expect(formatter(7) == "1:7")
+        #expect(formatter(9) == "2:9")
+        #expect(calls.arguments() == [7, 9])
+        interactions.verify(2 ... 2)
     }
 
     @Test func callbackCaptureControlsCompletionLifetimeAndDelivery() {
@@ -156,10 +182,17 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
         formatter.reset()
 
         let nullary = VoidClosureDouble<String>()
-        nullary.when().thenReturn("ready")
+        let ready = nullary.when().thenReturn("ready")
         #expect(nullary.function() == "ready")
         #expect(nullary() == "ready")
         #expect(nullary.callCount == 2)
+        ready.verify(2 ... 2)
+        nullary.verify(2 ... 2)
+
+        let callback = VoidClosureDouble<Void>()
+        let callbackCalls = callback.when().thenDoNothing()
+        callback()
+        callbackCalls.verify()
 
         let untouched = VoidClosureDouble<Void>()
         untouched.verifyNoInteractions()

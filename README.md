@@ -183,6 +183,34 @@ registration just like a behavior chain. Trailing arguments may be omitted, so
 a handler can take the count alone or the count followed by a leading prefix of
 the requirement's arguments.
 
+### Double injected closures
+
+Injected function values use the same `when → then → verify` model without
+inventing a protocol:
+
+```swift
+let formatter = ClosureDouble<Int, String>()
+let twos = formatter.when(equal: 2)
+let twoCalls = twos
+    .thenReturn("first two")
+    .thenReturn("two")
+formatter.whenAny().then { "other-\($0)" }
+
+let format: (Int) -> String = formatter.function
+#expect(format(2) == "first two")
+#expect(format(2) == "two")
+#expect(format(9) == "other-9")
+
+twoCalls.verify(2 ... 2)
+#expect(twos.arguments() == [2, 2])
+```
+
+`ClosureCallPattern` preserves the input type for handler, argument, and stream
+inference while sharing the same behavior queues, contextual trailing defaults,
+`CallInteractions`, count ranges, strict-scope diagnostics, and
+`InvocationOrder` engine as protocol doubles. `VoidClosureDouble` provides the
+same model for `() -> Result`.
+
 ### Control async timing
 
 Testing async code often means asserting what happens *while* a call is in

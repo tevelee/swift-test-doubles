@@ -233,6 +233,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `CallInteractions` values with the complete count, range, argument, stream,
   eventual-verification, and ordering API. The duplicate nested forwarding
   wrapper types have been removed.
+- `ClosureDouble` and `VoidClosureDouble` now use the shared recorder and
+  `when → then → verify` behavior model. The new typed `ClosureCallPattern`
+  preserves closure-input inference while adding contextual fixed chains,
+  `thenForEachCall`, queues, `CallInteractions`, streams, range verification,
+  strict-scope diagnostics, ordering, lifecycle controls, and interaction
+  logs. Terminal closure behaviors now return observable handles instead of
+  `Void`.
 - The pre-release `StubBuilder` type and the separate
   `forwardedCallCount`/`forwardedArguments()` pattern members have been
   replaced by `CallPattern` and its composed `forwarded` view.

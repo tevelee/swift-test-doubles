@@ -56,6 +56,24 @@ public final class InvocationOrder: @unchecked Sendable {
         )
     }
 
+    /// Verifies that a saved unary-closure pattern has a matching interaction
+    /// after the previously verified interaction.
+    public func verify<Input, Result>(
+        _ pattern: ClosureCallPattern<Input, Result>,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) {
+        verify(
+            pattern.interactions,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
     /// Verifies that `interactions` has a matching call after the previously
     /// verified interaction.
     ///
