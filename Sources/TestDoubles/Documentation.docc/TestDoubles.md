@@ -120,11 +120,9 @@ isolation. See
 ### Manual Stubbing
 
 - ``ManualStub``
-- ``StubConformer``
-- ``ManualMethodProxy``
-- ``ManualRouteID``
-- ``ManualThrowingRoute``
-- ``ManualThrowingMethodProxy``
+- ``ManualStubConformer``
+- ``ManualRequirementRoute``
+- ``ManualThrowingRequirementRoute``
 
 ### Matching and Capture
 

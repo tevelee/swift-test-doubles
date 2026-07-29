@@ -487,6 +487,6 @@ let stub = try withExtendedLifetime(conformanceAnchor) {
 
 When the protocol has no real conformer, provide explicit
 ``Stub/Requirement`` values instead. If construction reports an unsupported
-runtime shape, use ``ManualStub`` with a hand-written ``StubConformer``, or
+runtime shape, use ``ManualStub`` with a hand-written ``ManualStubConformer``, or
 write a hand-written fake. Runtime generation fails closed rather than trying
 an ABI shape it cannot safely represent.

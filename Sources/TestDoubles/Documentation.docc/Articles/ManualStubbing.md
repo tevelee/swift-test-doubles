@@ -30,16 +30,20 @@ requirement itself is outside ``Stub``'s runtime boundary.
 
 ```swift
 // 1. Define your stub struct
-struct MyServiceStub: MyService, StubConformer {
+struct MyServiceStubConformer: MyService, ManualStubConformer {
     let stub: ManualStub<Self>
 
-    func fetch(id: Int) -> String { stub.fetch(id: id) }   // non-throwing: base route
-    func reset() { stub.reset() }
-    func save(_ item: Item) throws { try stub.throwing.save(item) } // throwing: .throwing route
+    func fetch(id: Int) -> String { stub.requirements.fetch(id: id) }
+    func reset() { stub.requirements.reset() }
+    func save(_ item: Item) throws {
+        try stub.throwingRequirements.save(item)
+    }
 }
 
+typealias MyServiceStub = ManualStub<MyServiceStubConformer>
+
 // 2. Configure and use in your test
-let stub = ManualStub<MyServiceStub>()
+let stub = MyServiceStub()
 stub.when { $0.fetch(id: Match.equal(42)) }.thenReturn("Alice")
 
 let sut: any MyService = stub()
@@ -59,17 +63,23 @@ from the TestDoubles package checkout, enable its `ManualStubGenerator` trait:
 swift package --traits ManualStubGenerator plugin \
   --allow-writing-to-package-directory generate-manual-stub \
   WeatherService Sources/WeatherService.swift \
-  Tests/WeatherServiceManualStub.swift
+  Tests/WeatherServiceStub.swift
 ```
 
-The plugin emits `WeatherServiceManualStub`. Instance requirements use the
-`ManualStub<WeatherServiceManualStub>` you create in the test. Static
-requirements and values created through generated initializers use the emitted
-`WeatherServiceManualStub.staticStub`, which is independently configurable.
-Generated methods and subscripts include static argument-type routes, so
-overloads that differ only by argument type remain independent. Typed-throws
-requirements also forward their declared failure type instead of erasing it to
-ordinary `throws`.
+The plugin emits a forwarding implementation named
+`WeatherServiceStubConformer` and the controller alias `WeatherServiceStub`.
+Create the alias directly in a test. Generated methods and subscripts use the
+static types of their arguments automatically, so overloads that differ only by
+argument type remain independent. Typed-throws requirements preserve their
+declared failure type instead of erasing it to ordinary `throws`.
+
+The generator deliberately rejects static and initializer requirements. Both
+need process-wide state rather than the test-local recorder owned by a
+``ManualStub``, which makes an implicit generated implementation unsafe when
+tests run in parallel. Write a custom conformer when your application has an
+explicitly scoped way to satisfy one of those requirements. Recognized
+declarations that cannot be forwarded also produce an error instead of being
+silently omitted.
 The plugin uses no parser-library dependency, and clients that do not invoke it
 neither build nor run it.
 
@@ -110,14 +120,15 @@ protocol WeatherService {
     func forecast(for city: String) -> String
 }
 
-let stub = ManualStub<WeatherServiceManualStub>()
+let stub = WeatherServiceStub()
 stub.when { $0.forecast(for: "Budapest") }.thenReturn("Sunny")
 
 let service: any WeatherService = stub()
 // service.forecast(for: "Budapest") == "Sunny"
 ```
 
-`@Stubbable` emits a peer named by appending `ManualStub` to the protocol name.
+`@Stubbable` emits `WeatherServiceStubConformer` and the
+`WeatherServiceStub` controller alias.
 The macro is deliberately a convenience layer over the same explicit
 forwarding code as the command plugin: generated source stays inspectable, and
 the hand-written ``ManualStub`` escape hatches remain available for requirement
@@ -125,13 +136,13 @@ shapes that need custom forwarding.
 
 ### Forward requirements
 
-Non-throwing methods and getters, synchronous or asynchronous, use the base
-dynamic-member route:
+Non-throwing methods and getters, synchronous or asynchronous, use
+``ManualStub/requirements``:
 
 ```swift
-func fetch(id: Int) -> String { stub.fetch(id: id) }
-func reset() { stub.reset() }
-var count: Int { stub.count }
+func fetch(id: Int) -> String { stub.requirements.fetch(id: id) }
+func reset() { stub.requirements.reset() }
+var count: Int { stub.requirements.count }
 ```
 
 Read-write properties forward their getter and setter through the same dynamic
@@ -139,34 +150,42 @@ member name:
 
 ```swift
 var displayName: String {
-    get { stub.displayName }
-    set { stub.displayName = newValue }
+    get { stub.requirements.displayName }
+    set { stub.requirements.displayName = newValue }
 }
 ```
 
-Throwing methods and throwing getters use ``ManualStub/throwing``:
+Throwing methods and throwing getters use
+``ManualStub/throwingRequirements``:
 
 ```swift
-func save(_ item: Item) throws { try stub.throwing.save(item) }
-var token: String { get throws { try stub.throwing.token } }
+func save(_ item: Item) throws {
+    try stub.throwingRequirements.save(item)
+}
+var token: String {
+    get throws { try stub.throwingRequirements.token }
+}
 ```
 
 Swift can overload a function purely on `async`, but it cannot overload a
 subscript getter purely on `async` or `throws`. Splitting throwing access onto
-``ManualThrowingRoute`` keeps non-throwing and throwing forwarding paths
-separate while allowing both synchronous and asynchronous method calls.
+``ManualThrowingRequirementRoute`` keeps non-throwing and throwing forwarding
+paths separate while allowing both synchronous and asynchronous method calls.
+The namespace also prevents protocol requirements such as `reset()` from
+colliding with ``ManualStub``'s own control API.
 
 Use the explicit fallback methods when a dynamic-member route cannot express
 the requirement, especially async property getters:
 
 ```swift
 var status: Status {
-    get async { await stub.asyncCall() }
+    get async { await stub.call() }
 }
 ```
 
-The fallback methods default their `function` parameter to `#function`, so the
-forwarding body usually does not need to repeat the requirement name.
+The synchronous and asynchronous fallback overloads are both named `call`.
+They default their `function` parameter to `#function`, so the forwarding body
+usually does not need to repeat the requirement name.
 
 For typed throws, use the explicit fallback and pass the declared error type to
 `throwing:`. This preserves the restricted error channel for synchronous,
@@ -182,7 +201,7 @@ var token: String {
 }
 
 func refresh(_ id: Int) async throws(ServiceError) -> Item {
-    try await stub.asyncThrowingCall(
+    try await stub.throwingCall(
         id,
         throwing: ServiceError.self
     )
@@ -190,32 +209,31 @@ func refresh(_ id: Int) async throws(ServiceError) -> Item {
 ```
 
 The configured handler must throw exactly that error type. A different error
-cannot cross Swift's typed-throws boundary, so ManualStub fails closed with an
-expected and actual type diagnostic. Use the untyped `.throwing` dynamic-member
-route only for requirements declared with ordinary untyped `throws`.
+cannot cross Swift's typed-throws boundary, so `ManualStub` fails closed with an
+expected and actual type diagnostic. Use the untyped
+`throwingRequirements` dynamic-member route only for requirements declared
+with ordinary untyped `throws`.
 
 When overloads have the same labels, result, and effects but different argument
-types, use a ``ManualRouteID`` with the explicit fallback. The route keeps the
-static types separate while diagnostics continue to show the ordinary
-`#function` signature:
+types, the explicit fallback infers a distinct route from each argument's
+static type:
 
 ```swift
 func render(_ value: Int) -> String {
-    stub.call(value, route: ManualRouteID(argumentTypes: Int.self))
+    stub.call(value)
 }
 
 func render(_ value: String) -> String {
-    stub.call(value, route: ManualRouteID(argumentTypes: String.self))
+    stub.call(value)
 }
 ```
 
-The same route parameter composes with typed throws:
+The same inference composes with typed throws:
 
 ```swift
 func load(_ id: Int) throws(ServiceError) -> Item {
     try stub.throwingCall(
         id,
-        route: ManualRouteID(argumentTypes: Int.self),
         throwing: ServiceError.self
     )
 }
@@ -253,10 +271,10 @@ a "No stub configured" failure the first time it is exercised.
 - Sync/async overloads and overloads distinguished by result type use separate
   recorder entries even when their printed signature is identical.
 - Overloads that have the same labels, effects, and result type but differ only
-  in argument types use typed ``ManualRouteID`` values with the explicit
-  fallback methods. Generated conformers add those routes automatically.
-  Hand-written dynamic-member syntax still erases argument types to `Any`, so
-  it cannot infer this distinction automatically.
+  in argument types use the explicit `call` or `throwingCall` fallback. Swift
+  parameter packs preserve the static argument types and infer the route
+  automatically. Hand-written dynamic-member syntax still erases argument
+  types to `Any`, so it cannot infer this distinction automatically.
 - A getter and setter on the same property intern to distinct keys
   (`"count"` vs. `"count="`), so stubbing one never interferes with the
   other.
@@ -264,14 +282,13 @@ a "No stub configured" failure the first time it is exercised.
 
 ### Key Types
 
-- ``StubConformer`` — protocol your stub struct conforms to; provides
+- ``ManualStubConformer`` — protocol your stub struct conforms to; provides
   `init(stub:)` for free via the synthesized memberwise initializer.
 - ``ManualStub`` — the stub container; holds registrations and the call log,
   and provides `when`, immediate or eventual `verify`, `verifyInOrder`,
-  `verifyNoMoreInteractions`, and `clearRecordedInvocations` with the same
-  semantics as ``Stub``.
-- ``ManualRouteID`` — a readable signature plus static argument-type identity
-  for explicit forwarding of otherwise indistinguishable overloads.
-- ``ManualMethodProxy`` — forwarding proxy for non-throwing method calls.
-- ``ManualThrowingRoute`` — forwarding route for throwing methods and getters.
-- ``ManualThrowingMethodProxy`` — forwarding proxy for throwing method calls.
+  `verifyNoMoreInteractions`, `clearRecordedInvocations`, and `reset` with the
+  same semantics as ``Stub``.
+- ``ManualRequirementRoute`` — namespace for non-throwing protocol
+  requirements.
+- ``ManualThrowingRequirementRoute`` — namespace for throwing methods and
+  getters.
