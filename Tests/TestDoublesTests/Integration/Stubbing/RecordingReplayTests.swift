@@ -238,6 +238,17 @@ private final class SequencedResponder: @unchecked Sendable {
         )
     }
 
+    @Test(arguments: [0, InteractionFixture.currentSchemaVersion + 1])
+    func rejectsUnsupportedFixtureSchemaVersions(_ version: Int) throws {
+        let encoded = try JSONSerialization.data(
+            withJSONObject: ["schemaVersion": version, "outcomes": [:]]
+        )
+
+        #expect(throws: DecodingError.self) {
+            try JSONDecoder().decode(InteractionFixture.self, from: encoded)
+        }
+    }
+
     @Test func thrownErrorsAreNotRecorded() throws {
         let spy: Spy<any RecordingReplayWeatherService> = .make(
             forwardingTo: RealRecordingReplayWeatherService()

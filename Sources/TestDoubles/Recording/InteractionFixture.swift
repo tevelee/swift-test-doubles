@@ -163,6 +163,15 @@ public struct InteractionFixture: Codable, Sendable {
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let version = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
+        guard (1 ... Self.currentSchemaVersion).contains(version) else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .schemaVersion,
+                in: container,
+                debugDescription:
+                    "Unsupported interaction fixture schema version \(version); "
+                    + "supported versions are 1...\(Self.currentSchemaVersion)."
+            )
+        }
         requests = try container.decodeIfPresent([String: [Data?]].self, forKey: .requests)
         if version >= Self.currentSchemaVersion,
             let decoded = try container.decodeIfPresent([String: [FixtureOutcome]].self, forKey: .outcomes)
