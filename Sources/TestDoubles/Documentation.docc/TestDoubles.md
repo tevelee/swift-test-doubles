@@ -172,6 +172,11 @@ isolation. See
 - ``AsyncTypedThrowingClosureDouble``
 - ``TypedThrowingClosureSpy``
 - ``AsyncTypedThrowingClosureSpy``
+- ``InoutClosureDouble``
+- ``InoutClosureCallPattern``
+- ``InoutClosureBehaviorChain``
+- ``InoutClosureOutcome``
+- ``InoutClosureSpy``
 - ``CallbackCapture``
 
 ### Value and Optional Matchers

@@ -32,6 +32,9 @@ conformance	TestDoubles	FixtureRedactor	Swift.Sendable	[]
 conformance	TestDoubles	FixtureValueRole	Swift.Equatable	[]
 conformance	TestDoubles	FixtureValueRole	Swift.Hashable	[]
 conformance	TestDoubles	FixtureValueRole	Swift.Sendable	[]
+conformance	TestDoubles	InoutClosureCallPattern	Swift.Sendable	[]
+conformance	TestDoubles	InoutClosureDouble	Swift.Sendable	[{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Value","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Value","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Value","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
+conformance	TestDoubles	InoutClosureOutcome	Swift.Sendable	[{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Value","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Value","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Value","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 conformance	TestDoubles	InteractionFixture	Swift.Decodable	[]
 conformance	TestDoubles	InteractionFixture	Swift.Encodable	[]
 conformance	TestDoubles	InteractionFixture	Swift.Sendable	[]
@@ -109,6 +112,7 @@ symbol	TestDoubles	swift.class	CallbackCapture	final class CallbackCapture<Value
 symbol	TestDoubles	swift.class	ClosureDouble	final class ClosureDouble<Input, Result>
 symbol	TestDoubles	swift.class	CompletionOrder	final class CompletionOrder
 symbol	TestDoubles	swift.class	Dummy	final class Dummy<P>
+symbol	TestDoubles	swift.class	InoutClosureDouble	final class InoutClosureDouble<Value, Result>
 symbol	TestDoubles	swift.class	InvocationOrder	final class InvocationOrder
 symbol	TestDoubles	swift.class	ManualStub	@dynamicMemberLookup final class ManualStub<T>
 symbol	TestDoubles	swift.class	ManualStubClock	final class ManualStubClock
@@ -187,6 +191,9 @@ symbol	TestDoubles	swift.init	CompletionOrder.init()	init()
 symbol	TestDoubles	swift.init	CompletionOrder.init(_:)	@discardableResult convenience init(@CompletionOrder.Builder _ expectations: () -> [Expectation])
 symbol	TestDoubles	swift.init	Dummy.init()	convenience init() throws(StubError)
 symbol	TestDoubles	swift.init	FixtureRedactor.init(_:)	init(_ transform: @escaping @Sendable (String, FixtureValueRole, Data) -> Data)
+symbol	TestDoubles	swift.init	InoutClosureDouble.init()	init()
+symbol	TestDoubles	swift.init	InoutClosureDouble.init(forwardingTo:)	init(forwardingTo target: @escaping @Sendable (inout Value) -> Result)
+symbol	TestDoubles	swift.init	InoutClosureOutcome.init(value:result:)	init(value: Value, result: Result)
 symbol	TestDoubles	swift.init	InteractionFixture.init()	init()
 symbol	TestDoubles	swift.init	InteractionFixture.init(from:)	init(from decoder: any Decoder) throws
 symbol	TestDoubles	swift.init	InteractionTimeline.Dispatch.init(rawValue:)	init?(rawValue: String)
@@ -547,6 +554,38 @@ symbol	TestDoubles	swift.method	CompletionOrder.verify(_:fileID:filePath:line:co
 symbol	TestDoubles	swift.method	CompletionOrder.verify(_:fileID:filePath:line:column:)	@discardableResult func verify<Result>(_ pattern: CallPattern<Result>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> Self
 symbol	TestDoubles	swift.method	CustomMatcher.matches(_:)	func matches(_ value: Value) -> Bool
 symbol	TestDoubles	swift.method	Dummy.callAsFunction()	func callAsFunction() -> P
+symbol	TestDoubles	swift.method	InoutClosureBehaviorChain.then(times:_:)	@discardableResult func then(times: Int = 1, _ handler: @escaping @Sendable (inout Value) -> Result) -> InoutClosureBehaviorChain<Value, Result>
+symbol	TestDoubles	swift.method	InoutClosureBehaviorChain.then(times:_:)	@discardableResult func then(times: PartialRangeFrom<Int> = 1..., _ handler: @escaping @Sendable (inout Value) -> Result) -> CallInteractions
+symbol	TestDoubles	swift.method	InoutClosureBehaviorChain.thenDoNothing()	@discardableResult func thenDoNothing() -> CallInteractions
+symbol	TestDoubles	swift.method	InoutClosureBehaviorChain.thenForward(times:)	@discardableResult func thenForward(times: Int = 1) -> InoutClosureBehaviorChain<Value, Result>
+symbol	TestDoubles	swift.method	InoutClosureBehaviorChain.thenForward(times:)	@discardableResult func thenForward(times: PartialRangeFrom<Int> = 1...) -> CallInteractions
+symbol	TestDoubles	swift.method	InoutClosureBehaviorChain.thenMutate(to:)	@discardableResult func thenMutate(to value: Value) -> CallInteractions
+symbol	TestDoubles	swift.method	InoutClosureBehaviorChain.thenMutate(to:returning:)	@discardableResult func thenMutate(to value: Value, returning result: Result) -> CallInteractions
+symbol	TestDoubles	swift.method	InoutClosureBehaviorChain.thenReturn(_:)	@discardableResult func thenReturn(_ result: Result) -> CallInteractions
+symbol	TestDoubles	swift.method	InoutClosureCallPattern.arguments()	func arguments() -> [Value]
+symbol	TestDoubles	swift.method	InoutClosureCallPattern.mutatedValues()	func mutatedValues() -> [Value]
+symbol	TestDoubles	swift.method	InoutClosureCallPattern.outcomes()	func outcomes() -> [InvocationOutcome<Result>]
+symbol	TestDoubles	swift.method	InoutClosureCallPattern.results()	func results() -> [Result]
+symbol	TestDoubles	swift.method	InoutClosureCallPattern.stream()	func stream() -> InvocationStream<Value>
+symbol	TestDoubles	swift.method	InoutClosureCallPattern.then(times:_:)	@discardableResult func then(times: Int = 1, _ handler: @escaping @Sendable (inout Value) -> Result) -> InoutClosureBehaviorChain<Value, Result>
+symbol	TestDoubles	swift.method	InoutClosureCallPattern.then(times:_:)	@discardableResult func then(times: PartialRangeFrom<Int> = 1..., _ handler: @escaping @Sendable (inout Value) -> Result) -> CallInteractions
+symbol	TestDoubles	swift.method	InoutClosureCallPattern.thenDoNothing()	@discardableResult func thenDoNothing() -> CallInteractions
+symbol	TestDoubles	swift.method	InoutClosureCallPattern.thenForward()	@discardableResult func thenForward() -> CallInteractions
+symbol	TestDoubles	swift.method	InoutClosureCallPattern.thenMutate(to:)	@discardableResult func thenMutate(to value: Value) -> CallInteractions
+symbol	TestDoubles	swift.method	InoutClosureCallPattern.thenMutate(to:returning:)	@discardableResult func thenMutate(to value: Value, returning result: Result) -> CallInteractions
+symbol	TestDoubles	swift.method	InoutClosureCallPattern.thenReturn(_:)	@discardableResult func thenReturn(_ result: Result) -> CallInteractions
+symbol	TestDoubles	swift.method	InoutClosureCallPattern.timings()	func timings() -> [InvocationTiming]
+symbol	TestDoubles	swift.method	InoutClosureCallPattern.verify(_:fileID:filePath:line:column:)	func verify(_ expectedCounts: any RangeExpression<Int> = 1 ... 1, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
+symbol	TestDoubles	swift.method	InoutClosureCallPattern.verify(_:within:fileID:filePath:line:column:)	func verify(_ expectedCounts: PartialRangeFrom<Int> = 1..., within timeout: Duration, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
+symbol	TestDoubles	swift.method	InoutClosureDouble.callAsFunction(_:)	func callAsFunction(_ value: inout Value) -> Result
+symbol	TestDoubles	swift.method	InoutClosureDouble.clearConfiguredBehaviors()	func clearConfiguredBehaviors()
+symbol	TestDoubles	swift.method	InoutClosureDouble.clearRecordedInvocations()	func clearRecordedInvocations()
+symbol	TestDoubles	swift.method	InoutClosureDouble.named(_:)	@discardableResult func named(_ name: String) -> Self
+symbol	TestDoubles	swift.method	InoutClosureDouble.reset()	func reset()
+symbol	TestDoubles	swift.method	InoutClosureDouble.verifyNoUnusedStubs(fileID:filePath:line:column:)	func verifyNoUnusedStubs(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
+symbol	TestDoubles	swift.method	InoutClosureDouble.when(_:describedBy:fileID:filePath:line:column:)	func when(_ matcher: @escaping Matcher, describedBy description: String = "predicate", fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> InoutClosureCallPattern<Value, Result>
+symbol	TestDoubles	swift.method	InoutClosureDouble.when(equal:fileID:filePath:line:column:)	func when(equal value: Value, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> InoutClosureCallPattern<Value, Result>
+symbol	TestDoubles	swift.method	InoutClosureDouble.whenAny(fileID:filePath:line:column:)	func whenAny(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> InoutClosureCallPattern<Value, Result>
 symbol	TestDoubles	swift.method	InteractionFixture.encode(to:)	func encode(to encoder: any Encoder) throws
 symbol	TestDoubles	swift.method	InteractionFixture.save(to:)	func save(to url: URL) throws
 symbol	TestDoubles	swift.method	InteractionHistory.verify(_:fileID:filePath:line:column:)	func verify(_ expectedCounts: any RangeExpression<Int> = 1 ... 1, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
@@ -867,6 +906,17 @@ symbol	TestDoubles	swift.property	ClosureDouble.invocations	var invocations: [In
 symbol	TestDoubles	swift.property	ClosureDouble.sendableFunction	var sendableFunction: @Sendable (Input) -> Result { get }
 symbol	TestDoubles	swift.property	ClosureDouble.wasCalled	var wasCalled: Bool { get }
 symbol	TestDoubles	swift.property	CustomMatcher.diagnosticDescription	var diagnosticDescription: String { get }
+symbol	TestDoubles	swift.property	InoutClosureBehaviorChain.interactions	var interactions: CallInteractions { get }
+symbol	TestDoubles	swift.property	InoutClosureCallPattern.callCount	var callCount: Int { get }
+symbol	TestDoubles	swift.property	InoutClosureCallPattern.interactions	var interactions: CallInteractions { get }
+symbol	TestDoubles	swift.property	InoutClosureCallPattern.wasCalled	var wasCalled: Bool { get }
+symbol	TestDoubles	swift.property	InoutClosureDouble.callCount	var callCount: Int { get }
+symbol	TestDoubles	swift.property	InoutClosureDouble.function	var function: Function { get }
+symbol	TestDoubles	swift.property	InoutClosureDouble.history	var history: InteractionHistory { get }
+symbol	TestDoubles	swift.property	InoutClosureDouble.invocations	var invocations: [Value] { get }
+symbol	TestDoubles	swift.property	InoutClosureDouble.sendableFunction	var sendableFunction: @Sendable (inout Value) -> Result { get }
+symbol	TestDoubles	swift.property	InoutClosureOutcome.result	let result: Result
+symbol	TestDoubles	swift.property	InoutClosureOutcome.value	let value: Value
 symbol	TestDoubles	swift.property	InteractionHistory.callCount	var callCount: Int { get }
 symbol	TestDoubles	swift.property	InteractionHistory.completionTimeline	var completionTimeline: InteractionTimeline { get }
 symbol	TestDoubles	swift.property	InteractionHistory.description	var description: String { get }
@@ -961,6 +1011,9 @@ symbol	TestDoubles	swift.struct	ClientStubEndpoints	struct ClientStubEndpoints<C
 symbol	TestDoubles	swift.struct	ClosureCallPattern	struct ClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.struct	CompletionOrder.Expectation	struct Expectation
 symbol	TestDoubles	swift.struct	FixtureRedactor	struct FixtureRedactor
+symbol	TestDoubles	swift.struct	InoutClosureBehaviorChain	struct InoutClosureBehaviorChain<Value, Result>
+symbol	TestDoubles	swift.struct	InoutClosureCallPattern	struct InoutClosureCallPattern<Value, Result>
+symbol	TestDoubles	swift.struct	InoutClosureOutcome	struct InoutClosureOutcome<Value, Result>
 symbol	TestDoubles	swift.struct	InteractionFixture	struct InteractionFixture
 symbol	TestDoubles	swift.struct	InteractionHistory	struct InteractionHistory
 symbol	TestDoubles	swift.struct	InteractionTimeline	struct InteractionTimeline
@@ -1177,6 +1230,10 @@ symbol	TestDoubles	swift.typealias	ClosureDouble.Function	typealias Function = (
 symbol	TestDoubles	swift.typealias	ClosureDouble.Handler	typealias Handler = @Sendable (Input) -> Result
 symbol	TestDoubles	swift.typealias	ClosureDouble.Matcher	typealias Matcher = @Sendable (Input) -> Bool
 symbol	TestDoubles	swift.typealias	ClosureSpy	typealias ClosureSpy<Input, Result> = ClosureDouble<Input, Result>
+symbol	TestDoubles	swift.typealias	InoutClosureDouble.Function	typealias Function = (inout Value) -> Result
+symbol	TestDoubles	swift.typealias	InoutClosureDouble.Handler	typealias Handler = @Sendable (inout Value) -> Result
+symbol	TestDoubles	swift.typealias	InoutClosureDouble.Matcher	typealias Matcher = @Sendable (Value) -> Bool
+symbol	TestDoubles	swift.typealias	InoutClosureSpy	typealias InoutClosureSpy<Value, Result> = InoutClosureDouble<Value, Result>
 symbol	TestDoubles	swift.typealias	ManualStubScenario	typealias ManualStubScenario<T> = TestDoubleScenario<ManualStub<T>>
 symbol	TestDoubles	swift.typealias	ManualThrowingRoute	typealias ManualThrowingRoute<T> = ManualThrowingRequirementRoute<T>
 symbol	TestDoubles	swift.typealias	ParameterizedManualStubScenario	typealias ParameterizedManualStubScenario<T, Parameter> = ParameterizedTestDoubleScenario<ManualStub<T>, Parameter>

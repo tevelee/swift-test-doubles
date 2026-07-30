@@ -85,6 +85,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Synchronous and asynchronous typed-throws closure doubles expose precise
   `throws(Failure)` injection signatures, checked `@Sendable` forms,
   forwarding spies, and arbitrary-arity tuple expansion.
+- `InoutClosureDouble` records values at entry, applies configured mutations,
+  reports written-back values and results, and can spy on a live `inout`
+  closure.
 
 ### Fixed
 
