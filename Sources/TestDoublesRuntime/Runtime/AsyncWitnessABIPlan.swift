@@ -200,7 +200,7 @@ private func unsupportedAsyncStubIngressDiagnostic(
         + "independent one- or two-word integer, Float, Double, or 16-byte "
         + "single-register SIMD arguments "
         + "supported by the async Stub trampoline. A second narrow integer, "
-        + "split or multiword padded, smaller floating-point, wider-vector, indirect, "
+        + "split or wider integer, smaller floating-point, wider-vector, indirect, "
         + "dependent, accessor, and wider typed-error shapes remain unsupported. "
         + "Use compatible values or a hand-written test double."
 }
@@ -281,10 +281,10 @@ private func asyncWitnessStackPlan(
 /// This deliberately accepts at most eight stack words contributed by complete
 /// concrete one- or two-word integer, `Float`, `Double`, or one-register
 /// concrete SIMD values that spill consecutively from their register banks. A
-/// second narrow integer, split or multiword padded value, smaller
-/// floating-point value, indirect value, dependent value, wider-vector value,
-/// accessor, and typed-error shape remain fail-closed. A narrow integer still
-/// contributes its complete eight-byte ABI stack slot.
+/// second narrow integer, split or wider integer value, smaller floating-point
+/// value, indirect value, dependent value, wider-vector value, accessor, and
+/// typed-error shape remain fail-closed. A narrow integer still contributes its
+/// complete eight-byte ABI stack slot.
 package func asyncForwardingStackPlan(
     for method: MethodDescriptor,
     architecture: RuntimeArchitecture
@@ -412,7 +412,7 @@ package func unsupportedAsyncForwardingEgressDiagnostic(
         + "Float, Double, or one-register concrete SIMD "
         + "arguments followed by "
         + "dynamic-Self metadata and its witness table. A second narrow "
-        + "integer, split or multiword padded, smaller floating-point, wider-vector, "
+        + "integer, split or wider integer, smaller floating-point, wider-vector, "
         + "indirect, dependent, accessor, static, and "
         + "typed-error shapes remain unsupported. Use compatible values or a "
         + "hand-written test double."
@@ -469,7 +469,8 @@ private func supportedCompleteTwoWordIntegerAsyncStackValueByteCount(
     }
     let wordByteCount = MemoryLayout<UInt>.size
     let byteCount = ValueLayoutInfo(reflecting: argument.value.type).size
-    guard byteCount == 2 * wordByteCount
+    guard byteCount > wordByteCount,
+        byteCount <= 2 * wordByteCount
     else {
         return nil
     }

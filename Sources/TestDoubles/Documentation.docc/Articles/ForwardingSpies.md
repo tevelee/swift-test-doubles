@@ -150,13 +150,13 @@ through eight consecutive stack words contributed by complete one- or two-word
 integers, `Float`, `Double`, or one-register SIMD arguments when the target's
 dynamic-Self metadata and witness table follow on that same stack path. One
 narrow integer may use the low bytes of its padded stack word. A complete
-two-word integer or SIMD spill contributes two words. The bridge copies the
-words before
+two-word integer or SIMD spill contributes two words; unused high bytes in the
+integer's final word may be padding. The bridge copies the words before
 suspension, then places them in declaration order before that hidden pair.
 Immediate and suspending targets, untyped errors, and indirect result storage
 share this boundary on arm64 and x86_64. A spilled `Float` uses the low four
 bytes of its eight-byte stack slot. A second narrow integer, ninth word, split
-or multiword padded value, smaller floating-point value, wider-vector value,
+or wider integer value, smaller floating-point value, wider-vector value,
 indirect argument, dependent argument, accessor, static requirement, and
 typed-error stack shape remain fail-closed.
 
