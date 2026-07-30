@@ -74,6 +74,21 @@ package enum WitnessValueConvention: Equatable, Sendable {
 }
 
 extension WitnessValueConvention {
+    /// Whether this convention directly or structurally contains dynamic Self.
+    package var containsDynamicSelf: Bool {
+        switch self {
+            case .selfType, .optionalSelf, .nestedOptionalSelf, .arraySelf,
+                .optionalArraySelf, .inoutSelf:
+                true
+            case .concrete, .associatedType,
+                .methodGenericParameter,
+                .classMethodGenericParameter,
+                .optionalMethodGenericParameter,
+                .methodGenericParameterPack:
+                false
+        }
+    }
+
     /// The metadata-word index for an ordinary requirement-level generic
     /// parameter, including class-constrained and optional-result forms.
     package var methodGenericParameterIndex: Int? {

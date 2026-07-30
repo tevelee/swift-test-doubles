@@ -201,17 +201,7 @@ extension RuntimeStubFactory {
             let protocolName = layout.callableRequirements[method.index]
                 .protocolDescriptor.name
             let selfArguments = method.arguments.filter {
-                switch $0.value.convention {
-                    case .selfType, .optionalSelf, .nestedOptionalSelf, .arraySelf,
-                        .optionalArraySelf, .inoutSelf:
-                        true
-                    case .concrete, .associatedType,
-                        .methodGenericParameter,
-                        .classMethodGenericParameter,
-                        .optionalMethodGenericParameter,
-                        .methodGenericParameterPack:
-                        false
-                }
+                $0.value.convention.containsDynamicSelf
             }
             let allowsAutomaticSelfArguments =
                 selfArguments.isEmpty == false
