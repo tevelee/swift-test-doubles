@@ -200,7 +200,7 @@ private func unsupportedAsyncStubIngressDiagnostic(
         + "independent one- or two-word integer, Float, Double, or 16-byte "
         + "single-register SIMD arguments "
         + "supported by the async Stub trampoline. A second narrow integer, "
-        + "split or wider integer, smaller floating-point, wider-vector, indirect, "
+        + "split or wider integer, smaller floating-point, wider-vector, "
         + "dependent, accessor, and wider typed-error shapes remain unsupported. "
         + "Use compatible values or a hand-written test double."
 }
@@ -282,9 +282,9 @@ private func asyncWitnessStackPlan(
 /// concrete one- or two-word integer, `Float`, `Double`, or one-register
 /// concrete SIMD values that spill consecutively from their register banks. A
 /// second narrow integer, split or wider integer value, smaller floating-point
-/// value, indirect value, dependent value, wider-vector value, accessor, and
-/// typed-error shape remain fail-closed. A narrow integer still contributes its
-/// complete eight-byte ABI stack slot.
+/// value, dependent value, wider-vector value, accessor, and typed-error shape
+/// remain fail-closed. A narrow integer or independent indirect value still
+/// contributes its complete eight-byte ABI stack slot.
 package func asyncForwardingStackPlan(
     for method: MethodDescriptor,
     architecture: RuntimeArchitecture
@@ -413,7 +413,7 @@ package func unsupportedAsyncForwardingEgressDiagnostic(
         + "arguments followed by "
         + "dynamic-Self metadata and its witness table. A second narrow "
         + "integer, split or wider integer, smaller floating-point, wider-vector, "
-        + "indirect, dependent, accessor, static, and "
+        + "dependent, accessor, static, and "
         + "typed-error shapes remain unsupported. Use compatible values or a "
         + "hand-written test double."
 }
@@ -442,6 +442,8 @@ private func supportedIndependentAsyncStackValueByteCount(
             && parts[0].offset == 0
             && parts[0].byteCount == byteCount:
             return byteCount
+        case .indirect:
+            return MemoryLayout<UInt>.size
         default:
             return nil
     }

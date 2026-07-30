@@ -222,9 +222,10 @@ one- or two-word integer, `Float`, `Double`, or 16-byte one-register SIMD
 arguments after the arm64 or x86_64 register banks are exhausted. One narrow
 integer may occupy the low bytes of its padded eight-byte stack word. A
 two-word integer must be wholly stack resident and may contain padding after
-its stored bytes. The entry frame points at those words only while synchronous
-preparation is running, so the decoder copies every value before returning a
-retained suspension state.
+its stored bytes. An independent indirect argument contributes one pointer
+word; the decoder copies its pointee while synchronous preparation is running.
+The entry frame points at those words only until preparation returns a retained
+suspension state.
 The state never reads the saved stack pointer. The Swift handler returns the
 complete entry-SP-to-continuation-SP adjustment alongside that state. arm64
 rounds the logical stack area up to its 16-byte boundary; x86_64 rounds down
@@ -234,8 +235,9 @@ that live slot to the resumed continuation stack pointer just as a
 compiler-generated witness thunk does. Assembly applies the adjustment once on
 both immediate and suspending entry exits, never from the completion
 trampoline. A second narrow integer, split or wider integer value, smaller
-floating-point value, wider-vector value, indirect argument, dependent
-argument, accessor, and wider typed-error stack shape remain fail-closed.
+floating-point value, wider-vector value, dependent or otherwise
+non-independent indirect argument, accessor, and wider typed-error stack shape
+remain fail-closed.
 
 The bounded forwarding counterpart accepts one through eight stack words
 contributed by complete concrete one- or two-word integer, `Float`, `Double`,
@@ -243,10 +245,12 @@ or one-register SIMD spills for an instance method, untyped-throwing or not,
 when target metadata and its witness table follow on the same stack path. One
 narrow integer may use the low bytes of a padded eight-byte stack word. A
 two-word integer must be wholly stack resident and may contain padding after
-its stored bytes. Synchronous preparation copies every word into retained
-forwarding state before the outer entry removes its caller stack. The async
-invoke helper then reproduces the compiler's outgoing generic-witness layout in
-declaration order, followed by that hidden pair. arm64 rounds the logical
+its stored bytes. An independent indirect argument contributes its pointer
+word; the caller-owned pointee remains live through the forwarded call.
+Synchronous preparation copies every word into retained forwarding state before
+the outer entry removes its caller stack. The async invoke helper then
+reproduces the compiler's outgoing generic-witness layout in declaration order,
+followed by that hidden pair. arm64 rounds the logical
 sequence up to a 16-byte stack area. x86_64 moves its live implicit slot down by
 the compiler-planned 16-byte-aligned adjustment, preserves it at offset zero,
 and writes the logical sequence from offset eight. The target's
@@ -255,8 +259,9 @@ direct-method continuation stack; forwarding completion does not adjust it
 again. `Float` contributes its four-byte payload in the low half of one
 eight-byte stack word; SIMD contributes two words. A second narrow integer,
 ninth retained word, typed-error destination, split or wider integer value,
-smaller floating-point value, wider-vector spill, indirect or dependent
-argument, and async accessor remain outside this slice.
+smaller floating-point value, wider-vector spill, dependent or otherwise
+non-independent indirect argument, and async accessor remain outside this
+slice.
 
 After matcher evaluation, dispatch enters one recorder linearization point that
 atomically commits matcher captures, appends the call, and reserves the next

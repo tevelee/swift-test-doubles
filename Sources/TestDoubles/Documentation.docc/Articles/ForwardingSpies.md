@@ -151,14 +151,15 @@ integers, `Float`, `Double`, or one-register SIMD arguments when the target's
 dynamic-Self metadata and witness table follow on that same stack path. One
 narrow integer may use the low bytes of its padded stack word. A complete
 two-word integer or SIMD spill contributes two words; unused high bytes in the
-integer's final word may be padding. The bridge copies the words before
-suspension, then places them in declaration order before that hidden pair.
+integer's final word may be padding. An independent indirect argument
+contributes its one pointer word. The bridge copies the words before suspension,
+then places them in declaration order before that hidden pair.
 Immediate and suspending targets, untyped errors, and indirect result storage
 share this boundary on arm64 and x86_64. A spilled `Float` uses the low four
 bytes of its eight-byte stack slot. A second narrow integer, ninth word, split
 or wider integer value, smaller floating-point value, wider-vector value,
-indirect argument, dependent argument, accessor, static requirement, and
-typed-error stack shape remain fail-closed.
+dependent or otherwise non-independent indirect argument, accessor, static
+requirement, and typed-error stack shape remain fail-closed.
 
 Compound assignment and `inout` access use the target's `_modify` coroutine.
 Both legacy direct witnesses and descriptor-based public Swift 6.3 witnesses

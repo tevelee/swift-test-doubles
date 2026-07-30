@@ -361,6 +361,40 @@ struct AsyncForwardingStackPlanTests {
         }
     }
 
+    @Test func acceptsAnIndependentIndirectPointerAsOneStackWord() {
+        let method = MethodDescriptor(
+            kind: .method,
+            name: "inspect",
+            index: 0,
+            argumentTypes:
+                Array(repeating: Int.self, count: 8)
+                + [AsyncIndirectSpillValue.self],
+            returnType: UInt64.self,
+            isAsync: true
+        )
+
+        for architecture in [
+            RuntimeArchitecture.arm64,
+            RuntimeArchitecture.x86_64
+        ] {
+            let plan = asyncForwardingStackPlan(
+                for: method,
+                architecture: architecture
+            )
+            #expect(plan != nil)
+            #expect(
+                plan?.visibleArgumentLocations.last
+                    == .init(
+                        storage: .stack(
+                            byteOffset: architecture == .arm64 ? 0 : 16
+                        ),
+                        valueOffset: 0,
+                        byteCount: 8
+                    )
+            )
+        }
+    }
+
     private func method(
         argumentCount: Int,
         typedError: (any Error.Type)? = nil
