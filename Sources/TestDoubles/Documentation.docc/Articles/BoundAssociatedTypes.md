@@ -206,10 +206,11 @@ it must evolve alongside the repository's Swift runtime support matrix.
 - Direct associated-type method arguments and results, including consuming
   direct arguments.
 - An `AnyObject`-constrained associated type bound to a concrete class. Direct
-  values and one `Optional` layer use the formal one-word reference ABI in
-  borrowed, default, or consuming arguments and results, including synchronous,
-  async, and fixed typed-throwing methods. Class existentials are not concrete
-  class bindings.
+  values and one `Optional` layer use the formal one-word reference ABI.
+  `Array`, `Set`, and `Dictionary` shells containing those values keep their
+  own fixed reference-backed layout. These forms work in borrowed, default, or
+  consuming arguments and results, including synchronous, async, and fixed
+  typed-throwing methods. Class existentials are not concrete class bindings.
 - Direct associated-type property getters, Swift 6.3 `read` accessors, Swift
   6.4 `yielding borrow` accessors through their supported witness, and setters.
 - Arbitrarily recursive combinations of `Optional`, `Array`, `Set`,
@@ -248,7 +249,8 @@ it must evolve alongside the repository's Swift runtime support matrix.
 - Automatic discovery and explicit requirement descriptions.
 - Complete caller-supplied bindings for unbound associated types used in
   covariant method or getter results, as a direct typed error, or as a direct or
-  single-`Optional` input when the declaration is constrained to `AnyObject`.
+  single-`Optional` or supported collection input when the declaration is
+  constrained to `AnyObject`.
   Both flat and recursively nested supported-container result requirements are
   supported; result values remain statically erased to their upper bounds at
   the call site.
@@ -272,7 +274,8 @@ signature validation possible:
 - An unbound existential such as `any Source` without a complete caller-supplied
   binding set.
 - Caller-bound associated types used in method arguments, setters, or other
-  non-covariant positions, except direct and single-`Optional`
+  non-covariant positions, except direct, single-`Optional`, and supported
+  collection
   `AnyObject`-constrained inputs with concrete class bindings.
 - A missing, duplicate, or unknown concrete binding for any associated-type
   declaration in the flattened layout.
@@ -281,7 +284,8 @@ signature validation possible:
   existentials, or function types containing `Element`. A direct
   `Element.Type` metatype is supported through its fixed one-word metadata
   representation. An `AnyObject`-constrained associated type has a
-  separately bounded slice: direct values and one `Optional` layer only.
+  separately bounded slice: direct values, one `Optional` layer, and
+  fixed-layout `Array`, `Set`, and `Dictionary` shells.
 - Generic nominal values with more than two type parameters, nested or
   unlinked constructors, constructors whose metadata accessor needs non-type
   arguments, more than one protocol-conformance requirement per parameter,
@@ -299,7 +303,8 @@ signature validation possible:
 Borrowed and consuming ordinary opaque direct or optional arguments use the
 supported indirect call-frame shape; arrays, sets, and dictionaries keep their
 one-word direct representation. A direct or single-`Optional`
-`AnyObject`-constrained associated value uses one direct reference word.
+`AnyObject`-constrained associated value uses one direct reference word, while
+a collection containing it uses the collection's one-word representation.
 Per-argument ownership ensures the trampoline destroys only owned input storage
 after first copying it into recorder-owned type erasure. Noncopyable and
 nonescapable dependent values remain outside the boundary.
@@ -340,9 +345,10 @@ Consuming `Optional`, `Array`, `Set`, `Dictionary`, and `Result` values reuse th
 implemented value-witness and per-argument ownership path. Other nested,
 noncopyable, and nonescapable associated types still require additional
 lowering and lifetime models. The separate dependent-reference ABI is
-implemented only for a concrete class bound directly or through one `Optional`;
-collections, deeper optionals, and other wrappers containing an
-`AnyObject`-constrained associated value still fail closed.
+implemented for a concrete class bound directly, through one `Optional`, or
+inside `Array`, `Set`, and `Dictionary` shells. Deeper top-level optionals and
+other wrappers containing an `AnyObject`-constrained associated value still
+fail closed.
 
 Typed throws is a separate ABI case. Concrete typed errors share direct result
 registers or use the caller's indirect typed-error slot as required. A direct

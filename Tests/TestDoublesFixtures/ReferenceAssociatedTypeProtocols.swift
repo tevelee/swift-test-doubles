@@ -1,8 +1,21 @@
-public final class ExternalReferenceAssociatedBox: @unchecked Sendable {
+public final class ExternalReferenceAssociatedBox:
+    Hashable, @unchecked Sendable
+{
     public let id: Int
 
     public init(id: Int) {
         self.id = id
+    }
+
+    public static func == (
+        lhs: ExternalReferenceAssociatedBox,
+        rhs: ExternalReferenceAssociatedBox
+    ) -> Bool {
+        lhs === rhs
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(ObjectIdentifier(self))
     }
 }
 
@@ -163,18 +176,36 @@ public protocol ExternalReferenceAssociatedMarker: AnyObject {}
 
 extension ExternalReferenceAssociatedBox: ExternalReferenceAssociatedMarker {}
 
-public protocol ExternalUnsupportedReferenceArrayProbe<Element> {
-    associatedtype Element: AnyObject
+public protocol ExternalReferenceCollectionProbe<Element> {
+    associatedtype Element: AnyObject & Hashable
 
-    func load() -> [Element]
+    func array(_ values: [Element]) -> [Element]
+    func set(_ values: Set<Element>) -> Set<Element>
+    func dictionary(_ values: [String: Element]) -> [String: Element]
 }
 
-public struct RealExternalUnsupportedReferenceArrayProbe:
-    ExternalUnsupportedReferenceArrayProbe
+public struct RealExternalReferenceCollectionProbe:
+    ExternalReferenceCollectionProbe
 {
     public init() {}
 
-    public func load() -> [ExternalReferenceAssociatedBox] { [] }
+    public func array(
+        _ values: [ExternalReferenceAssociatedBox]
+    ) -> [ExternalReferenceAssociatedBox] {
+        values
+    }
+
+    public func set(
+        _ values: Set<ExternalReferenceAssociatedBox>
+    ) -> Set<ExternalReferenceAssociatedBox> {
+        values
+    }
+
+    public func dictionary(
+        _ values: [String: ExternalReferenceAssociatedBox]
+    ) -> [String: ExternalReferenceAssociatedBox] {
+        values
+    }
 }
 
 public protocol ExternalUnsupportedNestedOptionalReferenceProbe<Element> {

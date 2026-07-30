@@ -91,9 +91,10 @@ type. Opaque and class-constrained extended existentials use their respective
 container layouts. An associated type constrained to `AnyObject` has a distinct
 dependent reference ABI. A concrete class binding is supported directly or
 through one `Optional` layer: borrowed/default and consuming values use one
-reference word, and `Error & AnyObject` uses the direct typed-error channel.
-Class existentials, deeper optionals, collections, and other wrappers remain
-fail-closed.
+reference word. `Array`, `Set`, and `Dictionary` shells retain their fixed
+reference-backed collection layout, and `Error & AnyObject` uses the direct
+typed-error channel. Class existentials, deeper top-level optionals, and other
+wrappers remain fail-closed.
 
 An ordinary unbound `any Protocol` existential does not carry concrete
 associated metadata. Caller-bound construction validates an explicit mapping

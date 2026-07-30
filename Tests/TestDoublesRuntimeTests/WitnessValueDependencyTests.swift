@@ -66,7 +66,17 @@ private protocol SecondDependencyScope {
         )
         #expect(
             WitnessValueDependency.array(reference)
-                .usesSupportedReferenceAssociatedTransport == false
+                .usesSupportedReferenceAssociatedTransport
+        )
+        #expect(
+            WitnessValueDependency.set(reference)
+                .usesSupportedReferenceAssociatedTransport
+        )
+        #expect(
+            WitnessValueDependency.dictionary(
+                key: .independent,
+                value: reference
+            ).usesSupportedReferenceAssociatedTransport
         )
         #expect(
             WitnessValueDependency.optional(first)

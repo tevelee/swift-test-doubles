@@ -178,7 +178,8 @@ extension RuntimeStubFactory {
                 .protocolDescriptor.name
             let reason =
                 dependency.containsReferenceAssociatedType
-                ? "Requirement \(method.index) uses a caller-bound AnyObject-constrained associated type in an unsupported argument shape. Only direct values and one Optional layer have a proven dependent reference ABI."
+                ? "Requirement \(method.index) uses a caller-bound AnyObject-constrained associated type in an unsupported argument shape. "
+                    + "Only direct values, one Optional layer, and fixed-layout collection shells have a proven dependent reference ABI."
                 : "Requirement \(method.index) uses a caller-bound associated type in an argument. This initializer currently supports opaque associated types only in covariant result positions."
             throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,

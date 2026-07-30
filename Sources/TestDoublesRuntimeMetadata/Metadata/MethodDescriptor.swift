@@ -172,7 +172,7 @@ package struct MethodDescriptor: Sendable {
                 protocolName: protocolName,
                 reason:
                     "Requirement \(index) embeds an AnyObject-constrained associated type in an unsupported value shape. "
-                    + "Only direct values and one Optional layer have a proven dependent reference ABI."
+                    + "Only direct values, one Optional layer, and fixed-layout collection shells have a proven dependent reference ABI."
             )
         }
         self.init(

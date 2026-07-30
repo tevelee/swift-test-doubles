@@ -449,21 +449,42 @@ import Testing
         )
     }
 
-    @Test func otherReferenceDependentShapesRemainFailClosed() {
-        _ = RealExternalUnsupportedReferenceArrayProbe()
+    @Test func referenceDependentCollectionsInvokeEndToEnd() throws {
+        _ = RealExternalReferenceCollectionProbe()
+        typealias Probe = any ExternalReferenceCollectionProbe<
+            ExternalReferenceAssociatedBox
+        >
+        let stub = try Stub<Probe>()
+        let input = ExternalReferenceAssociatedBox(id: 60)
+        let output = ExternalReferenceAssociatedBox(id: 61)
+        let inputArray = [input]
+        let outputArray = [output]
+        let inputSet: Set = [input]
+        let outputSet: Set = [output]
+        let inputDictionary = ["input": input]
+        let outputDictionary = ["output": output]
+
+        stub.when(returning: outputArray) {
+            $0.array(Match.any(using: inputArray))
+        }.thenReturn(outputArray)
+        stub.when(returning: outputSet) {
+            $0.set(Match.any(using: inputSet))
+        }.thenReturn(outputSet)
+        stub.when(returning: outputDictionary) {
+            $0.dictionary(Match.any(using: inputDictionary))
+        }.thenReturn(outputDictionary)
+
+        let probe: Probe = stub()
+        #expect(probe.array(inputArray).first === output)
+        #expect(probe.set(inputSet).first === output)
+        #expect(probe.dictionary(inputDictionary)["output"] === output)
+    }
+
+    @Test func nestedOptionalReferenceShapeRemainsFailClosed() {
         _ = RealExternalUnsupportedNestedOptionalReferenceProbe()
 
         expectUnsupportedProtocolShape(
-            containing: "Only direct values and one Optional layer"
-        ) {
-            _ = try Stub<
-                any ExternalUnsupportedReferenceArrayProbe<
-                    ExternalReferenceAssociatedBox
-                >
-            >()
-        }
-        expectUnsupportedProtocolShape(
-            containing: "Only direct values and one Optional layer"
+            containing: "Only direct values, one Optional layer"
         ) {
             _ = try Stub<
                 any ExternalUnsupportedNestedOptionalReferenceProbe<

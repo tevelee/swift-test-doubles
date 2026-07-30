@@ -183,10 +183,9 @@ package indirect enum WitnessValueDependency: Equatable, Sendable {
         }
     }
 
-    /// The new reference-associated slice accepts only the direct occurrence
-    /// and exactly one Optional shell. Other dependent outer shapes keep their
-    /// existing fail-closed boundary until their constrained formal ABI is
-    /// probed independently.
+    /// Reference-associated values use direct transport either on their own,
+    /// through one Optional shell, or inside the standard library's fixed,
+    /// reference-backed collection shells.
     package var usesSupportedReferenceAssociatedTransport: Bool {
         guard containsReferenceAssociatedType else { return true }
         switch self {
@@ -194,6 +193,28 @@ package indirect enum WitnessValueDependency: Equatable, Sendable {
                 return reference.usesReferenceABI
             case .optional(.associatedType(let reference)):
                 return reference.usesReferenceABI
+            case .array(let element), .set(let element):
+                return element.usesSupportedCollectionElementTransport
+            case .dictionary(let key, let value):
+                return key.usesSupportedCollectionElementTransport
+                    && value.usesSupportedCollectionElementTransport
+            default:
+                return false
+        }
+    }
+
+    private var usesSupportedCollectionElementTransport: Bool {
+        guard containsReferenceAssociatedType else { return true }
+        switch self {
+            case .associatedType(let reference):
+                return reference.usesReferenceABI
+            case .optional(let wrapped):
+                return wrapped.usesSupportedCollectionElementTransport
+            case .array(let element), .set(let element):
+                return element.usesSupportedCollectionElementTransport
+            case .dictionary(let key, let value):
+                return key.usesSupportedCollectionElementTransport
+                    && value.usesSupportedCollectionElementTransport
             default:
                 return false
         }
