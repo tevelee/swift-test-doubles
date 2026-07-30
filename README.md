@@ -733,7 +733,8 @@ Key limitations:
   to eight decoded stack bytes. Async Spy forwarding and dynamic closure
   bridging narrow that allowance to one complete eight-byte general-purpose
   word; split, padded, vector, dependent, and additional spills fail closed.
-- Typed-throwing getters, Objective-C-only protocols, and native-Swift-only
+- Typed-throwing getters require explicit `signatureOf:` requirements and are
+  not forwarded by Spy. Objective-C-only protocols and native-Swift-only
   superclass constraints are outside the boundary.
 - Protocols that relax `Copyable` or `Escapable` are rejected because recorder
   values are retained as escaping `Any` payloads.

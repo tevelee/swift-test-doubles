@@ -313,7 +313,11 @@ package struct MethodDescriptor: Sendable {
                 typedErrorsMatch =
                     sameType(lhs.type, rhs.type)
                     && lhs.dependency == rhs.dependency
-            case (.none, .some), (.some, .none):
+            case (.some, .none):
+                typedErrorsMatch =
+                    kind == .getter
+                    && discovered.hasReliableThrowing == false
+            case (.none, .some):
                 typedErrorsMatch = false
         }
         let effectsMatch =

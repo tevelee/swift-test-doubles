@@ -256,11 +256,11 @@ private func validateInferredRequirementSignature(
     }
 
     if schema.typedErrorType != nil || schema.typedErrorAssociatedTypeName != nil,
-        schema.kind != .method
+        schema.kind != .method && schema.kind != .getter
     {
         throw RuntimeConstructionError.unsupportedProtocolShape(
             protocolName: protocolDescriptor.name,
-            reason: "Requirement \(index) uses `signatureOf:` with typed throws on an accessor. Typed-throwing accessors are unsupported."
+            reason: "Requirement \(index) uses `signatureOf:` with typed throws on a setter or initializer. That requirement shape is unsupported."
         )
     }
 }

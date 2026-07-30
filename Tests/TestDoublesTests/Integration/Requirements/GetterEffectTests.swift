@@ -95,6 +95,27 @@ struct RealAssociatedGetterEffectProbe: AssociatedGetterEffectProbe {
     var current: Int? { get async throws { 1 } }
 }
 
+struct TypedThrowingGetterProbeError: Error, Equatable {
+    let code: Int
+}
+
+protocol TypedThrowingGetterProbe {
+    var value: Int { get throws(TypedThrowingGetterProbeError) }
+    var asynchronousValue: String {
+        get async throws(TypedThrowingGetterProbeError)
+    }
+}
+
+struct RealTypedThrowingGetterProbe: TypedThrowingGetterProbe {
+    var value: Int {
+        get throws(TypedThrowingGetterProbeError) { 1 }
+    }
+
+    var asynchronousValue: String {
+        get async throws(TypedThrowingGetterProbeError) { "real" }
+    }
+}
+
 @Suite struct GetterEffectTests {
     @Test func asyncGetterEffectsRequireExplicitConstruction() async throws {
         _ = RealEffectfulGetterProbe()
@@ -296,6 +317,73 @@ struct RealAssociatedGetterEffectProbe: AssociatedGetterEffectProbe {
         )
         #expect(descriptor.isThrowing)
         #expect(descriptor.hasReliableThrowing)
+    }
+
+    @Test func typedThrowingGettersReturnAndThrowPrecisely() async throws {
+        _ = RealTypedThrowingGetterProbe()
+        typealias Probe = any TypedThrowingGetterProbe
+        let stub = try Stub<Probe>(
+            .getter(signatureOf: {
+                value throws(TypedThrowingGetterProbeError) in
+                try value.value
+            }),
+            .getter(signatureOf: {
+                value async throws(TypedThrowingGetterProbeError) in
+                try await value.asynchronousValue
+            })
+        )
+        stub.when { try $0.value }.thenReturn(42)
+        await stub.when { try await $0.asynchronousValue }.thenReturn("stub")
+
+        let probe: Probe = stub()
+        #expect(try probe.value == 42)
+        #expect(try await probe.asynchronousValue == "stub")
+
+        let failureStub = try Stub<Probe>(
+            .getter(signatureOf: {
+                value throws(TypedThrowingGetterProbeError) in
+                try value.value
+            }),
+            .getter(signatureOf: {
+                value async throws(TypedThrowingGetterProbeError) in
+                try await value.asynchronousValue
+            })
+        )
+        failureStub.when { try $0.value }.thenThrow(
+            TypedThrowingGetterProbeError(code: 43)
+        )
+        await failureStub.when {
+            try await $0.asynchronousValue
+        }.thenThrow(TypedThrowingGetterProbeError(code: 44))
+        let failureProbe: Probe = failureStub()
+
+        let synchronousError = try #require(
+            #expect(throws: TypedThrowingGetterProbeError.self) {
+                _ = try failureProbe.value
+            }
+        )
+        #expect(synchronousError.code == 43)
+        let asynchronousError = try #require(
+            await #expect(throws: TypedThrowingGetterProbeError.self) {
+                _ = try await failureProbe.asynchronousValue
+            }
+        )
+        #expect(asynchronousError.code == 44)
+
+        let synchronous = try #require(
+            stub.recorder.runtimeMethod(for: 0)
+        )
+        let asynchronous = try #require(
+            stub.recorder.runtimeMethod(for: 1)
+        )
+        #expect(
+            synchronous.typedErrorType
+                == TypedThrowingGetterProbeError.self
+        )
+        #expect(
+            asynchronous.typedErrorType
+                == TypedThrowingGetterProbeError.self
+        )
     }
 
     @Test func getterHintCountsAreExact() {

@@ -155,11 +155,21 @@ let stub = try Stub<any PrototypeCalculator>(
 ```
 
 Use an accessor closure when a getter is throwing or asynchronous, for example
-`.getter(signatureOf: { try await $0.currentValue })`. The reference supplies a
-signature, not requirement identity: entries remain positional and must stay in
-protocol declaration order. Function conversion erases associated-type and
-dynamic-`Self` semantics, so `signatureOf:` construction rejects those
-existentials; use explicit ``Stub/Requirement/Value`` descriptions instead.
+`.getter(signatureOf: { try await $0.currentValue })`. For typed throws, state
+the closure's error explicitly so function conversion preserves it:
+
+```swift
+.getter(signatureOf: {
+    service throws(ServiceError) in
+    try service.token
+})
+```
+
+The reference supplies a signature, not requirement identity: entries remain
+positional and must stay in protocol declaration order. Function conversion
+erases associated-type and dynamic-`Self` semantics, so `signatureOf:`
+construction rejects those existentials; use explicit
+``Stub/Requirement/Value`` descriptions instead.
 Method-reference convenience overloads accept up to six arguments because
 Swift 6.3 cannot reabstract unbound method references through a parameter pack.
 Use `Stub.Requirement.method(_:returning:isThrowing:isAsync:)` for a

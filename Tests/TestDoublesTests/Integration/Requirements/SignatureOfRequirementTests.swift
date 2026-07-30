@@ -233,18 +233,16 @@ struct SignatureOfRequirementTests {
     }
 
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
-    @Test func typedThrowingGetterSignaturesRemainUnsupported() {
+    @Test func typedThrowingGetterSignaturesPreserveTheErrorType() throws {
         let getter:
             (any SignatureOfTypedGetterProbe)
                 throws(SignatureOfRequirementError) -> Int = { try $0.value }
 
-        expectStubError({
-            _ = try Stub<any SignatureOfTypedGetterProbe>(
-                .getter(signatureOf: getter)
-            )
-        }) { error in
-            guard case .unsupportedProtocolShape(_, let reason) = error else { return false }
-            return reason.contains("Typed-throwing accessors are unsupported")
-        }
+        let stub = try Stub<any SignatureOfTypedGetterProbe>(
+            .getter(signatureOf: getter)
+        )
+        let method = try #require(stub.recorder.runtimeMethod(for: 0))
+
+        #expect(method.typedErrorType == SignatureOfRequirementError.self)
     }
 }

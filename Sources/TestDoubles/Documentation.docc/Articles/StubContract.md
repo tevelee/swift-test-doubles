@@ -14,7 +14,7 @@ For construction examples and requirement-order recipes, see
 | Shape | Runtime stub path | Notes |
 | --- | --- | --- |
 | Ordinary protocol methods, getters, setters, subscripts, inheritance, and compositions | Automatic discovery from linked conformers or resilient requirement symbols; explicit requirements otherwise | Compositions use one group per declaring protocol. |
-| Effectful getters | Automatic discovery plus complete ``Stub/GetterEffect`` hints, or explicit requirements | Swift metadata omits getter throwing behavior. |
+| Effectful getters | Automatic discovery plus complete ``Stub/GetterEffect`` hints, or explicit requirements | Swift metadata omits getter throwing behavior. Concrete typed throws is supported through an explicit `signatureOf:` accessor closure. |
 | Swift 6.3 `read` accessors | Configure and verify them like synchronous nonthrowing getters | Stub yields the configured result; Spy forwards the target coroutine when no registration matches; Dummy remains fail-closed. |
 | Static requirements, initializers, and dynamic `Self` | Dedicated builders support `Self` results; automatic discovery supports direct and single-`Optional` arguments for bounded instance methods | Use `Stub.withValue(_:)` when passing a generated metatype to code under test. |
 | Bounded primary associated types | Supported for the documented direct, recursive standard-library container, linked generic-nominal, concrete-reference, setter, initializer, and associated-error slices | See <doc:BoundAssociatedTypes> for exact supported and rejected shapes. |
@@ -288,7 +288,9 @@ setters, protocol subscript getters and setters, and initializer requirements
 on ordinary opaque and class-constrained Swift protocol existentials, including
 compositions, inherited requirements, and shared diamond bases. Methods may be
 synchronous, throwing, async, or async-throwing. Effectful getters require
-complete ``Stub/GetterEffect`` hints or explicit requirements. Setter values may
+complete ``Stub/GetterEffect`` hints or explicit requirements; synchronous and
+async getters may use a concrete typed error when their explicit
+`signatureOf:` closure preserves that error type. Setter values may
 use direct, indirect, aggregate, or reference-containing owned values, while
 subscript indices are borrowed. Initializers may be nonfailable or
 failable and may throw or suspend; their arguments follow Swift's owned

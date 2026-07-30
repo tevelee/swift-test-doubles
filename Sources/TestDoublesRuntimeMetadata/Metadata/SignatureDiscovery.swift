@@ -135,12 +135,12 @@ package func discoverMethods(
                         .methodGenericParameterPack:
                         false
                 }
-            guard kind == .method,
+            guard kind == .method || kind == .getter,
                 supportsResultConvention
             else {
                 throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: proto.name,
-                    reason: "Requirement \(requirement.dispatchIndex) combines typed throws with an unsupported accessor, initializer, or Self result convention."
+                    reason: "Requirement \(requirement.dispatchIndex) combines typed throws with an unsupported setter, initializer, or Self result convention."
                 )
             }
         }
