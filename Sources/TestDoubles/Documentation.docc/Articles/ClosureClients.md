@@ -319,6 +319,26 @@ suspension, and cancellation remain available through `whenAny()` and
 `whenArguments(_:)`. Interaction argument inspection returns the tuple used as
 the double's `Input`.
 
+For a homogeneous variadic function, use ``VariadicClosureDouble`` and
+`variadicFunction()`:
+
+```swift
+let sum = VariadicClosureDouble<Int, Int>()
+sum.whenAny().then { $0.reduce(0, +) }
+
+let function: (Int...) -> Int = sum.variadicFunction()
+
+#expect(function(1, 2, 3) == 6)
+#expect(sum.invocations == [[1, 2, 3]])
+```
+
+Each variadic call is recorded as one array. Throwing, asynchronous, and
+typed-throws variants are available alongside ``VariadicClosureDouble``.
+``ParameterPackClosureDouble`` provides a named parameter-pack form for
+heterogeneous nullary and arbitrary-arity functions. List the argument types
+first and the result type last; `expandedFunction()` produces the callable
+value.
+
 ### Reuse client configurations
 
 Because ``ClientStub`` is a ``ManualStub`` specialization, synchronous and
