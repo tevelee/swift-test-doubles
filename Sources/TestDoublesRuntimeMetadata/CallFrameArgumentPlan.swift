@@ -98,8 +98,9 @@ package struct CallFrameArgumentLocation: Equatable, Sendable {
 ///
 /// General-purpose and vector registers advance independently. Once either
 /// bank is exhausted, fragments from that bank share one declaration-order
-/// stack cursor. arm64 packs values at their natural alignment before aligning
-/// later pointer words; x86_64 preserves one or more eight-byte argument slots.
+/// stack cursor. Darwin arm64 packs values at their natural alignment before
+/// aligning later pointer words; non-Darwin arm64 and x86_64 preserve one or
+/// more eight-byte argument slots.
 package struct CallFrameArgumentLocationPlan: Sendable {
     package let arguments: [[CallFrameArgumentLocation]]
     package let trailingGeneralPurpose: [CallFrameArgumentLocation]
@@ -172,8 +173,8 @@ package struct CallFrameArgumentLocationPlan: Sendable {
             _ piece: CallFrameValuePiece
         ) -> Int {
             let wordSize = MemoryLayout<UInt>.size
-            switch architecture {
-                case .arm64:
+            switch architecture.stackArgumentLayout {
+                case .naturallyAligned:
                     stackByteCount = aligned(
                         stackByteCount,
                         to: piece.stackAlignment
@@ -181,7 +182,7 @@ package struct CallFrameArgumentLocationPlan: Sendable {
                     let offset = stackByteCount
                     stackByteCount += piece.byteCount
                     return offset
-                case .x86_64:
+                case .wordSlots:
                     let offset = stackByteCount
                     stackByteCount += max(
                         wordSize,

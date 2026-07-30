@@ -522,13 +522,13 @@ An async Stub requirement may use the architecture's complete argument-register
 banks plus a sequence of complete, independent one- or two-word integer,
 `Float16` where available, `Float`, `Double`, or complete SIMD values occupying
 one through four 16-byte register fragments. Each SIMD fragment occupies two
-consecutive words. Narrow integers occupy the low bytes of their padded
-eight-byte stack words. A spilled `Float16` or `Float` occupies one ABI stack
-word with its payload in the low two or four bytes; a complete two-word integer
-occupies two consecutive words. A two-word integer's final word may contain
-only its stored bytes plus padding. An independent indirect argument occupies
-one pointer word; Stub preparation copies its pointee before the handler can
-suspend. The entry
+consecutive words. Darwin arm64 packs adjacent narrow integers at natural
+alignment; non-Darwin arm64 and x86_64 reserve separate eight-byte slots. A
+spilled `Float16` or `Float` preserves the platform's ABI storage; a complete
+two-word integer occupies two consecutive words. A two-word integer's final
+word may contain only its stored bytes plus padding. An independent indirect
+argument occupies one pointer word; Stub preparation copies its pointee before
+the handler can suspend. The entry
 trampoline decodes every spilled value while the caller's invocation frame is
 still live, before an async handler can suspend. Arguments are copied into the
 retained dispatch state; indirect result and the already proven single
@@ -545,7 +545,8 @@ async instance method, untyped-throwing or not, with up to eight retained stack
 words contributed by complete concrete one- or two-word integer, `Float16`
 where available, `Float`, `Double`, or SIMD values occupying one through four
 registers. Each SIMD fragment contributes two retained words. Narrow integers
-may use the low bytes of padded eight-byte stack words. A two-word
+may share a retained word on Darwin arm64; non-Darwin arm64 and x86_64 preserve
+their separate eight-byte ABI slots. A two-word
 integer must be wholly stack resident and may contain padding after its stored
 bytes. The values must spill consecutively. An independent indirect argument
 contributes its pointer word, whose caller-owned pointee remains live through

@@ -221,12 +221,13 @@ completes. The ingress path also accepts a sequence of complete, independent
 one- or two-word integer, `Float16` where available, `Float`, `Double`, or
 SIMD arguments occupying one through four registers after the arm64 or x86_64
 register banks are exhausted. Each complete 16-byte SIMD fragment contributes
-two stack words. Narrow integers occupy the low bytes of their padded
-eight-byte stack words. A two-word integer must be wholly stack resident and may
-contain padding after its stored bytes. An independent indirect argument contributes
-one pointer word; the decoder copies its pointee while synchronous preparation
-is running. The entry frame points at those words only until preparation
-returns a retained suspension state.
+two stack words. Darwin arm64 packs adjacent narrow integers at their natural
+alignment before the next pointer-aligned word. Non-Darwin arm64 and x86_64
+reserve a separate eight-byte slot for each narrow value. A two-word integer
+must be wholly stack resident and may contain padding after its stored bytes. An
+independent indirect argument contributes one pointer word; the decoder copies
+its pointee while synchronous preparation is running. The entry frame points at
+those words only until preparation returns a retained suspension state.
 The state never reads the saved stack pointer. The Swift handler returns the
 complete entry-SP-to-continuation-SP adjustment alongside that state. arm64
 rounds the logical stack area up to its 16-byte boundary; x86_64 rounds down
@@ -245,9 +246,10 @@ contributed by complete concrete one- or two-word integer, `Float16` where
 available, `Float`, `Double`, or SIMD spills occupying one through four
 registers for an instance method, untyped-throwing or not, when target metadata
 and its witness table follow on the same stack path. Each complete 16-byte SIMD
-fragment contributes two words. Narrow integers use the low bytes of their
-padded eight-byte stack words. A two-word integer must be wholly stack resident
-and may contain padding after its stored bytes. An independent indirect
+fragment contributes two words. Adjacent narrow integers may share a retained
+word on Darwin arm64; non-Darwin arm64 and x86_64 preserve their separate
+eight-byte ABI slots. A two-word integer must be wholly stack resident and may
+contain padding after its stored bytes. An independent indirect
 argument contributes its pointer word; the caller-owned pointee remains live
 through the forwarded call. Synchronous preparation copies every word into
 retained forwarding state before the outer entry removes its caller stack. The
@@ -259,8 +261,8 @@ the compiler-planned 16-byte-aligned adjustment, preserves it at offset zero,
 and writes the logical sequence from offset eight. The target's
 compiler-generated witness thunk performs the only transition to the
 direct-method continuation stack; forwarding completion does not adjust it
-again. `Float16` and `Float` contribute their payload in the low two or four
-bytes of one eight-byte stack word; each SIMD fragment contributes two words. A
+again. `Float16` and `Float` preserve their platform ABI storage; each SIMD
+fragment contributes two words. A
 ninth retained word, typed-error destination, split or
 wider integer value, partial or more-than-four-register vector spill, dependent
 or otherwise non-independent indirect argument, and async accessor remain

@@ -1,4 +1,5 @@
 import Testing
+import TestDoublesRuntimeSupport
 @testable import TestDoubles
 
 struct LargeABIResult: Equatable, Sendable {
@@ -489,7 +490,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
         #expect(x86_64.stackByteCount == 32)
     }
 
-    @Test func arm64PacksNarrowStackValuesBeforeAlignedHiddenWords() {
+    @Test func argumentLocationPlanUsesThePlatformNarrowStackLayout() {
         let integer = CallFrameArgumentShape(
             type: Int.self,
             layout: abiClass(for: Int.self)
@@ -511,14 +512,28 @@ protocol ExtendedAsyncABIProbe: Sendable {
             trailingGeneralPurposeWordCount: 2,
             architecture: .arm64
         )
+        let arm64UsesNaturalAlignment =
+            RuntimeArchitecture.arm64.stackArgumentLayout
+            == .naturallyAligned
         #expect(arm64.arguments[8][0].storage == .stack(byteOffset: 0))
-        #expect(arm64.arguments[9][0].storage == .stack(byteOffset: 1))
-        #expect(arm64.argumentStackByteCount == 2)
+        #expect(
+            arm64.arguments[9][0].storage
+                == .stack(byteOffset: arm64UsesNaturalAlignment ? 1 : 8)
+        )
+        #expect(
+            arm64.argumentStackByteCount
+                == (arm64UsesNaturalAlignment ? 2 : 16)
+        )
         #expect(
             arm64.trailingGeneralPurpose.map(\.storage)
-                == [.stack(byteOffset: 8), .stack(byteOffset: 16)]
+                == (arm64UsesNaturalAlignment
+                    ? [.stack(byteOffset: 8), .stack(byteOffset: 16)]
+                    : [.stack(byteOffset: 16), .stack(byteOffset: 24)])
         )
-        #expect(arm64.stackByteCount == 24)
+        #expect(
+            arm64.stackByteCount
+                == (arm64UsesNaturalAlignment ? 24 : 32)
+        )
 
         let x86_64 = CallFrameArgumentLocationPlan(
             arguments: arguments,
@@ -533,6 +548,22 @@ protocol ExtendedAsyncABIProbe: Sendable {
                 == [.stack(byteOffset: 32), .stack(byteOffset: 40)]
         )
         #expect(x86_64.stackByteCount == 48)
+    }
+
+    @Test func stackArgumentLayoutIncludesThePlatformABI() {
+        #expect(
+            RuntimeArchitecture.x86_64.stackArgumentLayout == .wordSlots
+        )
+        #if canImport(Darwin)
+            #expect(
+                RuntimeArchitecture.arm64.stackArgumentLayout
+                    == .naturallyAligned
+            )
+        #else
+            #expect(
+                RuntimeArchitecture.arm64.stackArgumentLayout == .wordSlots
+            )
+        #endif
     }
 
     @Test func argumentLocationPlanUsesIndependentRegisterBanksAndOneStackCursor() {

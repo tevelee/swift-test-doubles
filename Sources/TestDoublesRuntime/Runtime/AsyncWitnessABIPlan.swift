@@ -215,9 +215,9 @@ private func asyncWitnessStackPlan(
 /// concrete one- or two-word integer, `Float`, `Double`, or concrete SIMD values
 /// occupying one through four registers that spill consecutively from their
 /// banks. Split or wider integer values, dependent values, wider-vector values,
-/// accessors, and typed-error shapes remain fail-closed. A narrow integer,
-/// `Float16`, or independent indirect value still contributes its complete
-/// eight-byte ABI stack slot.
+/// accessors, and typed-error shapes remain fail-closed. Narrow integer and
+/// `Float16` storage follows the platform's packed or word-slot stack ABI; an
+/// independent indirect value contributes one complete pointer word.
 package func asyncForwardingStackPlan(
     for method: MethodDescriptor,
     architecture: RuntimeArchitecture
@@ -579,7 +579,9 @@ private func alignedAsyncStackOffset(
     for argument: WitnessArgumentDescriptor,
     architecture: RuntimeArchitecture
 ) -> Int {
-    guard architecture == .arm64 else { return offset }
+    guard architecture.stackArgumentLayout == .naturallyAligned else {
+        return offset
+    }
     let alignment: Int
     if case .indirect = argument.value.layout {
         alignment = MemoryLayout<UInt>.alignment
@@ -602,10 +604,10 @@ private func asyncStackConsumedByteCount(
     _ byteCount: Int,
     architecture: RuntimeArchitecture
 ) -> Int {
-    switch architecture {
-        case .arm64:
+    switch architecture.stackArgumentLayout {
+        case .naturallyAligned:
             return byteCount
-        case .x86_64:
+        case .wordSlots:
             let wordByteCount = MemoryLayout<UInt>.size
             return max(
                 wordByteCount,

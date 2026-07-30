@@ -1,3 +1,8 @@
+package enum RuntimeStackArgumentLayout: Equatable, Sendable {
+    case naturallyAligned
+    case wordSlots
+}
+
 package enum RuntimeArchitecture: Equatable, Sendable {
     case arm64
     case x86_64
@@ -18,4 +23,20 @@ package enum RuntimeArchitecture: Equatable, Sendable {
     }
 
     package var vectorArgumentRegisterCount: Int { 8 }
+
+    /// Swift's stack-slot policy depends on both CPU architecture and platform.
+    /// Darwin arm64 follows natural value alignment, while non-Darwin arm64 and
+    /// x86_64 reserve complete machine-word slots for these argument fragments.
+    package var stackArgumentLayout: RuntimeStackArgumentLayout {
+        switch self {
+            case .arm64:
+                #if canImport(Darwin)
+                    .naturallyAligned
+                #else
+                    .wordSlots
+                #endif
+            case .x86_64:
+                .wordSlots
+        }
+    }
 }

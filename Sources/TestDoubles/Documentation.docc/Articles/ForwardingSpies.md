@@ -161,16 +161,16 @@ through eight consecutive stack words contributed by complete one- or two-word
 integers, `Float16` where available, `Float`, `Double`, or SIMD arguments
 occupying one through four registers when the target's dynamic-Self metadata
 and witness table follow on that same stack path. Each complete 16-byte SIMD
-fragment contributes two words. Narrow integers may use the low bytes of their
-padded stack words. A complete two-word integer contributes two words; unused
-high bytes in its final word may be padding. An independent
+fragment contributes two words. Adjacent narrow integers may share a retained
+word on Darwin arm64; non-Darwin arm64 and x86_64 preserve separate eight-byte
+ABI slots. A complete two-word integer contributes two words; unused high bytes
+in its final word may be padding. An independent
 indirect argument contributes its one pointer word. The bridge copies the words
 before suspension, then places them in declaration order before that hidden
 pair.
 Immediate and suspending targets, untyped errors, and indirect result storage
-share this boundary on arm64 and x86_64. A spilled `Float` uses the low four
-bytes of its eight-byte stack slot; a spilled `Float16` uses the low two bytes
-on platforms that provide it. A ninth word, split or wider integer value,
+share this boundary on arm64 and x86_64. Spilled `Float` and `Float16` values
+preserve their platform ABI storage. A ninth word, split or wider integer value,
 partially spilled or more-than-four-register vector value,
 dependent or otherwise non-independent indirect argument, accessor, static
 requirement, and typed-error stack shape remain fail-closed.

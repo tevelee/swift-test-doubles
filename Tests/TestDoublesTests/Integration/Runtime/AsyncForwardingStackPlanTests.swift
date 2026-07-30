@@ -213,7 +213,7 @@ struct AsyncForwardingStackPlanTests {
         }
     }
 
-    @Test func acceptsRepeatedNarrowIntegersInPackedStackWords() {
+    @Test func acceptsRepeatedNarrowIntegersInPlatformStackWords() {
         let method = MethodDescriptor(
             kind: .method,
             name: "inspect",
@@ -229,7 +229,9 @@ struct AsyncForwardingStackPlanTests {
             asyncForwardingStackPlan(
                 for: method,
                 architecture: .arm64
-            )?.visibleArgumentLocations.count == 1
+            )?.visibleArgumentLocations.count
+                == (RuntimeArchitecture.arm64.stackArgumentLayout
+                    == .naturallyAligned ? 1 : 2)
         )
         #expect(
             asyncForwardingStackPlan(
