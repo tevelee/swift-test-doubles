@@ -16,6 +16,15 @@ struct LinkedMultipleAssociatedTypeProbe: MultipleAssociatedTypeProbe {
     func render(_ number: Int, as text: String) -> String { "\(number):\(text)" }
 }
 
+protocol AssociatedMetatypeProbe<Element> {
+    associatedtype Element
+    func identify(_ type: Element.Type) -> Element.Type
+}
+
+struct LinkedAssociatedMetatypeProbe: AssociatedMetatypeProbe {
+    func identify(_ type: Int.Type) -> Int.Type { type }
+}
+
 protocol NumericAssociatedRoot<Number> {
     associatedtype Number: BinaryInteger
     func numericValue() -> Number
@@ -60,6 +69,13 @@ private func useLinkedMultipleAssociatedTypeProbe(
 }
 
 @inline(never)
+private func useLinkedAssociatedMetatypeProbe(
+    _ value: any AssociatedMetatypeProbe<Int>
+) -> Int.Type {
+    value.identify(Int.self)
+}
+
+@inline(never)
 private func useLinkedNumericAssociatedRoot(
     _ value: any NumericAssociatedRoot<Int>
 ) -> Int {
@@ -88,6 +104,24 @@ private func uppercasedTextValue<P: TextAssociatedRoot>(_ value: P) -> String {
 }
 
 @Suite struct MultipleAssociatedTypeTests {
+    @Test func associatedDependentMetatypesUseFixedWidthTransport() throws {
+        #expect(
+            useLinkedAssociatedMetatypeProbe(
+                LinkedAssociatedMetatypeProbe()
+            ) == Int.self
+        )
+        let stub = try Stub<any AssociatedMetatypeProbe<Int>>()
+        stub.when {
+            $0.identify(Match.any(using: Int.self))
+        }.thenReturn(Int.self)
+
+        let probe: any AssociatedMetatypeProbe<Int> = stub()
+        #expect(probe.identify(Int.self) == Int.self)
+        stub.verify {
+            $0.identify(Match.any(using: Int.self))
+        }
+    }
+
     @Test func automaticDiscoveryMapsDistinctBindingsAndConformances() throws {
         #expect(
             useLinkedMultipleAssociatedTypeProbe(

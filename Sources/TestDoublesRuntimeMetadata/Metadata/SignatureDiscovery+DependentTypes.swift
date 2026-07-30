@@ -18,6 +18,7 @@ func resolveSupportedDependentType(
             protocolDescriptor: protocolDescriptor,
             associatedTypeBindings: associatedTypeBindings
         ) != nil || standardLibraryDependentShape(in: spelling) != nil
+            || dependentMetatypeInstance(in: spelling) != nil
             || genericApplication(spelling) != nil
     else {
         return nil
@@ -66,6 +67,15 @@ private func resolveSupportedTypeComponent(
             named: name,
             declaredBy: protocolDescriptor
         )
+    }
+    if let instance = dependentMetatypeInstance(in: spelling) {
+        return try resolveSupportedTypeComponent(
+            instance,
+            protocolDescriptor: protocolDescriptor,
+            requirementIndex: requirementIndex,
+            associatedTypeBindings: associatedTypeBindings,
+            mangledSignature: mangledSignature
+        ).metatype()
     }
     if let shape = standardLibraryDependentShape(in: spelling) {
         switch shape {
@@ -205,6 +215,15 @@ private func resolveSupportedTypeComponent(
         )
     }
     return ResolvedDependentType(type: type, dependency: .independent)
+}
+
+private func dependentMetatypeInstance(in spelling: String) -> String? {
+    let normalized =
+        spelling.hasPrefix("@thick ")
+        ? String(spelling.dropFirst("@thick ".count))
+        : spelling
+    guard normalized.hasSuffix(".Type") else { return nil }
+    return String(normalized.dropLast(".Type".count))
 }
 
 private enum StandardLibraryDependentShape {

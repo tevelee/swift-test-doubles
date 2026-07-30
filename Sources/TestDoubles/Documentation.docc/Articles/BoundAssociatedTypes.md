@@ -278,8 +278,9 @@ signature validation possible:
   declaration in the flattened layout.
 - Dependent values outside recursive `Optional`, `Array`, `Set`, `Dictionary`,
   `Result`, and the bounded automatic generic-nominal slice, such as tuples,
-  metatypes, existentials, or function types
-  containing `Element`. An `AnyObject`-constrained associated type has a
+  existentials, or function types containing `Element`. A direct
+  `Element.Type` metatype is supported through its fixed one-word metadata
+  representation. An `AnyObject`-constrained associated type has a
   separately bounded slice: direct values and one `Optional` layer only.
 - Generic nominal values with more than two type parameters, nested or
   unlinked constructors, constructors whose metadata accessor needs non-type
@@ -316,8 +317,8 @@ rejected declarations through construction.
 The recursive classifier is deliberately bounded to standard-library
 `Optional`, `Array`, `Set`, `Dictionary`, `Result`, and linked top-level
 generic nominal values with one or two type parameters. Supporting other
-dependent values requires formal lowering evidence for tuples, metatypes,
-existentials, function types, and broader generic nominal forms. The
+dependent values requires formal lowering evidence for tuples, existentials,
+function types, nested metatype shapes, and broader generic nominal forms. The
 implemented containers model their distinct lowering instead of inferring a
 universal convention from substituted concrete metadata. `Result` is
 special-cased as a two-payload enum: either formally opaque payload makes the

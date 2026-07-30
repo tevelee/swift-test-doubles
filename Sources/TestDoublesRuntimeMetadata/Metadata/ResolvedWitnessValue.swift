@@ -23,6 +23,16 @@ package struct ResolvedDependentType: Sendable {
         )
     }
 
+    package func metatype() -> Self {
+        func type<Instance>(of _: Instance.Type) -> Any.Type {
+            Instance.Type.self
+        }
+        return Self(
+            type: _openExistential(self.type, do: type),
+            dependency: .metatype(dependency)
+        )
+    }
+
     package func set(
         protocolName: String,
         sourceDescription: String

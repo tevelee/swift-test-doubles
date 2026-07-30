@@ -42,6 +42,7 @@ package indirect enum WitnessValueDependency: Equatable, Sendable {
         success: WitnessValueDependency,
         failure: WitnessValueDependency
     )
+    case metatype(WitnessValueDependency)
     case genericClass(
         constructor: GenericClassID,
         arguments: [WitnessValueDependency]
@@ -83,6 +84,8 @@ package indirect enum WitnessValueDependency: Equatable, Sendable {
                 true
             case .optional(let wrapped), .array(let wrapped), .set(let wrapped):
                 wrapped.isAssociatedTypeDependent
+            case .metatype(let instance):
+                instance.isAssociatedTypeDependent
             case .dictionary(let key, let value):
                 key.isAssociatedTypeDependent || value.isAssociatedTypeDependent
             case .result(let success, let failure):
@@ -120,6 +123,8 @@ package indirect enum WitnessValueDependency: Equatable, Sendable {
                 reference.usesReferenceABI == false
             case .optional(let wrapped):
                 wrapped.usesOpaqueValueWitnessConvention
+            case .metatype:
+                false
             case .array, .set, .dictionary:
                 false
             case .result(let success, let failure):
@@ -140,6 +145,8 @@ package indirect enum WitnessValueDependency: Equatable, Sendable {
                 reference.name
             case .optional(let wrapped), .array(let wrapped), .set(let wrapped):
                 wrapped.firstAssociatedTypeName
+            case .metatype(let instance):
+                instance.firstAssociatedTypeName
             case .dictionary(let key, let value):
                 key.firstAssociatedTypeName ?? value.firstAssociatedTypeName
             case .result(let success, let failure):
@@ -163,6 +170,8 @@ package indirect enum WitnessValueDependency: Equatable, Sendable {
                 reference.usesReferenceABI
             case .optional(let wrapped), .array(let wrapped), .set(let wrapped):
                 wrapped.containsReferenceAssociatedType
+            case .metatype:
+                false
             case .dictionary(let key, let value):
                 key.containsReferenceAssociatedType
                     || value.containsReferenceAssociatedType
@@ -200,6 +209,8 @@ package indirect enum WitnessValueDependency: Equatable, Sendable {
                 .associatedType(name: reference.name)
             case .optional(let wrapped), .array(let wrapped), .set(let wrapped):
                 wrapped.legacyProjection
+            case .metatype(let instance):
+                .metatype(instance.legacyProjection)
             case .dictionary(let key, let value):
                 .dictionary(
                     key: key.legacyProjection,
@@ -231,6 +242,8 @@ package indirect enum WitnessValueDependency: Equatable, Sendable {
                 [reference.name]
             case .optional(let wrapped), .array(let wrapped), .set(let wrapped):
                 wrapped.associatedTypeNames
+            case .metatype(let instance):
+                instance.associatedTypeNames
             case .dictionary(let key, let value):
                 key.associatedTypeNames + value.associatedTypeNames
             case .result(let success, let failure):
