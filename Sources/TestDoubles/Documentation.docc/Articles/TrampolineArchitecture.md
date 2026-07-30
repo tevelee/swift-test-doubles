@@ -368,12 +368,13 @@ members, but not initializer requirements or dynamic `Self` results. Native
 Swift-only superclasses, superclass-constrained extended existentials, broader
 dependent-value lowering remain outside the supported layout. Dummy publishes
 `read` descriptors with a neutral, unreachable resume discriminator because
-its invocation endpoint terminates before yielding. Automatic instance methods
-may take direct or single-optional
-`Self` arguments with borrowed/default or consuming ownership, including
-untyped and supported typed throwing effects. Explicit schemas, Spies,
-superclass constraints, `inout`, accessors, static methods, and wider wrappers
-remain unsupported. Swift 6.3
+its invocation endpoint terminates before yielding. Automatic instance and
+synchronous static methods may take direct or single-optional `Self` arguments
+with borrowed/default or consuming ownership, including untyped and supported
+typed throwing effects. Synchronous instance subscript getters and setters
+support the same direct and single-optional `Self` indices. Explicit schemas,
+Spies, superclass constraints, `inout`, initializers, async static methods, and
+wider wrappers remain unsupported. Swift 6.3
 `read` and Swift 6.4 `yielding borrow` forwarding use the supported
 `yield_once_2` descriptor. For Swift 6.4's paired witnesses, forwarding selects
 the adjacent yielding-borrow target explicitly. Source calls compiled with

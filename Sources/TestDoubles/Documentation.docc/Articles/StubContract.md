@@ -123,15 +123,16 @@ associated with another fabricated witness graph cannot be installed
 accidentally.
 
 Automatic discovery also accepts direct `Self` and one `Optional<Self>` layer
-as arguments to instance methods, including borrowed/default, consuming,
-synchronous, async, untyped-throwing, and supported typed-throwing forms. The
-declaring protocol determines the ABI: an ordinary protocol uses opaque
-indirect storage, while a protocol that itself requires `AnyObject` uses one
-direct reference word. A class-constrained child does not change an inherited
-unconstrained base requirement's ABI. Configuration and invocation use
-generic-opening helper functions because an existential cannot call a
-`Self`-taking requirement directly. Explicit schemas, Spies,
-superclass-constrained existentials, accessors, initializers, static methods,
+as arguments to instance methods, synchronous static methods, and synchronous
+instance subscript getters and setters. Instance methods support
+borrowed/default, consuming, synchronous, async, untyped-throwing, and supported
+typed-throwing forms. The declaring protocol determines the ABI: an ordinary
+protocol uses opaque indirect storage, while a protocol that itself requires
+`AnyObject` uses one direct reference word. A class-constrained child does not
+change an inherited unconstrained base requirement's ABI. Configuration and
+invocation use generic-opening helper functions because an existential cannot
+call a `Self`-taking requirement directly. Explicit schemas, Spies,
+superclass-constrained existentials, initializers, async static methods,
 `inout`, nested optionals, and other wrappers remain fail-closed.
 
 Playback recording keeps a weak reference to a generated `Self` argument so a
@@ -460,10 +461,10 @@ remain fail-closed.
   function or dynamic `Self`. A Stub supports Swift 6.4 `yielding borrow`
   through its `yield_once_2` witness; use a hand-written double for the other
   shapes.
-- `Self` arguments outside automatic instance methods with a direct value or
-  one `Optional` layer. Explicit schemas, Spies, superclass constraints,
-  accessors, initializers, static methods, `inout`, and wider wrappers remain
-  unsupported.
+- `Self` arguments outside automatic supported methods and synchronous instance
+  subscript accessors with a direct value or one `Optional` layer. Explicit
+  schemas, Spies, superclass constraints, initializers, async static methods,
+  `inout`, and wider wrappers remain unsupported.
 - Protocols that relax `Copyable` or `Escapable`. Recorder arguments, matchers,
   captors, and results escape into `Any`-backed storage, so move-only or
   lifetime-dependent values need a different recorder model.

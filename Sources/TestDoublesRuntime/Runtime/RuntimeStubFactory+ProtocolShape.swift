@@ -214,7 +214,7 @@ extension RuntimeStubFactory {
             let allowsAutomaticSelfArguments =
                 selfArguments.isEmpty == false
                 && method.origin == .automatic
-                && method.kind == .method
+                && method.kind != .initializer
                 && (method.receiver == .instance || method.isAsync == false)
                 && {
                     if case .superclassConstrained = representation {
@@ -255,12 +255,12 @@ extension RuntimeStubFactory {
                             + "Direct and Optional Self arguments require automatic witness discovery so their semantic identity cannot be erased by function conversion."
                     )
                 }
-                guard method.kind == .method,
+                guard method.kind != .initializer,
                     method.receiver == .instance || method.isAsync == false
                 else {
                     throw RuntimeConstructionError.unsupportedProtocolShape(
                         protocolName: protocolName,
-                        reason: "Requirement \(method.index) contains a Self argument outside a supported automatic method. Initializers, accessors, and async static Self arguments remain unsupported."
+                        reason: "Requirement \(method.index) contains a Self argument outside a supported automatic method or accessor. Initializers and async static Self arguments remain unsupported."
                     )
                 }
             }

@@ -158,6 +158,31 @@ public struct RealExternalInoutSelfArgumentProbe:
     public func update(_ value: inout Self) {}
 }
 
+public protocol ExternalSelfSubscriptArgumentProbe {
+    subscript(_ value: Self) -> Int { get set }
+    subscript(optional value: Self?) -> Int { get set }
+}
+
+public struct RealExternalSelfSubscriptArgumentProbe:
+    ExternalSelfSubscriptArgumentProbe
+{
+    public init() {}
+
+    public subscript(
+        _ value: RealExternalSelfSubscriptArgumentProbe
+    ) -> Int {
+        get { 0 }
+        set {}
+    }
+
+    public subscript(
+        optional value: RealExternalSelfSubscriptArgumentProbe?
+    ) -> Int {
+        get { 0 }
+        set {}
+    }
+}
+
 public enum ExternalStaticSelfArgumentError: Error, Equatable {
     case rejected
 }
