@@ -163,11 +163,21 @@ struct RealDynamicSelfSpyService: DynamicSelfSpyService {
 
 typealias SpyTransform = @Sendable (Int) -> Int
 
+enum FunctionValueSpyError: Error, Equatable {
+    case rejected
+}
+
 protocol FunctionValueSpyService {
     func transform(_ operation: @escaping SpyTransform) -> SpyTransform
+    func transformThrowing(
+        _ operation: @escaping SpyTransform
+    ) throws -> SpyTransform
     func transformLater(
         _ operation: @escaping SpyTransform
     ) async -> SpyTransform
+    func transformLaterThrowing(
+        _ operation: @escaping SpyTransform
+    ) async throws -> SpyTransform
     static func transformStatic(
         _ operation: @escaping SpyTransform
     ) -> SpyTransform
@@ -178,12 +188,33 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
         operation
     }
 
+    func transformThrowing(
+        _ operation: @escaping SpyTransform
+    ) throws -> SpyTransform {
+        let transformed = operation(20)
+        guard transformed >= 0 else {
+            throw FunctionValueSpyError.rejected
+        }
+        return { _ in transformed + 2 }
+    }
+
     func transformLater(
         _ operation: @escaping SpyTransform
     ) async -> SpyTransform {
         let transformed = operation(20) + 2
         await Task.yield()
         return { _ in transformed }
+    }
+
+    func transformLaterThrowing(
+        _ operation: @escaping SpyTransform
+    ) async throws -> SpyTransform {
+        let transformed = operation(20)
+        await Task.yield()
+        guard transformed >= 0 else {
+            throw FunctionValueSpyError.rejected
+        }
+        return { _ in transformed + 2 }
     }
 
     static func transformStatic(
@@ -456,6 +487,37 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
         }
         spy.verify(returning: placeholder) {
             captureStaticTransform($0, placeholder: placeholder)
+        }
+    }
+
+    @Test func forwardsFunctionValuesAcrossThrowingMethods() async throws {
+        let placeholder: SpyTransform = { $0 }
+        let spy = try Spy<any FunctionValueSpyService>(
+            forwardingTo: RealFunctionValueSpyService()
+        )
+        let service: any FunctionValueSpyService = spy()
+
+        let transformed = try service.transformThrowing { $0 * 2 }
+        #expect(transformed(0) == 42)
+        #expect(throws: FunctionValueSpyError.rejected) {
+            try service.transformThrowing { _ in -1 }
+        }
+
+        let transformedLater = try await service.transformLaterThrowing {
+            $0 * 2
+        }
+        #expect(transformedLater(0) == 42)
+        await #expect(throws: FunctionValueSpyError.rejected) {
+            try await service.transformLaterThrowing { _ in -1 }
+        }
+
+        spy.verify(.exactly(2), returning: placeholder) {
+            try $0.transformThrowing(Match.any(using: placeholder))
+        }
+        await spy.verify(.exactly(2), returning: placeholder) {
+            try await $0.transformLaterThrowing(
+                Match.any(using: placeholder)
+            )
         }
     }
 }

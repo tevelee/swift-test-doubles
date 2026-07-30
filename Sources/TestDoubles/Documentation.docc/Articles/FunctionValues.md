@@ -64,8 +64,10 @@ their closure payloads through their own value witnesses. Dynamic actor
 isolation carried by an `@isolated(any)` value is preserved across the recorder.
 
 Forwarding Spies support automatically discovered function-valued arguments
-and results on otherwise supported synchronous, asynchronous, and static method
-witnesses. Recording borrows and reabstracts a separate closure value while the
+and results on otherwise supported synchronous, throwing, asynchronous,
+async-throwing, and static method witnesses. Forwarded successes return the
+real target's function value, and forwarded failures preserve the target's
+error. Recording borrows and reabstracts a separate closure value while the
 original call-frame words continue unchanged to the real target, preserving
 captured contexts across suspension. Explicit compiler adapters remain
 Stub-only because their typed entry point changes the witness ABI. Function
