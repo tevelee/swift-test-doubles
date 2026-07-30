@@ -122,13 +122,13 @@ through four 128-bit vector registers on both arm64 and x86_64. Argument capture
 preserves all 16 bytes of each `q` or `xmm` register, and the decoder copies
 every declared register-width part. For results, the call frame keeps the
 established four low scalar return words and adds a separate high word for each;
-the synchronous entry bridge reconstructs up to four vector registers before
-returning. This leaves all established frame field offsets stable while
-preserving every SIMD lane bit. Construction checks the location plan for both
-architectures and rejects any supported vector that would become a stack
-argument. It also rejects every shape that would require scalarized lanes,
-padding interpretation, aggregate decomposition, associated metadata
-substitution, or async continuation transport.
+both synchronous and asynchronous completion bridges reconstruct up to four
+vector registers before returning. This leaves all established frame field
+offsets stable while preserving every SIMD lane bit. Construction checks the
+location plan for both architectures and rejects any supported vector that
+would become a stack argument. It also rejects every shape that would require
+scalarized lanes, padding interpretation, aggregate decomposition, associated
+metadata substitution, or vector stack transport.
 
 Synchronous Spy forwarding uses the same frame. The target-call bridge reloads
 complete `q0` through `q7` registers on arm64 and complete `xmm0` through `xmm7`

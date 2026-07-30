@@ -499,6 +499,14 @@ SYMBOL(td_swift_invoke_async_function_complete):
     str d1, [x9, #480]
     str d2, [x9, #488]
     str d3, [x9, #496]
+    umov x10, v0.d[1]
+    str x10, [x9, #TD_FRAME_RETURN_FP_HIGH_OFFSET]
+    umov x10, v1.d[1]
+    str x10, [x9, #520]
+    umov x10, v2.d[1]
+    str x10, [x9, #528]
+    umov x10, v3.d[1]
+    str x10, [x9, #536]
     ldrb w10, [x8, #48]
     cbz w10, .Ltd_async_invoke_nonthrowing_arm64
     str x20, [x9, #TD_FRAME_RETURN_ERROR_OFFSET]
@@ -633,6 +641,14 @@ SYMBOL(td_swift_async_trampoline_entry):
     ldr d1, [x9, #480]
     ldr d2, [x9, #488]
     ldr d3, [x9, #496]
+    ldr x10, [x9, #TD_FRAME_RETURN_FP_HIGH_OFFSET]
+    ins v0.d[1], x10
+    ldr x10, [x9, #520]
+    ins v1.d[1], x10
+    ldr x10, [x9, #528]
+    ins v2.d[1], x10
+    ldr x10, [x9, #536]
+    ins v3.d[1], x10
     ldr x20, [x9, #TD_FRAME_RETURN_ERROR_OFFSET]
     ldr x22, [x9, #TD_FRAME_RESERVED_OFFSET]
     ldr x16, [x22, #8]
@@ -673,6 +689,14 @@ SYMBOL(td_swift_async_trampoline_complete):
     ldr d1, [x9, #480]
     ldr d2, [x9, #488]
     ldr d3, [x9, #496]
+    ldr x10, [x9, #TD_FRAME_RETURN_FP_HIGH_OFFSET]
+    ins v0.d[1], x10
+    ldr x10, [x9, #520]
+    ins v1.d[1], x10
+    ldr x10, [x9, #528]
+    ins v2.d[1], x10
+    ldr x10, [x9, #536]
+    ins v3.d[1], x10
     ldr x20, [x9, #TD_FRAME_RETURN_ERROR_OFFSET]
     ldr x22, [x9, #TD_ASYNC_COMPLETION_PARENT_OFFSET]
     ldr x16, [x22, #8]
@@ -1416,6 +1440,10 @@ SYMBOL(td_swift_invoke_async_function_complete):
     movsd %xmm1, 480(%r10)
     movsd %xmm2, 488(%r10)
     movsd %xmm3, 496(%r10)
+    movhps %xmm0, TD_FRAME_RETURN_FP_HIGH_OFFSET(%r10)
+    movhps %xmm1, 520(%r10)
+    movhps %xmm2, 528(%r10)
+    movhps %xmm3, 536(%r10)
     cmpb $0, 48(%rax)
     je .Ltd_async_invoke_nonthrowing_x86_64
     movq %r13, TD_FRAME_RETURN_ERROR_OFFSET(%r10)
@@ -1540,6 +1568,10 @@ SYMBOL(td_swift_async_trampoline_entry):
     movsd 480(%r10), %xmm1
     movsd 488(%r10), %xmm2
     movsd 496(%r10), %xmm3
+    movhps TD_FRAME_RETURN_FP_HIGH_OFFSET(%r10), %xmm0
+    movhps 520(%r10), %xmm1
+    movhps 528(%r10), %xmm2
+    movhps 536(%r10), %xmm3
     movq TD_FRAME_RETURN_ERROR_OFFSET(%r10), %r13
     movq TD_FRAME_RESERVED_OFFSET(%r10), %r14
     movq 8(%r14), %r11
@@ -1580,6 +1612,10 @@ SYMBOL(td_swift_async_trampoline_complete):
     movsd 480(%r10), %xmm1
     movsd 488(%r10), %xmm2
     movsd 496(%r10), %xmm3
+    movhps TD_FRAME_RETURN_FP_HIGH_OFFSET(%r10), %xmm0
+    movhps 520(%r10), %xmm1
+    movhps 528(%r10), %xmm2
+    movhps 536(%r10), %xmm3
     movq TD_FRAME_RETURN_ERROR_OFFSET(%r10), %r13
     movq TD_ASYNC_COMPLETION_PARENT_OFFSET(%r10), %r14
     movq 8(%r14), %r11

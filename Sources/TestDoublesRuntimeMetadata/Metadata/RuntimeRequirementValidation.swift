@@ -18,10 +18,6 @@ package func runtimeSIMDUnsupportedReason(
     guard method.kind == .method, method.receiver == .instance else {
         return "The bounded vector-register path supports ordinary instance methods only."
     }
-    guard method.isAsync == false else {
-        return "Async continuation transport has not been proven for SIMD registers."
-    }
-
     for value in simdValues {
         guard value.type is any SIMD.Type else {
             return "SIMD nested in an aggregate does not share the direct vector ABI."

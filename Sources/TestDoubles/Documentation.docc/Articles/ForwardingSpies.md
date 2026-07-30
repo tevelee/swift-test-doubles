@@ -136,12 +136,13 @@ transport. This includes inherited requirements and concretely bound
 associated-type values. Getter effects cover ordinary untyped `throws`;
 typed-throwing getters remain unsupported.
 
-Ordinary synchronous instance methods may also forward concrete, copyable
+Ordinary instance methods may also forward concrete, copyable
 SIMD values when each value occupies one through four complete vector registers
 on both arm64 and x86_64. Mixed scalar and vector arguments and all eight vector
-argument registers are supported. The forwarding bridge preserves all lane
-bits in arguments and results. Smaller, padded, more-than-four-register, nested,
-dependent, and async SIMD shapes, plus any vector spill, remain fail-closed.
+argument registers are supported for synchronous and asynchronous calls. The
+forwarding bridge preserves all lane bits in arguments and results. Smaller,
+padded, more-than-four-register, nested, and dependent SIMD shapes, plus any
+vector spill, remain fail-closed.
 
 Ordinary async instance methods, untyped-throwing or not, may forward one
 through eight consecutive complete eight-byte general-purpose stack arguments.

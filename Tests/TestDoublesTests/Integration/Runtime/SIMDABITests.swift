@@ -160,10 +160,16 @@ private func fullWidthSIMDInput(_ index: UInt32) -> SIMD4<Float> {
 
 protocol AsyncSIMDABIProbe: Sendable {
     func echo(_ value: SIMD4<Float>) async -> SIMD4<Float>
+    func widen(_ value: SIMD4<Float>) async -> SIMD16<Float>
 }
 
 struct RealAsyncSIMDABIProbe: AsyncSIMDABIProbe {
     func echo(_ value: SIMD4<Float>) async -> SIMD4<Float> { value }
+
+    func widen(_ value: SIMD4<Float>) async -> SIMD16<Float> {
+        let half = SIMD8(lowHalf: value, highHalf: value)
+        return SIMD16(lowHalf: half, highHalf: half)
+    }
 }
 
 protocol AssociatedSIMDABIProbe<Vector> {
@@ -358,18 +364,49 @@ struct RealNestedSIMDABIProbe: NestedSIMDABIProbe {
         }
     }
 
-    @Test func asyncSIMDFailsClosed() {
+    @Test func asyncSIMDPreservesOneThroughFourVectorRegisters() async throws {
         _ = RealAsyncSIMDABIProbe()
-        expectUnsupportedProtocolShape(containing: "Async continuation") {
-            _ = try Stub<any AsyncSIMDABIProbe>(
-                .method(signatureOf: AsyncSIMDABIProbe.echo)
-            )
-        }
-        expectUnsupportedProtocolShape(containing: "Async continuation") {
-            _ = try Spy<any AsyncSIMDABIProbe>(
-                forwardingTo: RealAsyncSIMDABIProbe()
-            )
-        }
+        let input = SIMD4<Float>(
+            Float(bitPattern: 0x8000_0000),
+            Float(bitPattern: 0x3f80_0001),
+            Float(bitPattern: 0x7f7f_ffff),
+            Float(bitPattern: 0xff7f_fffe)
+        )
+        let replacement = SIMD4<Float>(
+            Float(bitPattern: 0x3f00_0001),
+            Float(bitPattern: 0xbf00_0010),
+            Float(bitPattern: 0x4000_0100),
+            Float(bitPattern: 0xc000_1000)
+        )
+        let half = SIMD8(lowHalf: replacement, highHalf: input)
+        let widened = SIMD16(lowHalf: half, highHalf: half)
+
+        let stub = try Stub<any AsyncSIMDABIProbe>(
+            .method(signatureOf: AsyncSIMDABIProbe.echo),
+            .method(signatureOf: AsyncSIMDABIProbe.widen)
+        )
+        await stub.when(returning: SIMD4<Float>()) {
+            await $0.echo(Match.equal(input))
+        }.thenReturn(replacement)
+        await stub.when(returning: SIMD16<Float>()) {
+            await $0.widen(Match.equal(input))
+        }.thenReturn(widened)
+
+        #expect(await stub().echo(input) == replacement)
+        #expect(await stub().widen(input) == widened)
+
+        let spy = try Spy<any AsyncSIMDABIProbe>(
+            forwardingTo: RealAsyncSIMDABIProbe()
+        )
+        #expect(await spy().echo(input) == input)
+        let forwardedHalf = SIMD8(lowHalf: input, highHalf: input)
+        #expect(
+            await spy().widen(input)
+                == SIMD16(
+                    lowHalf: forwardedHalf,
+                    highHalf: forwardedHalf
+                )
+        )
     }
 
     @Test func associatedDependentSIMDFailsClosed() {
