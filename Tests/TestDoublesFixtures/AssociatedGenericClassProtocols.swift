@@ -16,6 +16,18 @@ public final class ExternalAssociatedPair<First, Second> {
     }
 }
 
+public final class ExternalAssociatedTriple<First, Second, Third> {
+    public let first: First
+    public let second: Second
+    public let third: Third
+
+    public init(_ first: First, _ second: Second, _ third: Third) {
+        self.first = first
+        self.second = second
+        self.third = third
+    }
+}
+
 public final class ExternalAlternativeAssociatedBox<Value> {
     public let value: Value
 
@@ -33,8 +45,7 @@ public final class ExternalConstrainedAssociatedBox<Value: Hashable> {
 }
 
 /// Constrains both parameters, so resolving it exercises two witness-table
-/// key arguments in the same call (four key arguments total, at this
-/// resolver's arity ceiling).
+/// key arguments in the same call (four key arguments total).
 public struct ExternalBothParametersConstrainedPair<First: Hashable, Second: Hashable> {
     public let first: First
     public let second: Second
@@ -66,8 +77,49 @@ public struct ExternalAssociatedValue<Value> {
     }
 }
 
+public struct ExternalAssociatedTripleValue<First, Second, Third> {
+    public let first: First
+    public let second: Second
+    public let third: Third
+
+    public init(_ first: First, _ second: Second, _ third: Third) {
+        self.first = first
+        self.second = second
+        self.third = third
+    }
+}
+
 public enum ExternalAssociatedChoice<Value> {
     case value(Value)
+}
+
+public protocol ExternalWideGenericNominalAssociatedProbe<Element> {
+    associatedtype Element
+
+    func transform(
+        _ value: ExternalAssociatedTriple<Element, String, Int>
+    ) -> ExternalAssociatedTriple<Element, String, Int>
+    func transform(
+        _ value: ExternalAssociatedTripleValue<Element, String, Int>
+    ) -> ExternalAssociatedTripleValue<Element, String, Int>
+}
+
+public struct RealExternalWideGenericNominalAssociatedProbe:
+    ExternalWideGenericNominalAssociatedProbe
+{
+    public init() {}
+
+    public func transform(
+        _ value: ExternalAssociatedTriple<Int, String, Int>
+    ) -> ExternalAssociatedTriple<Int, String, Int> {
+        value
+    }
+
+    public func transform(
+        _ value: ExternalAssociatedTripleValue<Int, String, Int>
+    ) -> ExternalAssociatedTripleValue<Int, String, Int> {
+        value
+    }
 }
 
 public protocol ExternalGenericClassAssociatedProbe<Element> {

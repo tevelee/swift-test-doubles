@@ -322,12 +322,12 @@ alongside inheritance, or span multiple composed roots. Direct dependent
 arguments and results, dependent setters and initializer arguments, and
 recursive `Optional`, `Array`, `Set`, `Dictionary`, and `Result` values are
 supported. Automatic discovery additionally accepts linked, top-level
-generic Swift classes, structs, and enums with one or two type parameters, each
-optionally carrying a single protocol-conformance requirement, when every
-argument recursively resolves and reconstructed metadata proves the exact
-nominal descriptor. Classes retain their fixed reference transport; structs and
-enums use the formal opaque, indirect witness-value convention. No source-less
-explicit generic-nominal schema is available. An `AnyObject`-constrained
+generic Swift classes, structs, and enums with one or more type parameters and
+supported protocol-conformance key arguments, when every argument recursively
+resolves and reconstructed metadata proves the exact nominal descriptor.
+Classes retain their fixed reference transport; structs and enums use the
+formal opaque, indirect witness-value convention. No source-less explicit
+generic-nominal schema is available. An `AnyObject`-constrained
 associated type bound to a concrete class uses the documented direct or
 single-`Optional` reference slice. Direct
 and supported container method arguments may be consuming.

@@ -112,6 +112,14 @@ private func resolveAssociatedTypedErrorNominalComponent(
     if let application = genericApplication(spelling),
         let argumentSpellings = topLevelComponents(in: application.arguments)
     {
+        guard argumentSpellings.count <= 2 else {
+            throw RuntimeConstructionError.unsupportedProtocolShape(
+                protocolName: protocolDescriptor.name,
+                reason:
+                    "Requirement \(requirementIndex) embeds an associated type inside unsupported typed error '\(spelling)'. "
+                    + "Associated-dependent typed errors currently support generic nominals with at most two type parameters."
+            )
+        }
         let arguments = try argumentSpellings.map {
             try resolveAssociatedTypedErrorNominalComponent(
                 $0,

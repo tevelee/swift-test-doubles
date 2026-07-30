@@ -158,6 +158,12 @@ import TestDoublesFixtures
                 arguments: [Optional<[Int]>.self, String.self]
             )
         )
+        let triple = try #require(
+            genericClassType(
+                named: "TestDoublesFixtures.ExternalAssociatedTriple",
+                arguments: [Int.self, String.self, Bool.self]
+            )
+        )
         let alternative = try #require(
             genericClassType(
                 named: "TestDoublesFixtures.ExternalAlternativeAssociatedBox",
@@ -177,6 +183,12 @@ import TestDoublesFixtures
             ObjectIdentifier(pair.type)
                 == ObjectIdentifier(
                     ExternalAssociatedPair<[Int]?, String>.self
+                )
+        )
+        #expect(
+            ObjectIdentifier(triple.type)
+                == ObjectIdentifier(
+                    ExternalAssociatedTriple<Int, String, Bool>.self
                 )
         )
         #expect(intBox.constructor == stringBox.constructor)

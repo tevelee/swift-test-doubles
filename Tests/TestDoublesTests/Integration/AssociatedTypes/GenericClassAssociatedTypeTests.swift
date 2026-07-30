@@ -254,6 +254,57 @@ private func useLinkedConstrainedGenericClassAssociatedProbe(
             probe.transform(ExternalConstrainedAssociatedBox(41)).value == 42
         )
     }
+
+    @Test func automaticDiscoverySupportsWiderGenericNominalArity() throws {
+        _ = RealExternalWideGenericNominalAssociatedProbe()
+        typealias Probe = any ExternalWideGenericNominalAssociatedProbe<Int>
+        let stub = try Stub<Probe>()
+        let classPlaceholder = ExternalAssociatedTriple(0, "zero", 0)
+        let valuePlaceholder = ExternalAssociatedTripleValue(0, "zero", 0)
+
+        try assertGenericClassDescriptor(
+            #require(stub.recorder.runtimeMethod(for: 0)),
+            type: ExternalAssociatedTriple<Int, String, Int>.self,
+            associatedTypeNames: ["Element"]
+        )
+        try assertGenericValueDescriptor(
+            #require(stub.recorder.runtimeMethod(for: 1)),
+            type: ExternalAssociatedTripleValue<Int, String, Int>.self,
+            associatedTypeNames: ["Element"]
+        )
+
+        stub.when(returning: classPlaceholder) {
+            $0.transform(Match.any(using: classPlaceholder))
+        }.then { (value: ExternalAssociatedTriple<Int, String, Int>) in
+            ExternalAssociatedTriple(
+                value.first + 1,
+                value.second,
+                value.third
+            )
+        }
+        stub.when(returning: valuePlaceholder) {
+            $0.transform(Match.any(using: valuePlaceholder))
+        }.then {
+            (value: ExternalAssociatedTripleValue<Int, String, Int>) in
+            ExternalAssociatedTripleValue(
+                value.first + 1,
+                value.second,
+                value.third
+            )
+        }
+
+        let probe: Probe = stub()
+        #expect(
+            probe.transform(
+                ExternalAssociatedTriple(41, "answer", 42)
+            ).first == 42
+        )
+        #expect(
+            probe.transform(
+                ExternalAssociatedTripleValue(41, "answer", 42)
+            ).first == 42
+        )
+    }
 }
 
 private func assertGenericClassDescriptor<Value>(

@@ -83,10 +83,10 @@ let stub = try SourceStub(
 ```
 
 Automatic discovery also recognizes a bounded generic-nominal shape. The
-class, struct, or enum must be linked and top-level, with one or two
-type parameters, each optionally carrying a single protocol-conformance
-requirement, and every argument must resolve recursively from concrete or
-associated metadata:
+class, struct, or enum must be linked and top-level. Its arity follows the
+linked descriptor's exact generic context; type parameters may each carry a
+supported protocol-conformance requirement, and every argument must resolve
+recursively from concrete or associated metadata:
 
 ```swift
 public final class Page<Value> {}
@@ -220,13 +220,14 @@ it must evolve alongside the repository's Swift runtime support matrix.
   `Hashable`, and every resolved `Result` failure must prove `Error`. Method
   arguments in all supported container forms may be consuming.
 - Automatically discovered linked, top-level generic Swift classes,
-  structs, and enums with one or two type parameters, each optionally carrying
-  a single protocol-conformance requirement (`Box<Value: Hashable>`, not only
-  `Box<Value>`). Every argument may recursively contain concrete types,
-  associated types, and supported standard-library or generic-nominal shapes.
-  Reconstructed metadata must identify the exact linked nominal descriptor.
-  Classes prove fixed reference metadata; structs and enums use Swift's
-  formal opaque, indirect witness-value convention.
+  structs, and enums with one or more type parameters, each optionally
+  carrying a supported protocol-conformance requirement
+  (`Box<Value: Hashable>`, not only `Box<Value>`). Every argument may
+  recursively contain concrete types, associated types, and supported
+  standard-library or generic-nominal shapes. Reconstructed metadata must
+  identify the exact linked nominal descriptor. Classes prove fixed reference
+  metadata; structs and enums use Swift's formal opaque, indirect witness-value
+  convention.
 - Direct and supported-container associated-type initializer arguments. Swift's
   initializer witness convention owns every parameter.
 - Requirements with any combination of `async` and ordinary untyped `throws`.
@@ -286,10 +287,9 @@ signature validation possible:
   representation. An `AnyObject`-constrained associated type has a
   separately bounded slice: direct values, one `Optional` layer, and
   fixed-layout `Array`, `Set`, and `Dictionary` shells.
-- Generic nominal values with more than two type parameters, nested or
-  unlinked constructors, constructors whose metadata accessor needs non-type
-  arguments, more than one protocol-conformance requirement per parameter,
-  or source-less explicit generic-nominal schemas.
+- Nested or unlinked generic nominal constructors, constructors whose metadata
+  accessor needs unsupported non-type arguments, unsupported generic
+  requirements, or source-less explicit generic-nominal schemas.
 - Associated-dependent typed errors whose outer shape is `Optional` or another
   unproven value wrapper, an unlinked generic nominal, or a generic nominal
   with more than two type parameters. Explicit concrete and string-named
@@ -321,9 +321,10 @@ rejected declarations through construction.
 
 The recursive classifier is deliberately bounded to standard-library
 `Optional`, `Array`, `Set`, `Dictionary`, `Result`, and linked top-level
-generic nominal values with one or two type parameters. Supporting other
-dependent values requires formal lowering evidence for tuples, existentials,
-function types, nested metatype shapes, and broader generic nominal forms. The
+generic nominal values whose exact metadata-accessor key arguments can be
+reconstructed. Supporting other dependent values requires formal lowering
+evidence for tuples, existentials, function types, nested metatype shapes, and
+unlinked or requirement-heavy generic nominal forms. The
 implemented containers model their distinct lowering instead of inferring a
 universal convention from substituted concrete metadata. `Result` is
 special-cased as a two-payload enum: either formally opaque payload makes the

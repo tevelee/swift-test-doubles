@@ -291,14 +291,13 @@ private func depthZeroGenericParameterIndex(mangledName: UnsafeRawPointer) -> In
 ///
 /// A constrained parameter (`Box<Value: Hashable>`) resolves through the
 /// same witness-table key-argument path `resolvedGenericAccessorType` uses
-/// for any kind; this only ever declines a class whose accessor needs more
-/// than one or two key arguments' worth of parameters, or a constructor
-/// whose accessor doesn't actually round-trip to a class.
+/// for any kind; arity is bounded by the linked generic context's exact key
+/// arguments rather than an independent library limit.
 package func genericClassType(
     named constructorName: String,
     arguments: [Any.Type]
 ) -> ResolvedGenericClassType? {
-    guard (1 ... 2).contains(arguments.count),
+    guard arguments.isEmpty == false,
         let descriptor = genericNominalDescriptor(
             named: constructorName,
             kind: "C"
@@ -330,14 +329,13 @@ package func genericClassType(
 /// formal associated-type substitution keeps the complete value opaque.
 ///
 /// The protocol witness ABI passes and returns these values indirectly, even
-/// if a concrete specialization would fit in registers. Restricting this to
-/// one or two type parameters keeps the reconstruction contract aligned with
-/// the established associated-dependent class slice.
+/// if a concrete specialization would fit in registers. Arity follows the
+/// linked descriptor's generic context and exact key-argument count.
 package func genericValueType(
     named constructorName: String,
     arguments: [Any.Type]
 ) -> ResolvedGenericValueType? {
-    guard (1 ... 2).contains(arguments.count) else { return nil }
+    guard arguments.isEmpty == false else { return nil }
 
     for (symbolKind, valueKind) in [("V", GenericValueKind.struct), ("O", .enum)] {
         guard
