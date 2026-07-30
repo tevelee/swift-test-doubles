@@ -27,6 +27,23 @@ struct ClosureBoundaryExpansionTests {
         #expect(capturedC(41) == 42)
     }
 
+    @Test func cFunctionPointersForwardThroughSpies() throws {
+        let placeholder: ExternalCFunction = externalCIncrement
+        let captor = Match.Capture<ExternalCFunction>()
+        let spy = try Spy<any ExternalFunctionConventionService>(
+            forwardingTo: RealExternalFunctionConventionService()
+        )
+
+        let returned = spy().cFunction(externalCDouble)
+
+        #expect(returned(21) == 42)
+        spy.verify(returning: placeholder) {
+            $0.cFunction(captor.capture(using: placeholder))
+        }
+        let captured = try #require(captor.first)
+        #expect(captured(21) == 42)
+    }
+
     #if canImport(ObjectiveC)
         @Test func capturedBlockFunctionsRetainTheirContexts() throws {
             _ = RealExternalFunctionConventionService()
@@ -44,6 +61,24 @@ struct ClosureBoundaryExpansionTests {
             #expect(returned(21) == 42)
             let capturedBlock = try #require(captor.first)
             #expect(capturedBlock(21) == 42)
+        }
+
+        @Test func capturedBlockFunctionsForwardThroughSpies() throws {
+            let placeholder: ExternalBlockFunction = { $0 }
+            let captor = Match.Capture<ExternalBlockFunction>()
+            let spy = try Spy<any ExternalFunctionConventionService>(
+                forwardingTo: RealExternalFunctionConventionService()
+            )
+            let captured = Int32(21)
+
+            let returned = spy().blockFunction { $0 + captured }
+
+            #expect(returned(21) == 42)
+            spy.verify(returning: placeholder) {
+                $0.blockFunction(captor.capture(using: placeholder))
+            }
+            let recorded = try #require(captor.first)
+            #expect(recorded(21) == 42)
         }
     #endif
 
