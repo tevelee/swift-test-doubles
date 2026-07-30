@@ -16,6 +16,7 @@ conformance	TestDoubles	AsyncClosureCallPattern	Swift.Sendable	[]
 conformance	TestDoubles	AsyncClosureDouble	Swift.Sendable	[{"kind":"conformance","lhs":"Input","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Input","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Input","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 conformance	TestDoubles	AsyncThrowingClosureCallPattern	Swift.Sendable	[]
 conformance	TestDoubles	AsyncThrowingClosureDouble	Swift.Sendable	[{"kind":"conformance","lhs":"Input","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Input","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Input","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
+conformance	TestDoubles	AsyncTypedThrowingClosureDouble	Swift.Sendable	[{"kind":"conformance","lhs":"Failure","rhs":"Error","rhsPrecise":"s:s5ErrorP"},{"kind":"conformance","lhs":"Input","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Input","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Input","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 conformance	TestDoubles	CallInteractions	Swift.Sendable	[]
 conformance	TestDoubles	CallPattern	Swift.Sendable	[]
 conformance	TestDoubles	CallbackCapture	Swift.Sendable	[]
@@ -88,6 +89,7 @@ conformance	TestDoubles	StubPerformanceDiagnostics.MethodDispatch	Swift.Sendable
 conformance	TestDoubles	StubSuspension	Swift.Sendable	[{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 conformance	TestDoubles	ThrowingClosureCallPattern	Swift.Sendable	[]
 conformance	TestDoubles	ThrowingClosureDouble	Swift.Sendable	[{"kind":"conformance","lhs":"Input","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Input","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Input","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
+conformance	TestDoubles	TypedThrowingClosureDouble	Swift.Sendable	[{"kind":"conformance","lhs":"Failure","rhs":"Error","rhsPrecise":"s:s5ErrorP"},{"kind":"conformance","lhs":"Input","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Input","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Input","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 conformance	TestDoubles	VoidClosureDouble	Swift.Sendable	[{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 conformance	TestDoublesTesting	TestDoubleScope	Swift.Sendable	[]
 conformance	TestDoublesTesting	TestDoubleScope	Testing.TestScoping	[]
@@ -102,6 +104,7 @@ conformance	TestDoublesTesting	TestDoubleStrictness	Swift.SetAlgebra	[]
 symbol	TestDoubles	swift.associatedtype	CustomMatcher.Value	associatedtype Value
 symbol	TestDoubles	swift.class	AsyncClosureDouble	final class AsyncClosureDouble<Input, Result>
 symbol	TestDoubles	swift.class	AsyncThrowingClosureDouble	final class AsyncThrowingClosureDouble<Input, Result>
+symbol	TestDoubles	swift.class	AsyncTypedThrowingClosureDouble	final class AsyncTypedThrowingClosureDouble<Input, Result, Failure> where Failure : Error
 symbol	TestDoubles	swift.class	CallbackCapture	final class CallbackCapture<Value>
 symbol	TestDoubles	swift.class	ClosureDouble	final class ClosureDouble<Input, Result>
 symbol	TestDoubles	swift.class	CompletionOrder	final class CompletionOrder
@@ -117,6 +120,7 @@ symbol	TestDoubles	swift.class	Stub.Invocation	final class Invocation
 symbol	TestDoubles	swift.class	StubBehaviorQueue	final class StubBehaviorQueue
 symbol	TestDoubles	swift.class	StubSuspension	final class StubSuspension<Result>
 symbol	TestDoubles	swift.class	ThrowingClosureDouble	final class ThrowingClosureDouble<Input, Result>
+symbol	TestDoubles	swift.class	TypedThrowingClosureDouble	final class TypedThrowingClosureDouble<Input, Result, Failure> where Failure : Error
 symbol	TestDoubles	swift.class	VoidClosureDouble	final class VoidClosureDouble<Result>
 symbol	TestDoubles	swift.enum	CompletionOrder.Builder	@resultBuilder enum Builder
 symbol	TestDoubles	swift.enum	FixtureValueRole	enum FixtureValueRole
@@ -173,6 +177,8 @@ symbol	TestDoubles	swift.init	AsyncTestDoubleScenario.init(_:)	init(_ configure:
 symbol	TestDoubles	swift.init	AsyncTestDoubleScenario.init(named:_:)	init(named name: String, _ configure: @escaping (Subject) async -> Void)
 symbol	TestDoubles	swift.init	AsyncThrowingClosureDouble.init()	init()
 symbol	TestDoubles	swift.init	AsyncThrowingClosureDouble.init(forwardingTo:)	init(forwardingTo target: @escaping @Sendable (Input) async throws -> Result)
+symbol	TestDoubles	swift.init	AsyncTypedThrowingClosureDouble.init()	init()
+symbol	TestDoubles	swift.init	AsyncTypedThrowingClosureDouble.init(forwardingTo:)	init(forwardingTo target: @escaping @Sendable (Input) async throws(Failure) -> Result)
 symbol	TestDoubles	swift.init	CallbackCapture.init()	init()
 symbol	TestDoubles	swift.init	ClientDoublePreset.init(_:)	init(_ materialize: @escaping (ClientStubEndpoints<Client>) -> Client)
 symbol	TestDoubles	swift.init	ClosureDouble.init()	init()
@@ -213,6 +219,8 @@ symbol	TestDoubles	swift.init	TestDoubleScenario.init(_:)	init(_ configure: @esc
 symbol	TestDoubles	swift.init	TestDoubleScenario.init(named:_:)	init(named name: String, _ configure: @escaping (Subject) -> Void)
 symbol	TestDoubles	swift.init	ThrowingClosureDouble.init()	init()
 symbol	TestDoubles	swift.init	ThrowingClosureDouble.init(forwardingTo:)	init(forwardingTo target: @escaping @Sendable (Input) throws -> Result)
+symbol	TestDoubles	swift.init	TypedThrowingClosureDouble.init()	init()
+symbol	TestDoubles	swift.init	TypedThrowingClosureDouble.init(forwardingTo:)	init(forwardingTo target: @escaping @Sendable (Input) throws(Failure) -> Result)
 symbol	TestDoubles	swift.init	VoidClosureDouble.init()	init()
 symbol	TestDoubles	swift.method	AsyncClosureCallPattern.afterEachCall(_:)	func afterEachCall(_ action: @escaping @Sendable (Input) -> Void) -> AsyncClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	AsyncClosureCallPattern.arguments()	func arguments() -> [Input]
@@ -345,6 +353,18 @@ symbol	TestDoubles	swift.method	AsyncThrowingClosureDouble.when(_:describedBy:fi
 symbol	TestDoubles	swift.method	AsyncThrowingClosureDouble.when(equal:fileID:filePath:line:column:)	func when(equal value: Input, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> AsyncThrowingClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	AsyncThrowingClosureDouble.whenAny(fileID:filePath:line:column:)	func whenAny(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> AsyncThrowingClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	AsyncThrowingClosureDouble.whenArguments(_:describedBy:fileID:filePath:line:column:)	func whenArguments<each Argument>(_ matcher: @escaping @Sendable (repeat each Argument) -> Bool, describedBy description: String = "predicate", fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> AsyncThrowingClosureCallPattern<Input, Result> where Input == (repeat each Argument)
+symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.callAsFunction(_:)	func callAsFunction(_ input: Input) async throws(Failure) -> Result
+symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.clearConfiguredBehaviors()	func clearConfiguredBehaviors()
+symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.clearRecordedInvocations()	func clearRecordedInvocations()
+symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.expandedFunction()	func expandedFunction<each Argument>() -> (repeat each Argument) async throws(Failure) -> Result where Input == (repeat each Argument)
+symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.invoke(_:)	func invoke<each Argument>(_ argument: repeat each Argument) async throws(Failure) -> Result where Input == (repeat each Argument)
+symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.named(_:)	@discardableResult func named(_ name: String) -> Self
+symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.reset()	func reset()
+symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.verifyNoUnusedStubs(fileID:filePath:line:column:)	func verifyNoUnusedStubs(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
+symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.when(_:describedBy:fileID:filePath:line:column:)	func when(_ matcher: @escaping Matcher, describedBy description: String = "predicate", fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> AsyncThrowingClosureCallPattern<Input, Result>
+symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.when(equal:fileID:filePath:line:column:)	func when(equal value: Input, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> AsyncThrowingClosureCallPattern<Input, Result>
+symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.whenAny(fileID:filePath:line:column:)	func whenAny(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> AsyncThrowingClosureCallPattern<Input, Result>
+symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.whenArguments(_:describedBy:fileID:filePath:line:column:)	func whenArguments<each Argument>(_ matcher: @escaping @Sendable (repeat each Argument) -> Bool, describedBy description: String = "predicate", fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> AsyncThrowingClosureCallPattern<Input, Result> where Input == (repeat each Argument)
 symbol	TestDoubles	swift.method	CallInteractions.arguments()	func arguments<each Argument>() -> [(repeat each Argument)]
 symbol	TestDoubles	swift.method	CallInteractions.captureCallStacks(maxFrames:)	@discardableResult func captureCallStacks(maxFrames: Int = 32) -> CallInteractions
 symbol	TestDoubles	swift.method	CallInteractions.errors()	func errors() -> [any Error]
@@ -778,6 +798,18 @@ symbol	TestDoubles	swift.method	ThrowingClosureDouble.when(_:describedBy:fileID:
 symbol	TestDoubles	swift.method	ThrowingClosureDouble.when(equal:fileID:filePath:line:column:)	func when(equal value: Input, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> ThrowingClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	ThrowingClosureDouble.whenAny(fileID:filePath:line:column:)	func whenAny(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> ThrowingClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	ThrowingClosureDouble.whenArguments(_:describedBy:fileID:filePath:line:column:)	func whenArguments<each Argument>(_ matcher: @escaping @Sendable (repeat each Argument) -> Bool, describedBy description: String = "predicate", fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> ThrowingClosureCallPattern<Input, Result> where Input == (repeat each Argument)
+symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.callAsFunction(_:)	func callAsFunction(_ input: Input) throws(Failure) -> Result
+symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.clearConfiguredBehaviors()	func clearConfiguredBehaviors()
+symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.clearRecordedInvocations()	func clearRecordedInvocations()
+symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.expandedFunction()	func expandedFunction<each Argument>() -> (repeat each Argument) throws(Failure) -> Result where Input == (repeat each Argument)
+symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.invoke(_:)	func invoke<each Argument>(_ argument: repeat each Argument) throws(Failure) -> Result where Input == (repeat each Argument)
+symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.named(_:)	@discardableResult func named(_ name: String) -> Self
+symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.reset()	func reset()
+symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.verifyNoUnusedStubs(fileID:filePath:line:column:)	func verifyNoUnusedStubs(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
+symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.when(_:describedBy:fileID:filePath:line:column:)	func when(_ matcher: @escaping Matcher, describedBy description: String = "predicate", fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> ThrowingClosureCallPattern<Input, Result>
+symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.when(equal:fileID:filePath:line:column:)	func when(equal value: Input, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> ThrowingClosureCallPattern<Input, Result>
+symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.whenAny(fileID:filePath:line:column:)	func whenAny(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> ThrowingClosureCallPattern<Input, Result>
+symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.whenArguments(_:describedBy:fileID:filePath:line:column:)	func whenArguments<each Argument>(_ matcher: @escaping @Sendable (repeat each Argument) -> Bool, describedBy description: String = "predicate", fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> ThrowingClosureCallPattern<Input, Result> where Input == (repeat each Argument)
 symbol	TestDoubles	swift.method	VoidClosureDouble.callAsFunction()	func callAsFunction() -> Result
 symbol	TestDoubles	swift.method	VoidClosureDouble.clearConfiguredBehaviors()	func clearConfiguredBehaviors()
 symbol	TestDoubles	swift.method	VoidClosureDouble.clearRecordedInvocations()	func clearRecordedInvocations()
@@ -808,6 +840,10 @@ symbol	TestDoubles	swift.property	AsyncThrowingClosureDouble.function	var functi
 symbol	TestDoubles	swift.property	AsyncThrowingClosureDouble.history	var history: InteractionHistory { get }
 symbol	TestDoubles	swift.property	AsyncThrowingClosureDouble.invocations	var invocations: [Input] { get }
 symbol	TestDoubles	swift.property	AsyncThrowingClosureDouble.sendableFunction	var sendableFunction: @Sendable (Input) async throws -> Result { get }
+symbol	TestDoubles	swift.property	AsyncTypedThrowingClosureDouble.function	var function: Function { get }
+symbol	TestDoubles	swift.property	AsyncTypedThrowingClosureDouble.history	var history: InteractionHistory { get }
+symbol	TestDoubles	swift.property	AsyncTypedThrowingClosureDouble.invocations	var invocations: [Input] { get }
+symbol	TestDoubles	swift.property	AsyncTypedThrowingClosureDouble.sendableFunction	var sendableFunction: @Sendable (Input) async throws(Failure) -> Result { get }
 symbol	TestDoubles	swift.property	CallInteractions.callCount	var callCount: Int { get }
 symbol	TestDoubles	swift.property	CallInteractions.forwarded	var forwarded: `Self` { get }
 symbol	TestDoubles	swift.property	CallInteractions.stubbed	var stubbed: `Self` { get }
@@ -902,6 +938,10 @@ symbol	TestDoubles	swift.property	ThrowingClosureDouble.function	var function: F
 symbol	TestDoubles	swift.property	ThrowingClosureDouble.history	var history: InteractionHistory { get }
 symbol	TestDoubles	swift.property	ThrowingClosureDouble.invocations	var invocations: [Input] { get }
 symbol	TestDoubles	swift.property	ThrowingClosureDouble.sendableFunction	var sendableFunction: @Sendable (Input) throws -> Result { get }
+symbol	TestDoubles	swift.property	TypedThrowingClosureDouble.function	var function: Function { get }
+symbol	TestDoubles	swift.property	TypedThrowingClosureDouble.history	var history: InteractionHistory { get }
+symbol	TestDoubles	swift.property	TypedThrowingClosureDouble.invocations	var invocations: [Input] { get }
+symbol	TestDoubles	swift.property	TypedThrowingClosureDouble.sendableFunction	var sendableFunction: @Sendable (Input) throws(Failure) -> Result { get }
 symbol	TestDoubles	swift.property	VoidClosureDouble.callCount	var callCount: Int { get }
 symbol	TestDoubles	swift.property	VoidClosureDouble.function	var function: () -> Result { get }
 symbol	TestDoubles	swift.property	VoidClosureDouble.history	var history: InteractionHistory { get }
@@ -1126,6 +1166,10 @@ symbol	TestDoubles	swift.typealias	AsyncThrowingClosureDouble.Function	typealias
 symbol	TestDoubles	swift.typealias	AsyncThrowingClosureDouble.Handler	typealias Handler = (Input) async throws -> Result
 symbol	TestDoubles	swift.typealias	AsyncThrowingClosureDouble.Matcher	typealias Matcher = @Sendable (Input) -> Bool
 symbol	TestDoubles	swift.typealias	AsyncThrowingClosureSpy	typealias AsyncThrowingClosureSpy<Input, Result> = AsyncThrowingClosureDouble<Input, Result>
+symbol	TestDoubles	swift.typealias	AsyncTypedThrowingClosureDouble.Function	typealias Function = (Input) async throws(Failure) -> Result
+symbol	TestDoubles	swift.typealias	AsyncTypedThrowingClosureDouble.Handler	typealias Handler = (Input) async throws(Failure) -> Result
+symbol	TestDoubles	swift.typealias	AsyncTypedThrowingClosureDouble.Matcher	typealias Matcher = @Sendable (Input) -> Bool
+symbol	TestDoubles	swift.typealias	AsyncTypedThrowingClosureSpy	typealias AsyncTypedThrowingClosureSpy<Input, Result, Failure> = AsyncTypedThrowingClosureDouble<Input, Result, Failure> where Failure : Error
 symbol	TestDoubles	swift.typealias	CallbackCapture.Callback	typealias Callback = (Value) -> Void
 symbol	TestDoubles	swift.typealias	ClientSpy	typealias ClientSpy<Client> = ManualStub<Client>
 symbol	TestDoubles	swift.typealias	ClientStub	typealias ClientStub<Client> = ManualStub<Client>
@@ -1147,6 +1191,10 @@ symbol	TestDoubles	swift.typealias	ThrowingClosureDouble.Function	typealias Func
 symbol	TestDoubles	swift.typealias	ThrowingClosureDouble.Handler	typealias Handler = @Sendable (Input) throws -> Result
 symbol	TestDoubles	swift.typealias	ThrowingClosureDouble.Matcher	typealias Matcher = @Sendable (Input) -> Bool
 symbol	TestDoubles	swift.typealias	ThrowingClosureSpy	typealias ThrowingClosureSpy<Input, Result> = ThrowingClosureDouble<Input, Result>
+symbol	TestDoubles	swift.typealias	TypedThrowingClosureDouble.Function	typealias Function = (Input) throws(Failure) -> Result
+symbol	TestDoubles	swift.typealias	TypedThrowingClosureDouble.Handler	typealias Handler = @Sendable (Input) throws(Failure) -> Result
+symbol	TestDoubles	swift.typealias	TypedThrowingClosureDouble.Matcher	typealias Matcher = @Sendable (Input) -> Bool
+symbol	TestDoubles	swift.typealias	TypedThrowingClosureSpy	typealias TypedThrowingClosureSpy<Input, Result, Failure> = TypedThrowingClosureDouble<Input, Result, Failure> where Failure : Error
 symbol	TestDoubles@Swift	swift.type.method	RangeExpression.exactly(_:)	static func exactly(_ count: Int) -> Self
 symbol	TestDoubles@Swift	swift.type.property	RangeExpression.never	static var never: Self { get }
 symbol	TestDoublesTesting	swift.init	TestDoubleScope.init(strictness:)	init(strictness: TestDoubleStrictness = .noUnusedStubs)

@@ -169,6 +169,86 @@ extension AsyncThrowingClosureDouble {
     }
 }
 
+extension TypedThrowingClosureDouble {
+    /// Adapts a tuple-input typed-throws double to arbitrary arity.
+    public func expandedFunction<each Argument>()
+        -> (repeat each Argument) throws(Failure) -> Result
+    where Input == (repeat each Argument) {
+        { (argument: repeat each Argument) throws(Failure) in
+            try self((repeat each argument))
+        }
+    }
+
+    /// Invokes a tuple-input typed-throws double with separate arguments.
+    public func invoke<each Argument>(
+        _ argument: repeat each Argument
+    ) throws(Failure) -> Result
+    where Input == (repeat each Argument) {
+        try self((repeat each argument))
+    }
+
+    /// Starts a registration selected by separate typed arguments.
+    public func whenArguments<each Argument>(
+        _ matcher: @escaping @Sendable (repeat each Argument) -> Bool,
+        describedBy description: String = "predicate",
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) -> ThrowingClosureCallPattern<Input, Result>
+    where Input == (repeat each Argument) {
+        when(
+            { input in matcher(repeat each input) },
+            describedBy: description,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+}
+
+extension AsyncTypedThrowingClosureDouble {
+    /// Adapts a tuple-input asynchronous typed-throws double to arbitrary
+    /// arity.
+    public func expandedFunction<each Argument>()
+        -> (repeat each Argument) async throws(Failure) -> Result
+    where Input == (repeat each Argument) {
+        { (argument: repeat each Argument) throws(Failure) in
+            try await self((repeat each argument))
+        }
+    }
+
+    /// Invokes an asynchronous tuple-input typed-throws double with separate
+    /// arguments.
+    public func invoke<each Argument>(
+        _ argument: repeat each Argument
+    ) async throws(Failure) -> Result
+    where Input == (repeat each Argument) {
+        try await self((repeat each argument))
+    }
+
+    /// Starts a registration selected by separate typed arguments.
+    public func whenArguments<each Argument>(
+        _ matcher: @escaping @Sendable (repeat each Argument) -> Bool,
+        describedBy description: String = "predicate",
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) -> AsyncThrowingClosureCallPattern<Input, Result>
+    where Input == (repeat each Argument) {
+        when(
+            { input in matcher(repeat each input) },
+            describedBy: description,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+}
+
 // MARK: - Typed behavior adapters
 
 extension ClosureCallPattern {

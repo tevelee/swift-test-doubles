@@ -82,6 +82,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dedicated `SendableClosureDouble` variants constrain inputs and results to
   `Sendable` and expose checked `@Sendable` function values for injection
   across tasks and isolation domains.
+- Synchronous and asynchronous typed-throws closure doubles expose precise
+  `throws(Failure)` injection signatures, checked `@Sendable` forms,
+  forwarding spies, and arbitrary-arity tuple expansion.
 
 ### Fixed
 

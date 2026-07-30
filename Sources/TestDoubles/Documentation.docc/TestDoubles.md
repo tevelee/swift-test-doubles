@@ -168,6 +168,10 @@ isolation. See
 - ``SendableThrowingClosureDouble``
 - ``SendableAsyncClosureDouble``
 - ``SendableAsyncThrowingClosureDouble``
+- ``TypedThrowingClosureDouble``
+- ``AsyncTypedThrowingClosureDouble``
+- ``TypedThrowingClosureSpy``
+- ``AsyncTypedThrowingClosureSpy``
 - ``CallbackCapture``
 
 ### Value and Optional Matchers
