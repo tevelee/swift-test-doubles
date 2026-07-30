@@ -69,7 +69,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The opt-in `@StubbableClient` macro derives a `ClientDoublePreset` namespace
   from a concrete struct's stored closure fields, including ordinary generic
   clients, nested closure aliases, required configuration values, and
-  initialized immutable closure defaults.
+  initialized immutable closure defaults. It now generates private storage
+  wiring independently of the client's initializer surface, and explicitly
+  marked global, imported, and generic closure aliases retain arbitrary arity,
+  async, untyped throws, and typed throws.
 - Tuple-input closure doubles can expand to arbitrary-arity functions and use
   separate typed arguments in matchers and computed behaviors across every
   synchronous, throwing, async, and async-throwing variant.

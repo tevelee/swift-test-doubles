@@ -1,5 +1,6 @@
 #if TESTDOUBLES_STUBBABLE_MACROS
     import TestDoubles
+    import TestDoublesFixtures
     import TestDoublesMacros
     import Testing
 
@@ -27,6 +28,40 @@
         var namespace: String
         var load: Load
         let identity: @Sendable (Value) -> Value = { $0 }
+    }
+
+    @StubbableClient(
+        aliasedEndpoints: "ping",
+        "parse",
+        "lookup",
+        "transform",
+        "save",
+        "asyncSave",
+        "legacy"
+    )
+    private struct GeneratedAliasedClient<Value: Sendable>: @unchecked Sendable {
+        var scope: String
+        var ping: FixtureClientPing
+        var parse: FixtureClientParse
+        var lookup: FixtureClientLookup
+        var transform: FixtureClientTransform<Value>
+        var save: FixtureClientSave
+        var asyncSave: FixtureClientAsyncSave
+        var legacy: FixtureClientLegacy
+
+        init(seed: Value) {
+            scope = "live"
+            ping = { true }
+            parse = { value, offset, enabled, scale in
+                enabled ? value.count + offset + Int(scale) : 0
+            }
+            lookup = { "\($0)-\($1)-\($2)" }
+            transform = { value, _ in value }
+            save = { "saved-\($0)" }
+            asyncSave = { "\($0)-\($1)" }
+            legacy = { $0.count }
+            _ = seed
+        }
     }
 
     @Suite struct StubbableClientMacroIntegrationTests {
@@ -82,6 +117,69 @@
             #expect(forwarded.namespace == "test")
             #expect(try await forwarded.load("hello") == 5)
             #expect(spy.history.forwarded.callCount == 1)
+        }
+
+        @Test func generatedPresetSupportsCustomInitializersAndExternalAliases() async throws {
+            let preset = GeneratedAliasedClientDoubles<Int>.preset(
+                scope: "test"
+            )
+            let stub = preset.failing()
+            stub.when {
+                $0.ping()
+            }.thenReturn(false)
+            stub.when {
+                try $0.parse(
+                    Match.equal("one"),
+                    Match.equal(2),
+                    Match.equal(true),
+                    Match.equal(3)
+                )
+            }.thenReturn(6)
+            await stub.when {
+                await $0.lookup(
+                    Match.equal(1),
+                    Match.equal("value"),
+                    Match.equal(true)
+                )
+            }.thenReturn("stubbed")
+            stub.when {
+                $0.transform(Match.equal(3), Match.equal(4))
+            }.thenReturn(7)
+            stub.when {
+                try $0.save(Match.equal(5))
+            }.thenReturn("stored")
+            await stub.when {
+                try await $0.asyncSave(
+                    Match.equal(6),
+                    Match.equal("value")
+                )
+            }.thenReturn("async-stored")
+            await stub.when {
+                try await $0.legacy(Match.equal("six"))
+            }.thenReturn(6)
+
+            let client = stub()
+            #expect(client.scope == "test")
+            #expect(client.ping() == false)
+            #expect(try client.parse("one", 2, true, 3) == 6)
+            #expect(await client.lookup(1, "value", true) == "stubbed")
+            #expect(client.transform(3, 4) == 7)
+            #expect(try client.save(5) == "stored")
+            #expect(try await client.asyncSave(6, "value") == "async-stored")
+            #expect(try await client.legacy("six") == 6)
+
+            let live = GeneratedAliasedClient(seed: 42)
+            let spy = preset.spy(forwardingTo: live)
+            let forwarded = spy()
+            #expect(forwarded.scope == "test")
+            #expect(forwarded.ping())
+            #expect(try forwarded.parse("one", 2, true, 3) == 8)
+            #expect(await forwarded.lookup(2, "live", false) == "2-live-false")
+            #expect(forwarded.transform(8, 9) == 8)
+            #expect(try forwarded.save(10) == "saved-10")
+            #expect(try await forwarded.asyncSave(11, "live") == "11-live")
+            #expect(try await forwarded.legacy("eleven") == 6)
+            #expect(spy.history.forwarded.callCount == 7)
         }
     }
 #endif

@@ -6,12 +6,25 @@ import TestDoubles
     /// Enable the `StubbableMacros` SwiftPM trait before importing this module.
     /// The generated namespace appends `Doubles` to the client name and exposes
     /// a `preset` that builds live, failing, spying, and partially overridden
-    /// variants. Ordinary generic parameters and nested non-generic closure
-    /// type aliases are supported. Required non-closure stored properties
-    /// become arguments of the generated `preset(...)` factory, while
-    /// initialized immutable closure properties retain their defaults.
+    /// variants. Ordinary generic parameters and custom initializers are
+    /// supported. Required non-closure stored properties become arguments of
+    /// the generated `preset(...)` factory, while initialized immutable closure
+    /// properties retain their defaults.
+    ///
+    /// Name properties in `aliasedEndpoints` when their closure type is a
+    /// global, imported, or generic type alias that syntax-only macro expansion
+    /// cannot inspect:
+    ///
+    /// ```swift
+    /// @StubbableClient(aliasedEndpoints: "load", "save")
+    /// struct APIClient<Value> {
+    ///     var load: ExternalLoad
+    ///     var save: GenericSave<Value>
+    /// }
+    /// ```
     @attached(peer, names: suffixed(Doubles))
-    public macro StubbableClient() =
+    @attached(extension, names: named(init))
+    public macro StubbableClient(aliasedEndpoints: String...) =
         #externalMacro(
             module: "TestDoublesStubbableMacros",
             type: "StubbableClientMacro"

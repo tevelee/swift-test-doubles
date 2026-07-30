@@ -7,7 +7,7 @@
     /// stored instance properties are closures.
     public struct StubbableClientMacro: PeerMacro {
         public static func expansion(
-            of _: AttributeSyntax,
+            of attribute: AttributeSyntax,
             providingPeersOf declaration: some DeclSyntaxProtocol,
             in context: some MacroExpansionContext
         ) throws -> [DeclSyntax] {
@@ -23,10 +23,14 @@
             let genericShape: GenericClientShape
             let properties: ClientProperties
             do {
+                let aliasedEndpoints = try aliasedEndpointNames(
+                    from: attribute
+                )
                 genericShape = try genericClientShape(for: client)
                 properties = try clientProperties(
                     in: client,
-                    clientType: genericShape.clientType
+                    clientType: genericShape.clientType,
+                    aliasedEndpoints: aliasedEndpoints
                 )
             } catch let failure as ClientMacroFailure {
                 diagnose(
@@ -53,16 +57,18 @@
                 access == "public " || access == "package "
                 ? access
                 : ""
-            let arguments = properties.initializerArguments.enumerated().map {
+            let materializerArguments =
+                ["_testDoubleEndpoints: endpoints"]
+                + properties.inputs.map { "\($0.name): \($0.name)" }
+            let arguments = materializerArguments.enumerated().map {
                 index,
                 argument in
                 let trailingComma =
-                    index == properties.initializerArguments.indices.last
+                    index == materializerArguments.indices.last
                     ? ""
                     : ","
                 return indented(
-                    argument.render(clientType: genericShape.clientType)
-                        + trailingComma,
+                    argument + trailingComma,
                     by: 8
                 )
             }
@@ -153,13 +159,15 @@
 
         private static func clientProperties(
             in client: StructDeclSyntax,
-            clientType: String
+            clientType: String,
+            aliasedEndpoints: Set<String>
         ) throws -> ClientProperties {
             let aliases = localTypeAliases(in: client)
             let nestedTypeNames = localTypeNames(in: client)
             var initializerArguments: [ClientInitializerArgument] = []
             var inputs: [ClientInput] = []
             var endpointCount = 0
+            var recognizedAliasedEndpoints: Set<String> = []
 
             for member in client.memberBlock.members {
                 guard let variable = member.decl.as(VariableDeclSyntax.self) else {
@@ -186,6 +194,10 @@
                             id: "property-pattern"
                         )
                     }
+                    let propertyName =
+                        identifier.identifier.trimmedDescription
+                    let isAliasedEndpoint =
+                        aliasedEndpoints.contains(propertyName)
                     guard let annotatedType = binding.typeAnnotation?.type else {
                         if binding.initializer != nil {
                             continue
@@ -197,6 +209,38 @@
                             id: "missing-type"
                         )
                     }
+                    if isAliasedEndpoint {
+                        if variable.bindingSpecifier.text == "let",
+                            binding.initializer != nil
+                        {
+                            throw ClientMacroFailure(
+                                node: Syntax(binding),
+                                message:
+                                    "@StubbableClient cannot replace initialized immutable endpoint '\(propertyName)'. Remove it from 'aliasedEndpoints' to retain its default.",
+                                id: "immutable-aliased-endpoint"
+                            )
+                        }
+                        if let function = functionType(
+                            from: annotatedType,
+                            aliases: aliases
+                        ) {
+                            try validateParameters(of: function)
+                        }
+                        let endpoint = AliasedClosureEndpoint(
+                            name: propertyName,
+                            type: renderedType(
+                                annotatedType,
+                                clientType: clientType,
+                                nestedTypeNames: nestedTypeNames
+                            )
+                        )
+                        recognizedAliasedEndpoints.insert(propertyName)
+                        endpointCount += 1
+                        initializerArguments.append(
+                            .endpoint(.aliased(endpoint))
+                        )
+                        continue
+                    }
                     guard
                         let function = functionType(
                             from: annotatedType,
@@ -207,7 +251,7 @@
                             continue
                         }
                         let input = ClientInput(
-                            name: identifier.identifier.trimmedDescription,
+                            name: propertyName,
                             type: renderedType(
                                 annotatedType,
                                 clientType: clientType,
@@ -223,19 +267,9 @@
                     {
                         continue
                     }
-                    if function.parameters.contains(where: {
-                        $0.ellipsis != nil
-                            || $0.type.trimmedDescription.hasPrefix("inout ")
-                    }) {
-                        throw ClientMacroFailure(
-                            node: Syntax(function),
-                            message:
-                                "@StubbableClient does not support variadic or inout closure parameters.",
-                            id: "unsupported-parameter"
-                        )
-                    }
+                    try validateParameters(of: function)
                     let endpoint = ClosureEndpoint(
-                        name: identifier.identifier.trimmedDescription,
+                        name: propertyName,
                         argumentTypes: function.parameters.map {
                             renderedType(
                                 $0.type,
@@ -263,14 +297,99 @@
                             .throwsClause != nil
                     )
                     endpointCount += 1
-                    initializerArguments.append(.endpoint(endpoint))
+                    initializerArguments.append(
+                        .endpoint(.expanded(endpoint))
+                    )
                 }
+            }
+            if let unknown =
+                aliasedEndpoints
+                .subtracting(recognizedAliasedEndpoints)
+                .min()
+            {
+                throw ClientMacroFailure(
+                    node: Syntax(client.name),
+                    message:
+                        "@StubbableClient could not find a stored endpoint named '\(unknown)'.",
+                    id: "unknown-aliased-endpoint"
+                )
             }
             return ClientProperties(
                 initializerArguments: initializerArguments,
                 inputs: inputs,
                 endpointCount: endpointCount
             )
+        }
+
+        private static func validateParameters(
+            of function: FunctionTypeSyntax
+        ) throws {
+            if function.parameters.contains(where: {
+                $0.ellipsis != nil
+                    || $0.type.trimmedDescription.hasPrefix("inout ")
+            }) {
+                throw ClientMacroFailure(
+                    node: Syntax(function),
+                    message:
+                        "@StubbableClient does not support variadic or inout closure parameters.",
+                    id: "unsupported-parameter"
+                )
+            }
+        }
+
+        private static func aliasedEndpointNames(
+            from attribute: AttributeSyntax
+        ) throws -> Set<String> {
+            guard case .argumentList(let arguments) = attribute.arguments else {
+                return []
+            }
+            var names: Set<String> = []
+            for (index, argument) in arguments.enumerated() {
+                if index == 0,
+                    argument.label?.text != "aliasedEndpoints"
+                {
+                    throw ClientMacroFailure(
+                        node: Syntax(argument),
+                        message:
+                            "@StubbableClient closure aliases must use the 'aliasedEndpoints:' label.",
+                        id: "aliased-endpoint-label"
+                    )
+                }
+                guard
+                    let literal = argument.expression.as(
+                        StringLiteralExprSyntax.self
+                    ),
+                    literal.segments.count == 1,
+                    let segment = literal.segments.first?.as(
+                        StringSegmentSyntax.self
+                    )
+                else {
+                    throw ClientMacroFailure(
+                        node: Syntax(argument.expression),
+                        message:
+                            "@StubbableClient 'aliasedEndpoints' entries must be string literals.",
+                        id: "aliased-endpoint-literal"
+                    )
+                }
+                let name = segment.content.text
+                guard name.isEmpty == false else {
+                    throw ClientMacroFailure(
+                        node: Syntax(argument.expression),
+                        message:
+                            "@StubbableClient endpoint names cannot be empty.",
+                        id: "empty-aliased-endpoint"
+                    )
+                }
+                guard names.insert(name).inserted else {
+                    throw ClientMacroFailure(
+                        node: Syntax(argument.expression),
+                        message:
+                            "@StubbableClient endpoint '\(name)' is listed more than once.",
+                        id: "duplicate-aliased-endpoint"
+                    )
+                }
+            }
+            return names
         }
 
         private static func functionType(
@@ -384,6 +503,74 @@
         }
     }
 
+    extension StubbableClientMacro: ExtensionMacro {
+        public static func expansion(
+            of attribute: AttributeSyntax,
+            attachedTo declaration: some DeclGroupSyntax,
+            providingExtensionsOf type: some TypeSyntaxProtocol,
+            conformingTo _: [TypeSyntax],
+            in _: some MacroExpansionContext
+        ) throws -> [ExtensionDeclSyntax] {
+            guard let client = declaration.as(StructDeclSyntax.self) else {
+                return []
+            }
+            guard
+                let aliasedEndpoints = try? aliasedEndpointNames(
+                    from: attribute
+                ),
+                let genericShape = try? genericClientShape(for: client),
+                let properties = try? clientProperties(
+                    in: client,
+                    clientType: genericShape.clientType,
+                    aliasedEndpoints: aliasedEndpoints
+                ),
+                properties.endpointCount > 0
+            else {
+                return []
+            }
+
+            let parameters =
+                [
+                    "_testDoubleEndpoints endpoints: ClientStubEndpoints<Self>"
+                ] + properties.inputs.map { "\($0.name): \($0.type)" }
+            let renderedParameters = parameters.enumerated().map {
+                index,
+                parameter in
+                let trailingComma =
+                    index == parameters.indices.last ? "" : ","
+                return "        \(parameter)\(trailingComma)"
+            }
+            .joined(separator: "\n")
+            let assignments = properties.initializerArguments.map {
+                indented(
+                    $0.renderAssignment(
+                        clientType: genericShape.clientType
+                    ),
+                    by: 8
+                )
+            }
+            .joined(separator: "\n")
+            let source = [
+                "extension \(type.trimmedDescription) {",
+                "    fileprivate init(",
+                renderedParameters,
+                "    ) {",
+                assignments,
+                "    }",
+                "}"
+            ]
+            .joined(separator: "\n")
+            guard
+                let generated = DeclSyntax(stringLiteral: source).as(
+                    ExtensionDeclSyntax.self
+                )
+            else {
+                return []
+            }
+            return [generated]
+        }
+    }
+
     private struct GenericClientShape {
         let declarationClause: String
         let whereClause: String
@@ -398,17 +585,16 @@
     }
 
     private enum ClientInitializerArgument {
-        case endpoint(ClosureEndpoint)
+        case endpoint(ClientEndpoint)
         case input(ClientInput)
 
-        func render(clientType: String) -> String {
+        func renderAssignment(clientType: String) -> String {
             switch self {
                 case .endpoint(let endpoint):
-                    return
-                        "\(endpoint.name): "
+                    return "self.\(endpoint.name) = "
                         + endpoint.renderFactory(clientType: clientType)
                 case .input(let input):
-                    return "\(input.name): \(input.name)"
+                    return "self.\(input.name) = \(input.name)"
             }
         }
     }
@@ -438,6 +624,45 @@
             return TypeSyntax(
                 stringLiteral: "\(clientType).\(node.trimmedDescription)"
             )
+        }
+    }
+
+    private enum ClientEndpoint {
+        case expanded(ClosureEndpoint)
+        case aliased(AliasedClosureEndpoint)
+
+        var name: String {
+            switch self {
+                case .expanded(let endpoint):
+                    endpoint.name
+                case .aliased(let endpoint):
+                    endpoint.name
+            }
+        }
+
+        func renderFactory(clientType: String) -> String {
+            switch self {
+                case .expanded(let endpoint):
+                    endpoint.renderFactory(clientType: clientType)
+                case .aliased(let endpoint):
+                    endpoint.renderFactory()
+            }
+        }
+    }
+
+    private struct AliasedClosureEndpoint {
+        let name: String
+        let type: String
+
+        func renderFactory() -> String {
+            [
+                "endpoints.endpoint(",
+                "    \"\(name)\",",
+                "    as: \(type).self,",
+                "    forwarding: { $0.\(name) }",
+                ")"
+            ]
+            .joined(separator: "\n")
         }
     }
 

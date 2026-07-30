@@ -323,8 +323,10 @@ dependency value directly.
 
 With the opt-in `StubbableMacros` trait, `@StubbableClient` derives this wiring
 as `APIClientDoubles.preset`. The macro supports ordinary generic clients,
-nested closure type aliases, required non-closure configuration inputs, and
-initialized immutable closure defaults.
+nested closure type aliases, custom initializers, required non-closure
+configuration inputs, and initialized immutable closure defaults. Name global,
+imported, or generic closure-alias fields in `aliasedEndpoints` so the generated
+wiring can use their declared function type directly.
 
 ### Control async timing
 

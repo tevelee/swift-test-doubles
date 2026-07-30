@@ -106,6 +106,28 @@ argument types form its route identity, so overloads with different argument
 types remain independent. Use distinct names for separate fields with the same
 signature so their behaviors and histories do not overlap.
 
+For a closure type alias, `endpoint(_:as:forwarding:)` lets the compiler
+decompose the named type while preserving its arity, concurrency annotation,
+and effect signature:
+
+```swift
+typealias Fetch = @Sendable (Int, String) async throws -> User
+
+let preset = ClientDoublePreset<APIClient> { endpoints in
+    APIClient(
+        fetchUser: endpoints.endpoint(
+            "fetchUser",
+            as: Fetch.self,
+            forwarding: { $0.fetchUser }
+        )
+    )
+}
+```
+
+This bridge supports synchronous, throwing, typed-throwing, asynchronous, and
+asynchronous-throwing aliases. Both `Sendable` and legacy non-`Sendable`
+function aliases are accepted.
+
 ### Forward and selectively override a live client
 
 ``ClientSpy`` delegates unmatched calls while retaining the same configuration,
@@ -207,15 +229,23 @@ derive the preset from stored closure fields:
 import TestDoubles
 import TestDoublesMacros
 
-@StubbableClient
+typealias ExternalRecord<Value> = @Sendable (Value) -> Void
+
+@StubbableClient(aliasedEndpoints: "record")
 struct StatusClient<Value: Sendable> {
     typealias Status =
         @Sendable (Int) async throws -> Value
 
     var namespace: String
     var status: Status
-    var record: @Sendable (String) -> Void
+    var record: ExternalRecord<Value>
     let transform: @Sendable (Value) -> Value = { $0 }
+
+    init(liveNamespace: String) {
+        namespace = liveNamespace
+        status = { _ in fatalError() }
+        record = { _ in }
+    }
 }
 
 let preset = StatusClientDoubles<String>.preset(namespace: "tests")
@@ -223,20 +253,28 @@ let stub = preset.failing()
 let spy = preset.spy(forwardingTo: liveStatus)
 ```
 
-The opt-in macro generates a peer namespace named by appending `Doubles`.
-Closure fields need explicit inline function types or a nested non-generic
-closure type alias. Ordinary generic client parameters and constraints are
-preserved on the generated namespace. Required non-closure stored properties
-become inputs to `preset(...)`; initialized properties continue to use their
-memberwise-initializer defaults. An initialized immutable closure is likewise
-left intact instead of being replaced with a test endpoint.
+The opt-in macro generates a peer namespace named by appending `Doubles` and a
+file-private wiring initializer in an extension. It therefore works whether
+the client uses the synthesized memberwise initializer, declares one or more
+custom initializers, or exposes a production initializer with a deliberately
+different shape. The generated initializer directly initializes the stored
+fields and does not replace the client's public construction API.
 
-Generic closure type aliases are not expanded; spell those closure fields
-inline. Generic parameter packs and value parameters, `inout` parameters, and
-variadic closure parameters are diagnosed rather than generating partial
-wiring. The client must also remain constructible with its stored properties'
-memberwise labels; use a hand-written preset when a custom initializer
-suppresses that initializer shape.
+Inline function types and nested non-generic closure aliases are recognized
+automatically. A syntax-only attached macro cannot resolve the declaration
+behind an arbitrary type name, because that name may instead be an ordinary
+configuration value. List global, imported, or generic closure-alias fields in
+`aliasedEndpoints` to make that intent explicit. The generated code passes the
+annotated alias metatype to `endpoint(_:as:forwarding:)`, allowing Swift's type
+checker to preserve arbitrary arity, async, untyped throws, and typed throws
+without the macro needing to locate the alias declaration.
+
+Ordinary generic client parameters and constraints are preserved on the
+generated namespace. Required non-closure stored properties become inputs to
+`preset(...)`; initialized non-closure properties and initialized immutable
+closure properties retain their defaults. Generic parameter packs and value
+parameters, `inout` parameters, and variadic closure parameters remain outside
+the generated boundary and are diagnosed when their syntax is visible.
 
 ### Double one standalone function
 
