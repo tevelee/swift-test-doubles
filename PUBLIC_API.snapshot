@@ -797,6 +797,7 @@ symbol	TestDoubles	swift.property	AsyncClosureCallPattern.wasCalled	var wasCalle
 symbol	TestDoubles	swift.property	AsyncClosureDouble.function	var function: Function { get }
 symbol	TestDoubles	swift.property	AsyncClosureDouble.history	var history: InteractionHistory { get }
 symbol	TestDoubles	swift.property	AsyncClosureDouble.invocations	var invocations: [Input] { get }
+symbol	TestDoubles	swift.property	AsyncClosureDouble.sendableFunction	var sendableFunction: @Sendable (Input) async -> Result { get }
 symbol	TestDoubles	swift.property	AsyncParameterizedTestDoubleScenario.name	let name: String?
 symbol	TestDoubles	swift.property	AsyncTestDoubleScenario.name	let name: String?
 symbol	TestDoubles	swift.property	AsyncThrowingClosureCallPattern.callCount	var callCount: Int { get }
@@ -806,6 +807,7 @@ symbol	TestDoubles	swift.property	AsyncThrowingClosureCallPattern.wasCalled	var 
 symbol	TestDoubles	swift.property	AsyncThrowingClosureDouble.function	var function: Function { get }
 symbol	TestDoubles	swift.property	AsyncThrowingClosureDouble.history	var history: InteractionHistory { get }
 symbol	TestDoubles	swift.property	AsyncThrowingClosureDouble.invocations	var invocations: [Input] { get }
+symbol	TestDoubles	swift.property	AsyncThrowingClosureDouble.sendableFunction	var sendableFunction: @Sendable (Input) async throws -> Result { get }
 symbol	TestDoubles	swift.property	CallInteractions.callCount	var callCount: Int { get }
 symbol	TestDoubles	swift.property	CallInteractions.forwarded	var forwarded: `Self` { get }
 symbol	TestDoubles	swift.property	CallInteractions.stubbed	var stubbed: `Self` { get }
@@ -826,6 +828,7 @@ symbol	TestDoubles	swift.property	ClosureDouble.function	var function: Function 
 symbol	TestDoubles	swift.property	ClosureDouble.history	var history: InteractionHistory { get }
 symbol	TestDoubles	swift.property	ClosureDouble.interactions	var interactions: CallInteractions { get }
 symbol	TestDoubles	swift.property	ClosureDouble.invocations	var invocations: [Input] { get }
+symbol	TestDoubles	swift.property	ClosureDouble.sendableFunction	var sendableFunction: @Sendable (Input) -> Result { get }
 symbol	TestDoubles	swift.property	ClosureDouble.wasCalled	var wasCalled: Bool { get }
 symbol	TestDoubles	swift.property	CustomMatcher.diagnosticDescription	var diagnosticDescription: String { get }
 symbol	TestDoubles	swift.property	InteractionHistory.callCount	var callCount: Int { get }
@@ -898,6 +901,7 @@ symbol	TestDoubles	swift.property	ThrowingClosureCallPattern.wasCalled	var wasCa
 symbol	TestDoubles	swift.property	ThrowingClosureDouble.function	var function: Function { get }
 symbol	TestDoubles	swift.property	ThrowingClosureDouble.history	var history: InteractionHistory { get }
 symbol	TestDoubles	swift.property	ThrowingClosureDouble.invocations	var invocations: [Input] { get }
+symbol	TestDoubles	swift.property	ThrowingClosureDouble.sendableFunction	var sendableFunction: @Sendable (Input) throws -> Result { get }
 symbol	TestDoubles	swift.property	VoidClosureDouble.callCount	var callCount: Int { get }
 symbol	TestDoubles	swift.property	VoidClosureDouble.function	var function: () -> Result { get }
 symbol	TestDoubles	swift.property	VoidClosureDouble.history	var history: InteractionHistory { get }
@@ -1133,6 +1137,10 @@ symbol	TestDoubles	swift.typealias	ManualStubScenario	typealias ManualStubScenar
 symbol	TestDoubles	swift.typealias	ManualThrowingRoute	typealias ManualThrowingRoute<T> = ManualThrowingRequirementRoute<T>
 symbol	TestDoubles	swift.typealias	ParameterizedManualStubScenario	typealias ParameterizedManualStubScenario<T, Parameter> = ParameterizedTestDoubleScenario<ManualStub<T>, Parameter>
 symbol	TestDoubles	swift.typealias	ParameterizedStubScenario	typealias ParameterizedStubScenario<P, Parameter> = ParameterizedTestDoubleScenario<Stub<P>, Parameter>
+symbol	TestDoubles	swift.typealias	SendableAsyncClosureDouble	typealias SendableAsyncClosureDouble<Input, Result> = AsyncClosureDouble<Input, Result> where Input : Sendable, Result : Sendable
+symbol	TestDoubles	swift.typealias	SendableAsyncThrowingClosureDouble	typealias SendableAsyncThrowingClosureDouble<Input, Result> = AsyncThrowingClosureDouble<Input, Result> where Input : Sendable, Result : Sendable
+symbol	TestDoubles	swift.typealias	SendableClosureDouble	typealias SendableClosureDouble<Input, Result> = ClosureDouble<Input, Result> where Input : Sendable, Result : Sendable
+symbol	TestDoubles	swift.typealias	SendableThrowingClosureDouble	typealias SendableThrowingClosureDouble<Input, Result> = ThrowingClosureDouble<Input, Result> where Input : Sendable, Result : Sendable
 symbol	TestDoubles	swift.typealias	StubConformer	typealias StubConformer = ManualStubConformer
 symbol	TestDoubles	swift.typealias	StubScenario	typealias StubScenario<P> = TestDoubleScenario<Stub<P>>
 symbol	TestDoubles	swift.typealias	ThrowingClosureDouble.Function	typealias Function = (Input) throws -> Result

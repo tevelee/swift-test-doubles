@@ -79,6 +79,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standalone closure spies forward unmatched synchronous, throwing, async, and
   async-throwing calls to an existing closure while retaining selective
   overrides, explicit `thenForward()`, and forwarded/stubbed histories.
+- Dedicated `SendableClosureDouble` variants constrain inputs and results to
+  `Sendable` and expose checked `@Sendable` function values for injection
+  across tasks and isolation domains.
 
 ### Fixed
 

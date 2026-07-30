@@ -164,6 +164,10 @@ isolation. See
 - ``ThrowingClosureSpy``
 - ``AsyncClosureSpy``
 - ``AsyncThrowingClosureSpy``
+- ``SendableClosureDouble``
+- ``SendableThrowingClosureDouble``
+- ``SendableAsyncClosureDouble``
+- ``SendableAsyncThrowingClosureDouble``
 - ``CallbackCapture``
 
 ### Value and Optional Matchers
