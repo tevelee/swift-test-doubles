@@ -704,7 +704,7 @@ struct AsyncStackABIIntegrationTests {
         }
     }
 
-    @Test func widerIngressPlanningRejectsUnsupportedStackShapes() {
+    @Test func widerIngressPlanningSeparatesSupportedStackShapes() {
         func method(
             leadingIntegerCount: Int,
             trailingTypes: [Any.Type],
@@ -776,11 +776,11 @@ struct AsyncStackABIIntegrationTests {
         )
         #expect(
             unsupportedRuntimeReason(for: vector, architecture: .x86_64)
-                != nil
+                == nil
         )
         #expect(
             unsupportedRuntimeReason(for: vector, architecture: .arm64)
-                != nil
+                == nil
         )
         #expect(
             unsupportedRuntimeReason(

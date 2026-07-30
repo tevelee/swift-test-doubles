@@ -103,13 +103,12 @@ struct RealInitializerSpyService: InitializerSpyService {
     func value() -> Int { storedValue }
 }
 
-// Eleven arguments overflow even the widest architecture's register budget
-// (arm64: 8 argument registers) by more than the outgoing-stack-spill
-// ceiling (4 words, shared with the target's own spilled metadata/witness
-// table -- see SyncStackSpySpillForwardingTests) can absorb, on every
-// supported architecture. Keep this comfortably over that boundary rather
-// than tuned to one architecture's exact register count.
+// Fifteen arguments overflow even the widest architecture's register budget
+// (arm64: 8 argument registers) by more than the outgoing-stack-spill ceiling
+// (8 words, shared with the target's own spilled metadata/witness table -- see
+// SyncStackSpySpillForwardingTests) can absorb on every supported architecture.
 protocol WideSpyService {
+    // swiftlint:disable:next function_parameter_count
     func combine(
         _ first: Int,
         _ second: Int,
@@ -121,11 +120,16 @@ protocol WideSpyService {
         _ eighth: Int,
         _ ninth: Int,
         _ tenth: Int,
-        _ eleventh: Int
+        _ eleventh: Int,
+        _ twelfth: Int,
+        _ thirteenth: Int,
+        _ fourteenth: Int,
+        _ fifteenth: Int
     ) -> Int
 }
 
 struct RealWideSpyService: WideSpyService {
+    // swiftlint:disable:next function_parameter_count
     func combine(
         _ first: Int,
         _ second: Int,
@@ -137,10 +141,15 @@ struct RealWideSpyService: WideSpyService {
         _ eighth: Int,
         _ ninth: Int,
         _ tenth: Int,
-        _ eleventh: Int
+        _ eleventh: Int,
+        _ twelfth: Int,
+        _ thirteenth: Int,
+        _ fourteenth: Int,
+        _ fifteenth: Int
     ) -> Int {
         first + second + third + fourth + fifth + sixth + seventh + eighth
-            + ninth + tenth + eleventh
+            + ninth + tenth + eleventh + twelfth + thirteenth + fourteenth
+            + fifteenth
     }
 }
 
