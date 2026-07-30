@@ -135,8 +135,9 @@ let stub = try Stub<any CachedProfile & NetworkProfile>(
 )
 ```
 
-Hints classify ordinary untyped `throws`; they do not describe typed throws.
-Use explicit requirements when no automatic signature source is available.
+Hints classify nonthrowing getters, ordinary untyped `throws`, and concrete
+typed errors through `.typedThrowing(Failure.self)`. Use explicit requirements
+when no automatic signature source is available.
 
 ### Explicit requirements
 

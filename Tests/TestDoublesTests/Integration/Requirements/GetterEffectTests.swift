@@ -54,6 +54,34 @@ struct RealChildGetterEffectProbe: ChildGetterEffectProbe {
     var childValue: String { get throws { "child" } }
 }
 
+enum BaseGroupedTypedGetterError: Error {
+    case failed
+}
+
+enum ChildGroupedTypedGetterError: Error {
+    case failed
+}
+
+protocol BaseGroupedTypedGetterProbe {
+    var baseTypedValue: Int { get throws(BaseGroupedTypedGetterError) }
+}
+
+protocol ChildGroupedTypedGetterProbe: BaseGroupedTypedGetterProbe {
+    var childTypedValue: String {
+        get async throws(ChildGroupedTypedGetterError)
+    }
+}
+
+struct RealChildGroupedTypedGetterProbe: ChildGroupedTypedGetterProbe {
+    var baseTypedValue: Int {
+        get throws(BaseGroupedTypedGetterError) { 1 }
+    }
+
+    var childTypedValue: String {
+        get async throws(ChildGroupedTypedGetterError) { "child" }
+    }
+}
+
 protocol FirstRepeatedGetterEffectProbe {
     var repeated: Int { get async }
 }
@@ -271,6 +299,46 @@ struct FailingTypedThrowingGetterProbe: TypedThrowingGetterProbe {
         let probe: any ChildGetterEffectProbe = stub()
         #expect(await probe.baseValue == 11)
         #expect(try probe.childValue == "hinted")
+    }
+
+    @Test func groupedGetterHintsPreserveDistinctTypedErrors() async throws {
+        _ = RealChildGroupedTypedGetterProbe()
+        typealias Probe = any ChildGroupedTypedGetterProbe
+        let stub = try Stub<Probe>(
+            getterEffectsByProtocol: .effects(
+                declaredBy: BaseGroupedTypedGetterProbe.self,
+                .typedThrowing(BaseGroupedTypedGetterError.self)
+            ),
+            .effects(
+                declaredBy: ChildGroupedTypedGetterProbe.self,
+                .typedThrowing(ChildGroupedTypedGetterError.self)
+            )
+        )
+        stub.when {
+            try $0.baseTypedValue
+        }.thenThrow(BaseGroupedTypedGetterError.failed)
+        await stub.when {
+            try await $0.childTypedValue
+        }.thenThrow(ChildGroupedTypedGetterError.failed)
+
+        let probe: Probe = stub()
+        #expect(throws: BaseGroupedTypedGetterError.failed) {
+            _ = try probe.baseTypedValue
+        }
+        await #expect(throws: ChildGroupedTypedGetterError.failed) {
+            _ = try await probe.childTypedValue
+        }
+
+        let baseGetter = try #require(stub.recorder.runtimeMethod(for: 0))
+        let childGetter = try #require(stub.recorder.runtimeMethod(for: 1))
+        #expect(
+            baseGetter.typedErrorType
+                == BaseGroupedTypedGetterError.self
+        )
+        #expect(
+            childGetter.typedErrorType
+                == ChildGroupedTypedGetterError.self
+        )
     }
 
     @Test func groupedGetterHintsDistinguishRepeatedNamesInAComposition() async throws {
