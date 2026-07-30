@@ -142,16 +142,13 @@ package func runtimeMethodGenericParameterPackUnsupportedReason(
     guard method.kind == .method, method.receiver == .instance else {
         return "Parameter packs are supported only on ordinary instance methods."
     }
-    guard method.isAsync == false else {
-        return "Async continuation transport has not been proven for parameter packs."
-    }
     guard method.typedErrorType == nil else {
         return "Typed-throwing transport has not been proven alongside a parameter pack."
     }
     guard packArguments.count == 1, method.arguments.count == 1 else {
         return "Only one standalone parameter-pack argument is supported."
     }
-    guard packArguments[0].ownership == .borrowed else {
+    guard packArguments.allSatisfy({ $0.ownership == .borrowed }) else {
         return "Consuming parameter packs need ownership-aware element transport."
     }
     guard case .methodGenericParameterPack = method.result.convention else {

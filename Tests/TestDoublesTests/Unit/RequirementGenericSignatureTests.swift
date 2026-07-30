@@ -116,7 +116,7 @@ private func useLinkedMultiplePackRequirementProbe(
         macCatalyst 17.0,
         *
     )
-    func constrainedAndMultipleRequirementPacksFailClosed() {
+    func unsupportedRequirementPackShapesFailClosed() {
         #expect(
             useLinkedConstrainedPackRequirementProbe(
                 RealExternalConstrainedPackRequirementProbe()
@@ -134,9 +134,6 @@ private func useLinkedMultiplePackRequirementProbe(
         expectUnsupportedProtocolShape(containing: "one standalone") {
             _ = try Stub<any ExternalMultiplePackRequirementProbe>()
         }
-        expectUnsupportedProtocolShape(containing: "Async continuation transport") {
-            _ = try Stub<any ExternalAsyncPackRequirementProbe>()
-        }
         expectUnsupportedProtocolShape(containing: "returns a parameter pack") {
             _ = try Stub<any ExternalPackResultRequirementProbe>()
         }
@@ -144,6 +141,34 @@ private func useLinkedMultiplePackRequirementProbe(
             _ = try Spy<any ExternalPackRequirementProbe>(
                 forwardingTo: RealExternalPackRequirementProbe()
             )
+        }
+    }
+
+    @Test
+    @available(
+        macOS 14.0,
+        iOS 17.0,
+        tvOS 17.0,
+        watchOS 10.0,
+        visionOS 1.0,
+        macCatalyst 17.0,
+        *
+    )
+    func asyncRequirementPackIsCopiedBeforeSuspension() async throws {
+        _ = RealExternalAsyncPackRequirementProbe()
+        let stub = try Stub<any ExternalAsyncPackRequirementProbe>()
+        await stub.when {
+            await $0.pack(40, "go")
+        }.then { (integer: Int, text: String) async in
+            await Task.yield()
+            return integer + text.count
+        }
+
+        let probe: any ExternalAsyncPackRequirementProbe = stub()
+        #expect(await probe.pack(40, "go") == 42)
+
+        await stub.verify {
+            await $0.pack(40, "go")
         }
     }
 

@@ -61,9 +61,7 @@ public struct RealExternalPackRequirementProbe: ExternalPackRequirementProbe {
     }
 }
 
-/// Async pack calls use a different continuation ABI, so they stay rejected
-/// until the synchronous pack transport has an independently verified async
-/// counterpart.
+/// Async pack calls verify that every element is copied before suspension.
 @available(
     macOS 14.0,
     iOS 17.0,
