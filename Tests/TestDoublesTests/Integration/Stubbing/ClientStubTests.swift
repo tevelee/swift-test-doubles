@@ -5,6 +5,43 @@ private enum ClientStubFailure: Error, Equatable {
     case rejected(Int)
 }
 
+private typealias SendableSyncEndpoint =
+    @Sendable (Int) -> String
+private typealias SendableThrowingEndpoint =
+    @Sendable (Int) throws -> String
+private typealias SendableTypedThrowingEndpoint =
+    @Sendable (Int) throws(ClientStubFailure) -> String
+private typealias SendableAsyncEndpoint =
+    @Sendable (Int) async -> String
+private typealias SendableAsyncThrowingEndpoint =
+    @Sendable (Int) async throws -> String
+private typealias SendableAsyncTypedThrowingEndpoint =
+    @Sendable (Int) async throws(ClientStubFailure) -> String
+private typealias SyncEndpoint = (Int) -> String
+private typealias ThrowingEndpoint = (Int) throws -> String
+private typealias TypedThrowingEndpoint =
+    (Int) throws(ClientStubFailure) -> String
+private typealias AsyncEndpoint = (Int) async -> String
+private typealias AsyncThrowingEndpoint =
+    (Int) async throws -> String
+private typealias AsyncTypedThrowingEndpoint =
+    (Int) async throws(ClientStubFailure) -> String
+
+private struct AliasedEndpointClient {
+    var sendableSync: SendableSyncEndpoint
+    var sendableThrowing: SendableThrowingEndpoint
+    var sendableTypedThrowing: SendableTypedThrowingEndpoint
+    var sendableAsync: SendableAsyncEndpoint
+    var sendableAsyncThrowing: SendableAsyncThrowingEndpoint
+    var sendableAsyncTypedThrowing: SendableAsyncTypedThrowingEndpoint
+    var sync: SyncEndpoint
+    var throwing: ThrowingEndpoint
+    var typedThrowing: TypedThrowingEndpoint
+    var async: AsyncEndpoint
+    var asyncThrowing: AsyncThrowingEndpoint
+    var asyncTypedThrowing: AsyncTypedThrowingEndpoint
+}
+
 private struct ClosureFieldClient: Sendable {
     var version: @Sendable () -> String
     var format: @Sendable (Int, String) -> String
@@ -143,6 +180,102 @@ private func makeLiveClosureFieldClient() -> ClosureFieldClient {
                 throw ClientStubFailure.rejected(value)
             }
             return "typed-loaded-\(value)"
+        }
+    )
+}
+
+private func makeAliasedEndpointPreset() -> ClientDoublePreset<AliasedEndpointClient> {
+    ClientDoublePreset<AliasedEndpointClient> { endpoints in
+        AliasedEndpointClient(
+            sendableSync: endpoints.endpoint(
+                "sendableSync",
+                as: SendableSyncEndpoint.self,
+                forwarding: { $0.sendableSync }
+            ),
+            sendableThrowing: endpoints.endpoint(
+                "sendableThrowing",
+                as: SendableThrowingEndpoint.self,
+                forwarding: { $0.sendableThrowing }
+            ),
+            sendableTypedThrowing: endpoints.endpoint(
+                "sendableTypedThrowing",
+                as: SendableTypedThrowingEndpoint.self,
+                forwarding: { $0.sendableTypedThrowing }
+            ),
+            sendableAsync: endpoints.endpoint(
+                "sendableAsync",
+                as: SendableAsyncEndpoint.self,
+                forwarding: { $0.sendableAsync }
+            ),
+            sendableAsyncThrowing: endpoints.endpoint(
+                "sendableAsyncThrowing",
+                as: SendableAsyncThrowingEndpoint.self,
+                forwarding: { $0.sendableAsyncThrowing }
+            ),
+            sendableAsyncTypedThrowing: endpoints.endpoint(
+                "sendableAsyncTypedThrowing",
+                as: SendableAsyncTypedThrowingEndpoint.self,
+                forwarding: { $0.sendableAsyncTypedThrowing }
+            ),
+            sync: endpoints.endpoint(
+                "sync",
+                as: SyncEndpoint.self,
+                forwarding: { $0.sync }
+            ),
+            throwing: endpoints.endpoint(
+                "throwing",
+                as: ThrowingEndpoint.self,
+                forwarding: { $0.throwing }
+            ),
+            typedThrowing: endpoints.endpoint(
+                "typedThrowing",
+                as: TypedThrowingEndpoint.self,
+                forwarding: { $0.typedThrowing }
+            ),
+            async: endpoints.endpoint(
+                "async",
+                as: AsyncEndpoint.self,
+                forwarding: { $0.async }
+            ),
+            asyncThrowing: endpoints.endpoint(
+                "asyncThrowing",
+                as: AsyncThrowingEndpoint.self,
+                forwarding: { $0.asyncThrowing }
+            ),
+            asyncTypedThrowing: endpoints.endpoint(
+                "asyncTypedThrowing",
+                as: AsyncTypedThrowingEndpoint.self,
+                forwarding: { $0.asyncTypedThrowing }
+            )
+        )
+    }
+}
+
+private func makeLiveAliasedEndpointClient() -> AliasedEndpointClient {
+    AliasedEndpointClient(
+        sendableSync: { "sendable-sync-\($0)" },
+        sendableThrowing: { "sendable-throwing-\($0)" },
+        sendableTypedThrowing: {
+            (value: Int) throws(ClientStubFailure) in
+            "sendable-typed-\(value)"
+        },
+        sendableAsync: { "sendable-async-\($0)" },
+        sendableAsyncThrowing: { "sendable-async-throwing-\($0)" },
+        sendableAsyncTypedThrowing: {
+            (value: Int) async throws(ClientStubFailure) in
+            "sendable-async-typed-\(value)"
+        },
+        sync: { "sync-\($0)" },
+        throwing: { "throwing-\($0)" },
+        typedThrowing: {
+            (value: Int) throws(ClientStubFailure) in
+            "typed-\(value)"
+        },
+        async: { "async-\($0)" },
+        asyncThrowing: { "async-throwing-\($0)" },
+        asyncTypedThrowing: {
+            (value: Int) async throws(ClientStubFailure) in
+            "async-typed-\(value)"
         }
     )
 }
@@ -430,5 +563,35 @@ private func makeLiveClosureFieldClient() -> ClosureFieldClient {
         }
         #expect(await overriddenValue.lookup(13) == "thirteen overridden")
         #expect(await overriddenValue.lookup(14) == "lookup-14")
+    }
+
+    @Test func aliasedEndpointsForwardEveryEffectAndSendabilityShape() async throws {
+        let spy = makeAliasedEndpointPreset().spy(
+            forwardingTo: makeLiveAliasedEndpointClient()
+        )
+        let client = spy()
+
+        #expect(client.sendableSync(1) == "sendable-sync-1")
+        #expect(try client.sendableThrowing(2) == "sendable-throwing-2")
+        #expect(try client.sendableTypedThrowing(3) == "sendable-typed-3")
+        #expect(await client.sendableAsync(4) == "sendable-async-4")
+        #expect(
+            try await client.sendableAsyncThrowing(5)
+                == "sendable-async-throwing-5"
+        )
+        #expect(
+            try await client.sendableAsyncTypedThrowing(6)
+                == "sendable-async-typed-6"
+        )
+        #expect(client.sync(7) == "sync-7")
+        #expect(try client.throwing(8) == "throwing-8")
+        #expect(try client.typedThrowing(9) == "typed-9")
+        #expect(await client.async(10) == "async-10")
+        #expect(try await client.asyncThrowing(11) == "async-throwing-11")
+        #expect(
+            try await client.asyncTypedThrowing(12)
+                == "async-typed-12"
+        )
+        #expect(spy.history.forwarded.callCount == 12)
     }
 }

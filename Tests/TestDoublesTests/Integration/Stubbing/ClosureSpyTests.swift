@@ -76,4 +76,40 @@ private enum ClosureSpyFailure: Error, Equatable {
             try await throwing(-1)
         }
     }
+
+    @Test func boundedAndUnboundedForwardingCoverEveryEffect() async throws {
+        let synchronous = ClosureSpy<Int, String>(
+            forwardingTo: { "sync-\($0)" }
+        )
+        synchronous.when(equal: 1).thenForward(times: 1)
+        synchronous.whenAny().thenReturn("override")
+        #expect(synchronous(1) == "sync-1")
+
+        let throwing = ThrowingClosureSpy<Int, String>(
+            forwardingTo: { "throwing-\($0)" }
+        )
+        throwing.when(equal: 1).thenForward(times: 1)
+        throwing.when(equal: 2).thenForward(times: 1...)
+        throwing.whenAny().thenReturn("override")
+        #expect(try throwing(1) == "throwing-1")
+        #expect(try throwing(2) == "throwing-2")
+
+        let asynchronous = AsyncClosureSpy<Int, String>(
+            forwardingTo: { "async-\($0)" }
+        )
+        asynchronous.when(equal: 1).thenForward(times: 1)
+        asynchronous.when(equal: 2).thenForward(times: 1...)
+        asynchronous.whenAny().thenReturn("override")
+        #expect(await asynchronous(1) == "async-1")
+        #expect(await asynchronous(2) == "async-2")
+
+        let asyncThrowing = AsyncThrowingClosureSpy<Int, String>(
+            forwardingTo: { "async-throwing-\($0)" }
+        )
+        asyncThrowing.when(equal: 1).thenForward(times: 1)
+        asyncThrowing.when(equal: 2).thenForward(times: 1...)
+        asyncThrowing.whenAny().thenReturn("override")
+        #expect(try await asyncThrowing(1) == "async-throwing-1")
+        #expect(try await asyncThrowing(2) == "async-throwing-2")
+    }
 }

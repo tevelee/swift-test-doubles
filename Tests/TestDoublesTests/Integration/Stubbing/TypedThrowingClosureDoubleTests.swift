@@ -104,4 +104,61 @@ private enum TypedClosureFailure: Error, Equatable {
         #expect(calls.interactions.stubbed.arguments() == [1])
         #expect(calls.interactions.forwarded.arguments() == [2])
     }
+
+    @Test func lifecycleSurfacesDelegateForBothTypedDoubleKinds() async throws {
+        let synchronous =
+            TypedThrowingClosureDouble<
+                Int,
+                String,
+                TypedClosureFailure
+            >()
+        synchronous.named("typed sync")
+        let synchronousCalls = synchronous.when(
+            { $0 > 0 },
+            describedBy: "positive"
+        )
+        synchronousCalls.thenReturn("sync")
+
+        let synchronousFunction: @Sendable (Int) throws(TypedClosureFailure) -> String =
+            synchronous.sendableFunction
+        #expect(try synchronousFunction(1) == "sync")
+        #expect(synchronous.history.callCount == 1)
+        synchronousCalls.verify()
+        synchronous.verifyNoUnusedStubs()
+
+        synchronous.clearRecordedInvocations()
+        #expect(synchronous.invocations.isEmpty)
+        synchronous.clearConfiguredBehaviors()
+        synchronous.whenAny().thenReturn("reset")
+        synchronous.reset()
+        #expect(synchronous.history.callCount == 0)
+
+        let asynchronous =
+            AsyncTypedThrowingClosureDouble<
+                Int,
+                String,
+                TypedClosureFailure
+            >()
+        asynchronous.named("typed async")
+        let asynchronousCalls = asynchronous.when(
+            { $0 > 0 },
+            describedBy: "positive"
+        )
+        asynchronousCalls.thenReturn("async")
+
+        let asynchronousFunction: (Int) async throws(TypedClosureFailure) -> String =
+            asynchronous.function
+        #expect(try await asynchronousFunction(2) == "async")
+        #expect(asynchronous.history.callCount == 1)
+        #expect(asynchronous.invocations == [2])
+        asynchronousCalls.verify()
+        asynchronous.verifyNoUnusedStubs()
+
+        asynchronous.clearRecordedInvocations()
+        #expect(asynchronous.invocations.isEmpty)
+        asynchronous.clearConfiguredBehaviors()
+        asynchronous.when(equal: 3).thenReturn("reset")
+        asynchronous.reset()
+        #expect(asynchronous.history.callCount == 0)
+    }
 }

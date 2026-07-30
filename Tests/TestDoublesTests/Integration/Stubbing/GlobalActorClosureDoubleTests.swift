@@ -56,4 +56,35 @@ private enum MainActorClosureFailure: Error, Equatable {
             try function(1)
         }
     }
+
+    @MainActor
+    @Test func remainingEffectfulViewsPreserveMainActorIsolation() async throws {
+        let throwing =
+            MainActorThrowingClosureDouble<Int, String>()
+        throwing.whenAny().thenReturn("throwing")
+        let throwingFunction: @MainActor @Sendable (Int) throws -> String =
+            throwing.mainActorFunction
+        #expect(try throwingFunction(1) == "throwing")
+
+        let asyncThrowing =
+            MainActorAsyncThrowingClosureDouble<Int, String>()
+        asyncThrowing.whenAny().thenReturn("async-throwing")
+        let asyncThrowingFunction: @MainActor @Sendable (Int) async throws -> String =
+            asyncThrowing.mainActorFunction
+        #expect(try await asyncThrowingFunction(2) == "async-throwing")
+
+        let asyncTyped =
+            MainActorAsyncTypedThrowingClosureDouble<
+                Int,
+                String,
+                MainActorClosureFailure
+            >()
+        asyncTyped.whenAny().thenReturn("async-typed")
+        let asyncTypedFunction:
+            @MainActor @Sendable (
+                Int
+            ) async throws(MainActorClosureFailure) -> String =
+                asyncTyped.mainActorFunction
+        #expect(try await asyncTypedFunction(3) == "async-typed")
+    }
 }

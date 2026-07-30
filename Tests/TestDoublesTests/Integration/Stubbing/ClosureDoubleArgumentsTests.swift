@@ -138,4 +138,140 @@ private enum ClosureArgumentsFailure: Error, Equatable {
             asyncThrowing.expandedFunction()
         #expect(try await asyncThrowingFunction() == "loaded")
     }
+
+    @Test func synchronousAdaptersCoverBoundedAndUnboundedBehaviors() throws {
+        let bounded = ClosureDouble<(Int, Int), Int>()
+        bounded.whenAny().thenArguments(times: 1) { $0 + $1 }
+        #expect(bounded.invoke(1, 2) == 3)
+
+        let counted = ClosureDouble<(Int, Int), Int>()
+        counted.whenAny().thenForEachCallArguments(times: 1) {
+            count,
+            first,
+            second in
+            count + first + second
+        }
+        #expect(counted.invoke(1, 2) == 4)
+
+        let repeatingCounted = ClosureDouble<(Int, Int), Int>()
+        repeatingCounted.whenAny().thenForEachCallArguments(times: 1...) {
+            count,
+            first,
+            second in
+            count * (first + second)
+        }
+        #expect(repeatingCounted.invoke(2, 3) == 5)
+
+        let throwing = ThrowingClosureDouble<(Int, Int), Int>()
+        throwing.whenAny().thenArguments(times: 1) {
+            (first: Int, second: Int) throws in
+            first + second
+        }
+        #expect(try throwing.invoke(3, 4) == 7)
+
+        let throwingCounted = ThrowingClosureDouble<(Int, Int), Int>()
+        throwingCounted.whenAny().thenForEachCallArguments(times: 1) {
+            (count: Int, first: Int, second: Int) throws in
+            count + first + second
+        }
+        #expect(try throwingCounted.invoke(3, 4) == 8)
+
+        let repeatingThrowingCounted =
+            ThrowingClosureDouble<(Int, Int), Int>()
+        repeatingThrowingCounted.whenAny().thenForEachCallArguments(
+            times: 1...
+        ) {
+            (count: Int, first: Int, second: Int) throws in
+            count * (first + second)
+        }
+        #expect(try repeatingThrowingCounted.invoke(3, 4) == 7)
+
+        let typed =
+            TypedThrowingClosureDouble<
+                (Int, Int),
+                Int,
+                ClosureArgumentsFailure
+            >()
+        typed.whenAny().thenArguments { $0 + $1 }
+        #expect(try typed.invoke(4, 5) == 9)
+    }
+
+    @Test func asynchronousAdaptersCoverEveryHandlerShape() async throws {
+        let immediate = AsyncClosureDouble<(Int, Int), Int>()
+        immediate.whenArguments { $0 > 0 && $1 > 0 }
+            .thenArguments(times: 1) { $0 + $1 }
+        #expect(await immediate.invoke(1, 2) == 3)
+
+        let suspended = AsyncClosureDouble<(Int, Int), Int>()
+        suspended.whenAny().thenArguments(times: 1) {
+            (first: Int, second: Int) async in
+            await Task.yield()
+            return first + second
+        }
+        #expect(await suspended.invoke(2, 3) == 5)
+
+        let repeatingSuspended = AsyncClosureDouble<(Int, Int), Int>()
+        repeatingSuspended.whenAny().thenArguments(times: 1...) {
+            (first: Int, second: Int) async in
+            await Task.yield()
+            return first * second
+        }
+        #expect(await repeatingSuspended.invoke(2, 3) == 6)
+
+        let counted = AsyncClosureDouble<(Int, Int), Int>()
+        counted.whenAny().thenForEachCallArguments(times: 1) {
+            (count: Int, first: Int, second: Int) async in
+            await Task.yield()
+            return count + first + second
+        }
+        #expect(await counted.invoke(2, 3) == 6)
+
+        let immediateThrowing =
+            AsyncThrowingClosureDouble<(Int, Int), Int>()
+        immediateThrowing.whenArguments { $0 > 0 && $1 > 0 }
+            .thenArguments(times: 1) {
+                (first: Int, second: Int) throws in
+                first + second
+            }
+        #expect(try await immediateThrowing.invoke(3, 4) == 7)
+
+        let suspendedThrowing =
+            AsyncThrowingClosureDouble<(Int, Int), Int>()
+        suspendedThrowing.whenAny().thenArguments(times: 1) {
+            (first: Int, second: Int) async throws in
+            await Task.yield()
+            return first + second
+        }
+        #expect(try await suspendedThrowing.invoke(4, 5) == 9)
+
+        let throwingCounted =
+            AsyncThrowingClosureDouble<(Int, Int), Int>()
+        throwingCounted.whenAny().thenForEachCallArguments(times: 1) {
+            (count: Int, first: Int, second: Int) async throws in
+            await Task.yield()
+            return count + first + second
+        }
+        #expect(try await throwingCounted.invoke(4, 5) == 10)
+
+        let repeatingThrowingCounted =
+            AsyncThrowingClosureDouble<(Int, Int), Int>()
+        repeatingThrowingCounted.whenAny().thenForEachCallArguments(
+            times: 1...
+        ) {
+            (count: Int, first: Int, second: Int) async throws in
+            await Task.yield()
+            return count * (first + second)
+        }
+        #expect(try await repeatingThrowingCounted.invoke(4, 5) == 9)
+
+        let typed =
+            AsyncTypedThrowingClosureDouble<
+                (Int, Int),
+                Int,
+                ClosureArgumentsFailure
+            >()
+        typed.whenArguments { $0 > 0 && $1 > 0 }
+            .thenArguments { $0 + $1 }
+        #expect(try await typed.invoke(5, 6) == 11)
+    }
 }
