@@ -194,5 +194,30 @@ import Testing
         )
     }
 
+    @Test func optionalArraySelfUsesOneFixedLayoutValueWord() {
+        let method = MethodDescriptor(
+            kind: .method,
+            name: "accept",
+            index: 0,
+            argumentTypes: [Optional<[FabricatedPayload]>.self],
+            returnType: Void.self,
+            argumentConventions: [.optionalArraySelf]
+        )
+
+        if case .integer(words: 1) = method.argumentLayouts[0] {
+            // Expected: Optional<Array<Self>> uses Array's null spare value.
+        } else {
+            Issue.record("Expected one-word Optional<Array<Self>> transport")
+        }
+        #expect(
+            method.runtimeMethod.argumentConventions
+                == [.optionalArraySelf]
+        )
+        #expect(
+            method.runtimeMethod.signatureDescription
+                == method.signatureDescription
+        )
+    }
+
     private enum ProjectionError: Error {}
 }

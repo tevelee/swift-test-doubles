@@ -356,6 +356,18 @@ public struct RealExternalArraySelfArgumentProbe:
     public func accept(_ value: [Self]) {}
 }
 
+public protocol ExternalOptionalArraySelfArgumentProbe {
+    func accept(_ value: [Self]?)
+}
+
+public struct RealExternalOptionalArraySelfArgumentProbe:
+    ExternalOptionalArraySelfArgumentProbe
+{
+    public init() {}
+
+    public func accept(_ value: [Self]?) {}
+}
+
 public enum ExternalThrowingSelfArgumentError: Error, Equatable {
     case rejected
 }

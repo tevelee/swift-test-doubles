@@ -54,6 +54,7 @@ package enum WitnessValueConvention: Equatable, Sendable {
     case optionalSelf
     case nestedOptionalSelf
     case arraySelf
+    case optionalArraySelf
     /// A direct dynamic `Self` argument passed through caller-owned inout storage.
     case inoutSelf
     /// Typed by the requirement's own generic parameter; `index` identifies

@@ -365,7 +365,8 @@ itself, such as `any Source<Int>`, for that full dependent interface.
 ### Pass and return dynamic Self
 
 Automatic discovery supports direct, single-optional, double-optional, and
-`Array<Self>` inputs on ordinary, throwing, static, and subscript requirements.
+`Array<Self>` and `Optional<Array<Self>>` inputs on ordinary, throwing, static,
+and subscript requirements.
 Borrowing and consuming method inputs retain their ownership conventions. Use
 a placeholder value from the same generated double when selecting a matcher:
 

@@ -544,6 +544,7 @@ extension StubRecorder {
         method.argumentConventions.contains {
             $0 == .selfType || $0 == .optionalSelf
                 || $0 == .nestedOptionalSelf || $0 == .arraySelf
+                || $0 == .optionalArraySelf
                 || $0 == .inoutSelf
         } ? method.argumentConventions : nil
     }

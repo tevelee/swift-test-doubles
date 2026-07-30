@@ -191,4 +191,16 @@ package struct ResolvedWitnessValue: Sendable {
             ownership: ownership
         )
     }
+
+    /// A fixed-layout Optional Array whose elements are dynamic `Self` payloads.
+    package static func optionalSelfArray(
+        ownership: WitnessArgumentOwnership? = nil
+    ) -> Self {
+        Self(
+            type: Optional<[FabricatedPayload]>.self,
+            convention: .optionalArraySelf,
+            dependency: .independent,
+            ownership: ownership
+        )
+    }
 }

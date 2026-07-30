@@ -466,6 +466,7 @@ struct ProtocolForwardingPlanBuilder<P> {
                     && $0.value.convention != .optionalSelf
                     && $0.value.convention != .nestedOptionalSelf
                     && $0.value.convention != .arraySelf
+                    && $0.value.convention != .optionalArraySelf
                     && $0.value.convention != .inoutSelf
             })
         else {

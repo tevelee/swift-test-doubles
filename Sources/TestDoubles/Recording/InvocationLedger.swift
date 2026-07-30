@@ -109,6 +109,7 @@ struct RecordedCall: @unchecked Sendable {
         case optionalSelfPayload(WeakPayload, RuntimePayloadMaterializer)
         case nestedOptionalSelfPayload(WeakPayload, RuntimePayloadMaterializer)
         case arraySelfPayloads([WeakPayload], RuntimePayloadMaterializer)
+        case optionalArraySelfPayloads([WeakPayload], RuntimePayloadMaterializer)
 
         init(
             _ value: Any,
@@ -182,6 +183,29 @@ struct RecordedCall: @unchecked Sendable {
                         materializer
                     )
 
+                case .optionalArraySelf:
+                    guard let materializer else {
+                        preconditionFailure(
+                            "[TestDoubles] Recorded Optional<Array<Self>> argument requires a runtime payload materializer."
+                        )
+                    }
+                    guard
+                        let optional = value
+                            as? [any RuntimePayload]?
+                    else {
+                        preconditionFailure(
+                            "[TestDoubles] Runtime decoded Optional<Array<Self>> argument as \(type(of: value)); expected optional opaque runtime payload elements."
+                        )
+                    }
+                    guard let payloads = optional else {
+                        self = .strong(value)
+                        return
+                    }
+                    self = .optionalArraySelfPayloads(
+                        payloads.map(WeakPayload.init),
+                        materializer
+                    )
+
                 case .concrete, .associatedType,
                     .methodGenericParameter,
                     .classMethodGenericParameter,
@@ -209,6 +233,14 @@ struct RecordedCall: @unchecked Sendable {
                     return weakPayloads.map {
                         $0.value ?? materializer.requirePayload()
                     }
+                case .optionalArraySelfPayloads(
+                    let weakPayloads,
+                    let materializer
+                ):
+                    let value: [any RuntimePayload]? = weakPayloads.map {
+                        $0.value ?? materializer.requirePayload()
+                    }
+                    return value as Any
             }
         }
     }

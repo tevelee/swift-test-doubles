@@ -164,7 +164,7 @@ package func discoverMethods(
                     case .concrete, .associatedType:
                         true
                     case .selfType, .optionalSelf, .nestedOptionalSelf,
-                        .arraySelf,
+                        .arraySelf, .optionalArraySelf,
                         .inoutSelf,
                         .methodGenericParameter,
                         .classMethodGenericParameter,
@@ -433,17 +433,22 @@ private func resolveWitnessValue(
         }
         guard
             isArgument
-                || (selfShape != .nestedOptional && selfShape != .array)
+                || (selfShape != .nestedOptional
+                    && selfShape != .array
+                    && selfShape != .optionalArray)
         else {
             throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolDescriptor.name,
                 reason:
                     "Requirement \(requirementIndex) returns a wrapped Self value. "
-                    + "Automatic Stub supports nested Optional and Array Self only as arguments."
+                    + "Automatic Stub supports nested Optional, Array, and Optional Array Self only as arguments."
             )
         }
         if selfShape == .array {
             return .selfArray(ownership: ownership)
+        }
+        if selfShape == .optionalArray {
+            return .optionalSelfArray(ownership: ownership)
         }
         return .selfValue(
             isOptional: selfShape != .direct,
@@ -533,7 +538,7 @@ private func resolveWitnessValue(
 }
 
 private enum DynamicSelfValueShape {
-    case direct, optional, nestedOptional, array
+    case direct, optional, nestedOptional, array, optionalArray
 }
 
 /// Whether a demangled type spelling names a generic parameter belonging to the
@@ -724,6 +729,12 @@ private func dynamicSelfValueShape(
         case "Array<A>", "Swift.Array<A>",
             "Array<Self>", "Swift.Array<Self>":
             .array
+        case "Optional<Array<A>>", "Optional<Swift.Array<A>>",
+            "Swift.Optional<Array<A>>", "Swift.Optional<Swift.Array<A>>",
+            "Optional<Array<Self>>", "Optional<Swift.Array<Self>>",
+            "Swift.Optional<Array<Self>>",
+            "Swift.Optional<Swift.Array<Self>>":
+            .optionalArray
         default:
             nil
     }
