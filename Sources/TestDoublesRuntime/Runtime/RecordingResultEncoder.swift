@@ -162,6 +162,9 @@ package enum RecordingResultEncoder {
             case .methodGenericParameter(let value):
                 index = value
                 isOptional = false
+            case .classMethodGenericParameter(let value):
+                index = value
+                isOptional = false
             case .optionalMethodGenericParameter(let value):
                 index = value
                 isOptional = true

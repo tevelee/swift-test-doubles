@@ -31,6 +31,8 @@ package enum RuntimeValueConvention: Equatable, Sendable {
     case optionalSelf
     /// Typed by the requirement's own generic parameter.
     case methodGenericParameter(index: Int)
+    /// Typed by an AnyObject-constrained requirement-level generic parameter.
+    case classMethodGenericParameter(index: Int)
     /// An Optional wrapping the requirement's own generic parameter.
     case optionalMethodGenericParameter(index: Int)
     /// A source-level parameter pack flattened into ordinary recorder values.
@@ -242,6 +244,8 @@ private func runtimeValueDescription(_ value: RuntimeValue) -> String {
             "Self?"
         case .methodGenericParameter(let index):
             "<generic parameter \(index)>"
+        case .classMethodGenericParameter(let index):
+            "<class generic parameter \(index)>"
         case .optionalMethodGenericParameter(let index):
             "<generic parameter \(index)>?"
         case .methodGenericParameterPack(let index):

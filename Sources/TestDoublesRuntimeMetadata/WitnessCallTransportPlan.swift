@@ -88,13 +88,20 @@ package struct WitnessCallTransportPlan: Sendable {
         // index before that boundary can reject malformed schemas.
         let argumentGenericParameterIndices =
             method.arguments.compactMap { argument -> Int? in
-                guard case .methodGenericParameter(let index) = argument.value.convention else {
-                    return nil
+                switch argument.value.convention {
+                    case .methodGenericParameter(let index),
+                        .classMethodGenericParameter(let index):
+                        return index
+                    default:
+                        return nil
                 }
-                return index
             }
         let resultGenericParameterIndex: Int? =
             if case .methodGenericParameter(let index) = method.result.convention {
+                index
+            } else if case .classMethodGenericParameter(let index) =
+                method.result.convention
+            {
                 index
             } else if case .optionalMethodGenericParameter(let index) =
                 method.result.convention

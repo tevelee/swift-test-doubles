@@ -219,6 +219,18 @@ package enum RuntimeArgumentDecoder {
 
                 case .integer(let words):
                     precondition(locations.count == words)
+                    let runtimeType: Any.Type
+                    if case .classMethodGenericParameter(let index) =
+                        argument.convention
+                    {
+                        runtimeType = genericParameterMetadataType(
+                            at: index,
+                            in: plan.genericParameterMetadataLocations,
+                            from: frame
+                        )
+                    } else {
+                        runtimeType = argument.type
+                    }
                     var storage = (UInt64(0), UInt64(0))
                     withUnsafeMutableBytes(of: &storage) { bytes in
                         for location in locations {
@@ -232,8 +244,11 @@ package enum RuntimeArgumentDecoder {
                     values.append(
                         withUnsafeMutablePointer(to: &storage) {
                             copyArgument(
-                                type: argument.type,
-                                prepared: argument.functionReabstraction,
+                                type: runtimeType,
+                                prepared:
+                                    runtimeType == argument.type
+                                    ? argument.functionReabstraction
+                                    : nil,
                                 source: UnsafeMutableRawPointer($0),
                                 consuming: consumesArgument
                             )

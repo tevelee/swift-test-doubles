@@ -281,6 +281,25 @@ public struct RealClassConstrainedGenericRequirementProbe:
     public func generic<Value: AnyObject>(_ value: Value) {}
 }
 
+public enum ExternalStringRawValue: String {
+    case value
+    case other
+}
+
+public protocol SameTypeConstrainedGenericRequirementProbe {
+    func generic<Value: RawRepresentable>(_ value: Value)
+    where Value.RawValue == String
+}
+
+public struct RealSameTypeConstrainedGenericRequirementProbe:
+    SameTypeConstrainedGenericRequirementProbe
+{
+    public init() {}
+
+    public func generic<Value: RawRepresentable>(_ value: Value)
+    where Value.RawValue == String {}
+}
+
 public protocol NoncopyableGenericRequirementProbe {
     func generic<Value: ~Copyable>(_ value: borrowing Value)
 }

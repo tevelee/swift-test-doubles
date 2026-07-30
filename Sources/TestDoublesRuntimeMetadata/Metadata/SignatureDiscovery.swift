@@ -128,7 +128,9 @@ package func discoverMethods(
                 switch result.convention {
                     case .concrete, .associatedType:
                         true
-                    case .selfType, .optionalSelf, .methodGenericParameter,
+                    case .selfType, .optionalSelf,
+                        .methodGenericParameter,
+                        .classMethodGenericParameter,
                         .optionalMethodGenericParameter,
                         .methodGenericParameterPack:
                         false
@@ -363,7 +365,13 @@ private func resolveWitnessValue(
         }
         return ResolvedWitnessValue(
             type: Any.self,
-            convention: .methodGenericParameter(index: index),
+            convention:
+                methodGenericParameterHasClassConstraint(
+                    valueName,
+                    in: RuntimeSymbols.demangle(mangledSignature)
+                )
+                ? .classMethodGenericParameter(index: index)
+                : .methodGenericParameter(index: index),
             dependency: .independent,
             ownership: ownership
         )
@@ -601,9 +609,6 @@ private func unsupportedRequirementLevelGenericSignatureReason(
         if demangled.contains("\(parameter): ~Swift.Escapable") {
             return "`~Escapable` parameters may have lifetime-dependent storage that cannot escape into the recorder."
         }
-        if demangled.contains("\(parameter): AnyObject") {
-            return "Class-constrained parameters use a direct reference ABI, which is not implemented."
-        }
         if demangled.contains("\(parameter) ==")
             || demangled.contains("where \(parameter) ==")
         {
@@ -614,6 +619,17 @@ private func unsupportedRequirementLevelGenericSignatureReason(
         // witnesses follow the metadata and are irrelevant to value capture.
     }
     return nil
+}
+
+private func methodGenericParameterHasClassConstraint(
+    _ parameter: String,
+    in demangled: String
+) -> Bool {
+    let prefixes = [
+        "where \(parameter): AnyObject",
+        ", \(parameter): AnyObject"
+    ]
+    return prefixes.contains { demangled.contains($0) }
 }
 
 private func demangledGenericParameterHasConstraint(

@@ -75,11 +75,19 @@ package func runtimeMethodGenericParameterUnsupportedReason(
     for method: MethodDescriptor
 ) -> String? {
     let genericArguments = method.arguments.filter {
-        if case .methodGenericParameter = $0.value.convention { return true }
-        return false
+        switch $0.value.convention {
+            case .methodGenericParameter, .classMethodGenericParameter:
+                true
+            default:
+                false
+        }
     }
     let genericResultIndex: Int? =
         if case .methodGenericParameter(let index) = method.result.convention {
+            index
+        } else if case .classMethodGenericParameter(let index) =
+            method.result.convention
+        {
             index
         } else if case .optionalMethodGenericParameter(let index) =
             method.result.convention
@@ -101,10 +109,13 @@ package func runtimeMethodGenericParameterUnsupportedReason(
 
     let indices =
         genericArguments.compactMap { argument -> Int? in
-            guard case .methodGenericParameter(let index) = argument.value.convention else {
-                return nil
+            switch argument.value.convention {
+                case .methodGenericParameter(let index),
+                    .classMethodGenericParameter(let index):
+                    return index
+                default:
+                    return nil
             }
-            return index
         } + [genericResultIndex].compactMap { $0 }
     guard indices.allSatisfy({ $0 >= 0 }) else {
         return "Requirement-level generic parameter indices must be non-negative."
@@ -155,12 +166,17 @@ package func runtimeMethodGenericParameterForwardingUnsupportedReason(
     for method: MethodDescriptor
 ) -> String? {
     let genericArgument = method.arguments.contains {
-        if case .methodGenericParameter = $0.value.convention { return true }
-        return false
+        switch $0.value.convention {
+            case .methodGenericParameter, .classMethodGenericParameter:
+                true
+            default:
+                false
+        }
     }
     let genericResult =
         switch method.result.convention {
-            case .methodGenericParameter, .optionalMethodGenericParameter:
+            case .methodGenericParameter, .classMethodGenericParameter,
+                .optionalMethodGenericParameter:
                 true
             default:
                 false

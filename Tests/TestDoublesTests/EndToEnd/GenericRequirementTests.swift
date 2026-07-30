@@ -164,11 +164,36 @@ import TestDoublesFixtures
         }
     }
 
-    @Test func classConstrainedGenericParameterFailsClosed() {
-        expectUnsupportedProtocolShape(
-            containing: "Class-constrained parameters use a direct reference ABI"
-        ) {
-            _ = try Stub<any ClassConstrainedGenericRequirementProbe>()
+    @Test func classConstrainedGenericParameterUsesDirectReferenceTransport() throws {
+        let value = ExternalGenericReferenceConstraintValue()
+        let stub = try Stub<any ClassConstrainedGenericRequirementProbe>()
+        stub.when {
+            $0.generic(Match.any(using: value))
+        }.thenReturn(())
+
+        let probe: any ClassConstrainedGenericRequirementProbe = stub()
+        probe.generic(value)
+
+        stub.verify {
+            $0.generic(Match.any(using: value))
+        }
+    }
+
+    @Test func associatedSameTypeConstraintRetainsGenericTransport() throws {
+        let value = ExternalStringRawValue.value
+        let stub =
+            try Stub<
+                any SameTypeConstrainedGenericRequirementProbe
+            >()
+        stub.when {
+            $0.generic(Match.equal(value))
+        }.thenReturn(())
+
+        let probe: any SameTypeConstrainedGenericRequirementProbe = stub()
+        probe.generic(value)
+
+        stub.verify {
+            $0.generic(Match.equal(value))
         }
     }
 

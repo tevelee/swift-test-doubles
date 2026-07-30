@@ -202,7 +202,9 @@ extension RuntimeStubFactory {
             let selfArguments = method.arguments.filter {
                 switch $0.value.convention {
                     case .selfType, .optionalSelf: true
-                    case .concrete, .associatedType, .methodGenericParameter,
+                    case .concrete, .associatedType,
+                        .methodGenericParameter,
+                        .classMethodGenericParameter,
                         .optionalMethodGenericParameter,
                         .methodGenericParameterPack:
                         false
