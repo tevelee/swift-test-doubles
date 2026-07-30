@@ -84,27 +84,37 @@ import Testing
             )
         }
 
-        @Test func fifthVisibleSpillForwardsInDeclarationOrder() async throws {
-            let spy = try Spy<any FifthSpilledAsyncForwardingProbe>(
-                forwardingTo: RealFifthSpilledAsyncForwardingProbe()
+        @Test func eighthVisibleSpillForwardsInDeclarationOrder() async throws {
+            let spy = try Spy<any EighthSpilledAsyncForwardingProbe>(
+                forwardingTo: RealEighthSpilledAsyncForwardingProbe()
             )
-            let service: any FifthSpilledAsyncForwardingProbe = spy()
+            let service: any EighthSpilledAsyncForwardingProbe = spy()
+            let expected = foldedAsyncForwardingWords([
+                0x1112_1314, 0x2122_2324,
+                0x3132_3334, 0x4142_4344,
+                0x5152_5354, 0x6162_6364,
+                0x7172_7374, 0x0102_0304
+            ])
 
             #if arch(x86_64)
                 #expect(
                     await service.call(
                         1, 2, 3, 4, 5, 6,
                         0x1112_1314, 0x2122_2324,
-                        0x3132_3334, 0x4142_4344, 0x5152_5354
-                    ) == 0x5152_5354
+                        0x3132_3334, 0x4142_4344,
+                        0x5152_5354, 0x6162_6364,
+                        0x7172_7374, 0x0102_0304
+                    ) == expected
                 )
             #else
                 #expect(
                     await service.call(
                         1, 2, 3, 4, 5, 6, 7, 8,
                         0x1112_1314, 0x2122_2324,
-                        0x3132_3334, 0x4142_4344, 0x5152_5354
-                    ) == 0x5152_5354
+                        0x3132_3334, 0x4142_4344,
+                        0x5152_5354, 0x6162_6364,
+                        0x7172_7374, 0x0102_0304
+                    ) == expected
                 )
             #endif
         }

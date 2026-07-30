@@ -174,22 +174,30 @@ func foldedAsyncForwardingWords(_ words: [Int]) -> Int {
             }
         }
 
-        protocol FifthSpilledAsyncForwardingProbe: Sendable {
+        protocol EighthSpilledAsyncForwardingProbe: Sendable {
+            // swiftlint:disable:next function_parameter_count
             func call(
                 _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int,
                 _ a4: Int, _ a5: Int, _ a6: Int, _ a7: Int,
-                _ a8: Int, _ a9: Int, _ a10: Int
+                _ a8: Int, _ a9: Int, _ a10: Int, _ a11: Int,
+                _ a12: Int, _ a13: Int
             ) async -> Int
         }
 
-        struct RealFifthSpilledAsyncForwardingProbe:
-            FifthSpilledAsyncForwardingProbe
+        struct RealEighthSpilledAsyncForwardingProbe:
+            EighthSpilledAsyncForwardingProbe
         {
+            // swiftlint:disable:next function_parameter_count
             func call(
                 _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int,
                 _ a4: Int, _ a5: Int, _ a6: Int, _ a7: Int,
-                _ a8: Int, _ a9: Int, _ a10: Int
-            ) async -> Int { a10 }
+                _ a8: Int, _ a9: Int, _ a10: Int, _ a11: Int,
+                _ a12: Int, _ a13: Int
+            ) async -> Int {
+                foldedAsyncForwardingWords([
+                    a6, a7, a8, a9, a10, a11, a12, a13
+                ])
+            }
         }
 
         protocol FloatingPointSpilledAsyncForwardingProbe: Sendable {
@@ -509,27 +517,30 @@ func foldedAsyncForwardingWords(_ words: [Int]) -> Int {
             }
         }
 
-        protocol FifthSpilledAsyncForwardingProbe: Sendable {
-            // This must overflow the supported four-word forwarding window.
+        protocol EighthSpilledAsyncForwardingProbe: Sendable {
             // swiftlint:disable:next function_parameter_count
             func call(
                 _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int,
                 _ a4: Int, _ a5: Int, _ a6: Int, _ a7: Int,
                 _ a8: Int, _ a9: Int, _ a10: Int, _ a11: Int,
-                _ a12: Int
+                _ a12: Int, _ a13: Int, _ a14: Int, _ a15: Int
             ) async -> Int
         }
 
-        struct RealFifthSpilledAsyncForwardingProbe:
-            FifthSpilledAsyncForwardingProbe
+        struct RealEighthSpilledAsyncForwardingProbe:
+            EighthSpilledAsyncForwardingProbe
         {
             // swiftlint:disable:next function_parameter_count
             func call(
                 _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int,
                 _ a4: Int, _ a5: Int, _ a6: Int, _ a7: Int,
                 _ a8: Int, _ a9: Int, _ a10: Int, _ a11: Int,
-                _ a12: Int
-            ) async -> Int { a12 }
+                _ a12: Int, _ a13: Int, _ a14: Int, _ a15: Int
+            ) async -> Int {
+                foldedAsyncForwardingWords([
+                    a8, a9, a10, a11, a12, a13, a14, a15
+                ])
+            }
         }
 
         protocol FloatingPointSpilledAsyncForwardingProbe: Sendable {

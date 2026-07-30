@@ -144,11 +144,11 @@ bits in arguments and results. Smaller, padded, wider, nested, dependent, and
 async SIMD shapes, plus any vector spill, remain fail-closed.
 
 Ordinary async instance methods, untyped-throwing or not, may forward one
-through four consecutive complete eight-byte general-purpose stack arguments.
+through eight consecutive complete eight-byte general-purpose stack arguments.
 The bridge copies the words before suspension, then places them in declaration
 order before the target's dynamic-Self metadata and witness table. Immediate
 and suspending targets, untyped errors, and indirect result storage share this
-boundary on arm64 and x86_64. A fifth word and split, padded, floating-point,
+boundary on arm64 and x86_64. A ninth word and split, padded, floating-point,
 vector, indirect-argument, dependent, accessor, static, and typed-error stack
 shapes remain fail-closed.
 
