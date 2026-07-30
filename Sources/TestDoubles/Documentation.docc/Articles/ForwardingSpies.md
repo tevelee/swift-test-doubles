@@ -141,9 +141,10 @@ Ordinary instance methods may also forward unconstrained requirement-level
 generic parameters and `AnyObject`-constrained generic parameters. This
 includes synchronous, async, and typed-throwing methods, caller-chosen `T` and
 `T?` results, and generic metadata that spills to the synchronous outgoing
-stack. Protocol-constrained generic parameters remain fail-closed because
-their additional conformance-witness words are not yet replayed. Parameter
-packs remain a separate unsupported forwarding boundary.
+stack. A single standalone borrowed parameter pack may also forward
+synchronously or asynchronously; its elements remain flattened into recorder
+order. Protocol-constrained generic parameters and constrained, consuming,
+multiple, mixed, typed-throwing, or result packs remain fail-closed.
 
 Ordinary instance methods may also forward concrete, copyable
 SIMD values when each value occupies one through four complete vector registers
@@ -202,7 +203,7 @@ Construction fails with ``StubError/unsupportedProtocolShape(protocolName:reason
 when the protocol requires any of these other unsupported forwarding shapes:
 
 - Direct or optional dynamic `Self` results
-- Protocol-constrained generic methods and parameter packs
+- Protocol-constrained generic methods and unsupported parameter-pack shapes
 - Stack arguments outside the bounded synchronous and async forwarding paths
   described above
 - SIMD outside the single-register 128-bit synchronous boundary, including a

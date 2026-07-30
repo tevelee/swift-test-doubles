@@ -428,7 +428,8 @@ replayed. Base-class constraints, equality between whole generic parameters,
 and generic parameter results nested in other containers are not supported.
 A method may instead declare one standalone borrowed parameter pack. Its
 elements are flattened into recorder order for matching, typed handlers, and
-verification; async dispatch copies every element before suspension.
+verification; async dispatch copies every element before suspension. The same
+standalone shape may forward through a synchronous or async Spy.
 Constrained, consuming, multiple, mixed, typed-throwing, and result packs
 remain fail-closed.
 

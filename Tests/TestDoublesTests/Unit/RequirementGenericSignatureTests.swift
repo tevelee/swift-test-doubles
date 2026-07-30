@@ -137,10 +137,51 @@ private func useLinkedMultiplePackRequirementProbe(
         expectUnsupportedProtocolShape(containing: "returns a parameter pack") {
             _ = try Stub<any ExternalPackResultRequirementProbe>()
         }
-        expectUnsupportedProtocolShape(containing: "Forwarding Spy does not support") {
-            _ = try Spy<any ExternalPackRequirementProbe>(
-                forwardingTo: RealExternalPackRequirementProbe()
-            )
+    }
+
+    @Test
+    @available(
+        macOS 14.0,
+        iOS 17.0,
+        tvOS 17.0,
+        watchOS 10.0,
+        visionOS 1.0,
+        macCatalyst 17.0,
+        *
+    )
+    func forwardingSpyPreservesBorrowedParameterPacks() throws {
+        let spy = try Spy<any ExternalPackRequirementProbe>(
+            forwardingTo: RealExternalPackRequirementProbe()
+        )
+        let probe: any ExternalPackRequirementProbe = spy()
+
+        #expect(probe.pack() == 0)
+        #expect(probe.pack(1, "two", true) == 3)
+
+        spy.verify { $0.pack() }
+        spy.verify { $0.pack(1, "two", true) }
+    }
+
+    @Test
+    @available(
+        macOS 14.0,
+        iOS 17.0,
+        tvOS 17.0,
+        watchOS 10.0,
+        visionOS 1.0,
+        macCatalyst 17.0,
+        *
+    )
+    func asyncForwardingSpyPreservesBorrowedParameterPacks() async throws {
+        let spy = try Spy<any ExternalAsyncPackRequirementProbe>(
+            forwardingTo: RealExternalAsyncPackRequirementProbe()
+        )
+        let probe: any ExternalAsyncPackRequirementProbe = spy()
+
+        #expect(await probe.pack(40, "go") == 2)
+
+        await spy.verify {
+            await $0.pack(40, "go")
         }
     }
 

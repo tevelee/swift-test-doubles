@@ -157,7 +157,7 @@ package func runtimeMethodGenericParameterPackUnsupportedReason(
 /// Unconstrained and AnyObject-constrained generic parameters carry metadata
 /// that remains in the captured call frame. Protocol constraints append
 /// conformance-witness words that forwarding does not yet model.
-package func runtimeMethodGenericParameterForwardingUnsupportedReason(
+package func runtimeMethodGenericForwardingUnsupportedReason(
     for method: MethodDescriptor
 ) -> String? {
     let genericArgument = method.arguments.contains {
@@ -181,12 +181,7 @@ package func runtimeMethodGenericParameterForwardingUnsupportedReason(
     {
         return "Forwarding Spy does not yet replay requirement-level generic conformance witnesses."
     }
-    let usesParameterPack = method.arguments.contains {
-        if case .methodGenericParameterPack = $0.value.convention { return true }
-        return false
-    }
-    guard usesParameterPack else { return nil }
-    return "Forwarding Spy does not support requirements with their own parameter pack."
+    return nil
 }
 
 package func validateExplicitRequirementsAgainstLinkedConformances(

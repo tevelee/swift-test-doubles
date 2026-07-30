@@ -190,7 +190,9 @@ struct ProtocolForwardingPlanBuilder<P> {
                 reason: reason
             )
         }
-        if let reason = runtimeMethodGenericParameterForwardingUnsupportedReason(for: method) {
+        if let reason = runtimeMethodGenericForwardingUnsupportedReason(
+            for: method
+        ) {
             throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
                 reason: reason
