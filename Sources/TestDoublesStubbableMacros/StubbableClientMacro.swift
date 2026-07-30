@@ -53,55 +53,63 @@
                 access == "public " || access == "package "
                 ? access
                 : ""
-            let arguments = properties.initializerArguments.map {
-                "            \($0.render(clientType: genericShape.clientType))"
+            let arguments = properties.initializerArguments.enumerated().map {
+                index,
+                argument in
+                let trailingComma =
+                    index == properties.initializerArguments.indices.last
+                    ? ""
+                    : ","
+                return indented(
+                    argument.render(clientType: genericShape.clientType)
+                        + trailingComma,
+                    by: 8
+                )
             }
-            .joined(separator: ",\n")
-            let materializer =
-                """
-                ClientDoublePreset<\(genericShape.clientType)> { endpoints in
-                        \(genericShape.clientType)(
-                \(arguments)
-                        )
-                    }
-                """
+            .joined(separator: "\n")
+            let materializer = [
+                "ClientDoublePreset<\(genericShape.clientType)> { endpoints in",
+                "    \(genericShape.clientType)(",
+                arguments,
+                "    )",
+                "}"
+            ]
+            .joined(separator: "\n")
 
             let preset: String
             if properties.inputs.isEmpty {
                 if genericShape.isGeneric {
-                    preset =
-                        """
-                        \(memberAccess)static var preset: ClientDoublePreset<\(genericShape.clientType)> {
-                            \(materializer)
-                        }
-                        """
+                    preset = [
+                        "\(memberAccess)static var preset: ClientDoublePreset<\(genericShape.clientType)> {",
+                        indented(materializer, by: 4),
+                        "}"
+                    ]
+                    .joined(separator: "\n")
                 } else {
                     preset =
-                        """
-                        \(memberAccess)static let preset = \(materializer)
-                        """
+                        "\(memberAccess)static let preset = \(materializer)"
                 }
             } else {
                 let parameters = properties.inputs.map {
-                    "        \($0.name): \($0.type)"
+                    "    \($0.name): \($0.type)"
                 }
                 .joined(separator: ",\n")
-                preset =
-                    """
-                    \(memberAccess)static func preset(
-                    \(parameters)
-                    ) -> ClientDoublePreset<\(genericShape.clientType)> {
-                        \(materializer)
-                    }
-                    """
+                preset = [
+                    "\(memberAccess)static func preset(",
+                    parameters,
+                    ") -> ClientDoublePreset<\(genericShape.clientType)> {",
+                    indented(materializer, by: 4),
+                    "}"
+                ]
+                .joined(separator: "\n")
             }
 
-            let source =
-                """
-                \(access)enum \(clientName)Doubles\(genericShape.declarationClause)\(genericShape.whereClause) {
-                    \(preset)
-                }
-                """
+            let source = [
+                "\(access)enum \(clientName)Doubles\(genericShape.declarationClause)\(genericShape.whereClause) {",
+                indented(preset, by: 4),
+                "}"
+            ]
+            .joined(separator: "\n")
             return [DeclSyntax(stringLiteral: source)]
         }
 
@@ -449,10 +457,6 @@
                     case (true, false): "asyncFunction"
                     case (true, true): "asyncThrowingFunction"
                 }
-            let typedThrowingArgument =
-                thrownError.map {
-                    ", throwing: \($0).self"
-                } ?? ""
             let argumentNames = argumentTypes.indices.map {
                 "argument\($0)"
             }
@@ -470,37 +474,60 @@
                 let typedParameters = zip(argumentNames, argumentTypes).map {
                     "\($0): \($1)"
                 }
-                let parameters = (["live: \(clientType)"] + typedParameters)
-                    .joined(separator: ", ")
                 let effects =
                     (isAsync ? " async" : "")
                     + " throws(\(thrownError))"
+                let parameterLines = (["live: \(clientType)"] + typedParameters)
+                    .enumerated()
+                    .map { index, parameter in
+                        let trailingComma =
+                            index == typedParameters.count ? "" : ","
+                        return "        \(parameter)\(trailingComma)"
+                    }
                 closure =
-                    """
-                    {
-                                (\(parameters))\(effects) -> \(resultType) in
-                                \(callPrefix)live.\(name)(\(callArguments))
-                            }
-                    """
+                    ([
+                        "{",
+                        "    ("
+                    ] + parameterLines + [
+                        "    )\(effects) -> \(resultType) in",
+                        "        \(callPrefix)live.\(name)(\(callArguments))",
+                        "}"
+                    ])
+                    .joined(separator: "\n")
             } else {
                 let parameters = (["live"] + argumentNames)
                     .joined(separator: ", ")
-                closure =
-                    """
-                    { \(parameters) in
-                                \(callPrefix)live.\(name)(\(callArguments))
-                            }
-                    """
+                closure = [
+                    "{ \(parameters) in",
+                    "    \(callPrefix)live.\(name)(\(callArguments))",
+                    "}"
+                ]
+                .joined(separator: "\n")
             }
 
-            return
-                """
-                endpoints.\(factory)(
-                            "\(name)"\(typedThrowingArgument),
-                            forwarding: \(closure)
-                        )
-                """
+            let typedThrowingLine = thrownError.map {
+                "    throwing: \($0).self,"
+            }
+            var lines = [
+                "endpoints.\(factory)(",
+                "    \"\(name)\","
+            ]
+            if let typedThrowingLine {
+                lines.append(typedThrowingLine)
+            }
+            lines.append("    forwarding: \(indented(closure, by: 4).dropFirst(4))")
+            lines.append(")")
+            return lines.joined(separator: "\n")
         }
+    }
+
+    private func indented(_ source: String, by spaces: Int) -> String {
+        let prefix = String(repeating: " ", count: spaces)
+        return
+            source
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map { prefix + $0 }
+            .joined(separator: "\n")
     }
 
     private struct ClientMacroFailure: Error {
