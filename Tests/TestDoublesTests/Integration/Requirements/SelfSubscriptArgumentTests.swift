@@ -61,6 +61,55 @@ import Testing
         stub.verify(.exactly(2)) { captureStaticOptionalSelfSubscriptSet($0) }
     }
 
+    @Test func staticThrowingArgumentsWorkEndToEnd() throws {
+        _ = RealExternalStaticThrowingSelfSubscriptArgumentProbe()
+        typealias Probe = any ExternalStaticThrowingSelfSubscriptArgumentProbe
+        let stub = try Stub<Probe>(
+            getterEffects: .throwing,
+            .throwing,
+            .typedThrowing(ExternalStaticSelfArgumentError.self)
+        )
+        stub.when {
+            try captureStaticThrowingSelfSubscriptGet($0)
+        }.thenReturn(54)
+        stub.when {
+            try captureStaticThrowingOptionalSelfSubscriptGet($0)
+        }.thenThrow(ExternalStaticSelfArgumentError.rejected)
+        stub.when {
+            try captureStaticTypedThrowingSelfSubscriptGet($0)
+        }.thenThrow(ExternalStaticSelfArgumentError.rejected)
+
+        let source: Probe = stub()
+        #expect(try invokeStaticThrowingSelfSubscriptGet(source) == 54)
+        #expect(throws: ExternalStaticSelfArgumentError.rejected) {
+            _ = try invokeStaticThrowingOptionalSelfSubscriptGet(
+                source,
+                includesValue: true
+            )
+        }
+        #expect(throws: ExternalStaticSelfArgumentError.rejected) {
+            _ = try invokeStaticThrowingOptionalSelfSubscriptGet(
+                source,
+                includesValue: false
+            )
+        }
+        #expect(throws: ExternalStaticSelfArgumentError.rejected) {
+            _ = try invokeStaticTypedThrowingSelfSubscriptGet(source)
+        }
+
+        stub.verify { try captureStaticThrowingSelfSubscriptGet($0) }
+        stub.verify(.exactly(2)) {
+            try captureStaticThrowingOptionalSelfSubscriptGet($0)
+        }
+        stub.verify { try captureStaticTypedThrowingSelfSubscriptGet($0) }
+
+        let typedGetter = try #require(stub.recorder.runtimeMethod(for: 2))
+        #expect(
+            typedGetter.typedErrorType
+                == ExternalStaticSelfArgumentError.self
+        )
+    }
+
     @Test func classConstrainedArgumentsWorkEndToEnd() throws {
         _ = RealExternalClassSelfSubscriptArgumentProbe()
         let stub = try Stub<any ExternalClassSelfSubscriptArgumentProbe>()
@@ -395,4 +444,53 @@ private func invokeStaticOptionalSelfSubscriptSet<
     includesValue: Bool
 ) {
     type(of: value)[optional: includesValue ? value : nil] = 49
+}
+
+private func captureStaticThrowingSelfSubscriptGet<
+    P: ExternalStaticThrowingSelfSubscriptArgumentProbe
+>(
+    _ value: P
+) throws -> Int {
+    try type(of: value)[Match.any(using: value)]
+}
+
+private func captureStaticThrowingOptionalSelfSubscriptGet<
+    P: ExternalStaticThrowingSelfSubscriptArgumentProbe
+>(
+    _ value: P
+) throws -> Int {
+    try type(of: value)[optional: Match.any(using: Optional(value))]
+}
+
+private func captureStaticTypedThrowingSelfSubscriptGet<
+    P: ExternalStaticThrowingSelfSubscriptArgumentProbe
+>(
+    _ value: P
+) throws(ExternalStaticSelfArgumentError) -> Int {
+    try type(of: value)[typed: Match.any(using: value)]
+}
+
+private func invokeStaticThrowingSelfSubscriptGet<
+    P: ExternalStaticThrowingSelfSubscriptArgumentProbe
+>(
+    _ value: P
+) throws -> Int {
+    try type(of: value)[value]
+}
+
+private func invokeStaticThrowingOptionalSelfSubscriptGet<
+    P: ExternalStaticThrowingSelfSubscriptArgumentProbe
+>(
+    _ value: P,
+    includesValue: Bool
+) throws -> Int {
+    try type(of: value)[optional: includesValue ? value : nil]
+}
+
+private func invokeStaticTypedThrowingSelfSubscriptGet<
+    P: ExternalStaticThrowingSelfSubscriptArgumentProbe
+>(
+    _ value: P
+) throws(ExternalStaticSelfArgumentError) -> Int {
+    try type(of: value)[typed: value]
 }

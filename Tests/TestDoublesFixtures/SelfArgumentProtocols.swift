@@ -269,6 +269,38 @@ public enum ExternalStaticSelfArgumentError: Error, Equatable {
     case rejected
 }
 
+public protocol ExternalStaticThrowingSelfSubscriptArgumentProbe {
+    static subscript(_ value: Self) -> Int { get throws }
+    static subscript(optional value: Self?) -> Int { get throws }
+    static subscript(typed value: Self) -> Int {
+        get throws(ExternalStaticSelfArgumentError)
+    }
+}
+
+public struct RealExternalStaticThrowingSelfSubscriptArgumentProbe:
+    ExternalStaticThrowingSelfSubscriptArgumentProbe
+{
+    public init() {}
+
+    public static subscript(
+        _ value: RealExternalStaticThrowingSelfSubscriptArgumentProbe
+    ) -> Int {
+        get throws { 0 }
+    }
+
+    public static subscript(
+        optional value: RealExternalStaticThrowingSelfSubscriptArgumentProbe?
+    ) -> Int {
+        get throws { 0 }
+    }
+
+    public static subscript(
+        typed value: RealExternalStaticThrowingSelfSubscriptArgumentProbe
+    ) -> Int {
+        get throws(ExternalStaticSelfArgumentError) { 0 }
+    }
+}
+
 public protocol ExternalStaticSelfArgumentProbe {
     static func accept(_ value: Self)
     static func acceptOptional(_ value: Self?)
