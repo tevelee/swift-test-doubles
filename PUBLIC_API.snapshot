@@ -63,6 +63,7 @@ conformance	TestDoubles	ManualStub	Swift.Sendable	[]
 conformance	TestDoubles	ManualStubClock	Swift.Sendable	[]
 conformance	TestDoubles	ManualStubClock	s:11TestDoubles9StubClockP	[]
 conformance	TestDoubles	Match.Capture	Swift.Sendable	[{"kind":"conformance","lhs":"T","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"T","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"T","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
+conformance	TestDoubles	NonescapingCallbackRecorder	Swift.Sendable	[{"kind":"conformance","lhs":"Input","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Input","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Input","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 conformance	TestDoubles	RecordingSession	Swift.Sendable	[]
 conformance	TestDoubles	Stub.AssociatedTypeBinding	Swift.Sendable	[]
 conformance	TestDoubles	Stub.GetterEffect	Swift.Equatable	[]
@@ -118,6 +119,7 @@ symbol	TestDoubles	swift.class	InvocationOrder	final class InvocationOrder
 symbol	TestDoubles	swift.class	ManualStub	@dynamicMemberLookup final class ManualStub<T>
 symbol	TestDoubles	swift.class	ManualStubClock	final class ManualStubClock
 symbol	TestDoubles	swift.class	Match.Capture	final class Capture<T>
+symbol	TestDoubles	swift.class	NonescapingCallbackRecorder	final class NonescapingCallbackRecorder<Input, Result>
 symbol	TestDoubles	swift.class	RecordingSession	final class RecordingSession
 symbol	TestDoubles	swift.class	Spy	final class Spy<P>
 symbol	TestDoubles	swift.class	Stub	class Stub<P>
@@ -210,6 +212,7 @@ symbol	TestDoubles	swift.init	ManualStub.init(forwardingTo:_:)	convenience init(
 symbol	TestDoubles	swift.init	ManualStubClock.init()	init()
 symbol	TestDoubles	swift.init	ManualStubConformer.init(stub:)	init(stub: ManualStub<Self>)
 symbol	TestDoubles	swift.init	Match.Capture.init()	init()
+symbol	TestDoubles	swift.init	NonescapingCallbackRecorder.init()	init()
 symbol	TestDoubles	swift.init	ParameterizedTestDoubleScenario.init(_:)	init(_ configure: @escaping (Subject, Parameter) -> Void)
 symbol	TestDoubles	swift.init	ParameterizedTestDoubleScenario.init(named:_:)	init(named name: String, _ configure: @escaping (Subject, Parameter) -> Void)
 symbol	TestDoubles	swift.init	RecordingSession.init(comparingAgainst:named:redacting:)	convenience init(comparingAgainst expectedFixture: InteractionFixture, named fixtureName: String = "interaction-fixture", redacting redactor: FixtureRedactor = .none)
@@ -686,6 +689,10 @@ symbol	TestDoubles	swift.method	ManualStubClock.waitForSleepers(atLeast:)	func w
 symbol	TestDoubles	swift.method	Match.Capture.capture()	func capture() -> T
 symbol	TestDoubles	swift.method	Match.Capture.capture(using:)	func capture(using placeholder: T) -> T
 symbol	TestDoubles	swift.method	Match.Capture.reset()	func reset()
+symbol	TestDoubles	swift.method	NonescapingCallbackRecorder.invoke(_:with:)	@discardableResult func invoke(_ callback: Callback, with input: Input) -> Result
+symbol	TestDoubles	swift.method	NonescapingCallbackRecorder.invoke(_:with:)	@discardableResult func invoke<Failure>(_ callback: (Input) throws(Failure) -> Result, with input: Input) throws(Failure) -> Result where Failure : Error
+symbol	TestDoubles	swift.method	NonescapingCallbackRecorder.invoke(_:with:)	func invoke(_ callback: Callback, with inputs: Input...)
+symbol	TestDoubles	swift.method	NonescapingCallbackRecorder.reset()	func reset()
 symbol	TestDoubles	swift.method	ParameterizedTestDoubleScenario.apply(_:to:)	func apply(_ parameter: Parameter, to subject: Subject)
 symbol	TestDoubles	swift.method	ParameterizedTestDoubleScenario.scenario(for:)	func scenario(for parameter: Parameter) -> TestDoubleScenario<Subject>
 symbol	TestDoubles	swift.method	RecordingSession.save(to:)	func save(to url: URL) throws
@@ -965,6 +972,10 @@ symbol	TestDoubles	swift.property	ManualStubClock.pendingSleepCount	var pendingS
 symbol	TestDoubles	swift.property	Match.Capture.first	var first: T? { get }
 symbol	TestDoubles	swift.property	Match.Capture.last	var last: T? { get }
 symbol	TestDoubles	swift.property	Match.Capture.values	var values: [T] { get }
+symbol	TestDoubles	swift.property	NonescapingCallbackRecorder.callCount	var callCount: Int { get }
+symbol	TestDoubles	swift.property	NonescapingCallbackRecorder.errors	var errors: [any Error] { get }
+symbol	TestDoubles	swift.property	NonescapingCallbackRecorder.invocations	var invocations: [Input] { get }
+symbol	TestDoubles	swift.property	NonescapingCallbackRecorder.results	var results: [Result] { get }
 symbol	TestDoubles	swift.property	ParameterizedTestDoubleScenario.name	let name: String?
 symbol	TestDoubles	swift.property	Stub.history	var history: InteractionHistory { get }
 symbol	TestDoubles	swift.property	Stub.performanceDiagnostics	var performanceDiagnostics: StubPerformanceDiagnostics { get }
@@ -1253,6 +1264,7 @@ symbol	TestDoubles	swift.typealias	InoutClosureDouble.Matcher	typealias Matcher 
 symbol	TestDoubles	swift.typealias	InoutClosureSpy	typealias InoutClosureSpy<Value, Result> = InoutClosureDouble<Value, Result>
 symbol	TestDoubles	swift.typealias	ManualStubScenario	typealias ManualStubScenario<T> = TestDoubleScenario<ManualStub<T>>
 symbol	TestDoubles	swift.typealias	ManualThrowingRoute	typealias ManualThrowingRoute<T> = ManualThrowingRequirementRoute<T>
+symbol	TestDoubles	swift.typealias	NonescapingCallbackRecorder.Callback	typealias Callback = (Input) -> Result
 symbol	TestDoubles	swift.typealias	ParameterizedManualStubScenario	typealias ParameterizedManualStubScenario<T, Parameter> = ParameterizedTestDoubleScenario<ManualStub<T>, Parameter>
 symbol	TestDoubles	swift.typealias	ParameterizedStubScenario	typealias ParameterizedStubScenario<P, Parameter> = ParameterizedTestDoubleScenario<Stub<P>, Parameter>
 symbol	TestDoubles	swift.typealias	SendableAsyncClosureDouble	typealias SendableAsyncClosureDouble<Input, Result> = AsyncClosureDouble<Input, Result> where Input : Sendable, Result : Sendable

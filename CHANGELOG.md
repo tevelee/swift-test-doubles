@@ -90,6 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   closure.
 - `ClosureArgumentHistory` snapshots multi-argument closure calls and exposes
   tuple-free typed iteration, mapping, and reduction.
+- `NonescapingCallbackRecorder` immediately invokes nonescaping callbacks
+  without retaining them while recording their inputs, results, and errors.
 
 ### Fixed
 

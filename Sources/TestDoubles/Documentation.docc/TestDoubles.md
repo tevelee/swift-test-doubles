@@ -178,6 +178,7 @@ isolation. See
 - ``InoutClosureOutcome``
 - ``InoutClosureSpy``
 - ``ClosureArgumentHistory``
+- ``NonescapingCallbackRecorder``
 - ``CallbackCapture``
 
 ### Value and Optional Matchers
