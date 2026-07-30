@@ -88,6 +88,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `InoutClosureDouble` records values at entry, applies configured mutations,
   reports written-back values and results, and can spy on a live `inout`
   closure.
+- `ClosureArgumentHistory` snapshots multi-argument closure calls and exposes
+  tuple-free typed iteration, mapping, and reduction.
 
 ### Fixed
 

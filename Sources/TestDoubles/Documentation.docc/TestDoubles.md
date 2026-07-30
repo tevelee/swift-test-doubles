@@ -177,6 +177,7 @@ isolation. See
 - ``InoutClosureBehaviorChain``
 - ``InoutClosureOutcome``
 - ``InoutClosureSpy``
+- ``ClosureArgumentHistory``
 - ``CallbackCapture``
 
 ### Value and Optional Matchers
