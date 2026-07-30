@@ -92,6 +92,38 @@ import Testing
         stub.verify(.exactly(2)) { captureClassOptionalSelfSubscriptGet($0) }
         stub.verify(.exactly(2)) { captureClassOptionalSelfSubscriptSet($0) }
     }
+
+    @Test func throwingArgumentsWorkEndToEnd() throws {
+        _ = RealExternalThrowingSelfSubscriptArgumentProbe()
+        let stub = try Stub<any ExternalThrowingSelfSubscriptArgumentProbe>(
+            getterEffects: .throwing,
+            .throwing
+        )
+        stub.when { try captureThrowingSelfSubscriptGet($0) }.thenReturn(54)
+        stub.when {
+            try captureThrowingOptionalSelfSubscriptGet($0)
+        }.thenThrow(ExternalThrowingSelfArgumentError.rejected)
+
+        let source = stub()
+        #expect(try invokeThrowingSelfSubscriptGet(source) == 54)
+        #expect(throws: ExternalThrowingSelfArgumentError.rejected) {
+            _ = try invokeThrowingOptionalSelfSubscriptGet(
+                source,
+                includesValue: true
+            )
+        }
+        #expect(throws: ExternalThrowingSelfArgumentError.rejected) {
+            _ = try invokeThrowingOptionalSelfSubscriptGet(
+                source,
+                includesValue: false
+            )
+        }
+
+        stub.verify { try captureThrowingSelfSubscriptGet($0) }
+        stub.verify(.exactly(2)) {
+            try captureThrowingOptionalSelfSubscriptGet($0)
+        }
+    }
 }
 
 private func captureSelfSubscriptGet<
@@ -233,6 +265,39 @@ private func invokeClassOptionalSelfSubscriptSet<
 ) {
     let receiver = value
     receiver[optional: includesValue ? value : nil] = 53
+}
+
+private func captureThrowingSelfSubscriptGet<
+    P: ExternalThrowingSelfSubscriptArgumentProbe
+>(
+    _ value: P
+) throws -> Int {
+    try value[Match.any(using: value)]
+}
+
+private func captureThrowingOptionalSelfSubscriptGet<
+    P: ExternalThrowingSelfSubscriptArgumentProbe
+>(
+    _ value: P
+) throws -> Int {
+    try value[optional: Match.any(using: Optional(value))]
+}
+
+private func invokeThrowingSelfSubscriptGet<
+    P: ExternalThrowingSelfSubscriptArgumentProbe
+>(
+    _ value: P
+) throws -> Int {
+    try value[value]
+}
+
+private func invokeThrowingOptionalSelfSubscriptGet<
+    P: ExternalThrowingSelfSubscriptArgumentProbe
+>(
+    _ value: P,
+    includesValue: Bool
+) throws -> Int {
+    try value[optional: includesValue ? value : nil]
 }
 
 private func captureStaticSelfSubscriptGet<
