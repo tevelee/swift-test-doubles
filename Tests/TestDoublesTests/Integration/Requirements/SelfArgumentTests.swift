@@ -49,6 +49,14 @@ private protocol SelfArgumentAsyncInvocation: Sendable {
     func run() async
 }
 
+private protocol ConcreteInoutArgumentProbe {
+    func update(_ value: inout Int)
+}
+
+private struct RealConcreteInoutArgumentProbe: ConcreteInoutArgumentProbe {
+    func update(_ value: inout Int) {}
+}
+
 private final class ConsumingClassAsyncInvocation<
     P: ExternalClassSelfArgumentProbe
 >: SelfArgumentAsyncInvocation, @unchecked Sendable {
@@ -216,11 +224,25 @@ private final class ConsumingClassAsyncInvocation<
         try assertRecordedNilClassOptional(stub, placeholder: source)
     }
 
-    @Test func inoutSelfFailsClosedDuringAutomaticDiscovery() {
+    @Test func inoutSelfRecordsWithoutMutatingCallerStorage() throws {
         _ = RealExternalInoutSelfArgumentProbe()
+        let stub = try Stub<any ExternalInoutSelfArgumentProbe>()
+        stub.when { captureInoutUpdate($0) }.thenDoNothing()
 
-        expectUnsupportedProtocolShape(containing: "inout Self argument") {
-            _ = try Stub<any ExternalInoutSelfArgumentProbe>()
+        let receiver = stub()
+        let argument = invokeInoutUpdate(receiver)
+        _ = invokeInoutUpdate(argument)
+
+        stub.verify(.exactly(2)) { captureInoutUpdate($0) }
+    }
+
+    @Test func concreteInoutArgumentsRemainFailClosed() {
+        _ = RealConcreteInoutArgumentProbe()
+
+        expectUnsupportedProtocolShape(
+            containing: "inout only for direct dynamic Self"
+        ) {
+            _ = try Stub<any ConcreteInoutArgumentProbe>()
         }
     }
 
@@ -296,6 +318,21 @@ private func captureStaticAccept<P: ExternalStaticSelfArgumentProbe>(
     _ value: P
 ) {
     type(of: value).accept(Match.any(using: value))
+}
+
+private func captureInoutUpdate<P: ExternalInoutSelfArgumentProbe>(
+    _ value: P
+) {
+    var argument = value
+    value.update(&argument)
+}
+
+private func invokeInoutUpdate<P: ExternalInoutSelfArgumentProbe>(
+    _ value: P
+) -> P {
+    var argument = value
+    value.update(&argument)
+    return argument
 }
 
 private func captureStaticOptional<P: ExternalStaticSelfArgumentProbe>(

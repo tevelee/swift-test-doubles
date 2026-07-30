@@ -163,7 +163,7 @@ package func discoverMethods(
                 switch result.convention {
                     case .concrete, .associatedType:
                         true
-                    case .selfType, .optionalSelf,
+                    case .selfType, .optionalSelf, .inoutSelf,
                         .methodGenericParameter,
                         .classMethodGenericParameter,
                         .optionalMethodGenericParameter,
@@ -317,21 +317,19 @@ private func resolveWitnessValue(
     isArgument: Bool
 ) throws -> ResolvedWitnessValue {
     let rawName = syntax.canonicalSpelling
-    if rawName.hasPrefix("inout ") {
-        let valueName = String(rawName.dropFirst("inout ".count))
-        if dynamicSelfValueShape(valueName) != nil
-            || containsDynamicSelfReference(valueName)
-        {
-            throw RuntimeConstructionError.unsupportedProtocolShape(
-                protocolName: protocolDescriptor.name,
-                reason:
-                    "Requirement \(requirementIndex) uses an inout Self argument. "
-                    + "Automatic Stub supports only borrowed/default and consuming direct or single-Optional Self arguments."
-            )
-        }
-    }
-
     var valueName = rawName
+    let isInout = valueName.hasPrefix("inout ")
+    if valueName.hasPrefix("inout ") {
+        valueName.removeFirst("inout ".count)
+    }
+    if isInout, dynamicSelfValueShape(valueName) != .direct {
+        throw RuntimeConstructionError.unsupportedProtocolShape(
+            protocolName: protocolDescriptor.name,
+            reason:
+                "Requirement \(requirementIndex) uses unsupported inout argument '\(valueName)'. "
+                + "Automatic Stub currently supports inout only for direct dynamic Self."
+        )
+    }
     let isAutoclosure = valueName.hasPrefix("@autoclosure ")
     if isAutoclosure {
         valueName.removeFirst("@autoclosure ".count)
@@ -433,6 +431,7 @@ private func resolveWitnessValue(
         }
         return .selfValue(
             isOptional: selfShape == .optional,
+            isInout: isInout,
             ownership: ownership
         )
     }

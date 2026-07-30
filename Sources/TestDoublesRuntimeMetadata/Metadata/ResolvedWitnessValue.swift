@@ -155,11 +155,16 @@ package struct ResolvedWitnessValue: Sendable {
     /// The dynamic `Self` value transported through fabricated payload storage.
     package static func selfValue(
         isOptional: Bool,
+        isInout: Bool = false,
         ownership: WitnessArgumentOwnership? = nil
     ) -> Self {
-        Self(
+        precondition(isInout == false || isOptional == false)
+        return Self(
             type: isOptional ? Optional<FabricatedPayload>.self : FabricatedPayload.self,
-            convention: isOptional ? .optionalSelf : .selfType,
+            convention:
+                isInout
+                ? .inoutSelf
+                : (isOptional ? .optionalSelf : .selfType),
             dependency: .independent,
             ownership: ownership
         )

@@ -123,5 +123,28 @@ import Testing
         }
     }
 
+    @Test func inoutSelfAlwaysUsesCallerOwnedIndirectStorage() {
+        let method = MethodDescriptor(
+            kind: .method,
+            name: "update",
+            index: 0,
+            argumentTypes: [FabricatedPayload.self],
+            returnType: Void.self,
+            argumentConventions: [.inoutSelf],
+            selfIsClassConstrained: true
+        )
+
+        if case .indirect = method.argumentLayouts[0] {
+            // Expected: inout always passes the caller's storage address.
+        } else {
+            Issue.record("Expected indirect inout Self transport")
+        }
+        #expect(method.runtimeMethod.argumentConventions == [.inoutSelf])
+        #expect(
+            method.runtimeMethod.signatureDescription
+                == method.signatureDescription
+        )
+    }
+
     private enum ProjectionError: Error {}
 }

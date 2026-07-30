@@ -52,6 +52,8 @@ package enum WitnessValueConvention: Equatable, Sendable {
     case associatedType(name: String)
     case selfType
     case optionalSelf
+    /// A direct dynamic `Self` argument passed through caller-owned inout storage.
+    case inoutSelf
     /// Typed by the requirement's own generic parameter; `index` identifies
     /// which one, so shared parameters share an index.
     case methodGenericParameter(index: Int)

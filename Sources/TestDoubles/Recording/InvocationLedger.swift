@@ -114,7 +114,7 @@ struct RecordedCall: @unchecked Sendable {
             materializer: RuntimePayloadMaterializer?
         ) {
             switch convention {
-                case .selfType:
+                case .selfType, .inoutSelf:
                     guard let materializer else {
                         preconditionFailure(
                             "[TestDoubles] Recorded Self argument requires a runtime payload materializer."

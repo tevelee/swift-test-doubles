@@ -362,7 +362,24 @@ checks configured values against the supplied concrete metadata. Associated
 inputs remain unavailable through an unbound existential; bind the existential
 itself, such as `any Source<Int>`, for that full dependent interface.
 
-### Return dynamic Self
+### Pass and return dynamic Self
+
+Automatic discovery supports direct and single-optional `Self` inputs on
+ordinary, throwing, static, and subscript requirements. Borrowing and consuming
+method inputs retain their ownership conventions. Use a placeholder value from
+the same generated double when selecting a matcher:
+
+```swift
+stub.when { value in
+    value.compare(Match.any(using: value))
+}.thenReturn(true)
+```
+
+A direct `inout Self` input can be recorded, matched, verified, and given a
+no-op behavior. The recorder borrows the caller-owned storage and leaves it
+unchanged; configurable inout mutation needs a dedicated behavior API. Nested
+`Self` wrappers and forwarding these inputs through a ``Spy`` remain outside
+this boundary.
 
 A method, getter, or static requirement returning nonoptional `Self` uses
 `when(returningSelf:)`. TestDoubles creates a fresh value backed by the same
@@ -382,8 +399,7 @@ requirement has arguments, suspends, or computes an error. TestDoubles creates
 the generated value after the handler returns. For explicit construction, write
 `.method(returning: .dynamicSelf)`. Optional `Self?` uses
 `when(returningOptionalSelf:)`; its builder returns a fresh generated value or
-`nil`, and explicit construction uses `.optionalDynamicSelf`. Direct `Self`
-inputs remain outside the supported boundary.
+`nil`, and explicit construction uses `.optionalDynamicSelf`.
 
 ### Stub async success and failure
 
