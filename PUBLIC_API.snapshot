@@ -166,14 +166,17 @@ symbol	TestDoubles	swift.enum.case	StubFailableInitializerBuilder.Outcome.return
 symbol	TestDoubles	swift.enum.case	StubOptionalSelfResultBuilder.Outcome.returnNil	case returnNil
 symbol	TestDoubles	swift.enum.case	StubOptionalSelfResultBuilder.Outcome.returnValue	case returnValue
 symbol	TestDoubles	swift.init	AsyncClosureDouble.init()	init()
+symbol	TestDoubles	swift.init	AsyncClosureDouble.init(forwardingTo:)	init(forwardingTo target: @escaping @Sendable (Input) async -> Result)
 symbol	TestDoubles	swift.init	AsyncParameterizedTestDoubleScenario.init(_:)	init(_ configure: @escaping (Subject, Parameter) async -> Void)
 symbol	TestDoubles	swift.init	AsyncParameterizedTestDoubleScenario.init(named:_:)	init(named name: String, _ configure: @escaping (Subject, Parameter) async -> Void)
 symbol	TestDoubles	swift.init	AsyncTestDoubleScenario.init(_:)	init(_ configure: @escaping (Subject) async -> Void)
 symbol	TestDoubles	swift.init	AsyncTestDoubleScenario.init(named:_:)	init(named name: String, _ configure: @escaping (Subject) async -> Void)
 symbol	TestDoubles	swift.init	AsyncThrowingClosureDouble.init()	init()
+symbol	TestDoubles	swift.init	AsyncThrowingClosureDouble.init(forwardingTo:)	init(forwardingTo target: @escaping @Sendable (Input) async throws -> Result)
 symbol	TestDoubles	swift.init	CallbackCapture.init()	init()
 symbol	TestDoubles	swift.init	ClientDoublePreset.init(_:)	init(_ materialize: @escaping (ClientStubEndpoints<Client>) -> Client)
 symbol	TestDoubles	swift.init	ClosureDouble.init()	init()
+symbol	TestDoubles	swift.init	ClosureDouble.init(forwardingTo:)	init(forwardingTo target: @escaping @Sendable (Input) -> Result)
 symbol	TestDoubles	swift.init	CompletionOrder.init()	init()
 symbol	TestDoubles	swift.init	CompletionOrder.init(_:)	@discardableResult convenience init(@CompletionOrder.Builder _ expectations: () -> [Expectation])
 symbol	TestDoubles	swift.init	Dummy.init()	convenience init() throws(StubError)
@@ -209,6 +212,7 @@ symbol	TestDoubles	swift.init	Stub.init(requirementsByProtocol:_:)	convenience i
 symbol	TestDoubles	swift.init	TestDoubleScenario.init(_:)	init(_ configure: @escaping (Subject) -> Void)
 symbol	TestDoubles	swift.init	TestDoubleScenario.init(named:_:)	init(named name: String, _ configure: @escaping (Subject) -> Void)
 symbol	TestDoubles	swift.init	ThrowingClosureDouble.init()	init()
+symbol	TestDoubles	swift.init	ThrowingClosureDouble.init(forwardingTo:)	init(forwardingTo target: @escaping @Sendable (Input) throws -> Result)
 symbol	TestDoubles	swift.init	VoidClosureDouble.init()	init()
 symbol	TestDoubles	swift.method	AsyncClosureCallPattern.afterEachCall(_:)	func afterEachCall(_ action: @escaping @Sendable (Input) -> Void) -> AsyncClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	AsyncClosureCallPattern.arguments()	func arguments() -> [Input]
@@ -245,6 +249,8 @@ symbol	TestDoubles	swift.method	AsyncClosureCallPattern.thenForEachCall(times:_:
 symbol	TestDoubles	swift.method	AsyncClosureCallPattern.thenForEachCall(times:_:)	@discardableResult func thenForEachCall(times: PartialRangeFrom<Int> = 1..., _ handler: @escaping @Sendable (Int, Input) -> Result) -> CallInteractions
 symbol	TestDoubles	swift.method	AsyncClosureCallPattern.thenForEachCallArguments(times:_:)	@discardableResult func thenForEachCallArguments<each Argument>(times: Int = 1, _ handler: @escaping (Int, repeat each Argument) async -> Result) -> StubBehaviorChain<Result> where Input == (repeat each Argument)
 symbol	TestDoubles	swift.method	AsyncClosureCallPattern.thenForEachCallArguments(times:_:)	@discardableResult func thenForEachCallArguments<each Argument>(times: PartialRangeFrom<Int> = 1..., _ handler: @escaping (Int, repeat each Argument) async -> Result) -> CallInteractions where Input == (repeat each Argument)
+symbol	TestDoubles	swift.method	AsyncClosureCallPattern.thenForward(times:)	@discardableResult func thenForward(times: Int = 1) -> StubBehaviorChain<Result>
+symbol	TestDoubles	swift.method	AsyncClosureCallPattern.thenForward(times:)	@discardableResult func thenForward(times: PartialRangeFrom<Int> = 1...) -> CallInteractions
 symbol	TestDoubles	swift.method	AsyncClosureCallPattern.thenNeverReturn()	@discardableResult func thenNeverReturn() -> CallInteractions
 symbol	TestDoubles	swift.method	AsyncClosureCallPattern.thenQueue(_:_:)	func thenQueue(_ first: Result, _ rest: Result...) -> StubBehaviorQueue
 symbol	TestDoubles	swift.method	AsyncClosureCallPattern.thenReturn(_:_:_:)	@discardableResult func thenReturn(_ first: Result, _ second: Result, _ rest: Result...) -> CallInteractions
@@ -308,6 +314,8 @@ symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.thenForEachCall(
 symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.thenForEachCall(times:_:)	@discardableResult func thenForEachCall(times: PartialRangeFrom<Int> = 1..., _ handler: @escaping @Sendable (Int, Input) throws -> Result) -> CallInteractions
 symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.thenForEachCallArguments(times:_:)	@discardableResult func thenForEachCallArguments<each Argument>(times: Int = 1, _ handler: @escaping (Int, repeat each Argument) async throws -> Result) -> StubBehaviorChain<Result> where Input == (repeat each Argument)
 symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.thenForEachCallArguments(times:_:)	@discardableResult func thenForEachCallArguments<each Argument>(times: PartialRangeFrom<Int> = 1..., _ handler: @escaping (Int, repeat each Argument) async throws -> Result) -> CallInteractions where Input == (repeat each Argument)
+symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.thenForward(times:)	@discardableResult func thenForward(times: Int = 1) -> StubBehaviorChain<Result>
+symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.thenForward(times:)	@discardableResult func thenForward(times: PartialRangeFrom<Int> = 1...) -> CallInteractions
 symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.thenInjectFailure(every:throwing:otherwiseReturning:)	@discardableResult func thenInjectFailure<Failure>(every interval: Int, throwing error: Failure, otherwiseReturning value: Result) -> CallInteractions where Failure : Error
 symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.thenInjectFailure(probability:seed:throwing:otherwiseReturning:)	@discardableResult func thenInjectFailure<Failure>(probability: Double, seed: UInt64, throwing error: Failure, otherwiseReturning value: Result) -> CallInteractions where Failure : Error
 symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.thenNeverReturn()	@discardableResult func thenNeverReturn() -> CallInteractions
@@ -486,6 +494,8 @@ symbol	TestDoubles	swift.method	ClosureCallPattern.thenForEachCall(times:_:)	@di
 symbol	TestDoubles	swift.method	ClosureCallPattern.thenForEachCall(times:_:)	@discardableResult func thenForEachCall(times: PartialRangeFrom<Int> = 1..., _ handler: @escaping @Sendable (Int, Input) -> Result) -> CallInteractions
 symbol	TestDoubles	swift.method	ClosureCallPattern.thenForEachCallArguments(times:_:)	@discardableResult func thenForEachCallArguments<each Argument>(times: Int = 1, _ handler: @escaping @Sendable (Int, repeat each Argument) -> Result) -> StubBehaviorChain<Result> where Input == (repeat each Argument)
 symbol	TestDoubles	swift.method	ClosureCallPattern.thenForEachCallArguments(times:_:)	@discardableResult func thenForEachCallArguments<each Argument>(times: PartialRangeFrom<Int> = 1..., _ handler: @escaping @Sendable (Int, repeat each Argument) -> Result) -> CallInteractions where Input == (repeat each Argument)
+symbol	TestDoubles	swift.method	ClosureCallPattern.thenForward(times:)	@discardableResult func thenForward(times: Int = 1) -> StubBehaviorChain<Result>
+symbol	TestDoubles	swift.method	ClosureCallPattern.thenForward(times:)	@discardableResult func thenForward(times: PartialRangeFrom<Int> = 1...) -> CallInteractions
 symbol	TestDoubles	swift.method	ClosureCallPattern.thenQueue(_:_:)	func thenQueue(_ first: Result, _ rest: Result...) -> StubBehaviorQueue
 symbol	TestDoubles	swift.method	ClosureCallPattern.thenReturn(_:_:_:)	@discardableResult func thenReturn(_ first: Result, _ second: Result, _ rest: Result...) -> CallInteractions
 symbol	TestDoubles	swift.method	ClosureCallPattern.thenReturn(_:times:)	@discardableResult func thenReturn(_ value: Result, times: Int = 1) -> StubBehaviorChain<Result>
@@ -741,6 +751,8 @@ symbol	TestDoubles	swift.method	ThrowingClosureCallPattern.thenForEachCall(times
 symbol	TestDoubles	swift.method	ThrowingClosureCallPattern.thenForEachCall(times:_:)	@discardableResult func thenForEachCall(times: PartialRangeFrom<Int> = 1..., _ handler: @escaping @Sendable (Int, Input) throws -> Result) -> CallInteractions
 symbol	TestDoubles	swift.method	ThrowingClosureCallPattern.thenForEachCallArguments(times:_:)	@discardableResult func thenForEachCallArguments<each Argument>(times: Int = 1, _ handler: @escaping @Sendable (Int, repeat each Argument) throws -> Result) -> StubBehaviorChain<Result> where Input == (repeat each Argument)
 symbol	TestDoubles	swift.method	ThrowingClosureCallPattern.thenForEachCallArguments(times:_:)	@discardableResult func thenForEachCallArguments<each Argument>(times: PartialRangeFrom<Int> = 1..., _ handler: @escaping @Sendable (Int, repeat each Argument) throws -> Result) -> CallInteractions where Input == (repeat each Argument)
+symbol	TestDoubles	swift.method	ThrowingClosureCallPattern.thenForward(times:)	@discardableResult func thenForward(times: Int = 1) -> StubBehaviorChain<Result>
+symbol	TestDoubles	swift.method	ThrowingClosureCallPattern.thenForward(times:)	@discardableResult func thenForward(times: PartialRangeFrom<Int> = 1...) -> CallInteractions
 symbol	TestDoubles	swift.method	ThrowingClosureCallPattern.thenInjectFailure(every:throwing:otherwiseReturning:)	@discardableResult func thenInjectFailure<Failure>(every interval: Int, throwing error: Failure, otherwiseReturning value: Result) -> CallInteractions where Failure : Error
 symbol	TestDoubles	swift.method	ThrowingClosureCallPattern.thenInjectFailure(probability:seed:throwing:otherwiseReturning:)	@discardableResult func thenInjectFailure<Failure>(probability: Double, seed: UInt64, throwing error: Failure, otherwiseReturning value: Result) -> CallInteractions where Failure : Error
 symbol	TestDoubles	swift.method	ThrowingClosureCallPattern.thenQueue(_:_:)	func thenQueue(_ first: Result, _ rest: Result...) -> StubBehaviorQueue
@@ -1101,6 +1113,7 @@ symbol	TestDoubles	swift.type.property	StubClocks.immediate	static let immediate
 symbol	TestDoubles	swift.typealias	AsyncClosureDouble.Function	typealias Function = (Input) async -> Result
 symbol	TestDoubles	swift.typealias	AsyncClosureDouble.Handler	typealias Handler = (Input) async -> Result
 symbol	TestDoubles	swift.typealias	AsyncClosureDouble.Matcher	typealias Matcher = @Sendable (Input) -> Bool
+symbol	TestDoubles	swift.typealias	AsyncClosureSpy	typealias AsyncClosureSpy<Input, Result> = AsyncClosureDouble<Input, Result>
 symbol	TestDoubles	swift.typealias	AsyncManualStubScenario	typealias AsyncManualStubScenario<T> = AsyncTestDoubleScenario<ManualStub<T>>
 symbol	TestDoubles	swift.typealias	AsyncParameterizedManualStubScenario	typealias AsyncParameterizedManualStubScenario<T, Parameter> = AsyncParameterizedTestDoubleScenario<ManualStub<T>, Parameter>
 symbol	TestDoubles	swift.typealias	AsyncParameterizedStubScenario	typealias AsyncParameterizedStubScenario<P, Parameter> = AsyncParameterizedTestDoubleScenario<Stub<P>, Parameter>
@@ -1108,12 +1121,14 @@ symbol	TestDoubles	swift.typealias	AsyncStubScenario	typealias AsyncStubScenario
 symbol	TestDoubles	swift.typealias	AsyncThrowingClosureDouble.Function	typealias Function = (Input) async throws -> Result
 symbol	TestDoubles	swift.typealias	AsyncThrowingClosureDouble.Handler	typealias Handler = (Input) async throws -> Result
 symbol	TestDoubles	swift.typealias	AsyncThrowingClosureDouble.Matcher	typealias Matcher = @Sendable (Input) -> Bool
+symbol	TestDoubles	swift.typealias	AsyncThrowingClosureSpy	typealias AsyncThrowingClosureSpy<Input, Result> = AsyncThrowingClosureDouble<Input, Result>
 symbol	TestDoubles	swift.typealias	CallbackCapture.Callback	typealias Callback = (Value) -> Void
 symbol	TestDoubles	swift.typealias	ClientSpy	typealias ClientSpy<Client> = ManualStub<Client>
 symbol	TestDoubles	swift.typealias	ClientStub	typealias ClientStub<Client> = ManualStub<Client>
 symbol	TestDoubles	swift.typealias	ClosureDouble.Function	typealias Function = (Input) -> Result
 symbol	TestDoubles	swift.typealias	ClosureDouble.Handler	typealias Handler = @Sendable (Input) -> Result
 symbol	TestDoubles	swift.typealias	ClosureDouble.Matcher	typealias Matcher = @Sendable (Input) -> Bool
+symbol	TestDoubles	swift.typealias	ClosureSpy	typealias ClosureSpy<Input, Result> = ClosureDouble<Input, Result>
 symbol	TestDoubles	swift.typealias	ManualStubScenario	typealias ManualStubScenario<T> = TestDoubleScenario<ManualStub<T>>
 symbol	TestDoubles	swift.typealias	ManualThrowingRoute	typealias ManualThrowingRoute<T> = ManualThrowingRequirementRoute<T>
 symbol	TestDoubles	swift.typealias	ParameterizedManualStubScenario	typealias ParameterizedManualStubScenario<T, Parameter> = ParameterizedTestDoubleScenario<ManualStub<T>, Parameter>
@@ -1123,6 +1138,7 @@ symbol	TestDoubles	swift.typealias	StubScenario	typealias StubScenario<P> = Test
 symbol	TestDoubles	swift.typealias	ThrowingClosureDouble.Function	typealias Function = (Input) throws -> Result
 symbol	TestDoubles	swift.typealias	ThrowingClosureDouble.Handler	typealias Handler = @Sendable (Input) throws -> Result
 symbol	TestDoubles	swift.typealias	ThrowingClosureDouble.Matcher	typealias Matcher = @Sendable (Input) -> Bool
+symbol	TestDoubles	swift.typealias	ThrowingClosureSpy	typealias ThrowingClosureSpy<Input, Result> = ThrowingClosureDouble<Input, Result>
 symbol	TestDoubles@Swift	swift.type.method	RangeExpression.exactly(_:)	static func exactly(_ count: Int) -> Self
 symbol	TestDoubles@Swift	swift.type.property	RangeExpression.never	static var never: Self { get }
 symbol	TestDoublesTesting	swift.init	TestDoubleScope.init(strictness:)	init(strictness: TestDoubleStrictness = .noUnusedStubs)

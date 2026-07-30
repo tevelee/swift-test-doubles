@@ -76,6 +76,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tuple-input closure doubles can expand to arbitrary-arity functions and use
   separate typed arguments in matchers and computed behaviors across every
   synchronous, throwing, async, and async-throwing variant.
+- Standalone closure spies forward unmatched synchronous, throwing, async, and
+  async-throwing calls to an existing closure while retaining selective
+  overrides, explicit `thenForward()`, and forwarded/stubbed histories.
 
 ### Fixed
 

@@ -160,6 +160,10 @@ isolation. See
 - ``AsyncClosureCallPattern``
 - ``AsyncThrowingClosureDouble``
 - ``AsyncThrowingClosureCallPattern``
+- ``ClosureSpy``
+- ``ThrowingClosureSpy``
+- ``AsyncClosureSpy``
+- ``AsyncThrowingClosureSpy``
 - ``CallbackCapture``
 
 ### Value and Optional Matchers

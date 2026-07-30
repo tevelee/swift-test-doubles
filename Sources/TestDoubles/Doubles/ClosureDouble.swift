@@ -302,7 +302,8 @@ public final class ClosureDouble<Input, Result> {
     /// Typed behavior used to calculate a result.
     public typealias Handler = @Sendable (Input) -> Result
 
-    private let storage = ManualStub<ClosureDoubleConformer<Input, Result>>()
+    private let storage: ManualStub<ClosureDoubleConformer<Input, Result>>
+    private let forwardingTarget: (@Sendable (Input) -> Result)?
 
     private var route: ManualMethodRouteIdentity {
         .typed(
@@ -314,7 +315,24 @@ public final class ClosureDouble<Input, Result> {
     }
 
     /// Creates an empty closure double. Calls require a matching behavior.
-    public init() {}
+    public init() {
+        storage = ManualStub()
+        forwardingTarget = nil
+    }
+
+    /// Creates a closure spy that records calls and delegates unmatched inputs.
+    ///
+    /// Configured behaviors take precedence. Use `thenForward()` on a matching
+    /// registration to explicitly delegate that call to `target`.
+    public init(
+        forwardingTo target: @escaping @Sendable (Input) -> Result
+    ) {
+        storage = ManualStub(
+            materializing: { ClosureDoubleConformer(stub: $0) },
+            allowsForwardingFallback: true
+        )
+        forwardingTarget = target
+    }
 
     /// The ordinary closure value, ready to inject into the subject under test.
     public var function: Function {
@@ -324,7 +342,22 @@ public final class ClosureDouble<Input, Result> {
     /// Invokes the double. A call is recorded before its configured behavior
     /// runs, matching ``Stub`` and ``ManualStub`` observation semantics.
     public func callAsFunction(_ input: Input) -> Result {
-        storage.dispatchMethod(route: route, args: [input])
+        guard let forwardingTarget else {
+            return storage.dispatchMethod(route: route, args: [input])
+        }
+        let method = storage.internMethod(
+            route: route,
+            returnType: Result.self,
+            isAsync: false,
+            isThrowing: false
+        )
+        return storage.dispatchValue(
+            method: method,
+            args: [input],
+            forwardingTo: {
+                forwardingTarget(input)
+            }
+        )
     }
 
     /// Assigns a name used in strict-scope and interaction diagnostics.

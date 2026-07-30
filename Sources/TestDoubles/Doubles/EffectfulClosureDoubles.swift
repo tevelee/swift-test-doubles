@@ -3,11 +3,19 @@ private struct EffectfulClosureDoubleConformer<Input, Result>: ManualStubConform
 }
 
 private final class EffectfulClosureDoubleStorage<Input, Result> {
-    let stub = ManualStub<EffectfulClosureDoubleConformer<Input, Result>>()
+    let stub: ManualStub<EffectfulClosureDoubleConformer<Input, Result>>
     let isAsync: Bool
     let isThrowing: Bool
 
-    init(isAsync: Bool, isThrowing: Bool) {
+    init(
+        isAsync: Bool,
+        isThrowing: Bool,
+        allowsForwardingFallback: Bool = false
+    ) {
+        stub = ManualStub(
+            materializing: { EffectfulClosureDoubleConformer(stub: $0) },
+            allowsForwardingFallback: allowsForwardingFallback
+        )
         self.isAsync = isAsync
         self.isThrowing = isThrowing
     }
@@ -25,12 +33,63 @@ private final class EffectfulClosureDoubleStorage<Input, Result> {
         try stub.dispatchThrowingMethod(route: route, args: [input])
     }
 
+    func callThrowing(
+        _ input: Input,
+        forwardingTo fallback: @escaping () throws -> Result
+    ) throws -> Result {
+        let method = stub.internMethod(
+            route: route,
+            returnType: Result.self,
+            isAsync: false,
+            isThrowing: true
+        )
+        return try stub.dispatchThrowingValue(
+            method: method,
+            args: [input],
+            forwardingTo: fallback
+        )
+    }
+
     func callAsync(_ input: Input) async -> Result {
         await stub.dispatchAsyncMethod(route: route, args: [input])
     }
 
+    func callAsync(
+        _ input: Input,
+        forwardingTo fallback: () async -> Result
+    ) async -> Result {
+        let method = stub.internMethod(
+            route: route,
+            returnType: Result.self,
+            isAsync: true,
+            isThrowing: false
+        )
+        return await stub.dispatchAsyncValue(
+            method: method,
+            args: [input],
+            forwardingTo: fallback
+        )
+    }
+
     func callAsyncThrowing(_ input: Input) async throws -> Result {
         try await stub.dispatchAsyncThrowingMethod(route: route, args: [input])
+    }
+
+    func callAsyncThrowing(
+        _ input: Input,
+        forwardingTo fallback: () async throws -> Result
+    ) async throws -> Result {
+        let method = stub.internMethod(
+            route: route,
+            returnType: Result.self,
+            isAsync: true,
+            isThrowing: true
+        )
+        return try await stub.dispatchAsyncThrowingValue(
+            method: method,
+            args: [input],
+            forwardingTo: fallback
+        )
     }
 
     func pattern(
@@ -69,13 +128,29 @@ public final class ThrowingClosureDouble<Input, Result> {
     /// Typed throwing behavior used to calculate a result.
     public typealias Handler = @Sendable (Input) throws -> Result
 
-    private let storage = EffectfulClosureDoubleStorage<Input, Result>(
-        isAsync: false,
-        isThrowing: true
-    )
+    private let storage: EffectfulClosureDoubleStorage<Input, Result>
+    private let forwardingTarget: (@Sendable (Input) throws -> Result)?
 
     /// Creates an empty closure double. Calls require a matching behavior.
-    public init() {}
+    public init() {
+        storage = EffectfulClosureDoubleStorage(
+            isAsync: false,
+            isThrowing: true
+        )
+        forwardingTarget = nil
+    }
+
+    /// Creates a throwing closure spy that delegates unmatched inputs.
+    public init(
+        forwardingTo target: @escaping @Sendable (Input) throws -> Result
+    ) {
+        storage = EffectfulClosureDoubleStorage(
+            isAsync: false,
+            isThrowing: true,
+            allowsForwardingFallback: true
+        )
+        forwardingTarget = target
+    }
 
     /// The ordinary closure value, ready to inject into the subject under test.
     public var function: Function {
@@ -84,7 +159,15 @@ public final class ThrowingClosureDouble<Input, Result> {
 
     /// Invokes and records the double.
     public func callAsFunction(_ input: Input) throws -> Result {
-        try storage.callThrowing(input)
+        guard let forwardingTarget else {
+            return try storage.callThrowing(input)
+        }
+        return try storage.callThrowing(
+            input,
+            forwardingTo: {
+                try forwardingTarget(input)
+            }
+        )
     }
 
     /// Assigns a name used in strict-scope and interaction diagnostics.
@@ -200,13 +283,29 @@ public final class AsyncClosureDouble<Input, Result> {
     /// Typed asynchronous behavior used to calculate a result.
     public typealias Handler = (Input) async -> Result
 
-    private let storage = EffectfulClosureDoubleStorage<Input, Result>(
-        isAsync: true,
-        isThrowing: false
-    )
+    private let storage: EffectfulClosureDoubleStorage<Input, Result>
+    private let forwardingTarget: (@Sendable (Input) async -> Result)?
 
     /// Creates an empty closure double. Calls require a matching behavior.
-    public init() {}
+    public init() {
+        storage = EffectfulClosureDoubleStorage(
+            isAsync: true,
+            isThrowing: false
+        )
+        forwardingTarget = nil
+    }
+
+    /// Creates an asynchronous closure spy that delegates unmatched inputs.
+    public init(
+        forwardingTo target: @escaping @Sendable (Input) async -> Result
+    ) {
+        storage = EffectfulClosureDoubleStorage(
+            isAsync: true,
+            isThrowing: false,
+            allowsForwardingFallback: true
+        )
+        forwardingTarget = target
+    }
 
     /// The ordinary closure value, ready to inject into the subject under test.
     public var function: Function {
@@ -215,7 +314,15 @@ public final class AsyncClosureDouble<Input, Result> {
 
     /// Invokes and records the double.
     public func callAsFunction(_ input: Input) async -> Result {
-        await storage.callAsync(input)
+        guard let forwardingTarget else {
+            return await storage.callAsync(input)
+        }
+        return await storage.callAsync(
+            input,
+            forwardingTo: {
+                await forwardingTarget(input)
+            }
+        )
     }
 
     /// Assigns a name used in strict-scope and interaction diagnostics.
@@ -331,13 +438,31 @@ public final class AsyncThrowingClosureDouble<Input, Result> {
     /// Typed asynchronous throwing behavior used to calculate a result.
     public typealias Handler = (Input) async throws -> Result
 
-    private let storage = EffectfulClosureDoubleStorage<Input, Result>(
-        isAsync: true,
-        isThrowing: true
-    )
+    private let storage: EffectfulClosureDoubleStorage<Input, Result>
+    private let forwardingTarget: (@Sendable (Input) async throws -> Result)?
 
     /// Creates an empty closure double. Calls require a matching behavior.
-    public init() {}
+    public init() {
+        storage = EffectfulClosureDoubleStorage(
+            isAsync: true,
+            isThrowing: true
+        )
+        forwardingTarget = nil
+    }
+
+    /// Creates an asynchronous throwing closure spy that delegates unmatched
+    /// inputs.
+    public init(
+        forwardingTo target:
+            @escaping @Sendable (Input) async throws -> Result
+    ) {
+        storage = EffectfulClosureDoubleStorage(
+            isAsync: true,
+            isThrowing: true,
+            allowsForwardingFallback: true
+        )
+        forwardingTarget = target
+    }
 
     /// The ordinary closure value, ready to inject into the subject under test.
     public var function: Function {
@@ -346,7 +471,15 @@ public final class AsyncThrowingClosureDouble<Input, Result> {
 
     /// Invokes and records the double.
     public func callAsFunction(_ input: Input) async throws -> Result {
-        try await storage.callAsyncThrowing(input)
+        guard let forwardingTarget else {
+            return try await storage.callAsyncThrowing(input)
+        }
+        return try await storage.callAsyncThrowing(
+            input,
+            forwardingTo: {
+                try await forwardingTarget(input)
+            }
+        )
     }
 
     /// Assigns a name used in strict-scope and interaction diagnostics.
