@@ -107,7 +107,7 @@ private func unsupportedAsyncStubIngressReason(
             stackArguments,
             transport: transport,
             architecture: architecture,
-            permitsSingleDependentIndirectWord: true
+            boundary: .stubIngress
         ) == transport.decodedStackByteCount
     else {
         return unsupportedAsyncStubIngressDiagnostic(
@@ -242,7 +242,7 @@ package func asyncForwardingStackPlan(
             asyncSpilledArguments(method: method, transport: transport),
             transport: transport,
             architecture: architecture,
-            permitsSingleDependentIndirectWord: false
+            boundary: .forwardingEgress
         ),
         visibleStackByteCount > 0,
         visibleStackByteCount == transport.decodedStackByteCount
@@ -322,6 +322,18 @@ private struct AsyncSpilledArgument {
     let locations: [CallFrameArgumentLocation]
 }
 
+private enum AsyncStackBoundary {
+    case stubIngress
+    case forwardingEgress
+
+    var permitsSingleDependentIndirectWord: Bool {
+        switch self {
+            case .stubIngress: true
+            case .forwardingEgress: false
+        }
+    }
+}
+
 private func asyncSpilledArguments(
     method: MethodDescriptor,
     transport: WitnessCallTransportPlan
@@ -348,7 +360,7 @@ private func supportedAsyncVisibleStackByteCount(
     _ spilledArguments: [AsyncSpilledArgument],
     transport: WitnessCallTransportPlan,
     architecture: RuntimeArchitecture,
-    permitsSingleDependentIndirectWord: Bool
+    boundary: AsyncStackBoundary
 ) -> Int? {
     var expectedStackOffset = 0
     for spilled in spilledArguments {
@@ -364,8 +376,7 @@ private func supportedAsyncVisibleStackByteCount(
                 transport: transport,
                 spilledArgumentCount: spilledArguments.count,
                 architecture: architecture,
-                permitsSingleDependentIndirectWord:
-                    permitsSingleDependentIndirectWord
+                boundary: boundary
             )
         else {
             return nil
@@ -381,7 +392,7 @@ private func supportedAsyncStackValueConsumedByteCount(
     transport: WitnessCallTransportPlan,
     spilledArgumentCount: Int,
     architecture: RuntimeArchitecture,
-    permitsSingleDependentIndirectWord: Bool
+    boundary: AsyncStackBoundary
 ) -> Int? {
     let argument = spilled.argument
     let locations = spilled.locations
@@ -422,7 +433,7 @@ private func supportedAsyncStackValueConsumedByteCount(
 
     let wordByteCount = MemoryLayout<UInt>.size
     let isProvenSingleDependentIndirectWord =
-        permitsSingleDependentIndirectWord
+        boundary.permitsSingleDependentIndirectWord
         && transport.decodedStackByteCount == wordByteCount
         && spilledArgumentCount == 1
         && locations.count == 1
