@@ -158,6 +158,18 @@ public struct RealExternalInoutSelfArgumentProbe:
     public func update(_ value: inout Self) {}
 }
 
+public protocol ExternalConcreteInoutArgumentProbe {
+    func update(_ value: inout Int)
+}
+
+public struct RealExternalConcreteInoutArgumentProbe:
+    ExternalConcreteInoutArgumentProbe
+{
+    public init() {}
+
+    public func update(_ value: inout Int) {}
+}
+
 public protocol ExternalSelfSubscriptArgumentProbe {
     subscript(_ value: Self) -> Int { get set }
     subscript(optional value: Self?) -> Int { get set }

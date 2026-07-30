@@ -49,14 +49,6 @@ private protocol SelfArgumentAsyncInvocation: Sendable {
     func run() async
 }
 
-private protocol ConcreteInoutArgumentProbe {
-    func update(_ value: inout Int)
-}
-
-private struct RealConcreteInoutArgumentProbe: ConcreteInoutArgumentProbe {
-    func update(_ value: inout Int) {}
-}
-
 private final class ConsumingClassAsyncInvocation<
     P: ExternalClassSelfArgumentProbe
 >: SelfArgumentAsyncInvocation, @unchecked Sendable {
@@ -237,12 +229,12 @@ private final class ConsumingClassAsyncInvocation<
     }
 
     @Test func concreteInoutArgumentsRemainFailClosed() {
-        _ = RealConcreteInoutArgumentProbe()
+        _ = RealExternalConcreteInoutArgumentProbe()
 
         expectUnsupportedProtocolShape(
             containing: "inout only for direct dynamic Self"
         ) {
-            _ = try Stub<any ConcreteInoutArgumentProbe>()
+            _ = try Stub<any ExternalConcreteInoutArgumentProbe>()
         }
     }
 
