@@ -115,15 +115,7 @@ private func unsupportedAsyncStubIngressReason(
     var expectedStackOffset = 0
     for (argument, location) in stackArguments {
         let isCompleteIndependentWord =
-            argument.value.dependency.isAssociatedTypeDependent == false
-            && {
-                if case .integer(words: 1) = argument.value.layout {
-                    return true
-                }
-                return false
-            }()
-            && ValueLayoutInfo(reflecting: argument.value.type).size
-                == wordByteCount
+            isCompleteIndependentAsyncStackWord(argument)
         let isProvenSingleDependentIndirectWord =
             transport.decodedStackByteCount == wordByteCount
             && stackArguments.count == 1
@@ -168,8 +160,9 @@ private func unsupportedAsyncStubIngressDiagnostic(
     architecture: RuntimeArchitecture
 ) -> String {
     "Its caller-stack ingress on \(architecture) is not a sequence of complete, "
-        + "independent eight-byte general-purpose arguments supported by the async "
-        + "Stub trampoline. Split, padded, floating-point, vector, indirect, "
+        + "independent eight-byte general-purpose or floating-point arguments "
+        + "supported by the async Stub trampoline. Split, padded, smaller "
+        + "floating-point, vector, indirect, "
         + "dependent, accessor, and wider typed-error shapes remain unsupported. "
         + "Use compatible values or a hand-written test double."
 }
@@ -248,9 +241,9 @@ private func asyncWitnessStackPlan(
 /// requirement needs a different physical shape.
 ///
 /// This deliberately accepts at most eight complete concrete eight-byte values
-/// that spill consecutively from the general-purpose bank. Split, padded,
-/// floating-point, indirect, dependent, vector, accessor, and typed-error
-/// shapes remain fail-closed.
+/// that spill consecutively from the general-purpose or floating-point bank.
+/// Split, padded, smaller floating-point, indirect, dependent, vector,
+/// accessor, and typed-error shapes remain fail-closed.
 package func asyncForwardingStackPlan(
     for method: MethodDescriptor,
     architecture: RuntimeArchitecture
@@ -286,10 +279,7 @@ package func asyncForwardingStackPlan(
             byteOffset == expectedStackOffset,
             location.valueOffset == 0,
             location.byteCount == wordByteCount,
-            argument.value.dependency.isAssociatedTypeDependent == false,
-            ValueLayoutInfo(reflecting: argument.value.type).size
-                == wordByteCount,
-            case .integer(words: 1) = argument.value.layout
+            isCompleteIndependentAsyncStackWord(argument)
         else {
             return nil
         }
@@ -348,9 +338,27 @@ package func unsupportedAsyncForwardingEgressDiagnostic(
     architecture: RuntimeArchitecture
 ) -> String {
     "Its target-stack egress on \(architecture) is not a sequence of one through "
-        + "eight complete, independent eight-byte general-purpose arguments "
+        + "eight complete, independent eight-byte general-purpose or "
+        + "floating-point arguments "
         + "followed by dynamic-Self metadata and its witness table. Split, padded, "
-        + "floating-point, vector, indirect, dependent, accessor, static, and "
+        + "smaller floating-point, vector, indirect, dependent, accessor, static, and "
         + "typed-error shapes remain unsupported. Use compatible values or a "
         + "hand-written test double."
+}
+
+private func isCompleteIndependentAsyncStackWord(
+    _ argument: WitnessArgumentDescriptor
+) -> Bool {
+    guard argument.value.dependency.isAssociatedTypeDependent == false,
+        ValueLayoutInfo(reflecting: argument.value.type).size
+            == MemoryLayout<UInt>.size
+    else {
+        return false
+    }
+    switch argument.value.layout {
+        case .integer(words: 1), .floatingPoint:
+            return true
+        default:
+            return false
+    }
 }

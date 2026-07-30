@@ -145,13 +145,14 @@ padded, more-than-four-register, nested, and dependent SIMD shapes, plus any
 vector spill, remain fail-closed.
 
 Ordinary async instance methods, untyped-throwing or not, may forward one
-through eight consecutive complete eight-byte general-purpose stack arguments.
-The bridge copies the words before suspension, then places them in declaration
-order before the target's dynamic-Self metadata and witness table. Immediate
-and suspending targets, untyped errors, and indirect result storage share this
-boundary on arm64 and x86_64. A ninth word and split, padded, floating-point,
-vector, indirect-argument, dependent, accessor, static, and typed-error stack
-shapes remain fail-closed.
+through eight consecutive complete eight-byte general-purpose or `Double` stack
+arguments when the target's dynamic-Self metadata and witness table follow on
+that same stack path. The bridge copies the words before suspension, then
+places them in declaration order before that hidden pair. Immediate and
+suspending targets, untyped errors, and indirect result storage share this
+boundary on arm64 and x86_64. A ninth word and split, padded, smaller
+floating-point, vector, indirect-argument, dependent, accessor, static, and
+typed-error stack shapes remain fail-closed.
 
 Compound assignment and `inout` access use the target's `_modify` coroutine.
 Both legacy direct witnesses and descriptor-based public Swift 6.3 witnesses
