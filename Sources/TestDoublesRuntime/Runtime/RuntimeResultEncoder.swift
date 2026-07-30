@@ -7,6 +7,7 @@ package enum RuntimeResultEncoder {
         _ result: Any,
         for runtimeMethod: PreparedRuntimeMethod,
         endpoint: any RuntimeInvocationEndpoint,
+        genericParameterTypes: [Any.Type],
         into frame: TrampolineCallFrame
     ) {
         let method = runtimeMethod.descriptor
@@ -39,6 +40,18 @@ package enum RuntimeResultEncoder {
                 endpoint: endpoint,
                 into: frame
             )
+        } else if let genericResultType = genericResultType(
+            method.returnConvention,
+            genericParameterTypes: genericParameterTypes
+        ) {
+            RuntimeValueTransport.encodeReturn(
+                result,
+                expectedType: genericResultType,
+                layout: method.returnLayout,
+                context: method.name,
+                isAsync: method.isAsync,
+                into: frame
+            )
         } else {
             DependentResultEncoder.encode(
                 result,
@@ -49,16 +62,44 @@ package enum RuntimeResultEncoder {
         }
     }
 
+    private static func genericResultType(
+        _ convention: WitnessValueConvention,
+        genericParameterTypes: [Any.Type]
+    ) -> Any.Type? {
+        let index: Int
+        let isOptional: Bool
+        switch convention {
+            case .methodGenericParameter(let value):
+                index = value
+                isOptional = false
+            case .optionalMethodGenericParameter(let value):
+                index = value
+                isOptional = true
+            default:
+                return nil
+        }
+        precondition(
+            genericParameterTypes.indices.contains(index),
+            "[TestDoubles] Missing runtime result metadata for requirement-level generic parameter \(index)."
+        )
+        let type = genericParameterTypes[index]
+        return isOptional
+            ? RuntimeValueTransport.optionalType(wrapping: type)
+            : type
+    }
+
     package static func encodeRecordingResult(
         for method: MethodDescriptor,
         args: [Any],
         endpoint: any RuntimeInvocationEndpoint,
+        genericParameterTypes: [Any.Type],
         into frame: TrampolineCallFrame
     ) {
         RecordingResultEncoder.encode(
             for: method,
             arguments: args,
             endpoint: endpoint,
+            genericParameterTypes: genericParameterTypes,
             into: frame
         )
     }

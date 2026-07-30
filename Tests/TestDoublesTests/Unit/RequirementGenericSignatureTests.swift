@@ -176,6 +176,8 @@ private func useLinkedMultiplePackRequirementProbe(
         #expect(methodGenericParameterIndex("AZ1") == 650)
         #expect(methodGenericParameterPackIndex("repeat A1") == 0)
         #expect(methodGenericParameterPackIndex("(repeat A1)") == 0)
+        #expect(optionalMethodGenericParameterIndex("Swift.Optional<A1>") == 0)
+        #expect(optionalMethodGenericParameterIndex("Optional<B1>") == 1)
 
         #expect(isMethodGenericParameter("A") == false)
         #expect(isMethodGenericParameter("Self") == false)
@@ -185,6 +187,7 @@ private func useLinkedMultiplePackRequirementProbe(
         #expect(isMethodGenericParameter("") == false)
         #expect(isMethodGenericParameter("1A") == false)
         #expect(methodGenericParameterPackIndex("repeat A1, repeat B1") == nil)
+        #expect(optionalMethodGenericParameterIndex("Swift.Array<A1>") == nil)
         #expect(methodGenericParameterIndex(String(repeating: "Z", count: 32) + "1") == nil)
     }
 }

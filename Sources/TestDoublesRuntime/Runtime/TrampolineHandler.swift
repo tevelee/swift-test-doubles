@@ -53,6 +53,7 @@ enum RuntimeTrampolineHandler {
         let runtimeMethod: PreparedRuntimeMethod
         let endpoint: any RuntimeInvocationEndpoint
         let args: [Any]
+        let genericParameterTypes: [Any.Type]
         let typedErrorDestination: UnsafeMutableRawPointer?
         let handler: ([Any]) async throws -> Any
 
@@ -67,6 +68,7 @@ enum RuntimeTrampolineHandler {
             self.runtimeMethod = runtimeMethod
             self.endpoint = endpoint
             args = decodedArguments.values
+            genericParameterTypes = decodedArguments.genericParameterTypes
             typedErrorDestination = decodedArguments.typedErrorDestination
             self.handler = handler
         }
@@ -81,6 +83,7 @@ enum RuntimeTrampolineHandler {
                         result,
                         for: runtimeMethod,
                         endpoint: endpoint,
+                        genericParameterTypes: genericParameterTypes,
                         into: frame
                     )
                 }
@@ -157,6 +160,8 @@ enum RuntimeTrampolineHandler {
                     for: method,
                     args: invocation.decodedArguments.values,
                     endpoint: invocation.endpoint,
+                    genericParameterTypes:
+                        invocation.decodedArguments.genericParameterTypes,
                     into: frame
                 )
                 return
@@ -216,6 +221,8 @@ enum RuntimeTrampolineHandler {
             result,
             for: invocation.runtimeMethod,
             endpoint: invocation.endpoint,
+            genericParameterTypes:
+                invocation.decodedArguments.genericParameterTypes,
             into: frame
         )
         invocation.endpoint.completeInvocation(
@@ -259,6 +266,8 @@ enum RuntimeTrampolineHandler {
                     for: invocation.method,
                     args: invocation.decodedArguments.values,
                     endpoint: invocation.endpoint,
+                    genericParameterTypes:
+                        invocation.decodedArguments.genericParameterTypes,
                     into: frame
                 )
                 return nil
@@ -270,6 +279,8 @@ enum RuntimeTrampolineHandler {
                     result,
                     for: invocation.runtimeMethod,
                     endpoint: invocation.endpoint,
+                    genericParameterTypes:
+                        invocation.decodedArguments.genericParameterTypes,
                     into: frame
                 )
                 return nil

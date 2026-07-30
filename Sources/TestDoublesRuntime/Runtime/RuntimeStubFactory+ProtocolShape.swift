@@ -203,6 +203,7 @@ extension RuntimeStubFactory {
                 switch $0.value.convention {
                     case .selfType, .optionalSelf: true
                     case .concrete, .associatedType, .methodGenericParameter,
+                        .optionalMethodGenericParameter,
                         .methodGenericParameterPack:
                         false
                 }

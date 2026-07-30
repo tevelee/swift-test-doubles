@@ -292,6 +292,14 @@ package enum RuntimeArgumentDecoder {
 
         return DecodedArguments(
             values: values,
+            genericParameterTypes:
+                plan.genericParameterMetadataLocations.indices.map {
+                    genericParameterMetadataType(
+                        at: $0,
+                        in: plan.genericParameterMetadataLocations,
+                        from: frame
+                    )
+                },
             typedErrorDestination: typedErrorDestination
         )
     }

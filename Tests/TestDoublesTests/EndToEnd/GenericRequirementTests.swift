@@ -235,6 +235,34 @@ import TestDoublesFixtures
         }
     }
 
+    @Test func genericMethodResultUsesTheCallersRuntimeType() throws {
+        _ = RealGenericResultRequirementProbe()
+        let stub = try Stub<any GenericResultRequirementProbe>()
+        stub.when { $0.echo(Match.equal(7)) }.thenReturn(8)
+        stub.when { $0.echo(Match.equal("input")) }.thenReturn("output")
+        stub.when { $0.maybe(Match.equal(3)) }.thenReturn(4)
+        stub.when { $0.maybe(Match.equal("none")) }.thenReturn(nil)
+        stub.when(returning: 0) { $0.make() as Int }.thenReturn(42)
+        stub.when {
+            $0.second(Match.equal(1), Match.equal("a"))
+        }.thenReturn("b")
+
+        let probe: any GenericResultRequirementProbe = stub()
+        #expect(probe.echo(7) == 8)
+        #expect(probe.echo("input") == "output")
+        #expect(probe.maybe(3) == 4)
+        #expect(probe.maybe("none") == nil)
+        #expect((probe.make() as Int) == 42)
+        #expect(probe.second(1, "a") == "b")
+
+        stub.verify {
+            $0.echo(Match.equal(7))
+        }
+        stub.verify(returning: 0) {
+            $0.make() as Int
+        }
+    }
+
     @Test func forwardingSpyDoesNotSupportAGenericParameter() {
         expectUnsupportedProtocolShape(
             containing: "Forwarding Spy does not support requirements with their own generic parameter"

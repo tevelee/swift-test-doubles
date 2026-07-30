@@ -62,7 +62,7 @@ package func discoverMethods(
             if let candidate = parseWitnessSignature(demangled, kind: abiKind) {
                 if let reason = unsupportedRequirementLevelGenericSignatureReason(
                     in: demangled,
-                    arguments: candidate.argumentTypes
+                    values: candidate.argumentTypes + [candidate.returnType]
                 ) {
                     throw RuntimeConstructionError.unsupportedProtocolShape(
                         protocolName: proto.name,
@@ -129,6 +129,7 @@ package func discoverMethods(
                     case .concrete, .associatedType:
                         true
                     case .selfType, .optionalSelf, .methodGenericParameter,
+                        .optionalMethodGenericParameter,
                         .methodGenericParameterPack:
                         false
                 }
@@ -335,17 +336,24 @@ private func resolveWitnessValue(
                 + "Automatic Stub supports only one direct borrowed requirement-level parameter pack argument."
         )
     }
-    if let index = methodGenericParameterIndex(valueName) {
-        guard isArgument else {
+    if let index = optionalMethodGenericParameterIndex(valueName) {
+        guard isArgument == false else {
             throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolDescriptor.name,
                 reason:
-                    "Requirement \(requirementIndex) returns a value typed by the requirement's own generic parameter ('\(valueName)'). "
-                    + "Automatic Stub does not support producing a value whose type is chosen by the caller. "
-                    + "Supply explicit Requirement values."
+                    "Requirement \(requirementIndex) embeds a requirement-level generic parameter in Optional argument '\(valueName)'. "
+                    + "Automatic Stub currently supports this shape only as a result."
             )
         }
-        guard ownership != .owned else {
+        return ResolvedWitnessValue(
+            type: Any.self,
+            convention: .optionalMethodGenericParameter(index: index),
+            dependency: .independent,
+            ownership: ownership
+        )
+    }
+    if let index = methodGenericParameterIndex(valueName) {
+        guard isArgument == false || ownership != .owned else {
             throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolDescriptor.name,
                 reason:
@@ -508,6 +516,29 @@ func methodGenericParameterPackIndex(_ spelling: String) -> Int? {
     methodGenericParameterPackName(spelling).flatMap(methodGenericParameterIndex)
 }
 
+/// The requirement-level generic parameter directly wrapped by one Optional.
+func optionalMethodGenericParameterIndex(_ spelling: String) -> Int? {
+    optionalMethodGenericParameterName(spelling).flatMap(
+        methodGenericParameterIndex
+    )
+}
+
+private func optionalMethodGenericParameterName(
+    _ spelling: String
+) -> String? {
+    for prefix in ["Swift.Optional<", "Optional<"]
+    where spelling.hasPrefix(prefix) && spelling.hasSuffix(">") {
+        let start = spelling.index(
+            spelling.startIndex,
+            offsetBy: prefix.count
+        )
+        return String(
+            spelling[start ..< spelling.index(before: spelling.endIndex)]
+        )
+    }
+    return nil
+}
+
 private func methodGenericParameterPackName(_ spelling: String) -> String? {
     let expansion: Substring =
         spelling.first == "(" && spelling.last == ")"
@@ -523,13 +554,29 @@ private func methodGenericParameterPackName(_ spelling: String) -> String? {
 /// frame may safely leave those trailing words opaque.
 private func unsupportedRequirementLevelGenericSignatureReason(
     in demangled: String,
-    arguments: [DemangledTypeSyntax]
+    values: [DemangledTypeSyntax]
 ) -> String? {
+    let packParameters = Set(
+        values.compactMap { value -> String? in
+            let spelling = value.canonicalSpelling
+            guard let parameter = methodGenericParameterPackName(spelling),
+                methodGenericParameterIndex(parameter) != nil
+            else {
+                return nil
+            }
+            return parameter
+        }
+    )
     let parameters = Set(
-        arguments.compactMap { argument -> String? in
-            let spelling = argument.canonicalSpelling
+        values.compactMap { value -> String? in
+            let spelling = value.canonicalSpelling
             if methodGenericParameterIndex(spelling) != nil {
                 return spelling
+            }
+            if let parameter = optionalMethodGenericParameterName(spelling),
+                methodGenericParameterIndex(parameter) != nil
+            {
+                return parameter
             }
             guard let parameter = methodGenericParameterPackName(spelling),
                 methodGenericParameterIndex(parameter) != nil
@@ -545,6 +592,9 @@ private func unsupportedRequirementLevelGenericSignatureReason(
         parameter,
         in: demangled
     ) {
+        if packParameters.contains(parameter) {
+            return "Protocol-constrained parameter packs carry additional witness packs whose transport is not implemented."
+        }
         if demangled.contains("\(parameter): ~Swift.Copyable") {
             return "`~Copyable` parameters cannot be copied into the recorder's escaping Any storage."
         }

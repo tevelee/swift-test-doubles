@@ -352,7 +352,8 @@ package struct MethodDescriptor: Sendable {
             case .associatedType: .indirect
             case .selfType, .optionalSelf:
                 selfIsClassConstrained ? .integer(words: 1) : .indirect
-            case .methodGenericParameter: .indirect
+            case .methodGenericParameter, .optionalMethodGenericParameter:
+                .indirect
             // A generic pack argument is three ABI words: its element-address
             // buffer, element count, and tagged metadata-pack pointer.
             case .methodGenericParameterPack: .integer(words: 3)
@@ -373,7 +374,9 @@ package struct MethodDescriptor: Sendable {
             case .associatedType: .indirect
             case .selfType, .optionalSelf:
                 selfIsClassConstrained ? .integer(words: 1) : .indirect
-            case .methodGenericParameter, .methodGenericParameterPack: .indirect
+            case .methodGenericParameter, .optionalMethodGenericParameter,
+                .methodGenericParameterPack:
+                .indirect
         }
     }
 }
@@ -416,6 +419,8 @@ extension RuntimeValueConvention {
             case .selfType: self = .selfType
             case .optionalSelf: self = .optionalSelf
             case .methodGenericParameter(let index): self = .methodGenericParameter(index: index)
+            case .optionalMethodGenericParameter(let index):
+                self = .optionalMethodGenericParameter(index: index)
             case .methodGenericParameterPack(let index): self = .methodGenericParameterPack(index: index)
         }
     }
@@ -466,6 +471,8 @@ private func witnessValueDescription(
             "Self?"
         case .methodGenericParameter(let index):
             "<generic parameter \(index)>"
+        case .optionalMethodGenericParameter(let index):
+            "<generic parameter \(index)>?"
         case .methodGenericParameterPack(let index):
             "<parameter pack \(index)>"
     }

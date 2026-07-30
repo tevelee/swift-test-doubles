@@ -5,13 +5,16 @@ import TestDoublesRuntimeMetadata
 /// generic function, plus optional typed-error storage supplied by its caller.
 package struct DecodedArguments {
     package let values: [Any]
+    package let genericParameterTypes: [Any.Type]
     package let typedErrorDestination: UnsafeMutableRawPointer?
 
     package init(
         values: [Any],
+        genericParameterTypes: [Any.Type] = [],
         typedErrorDestination: UnsafeMutableRawPointer?
     ) {
         self.values = values
+        self.genericParameterTypes = genericParameterTypes
         self.typedErrorDestination = typedErrorDestination
     }
 }

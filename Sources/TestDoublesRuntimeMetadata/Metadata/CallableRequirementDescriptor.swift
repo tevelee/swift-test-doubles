@@ -55,6 +55,9 @@ package enum WitnessValueConvention: Equatable, Sendable {
     /// Typed by the requirement's own generic parameter; `index` identifies
     /// which one, so shared parameters share an index.
     case methodGenericParameter(index: Int)
+    /// An Optional whose wrapped value is typed by the requirement's own
+    /// generic parameter.
+    case optionalMethodGenericParameter(index: Int)
     /// A single caller-owned metadata pack and its matching buffer of
     /// borrowed argument addresses. Its elements become independent recorder
     /// arguments after decoding; it is never exposed as an ordinary value.

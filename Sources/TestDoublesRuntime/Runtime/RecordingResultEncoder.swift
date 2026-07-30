@@ -8,6 +8,7 @@ package enum RecordingResultEncoder {
         for method: MethodDescriptor,
         arguments: [Any],
         endpoint: any RuntimeInvocationEndpoint,
+        genericParameterTypes: [Any.Type],
         into frame: TrampolineCallFrame
     ) {
         switch endpoint.recordingResult(at: method.index) {
@@ -27,12 +28,18 @@ package enum RecordingResultEncoder {
                 )
 
             case .value(let value):
-                DependentResultEncoder.encode(value, for: method, into: frame)
+                encode(
+                    value,
+                    for: method,
+                    genericParameterTypes: genericParameterTypes,
+                    into: frame
+                )
 
             case .synthesize:
                 encodePlaceholder(
                     for: method,
                     arguments: arguments,
+                    genericParameterTypes: genericParameterTypes,
                     into: frame
                 )
         }
@@ -41,8 +48,50 @@ package enum RecordingResultEncoder {
     private static func encodePlaceholder(
         for method: MethodDescriptor,
         arguments: [Any],
+        genericParameterTypes: [Any.Type],
         into frame: TrampolineCallFrame
     ) {
+        if let (index, runtimeType) = genericResult(
+            method.returnConvention,
+            genericParameterTypes: genericParameterTypes
+        ) {
+            if method.returnConvention == .methodGenericParameter(index: index),
+                let argumentIndex = method.arguments.firstIndex(where: {
+                    $0.value.convention == .methodGenericParameter(index: index)
+                }), arguments.indices.contains(argumentIndex)
+            {
+                RuntimeValueTransport.encodeReturn(
+                    arguments[argumentIndex],
+                    expectedType: runtimeType,
+                    layout: method.returnLayout,
+                    context: method.name,
+                    isAsync: method.isAsync,
+                    into: frame
+                )
+                return
+            }
+            let placeholder = ValueStorage(type: runtimeType)
+            guard
+                PlaceholderValue.initialize(
+                    type: runtimeType,
+                    at: placeholder.storage
+                )
+            else {
+                fatalError(unsupportedPlaceholderMessage(for: method))
+            }
+            placeholder.markInitialized()
+            let value = boxValue(type: runtimeType, source: placeholder.storage)
+            placeholder.destroyInitializedValue()
+            RuntimeValueTransport.encodeReturn(
+                value,
+                expectedType: runtimeType,
+                layout: method.returnLayout,
+                context: method.name,
+                isAsync: method.isAsync,
+                into: frame
+            )
+            return
+        }
         let layout = method.returnLayout
         frame.zeroReturn()
 
@@ -78,6 +127,58 @@ package enum RecordingResultEncoder {
                     into: frame
                 )
         }
+    }
+
+    private static func encode(
+        _ value: Any,
+        for method: MethodDescriptor,
+        genericParameterTypes: [Any.Type],
+        into frame: TrampolineCallFrame
+    ) {
+        if let (_, runtimeType) = genericResult(
+            method.returnConvention,
+            genericParameterTypes: genericParameterTypes
+        ) {
+            RuntimeValueTransport.encodeReturn(
+                value,
+                expectedType: runtimeType,
+                layout: method.returnLayout,
+                context: method.name,
+                isAsync: method.isAsync,
+                into: frame
+            )
+        } else {
+            DependentResultEncoder.encode(value, for: method, into: frame)
+        }
+    }
+
+    private static func genericResult(
+        _ convention: WitnessValueConvention,
+        genericParameterTypes: [Any.Type]
+    ) -> (index: Int, type: Any.Type)? {
+        let index: Int
+        let isOptional: Bool
+        switch convention {
+            case .methodGenericParameter(let value):
+                index = value
+                isOptional = false
+            case .optionalMethodGenericParameter(let value):
+                index = value
+                isOptional = true
+            default:
+                return nil
+        }
+        precondition(
+            genericParameterTypes.indices.contains(index),
+            "[TestDoubles] Missing recording metadata for requirement-level generic parameter \(index)."
+        )
+        let type = genericParameterTypes[index]
+        return (
+            index,
+            isOptional
+                ? RuntimeValueTransport.optionalType(wrapping: type)
+                : type
+        )
     }
 
     private static func encodeIndirectPlaceholder(

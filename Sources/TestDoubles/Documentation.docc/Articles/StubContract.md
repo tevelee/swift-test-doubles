@@ -399,6 +399,16 @@ TestDoubles
 configuration or runtime failures cannot be transported through that restricted
 error channel.
 
+Ordinary instance methods may declare copyable, escapable requirement-level
+generic parameters, including protocol-constrained parameters, synchronous or
+async dispatch, and typed throws. Arguments are recorded through the
+caller-supplied metadata, and results may return `T` or one `Optional<T>` layer.
+Use `when(returning:_:)` when a result-only generic type has no value from which
+capture mode can synthesize a placeholder. Consuming, class-constrained,
+same-type-constrained, noncopyable, and nonescapable generic values remain
+fail-closed. Generic forwarding spies and generic parameter results nested in
+other containers are not supported.
+
 ### Unsupported protocol shapes
 
 - Automatic function values using the thin convention, unresolved associated

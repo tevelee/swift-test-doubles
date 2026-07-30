@@ -5,6 +5,13 @@ import TestDoublesRuntimeMetadata
 /// Moves Swift values across the captured trampoline frame according to a
 /// previously validated ABI layout.
 package enum RuntimeValueTransport {
+    package static func optionalType(wrapping type: Any.Type) -> Any.Type {
+        func open<Wrapped>(_ type: Wrapped.Type) -> Any.Type {
+            Optional<Wrapped>.self
+        }
+        return _openExistential(type, do: open)
+    }
+
     package static func copyValue(
         _ result: Any,
         expectedType: Any.Type?,

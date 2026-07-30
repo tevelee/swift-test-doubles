@@ -29,3 +29,24 @@ public struct RealGenericCache: GenericCache {
     public init() {}
     public func store<Key, Value>(_ value: Value, forKey key: Key) {}
 }
+
+/// Generic result shapes whose concrete metadata is supplied by each caller.
+public protocol GenericResultRequirementProbe {
+    func echo<Value>(_ value: Value) -> Value
+    func maybe<Value>(_ value: Value) -> Value?
+    func make<Value>() -> Value
+    func second<First, Second>(_ first: First, _ second: Second) -> Second
+}
+
+public struct RealGenericResultRequirementProbe: GenericResultRequirementProbe {
+    public init() {}
+    public func echo<Value>(_ value: Value) -> Value { value }
+    public func maybe<Value>(_ value: Value) -> Value? { value }
+    // swiftlint:disable:next unavailable_function
+    public func make<Value>() -> Value {
+        fatalError("The linked conformer is metadata-only.")
+    }
+    public func second<First, Second>(_ first: First, _ second: Second) -> Second {
+        second
+    }
+}

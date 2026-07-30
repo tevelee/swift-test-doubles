@@ -78,7 +78,19 @@ package func runtimeMethodGenericParameterUnsupportedReason(
         if case .methodGenericParameter = $0.value.convention { return true }
         return false
     }
-    guard genericArguments.isEmpty == false else { return nil }
+    let genericResultIndex: Int? =
+        if case .methodGenericParameter(let index) = method.result.convention {
+            index
+        } else if case .optionalMethodGenericParameter(let index) =
+            method.result.convention
+        {
+            index
+        } else {
+            nil
+        }
+    guard genericArguments.isEmpty == false || genericResultIndex != nil else {
+        return nil
+    }
 
     guard method.kind == .method, method.receiver == .instance else {
         return "Requirement-level generic parameters are supported only on ordinary instance methods."
@@ -87,12 +99,13 @@ package func runtimeMethodGenericParameterUnsupportedReason(
         return "Consuming requirement-level generic parameters need ownership-aware metadata transport."
     }
 
-    let indices = genericArguments.compactMap { argument -> Int? in
-        guard case .methodGenericParameter(let index) = argument.value.convention else {
-            return nil
-        }
-        return index
-    }
+    let indices =
+        genericArguments.compactMap { argument -> Int? in
+            guard case .methodGenericParameter(let index) = argument.value.convention else {
+                return nil
+            }
+            return index
+        } + [genericResultIndex].compactMap { $0 }
     guard indices.allSatisfy({ $0 >= 0 }) else {
         return "Requirement-level generic parameter indices must be non-negative."
     }
@@ -141,11 +154,18 @@ package func runtimeMethodGenericParameterPackUnsupportedReason(
 package func runtimeMethodGenericParameterForwardingUnsupportedReason(
     for method: MethodDescriptor
 ) -> String? {
-    let usesGenericParameter = method.arguments.contains {
+    let genericArgument = method.arguments.contains {
         if case .methodGenericParameter = $0.value.convention { return true }
         return false
     }
-    if usesGenericParameter {
+    let genericResult =
+        switch method.result.convention {
+            case .methodGenericParameter, .optionalMethodGenericParameter:
+                true
+            default:
+                false
+        }
+    if genericArgument || genericResult {
         return "Forwarding Spy does not support requirements with their own generic parameter."
     }
     let usesParameterPack = method.arguments.contains {
