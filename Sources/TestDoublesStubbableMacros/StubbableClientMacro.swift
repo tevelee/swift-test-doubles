@@ -659,7 +659,9 @@
                 "endpoints.endpoint(",
                 "    \"\(name)\",",
                 "    as: \(type).self,",
-                "    forwarding: { $0.\(name) }",
+                "    forwarding: {",
+                "        $0.\(name)",
+                "    }",
                 ")"
             ]
             .joined(separator: "\n")

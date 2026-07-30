@@ -244,12 +244,16 @@
                         self.fetch = endpoints.endpoint(
                             "fetch",
                             as: ExternalFetch.self,
-                            forwarding: { $0.fetch }
+                            forwarding: {
+                                $0.fetch
+                            }
                         )
                         self.transform = endpoints.endpoint(
                             "transform",
                             as: ExternalTransform<Value>.self,
-                            forwarding: { $0.transform }
+                            forwarding: {
+                                $0.transform
+                            }
                         )
                     }
                 }
