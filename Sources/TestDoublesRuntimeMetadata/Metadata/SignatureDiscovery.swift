@@ -2,6 +2,16 @@ import Echo
 import Foundation
 import TestDoublesRuntimeSupport
 
+package struct GetterEffectHint: @unchecked Sendable {
+    package let isThrowing: Bool
+    package let typedErrorType: Any.Type?
+
+    package init(isThrowing: Bool, typedErrorType: Any.Type?) {
+        self.isThrowing = isThrowing
+        self.typedErrorType = typedErrorType
+    }
+}
+
 package enum GetterEffectDiscoveryPolicy {
     /// Preserves automatic discovery's historical behavior: synchronous
     /// getters are accepted with an unreliable nonthrowing placeholder, while
@@ -9,7 +19,7 @@ package enum GetterEffectDiscoveryPolicy {
     case automatic
     /// Supplies the effect that Swift's protocol metadata and witness symbols
     /// omit. The caller validates that every getter has exactly one entry.
-    case hints([ProtocolLayout.GetterRequirementID: Bool])
+    case hints([ProtocolLayout.GetterRequirementID: GetterEffectHint])
     /// Explicit requirements are authoritative for getter effects. Linked
     /// discovery still validates every signature component it can observe.
     case explicitRequirementValidation
@@ -86,18 +96,23 @@ package func discoverMethods(
         // returns false for read/modify coroutines even though they set the
         // `IsAsyncMask` bit (there it means `isCalleeAllocatedCoroutine`).
         let isAsync = req.flags.isAsync
-        let getterEffect: (isThrowing: Bool, isReliable: Bool)? =
-            if kind == .getter {
-                try resolveGetterEffect(
-                    policy: getterEffectPolicy,
-                    protocolDescriptor: proto,
-                    witnessIndex: requirementIndex,
-                    dispatchIndex: requirement.dispatchIndex,
-                    isAsync: isAsync
-                )
-            } else {
-                nil
-            }
+        let getterEffect:
+            (
+                isThrowing: Bool,
+                isReliable: Bool,
+                typedErrorType: Any.Type?
+            )? =
+                if kind == .getter {
+                    try resolveGetterEffect(
+                        policy: getterEffectPolicy,
+                        protocolDescriptor: proto,
+                        witnessIndex: requirementIndex,
+                        dispatchIndex: requirement.dispatchIndex,
+                        isAsync: isAsync
+                    )
+                } else {
+                    nil
+                }
         let arguments = try parsed.argumentTypes.map { type in
             try resolveWitnessValue(
                 type,
@@ -117,12 +132,32 @@ package func discoverMethods(
             isArgument: false
         )
 
-        let typedError = try resolveTypedError(
+        let discoveredTypedError = try resolveTypedError(
             parsed.typedError,
             protocolDescriptor: proto,
             requirementIndex: requirement.dispatchIndex,
             associatedTypeBindings: associatedTypeBindings
         )
+        let typedError: (type: Any.Type, dependency: WitnessValueDependency)?
+        if let hintedType = getterEffect?.typedErrorType {
+            if let discoveredTypedError {
+                guard
+                    ObjectIdentifier(discoveredTypedError.type)
+                        == ObjectIdentifier(hintedType)
+                else {
+                    throw RuntimeConstructionError.unsupportedProtocolShape(
+                        protocolName: proto.name,
+                        reason:
+                            "Getter requirement \(requirement.dispatchIndex) was hinted with typed error '\(runtimeTypeName(hintedType))', but its linked signature declares '\(runtimeTypeName(discoveredTypedError.type))'."
+                    )
+                }
+                typedError = discoveredTypedError
+            } else {
+                typedError = (hintedType, .independent)
+            }
+        } else {
+            typedError = discoveredTypedError
+        }
         if typedError != nil {
             let supportsResultConvention =
                 switch result.convention {
@@ -231,7 +266,11 @@ private func resolveGetterEffect(
     witnessIndex: Int,
     dispatchIndex: Int,
     isAsync: Bool
-) throws -> (isThrowing: Bool, isReliable: Bool) {
+) throws -> (
+    isThrowing: Bool,
+    isReliable: Bool,
+    typedErrorType: Any.Type?
+) {
     switch policy {
         case .automatic:
             guard isAsync == false else {
@@ -241,24 +280,31 @@ private func resolveGetterEffect(
                     details: "Swift witness symbols do not encode whether an async getter throws. Supply GetterEffect hints or explicit Requirement values for effectful getters."
                 )
             }
-            return (false, false)
+            return (false, false, nil)
 
         case .hints(let hints):
             let identifier = ProtocolLayout.GetterRequirementID(
                 protocolDescriptor: protocolDescriptor,
                 witnessIndex: witnessIndex
             )
-            guard let isThrowing = hints[identifier] else {
+            guard let hint = hints[identifier] else {
                 throw RuntimeConstructionError.signatureDiscoveryFailed(
                     protocolName: protocolDescriptor.name,
                     requirementIndex: dispatchIndex,
                     details: "No GetterEffect hint was supplied for this getter."
                 )
             }
-            return (isThrowing, true)
+            guard hint.typedErrorType == nil || hint.isThrowing else {
+                throw RuntimeConstructionError.unsupportedProtocolShape(
+                    protocolName: protocolDescriptor.name,
+                    reason:
+                        "Getter requirement \(dispatchIndex) has a typed-error hint but was marked nonthrowing."
+                )
+            }
+            return (hint.isThrowing, true, hint.typedErrorType)
 
         case .explicitRequirementValidation:
-            return (false, false)
+            return (false, false, nil)
     }
 }
 

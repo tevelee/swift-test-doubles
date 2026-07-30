@@ -127,17 +127,19 @@ as arguments to instance methods, synchronous static methods, and synchronous
 instance or static subscript getters and setters. Subscript indices support
 both opaque indirect `Self` and the direct reference-word layout of a protocol
 that declares `AnyObject`. Synchronous throwing subscript getters use automatic
-discovery with a `GetterEffect.throwing` hint and preserve both successful and
-error results. Instance methods support borrowed/default, consuming,
-synchronous, async, untyped-throwing, and supported typed-throwing forms. The
-declaring protocol determines the ABI: an ordinary protocol uses opaque
-indirect storage, while a protocol that itself requires `AnyObject` uses one
-direct reference word. A class-constrained child does not change an inherited
-unconstrained base requirement's ABI. Configuration and invocation use
-generic-opening helper functions because an existential cannot call a
-`Self`-taking requirement directly. Explicit schemas, Spies,
-superclass-constrained existentials, initializers, async static methods,
-`inout`, nested optionals, and other wrappers remain fail-closed.
+discovery with a `GetterEffect.throwing` hint and preserve successful, untyped
+error, and concrete typed-error results. The getter hint supplies the missing
+effect bit while its resilient or witness symbol retains the exact typed-error
+metadata and dynamic-`Self` index identity. Instance methods support
+borrowed/default, consuming, synchronous, async, untyped-throwing, and
+supported typed-throwing forms. The declaring protocol determines the ABI: an
+ordinary protocol uses opaque indirect storage, while a protocol that itself
+requires `AnyObject` uses one direct reference word. A class-constrained child
+does not change an inherited unconstrained base requirement's ABI.
+Configuration and invocation use generic-opening helper functions because an
+existential cannot call a `Self`-taking requirement directly. Explicit
+schemas, Spies, superclass-constrained existentials, initializers, async static
+methods, `inout`, nested optionals, and other wrappers remain fail-closed.
 
 Playback recording keeps a weak reference to a generated `Self` argument so a
 recorder cannot retain its own runtime graph. The original identity is preserved

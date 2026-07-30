@@ -211,6 +211,9 @@ public final class RealExternalClassSelfSubscriptArgumentProbe:
 public protocol ExternalThrowingSelfSubscriptArgumentProbe {
     subscript(_ value: Self) -> Int { get throws }
     subscript(optional value: Self?) -> Int { get throws }
+    subscript(typed value: Self) -> Int {
+        get throws(ExternalThrowingSelfArgumentError)
+    }
 }
 
 public struct RealExternalThrowingSelfSubscriptArgumentProbe:
@@ -228,6 +231,12 @@ public struct RealExternalThrowingSelfSubscriptArgumentProbe:
         optional value: RealExternalThrowingSelfSubscriptArgumentProbe?
     ) -> Int {
         get throws { 0 }
+    }
+
+    public subscript(
+        typed value: RealExternalThrowingSelfSubscriptArgumentProbe
+    ) -> Int {
+        get throws(ExternalThrowingSelfArgumentError) { 0 }
     }
 }
 

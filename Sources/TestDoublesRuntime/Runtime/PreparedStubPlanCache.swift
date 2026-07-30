@@ -14,12 +14,17 @@ enum PreparedStubPlanCache {
 
         struct GetterEffectGroup: Hashable {
             let declaringProtocol: ObjectIdentifier
-            let effects: [Bool]
+            let effects: [GetterEffect]
+        }
+
+        struct GetterEffect: Hashable {
+            let isThrowing: Bool
+            let typedErrorType: ObjectIdentifier?
         }
 
         enum GetterEffects: Hashable {
             case automatic
-            case flat([Bool])
+            case flat([GetterEffect])
             case grouped([GetterEffectGroup])
         }
 
@@ -122,7 +127,7 @@ enum PreparedStubPlanCache {
                 case .automatic:
                     .automatic
                 case .flat(let effects):
-                    .flat(effects)
+                    .flat(effects.map(getterEffectKey))
                 case .grouped(let groups):
                     .grouped(
                         groups.map {
@@ -130,7 +135,7 @@ enum PreparedStubPlanCache {
                                 declaringProtocol: ObjectIdentifier(
                                     $0.declaringProtocol
                                 ),
-                                effects: $0.effects
+                                effects: $0.effects.map(getterEffectKey)
                             )
                         })
             }
@@ -148,6 +153,15 @@ enum PreparedStubPlanCache {
                 },
             requirements: requirements,
             getterEffects: getterEffects
+        )
+    }
+
+    private static func getterEffectKey(
+        _ effect: RuntimeGetterEffectHint
+    ) -> Key.GetterEffect {
+        Key.GetterEffect(
+            isThrowing: effect.isThrowing,
+            typedErrorType: effect.typedErrorType.map(ObjectIdentifier.init)
         )
     }
 

@@ -153,6 +153,7 @@ symbol	TestDoubles	swift.enum.case	InvocationOutcome.threw(_:)	case threw(any Er
 symbol	TestDoubles	swift.enum.case	InvocationOutcome.unavailable	case unavailable
 symbol	TestDoubles	swift.enum.case	Stub.GetterEffect.nonthrowing	case nonthrowing
 symbol	TestDoubles	swift.enum.case	Stub.GetterEffect.throwing	case throwing
+symbol	TestDoubles	swift.enum.case	Stub.GetterEffect.typedThrowing(_:)	case typedThrowing(any Error.Type)
 symbol	TestDoubles	swift.enum.case	StubError.compositionRequiresGroupedGetterEffects(typeDescription:)	case compositionRequiresGroupedGetterEffects(typeDescription: String)
 symbol	TestDoubles	swift.enum.case	StubError.compositionRequiresGroupedRequirements(typeDescription:)	case compositionRequiresGroupedRequirements(typeDescription: String)
 symbol	TestDoubles	swift.enum.case	StubError.duplicateProtocolGetterEffectGroup(protocolName:)	case duplicateProtocolGetterEffectGroup(protocolName: String)
@@ -176,6 +177,7 @@ symbol	TestDoubles	swift.enum.case	StubFailableInitializerBuilder.Outcome.initia
 symbol	TestDoubles	swift.enum.case	StubFailableInitializerBuilder.Outcome.returnNil	case returnNil
 symbol	TestDoubles	swift.enum.case	StubOptionalSelfResultBuilder.Outcome.returnNil	case returnNil
 symbol	TestDoubles	swift.enum.case	StubOptionalSelfResultBuilder.Outcome.returnValue	case returnValue
+symbol	TestDoubles	swift.func.op	Stub.GetterEffect.==(_:_:)	static func == (lhs: `Self`, rhs: `Self`) -> Bool
 symbol	TestDoubles	swift.init	AsyncClosureDouble.init()	init()
 symbol	TestDoubles	swift.init	AsyncClosureDouble.init(forwardingTo:)	init(forwardingTo target: @escaping @Sendable (Input) async -> Result)
 symbol	TestDoubles	swift.init	AsyncParameterizedTestDoubleScenario.init(_:)	init(_ configure: @escaping (Subject, Parameter) async -> Void)
@@ -708,6 +710,7 @@ symbol	TestDoubles	swift.method	RecordingSession.snapshot()	func snapshot() -> I
 symbol	TestDoubles	swift.method	Spy.verifyNoForwardedInteractions(fileID:filePath:line:column:)	func verifyNoForwardedInteractions(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	TestDoubles	swift.method	Spy.verifyOnlyForwarded(_:fileID:filePath:line:column:)	func verifyOnlyForwarded(_ calls: (P) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	TestDoubles	swift.method	Spy.verifyOnlyForwarded(_:isolation:fileID:filePath:line:column:)	func verifyOnlyForwarded(_ calls: (P) async throws -> Void, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
+symbol	TestDoubles	swift.method	Stub.GetterEffect.hash(into:)	func hash(into hasher: inout Hasher)
 symbol	TestDoubles	swift.method	Stub.Invocation.call(_:returning:)	func call<each Argument, Result>(_ arguments: repeat each Argument, returning resultType: Result.Type = Result.self) -> Result
 symbol	TestDoubles	swift.method	Stub.Invocation.call(_:returning:)	func call<each Argument, Result>(_ arguments: repeat each Argument, returning resultType: Result.Type = Result.self) async -> Result
 symbol	TestDoubles	swift.method	Stub.Invocation.call(_:returning:throwing:)	func call<each Argument, Result, Failure>(_ arguments: repeat each Argument, returning resultType: Result.Type = Result.self, throwing failureType: Failure.Type) async throws(Failure) -> Result where Failure : Error

@@ -282,7 +282,7 @@ extension Stub {
             try RuntimeStubFactory.prepareStub(
                 runtimePreparationRequest(
                     requirements: .automatic,
-                    getterEffects: .flat(getterEffects.map(\.isThrowing))
+                    getterEffects: .flat(getterEffects.map(\.runtimeHint))
                 )
             )
         }
@@ -299,7 +299,7 @@ extension Stub {
                         getterEffectGroups.map {
                             RuntimeGetterEffectGroup(
                                 declaringProtocol: $0.protocolType,
-                                effects: $0.effects.map(\.isThrowing)
+                                effects: $0.effects.map(\.runtimeHint)
                             )
                         })
                 )
@@ -440,13 +440,13 @@ extension Stub {
             case .automatic:
                 .automatic
             case .ordered(let effects):
-                .flat(effects.map(\.isThrowing))
+                .flat(effects.map(\.runtimeHint))
             case .grouped(let groups):
                 .grouped(
                     groups.map {
                         RuntimeGetterEffectGroup(
                             declaringProtocol: $0.protocolType,
-                            effects: $0.effects.map(\.isThrowing)
+                            effects: $0.effects.map(\.runtimeHint)
                         )
                     })
         }

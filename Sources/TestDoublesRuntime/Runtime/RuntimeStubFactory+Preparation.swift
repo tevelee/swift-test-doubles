@@ -246,7 +246,7 @@ extension RuntimeStubFactory {
                     typeDescription: typeDescription,
                     diagnostics: .getterEffects
                 )
-                var hints: [ProtocolLayout.GetterRequirementID: Bool] = [:]
+                var hints: [ProtocolLayout.GetterRequirementID: GetterEffectHint] = [:]
                 for (node, effects) in matched {
                     hints.merge(
                         try getterEffectHints(
@@ -262,9 +262,9 @@ extension RuntimeStubFactory {
 
     private static func getterEffectHints(
         for getters: [ProtocolLayout.CallableRequirement],
-        effects: [Bool],
+        effects: [RuntimeGetterEffectHint],
         protocolName: String
-    ) throws -> [ProtocolLayout.GetterRequirementID: Bool] {
+    ) throws -> [ProtocolLayout.GetterRequirementID: GetterEffectHint] {
         guard effects.count == getters.count else {
             throw RuntimeConstructionError.getterEffectCountMismatch(
                 protocolName: protocolName,
@@ -274,13 +274,16 @@ extension RuntimeStubFactory {
         }
         return Dictionary(
             uniqueKeysWithValues: zip(getters, effects).map {
-                requirement, isThrowing in
+                requirement, effect in
                 (
                     ProtocolLayout.GetterRequirementID(
                         protocolDescriptor: requirement.runtimeProtocolDescriptor,
                         witnessIndex: requirement.witnessIndex
                     ),
-                    isThrowing
+                    GetterEffectHint(
+                        isThrowing: effect.isThrowing,
+                        typedErrorType: effect.typedErrorType
+                    )
                 )
             })
     }

@@ -386,6 +386,44 @@ struct RealTypedThrowingGetterProbe: TypedThrowingGetterProbe {
         )
     }
 
+    @Test func typedThrowingGetterHintsPreserveAutomaticDiscovery() async throws {
+        _ = RealTypedThrowingGetterProbe()
+        typealias Probe = any TypedThrowingGetterProbe
+        let stub = try Stub<Probe>(
+            getterEffects:
+                .typedThrowing(TypedThrowingGetterProbeError.self),
+            .typedThrowing(TypedThrowingGetterProbeError.self)
+        )
+        stub.when { try $0.value }.thenReturn(42)
+        await stub.when {
+            try await $0.asynchronousValue
+        }.thenThrow(TypedThrowingGetterProbeError(code: 43))
+
+        let probe: Probe = stub()
+        #expect(try probe.value == 42)
+        let error = try #require(
+            await #expect(throws: TypedThrowingGetterProbeError.self) {
+                _ = try await probe.asynchronousValue
+            }
+        )
+        #expect(error.code == 43)
+
+        let synchronous = try #require(
+            stub.recorder.runtimeMethod(for: 0)
+        )
+        let asynchronous = try #require(
+            stub.recorder.runtimeMethod(for: 1)
+        )
+        #expect(
+            synchronous.typedErrorType
+                == TypedThrowingGetterProbeError.self
+        )
+        #expect(
+            asynchronous.typedErrorType
+                == TypedThrowingGetterProbeError.self
+        )
+    }
+
     @Test func getterHintCountsAreExact() {
         _ = RealGetterEffectMatrixProbe()
         expectStubError({

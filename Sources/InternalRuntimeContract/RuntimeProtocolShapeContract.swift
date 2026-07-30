@@ -62,18 +62,32 @@ package struct RuntimeExplicitRequirementGroup: @unchecked Sendable {
 /// Source-level throwing-effect hints for automatically discovered getters.
 package enum RuntimeGetterEffectInput: Sendable {
     case automatic
-    case flat([Bool])
+    case flat([RuntimeGetterEffectHint])
     case grouped([RuntimeGetterEffectGroup])
+}
+
+/// The complete caller-supplied throwing convention for one getter.
+package struct RuntimeGetterEffectHint: @unchecked Sendable {
+    package let isThrowing: Bool
+    package let typedErrorType: Any.Type?
+
+    package init(
+        isThrowing: Bool,
+        typedErrorType: Any.Type? = nil
+    ) {
+        self.isThrowing = isThrowing
+        self.typedErrorType = typedErrorType
+    }
 }
 
 /// Getter-effect hints supplied for one declaring protocol.
 package struct RuntimeGetterEffectGroup: @unchecked Sendable {
     package let declaringProtocol: Any.Type
-    package let effects: [Bool]
+    package let effects: [RuntimeGetterEffectHint]
 
     package init(
         declaringProtocol: Any.Type,
-        effects: [Bool]
+        effects: [RuntimeGetterEffectHint]
     ) {
         self.declaringProtocol = declaringProtocol
         self.effects = effects

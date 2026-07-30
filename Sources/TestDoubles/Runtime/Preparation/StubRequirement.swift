@@ -7,16 +7,67 @@ extension Stub {
     /// getter throws. Supplying this hint keeps automatic discovery for the
     /// getter's receiver, value type, associated-type dependencies, and async
     /// behavior while making its throwing convention explicit.
-    public enum GetterEffect: Sendable {
+    public enum GetterEffect: @unchecked Sendable, Hashable {
         /// The getter cannot throw.
         case nonthrowing
         /// The getter uses Swift's ordinary untyped throwing convention.
         case throwing
+        /// The getter throws the specified concrete error type.
+        ///
+        /// Use this with automatic discovery when Swift's getter metadata
+        /// omits the typed-error convention. The runtime still discovers the
+        /// receiver, arguments, result, and dynamic dependencies from the
+        /// linked getter witness.
+        case typedThrowing(any Error.Type)
 
         var isThrowing: Bool {
             switch self {
                 case .nonthrowing: false
-                case .throwing: true
+                case .throwing, .typedThrowing: true
+            }
+        }
+
+        var runtimeHint: RuntimeGetterEffectHint {
+            switch self {
+                case .nonthrowing:
+                    RuntimeGetterEffectHint(isThrowing: false)
+                case .throwing:
+                    RuntimeGetterEffectHint(isThrowing: true)
+                case .typedThrowing(let errorType):
+                    RuntimeGetterEffectHint(
+                        isThrowing: true,
+                        typedErrorType: errorType
+                    )
+            }
+        }
+
+        /// Returns whether two getter hints describe the same throwing
+        /// convention and concrete typed-error metadata.
+        public static func == (lhs: Self, rhs: Self) -> Bool {
+            switch (lhs, rhs) {
+                case (.nonthrowing, .nonthrowing), (.throwing, .throwing):
+                    true
+                case (
+                    .typedThrowing(let lhsType),
+                    .typedThrowing(let rhsType)
+                ):
+                    ObjectIdentifier(lhsType) == ObjectIdentifier(rhsType)
+                default:
+                    false
+            }
+        }
+
+        /// Hashes the getter's throwing convention and concrete typed-error
+        /// metadata.
+        public func hash(into hasher: inout Hasher) {
+            switch self {
+                case .nonthrowing:
+                    hasher.combine(0)
+                case .throwing:
+                    hasher.combine(1)
+                case .typedThrowing(let errorType):
+                    hasher.combine(2)
+                    hasher.combine(ObjectIdentifier(errorType))
             }
         }
     }

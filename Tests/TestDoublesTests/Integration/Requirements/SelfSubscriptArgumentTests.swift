@@ -97,11 +97,15 @@ import Testing
         _ = RealExternalThrowingSelfSubscriptArgumentProbe()
         let stub = try Stub<any ExternalThrowingSelfSubscriptArgumentProbe>(
             getterEffects: .throwing,
-            .throwing
+            .throwing,
+            .typedThrowing(ExternalThrowingSelfArgumentError.self)
         )
         stub.when { try captureThrowingSelfSubscriptGet($0) }.thenReturn(54)
         stub.when {
             try captureThrowingOptionalSelfSubscriptGet($0)
+        }.thenThrow(ExternalThrowingSelfArgumentError.rejected)
+        stub.when {
+            try captureTypedThrowingSelfSubscriptGet($0)
         }.thenThrow(ExternalThrowingSelfArgumentError.rejected)
 
         let source = stub()
@@ -118,11 +122,21 @@ import Testing
                 includesValue: false
             )
         }
+        #expect(throws: ExternalThrowingSelfArgumentError.rejected) {
+            _ = try invokeTypedThrowingSelfSubscriptGet(source)
+        }
 
         stub.verify { try captureThrowingSelfSubscriptGet($0) }
         stub.verify(.exactly(2)) {
             try captureThrowingOptionalSelfSubscriptGet($0)
         }
+        stub.verify { try captureTypedThrowingSelfSubscriptGet($0) }
+
+        let typedGetter = try #require(stub.recorder.runtimeMethod(for: 2))
+        #expect(
+            typedGetter.typedErrorType
+                == ExternalThrowingSelfArgumentError.self
+        )
     }
 }
 
@@ -298,6 +312,22 @@ private func invokeThrowingOptionalSelfSubscriptGet<
     includesValue: Bool
 ) throws -> Int {
     try value[optional: includesValue ? value : nil]
+}
+
+private func captureTypedThrowingSelfSubscriptGet<
+    P: ExternalThrowingSelfSubscriptArgumentProbe
+>(
+    _ value: P
+) throws(ExternalThrowingSelfArgumentError) -> Int {
+    try value[typed: Match.any(using: value)]
+}
+
+private func invokeTypedThrowingSelfSubscriptGet<
+    P: ExternalThrowingSelfSubscriptArgumentProbe
+>(
+    _ value: P
+) throws(ExternalThrowingSelfArgumentError) -> Int {
+    try value[typed: value]
 }
 
 private func captureStaticSelfSubscriptGet<
