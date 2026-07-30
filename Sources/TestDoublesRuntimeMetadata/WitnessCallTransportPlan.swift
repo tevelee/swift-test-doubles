@@ -204,7 +204,7 @@ package struct WitnessCallTransportPlan: Sendable {
     /// will copy to the outgoing call, as explicit parameters — it never
     /// touches `TDCallFrame`'s layout, so this ceiling is purely a
     /// self-imposed, testable limit, not an ABI constraint.
-    package static let maximumOutgoingStackWords = 2
+    package static let maximumOutgoingStackWords = 4
 
     /// The ordered outgoing-stack-word sources for a synchronous forwarding
     /// call whose total (spilled visible arguments plus whichever of

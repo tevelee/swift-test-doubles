@@ -60,7 +60,9 @@ package final class ProtocolForwarder<P>: RuntimeForwarding, @unchecked Sendable
             plan.selfValue,
             frame.pointer,
             words.count > 0 ? words[0] : 0,
-            words.count > 1 ? words[1] : 0
+            words.count > 1 ? words[1] : 0,
+            words.count > 2 ? words[2] : 0,
+            words.count > 3 ? words[3] : 0
         )
     }
 

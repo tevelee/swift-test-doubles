@@ -103,9 +103,9 @@ struct RealInitializerSpyService: InitializerSpyService {
     func value() -> Int { storedValue }
 }
 
-// Ten arguments overflows even the widest architecture's register budget
+// Eleven arguments overflow even the widest architecture's register budget
 // (arm64: 8 argument registers) by more than the outgoing-stack-spill
-// ceiling (2 words, shared with the target's own spilled metadata/witness
+// ceiling (4 words, shared with the target's own spilled metadata/witness
 // table -- see SyncStackSpySpillForwardingTests) can absorb, on every
 // supported architecture. Keep this comfortably over that boundary rather
 // than tuned to one architecture's exact register count.
@@ -120,7 +120,8 @@ protocol WideSpyService {
         _ seventh: Int,
         _ eighth: Int,
         _ ninth: Int,
-        _ tenth: Int
+        _ tenth: Int,
+        _ eleventh: Int
     ) -> Int
 }
 
@@ -135,10 +136,11 @@ struct RealWideSpyService: WideSpyService {
         _ seventh: Int,
         _ eighth: Int,
         _ ninth: Int,
-        _ tenth: Int
+        _ tenth: Int,
+        _ eleventh: Int
     ) -> Int {
         first + second + third + fourth + fifth + sixth + seventh + eighth
-            + ninth + tenth
+            + ninth + tenth + eleventh
     }
 }
 

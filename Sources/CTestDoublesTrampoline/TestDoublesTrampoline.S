@@ -222,16 +222,19 @@ SYMBOL(td_swift_invoke_witness):
     mov x16, x0
     mov x20, x1
     mov x19, x2
-    // Stash the two outgoing-stack-word arguments (x3, x4) before the
+    // Stash the four outgoing-stack-word arguments (x3-x6) before the
     // frame-loading sequence below overwrites those registers.
     mov x9, x3
     mov x10, x4
+    mov x11, x5
+    mov x12, x6
     td_load_frame_call_registers x19
     ldr x21, [x19, #TD_FRAME_SWIFT_ERROR_OFFSET]
-    sub sp, sp, #16
+    sub sp, sp, #32
     stp x9, x10, [sp]
+    stp x11, x12, [sp, #16]
     blr x16
-    add sp, sp, #16
+    add sp, sp, #32
     td_store_call_return_registers x19
     ldr x21, [sp, #32]
     ldp x19, x20, [sp, #16]
@@ -1182,15 +1185,19 @@ SYMBOL(td_swift_invoke_witness):
     pushq %rbx
     pushq %r13
     pushq %r12
-    // 24 bytes: 16 usable for the two outgoing stack words, 8 pure
+    // 40 bytes: 32 usable for the four outgoing stack words, 8 pure
     // alignment padding (matches the invariant td_swift_invoke_function
     // keeps with its own $8 reservation for one word: total pushed bytes
     // before `callq` must leave rsp 16-byte aligned).
-    subq $24, %rsp
-    // Args 4 and 5 (outgoing stack words) land directly in their final
-    // position; nothing else touches (%rsp)/8(%rsp) before the call below.
+    subq $40, %rsp
+    // Args 4-6 (the first three outgoing stack words) are register arguments;
+    // the fourth arrived at 16(%rbp). Place all four directly in their final
+    // outgoing positions before restoring the Swift argument registers.
     movq %rcx, (%rsp)
     movq %r8, 8(%rsp)
+    movq %r9, 16(%rsp)
+    movq 16(%rbp), %r10
+    movq %r10, 24(%rsp)
     movq %rdx, %rbx
     movq %rsi, %r13
     movq %rdi, %r11
@@ -1198,7 +1205,7 @@ SYMBOL(td_swift_invoke_witness):
     movq TD_FRAME_SWIFT_ERROR_OFFSET(%rbx), %r12
     callq *%r11
     td_store_call_return_registers %rbx
-    addq $24, %rsp
+    addq $40, %rsp
     popq %r12
     popq %r13
     popq %rbx

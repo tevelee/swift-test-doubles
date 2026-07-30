@@ -9,7 +9,7 @@ import Testing
 // after its visible arguments, wherever that boundary falls. When visible
 // arguments fill all available registers, metadata and/or witness table
 // spill to the caller's outgoing stack right along with them, and
-// `td_swift_invoke_witness`'s two explicit outgoing-stack-word parameters
+// `td_swift_invoke_witness`'s four explicit outgoing-stack-word parameters
 // carry those spilled words to the real call.
 //
 // The exact argument count that starts spilling differs per architecture
@@ -45,6 +45,20 @@ import Testing
                 _ a6: Int
             ) -> Int
         }
+
+        protocol FourWordSpillSpyService: Sendable {
+            func call(
+                _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int, _ a4: Int, _ a5: Int,
+                _ a6: Int, _ a7: Int
+            ) -> Int
+        }
+
+        protocol FiveWordSpillSpyService: Sendable {
+            func call(
+                _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int, _ a4: Int, _ a5: Int,
+                _ a6: Int, _ a7: Int, _ a8: Int
+            ) -> Int
+        }
     #else
         // arm64: 8 argument registers.
         protocol FitsSpillSpyService: Sendable {
@@ -78,6 +92,20 @@ import Testing
             func call(
                 _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int, _ a4: Int, _ a5: Int,
                 _ a6: Int, _ a7: Int, _ a8: Int
+            ) -> Int
+        }
+
+        protocol FourWordSpillSpyService: Sendable {
+            func call(
+                _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int, _ a4: Int, _ a5: Int,
+                _ a6: Int, _ a7: Int, _ a8: Int, _ a9: Int
+            ) -> Int
+        }
+
+        protocol FiveWordSpillSpyService: Sendable {
+            func call(
+                _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int, _ a4: Int, _ a5: Int,
+                _ a6: Int, _ a7: Int, _ a8: Int, _ a9: Int, _ a10: Int
             ) -> Int
         }
     #endif
@@ -173,6 +201,42 @@ import Testing
         #endif
     }
 
+    struct RealFourWordSpillSpyService: FourWordSpillSpyService {
+        #if arch(x86_64)
+            func call(
+                _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int, _ a4: Int, _ a5: Int,
+                _ a6: Int, _ a7: Int
+            ) -> Int {
+                a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7
+            }
+        #else
+            func call(
+                _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int, _ a4: Int, _ a5: Int,
+                _ a6: Int, _ a7: Int, _ a8: Int, _ a9: Int
+            ) -> Int {
+                a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8 + a9
+            }
+        #endif
+    }
+
+    struct RealFiveWordSpillSpyService: FiveWordSpillSpyService {
+        #if arch(x86_64)
+            func call(
+                _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int, _ a4: Int, _ a5: Int,
+                _ a6: Int, _ a7: Int, _ a8: Int
+            ) -> Int {
+                a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8
+            }
+        #else
+            func call(
+                _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int, _ a4: Int, _ a5: Int,
+                _ a6: Int, _ a7: Int, _ a8: Int, _ a9: Int, _ a10: Int
+            ) -> Int {
+                a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8 + a9 + a10
+            }
+        #endif
+    }
+
     @Suite struct SyncStackSpySpillForwardingTests {
         @Test func registerOnlyArgumentsStillForward() throws {
             let spy = try Spy<any FitsSpillSpyService>(
@@ -237,10 +301,34 @@ import Testing
             #endif
         }
 
-        @Test func threeSpilledWordsRemainFailClosed() {
+        @Test func threeSpilledWordsForward() throws {
+            let spy = try Spy<any ThreeWordSpillSpyService>(
+                forwardingTo: RealThreeWordSpillSpyService()
+            )
+            let service: any ThreeWordSpillSpyService = spy()
+            #if arch(x86_64)
+                #expect(service.call(1, 2, 3, 4, 5, 6, 7) == 28)
+            #else
+                #expect(service.call(1, 2, 3, 4, 5, 6, 7, 8, 9) == 45)
+            #endif
+        }
+
+        @Test func fourSpilledWordsForward() throws {
+            let spy = try Spy<any FourWordSpillSpyService>(
+                forwardingTo: RealFourWordSpillSpyService()
+            )
+            let service: any FourWordSpillSpyService = spy()
+            #if arch(x86_64)
+                #expect(service.call(1, 2, 3, 4, 5, 6, 7, 8) == 36)
+            #else
+                #expect(service.call(1, 2, 3, 4, 5, 6, 7, 8, 9, 10) == 55)
+            #endif
+        }
+
+        @Test func fiveSpilledWordsRemainFailClosed() {
             let error = #expect(throws: StubError.self) {
-                _ = try Spy<any ThreeWordSpillSpyService>(
-                    forwardingTo: RealThreeWordSpillSpyService()
+                _ = try Spy<any FiveWordSpillSpyService>(
+                    forwardingTo: RealFiveWordSpillSpyService()
                 )
             }
             #expect(

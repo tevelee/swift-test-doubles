@@ -31,7 +31,9 @@ void td_swift_invoke_witness(
     const void *self,
     TDCallFrame *frame,
     uint64_t outgoingStackWord1,
-    uint64_t outgoingStackWord2
+    uint64_t outgoingStackWord2,
+    uint64_t outgoingStackWord3,
+    uint64_t outgoingStackWord4
 ) {
   __builtin_trap();
 }
