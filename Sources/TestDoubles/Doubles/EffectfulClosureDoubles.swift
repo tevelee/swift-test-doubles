@@ -2,22 +2,39 @@ private struct EffectfulClosureDoubleConformer<Input, Result>: ManualStubConform
     let stub: ManualStub<Self>
 }
 
+private enum ClosureEffects {
+    case throwing
+    case async
+    case asyncThrowing
+
+    var isAsync: Bool {
+        switch self {
+            case .throwing: false
+            case .async, .asyncThrowing: true
+        }
+    }
+
+    var isThrowing: Bool {
+        switch self {
+            case .async: false
+            case .throwing, .asyncThrowing: true
+        }
+    }
+}
+
 private final class EffectfulClosureDoubleStorage<Input, Result> {
     let stub: ManualStub<EffectfulClosureDoubleConformer<Input, Result>>
-    let isAsync: Bool
-    let isThrowing: Bool
+    let effects: ClosureEffects
 
     init(
-        isAsync: Bool,
-        isThrowing: Bool,
+        effects: ClosureEffects,
         allowsForwardingFallback: Bool = false
     ) {
         stub = ManualStub(
             materializing: { EffectfulClosureDoubleConformer(stub: $0) },
             allowsForwardingFallback: allowsForwardingFallback
         )
-        self.isAsync = isAsync
-        self.isThrowing = isThrowing
+        self.effects = effects
     }
 
     private var route: ManualMethodRouteIdentity {
@@ -100,8 +117,8 @@ private final class EffectfulClosureDoubleStorage<Input, Result> {
             route: route,
             kind: .method,
             returnType: Result.self,
-            isAsync: isAsync,
-            isThrowing: isThrowing
+            isAsync: effects.isAsync,
+            isThrowing: effects.isThrowing
         )
         let recording = RecordedCall(
             methodIndex: method.index,
@@ -134,8 +151,7 @@ public final class ThrowingClosureDouble<Input, Result> {
     /// Creates an empty closure double. Calls require a matching behavior.
     public init() {
         storage = EffectfulClosureDoubleStorage(
-            isAsync: false,
-            isThrowing: true
+            effects: .throwing
         )
         forwardingTarget = nil
     }
@@ -145,8 +161,7 @@ public final class ThrowingClosureDouble<Input, Result> {
         forwardingTo target: @escaping @Sendable (Input) throws -> Result
     ) {
         storage = EffectfulClosureDoubleStorage(
-            isAsync: false,
-            isThrowing: true,
+            effects: .throwing,
             allowsForwardingFallback: true
         )
         forwardingTarget = target
@@ -289,8 +304,7 @@ public final class AsyncClosureDouble<Input, Result> {
     /// Creates an empty closure double. Calls require a matching behavior.
     public init() {
         storage = EffectfulClosureDoubleStorage(
-            isAsync: true,
-            isThrowing: false
+            effects: .async
         )
         forwardingTarget = nil
     }
@@ -300,8 +314,7 @@ public final class AsyncClosureDouble<Input, Result> {
         forwardingTo target: @escaping @Sendable (Input) async -> Result
     ) {
         storage = EffectfulClosureDoubleStorage(
-            isAsync: true,
-            isThrowing: false,
+            effects: .async,
             allowsForwardingFallback: true
         )
         forwardingTarget = target
@@ -444,8 +457,7 @@ public final class AsyncThrowingClosureDouble<Input, Result> {
     /// Creates an empty closure double. Calls require a matching behavior.
     public init() {
         storage = EffectfulClosureDoubleStorage(
-            isAsync: true,
-            isThrowing: true
+            effects: .asyncThrowing
         )
         forwardingTarget = nil
     }
@@ -457,8 +469,7 @@ public final class AsyncThrowingClosureDouble<Input, Result> {
             @escaping @Sendable (Input) async throws -> Result
     ) {
         storage = EffectfulClosureDoubleStorage(
-            isAsync: true,
-            isThrowing: true,
+            effects: .asyncThrowing,
             allowsForwardingFallback: true
         )
         forwardingTarget = target
