@@ -364,10 +364,10 @@ itself, such as `any Source<Int>`, for that full dependent interface.
 
 ### Pass and return dynamic Self
 
-Automatic discovery supports direct, single-optional, and double-optional `Self` inputs on
-ordinary, throwing, static, and subscript requirements. Borrowing and consuming
-method inputs retain their ownership conventions. Use a placeholder value from
-the same generated double when selecting a matcher:
+Automatic discovery supports direct, single-optional, double-optional, and
+`Array<Self>` inputs on ordinary, throwing, static, and subscript requirements.
+Borrowing and consuming method inputs retain their ownership conventions. Use
+a placeholder value from the same generated double when selecting a matcher:
 
 ```swift
 stub.when { value in
@@ -378,7 +378,7 @@ stub.when { value in
 A direct `inout Self` input can be recorded, matched, verified, and given a
 no-op behavior. The recorder borrows the caller-owned storage and leaves it
 unchanged; configurable inout mutation needs a dedicated behavior API.
-Collection and other nominal `Self` wrappers, deeper optional nesting, and
+Other collection and nominal `Self` wrappers, deeper optional nesting, and
 forwarding these inputs through a ``Spy`` remain outside this boundary.
 
 A method, getter, or static requirement returning nonoptional `Self` uses

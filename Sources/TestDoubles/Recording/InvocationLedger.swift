@@ -108,6 +108,7 @@ struct RecordedCall: @unchecked Sendable {
         case selfPayload(WeakPayload, RuntimePayloadMaterializer)
         case optionalSelfPayload(WeakPayload, RuntimePayloadMaterializer)
         case nestedOptionalSelfPayload(WeakPayload, RuntimePayloadMaterializer)
+        case arraySelfPayloads([WeakPayload], RuntimePayloadMaterializer)
 
         init(
             _ value: Any,
@@ -165,6 +166,22 @@ struct RecordedCall: @unchecked Sendable {
                         materializer
                     )
 
+                case .arraySelf:
+                    guard let materializer else {
+                        preconditionFailure(
+                            "[TestDoubles] Recorded Array<Self> argument requires a runtime payload materializer."
+                        )
+                    }
+                    guard let payloads = value as? [any RuntimePayload] else {
+                        preconditionFailure(
+                            "[TestDoubles] Runtime decoded Array<Self> argument as \(type(of: value)); expected opaque runtime payload elements."
+                        )
+                    }
+                    self = .arraySelfPayloads(
+                        payloads.map(WeakPayload.init),
+                        materializer
+                    )
+
                 case .concrete, .associatedType,
                     .methodGenericParameter,
                     .classMethodGenericParameter,
@@ -188,6 +205,10 @@ struct RecordedCall: @unchecked Sendable {
                         .some(weak.value ?? materializer.requirePayload())
                     )
                     return value as Any
+                case .arraySelfPayloads(let weakPayloads, let materializer):
+                    return weakPayloads.map {
+                        $0.value ?? materializer.requirePayload()
+                    }
             }
         }
     }

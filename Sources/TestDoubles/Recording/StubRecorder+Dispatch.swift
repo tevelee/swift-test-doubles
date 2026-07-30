@@ -543,7 +543,8 @@ extension StubRecorder {
     ) -> [RuntimeValueConvention]? {
         method.argumentConventions.contains {
             $0 == .selfType || $0 == .optionalSelf
-                || $0 == .nestedOptionalSelf || $0 == .inoutSelf
+                || $0 == .nestedOptionalSelf || $0 == .arraySelf
+                || $0 == .inoutSelf
         } ? method.argumentConventions : nil
     }
 

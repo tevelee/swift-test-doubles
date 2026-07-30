@@ -358,6 +358,8 @@ package struct MethodDescriptor: Sendable {
                 selfIsClassConstrained ? .integer(words: 1) : .indirect
             case .nestedOptionalSelf, .inoutSelf:
                 .indirect
+            case .arraySelf:
+                .integer(words: 1)
             case .classMethodGenericParameter: .integer(words: 1)
             case .methodGenericParameter, .optionalMethodGenericParameter:
                 .indirect
@@ -383,6 +385,8 @@ package struct MethodDescriptor: Sendable {
                 selfIsClassConstrained ? .integer(words: 1) : .indirect
             case .nestedOptionalSelf, .inoutSelf:
                 .indirect
+            case .arraySelf:
+                abiClass(for: type, isReturn: true)
             case .classMethodGenericParameter: .integer(words: 1)
             case .methodGenericParameter, .optionalMethodGenericParameter,
                 .methodGenericParameterPack:
@@ -429,6 +433,7 @@ extension RuntimeValueConvention {
             case .selfType: self = .selfType
             case .optionalSelf: self = .optionalSelf
             case .nestedOptionalSelf: self = .nestedOptionalSelf
+            case .arraySelf: self = .arraySelf
             case .inoutSelf: self = .inoutSelf
             case .methodGenericParameter(let index): self = .methodGenericParameter(index: index)
             case .classMethodGenericParameter(let index):
@@ -485,6 +490,8 @@ private func witnessValueDescription(
             "Self?"
         case .nestedOptionalSelf:
             "Self??"
+        case .arraySelf:
+            "[Self]"
         case .inoutSelf:
             "inout Self"
         case .methodGenericParameter(let index):

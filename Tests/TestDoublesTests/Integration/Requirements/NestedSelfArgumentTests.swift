@@ -18,6 +18,21 @@ import Testing
         let method = try #require(stub.recorder.runtimeMethod(for: 0))
         #expect(method.argumentConventions == [.nestedOptionalSelf])
     }
+
+    @Test func arraySelfArgumentsRecordWithoutRetainingElements() throws {
+        _ = RealExternalArraySelfArgumentProbe()
+        typealias Probe = any ExternalArraySelfArgumentProbe
+        let stub = try Stub<Probe>()
+        stub.when { captureArraySelf($0) }.thenDoNothing()
+
+        let receiver: Probe = stub()
+        let weakSources = try recordArraySelfStates(receiver: receiver)
+
+        #expect(weakSources.allSatisfy { $0.value == nil })
+        stub.verify(.exactly(2)) { captureArraySelf($0) }
+        let method = try #require(stub.recorder.runtimeMethod(for: 0))
+        #expect(method.argumentConventions == [.arraySelf])
+    }
 }
 
 private func captureNestedOptionalSelf<
@@ -42,4 +57,27 @@ private func recordNestedOptionalSelfStates<
     receiver.accept(.some(nil))
     receiver.accept(.some(.some(source)))
     return weakSource
+}
+
+private func captureArraySelf<P: ExternalArraySelfArgumentProbe>(
+    _ value: P
+) {
+    value.accept(Match.any(using: [value]))
+}
+
+private func recordArraySelfStates<P: ExternalArraySelfArgumentProbe>(
+    receiver: P
+) throws -> [WeakReference<AnyObject>] {
+    typealias Probe = any ExternalArraySelfArgumentProbe
+    let firstStub = try Stub<Probe>()
+    let secondStub = try Stub<Probe>()
+    let first = try #require(firstStub() as? P)
+    let second = try #require(secondStub() as? P)
+    let weakSources = [
+        WeakReference(first as AnyObject),
+        WeakReference(second as AnyObject)
+    ]
+    receiver.accept([])
+    receiver.accept([first, second])
+    return weakSources
 }

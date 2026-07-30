@@ -164,6 +164,7 @@ package func discoverMethods(
                     case .concrete, .associatedType:
                         true
                     case .selfType, .optionalSelf, .nestedOptionalSelf,
+                        .arraySelf,
                         .inoutSelf,
                         .methodGenericParameter,
                         .classMethodGenericParameter,
@@ -430,13 +431,19 @@ private func resolveWitnessValue(
                     + "Automatic Stub supports direct Self and up to two Optional layers."
             )
         }
-        guard isArgument || selfShape != .nestedOptional else {
+        guard
+            isArgument
+                || (selfShape != .nestedOptional && selfShape != .array)
+        else {
             throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolDescriptor.name,
                 reason:
-                    "Requirement \(requirementIndex) returns nested Optional Self. "
-                    + "Automatic Stub supports nested Optional Self only as an argument."
+                    "Requirement \(requirementIndex) returns a wrapped Self value. "
+                    + "Automatic Stub supports nested Optional and Array Self only as arguments."
             )
+        }
+        if selfShape == .array {
+            return .selfArray(ownership: ownership)
         }
         return .selfValue(
             isOptional: selfShape != .direct,
@@ -526,7 +533,7 @@ private func resolveWitnessValue(
 }
 
 private enum DynamicSelfValueShape {
-    case direct, optional, nestedOptional
+    case direct, optional, nestedOptional, array
 }
 
 /// Whether a demangled type spelling names a generic parameter belonging to the
@@ -714,6 +721,9 @@ private func dynamicSelfValueShape(
             "Swift.Optional<Optional<Self>>",
             "Swift.Optional<Swift.Optional<Self>>":
             .nestedOptional
+        case "Array<A>", "Swift.Array<A>",
+            "Array<Self>", "Swift.Array<Self>":
+            .array
         default:
             nil
     }

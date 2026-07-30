@@ -172,5 +172,27 @@ import Testing
         )
     }
 
+    @Test func arraySelfUsesOneFixedLayoutValueWord() {
+        let method = MethodDescriptor(
+            kind: .method,
+            name: "accept",
+            index: 0,
+            argumentTypes: [[FabricatedPayload].self],
+            returnType: Void.self,
+            argumentConventions: [.arraySelf]
+        )
+
+        if case .integer(words: 1) = method.argumentLayouts[0] {
+            // Expected: Array has a fixed one-word value representation.
+        } else {
+            Issue.record("Expected one-word Array<Self> transport")
+        }
+        #expect(method.runtimeMethod.argumentConventions == [.arraySelf])
+        #expect(
+            method.runtimeMethod.signatureDescription
+                == method.signatureDescription
+        )
+    }
+
     private enum ProjectionError: Error {}
 }

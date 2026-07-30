@@ -30,6 +30,7 @@ package enum RuntimeValueConvention: Equatable, Sendable {
     case selfType
     case optionalSelf
     case nestedOptionalSelf
+    case arraySelf
     case inoutSelf
     /// Typed by the requirement's own generic parameter.
     case methodGenericParameter(index: Int)
@@ -246,6 +247,8 @@ private func runtimeValueDescription(_ value: RuntimeValue) -> String {
             "Self?"
         case .nestedOptionalSelf:
             "Self??"
+        case .arraySelf:
+            "[Self]"
         case .inoutSelf:
             "inout Self"
         case .methodGenericParameter(let index):

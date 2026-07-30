@@ -273,14 +273,6 @@ private final class ConsumingClassAsyncInvocation<
         stub.verify { try captureStaticTypedReject($0) }
     }
 
-    @Test func widerSelfFailsClosedDuringAutomaticDiscovery() {
-        _ = RealExternalArraySelfArgumentProbe()
-
-        expectUnsupportedProtocolShape(containing: "embeds Self") {
-            _ = try Stub<any ExternalArraySelfArgumentProbe>()
-        }
-    }
-
     #if canImport(ObjectiveC)
         @Test func superclassConstrainedSelfArgumentFailsClosed() {
             _ = SuperclassSelfArgumentProbe()
