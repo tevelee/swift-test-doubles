@@ -200,24 +200,6 @@ func foldedAsyncForwardingWords(_ words: [Int]) -> Int {
             }
         }
 
-        protocol FloatingPointSpilledAsyncForwardingProbe: Sendable {
-            func call(
-                _ a0: Double, _ a1: Double, _ a2: Double,
-                _ a3: Double, _ a4: Double, _ a5: Double,
-                _ a6: Double, _ a7: Double, _ a8: Double
-            ) async -> Double
-        }
-
-        struct RealFloatingPointSpilledAsyncForwardingProbe:
-            FloatingPointSpilledAsyncForwardingProbe
-        {
-            func call(
-                _ a0: Double, _ a1: Double, _ a2: Double,
-                _ a3: Double, _ a4: Double, _ a5: Double,
-                _ a6: Double, _ a7: Double, _ a8: Double
-            ) async -> Double { a8 }
-        }
-
         protocol DependentSpilledAsyncForwardingProbe<Value>: Sendable {
             associatedtype Value: Sendable
             func call(
@@ -541,24 +523,6 @@ func foldedAsyncForwardingWords(_ words: [Int]) -> Int {
                     a8, a9, a10, a11, a12, a13, a14, a15
                 ])
             }
-        }
-
-        protocol FloatingPointSpilledAsyncForwardingProbe: Sendable {
-            func call(
-                _ a0: Double, _ a1: Double, _ a2: Double,
-                _ a3: Double, _ a4: Double, _ a5: Double,
-                _ a6: Double, _ a7: Double, _ a8: Double
-            ) async -> Double
-        }
-
-        struct RealFloatingPointSpilledAsyncForwardingProbe:
-            FloatingPointSpilledAsyncForwardingProbe
-        {
-            func call(
-                _ a0: Double, _ a1: Double, _ a2: Double,
-                _ a3: Double, _ a4: Double, _ a5: Double,
-                _ a6: Double, _ a7: Double, _ a8: Double
-            ) async -> Double { a8 }
         }
 
         protocol DependentSpilledAsyncForwardingProbe<Value>: Sendable {

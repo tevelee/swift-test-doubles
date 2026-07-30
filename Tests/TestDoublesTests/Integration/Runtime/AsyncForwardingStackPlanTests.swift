@@ -395,6 +395,55 @@ struct AsyncForwardingStackPlanTests {
         }
     }
 
+    @Test func acceptsFourRegisterSIMDSpillsButRejectsASplitValue() {
+        let cases: [(RuntimeArchitecture, Int)] = [
+            (.arm64, 8),
+            (.x86_64, 6)
+        ]
+        for (architecture, integerCount) in cases {
+            let method = MethodDescriptor(
+                kind: .method,
+                name: "inspect",
+                index: 0,
+                argumentTypes:
+                    Array(repeating: Int.self, count: integerCount)
+                    + Array(repeating: SIMD16<Float>.self, count: 3),
+                returnType: UInt64.self,
+                isAsync: true
+            )
+            let plan = asyncForwardingStackPlan(
+                for: method,
+                architecture: architecture
+            )
+            #expect(plan?.visibleArgumentLocations.count == 8)
+            #expect(plan?.outgoingStackByteCount == 80)
+        }
+
+        let splitMethod = MethodDescriptor(
+            kind: .method,
+            name: "inspect",
+            index: 0,
+            argumentTypes:
+                Array(repeating: Int.self, count: 8)
+                + Array(repeating: SIMD4<Float>.self, count: 7)
+                + [SIMD8<Float>.self],
+            returnType: UInt64.self,
+            isAsync: true
+        )
+        #expect(
+            asyncForwardingStackPlan(
+                for: splitMethod,
+                architecture: .arm64
+            ) == nil
+        )
+        #expect(
+            asyncForwardingStackPlan(
+                for: splitMethod,
+                architecture: .x86_64
+            ) == nil
+        )
+    }
+
     private func method(
         argumentCount: Int,
         typedError: (any Error.Type)? = nil

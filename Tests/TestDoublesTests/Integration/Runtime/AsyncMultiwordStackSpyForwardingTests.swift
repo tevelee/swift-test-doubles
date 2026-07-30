@@ -119,14 +119,6 @@ import Testing
             #endif
         }
 
-        @Test func floatingPointSpillRemainsFailClosed() {
-            expectUnsupportedProtocolShape(containing: "floating-point") {
-                _ = try Spy<any FloatingPointSpilledAsyncForwardingProbe>(
-                    forwardingTo: RealFloatingPointSpilledAsyncForwardingProbe()
-                )
-            }
-        }
-
         @Test func associatedDependentSpillRemainsFailClosed() {
             expectUnsupportedProtocolShape(containing: "dependent") {
                 _ = try Spy<any DependentSpilledAsyncForwardingProbe<Int>>(

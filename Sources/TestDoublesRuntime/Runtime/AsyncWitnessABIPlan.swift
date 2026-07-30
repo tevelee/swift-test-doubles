@@ -121,6 +121,24 @@ private func unsupportedAsyncStubIngressReason(
     var expectedStackOffset = 0
     for (argument, locations) in stackArguments {
         if let byteCount =
+            supportedCompleteSIMDAsyncStackValueByteCount(argument)
+        {
+            guard
+                completeSIMDStackLocations(
+                    locations,
+                    valueByteCount: byteCount,
+                    expectedStackOffset: expectedStackOffset
+                )
+            else {
+                return unsupportedAsyncStubIngressDiagnostic(
+                    architecture: architecture
+                )
+            }
+            expectedStackOffset += byteCount
+            continue
+        }
+
+        if let byteCount =
             supportedCompleteTwoWordIntegerAsyncStackValueByteCount(argument)
         {
             guard
@@ -197,8 +215,8 @@ private func unsupportedAsyncStubIngressDiagnostic(
     architecture: RuntimeArchitecture
 ) -> String {
     "Its caller-stack ingress on \(architecture) is not a sequence of complete, "
-        + "independent one- or two-word integer, Float16, Float, Double, or 16-byte "
-        + "single-register SIMD arguments "
+        + "independent one- or two-word integer, Float16, Float, Double, or "
+        + "SIMD arguments occupying one through four registers "
         + "supported by the async Stub trampoline. A second narrow integer, "
         + "split or wider integer, wider-vector, "
         + "dependent, accessor, and wider typed-error shapes remain unsupported. "
@@ -279,12 +297,12 @@ private func asyncWitnessStackPlan(
 /// requirement needs a different physical shape.
 ///
 /// This deliberately accepts at most eight stack words contributed by complete
-/// concrete one- or two-word integer, `Float`, `Double`, or one-register
-/// concrete SIMD values that spill consecutively from their register banks. A
-/// second narrow integer, split or wider integer value, dependent value,
-/// wider-vector value, accessor, and typed-error shape remain fail-closed. A
-/// narrow integer, `Float16`, or independent indirect value still contributes
-/// its complete eight-byte ABI stack slot.
+/// concrete one- or two-word integer, `Float`, `Double`, or concrete SIMD values
+/// occupying one through four registers that spill consecutively from their
+/// banks. A second narrow integer, split or wider integer value, dependent
+/// value, wider-vector value, accessor, and typed-error shape remain
+/// fail-closed. A narrow integer, `Float16`, or independent indirect value still
+/// contributes its complete eight-byte ABI stack slot.
 package func asyncForwardingStackPlan(
     for method: MethodDescriptor,
     architecture: RuntimeArchitecture
@@ -320,6 +338,24 @@ package func asyncForwardingStackPlan(
         }
         let consumedStackByteCount: Int
         if let byteCount =
+            supportedCompleteSIMDAsyncStackValueByteCount(argument)
+        {
+            guard
+                completeSIMDStackLocations(
+                    locations,
+                    valueByteCount: byteCount,
+                    expectedStackOffset: expectedStackOffset
+                )
+            else {
+                return nil
+            }
+            visibleArgumentLocations.append(
+                contentsOf: locations.flatMap {
+                    asyncForwardingWordLocations(for: $0)
+                }
+            )
+            consumedStackByteCount = byteCount
+        } else if let byteCount =
             supportedCompleteTwoWordIntegerAsyncStackValueByteCount(argument)
         {
             guard
@@ -409,8 +445,8 @@ package func unsupportedAsyncForwardingEgressDiagnostic(
 ) -> String {
     "Its target-stack egress on \(architecture) is not one through eight "
         + "complete stack words contributed by independent one- or two-word integer, "
-        + "Float16, Float, Double, or one-register concrete SIMD "
-        + "arguments followed by "
+        + "Float16, Float, Double, or concrete SIMD arguments occupying one "
+        + "through four registers followed by "
         + "dynamic-Self metadata and its witness table. A second narrow "
         + "integer, split or wider integer, wider-vector, "
         + "dependent, accessor, static, and "
@@ -433,15 +469,6 @@ private func supportedIndependentAsyncStackValueByteCount(
         where byteCount == MemoryLayout<Float>.size
             || byteCount == MemoryLayout<Double>.size
             || isFloat16(argument.value.type):
-            return byteCount
-        case .aggregate(let parts)
-        where byteCount == 2 * MemoryLayout<UInt>.size
-            && concreteSIMDRegisterByteCount(for: argument.value.type)
-                == byteCount
-            && parts.count == 1
-            && parts[0].register == .fp
-            && parts[0].offset == 0
-            && parts[0].byteCount == byteCount:
             return byteCount
         case .indirect:
             return MemoryLayout<UInt>.size
@@ -478,6 +505,50 @@ private func supportedCompleteTwoWordIntegerAsyncStackValueByteCount(
         return nil
     }
     return byteCount
+}
+
+private func supportedCompleteSIMDAsyncStackValueByteCount(
+    _ argument: WitnessArgumentDescriptor
+) -> Int? {
+    guard argument.value.dependency.isAssociatedTypeDependent == false,
+        let byteCount = concreteSIMDRegisterByteCount(
+            for: argument.value.type
+        ),
+        case .aggregate(let parts) = argument.value.layout,
+        parts.count == byteCount / 16,
+        parts.enumerated().allSatisfy({ index, part in
+            part.register == .fp
+                && part.offset == index * 16
+                && part.byteCount == 16
+        })
+    else {
+        return nil
+    }
+    return byteCount
+}
+
+private func completeSIMDStackLocations(
+    _ locations: [CallFrameArgumentLocation],
+    valueByteCount: Int,
+    expectedStackOffset: Int
+) -> Bool {
+    let fragmentByteCount = 16
+    guard locations.count == valueByteCount / fragmentByteCount
+    else {
+        return false
+    }
+    for (index, location) in locations.enumerated() {
+        let valueOffset = index * fragmentByteCount
+        guard
+            case .stack(let byteOffset) = location.storage,
+            byteOffset == expectedStackOffset + valueOffset,
+            location.valueOffset == valueOffset,
+            location.byteCount == fragmentByteCount
+        else {
+            return false
+        }
+    }
+    return true
 }
 
 private func completeTwoWordIntegerStackLocations(
