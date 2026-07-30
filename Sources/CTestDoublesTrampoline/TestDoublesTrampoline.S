@@ -222,19 +222,26 @@ SYMBOL(td_swift_invoke_witness):
     mov x16, x0
     mov x20, x1
     mov x19, x2
-    // Stash the four outgoing-stack-word arguments (x3-x6) before the
-    // frame-loading sequence below overwrites those registers.
+    // Stash the eight outgoing-stack-word arguments before the frame-loading
+    // sequence below overwrites their registers. Words six through eight
+    // arrived on the C caller's stack.
     mov x9, x3
     mov x10, x4
     mov x11, x5
     mov x12, x6
+    mov x13, x7
+    ldr x14, [x29, #48]
+    ldr x15, [x29, #56]
+    ldr x17, [x29, #64]
     td_load_frame_call_registers x19
     ldr x21, [x19, #TD_FRAME_SWIFT_ERROR_OFFSET]
-    sub sp, sp, #32
+    sub sp, sp, #64
     stp x9, x10, [sp]
     stp x11, x12, [sp, #16]
+    stp x13, x14, [sp, #32]
+    stp x15, x17, [sp, #48]
     blr x16
-    add sp, sp, #32
+    add sp, sp, #64
     td_store_call_return_registers x19
     ldr x21, [sp, #32]
     ldp x19, x20, [sp, #16]
@@ -1209,19 +1216,28 @@ SYMBOL(td_swift_invoke_witness):
     pushq %rbx
     pushq %r13
     pushq %r12
-    // 40 bytes: 32 usable for the four outgoing stack words, 8 pure
+    // 72 bytes: 64 usable for the eight outgoing stack words, 8 pure
     // alignment padding (matches the invariant td_swift_invoke_function
     // keeps with its own $8 reservation for one word: total pushed bytes
     // before `callq` must leave rsp 16-byte aligned).
-    subq $40, %rsp
+    subq $72, %rsp
     // Args 4-6 (the first three outgoing stack words) are register arguments;
-    // the fourth arrived at 16(%rbp). Place all four directly in their final
-    // outgoing positions before restoring the Swift argument registers.
+    // words four through eight arrived at 16(%rbp) and onward. Place all eight
+    // directly in their final outgoing positions before restoring the Swift
+    // argument registers.
     movq %rcx, (%rsp)
     movq %r8, 8(%rsp)
     movq %r9, 16(%rsp)
     movq 16(%rbp), %r10
     movq %r10, 24(%rsp)
+    movq 24(%rbp), %r10
+    movq %r10, 32(%rsp)
+    movq 32(%rbp), %r10
+    movq %r10, 40(%rsp)
+    movq 40(%rbp), %r10
+    movq %r10, 48(%rsp)
+    movq 48(%rbp), %r10
+    movq %r10, 56(%rsp)
     movq %rdx, %rbx
     movq %rsi, %r13
     movq %rdi, %r11
@@ -1229,7 +1245,7 @@ SYMBOL(td_swift_invoke_witness):
     movq TD_FRAME_SWIFT_ERROR_OFFSET(%rbx), %r12
     callq *%r11
     td_store_call_return_registers %rbx
-    addq $40, %rsp
+    addq $72, %rsp
     popq %r12
     popq %r13
     popq %rbx

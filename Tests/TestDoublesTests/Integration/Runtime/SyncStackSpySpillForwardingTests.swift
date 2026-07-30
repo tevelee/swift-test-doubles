@@ -9,13 +9,16 @@ import Testing
 // after its visible arguments, wherever that boundary falls. When visible
 // arguments fill all available registers, metadata and/or witness table
 // spill to the caller's outgoing stack right along with them, and
-// `td_swift_invoke_witness`'s four explicit outgoing-stack-word parameters
+// `td_swift_invoke_witness`'s eight explicit outgoing-stack-word parameters
 // carry those spilled words to the real call.
 //
 // The exact argument count that starts spilling differs per architecture
 // (arm64: 8 argument registers; x86_64: 6), so this whole suite is
 // architecture-gated like AsyncStackSpyForwardingTests.
 #if arch(x86_64) || arch(arm64)
+
+    // These arities deliberately exercise the outgoing stack-word boundary.
+    // swiftlint:disable function_parameter_count
 
     #if arch(x86_64)
         // x86_64: 6 argument registers.
@@ -57,6 +60,21 @@ import Testing
             func call(
                 _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int, _ a4: Int, _ a5: Int,
                 _ a6: Int, _ a7: Int, _ a8: Int
+            ) -> Int
+        }
+
+        protocol EightWordSpillSpyService: Sendable {
+            func call(
+                _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int, _ a4: Int, _ a5: Int,
+                _ a6: Int, _ a7: Int, _ a8: Int, _ a9: Int, _ a10: Int, _ a11: Int
+            ) -> Int
+        }
+
+        protocol NineWordSpillSpyService: Sendable {
+            func call(
+                _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int, _ a4: Int, _ a5: Int,
+                _ a6: Int, _ a7: Int, _ a8: Int, _ a9: Int, _ a10: Int, _ a11: Int,
+                _ a12: Int
             ) -> Int
         }
     #else
@@ -106,6 +124,22 @@ import Testing
             func call(
                 _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int, _ a4: Int, _ a5: Int,
                 _ a6: Int, _ a7: Int, _ a8: Int, _ a9: Int, _ a10: Int
+            ) -> Int
+        }
+
+        protocol EightWordSpillSpyService: Sendable {
+            func call(
+                _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int, _ a4: Int, _ a5: Int,
+                _ a6: Int, _ a7: Int, _ a8: Int, _ a9: Int, _ a10: Int, _ a11: Int,
+                _ a12: Int, _ a13: Int
+            ) -> Int
+        }
+
+        protocol NineWordSpillSpyService: Sendable {
+            func call(
+                _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int, _ a4: Int, _ a5: Int,
+                _ a6: Int, _ a7: Int, _ a8: Int, _ a9: Int, _ a10: Int, _ a11: Int,
+                _ a12: Int, _ a13: Int, _ a14: Int
             ) -> Int
         }
     #endif
@@ -237,6 +271,48 @@ import Testing
         #endif
     }
 
+    struct RealEightWordSpillSpyService: EightWordSpillSpyService {
+        #if arch(x86_64)
+            func call(
+                _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int, _ a4: Int, _ a5: Int,
+                _ a6: Int, _ a7: Int, _ a8: Int, _ a9: Int, _ a10: Int, _ a11: Int
+            ) -> Int {
+                a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8 + a9 + a10 + a11
+            }
+        #else
+            func call(
+                _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int, _ a4: Int, _ a5: Int,
+                _ a6: Int, _ a7: Int, _ a8: Int, _ a9: Int, _ a10: Int, _ a11: Int,
+                _ a12: Int, _ a13: Int
+            ) -> Int {
+                a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8 + a9 + a10 + a11
+                    + a12 + a13
+            }
+        #endif
+    }
+
+    struct RealNineWordSpillSpyService: NineWordSpillSpyService {
+        #if arch(x86_64)
+            func call(
+                _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int, _ a4: Int, _ a5: Int,
+                _ a6: Int, _ a7: Int, _ a8: Int, _ a9: Int, _ a10: Int, _ a11: Int,
+                _ a12: Int
+            ) -> Int {
+                a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8 + a9 + a10 + a11
+                    + a12
+            }
+        #else
+            func call(
+                _ a0: Int, _ a1: Int, _ a2: Int, _ a3: Int, _ a4: Int, _ a5: Int,
+                _ a6: Int, _ a7: Int, _ a8: Int, _ a9: Int, _ a10: Int, _ a11: Int,
+                _ a12: Int, _ a13: Int, _ a14: Int
+            ) -> Int {
+                a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8 + a9 + a10 + a11
+                    + a12 + a13 + a14
+            }
+        #endif
+    }
+
     @Suite struct SyncStackSpySpillForwardingTests {
         @Test func registerOnlyArgumentsStillForward() throws {
             let spy = try Spy<any FitsSpillSpyService>(
@@ -325,10 +401,40 @@ import Testing
             #endif
         }
 
-        @Test func fiveSpilledWordsRemainFailClosed() {
+        @Test func fiveSpilledWordsForward() throws {
+            let spy = try Spy<any FiveWordSpillSpyService>(
+                forwardingTo: RealFiveWordSpillSpyService()
+            )
+            let service: any FiveWordSpillSpyService = spy()
+            #if arch(x86_64)
+                #expect(service.call(1, 2, 3, 4, 5, 6, 7, 8, 9) == 45)
+            #else
+                #expect(service.call(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11) == 66)
+            #endif
+        }
+
+        @Test func eightSpilledWordsForward() throws {
+            let spy = try Spy<any EightWordSpillSpyService>(
+                forwardingTo: RealEightWordSpillSpyService()
+            )
+            let service: any EightWordSpillSpyService = spy()
+            #if arch(x86_64)
+                #expect(
+                    service.call(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12) == 78
+                )
+            #else
+                #expect(
+                    service.call(
+                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
+                    ) == 105
+                )
+            #endif
+        }
+
+        @Test func nineSpilledWordsRemainFailClosed() {
             let error = #expect(throws: StubError.self) {
-                _ = try Spy<any FiveWordSpillSpyService>(
-                    forwardingTo: RealFiveWordSpillSpyService()
+                _ = try Spy<any NineWordSpillSpyService>(
+                    forwardingTo: RealNineWordSpillSpyService()
                 )
             }
             #expect(
@@ -338,5 +444,7 @@ import Testing
             )
         }
     }
+
+// swiftlint:enable function_parameter_count
 
 #endif

@@ -280,13 +280,13 @@ void td_swift_invoke_function(const void *function,
                               const void *context,
                               uint16_t discriminator,
                               TDCallFrame *frame);
-/// Invokes a witness function, optionally spilling up to four caller-owned
+/// Invokes a witness function, optionally spilling up to eight caller-owned
 /// outgoing stack words first.
 ///
 /// The outgoing stack words are passed as explicit parameters rather than
 /// through `frame` so this never touches
 /// `TDCallFrame`'s layout: forwarding calls that need zero stack words pass
-/// zero for all four, harmlessly. Reserved and written even when unused; the
+/// zero for all eight, harmlessly. Reserved and written even when unused; the
 /// callee only reads as many words as its own signature has.
 void td_swift_invoke_witness(const void *function,
                              const void *self,
@@ -294,7 +294,11 @@ void td_swift_invoke_witness(const void *function,
                              uint64_t outgoingStackWord1,
                              uint64_t outgoingStackWord2,
                              uint64_t outgoingStackWord3,
-                             uint64_t outgoingStackWord4);
+                             uint64_t outgoingStackWord4,
+                             uint64_t outgoingStackWord5,
+                             uint64_t outgoingStackWord6,
+                             uint64_t outgoingStackWord7,
+                             uint64_t outgoingStackWord8);
 TDReadCoroutineResult td_swift_invoke_read_witness(
     const void *entry,
     const void *slot,

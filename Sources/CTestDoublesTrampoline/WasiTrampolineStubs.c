@@ -33,7 +33,11 @@ void td_swift_invoke_witness(
     uint64_t outgoingStackWord1,
     uint64_t outgoingStackWord2,
     uint64_t outgoingStackWord3,
-    uint64_t outgoingStackWord4
+    uint64_t outgoingStackWord4,
+    uint64_t outgoingStackWord5,
+    uint64_t outgoingStackWord6,
+    uint64_t outgoingStackWord7,
+    uint64_t outgoingStackWord8
 ) {
   __builtin_trap();
 }

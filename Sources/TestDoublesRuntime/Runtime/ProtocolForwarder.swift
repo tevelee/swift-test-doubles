@@ -62,7 +62,11 @@ package final class ProtocolForwarder<P>: RuntimeForwarding, @unchecked Sendable
             words.count > 0 ? words[0] : 0,
             words.count > 1 ? words[1] : 0,
             words.count > 2 ? words[2] : 0,
-            words.count > 3 ? words[3] : 0
+            words.count > 3 ? words[3] : 0,
+            words.count > 4 ? words[4] : 0,
+            words.count > 5 ? words[5] : 0,
+            words.count > 6 ? words[6] : 0,
+            words.count > 7 ? words[7] : 0
         )
     }
 
