@@ -507,11 +507,12 @@ checkouts. The README installation section lists the complete supported platform
 policy.
 
 An async Stub requirement may use the architecture's complete argument-register
-banks plus a sequence of complete, independent one-word integer, `Float`,
-`Double`, or complete 16-byte, one-register SIMD stack arguments. One narrow
-integer may occupy the low bytes of its padded eight-byte stack word. A spilled
-`Float` occupies one ABI stack word with its four-byte payload in the low half;
-a SIMD value occupies two consecutive words. The entry trampoline
+banks plus a sequence of complete, independent one- or two-word integer,
+`Float`, `Double`, or complete 16-byte, one-register SIMD stack arguments. One
+narrow integer may occupy the low bytes of its padded eight-byte stack word. A
+spilled `Float` occupies one ABI stack word with its four-byte payload in the
+low half; a complete two-word integer or SIMD value occupies two consecutive
+words. The entry trampoline
 decodes every spilled value while the caller's invocation frame is still live,
 before an async handler can suspend. Arguments are copied into the retained
 dispatch state; indirect result and the already proven single typed-error
@@ -525,9 +526,10 @@ once.
 
 A forwarding ``Spy`` supports the corresponding narrow outgoing path for an
 async instance method, untyped-throwing or not, with up to eight retained stack
-words contributed by complete concrete one-word integer, `Float`, `Double`, or
-one-register SIMD values. One narrow integer may use the low bytes of a padded
-eight-byte stack word. The values must spill consecutively, and the target
+words contributed by complete concrete one- or two-word integer, `Float`,
+`Double`, or one-register SIMD values. One narrow integer may use the low bytes
+of a padded eight-byte stack word. A two-word integer must be wholly stack
+resident. The values must spill consecutively, and the target
 metadata/witness-table pair must follow them on the same stack path.
 Preparation copies every word before the outer entry frame disappears. The
 forwarding state then creates Swift 6.3's target witness stack area in

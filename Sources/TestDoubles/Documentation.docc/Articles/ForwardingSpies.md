@@ -146,11 +146,12 @@ fail-closed. Synchronous forwarding remains register-only; the async stack path
 additionally supports complete 16-byte, one-register vector spills.
 
 Ordinary async instance methods, untyped-throwing or not, may forward one
-through eight consecutive stack words contributed by complete one-word
+through eight consecutive stack words contributed by complete one- or two-word
 integers, `Float`, `Double`, or one-register SIMD arguments when the target's
 dynamic-Self metadata and witness table follow on that same stack path. One
-narrow integer may use the low bytes of its padded stack word; a SIMD spill
-contributes two words. The bridge copies the words before
+narrow integer may use the low bytes of its padded stack word. A complete
+two-word integer or SIMD spill contributes two words. The bridge copies the
+words before
 suspension, then places them in declaration order before that hidden pair.
 Immediate and suspending targets, untyped errors, and indirect result storage
 share this boundary on arm64 and x86_64. A spilled `Float` uses the low four

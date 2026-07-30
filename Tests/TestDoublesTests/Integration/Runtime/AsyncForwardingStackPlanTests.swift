@@ -239,6 +239,83 @@ struct AsyncForwardingStackPlanTests {
         )
     }
 
+    @Test func acceptsACompleteTwoWordIntegerValueButRejectsASplitOne() {
+        let completeMethod = MethodDescriptor(
+            kind: .method,
+            name: "inspect",
+            index: 0,
+            argumentTypes:
+                Array(repeating: Int.self, count: 8)
+                + [AsyncTwoWordSpillValue.self],
+            returnType: UInt64.self,
+            isAsync: true
+        )
+
+        #expect(
+            asyncForwardingStackPlan(
+                for: completeMethod,
+                architecture: .arm64
+            )?.visibleArgumentLocations
+                == [
+                    .init(
+                        storage: .stack(byteOffset: 0),
+                        valueOffset: 0,
+                        byteCount: 8
+                    ),
+                    .init(
+                        storage: .stack(byteOffset: 8),
+                        valueOffset: 8,
+                        byteCount: 8
+                    )
+                ]
+        )
+        #expect(
+            asyncForwardingStackPlan(
+                for: completeMethod,
+                architecture: .x86_64
+            )?.visibleArgumentLocations
+                == [
+                    .init(
+                        storage: .stack(byteOffset: 0),
+                        valueOffset: 0,
+                        byteCount: 8
+                    ),
+                    .init(
+                        storage: .stack(byteOffset: 8),
+                        valueOffset: 0,
+                        byteCount: 8
+                    ),
+                    .init(
+                        storage: .stack(byteOffset: 16),
+                        valueOffset: 0,
+                        byteCount: 8
+                    ),
+                    .init(
+                        storage: .stack(byteOffset: 24),
+                        valueOffset: 8,
+                        byteCount: 8
+                    )
+                ]
+        )
+
+        let splitMethod = MethodDescriptor(
+            kind: .method,
+            name: "inspect",
+            index: 0,
+            argumentTypes:
+                Array(repeating: Int.self, count: 7)
+                + [AsyncTwoWordSpillValue.self],
+            returnType: UInt64.self,
+            isAsync: true
+        )
+        #expect(
+            asyncForwardingStackPlan(
+                for: splitMethod,
+                architecture: .arm64
+            ) == nil
+        )
+    }
+
     private func method(
         argumentCount: Int,
         typedError: (any Error.Type)? = nil
