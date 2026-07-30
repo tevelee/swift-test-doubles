@@ -569,6 +569,13 @@ padded values, indirect or associated-dependent spilled arguments, vector
 spills, and async accessors remain fail-closed. Typed closure adapters keep
 their independent boundary.
 
+Automatically discovered function-valued arguments and results may also cross
+otherwise supported synchronous, asynchronous, and static forwarding-Spy
+method witnesses. Recording borrows and reabstracts a separate closure value
+while the original call-frame words continue unchanged to the target,
+preserving captured contexts across suspension. Explicit compiler adapters and
+function-valued coroutine accessors remain outside that forwarding slice.
+
 ### Ownership and concurrency
 
 Configure and verify a stub serially, keep the ``Stub`` itself on one isolation

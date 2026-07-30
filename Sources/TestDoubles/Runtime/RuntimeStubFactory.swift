@@ -695,8 +695,8 @@ func constructTestDoubleOrFail<Result>(
                     return "Forwarding Spy supports instance requirements only; requirement \(index) uses a metatype receiver."
                 case .simd(let index):
                     return "Forwarding Spy does not yet support SIMD arguments or results in requirement \(index)."
-                case .functionValues(let index):
-                    return "Forwarding Spy does not yet support function-valued arguments or results in requirement \(index)."
+                case .typedWitnessAdapter(let index):
+                    return "Forwarding Spy cannot forward requirement \(index) through an explicit compiler adapter because the adapter changes the witness ABI. Use automatic discovery or a hand-written spy."
                 case .outgoingStackWords(let index, let limit):
                     return "Forwarding Spy requirement \(index) needs more outgoing stack transport than \(limit) words support. Use fewer arguments or a hand-written spy."
                 case .dynamicSelfResult(let index):

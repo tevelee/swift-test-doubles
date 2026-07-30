@@ -48,7 +48,7 @@ package enum RuntimeForwardingUnsupportedReason: Sendable {
     case pairedLegacyReadAndYieldingBorrow
     case nonInstanceRequirement(index: Int)
     case simd(index: Int)
-    case functionValues(index: Int)
+    case typedWitnessAdapter(index: Int)
     case outgoingStackWords(index: Int, limit: Int)
     case dynamicSelfResult(index: Int)
     case selfArguments(index: Int)

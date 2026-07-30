@@ -184,7 +184,6 @@ struct ProtocolForwardingPlanBuilder<P> {
             )
         }
         try validateDynamicSelfBoundary(method, protocolName: protocolName)
-        let concreteTypes = method.argumentTypes + [method.returnType]
         if let reason = runtimeSIMDUnsupportedReason(for: method) {
             throw RuntimeConstructionError.unsupportedProtocolShape(
                 protocolName: protocolName,
@@ -197,12 +196,10 @@ struct ProtocolForwardingPlanBuilder<P> {
                 reason: reason
             )
         }
-        guard method.typedWitnessAdapterFactory == nil,
-            concreteTypes.allSatisfy({ !isRuntimeFunctionType($0) })
-        else {
+        guard method.typedWitnessAdapterFactory == nil else {
             throw RuntimeConstructionError.forwardingUnsupported(
                 protocolName: protocolName,
-                reason: .functionValues(index: method.index)
+                reason: .typedWitnessAdapter(index: method.index)
             )
         }
     }

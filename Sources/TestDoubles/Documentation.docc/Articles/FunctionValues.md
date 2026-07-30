@@ -63,6 +63,15 @@ recursively reabstracted on return; arrays and nominal containers preserve
 their closure payloads through their own value witnesses. Dynamic actor
 isolation carried by an `@isolated(any)` value is preserved across the recorder.
 
+Forwarding Spies support automatically discovered function-valued arguments
+and results on otherwise supported synchronous, asynchronous, and static method
+witnesses. Recording borrows and reabstracts a separate closure value while the
+original call-frame words continue unchanged to the real target, preserving
+captured contexts across suspension. Explicit compiler adapters remain
+Stub-only because their typed entry point changes the witness ABI. Function
+results from coroutine accessors and associated-dependent function values
+remain unsupported in forwarding Spies.
+
 The thunk-independent bridge covers ordinary and `@Sendable` synchronous and
 async closures, including untyped and typed `throws`, mixed integer and
 floating-point values, direct and indirect aggregates, genuine suspension, and

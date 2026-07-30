@@ -161,12 +161,34 @@ struct RealDynamicSelfSpyService: DynamicSelfSpyService {
     func duplicate() -> Self { self }
 }
 
+typealias SpyTransform = @Sendable (Int) -> Int
+
 protocol FunctionValueSpyService {
-    func transform(_ operation: @escaping (Int) -> Int) -> (Int) -> Int
+    func transform(_ operation: @escaping SpyTransform) -> SpyTransform
+    func transformLater(
+        _ operation: @escaping SpyTransform
+    ) async -> SpyTransform
+    static func transformStatic(
+        _ operation: @escaping SpyTransform
+    ) -> SpyTransform
 }
 
 struct RealFunctionValueSpyService: FunctionValueSpyService {
-    func transform(_ operation: @escaping (Int) -> Int) -> (Int) -> Int {
+    func transform(_ operation: @escaping SpyTransform) -> SpyTransform {
+        operation
+    }
+
+    func transformLater(
+        _ operation: @escaping SpyTransform
+    ) async -> SpyTransform {
+        let transformed = operation(20) + 2
+        await Task.yield()
+        return { _ in transformed }
+    }
+
+    static func transformStatic(
+        _ operation: @escaping SpyTransform
+    ) -> SpyTransform {
         operation
     }
 }
@@ -406,18 +428,52 @@ struct RealFunctionValueSpyService: FunctionValueSpyService {
         )
     }
 
-    @Test func rejectsFunctionValuesAtConstruction() {
-        let error = #expect(throws: StubError.self) {
-            _ = try Spy<any FunctionValueSpyService>(
-                forwardingTo: RealFunctionValueSpyService()
-            )
-        }
-        #expect(
-            error?.description.contains(
-                "does not yet support function-valued arguments or results"
-            ) == true
+    @Test func forwardsFunctionValuedArgumentsAndResults() async throws {
+        let placeholder: SpyTransform = { $0 }
+        let spy = try Spy<any FunctionValueSpyService>(
+            forwardingTo: RealFunctionValueSpyService()
         )
+        let service: any FunctionValueSpyService = spy()
+
+        let transformed = service.transform { $0 * 2 }
+        let transformedLater = await service.transformLater { $0 * 2 }
+        let transformedStatic = invokeStaticTransform(
+            service,
+            operation: { $0 + 1 }
+        )
+
+        #expect(transformed(21) == 42)
+        #expect(transformedLater(0) == 42)
+        #expect(transformedStatic(41) == 42)
+        let captor = Match.Capture<SpyTransform>()
+        spy.verify(returning: placeholder) {
+            $0.transform(captor.capture(using: placeholder))
+        }
+        let captured = try #require(captor.first)
+        #expect(captured(21) == 42)
+        await spy.verify(returning: placeholder) {
+            await $0.transformLater(Match.any(using: placeholder))
+        }
+        spy.verify(returning: placeholder) {
+            captureStaticTransform($0, placeholder: placeholder)
+        }
     }
+}
+
+private func invokeStaticTransform<P: FunctionValueSpyService>(
+    _ value: P,
+    operation: @escaping SpyTransform
+) -> SpyTransform {
+    type(of: value).transformStatic(operation)
+}
+
+private func captureStaticTransform<P: FunctionValueSpyService>(
+    _ value: P,
+    placeholder: @escaping SpyTransform
+) -> SpyTransform {
+    type(of: value).transformStatic(
+        Match.any(using: placeholder)
+    )
 }
 
 #if compiler(>=6.2) && (os(macOS) || os(Linux) || targetEnvironment(macCatalyst))

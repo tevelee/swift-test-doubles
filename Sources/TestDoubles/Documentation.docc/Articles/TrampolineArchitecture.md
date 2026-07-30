@@ -342,6 +342,12 @@ value witnesses. C function pointers and block values need no native
 reabstraction and use ordinary value-witness transport. See
 <doc:ClosureReabstractionInternals> for the complete two-direction closure
 adapter and typed-error ownership model.
+For an automatically discovered function-valued method, a forwarding Spy
+reabstracts a borrowed copy for recorder observation but leaves the original
+call-frame words intact for the target witness. This supports synchronous,
+asynchronous, and static methods while preserving captured contexts across
+suspension. Explicit typed witness adapters and function-valued coroutine
+accessors remain unsupported in forwarding Spies.
 The native wrapper retains both closure contexts, preserves `@isolated(any)`'s
 dynamic actor pair, distinguishes async thunk descriptors, and signs generated
 function words with Swift's stable discriminator on pointer-authenticated
