@@ -92,6 +92,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tuple-free typed iteration, mapping, and reduction.
 - `NonescapingCallbackRecorder` immediately invokes nonescaping callbacks
   without retaining them while recording their inputs, results, and errors.
+- Main-actor closure-double aliases expose checked `@MainActor @Sendable`
+  function views across synchronous, asynchronous, throwing, and typed-throws
+  variants.
 
 ### Fixed
 

@@ -179,6 +179,12 @@ isolation. See
 - ``InoutClosureSpy``
 - ``ClosureArgumentHistory``
 - ``NonescapingCallbackRecorder``
+- ``MainActorClosureDouble``
+- ``MainActorThrowingClosureDouble``
+- ``MainActorAsyncClosureDouble``
+- ``MainActorAsyncThrowingClosureDouble``
+- ``MainActorTypedThrowingClosureDouble``
+- ``MainActorAsyncTypedThrowingClosureDouble``
 - ``CallbackCapture``
 
 ### Value and Optional Matchers
