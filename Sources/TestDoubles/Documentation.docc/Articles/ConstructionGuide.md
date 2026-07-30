@@ -328,7 +328,7 @@ Automatically discovered instance or static methods may also accept direct
 `Self` or one `Optional<Self>` layer with borrowed/default or consuming
 ownership. Instance methods support synchronous and async forms, including
 untyped and typed throws; static methods support synchronous nonthrowing,
-untyped-throwing, and typed-throwing forms. Synchronous instance subscript
+untyped-throwing, and typed-throwing forms. Synchronous instance and static subscript
 getters and setters support those same direct and single-optional `Self`
 indices. Open the existential through a generic helper when configuring,
 verifying, or invoking the requirement. Explicit schemas cannot preserve a

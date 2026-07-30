@@ -371,7 +371,7 @@ dependent-value lowering remain outside the supported layout. Dummy publishes
 its invocation endpoint terminates before yielding. Automatic instance and
 synchronous static methods may take direct or single-optional `Self` arguments
 with borrowed/default or consuming ownership, including untyped and supported
-typed throwing effects. Synchronous instance subscript getters and setters
+typed throwing effects. Synchronous instance and static subscript getters and setters
 support the same direct and single-optional `Self` indices. Explicit schemas,
 Spies, superclass constraints, `inout`, initializers, async static methods, and
 wider wrappers remain unsupported. Swift 6.3

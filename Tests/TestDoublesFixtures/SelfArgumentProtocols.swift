@@ -183,6 +183,31 @@ public struct RealExternalSelfSubscriptArgumentProbe:
     }
 }
 
+public protocol ExternalStaticSelfSubscriptArgumentProbe {
+    static subscript(_ value: Self) -> Int { get set }
+    static subscript(optional value: Self?) -> Int { get set }
+}
+
+public struct RealExternalStaticSelfSubscriptArgumentProbe:
+    ExternalStaticSelfSubscriptArgumentProbe
+{
+    public init() {}
+
+    public static subscript(
+        _ value: RealExternalStaticSelfSubscriptArgumentProbe
+    ) -> Int {
+        get { 0 }
+        set {}
+    }
+
+    public static subscript(
+        optional value: RealExternalStaticSelfSubscriptArgumentProbe?
+    ) -> Int {
+        get { 0 }
+        set {}
+    }
+}
+
 public enum ExternalStaticSelfArgumentError: Error, Equatable {
     case rejected
 }

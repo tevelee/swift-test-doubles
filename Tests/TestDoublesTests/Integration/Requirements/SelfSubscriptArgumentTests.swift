@@ -28,6 +28,38 @@ import Testing
         stub.verify(.exactly(2)) { captureOptionalSelfSubscriptGet($0) }
         stub.verify(.exactly(2)) { captureOptionalSelfSubscriptSet($0) }
     }
+
+    @Test func staticArgumentsWorkEndToEnd() throws {
+        _ = RealExternalStaticSelfSubscriptArgumentProbe()
+        let stub = try Stub<any ExternalStaticSelfSubscriptArgumentProbe>()
+        stub.when { captureStaticSelfSubscriptGet($0) }.thenReturn(46)
+        stub.when { captureStaticSelfSubscriptSet($0) }.thenDoNothing()
+        stub.when { captureStaticOptionalSelfSubscriptGet($0) }.thenReturn(48)
+        stub.when { captureStaticOptionalSelfSubscriptSet($0) }.thenDoNothing()
+
+        let source = stub()
+        #expect(invokeStaticSelfSubscriptGet(source) == 46)
+        invokeStaticSelfSubscriptSet(source)
+        #expect(
+            invokeStaticOptionalSelfSubscriptGet(
+                source,
+                includesValue: true
+            ) == 48
+        )
+        #expect(
+            invokeStaticOptionalSelfSubscriptGet(
+                source,
+                includesValue: false
+            ) == 48
+        )
+        invokeStaticOptionalSelfSubscriptSet(source, includesValue: true)
+        invokeStaticOptionalSelfSubscriptSet(source, includesValue: false)
+
+        stub.verify { captureStaticSelfSubscriptGet($0) }
+        stub.verify { captureStaticSelfSubscriptSet($0) }
+        stub.verify(.exactly(2)) { captureStaticOptionalSelfSubscriptGet($0) }
+        stub.verify(.exactly(2)) { captureStaticOptionalSelfSubscriptSet($0) }
+    }
 }
 
 private func captureSelfSubscriptGet<
@@ -99,4 +131,71 @@ private func invokeOptionalSelfSubscriptSet<
 ) {
     var receiver = value
     receiver[optional: includesValue ? value : nil] = 45
+}
+
+private func captureStaticSelfSubscriptGet<
+    P: ExternalStaticSelfSubscriptArgumentProbe
+>(
+    _ value: P
+) -> Int {
+    type(of: value)[Match.any(using: value)]
+}
+
+private func captureStaticSelfSubscriptSet<
+    P: ExternalStaticSelfSubscriptArgumentProbe
+>(
+    _ value: P
+) {
+    type(of: value)[Match.any(using: value)] = Match.equal(47)
+}
+
+private func captureStaticOptionalSelfSubscriptGet<
+    P: ExternalStaticSelfSubscriptArgumentProbe
+>(
+    _ value: P
+) -> Int {
+    type(of: value)[optional: Match.any(using: Optional(value))]
+}
+
+private func captureStaticOptionalSelfSubscriptSet<
+    P: ExternalStaticSelfSubscriptArgumentProbe
+>(
+    _ value: P
+) {
+    type(of: value)[optional: Match.any(using: Optional(value))] =
+        Match.equal(49)
+}
+
+private func invokeStaticSelfSubscriptGet<
+    P: ExternalStaticSelfSubscriptArgumentProbe
+>(
+    _ value: P
+) -> Int {
+    type(of: value)[value]
+}
+
+private func invokeStaticSelfSubscriptSet<
+    P: ExternalStaticSelfSubscriptArgumentProbe
+>(
+    _ value: P
+) {
+    type(of: value)[value] = 47
+}
+
+private func invokeStaticOptionalSelfSubscriptGet<
+    P: ExternalStaticSelfSubscriptArgumentProbe
+>(
+    _ value: P,
+    includesValue: Bool
+) -> Int {
+    type(of: value)[optional: includesValue ? value : nil]
+}
+
+private func invokeStaticOptionalSelfSubscriptSet<
+    P: ExternalStaticSelfSubscriptArgumentProbe
+>(
+    _ value: P,
+    includesValue: Bool
+) {
+    type(of: value)[optional: includesValue ? value : nil] = 49
 }

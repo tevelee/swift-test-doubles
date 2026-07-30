@@ -124,7 +124,7 @@ accidentally.
 
 Automatic discovery also accepts direct `Self` and one `Optional<Self>` layer
 as arguments to instance methods, synchronous static methods, and synchronous
-instance subscript getters and setters. Instance methods support
+instance or static subscript getters and setters. Instance methods support
 borrowed/default, consuming, synchronous, async, untyped-throwing, and supported
 typed-throwing forms. The declaring protocol determines the ABI: an ordinary
 protocol uses opaque indirect storage, while a protocol that itself requires
@@ -461,7 +461,7 @@ remain fail-closed.
   function or dynamic `Self`. A Stub supports Swift 6.4 `yielding borrow`
   through its `yield_once_2` witness; use a hand-written double for the other
   shapes.
-- `Self` arguments outside automatic supported methods and synchronous instance
+- `Self` arguments outside automatic supported methods and synchronous
   subscript accessors with a direct value or one `Optional` layer. Explicit
   schemas, Spies, superclass constraints, initializers, async static methods,
   `inout`, and wider wrappers remain unsupported.
