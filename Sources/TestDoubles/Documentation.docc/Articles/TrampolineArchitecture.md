@@ -117,18 +117,18 @@ For a synchronous call, the trampoline:
 4. Records the call and selects the first configured matching response.
 5. Encodes the result or Swift error into the caller's expected ABI state.
 
-The bounded SIMD path classifies only complete 128-bit lane payloads that Swift
-6.3 passes in one vector register on both arm64 and x86_64. Argument capture
-already preserves all 16 bytes of each `q` or `xmm` register. The decoder now
-copies that declared width instead of truncating it to the scalar low word. For
-results, the call frame keeps the established four low scalar return words and
-adds a separate high word for each; the synchronous entry bridge reconstructs
-the four vector registers before returning. This leaves all established frame
-field offsets stable while preserving every SIMD lane bit. Construction checks
-the location plan for both architectures and rejects any supported vector that
-would become a stack argument. It also rejects every shape that would require
-scalarized lanes, padding interpretation, aggregate decomposition, associated
-metadata substitution, or async continuation transport.
+The bounded SIMD path classifies complete, unpadded lane payloads occupying one
+through four 128-bit vector registers on both arm64 and x86_64. Argument capture
+preserves all 16 bytes of each `q` or `xmm` register, and the decoder copies
+every declared register-width part. For results, the call frame keeps the
+established four low scalar return words and adds a separate high word for each;
+the synchronous entry bridge reconstructs up to four vector registers before
+returning. This leaves all established frame field offsets stable while
+preserving every SIMD lane bit. Construction checks the location plan for both
+architectures and rejects any supported vector that would become a stack
+argument. It also rejects every shape that would require scalarized lanes,
+padding interpretation, aggregate decomposition, associated metadata
+substitution, or async continuation transport.
 
 Synchronous Spy forwarding uses the same frame. The target-call bridge reloads
 complete `q0` through `q7` registers on arm64 and complete `xmm0` through `xmm7`
@@ -297,10 +297,10 @@ result is, but configuration must finish before matching invocations begin.
 
 The implementation has focused arm64 and x86_64 coverage for integer and
 floating-point registers, synchronous stack arguments, mixed aggregates,
-indirect results, throwing calls, bounded one-register 128-bit SIMD values in
-both stubs and synchronous forwarding spies,
+indirect results, throwing calls, bounded one-through-four-register SIMD values
+in both stubs and synchronous forwarding spies,
 async continuations, multiword complete-GP async Stub ingress, bounded one-word
-async Spy forwarding, and owned setter inputs. Direct concrete
+through eight-word async Spy forwarding, and owned setter inputs. Direct concrete
 native function values use canonical function metadata plus compiler-emitted
 partial-apply reabstraction thunks found in the linked client or a bounded
 runtime-built arm64/x86_64 bridge. Arguments are wrapped from direct witness ABI

@@ -12,6 +12,22 @@ private struct RealAudioGainProcessor: AudioGainProcessor {
     }
 }
 
+protocol WideAudioGainProcessor {
+    func applyGain(
+        _ samples: SIMD16<Float>,
+        gain: Float
+    ) -> SIMD16<Float>
+}
+
+private struct RealWideAudioGainProcessor: WideAudioGainProcessor {
+    func applyGain(
+        _ samples: SIMD16<Float>,
+        gain: Float
+    ) -> SIMD16<Float> {
+        samples * gain
+    }
+}
+
 @Suite struct MultiRegisterSIMDTests {
     @Test func stubbedProcessorReturnsAConfiguredBatch() throws {
         let input = SIMD8<Float>(1, 2, 3, 4, 5, 6, 7, 8)
@@ -34,6 +50,30 @@ private struct RealAudioGainProcessor: AudioGainProcessor {
 
         #expect(processor.applyGain(input, gain: 3) == SIMD8<Float>(repeating: 3))
         spy.verify(.exactly(1), returning: SIMD8<Float>()) {
+            $0.applyGain(Match.any(using: input), gain: Match.equal(3))
+        }
+    }
+
+    @Test func fourRegisterSIMDValuesStubAndForwardWithoutLosingLanes() throws {
+        let input = SIMD16<Float>(
+            1, 2, 3, 4, 5, 6, 7, 8,
+            9, 10, 11, 12, 13, 14, 15, 16
+        )
+        let doubled = input * 2
+        let stub = try Stub<any WideAudioGainProcessor>()
+        stub.when(returning: SIMD16<Float>()) {
+            $0.applyGain(Match.equal(input), gain: Match.equal(2))
+        }.thenReturn(doubled)
+
+        let stubbed: any WideAudioGainProcessor = stub()
+        #expect(stubbed.applyGain(input, gain: 2) == doubled)
+
+        let spy = try Spy<any WideAudioGainProcessor>(
+            forwardingTo: RealWideAudioGainProcessor()
+        )
+        let forwarded: any WideAudioGainProcessor = spy()
+        #expect(forwarded.applyGain(input, gain: 3) == input * 3)
+        spy.verify(.exactly(1), returning: SIMD16<Float>()) {
             $0.applyGain(Match.any(using: input), gain: Match.equal(3))
         }
     }

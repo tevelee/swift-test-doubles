@@ -266,6 +266,11 @@ private func openedConcreteSIMDRegisterByteCount<T: SIMD>(_: T.Type) -> Int? {
 }
 
 package func directArgumentParts(for type: Any.Type) -> [DirectValuePart]? {
+    if let byteCount = concreteSIMDRegisterByteCount(for: type) {
+        return stride(from: 0, to: byteCount, by: 16).map {
+            DirectValuePart(register: .fp, offset: $0, byteCount: 16)
+        }
+    }
     let metadata = reflect(type)
     guard metadata.vwt.size <= 4 * MemoryLayout<UInt>.size,
         let parts = directReturnParts(for: type),

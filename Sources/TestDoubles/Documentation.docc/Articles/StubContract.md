@@ -369,23 +369,23 @@ packs, witness packs, non-integer value descriptors, negative, noncanonical, or
 overflowing integer spellings, noncopyable `InlineArray` elements, same-type
 requirements, base-class requirements, layout requirements, and missing
 conformances remain fail-closed.
-Synchronous instance methods also accept a bounded set of direct, unpadded
-128-bit SIMD values whose complete lane payload uses one vector register for
-both arguments and results on arm64 and x86_64: `SIMD4<Float>`,
-`SIMD2<Double>`, and full-width signed or unsigned integer vectors. Automatic
-and linked mangled-type discovery both resolve SIMD generic metadata directly
-(`SIMD2` through `SIMD64`, over any concrete `SIMDScalar`), the same as any
-other supported shape; explicit `.method(signatureOf:)` requirements remain
-available but are no longer required just to name a SIMD type. SIMD values
-still cannot be synthesized as matcher or result placeholders, so pass them
-through `Match.any(using:)` and `when(returning:_:)` when recording needs a
-placeholder.
+Synchronous instance methods also accept a bounded set of direct, unpadded SIMD
+values whose complete lane payload uses one through four 128-bit vector
+registers for both arguments and results on arm64 and x86_64. This includes
+`SIMD4<Float>` through `SIMD16<Float>` and equivalent full-width vectors over
+other scalar types. Automatic and linked mangled-type discovery both resolve
+SIMD generic metadata directly (`SIMD2` through `SIMD64`, over any concrete
+`SIMDScalar`), the same as any other supported shape; explicit
+`.method(signatureOf:)` requirements remain available but are no longer
+required just to name a SIMD type. SIMD values still cannot be synthesized as
+matcher or result placeholders, so pass them through `Match.any(using:)` and
+`when(returning:_:)` when recording needs a placeholder.
 Forwarding spies support that same register-only SIMD boundary for ordinary
 synchronous instance methods, including mixed scalar/vector arguments and all
-eight vector argument registers. Smaller or padded vectors, vectors wider than
-128 bits, a ninth vector-register argument, nested or associated-dependent SIMD,
-async methods, accessors, initializers, static requirements, and vector spills
-remain fail-closed.
+eight vector argument registers. Smaller or padded vectors, values needing more
+than four vector registers, a vector-register spill, nested or
+associated-dependent SIMD, async methods, accessors, initializers, and static
+requirements remain fail-closed.
 In particular, `SIMD2<Float>` is intentionally unsupported because Swift 6.3
 uses different physical argument shapes on arm64 and x86_64.
 Automatically discovered or explicitly described typed-throwing methods support
