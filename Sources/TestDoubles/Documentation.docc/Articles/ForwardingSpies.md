@@ -146,16 +146,18 @@ fail-closed. Synchronous forwarding remains register-only; the async stack path
 additionally supports complete 16-byte, one-register vector spills.
 
 Ordinary async instance methods, untyped-throwing or not, may forward one
-through eight consecutive stack words contributed by complete eight-byte
-general-purpose, `Float`, `Double`, or one-register SIMD arguments when the
-target's dynamic-Self metadata and witness table follow on that same stack
-path. A SIMD spill contributes two words. The bridge copies the words before
+through eight consecutive stack words contributed by complete one-word
+integers, `Float`, `Double`, or one-register SIMD arguments when the target's
+dynamic-Self metadata and witness table follow on that same stack path. One
+narrow integer may use the low bytes of its padded stack word; a SIMD spill
+contributes two words. The bridge copies the words before
 suspension, then places them in declaration order before that hidden pair.
 Immediate and suspending targets, untyped errors, and indirect result storage
 share this boundary on arm64 and x86_64. A spilled `Float` uses the low four
-bytes of its eight-byte stack slot. A ninth word and split, otherwise padded,
-smaller floating-point, wider-vector, indirect-argument, dependent, accessor,
-static, and typed-error stack shapes remain fail-closed.
+bytes of its eight-byte stack slot. A second narrow integer, ninth word, split
+or multiword padded value, smaller floating-point value, wider-vector value,
+indirect argument, dependent argument, accessor, static requirement, and
+typed-error stack shape remain fail-closed.
 
 Compound assignment and `inout` access use the target's `_modify` coroutine.
 Both legacy direct witnesses and descriptor-based public Swift 6.3 witnesses

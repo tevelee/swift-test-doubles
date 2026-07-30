@@ -507,34 +507,38 @@ checkouts. The README installation section lists the complete supported platform
 policy.
 
 An async Stub requirement may use the architecture's complete argument-register
-banks plus a sequence of complete, independent eight-byte general-purpose,
-`Float`, `Double`, or complete 16-byte, one-register SIMD stack arguments. A
-spilled `Float` occupies one ABI stack word with its four-byte payload in the
-low half; a SIMD value occupies two consecutive words. The entry trampoline
+banks plus a sequence of complete, independent one-word integer, `Float`,
+`Double`, or complete 16-byte, one-register SIMD stack arguments. One narrow
+integer may occupy the low bytes of its padded eight-byte stack word. A spilled
+`Float` occupies one ABI stack word with its four-byte payload in the low half;
+a SIMD value occupies two consecutive words. The entry trampoline
 decodes every spilled value while the caller's invocation frame is still live,
 before an async handler can suspend. Arguments are copied into the retained
 dispatch state; indirect result and the already proven single typed-error
 destination pointer refer to caller-owned async storage and are retained
-separately. Split, otherwise padded, smaller floating-point, wider-vector,
-indirect, dependent, accessor, and wider typed-error stack shapes remain
-fail-closed. Before either an immediate return or a genuine suspension, the
-entry bridge removes the compiler-planned, ABI-aligned outgoing stack
-reservation exactly once.
+separately. A second narrow integer, split or multiword padded value, smaller
+floating-point value, wider-vector value, indirect argument, dependent
+argument, accessor, and wider typed-error stack shape remain fail-closed.
+Before either an immediate return or a genuine suspension, the entry bridge
+removes the compiler-planned, ABI-aligned outgoing stack reservation exactly
+once.
 
 A forwarding ``Spy`` supports the corresponding narrow outgoing path for an
 async instance method, untyped-throwing or not, with up to eight retained stack
-words contributed by complete concrete eight-byte general-purpose, `Float`,
-`Double`, or one-register SIMD values. The values must spill consecutively, and
-the target metadata/witness-table pair must follow them on the same stack path.
+words contributed by complete concrete one-word integer, `Float`, `Double`, or
+one-register SIMD values. One narrow integer may use the low bytes of a padded
+eight-byte stack word. The values must spill consecutively, and the target
+metadata/witness-table pair must follow them on the same stack path.
 Preparation copies every word before the outer entry frame disappears. The
 forwarding state then creates Swift 6.3's target witness stack area in
 declaration order from those values, target metadata, and witness table,
 including x86_64's live implicit slot. The target witness transfers that area
 to its continuation boundary exactly once. Indirect results retain the caller's
-result storage independently. A typed throw, a ninth retained word, split or
-otherwise padded values, smaller floating-point or wider-vector spills, indirect or
-associated-dependent spilled arguments, and async accessors remain fail-closed.
-Typed closure adapters keep their independent boundary.
+result storage independently. A typed throw, a second narrow integer, a ninth
+retained word, split or multiword padded value, smaller floating-point or
+wider-vector spill, indirect or associated-dependent spilled argument, and
+async accessor remain fail-closed. Typed closure adapters keep their
+independent boundary.
 
 A forwarding ``Spy``'s **synchronous** outgoing path supports up to eight
 spilled general-purpose words, sourced from any combination of overflowing

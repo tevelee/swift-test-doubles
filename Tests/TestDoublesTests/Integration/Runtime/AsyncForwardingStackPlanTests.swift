@@ -179,6 +179,66 @@ struct AsyncForwardingStackPlanTests {
         )
     }
 
+    @Test func acceptsOneNarrowIntegerAsACompleteStackWord() {
+        let method = MethodDescriptor(
+            kind: .method,
+            name: "inspect",
+            index: 0,
+            argumentTypes:
+                Array(repeating: Int.self, count: 8)
+                + [UInt32.self],
+            returnType: UInt64.self,
+            isAsync: true
+        )
+
+        for architecture in [
+            RuntimeArchitecture.arm64,
+            RuntimeArchitecture.x86_64
+        ] {
+            let plan = asyncForwardingStackPlan(
+                for: method,
+                architecture: architecture
+            )
+            #expect(plan != nil)
+            #expect(
+                plan?.visibleArgumentLocations.last
+                    == CallFrameArgumentLocation(
+                        storage: .stack(
+                            byteOffset: architecture == .arm64 ? 0 : 16
+                        ),
+                        valueOffset: 0,
+                        byteCount: 4
+                    )
+            )
+        }
+    }
+
+    @Test func secondNarrowIntegerRemainsFailClosed() {
+        let method = MethodDescriptor(
+            kind: .method,
+            name: "inspect",
+            index: 0,
+            argumentTypes:
+                Array(repeating: Int.self, count: 8)
+                + [UInt32.self, UInt16.self],
+            returnType: UInt64.self,
+            isAsync: true
+        )
+
+        #expect(
+            asyncForwardingStackPlan(
+                for: method,
+                architecture: .arm64
+            ) == nil
+        )
+        #expect(
+            asyncForwardingStackPlan(
+                for: method,
+                architecture: .x86_64
+            ) == nil
+        )
+    }
+
     private func method(
         argumentCount: Int,
         typedError: (any Error.Type)? = nil

@@ -112,6 +112,15 @@ private func unsupportedAsyncStubIngressReason(
             architecture: architecture
         )
     }
+    guard
+        stackArguments.lazy.filter({
+            isNarrowIntegerAsyncStackValue($0.0)
+        }).count <= 1
+    else {
+        return unsupportedAsyncStubIngressDiagnostic(
+            architecture: architecture
+        )
+    }
     var expectedStackOffset = 0
     for (argument, location) in stackArguments {
         let independentValueByteCount =
@@ -165,10 +174,10 @@ private func unsupportedAsyncStubIngressDiagnostic(
     architecture: RuntimeArchitecture
 ) -> String {
     "Its caller-stack ingress on \(architecture) is not a sequence of complete, "
-        + "independent eight-byte general-purpose, Float, Double, or 16-byte "
+        + "independent one-word integer, Float, Double, or 16-byte "
         + "single-register SIMD arguments "
-        + "supported by the async Stub trampoline. Split, otherwise padded, "
-        + "smaller floating-point, wider-vector, indirect, "
+        + "supported by the async Stub trampoline. A second narrow integer, "
+        + "split or multiword padded, smaller floating-point, wider-vector, indirect, "
         + "dependent, accessor, and wider typed-error shapes remain unsupported. "
         + "Use compatible values or a hand-written test double."
 }
@@ -246,11 +255,12 @@ private func asyncWitnessStackPlan(
 /// Returns the bounded outgoing async forwarding stack plan, or `nil` when a
 /// requirement needs a different physical shape.
 ///
-/// This deliberately accepts at most eight complete concrete general-purpose,
+/// This deliberately accepts at most eight complete concrete integer,
 /// `Float`, `Double`, or one-register concrete SIMD values that spill
-/// consecutively from their register banks. Split, otherwise padded, smaller
-/// floating-point, indirect, dependent, wider-vector, accessor, and typed-error
-/// shapes remain fail-closed.
+/// consecutively from their register banks. A second narrow integer, split or
+/// multiword padded, smaller floating-point, indirect, dependent, wider-vector,
+/// accessor, and typed-error shapes remain fail-closed. A narrow integer still
+/// contributes its complete eight-byte ABI stack slot.
 package func asyncForwardingStackPlan(
     for method: MethodDescriptor,
     architecture: RuntimeArchitecture
@@ -272,6 +282,7 @@ package func asyncForwardingStackPlan(
     let wordByteCount = MemoryLayout<UInt>.size
     var visibleArgumentLocations: [CallFrameArgumentLocation] = []
     var expectedStackOffset = 0
+    var narrowIntegerCount = 0
     for (argumentIndex, locations) in transport.argumentLocations.enumerated() {
         let stackLocations = locations.filter {
             if case .stack = $0.storage { return true }
@@ -279,6 +290,10 @@ package func asyncForwardingStackPlan(
         }
         guard stackLocations.isEmpty == false else { continue }
         let argument = method.arguments[argumentIndex]
+        if isNarrowIntegerAsyncStackValue(argument) {
+            narrowIntegerCount += 1
+            guard narrowIntegerCount <= 1 else { return nil }
+        }
         let expectedValueByteCount =
             supportedIndependentAsyncStackValueByteCount(argument)
         guard locations.count == 1,
@@ -351,11 +366,11 @@ package func unsupportedAsyncForwardingEgressDiagnostic(
     architecture: RuntimeArchitecture
 ) -> String {
     "Its target-stack egress on \(architecture) is not one through eight "
-        + "complete stack words contributed by independent eight-byte "
-        + "general-purpose, Float, Double, or one-register concrete SIMD "
+        + "complete stack words contributed by independent one-word integer, "
+        + "Float, Double, or one-register concrete SIMD "
         + "arguments followed by "
-        + "dynamic-Self metadata and its witness table. Split, otherwise "
-        + "padded, smaller floating-point, wider-vector, "
+        + "dynamic-Self metadata and its witness table. A second narrow "
+        + "integer, split or multiword padded, smaller floating-point, wider-vector, "
         + "indirect, dependent, accessor, static, and "
         + "typed-error shapes remain unsupported. Use compatible values or a "
         + "hand-written test double."
@@ -369,7 +384,8 @@ private func supportedIndependentAsyncStackValueByteCount(
     let byteCount = ValueLayoutInfo(reflecting: argument.value.type).size
     switch argument.value.layout {
         case .integer(words: 1)
-        where byteCount == MemoryLayout<UInt>.size:
+        where byteCount > 0
+            && byteCount <= MemoryLayout<UInt>.size:
             return byteCount
         case .floatingPoint
         where byteCount == MemoryLayout<Float>.size
@@ -387,6 +403,18 @@ private func supportedIndependentAsyncStackValueByteCount(
         default:
             return nil
     }
+}
+
+private func isNarrowIntegerAsyncStackValue(
+    _ argument: WitnessArgumentDescriptor
+) -> Bool {
+    guard argument.value.dependency.isAssociatedTypeDependent == false,
+        case .integer(words: 1) = argument.value.layout
+    else {
+        return false
+    }
+    let byteCount = ValueLayoutInfo(reflecting: argument.value.type).size
+    return byteCount > 0 && byteCount < MemoryLayout<UInt>.size
 }
 
 private func asyncStackSlotByteCount(
