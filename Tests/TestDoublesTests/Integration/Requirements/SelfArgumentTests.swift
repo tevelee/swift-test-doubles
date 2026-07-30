@@ -224,6 +224,33 @@ private final class ConsumingClassAsyncInvocation<
         }
     }
 
+    @Test func staticSelfArgumentsWorkEndToEnd() throws {
+        _ = RealExternalStaticSelfArgumentProbe()
+        let stub = try Stub<any ExternalStaticSelfArgumentProbe>()
+        stub.when { captureStaticAccept($0) }.thenDoNothing()
+        stub.when { captureStaticOptional($0) }.thenDoNothing()
+        stub.when { try captureStaticReject($0) }
+            .thenThrow(ExternalStaticSelfArgumentError.rejected)
+        stub.when { try captureStaticTypedReject($0) }
+            .thenThrow(ExternalStaticSelfArgumentError.rejected)
+
+        let source = stub()
+        invokeStaticAccept(source)
+        invokeStaticOptional(source, includesValue: true)
+        invokeStaticOptional(source, includesValue: false)
+        #expect(throws: ExternalStaticSelfArgumentError.rejected) {
+            try invokeStaticReject(source)
+        }
+        #expect(throws: ExternalStaticSelfArgumentError.rejected) {
+            try invokeStaticTypedReject(source)
+        }
+
+        stub.verify { captureStaticAccept($0) }
+        stub.verify(.exactly(2)) { captureStaticOptional($0) }
+        stub.verify { try captureStaticReject($0) }
+        stub.verify { try captureStaticTypedReject($0) }
+    }
+
     @Test func nestedOptionalSelfFailsClosedDuringAutomaticDiscovery() {
         _ = RealExternalNestedOptionalSelfArgumentProbe()
 
@@ -263,6 +290,55 @@ private final class ConsumingClassAsyncInvocation<
             )
         }
     }
+}
+
+private func captureStaticAccept<P: ExternalStaticSelfArgumentProbe>(
+    _ value: P
+) {
+    type(of: value).accept(Match.any(using: value))
+}
+
+private func captureStaticOptional<P: ExternalStaticSelfArgumentProbe>(
+    _ value: P
+) {
+    type(of: value).acceptOptional(Match.any(using: Optional(value)))
+}
+
+private func invokeStaticAccept<P: ExternalStaticSelfArgumentProbe>(
+    _ value: P
+) {
+    type(of: value).accept(value)
+}
+
+private func invokeStaticOptional<P: ExternalStaticSelfArgumentProbe>(
+    _ value: P,
+    includesValue: Bool
+) {
+    type(of: value).acceptOptional(includesValue ? value : nil)
+}
+
+private func captureStaticReject<P: ExternalStaticSelfArgumentProbe>(
+    _ value: P
+) throws {
+    try type(of: value).reject(Match.any(using: value))
+}
+
+private func captureStaticTypedReject<P: ExternalStaticSelfArgumentProbe>(
+    _ value: P
+) throws(ExternalStaticSelfArgumentError) {
+    try type(of: value).rejectTyped(Match.any(using: value))
+}
+
+private func invokeStaticReject<P: ExternalStaticSelfArgumentProbe>(
+    _ value: P
+) throws {
+    try type(of: value).reject(value)
+}
+
+private func invokeStaticTypedReject<P: ExternalStaticSelfArgumentProbe>(
+    _ value: P
+) throws(ExternalStaticSelfArgumentError) {
+    try type(of: value).rejectTyped(value)
 }
 
 private func configureOpaqueSelfArgumentStub(

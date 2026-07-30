@@ -324,13 +324,15 @@ as `.method(returning: .dynamicSelf)`. Optional `Self?` uses
 `.optionalDynamicSelf` with `when(returningOptionalSelf:)`, which can return a
 fresh generated value or `nil`.
 
-Automatically discovered nonthrowing instance methods may also accept direct
+Automatically discovered instance or static methods may also accept direct
 `Self` or one `Optional<Self>` layer with borrowed/default or consuming
-ownership, in synchronous or async form. Open the existential through a generic
-helper when configuring, verifying, or invoking the requirement. Explicit
-schemas cannot preserve a `Self` input through function conversion, and Spies,
-superclass-constrained existentials, throwing methods, `inout`, accessors,
-static methods, and wider wrappers remain unsupported.
+ownership. Instance methods support synchronous and async forms, including
+untyped and typed throws; static methods support synchronous nonthrowing,
+untyped-throwing, and typed-throwing forms. Open the existential through a
+generic helper when configuring, verifying, or invoking the requirement.
+Explicit schemas cannot preserve a `Self` input through function conversion,
+and Spies, superclass-constrained existentials, `inout`, accessors, async static
+methods, and wider wrappers remain unsupported.
 
 ### Construction failures
 

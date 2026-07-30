@@ -215,7 +215,7 @@ extension RuntimeStubFactory {
                 selfArguments.isEmpty == false
                 && method.origin == .automatic
                 && method.kind == .method
-                && method.receiver == .instance
+                && (method.receiver == .instance || method.isAsync == false)
                 && {
                     if case .superclassConstrained = representation {
                         return false
@@ -256,11 +256,11 @@ extension RuntimeStubFactory {
                     )
                 }
                 guard method.kind == .method,
-                    method.receiver == .instance
+                    method.receiver == .instance || method.isAsync == false
                 else {
                     throw RuntimeConstructionError.unsupportedProtocolShape(
                         protocolName: protocolName,
-                        reason: "Requirement \(method.index) contains a Self argument outside an automatic instance method. Initializers, accessors, and static Self arguments remain unsupported."
+                        reason: "Requirement \(method.index) contains a Self argument outside a supported automatic method. Initializers, accessors, and async static Self arguments remain unsupported."
                     )
                 }
             }

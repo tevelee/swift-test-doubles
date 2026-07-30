@@ -158,6 +158,41 @@ public struct RealExternalInoutSelfArgumentProbe:
     public func update(_ value: inout Self) {}
 }
 
+public enum ExternalStaticSelfArgumentError: Error, Equatable {
+    case rejected
+}
+
+public protocol ExternalStaticSelfArgumentProbe {
+    static func accept(_ value: Self)
+    static func acceptOptional(_ value: Self?)
+    static func reject(_ value: Self) throws
+    static func rejectTyped(
+        _ value: Self
+    ) throws(ExternalStaticSelfArgumentError)
+}
+
+public struct RealExternalStaticSelfArgumentProbe:
+    ExternalStaticSelfArgumentProbe
+{
+    public init() {}
+
+    public static func accept(
+        _ value: RealExternalStaticSelfArgumentProbe
+    ) {}
+
+    public static func acceptOptional(
+        _ value: RealExternalStaticSelfArgumentProbe?
+    ) {}
+
+    public static func reject(
+        _ value: RealExternalStaticSelfArgumentProbe
+    ) throws {}
+
+    public static func rejectTyped(
+        _ value: RealExternalStaticSelfArgumentProbe
+    ) throws(ExternalStaticSelfArgumentError) {}
+}
+
 public protocol ExternalNestedOptionalSelfArgumentProbe {
     func accept(_ value: Self??)
 }
