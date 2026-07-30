@@ -240,6 +240,17 @@ package struct MethodDescriptor: Sendable {
     package var typedErrorUsesIndirectResultSlot: Bool {
         effects.throwing.typedError?.usesIndirectResultSlot ?? false
     }
+    package var methodGenericParameterIndices: [Int] {
+        arguments.compactMap {
+            $0.value.convention.methodGenericParameterIndex
+        } + [result.convention.methodGenericParameterIndex].compactMap { $0 }
+    }
+    package var methodGenericParameterCount: Int {
+        Set(methodGenericParameterIndices).count
+    }
+    package var hasMethodGenericParameter: Bool {
+        methodGenericParameterIndices.isEmpty == false
+    }
     package var isThrowing: Bool { effects.throwing.isThrowing }
     package var isAsync: Bool { effects.isAsync }
     package var hasReliableThrowing: Bool { effects.throwing.isReliable }

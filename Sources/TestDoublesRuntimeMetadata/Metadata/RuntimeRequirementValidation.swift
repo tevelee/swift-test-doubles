@@ -72,27 +72,10 @@ package func runtimeMethodGenericParameterUnsupportedReason(
     for method: MethodDescriptor
 ) -> String? {
     let genericArguments = method.arguments.filter {
-        switch $0.value.convention {
-            case .methodGenericParameter, .classMethodGenericParameter:
-                true
-            default:
-                false
-        }
+        $0.value.convention.isDirectMethodGenericParameter
     }
-    let genericResultIndex: Int? =
-        if case .methodGenericParameter(let index) = method.result.convention {
-            index
-        } else if case .classMethodGenericParameter(let index) =
-            method.result.convention
-        {
-            index
-        } else if case .optionalMethodGenericParameter(let index) =
-            method.result.convention
-        {
-            index
-        } else {
-            nil
-        }
+    let genericResultIndex =
+        method.result.convention.methodGenericParameterIndex
     guard genericArguments.isEmpty == false || genericResultIndex != nil else {
         return nil
     }
@@ -105,14 +88,8 @@ package func runtimeMethodGenericParameterUnsupportedReason(
     }
 
     let indices =
-        genericArguments.compactMap { argument -> Int? in
-            switch argument.value.convention {
-                case .methodGenericParameter(let index),
-                    .classMethodGenericParameter(let index):
-                    return index
-                default:
-                    return nil
-            }
+        genericArguments.compactMap {
+            $0.value.convention.methodGenericParameterIndex
         } + [genericResultIndex].compactMap { $0 }
     guard indices.allSatisfy({ $0 >= 0 }) else {
         return "Requirement-level generic parameter indices must be non-negative."
@@ -131,8 +108,7 @@ package func runtimeMethodGenericParameterPackUnsupportedReason(
     for method: MethodDescriptor
 ) -> String? {
     let packArguments = method.arguments.filter {
-        if case .methodGenericParameterPack = $0.value.convention { return true }
-        return false
+        $0.value.convention.isMethodGenericParameterPack
     }
     guard packArguments.isEmpty == false else { return nil }
 
@@ -148,7 +124,7 @@ package func runtimeMethodGenericParameterPackUnsupportedReason(
     guard packArguments.allSatisfy({ $0.ownership == .borrowed }) else {
         return "Consuming parameter packs need ownership-aware element transport."
     }
-    guard case .methodGenericParameterPack = method.result.convention else {
+    guard method.result.convention.isMethodGenericParameterPack else {
         return nil
     }
     return "Parameter-pack results cannot be fabricated."
@@ -160,23 +136,7 @@ package func runtimeMethodGenericParameterPackUnsupportedReason(
 package func runtimeMethodGenericForwardingUnsupportedReason(
     for method: MethodDescriptor
 ) -> String? {
-    let genericArgument = method.arguments.contains {
-        switch $0.value.convention {
-            case .methodGenericParameter, .classMethodGenericParameter:
-                true
-            default:
-                false
-        }
-    }
-    let genericResult =
-        switch method.result.convention {
-            case .methodGenericParameter, .classMethodGenericParameter,
-                .optionalMethodGenericParameter:
-                true
-            default:
-                false
-        }
-    if genericArgument || genericResult,
+    if method.hasMethodGenericParameter,
         method.methodGenericConformanceWitnessCount > 0
     {
         return "Forwarding Spy does not yet replay requirement-level generic conformance witnesses."

@@ -227,6 +227,41 @@ private func useLinkedMultiplePackRequirementProbe(
         #expect(probe.generic(123) == 7)
     }
 
+    @Test func witnessConventionsCentralizeGenericTransportClassification() {
+        #expect(
+            WitnessValueConvention.methodGenericParameter(index: 1)
+                .methodGenericParameterIndex == 1
+        )
+        #expect(
+            WitnessValueConvention.classMethodGenericParameter(index: 2)
+                .methodGenericParameterIndex == 2
+        )
+        #expect(
+            WitnessValueConvention.optionalMethodGenericParameter(index: 3)
+                .methodGenericParameterIndex == 3
+        )
+        #expect(
+            WitnessValueConvention.methodGenericParameterPack(index: 4)
+                .methodGenericParameterIndex == nil
+        )
+        #expect(
+            WitnessValueConvention.methodGenericParameterPack(index: 4)
+                .methodGenericParameterPackIndex == 4
+        )
+        #expect(
+            WitnessValueConvention.methodGenericParameter(index: 1)
+                .isDirectMethodGenericParameter
+        )
+        #expect(
+            WitnessValueConvention.optionalMethodGenericParameter(index: 3)
+                .isDirectMethodGenericParameter == false
+        )
+        #expect(
+            WitnessValueConvention.concrete.isMethodGenericParameterPack
+                == false
+        )
+    }
+
     /// `Demangle::genericParameterName` prints depth-0 parameters as bare
     /// letters and deeper ones with the depth appended, so `Self` is `"A"` while
     /// a requirement's own first generic parameter is `"A1"`. Real types always

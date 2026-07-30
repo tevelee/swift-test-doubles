@@ -86,34 +86,8 @@ package struct WitnessCallTransportPlan: Sendable {
         // Construction validates that indices are a non-negative dense range.
         // Counting distinct values avoids arithmetic on an untrusted explicit
         // index before that boundary can reject malformed schemas.
-        let argumentGenericParameterIndices =
-            method.arguments.compactMap { argument -> Int? in
-                switch argument.value.convention {
-                    case .methodGenericParameter(let index),
-                        .classMethodGenericParameter(let index):
-                        return index
-                    default:
-                        return nil
-                }
-            }
-        let resultGenericParameterIndex: Int? =
-            if case .methodGenericParameter(let index) = method.result.convention {
-                index
-            } else if case .classMethodGenericParameter(let index) =
-                method.result.convention
-            {
-                index
-            } else if case .optionalMethodGenericParameter(let index) =
-                method.result.convention
-            {
-                index
-            } else {
-                nil
-            }
-        let methodGenericParameterCount = Set(
-            argumentGenericParameterIndices
-                + [resultGenericParameterIndex].compactMap { $0 }
-        ).count
+        let methodGenericParameterCount =
+            method.methodGenericParameterCount
         let typedErrorWordCount = method.typedErrorUsesIndirectResultSlot ? 1 : 0
         let locationPlan = CallFrameArgumentLocationPlan(
             arguments: method.arguments.map {

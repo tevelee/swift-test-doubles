@@ -73,6 +73,43 @@ package enum WitnessValueConvention: Equatable, Sendable {
     case methodGenericParameterPack(index: Int)
 }
 
+extension WitnessValueConvention {
+    /// The metadata-word index for an ordinary requirement-level generic
+    /// parameter, including class-constrained and optional-result forms.
+    package var methodGenericParameterIndex: Int? {
+        switch self {
+            case .methodGenericParameter(let index),
+                .classMethodGenericParameter(let index),
+                .optionalMethodGenericParameter(let index):
+                index
+            default:
+                nil
+        }
+    }
+
+    /// Whether an argument is transported as one ordinary caller-chosen
+    /// generic value rather than as a parameter-pack triple.
+    package var isDirectMethodGenericParameter: Bool {
+        switch self {
+            case .methodGenericParameter, .classMethodGenericParameter:
+                true
+            default:
+                false
+        }
+    }
+
+    package var methodGenericParameterPackIndex: Int? {
+        guard case .methodGenericParameterPack(let index) = self else {
+            return nil
+        }
+        return index
+    }
+
+    package var isMethodGenericParameterPack: Bool {
+        methodGenericParameterPackIndex != nil
+    }
+}
+
 package enum WitnessArgumentOwnership: String, Equatable, Sendable {
     case borrowed
     case owned
