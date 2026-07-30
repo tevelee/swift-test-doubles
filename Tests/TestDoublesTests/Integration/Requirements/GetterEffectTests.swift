@@ -116,6 +116,21 @@ struct RealTypedThrowingGetterProbe: TypedThrowingGetterProbe {
     }
 }
 
+struct FailingTypedThrowingGetterProbe: TypedThrowingGetterProbe {
+    var value: Int {
+        get throws(TypedThrowingGetterProbeError) {
+            throw TypedThrowingGetterProbeError(code: 45)
+        }
+    }
+
+    var asynchronousValue: String {
+        get async throws(TypedThrowingGetterProbeError) {
+            await Task.yield()
+            throw TypedThrowingGetterProbeError(code: 46)
+        }
+    }
+}
+
 @Suite struct GetterEffectTests {
     @Test func asyncGetterEffectsRequireExplicitConstruction() async throws {
         _ = RealEffectfulGetterProbe()
@@ -422,6 +437,45 @@ struct RealTypedThrowingGetterProbe: TypedThrowingGetterProbe {
             asynchronous.typedErrorType
                 == TypedThrowingGetterProbeError.self
         )
+    }
+
+    @Test func typedThrowingGetterHintsSupportForwardingSpies() async throws {
+        typealias Probe = any TypedThrowingGetterProbe
+        let successSpy = try Spy<Probe>(
+            forwardingTo: RealTypedThrowingGetterProbe(),
+            getterEffects:
+                .typedThrowing(TypedThrowingGetterProbeError.self),
+            .typedThrowing(TypedThrowingGetterProbeError.self)
+        )
+        let successful: Probe = successSpy()
+
+        #expect(try successful.value == 1)
+        #expect(try await successful.asynchronousValue == "real")
+        successSpy.verify { try $0.value }
+        await successSpy.verify { try await $0.asynchronousValue }
+
+        let failureSpy = try Spy<Probe>(
+            forwardingTo: FailingTypedThrowingGetterProbe(),
+            getterEffects:
+                .typedThrowing(TypedThrowingGetterProbeError.self),
+            .typedThrowing(TypedThrowingGetterProbeError.self)
+        )
+        let failing: Probe = failureSpy()
+
+        let synchronousError = try #require(
+            #expect(throws: TypedThrowingGetterProbeError.self) {
+                _ = try failing.value
+            }
+        )
+        #expect(synchronousError.code == 45)
+        let asynchronousError = try #require(
+            await #expect(throws: TypedThrowingGetterProbeError.self) {
+                _ = try await failing.asynchronousValue
+            }
+        )
+        #expect(asynchronousError.code == 46)
+        failureSpy.verify { try $0.value }
+        await failureSpy.verify { try await $0.asynchronousValue }
     }
 
     @Test func getterHintCountsAreExact() {

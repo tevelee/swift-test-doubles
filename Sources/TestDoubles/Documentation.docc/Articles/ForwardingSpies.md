@@ -123,8 +123,9 @@ let spy = try Spy<any CachedProfile & NetworkProfile>(
 
 The hints affect calling-convention discovery only. Unmatched calls still use
 the target implementation, and an override still uses the normal `when` API.
-Typed-throwing getters cannot be represented by the forwarding trampoline; use
-``ManualStub`` or a hand-written spy for that shape.
+Use `.typedThrowing(Failure.self)` for a typed-throwing getter. The forwarding
+trampoline preserves both successful results and the target's exact typed
+failure.
 
 ### Supported boundary
 
@@ -133,8 +134,8 @@ Forwarding uses the same runtime-generated existential and platform boundary as
 async-throwing instance and static methods; getters, setters; and read-write
 property and subscript mutation when their arguments fit the supported register
 transport. This includes inherited requirements and concretely bound
-associated-type values. Getter effects cover ordinary untyped `throws`;
-typed-throwing getters remain unsupported.
+associated-type values. Getter effect hints cover nonthrowing, ordinary
+throwing, and typed-throwing accessors.
 
 Ordinary instance methods may also forward concrete, copyable
 SIMD values when each value occupies one through four complete vector registers
