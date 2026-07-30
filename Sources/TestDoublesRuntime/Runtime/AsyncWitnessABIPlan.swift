@@ -114,8 +114,8 @@ private func unsupportedAsyncStubIngressReason(
     }
     var expectedStackOffset = 0
     for (argument, location) in stackArguments {
-        let isCompleteIndependentWord =
-            isCompleteIndependentAsyncStackWord(argument)
+        let independentValueByteCount =
+            supportedIndependentAsyncStackValueByteCount(argument)
         let isProvenSingleDependentIndirectWord =
             transport.decodedStackByteCount == wordByteCount
             && stackArguments.count == 1
@@ -126,12 +126,15 @@ private func unsupportedAsyncStubIngressReason(
                 }
                 return false
             }()
+        let expectedValueByteCount =
+            independentValueByteCount
+            ?? (isProvenSingleDependentIndirectWord ? wordByteCount : nil)
         guard
-            isCompleteIndependentWord || isProvenSingleDependentIndirectWord,
+            let expectedValueByteCount,
             case .stack(let byteOffset) = location.storage,
             byteOffset == expectedStackOffset,
             location.valueOffset == 0,
-            location.byteCount == wordByteCount
+            location.byteCount == expectedValueByteCount
         else {
             return unsupportedAsyncStubIngressDiagnostic(
                 architecture: architecture
@@ -160,9 +163,9 @@ private func unsupportedAsyncStubIngressDiagnostic(
     architecture: RuntimeArchitecture
 ) -> String {
     "Its caller-stack ingress on \(architecture) is not a sequence of complete, "
-        + "independent eight-byte general-purpose or floating-point arguments "
-        + "supported by the async Stub trampoline. Split, padded, smaller "
-        + "floating-point, vector, indirect, "
+        + "independent eight-byte general-purpose, Float, or Double arguments "
+        + "supported by the async Stub trampoline. Split, otherwise padded, "
+        + "smaller floating-point, vector, indirect, "
         + "dependent, accessor, and wider typed-error shapes remain unsupported. "
         + "Use compatible values or a hand-written test double."
 }
@@ -240,9 +243,9 @@ private func asyncWitnessStackPlan(
 /// Returns the bounded outgoing async forwarding stack plan, or `nil` when a
 /// requirement needs a different physical shape.
 ///
-/// This deliberately accepts at most eight complete concrete eight-byte values
-/// that spill consecutively from the general-purpose or floating-point bank.
-/// Split, padded, smaller floating-point, indirect, dependent, vector,
+/// This deliberately accepts at most eight complete concrete general-purpose,
+/// `Float`, or `Double` values that spill consecutively from their register
+/// banks. Split, otherwise padded, smaller floating-point, indirect, dependent, vector,
 /// accessor, and typed-error shapes remain fail-closed.
 package func asyncForwardingStackPlan(
     for method: MethodDescriptor,
@@ -272,14 +275,16 @@ package func asyncForwardingStackPlan(
         }
         guard stackLocations.isEmpty == false else { continue }
         let argument = method.arguments[argumentIndex]
+        let expectedValueByteCount =
+            supportedIndependentAsyncStackValueByteCount(argument)
         guard locations.count == 1,
             stackLocations.count == 1,
             let location = stackLocations.first,
+            let expectedValueByteCount,
             case .stack(let byteOffset) = location.storage,
             byteOffset == expectedStackOffset,
             location.valueOffset == 0,
-            location.byteCount == wordByteCount,
-            isCompleteIndependentAsyncStackWord(argument)
+            location.byteCount == expectedValueByteCount
         else {
             return nil
         }
@@ -338,27 +343,29 @@ package func unsupportedAsyncForwardingEgressDiagnostic(
     architecture: RuntimeArchitecture
 ) -> String {
     "Its target-stack egress on \(architecture) is not a sequence of one through "
-        + "eight complete, independent eight-byte general-purpose or "
-        + "floating-point arguments "
-        + "followed by dynamic-Self metadata and its witness table. Split, padded, "
-        + "smaller floating-point, vector, indirect, dependent, accessor, static, and "
+        + "eight complete, independent eight-byte general-purpose, Float, or "
+        + "Double arguments followed by dynamic-Self metadata and its witness "
+        + "table. Split, otherwise padded, smaller floating-point, vector, "
+        + "indirect, dependent, accessor, static, and "
         + "typed-error shapes remain unsupported. Use compatible values or a "
         + "hand-written test double."
 }
 
-private func isCompleteIndependentAsyncStackWord(
+private func supportedIndependentAsyncStackValueByteCount(
     _ argument: WitnessArgumentDescriptor
-) -> Bool {
-    guard argument.value.dependency.isAssociatedTypeDependent == false,
-        ValueLayoutInfo(reflecting: argument.value.type).size
-            == MemoryLayout<UInt>.size
-    else {
-        return false
-    }
+) -> Int? {
+    guard argument.value.dependency.isAssociatedTypeDependent == false
+    else { return nil }
+    let byteCount = ValueLayoutInfo(reflecting: argument.value.type).size
     switch argument.value.layout {
-        case .integer(words: 1), .floatingPoint:
-            return true
+        case .integer(words: 1)
+        where byteCount == MemoryLayout<UInt>.size:
+            return byteCount
+        case .floatingPoint
+        where byteCount == MemoryLayout<Float>.size
+            || byteCount == MemoryLayout<Double>.size:
+            return byteCount
         default:
-            return false
+            return nil
     }
 }

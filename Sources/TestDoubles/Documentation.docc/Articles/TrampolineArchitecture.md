@@ -233,7 +233,7 @@ completion trampoline. Split, padded, floating-point, vector, indirect,
 dependent, accessor, and wider typed-error stack shapes remain fail-closed.
 
 The bounded forwarding counterpart accepts one through eight complete concrete
-eight-byte general-purpose or `Double` spills for an instance method,
+eight-byte general-purpose, `Float`, or `Double` spills for an instance method,
 untyped-throwing or not, when target metadata and its witness table follow on
 the same stack path. Synchronous preparation copies every word into retained
 forwarding state before the outer entry removes its caller stack. The async
@@ -244,9 +244,10 @@ the compiler-planned 16-byte-aligned adjustment, preserves it at offset zero,
 and writes the logical sequence from offset eight. The target's
 compiler-generated witness thunk performs the only transition to the
 direct-method continuation stack; forwarding completion does not adjust it
-again. A ninth spill, typed-error destination, split or padded value, smaller
-floating-point value, SIMD, indirect or dependent argument, and async accessor
-remain outside this slice.
+again. `Float` contributes its four-byte payload in the low half of one
+eight-byte stack word. A ninth spill, typed-error destination, split or
+otherwise padded value, smaller floating-point value, SIMD, indirect or
+dependent argument, and async accessor remain outside this slice.
 
 After matcher evaluation, dispatch enters one recorder linearization point that
 atomically commits matcher captures, appends the call, and reserves the next
@@ -300,8 +301,8 @@ The implementation has focused arm64 and x86_64 coverage for integer and
 floating-point registers, synchronous stack arguments, mixed aggregates,
 indirect results, throwing calls, bounded one-through-four-register SIMD values
 in both stubs and synchronous forwarding spies,
-async continuations, multiword complete-GP/`Double` async Stub ingress, bounded
-one-word through eight-word async Spy forwarding, and owned setter inputs. Direct concrete
+async continuations, multiword complete-GP/`Float`/`Double` async Stub ingress,
+bounded one-word through eight-word async Spy forwarding, and owned setter inputs. Direct concrete
 native function values use canonical function metadata plus compiler-emitted
 partial-apply reabstraction thunks found in the linked client or a bounded
 runtime-built arm64/x86_64 bridge. Arguments are wrapped from direct witness ABI

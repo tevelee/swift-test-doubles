@@ -506,28 +506,30 @@ checkouts. The README installation section lists the complete supported platform
 policy.
 
 An async Stub requirement may use the architecture's complete argument-register
-banks plus a sequence of complete, independent eight-byte general-purpose or
-`Double` stack arguments. The entry trampoline decodes every spilled word while
-the caller's invocation frame is still live, before an async handler can
-suspend. Arguments are copied into the retained dispatch state; indirect result
-and the already proven single typed-error destination pointer refer to
-caller-owned async storage and are retained separately. Split, padded,
-smaller floating-point, vector, indirect, dependent, accessor, and wider
-typed-error stack shapes remain fail-closed. Before either an immediate return
-or a genuine suspension, the entry bridge removes the compiler-planned,
-ABI-aligned outgoing stack reservation exactly once.
+banks plus a sequence of complete, independent eight-byte general-purpose,
+`Float`, or `Double` stack arguments. A spilled `Float` occupies one ABI stack
+word with its four-byte payload in the low half. The entry trampoline decodes
+every spilled word while the caller's invocation frame is still live, before an
+async handler can suspend. Arguments are copied into the retained dispatch
+state; indirect result and the already proven single typed-error destination
+pointer refer to caller-owned async storage and are retained separately. Split,
+otherwise padded, smaller floating-point, vector, indirect, dependent,
+accessor, and wider typed-error stack shapes remain fail-closed. Before either
+an immediate return or a genuine suspension, the entry bridge removes the
+compiler-planned, ABI-aligned outgoing stack reservation exactly once.
 
 A forwarding ``Spy`` supports the corresponding narrow outgoing path for an
 async instance method, untyped-throwing or not, when one through eight complete
-concrete eight-byte general-purpose or `Double` values spill consecutively and
-the target metadata/witness-table pair follows them on the same stack path.
+concrete eight-byte general-purpose, `Float`, or `Double` values spill
+consecutively and the target metadata/witness-table pair follows them on the
+same stack path.
 Preparation copies every word before the outer entry frame disappears. The
 forwarding state then creates Swift 6.3's target witness stack area in
 declaration order from those values, target metadata, and witness table,
 including x86_64's live implicit slot. The target witness transfers that area
 to its continuation boundary exactly once. Indirect results retain the caller's
-result storage independently. A typed throw, a ninth spill, split or padded
-values, smaller floating-point or vector spills, indirect or
+result storage independently. A typed throw, a ninth spill, split or otherwise
+padded values, smaller floating-point or vector spills, indirect or
 associated-dependent spilled arguments, and async accessors remain fail-closed.
 Typed closure adapters keep their independent boundary.
 
