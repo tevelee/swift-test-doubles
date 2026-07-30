@@ -517,10 +517,10 @@ private func methodGenericParameterPackName(_ spelling: String) -> String? {
     return String(expansion.dropFirst("repeat ".count))
 }
 
-/// The fabricated witness reserves metadata words only for unconstrained,
-/// copyable, escapable method generic parameters. Any extra generic signature
-/// requirement can change the hidden witness ABI or permit storage the
-/// recorder cannot retain, so reject it before transport planning.
+/// The fabricated witness reserves metadata words for copyable, escapable
+/// method generic parameters. Protocol constraints append witness-table words
+/// after that metadata; recording does not need to inspect them, so the call
+/// frame may safely leave those trailing words opaque.
 private func unsupportedRequirementLevelGenericSignatureReason(
     in demangled: String,
     arguments: [DemangledTypeSyntax]
@@ -554,7 +554,14 @@ private func unsupportedRequirementLevelGenericSignatureReason(
         if demangled.contains("\(parameter): AnyObject") {
             return "Class-constrained parameters use a direct reference ABI, which is not implemented."
         }
-        return "Protocol, same-type, and layout constraints can add hidden metadata or witness arguments, which are not implemented."
+        if demangled.contains("\(parameter) ==")
+            || demangled.contains("where \(parameter) ==")
+        {
+            return "Same-type constraints can change generic metadata identity and are not implemented."
+        }
+        // Ordinary protocol constraints preserve the indirect value plus
+        // metadata ABI already decoded below. Their additional conformance
+        // witnesses follow the metadata and are irrelevant to value capture.
     }
     return nil
 }

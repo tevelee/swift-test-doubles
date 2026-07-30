@@ -126,19 +126,41 @@ import TestDoublesFixtures
         }
     }
 
-    @Test func protocolConstrainedGenericParameterFailsClosed() {
-        expectUnsupportedProtocolShape(
-            containing: "Protocol, same-type, and layout constraints"
-        ) {
-            _ = try Stub<any ProtocolConstrainedGenericRequirementProbe>()
+    @Test func protocolConstrainedGenericParameterIsRecorded() throws {
+        let value = ExternalGenericConstraintValue()
+        let stub =
+            try Stub<
+                any ProtocolConstrainedGenericRequirementProbe
+            >()
+        stub.when {
+            $0.generic(Match.any(using: value))
+        }.thenReturn(())
+
+        let probe: any ProtocolConstrainedGenericRequirementProbe =
+            stub()
+        probe.generic(value)
+
+        stub.verify {
+            $0.generic(Match.any(using: value))
         }
     }
 
-    @Test func multipleGenericConstraintsFailClosed() {
-        expectUnsupportedProtocolShape(
-            containing: "Protocol, same-type, and layout constraints"
-        ) {
-            _ = try Stub<any MultipleConstrainedGenericRequirementProbe>()
+    @Test func multipleProtocolConstraintsAreRecorded() throws {
+        let value = ExternalGenericConstraintValue()
+        let stub =
+            try Stub<
+                any MultipleConstrainedGenericRequirementProbe
+            >()
+        stub.when {
+            $0.generic(Match.any(using: value))
+        }.thenReturn(())
+
+        let probe: any MultipleConstrainedGenericRequirementProbe =
+            stub()
+        probe.generic(value)
+
+        stub.verify {
+            $0.generic(Match.any(using: value))
         }
     }
 

@@ -230,7 +230,11 @@ public struct ExternalGenericConstraintValue:
     ExternalFirstGenericConstraint,
     ExternalSecondGenericConstraint
 {
-    public init() {}
+    public let value: Int
+
+    public init(value: Int = 0) {
+        self.value = value
+    }
 }
 
 public protocol ProtocolConstrainedGenericRequirementProbe {

@@ -95,6 +95,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Main-actor closure-double aliases expose checked `@MainActor @Sendable`
   function views across synchronous, asynchronous, throwing, and typed-throws
   variants.
+- Automatic runtime stubs record methods whose generic parameters carry one
+  or more protocol constraints while leaving their trailing conformance
+  witnesses opaque.
 
 ### Fixed
 
