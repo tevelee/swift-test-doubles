@@ -380,12 +380,13 @@ SIMD generic metadata directly (`SIMD2` through `SIMD64`, over any concrete
 required just to name a SIMD type. SIMD values still cannot be synthesized as
 matcher or result placeholders, so pass them through `Match.any(using:)` and
 `when(returning:_:)` when recording needs a placeholder.
-Forwarding spies support that same register-only SIMD boundary for ordinary
-instance methods, including asynchronous calls, mixed scalar/vector arguments,
-and all eight vector argument registers. Smaller or padded vectors, values
-needing more than four vector registers, a vector-register spill, nested or
-associated-dependent SIMD, accessors, initializers, and static requirements
-remain fail-closed.
+Forwarding spies support that same SIMD boundary for ordinary instance methods,
+including asynchronous calls, mixed scalar/vector arguments, and all eight
+vector argument registers. Synchronous forwarding remains register-only. The
+bounded async stack path also accepts complete 16-byte, one-register SIMD
+spills as described below. Smaller or padded vectors, values needing more than
+four vector registers, wider vector spills, nested or associated-dependent
+SIMD, accessors, initializers, and static requirements remain fail-closed.
 In particular, `SIMD2<Float>` is intentionally unsupported because Swift 6.3
 uses different physical argument shapes on arm64 and x86_64.
 Automatically discovered or explicitly described typed-throwing methods support
@@ -507,29 +508,31 @@ policy.
 
 An async Stub requirement may use the architecture's complete argument-register
 banks plus a sequence of complete, independent eight-byte general-purpose,
-`Float`, or `Double` stack arguments. A spilled `Float` occupies one ABI stack
-word with its four-byte payload in the low half. The entry trampoline decodes
-every spilled word while the caller's invocation frame is still live, before an
-async handler can suspend. Arguments are copied into the retained dispatch
-state; indirect result and the already proven single typed-error destination
-pointer refer to caller-owned async storage and are retained separately. Split,
-otherwise padded, smaller floating-point, vector, indirect, dependent,
-accessor, and wider typed-error stack shapes remain fail-closed. Before either
-an immediate return or a genuine suspension, the entry bridge removes the
-compiler-planned, ABI-aligned outgoing stack reservation exactly once.
+`Float`, `Double`, or complete 16-byte, one-register SIMD stack arguments. A
+spilled `Float` occupies one ABI stack word with its four-byte payload in the
+low half; a SIMD value occupies two consecutive words. The entry trampoline
+decodes every spilled value while the caller's invocation frame is still live,
+before an async handler can suspend. Arguments are copied into the retained
+dispatch state; indirect result and the already proven single typed-error
+destination pointer refer to caller-owned async storage and are retained
+separately. Split, otherwise padded, smaller floating-point, wider-vector,
+indirect, dependent, accessor, and wider typed-error stack shapes remain
+fail-closed. Before either an immediate return or a genuine suspension, the
+entry bridge removes the compiler-planned, ABI-aligned outgoing stack
+reservation exactly once.
 
 A forwarding ``Spy`` supports the corresponding narrow outgoing path for an
-async instance method, untyped-throwing or not, when one through eight complete
-concrete eight-byte general-purpose, `Float`, or `Double` values spill
-consecutively and the target metadata/witness-table pair follows them on the
-same stack path.
+async instance method, untyped-throwing or not, with up to eight retained stack
+words contributed by complete concrete eight-byte general-purpose, `Float`,
+`Double`, or one-register SIMD values. The values must spill consecutively, and
+the target metadata/witness-table pair must follow them on the same stack path.
 Preparation copies every word before the outer entry frame disappears. The
 forwarding state then creates Swift 6.3's target witness stack area in
 declaration order from those values, target metadata, and witness table,
 including x86_64's live implicit slot. The target witness transfers that area
 to its continuation boundary exactly once. Indirect results retain the caller's
-result storage independently. A typed throw, a ninth spill, split or otherwise
-padded values, smaller floating-point or vector spills, indirect or
+result storage independently. A typed throw, a ninth retained word, split or
+otherwise padded values, smaller floating-point or wider-vector spills, indirect or
 associated-dependent spilled arguments, and async accessors remain fail-closed.
 Typed closure adapters keep their independent boundary.
 

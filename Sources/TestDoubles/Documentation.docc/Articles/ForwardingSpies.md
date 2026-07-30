@@ -141,19 +141,21 @@ SIMD values when each value occupies one through four complete vector registers
 on both arm64 and x86_64. Mixed scalar and vector arguments and all eight vector
 argument registers are supported for synchronous and asynchronous calls. The
 forwarding bridge preserves all lane bits in arguments and results. Smaller,
-padded, more-than-four-register, nested, and dependent SIMD shapes, plus any
-vector spill, remain fail-closed.
+padded, more-than-four-register, nested, and dependent SIMD shapes remain
+fail-closed. Synchronous forwarding remains register-only; the async stack path
+additionally supports complete 16-byte, one-register vector spills.
 
 Ordinary async instance methods, untyped-throwing or not, may forward one
-through eight consecutive complete eight-byte general-purpose, `Float`, or
-`Double` stack arguments when the target's dynamic-Self metadata and witness
-table follow on that same stack path. The bridge copies the words before
+through eight consecutive stack words contributed by complete eight-byte
+general-purpose, `Float`, `Double`, or one-register SIMD arguments when the
+target's dynamic-Self metadata and witness table follow on that same stack
+path. A SIMD spill contributes two words. The bridge copies the words before
 suspension, then places them in declaration order before that hidden pair.
 Immediate and suspending targets, untyped errors, and indirect result storage
 share this boundary on arm64 and x86_64. A spilled `Float` uses the low four
 bytes of its eight-byte stack slot. A ninth word and split, otherwise padded,
-smaller floating-point, vector, indirect-argument, dependent, accessor, static,
-and typed-error stack shapes remain fail-closed.
+smaller floating-point, wider-vector, indirect-argument, dependent, accessor,
+static, and typed-error stack shapes remain fail-closed.
 
 Compound assignment and `inout` access use the target's `_modify` coroutine.
 Both legacy direct witnesses and descriptor-based public Swift 6.3 witnesses

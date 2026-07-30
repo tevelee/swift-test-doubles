@@ -140,7 +140,9 @@ private func unsupportedAsyncStubIngressReason(
                 architecture: architecture
             )
         }
-        expectedStackOffset += wordByteCount
+        expectedStackOffset += asyncStackSlotByteCount(
+            forValueByteCount: expectedValueByteCount
+        )
     }
     guard expectedStackOffset == transport.decodedStackByteCount else {
         return unsupportedAsyncStubIngressDiagnostic(
@@ -163,9 +165,10 @@ private func unsupportedAsyncStubIngressDiagnostic(
     architecture: RuntimeArchitecture
 ) -> String {
     "Its caller-stack ingress on \(architecture) is not a sequence of complete, "
-        + "independent eight-byte general-purpose, Float, or Double arguments "
+        + "independent eight-byte general-purpose, Float, Double, or 16-byte "
+        + "single-register SIMD arguments "
         + "supported by the async Stub trampoline. Split, otherwise padded, "
-        + "smaller floating-point, vector, indirect, "
+        + "smaller floating-point, wider-vector, indirect, "
         + "dependent, accessor, and wider typed-error shapes remain unsupported. "
         + "Use compatible values or a hand-written test double."
 }
@@ -244,9 +247,10 @@ private func asyncWitnessStackPlan(
 /// requirement needs a different physical shape.
 ///
 /// This deliberately accepts at most eight complete concrete general-purpose,
-/// `Float`, or `Double` values that spill consecutively from their register
-/// banks. Split, otherwise padded, smaller floating-point, indirect, dependent, vector,
-/// accessor, and typed-error shapes remain fail-closed.
+/// `Float`, `Double`, or one-register concrete SIMD values that spill
+/// consecutively from their register banks. Split, otherwise padded, smaller
+/// floating-point, indirect, dependent, wider-vector, accessor, and typed-error
+/// shapes remain fail-closed.
 package func asyncForwardingStackPlan(
     for method: MethodDescriptor,
     architecture: RuntimeArchitecture
@@ -288,14 +292,18 @@ package func asyncForwardingStackPlan(
         else {
             return nil
         }
-        visibleArgumentLocations.append(location)
+        visibleArgumentLocations.append(
+            contentsOf: asyncForwardingWordLocations(for: location)
+        )
         guard
             visibleArgumentLocations.count
                 <= AsyncForwardingStackPlan.maximumVisibleStackWordCount
         else {
             return nil
         }
-        expectedStackOffset += wordByteCount
+        expectedStackOffset += asyncStackSlotByteCount(
+            forValueByteCount: expectedValueByteCount
+        )
     }
 
     guard visibleArgumentLocations.isEmpty == false,
@@ -342,10 +350,12 @@ package func asyncForwardingStackPlan(
 package func unsupportedAsyncForwardingEgressDiagnostic(
     architecture: RuntimeArchitecture
 ) -> String {
-    "Its target-stack egress on \(architecture) is not a sequence of one through "
-        + "eight complete, independent eight-byte general-purpose, Float, or "
-        + "Double arguments followed by dynamic-Self metadata and its witness "
-        + "table. Split, otherwise padded, smaller floating-point, vector, "
+    "Its target-stack egress on \(architecture) is not one through eight "
+        + "complete stack words contributed by independent eight-byte "
+        + "general-purpose, Float, Double, or one-register concrete SIMD "
+        + "arguments followed by "
+        + "dynamic-Self metadata and its witness table. Split, otherwise "
+        + "padded, smaller floating-point, wider-vector, "
         + "indirect, dependent, accessor, static, and "
         + "typed-error shapes remain unsupported. Use compatible values or a "
         + "hand-written test double."
@@ -365,7 +375,49 @@ private func supportedIndependentAsyncStackValueByteCount(
         where byteCount == MemoryLayout<Float>.size
             || byteCount == MemoryLayout<Double>.size:
             return byteCount
+        case .aggregate(let parts)
+        where byteCount == 2 * MemoryLayout<UInt>.size
+            && concreteSIMDRegisterByteCount(for: argument.value.type)
+                == byteCount
+            && parts.count == 1
+            && parts[0].register == .fp
+            && parts[0].offset == 0
+            && parts[0].byteCount == byteCount:
+            return byteCount
         default:
             return nil
+    }
+}
+
+private func asyncStackSlotByteCount(
+    forValueByteCount byteCount: Int
+) -> Int {
+    let wordByteCount = MemoryLayout<UInt>.size
+    return max(
+        wordByteCount,
+        (byteCount + wordByteCount - 1) / wordByteCount * wordByteCount
+    )
+}
+
+private func asyncForwardingWordLocations(
+    for location: CallFrameArgumentLocation
+) -> [CallFrameArgumentLocation] {
+    guard location.byteCount > MemoryLayout<UInt>.size else {
+        return [location]
+    }
+    guard case .stack(let byteOffset) = location.storage,
+        location.byteCount == 2 * MemoryLayout<UInt>.size
+    else {
+        preconditionFailure(
+            "[TestDoubles] An async forwarding stack value is not word-addressable."
+        )
+    }
+    return (0 ..< 2).map { word in
+        let wordOffset = word * MemoryLayout<UInt>.size
+        return CallFrameArgumentLocation(
+            storage: .stack(byteOffset: byteOffset + wordOffset),
+            valueOffset: location.valueOffset + wordOffset,
+            byteCount: MemoryLayout<UInt>.size
+        )
     }
 }

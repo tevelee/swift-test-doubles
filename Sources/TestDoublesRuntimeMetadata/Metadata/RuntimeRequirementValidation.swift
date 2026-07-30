@@ -50,10 +50,11 @@ package func runtimeSIMDUnsupportedReason(
             transport.argumentLocations
         ) where argument.value.type is any SIMD.Type {
             guard
-                locations.allSatisfy({
-                    if case .vectorRegister = $0.storage { return true }
-                    return false
-                })
+                method.isAsync
+                    || locations.allSatisfy({
+                        if case .vectorRegister = $0.storage { return true }
+                        return false
+                    })
             else {
                 return "Its vector argument spills outside the captured register bank on \(architecture)."
             }

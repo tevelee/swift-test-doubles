@@ -71,6 +71,114 @@ struct AsyncForwardingStackPlanTests {
         )
     }
 
+    @Test func splitsSIMDSpillsIntoVisibleWordsUpToTheEightWordLimit() {
+        let method = MethodDescriptor(
+            kind: .method,
+            name: "inspect",
+            index: 0,
+            argumentTypes:
+                Array(repeating: Int.self, count: 8)
+                + Array(repeating: SIMD4<Float>.self, count: 11),
+            returnType: UInt64.self,
+            isAsync: true
+        )
+
+        #expect(
+            asyncForwardingStackPlan(
+                for: method,
+                architecture: .arm64
+            )
+                == AsyncForwardingStackPlan(
+                    visibleArgumentLocations: [
+                        .init(
+                            storage: .stack(byteOffset: 0),
+                            valueOffset: 0,
+                            byteCount: 8
+                        ),
+                        .init(
+                            storage: .stack(byteOffset: 8),
+                            valueOffset: 8,
+                            byteCount: 8
+                        ),
+                        .init(
+                            storage: .stack(byteOffset: 16),
+                            valueOffset: 0,
+                            byteCount: 8
+                        ),
+                        .init(
+                            storage: .stack(byteOffset: 24),
+                            valueOffset: 8,
+                            byteCount: 8
+                        ),
+                        .init(
+                            storage: .stack(byteOffset: 32),
+                            valueOffset: 0,
+                            byteCount: 8
+                        ),
+                        .init(
+                            storage: .stack(byteOffset: 40),
+                            valueOffset: 8,
+                            byteCount: 8
+                        )
+                    ],
+                    outgoingStackByteCount: 64,
+                    completionStackAdjustmentByteCount: 0
+                )
+        )
+        #expect(
+            asyncForwardingStackPlan(
+                for: method,
+                architecture: .x86_64
+            )
+                == AsyncForwardingStackPlan(
+                    visibleArgumentLocations: [
+                        .init(
+                            storage: .stack(byteOffset: 0),
+                            valueOffset: 0,
+                            byteCount: 8
+                        ),
+                        .init(
+                            storage: .stack(byteOffset: 8),
+                            valueOffset: 0,
+                            byteCount: 8
+                        ),
+                        .init(
+                            storage: .stack(byteOffset: 16),
+                            valueOffset: 0,
+                            byteCount: 8
+                        ),
+                        .init(
+                            storage: .stack(byteOffset: 24),
+                            valueOffset: 8,
+                            byteCount: 8
+                        ),
+                        .init(
+                            storage: .stack(byteOffset: 32),
+                            valueOffset: 0,
+                            byteCount: 8
+                        ),
+                        .init(
+                            storage: .stack(byteOffset: 40),
+                            valueOffset: 8,
+                            byteCount: 8
+                        ),
+                        .init(
+                            storage: .stack(byteOffset: 48),
+                            valueOffset: 0,
+                            byteCount: 8
+                        ),
+                        .init(
+                            storage: .stack(byteOffset: 56),
+                            valueOffset: 8,
+                            byteCount: 8
+                        )
+                    ],
+                    outgoingStackByteCount: 80,
+                    completionStackAdjustmentByteCount: 0
+                )
+        )
+    }
+
     private func method(
         argumentCount: Int,
         typedError: (any Error.Type)? = nil

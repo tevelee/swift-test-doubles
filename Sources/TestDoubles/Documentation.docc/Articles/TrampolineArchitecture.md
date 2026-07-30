@@ -218,25 +218,28 @@ For an async call, the entry trampoline preserves the caller continuation,
 creates a Swift task continuation around recorder dispatch, and resumes through
 an architecture-specific continuation trampoline after recorder dispatch
 completes. The ingress path also accepts a sequence of complete, independent
-eight-byte general-purpose arguments after the arm64 or x86_64 register banks
-are exhausted. The entry frame points at those words only while synchronous
-preparation is running, so the decoder copies every value before returning a
-retained suspension state. The state never reads the saved stack pointer. The
-Swift handler returns the complete entry-SP-to-continuation-SP adjustment
-alongside that state. arm64 rounds the logical stack area up to its 16-byte
-boundary; x86_64 rounds down because its captured first-stack-argument address
-follows an implicit eight-byte async ABI slot. Before x86_64 advances the stack
-pointer, it carries that live slot to the resumed continuation stack pointer
-just as a compiler-generated witness thunk does. Assembly applies the
-adjustment once on both immediate and suspending entry exits, never from the
-completion trampoline. Split, padded, floating-point, vector, indirect,
-dependent, accessor, and wider typed-error stack shapes remain fail-closed.
+eight-byte general-purpose, `Float`, `Double`, or 16-byte one-register SIMD
+arguments after the arm64 or x86_64 register banks are exhausted. The entry
+frame points at those words only while synchronous preparation is running, so
+the decoder copies every value before returning a retained suspension state.
+The state never reads the saved stack pointer. The Swift handler returns the
+complete entry-SP-to-continuation-SP adjustment alongside that state. arm64
+rounds the logical stack area up to its 16-byte boundary; x86_64 rounds down
+because its captured first-stack-argument address follows an implicit
+eight-byte async ABI slot. Before x86_64 advances the stack pointer, it carries
+that live slot to the resumed continuation stack pointer just as a
+compiler-generated witness thunk does. Assembly applies the adjustment once on
+both immediate and suspending entry exits, never from the completion
+trampoline. Split, otherwise padded, smaller floating-point, wider-vector,
+indirect, dependent, accessor, and wider typed-error stack shapes remain
+fail-closed.
 
-The bounded forwarding counterpart accepts one through eight complete concrete
-eight-byte general-purpose, `Float`, or `Double` spills for an instance method,
-untyped-throwing or not, when target metadata and its witness table follow on
-the same stack path. Synchronous preparation copies every word into retained
-forwarding state before the outer entry removes its caller stack. The async
+The bounded forwarding counterpart accepts one through eight stack words
+contributed by complete concrete eight-byte general-purpose, `Float`, `Double`,
+or one-register SIMD spills for an instance method, untyped-throwing or not,
+when target metadata and its witness table follow on the same stack path.
+Synchronous preparation copies every word into retained forwarding state
+before the outer entry removes its caller stack. The async
 invoke helper then reproduces the compiler's outgoing generic-witness layout in
 declaration order, followed by that hidden pair. arm64 rounds the logical
 sequence up to a 16-byte stack area. x86_64 moves its live implicit slot down by
@@ -245,9 +248,10 @@ and writes the logical sequence from offset eight. The target's
 compiler-generated witness thunk performs the only transition to the
 direct-method continuation stack; forwarding completion does not adjust it
 again. `Float` contributes its four-byte payload in the low half of one
-eight-byte stack word. A ninth spill, typed-error destination, split or
-otherwise padded value, smaller floating-point value, SIMD, indirect or
-dependent argument, and async accessor remain outside this slice.
+eight-byte stack word; SIMD contributes two words. A ninth retained word,
+typed-error destination, split or otherwise padded value, smaller
+floating-point value, wider-vector spill, indirect or dependent argument, and
+async accessor remain outside this slice.
 
 After matcher evaluation, dispatch enters one recorder linearization point that
 atomically commits matcher captures, appends the call, and reserves the next
@@ -301,8 +305,9 @@ The implementation has focused arm64 and x86_64 coverage for integer and
 floating-point registers, synchronous stack arguments, mixed aggregates,
 indirect results, throwing calls, bounded one-through-four-register SIMD values
 in both stubs and synchronous forwarding spies,
-async continuations, multiword complete-GP/`Float`/`Double` async Stub ingress,
-bounded one-word through eight-word async Spy forwarding, and owned setter inputs. Direct concrete
+async continuations, multiword complete-GP/`Float`/`Double`/SIMD async Stub
+ingress, bounded one-word through eight-word async Spy forwarding, and owned
+setter inputs. Direct concrete
 native function values use canonical function metadata plus compiler-emitted
 partial-apply reabstraction thunks found in the linked client or a bounded
 runtime-built arm64/x86_64 bridge. Arguments are wrapped from direct witness ABI
