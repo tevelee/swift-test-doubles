@@ -98,6 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automatic runtime stubs record methods whose generic parameters carry one
   or more protocol constraints while leaving their trailing conformance
   witnesses opaque.
+- Async generic methods now share the runtime's caller-supplied metadata
+  decoder and preserve their values through suspension-aware recording.
 
 ### Fixed
 

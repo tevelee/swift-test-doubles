@@ -192,11 +192,19 @@ import TestDoublesFixtures
         }
     }
 
-    @Test func combiningAGenericParameterWithAsyncFailsClosed() {
-        expectUnsupportedProtocolShape(
-            containing: "Async continuation transport has not been proven"
-        ) {
-            _ = try Stub<any AsyncGenericRequirementProbe>()
+    @Test func asyncGenericParameterIsRecorded() async throws {
+        let value = UserRegistered(userID: 42)
+        let stub =
+            try Stub<any AsyncGenericRequirementProbe>()
+        await stub.when {
+            await $0.publishAsync(Match.any(using: value))
+        }.thenReturn(())
+
+        let probe: any AsyncGenericRequirementProbe = stub()
+        await probe.publishAsync(value)
+
+        await stub.verify {
+            await $0.publishAsync(Match.any(using: value))
         }
     }
 

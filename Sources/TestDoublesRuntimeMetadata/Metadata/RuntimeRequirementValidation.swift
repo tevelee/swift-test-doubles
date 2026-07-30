@@ -68,8 +68,7 @@ package func runtimeSIMDUnsupportedReason(
 
 /// Whether `method` uses a requirement-level generic parameter in a shape the
 /// runtime cannot yet transport, or `nil` otherwise. The metadata-register
-/// interaction with `async` suspension and indirect typed-error transport is
-/// unverified, so both fail closed.
+/// interaction with indirect typed-error transport remains unverified.
 package func runtimeMethodGenericParameterUnsupportedReason(
     for method: MethodDescriptor
 ) -> String? {
@@ -81,9 +80,6 @@ package func runtimeMethodGenericParameterUnsupportedReason(
 
     guard method.kind == .method, method.receiver == .instance else {
         return "Requirement-level generic parameters are supported only on ordinary instance methods."
-    }
-    guard method.isAsync == false else {
-        return "Async continuation transport has not been proven for requirement-level generic parameters."
     }
     guard method.typedErrorType == nil else {
         return "Typed-throwing transport has not been proven alongside a requirement-level generic parameter."
