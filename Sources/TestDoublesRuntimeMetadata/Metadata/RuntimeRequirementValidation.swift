@@ -68,7 +68,9 @@ package func runtimeSIMDUnsupportedReason(
 
 /// Whether `method` uses a requirement-level generic parameter in a shape the
 /// runtime cannot yet transport, or `nil` otherwise. The metadata-register
-/// interaction with indirect typed-error transport remains unverified.
+/// Generic metadata and a typed-error destination share the same trailing
+/// general-purpose allocation plan, so both direct and indirect typed errors
+/// retain their normal ordering.
 package func runtimeMethodGenericParameterUnsupportedReason(
     for method: MethodDescriptor
 ) -> String? {
@@ -80,9 +82,6 @@ package func runtimeMethodGenericParameterUnsupportedReason(
 
     guard method.kind == .method, method.receiver == .instance else {
         return "Requirement-level generic parameters are supported only on ordinary instance methods."
-    }
-    guard method.typedErrorType == nil else {
-        return "Typed-throwing transport has not been proven alongside a requirement-level generic parameter."
     }
     guard genericArguments.allSatisfy({ $0.ownership == .borrowed }) else {
         return "Consuming requirement-level generic parameters need ownership-aware metadata transport."

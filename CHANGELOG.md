@@ -100,6 +100,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   witnesses opaque.
 - Async generic methods now share the runtime's caller-supplied metadata
   decoder and preserve their values through suspension-aware recording.
+- Typed-throwing generic methods now compose generic metadata decoding with
+  the existing direct and indirect typed-error result transport.
 
 ### Fixed
 

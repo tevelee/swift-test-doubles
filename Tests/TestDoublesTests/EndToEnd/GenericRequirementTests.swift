@@ -208,11 +208,30 @@ import TestDoublesFixtures
         }
     }
 
-    @Test func combiningAGenericParameterWithTypedThrowsFailsClosed() {
-        expectUnsupportedProtocolShape(
-            containing: "Typed-throwing transport has not been proven"
-        ) {
-            _ = try Stub<any TypedThrowingGenericRequirementProbe>()
+    @Test func typedThrowingGenericParameterPreservesItsErrorChannel() throws {
+        let accepted = UserRegistered(userID: 1)
+        let rejected = UserRegistered(userID: -1)
+        let failure = ExternalReferenceFixedFailure(code: 7)
+        let stub =
+            try Stub<
+                any TypedThrowingGenericRequirementProbe
+            >()
+        stub.when {
+            try $0.publishThrows(Match.equal(accepted))
+        }.thenReturn(())
+        stub.when {
+            try $0.publishThrows(Match.equal(rejected))
+        }.thenThrow(failure)
+
+        let probe: any TypedThrowingGenericRequirementProbe =
+            stub()
+        try probe.publishThrows(accepted)
+        #expect(throws: failure) {
+            try probe.publishThrows(rejected)
+        }
+
+        stub.verify {
+            try $0.publishThrows(Match.equal(rejected))
         }
     }
 
