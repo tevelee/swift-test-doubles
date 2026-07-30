@@ -489,6 +489,52 @@ protocol ExtendedAsyncABIProbe: Sendable {
         #expect(x86_64.stackByteCount == 32)
     }
 
+    @Test func arm64PacksNarrowStackValuesBeforeAlignedHiddenWords() {
+        let integer = CallFrameArgumentShape(
+            type: Int.self,
+            layout: abiClass(for: Int.self)
+        )
+        let boolean = CallFrameArgumentShape(
+            type: Bool.self,
+            layout: abiClass(for: Bool.self)
+        )
+        let byte = CallFrameArgumentShape(
+            type: UInt8.self,
+            layout: abiClass(for: UInt8.self)
+        )
+        let arguments =
+            Array(repeating: integer, count: 8)
+            + [boolean, byte]
+
+        let arm64 = CallFrameArgumentLocationPlan(
+            arguments: arguments,
+            trailingGeneralPurposeWordCount: 2,
+            architecture: .arm64
+        )
+        #expect(arm64.arguments[8][0].storage == .stack(byteOffset: 0))
+        #expect(arm64.arguments[9][0].storage == .stack(byteOffset: 1))
+        #expect(arm64.argumentStackByteCount == 2)
+        #expect(
+            arm64.trailingGeneralPurpose.map(\.storage)
+                == [.stack(byteOffset: 8), .stack(byteOffset: 16)]
+        )
+        #expect(arm64.stackByteCount == 24)
+
+        let x86_64 = CallFrameArgumentLocationPlan(
+            arguments: arguments,
+            trailingGeneralPurposeWordCount: 2,
+            architecture: .x86_64
+        )
+        #expect(x86_64.arguments[8][0].storage == .stack(byteOffset: 16))
+        #expect(x86_64.arguments[9][0].storage == .stack(byteOffset: 24))
+        #expect(x86_64.argumentStackByteCount == 32)
+        #expect(
+            x86_64.trailingGeneralPurpose.map(\.storage)
+                == [.stack(byteOffset: 32), .stack(byteOffset: 40)]
+        )
+        #expect(x86_64.stackByteCount == 48)
+    }
+
     @Test func argumentLocationPlanUsesIndependentRegisterBanksAndOneStackCursor() {
         let integer = CallFrameArgumentShape(
             type: Int.self,

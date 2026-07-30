@@ -140,16 +140,17 @@ package struct WitnessCallTransportPlan: Sendable {
         } else {
             typedErrorDestinationLocation = nil
         }
-        let genericParameterMetadataStackByteCount =
-            genericParameterMetadataLocations.lazy.filter(\.isStack).count
-            * MemoryLayout<UInt>.size
-        let typedErrorStackByteCount =
-            typedErrorDestinationLocation?.isStack == true
-            ? MemoryLayout<UInt>.size : 0
-        decodedStackByteCount =
+        let decodedTrailingLocations =
+            genericParameterMetadataLocations
+            + [typedErrorDestinationLocation].compactMap { $0 }
+        decodedStackByteCount = decodedTrailingLocations.reduce(
             locationPlan.argumentStackByteCount
-            + genericParameterMetadataStackByteCount
-            + typedErrorStackByteCount
+        ) { end, location in
+            guard case .stack(let offset) = location.storage else {
+                return end
+            }
+            return max(end, offset + location.byteCount)
+        }
 
         switch trailingPayload {
             case .none:

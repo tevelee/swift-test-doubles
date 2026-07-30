@@ -732,11 +732,11 @@ struct AsyncStackABIIntegrationTests {
             leadingIntegerCount: 7,
             trailingTypes: [AsyncStackSplitValue.self]
         )
-        let paddedX86 = method(
+        let repeatedNarrowX86 = method(
             leadingIntegerCount: 6,
             trailingTypes: [UInt32.self, UInt32.self]
         )
-        let paddedArm = method(
+        let repeatedNarrowArm = method(
             leadingIntegerCount: 8,
             trailingTypes: [UInt32.self, UInt32.self]
         )
@@ -767,12 +767,16 @@ struct AsyncStackABIIntegrationTests {
                 != nil
         )
         #expect(
-            unsupportedRuntimeReason(for: paddedX86, architecture: .x86_64)
-                != nil
+            unsupportedRuntimeReason(
+                for: repeatedNarrowX86,
+                architecture: .x86_64
+            ) == nil
         )
         #expect(
-            unsupportedRuntimeReason(for: paddedArm, architecture: .arm64)
-                != nil
+            unsupportedRuntimeReason(
+                for: repeatedNarrowArm,
+                architecture: .arm64
+            ) == nil
         )
         #expect(
             unsupportedRuntimeReason(for: vector, architecture: .x86_64)

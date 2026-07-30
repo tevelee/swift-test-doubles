@@ -221,8 +221,8 @@ completes. The ingress path also accepts a sequence of complete, independent
 one- or two-word integer, `Float16` where available, `Float`, `Double`, or
 SIMD arguments occupying one through four registers after the arm64 or x86_64
 register banks are exhausted. Each complete 16-byte SIMD fragment contributes
-two stack words. One narrow integer may occupy the low bytes of its padded
-eight-byte stack word. A two-word integer must be wholly stack resident and may
+two stack words. Narrow integers occupy the low bytes of their padded
+eight-byte stack words. A two-word integer must be wholly stack resident and may
 contain padding after its stored bytes. An independent indirect argument contributes
 one pointer word; the decoder copies its pointee while synchronous preparation
 is running. The entry frame points at those words only until preparation
@@ -235,7 +235,7 @@ eight-byte async ABI slot. Before x86_64 advances the stack pointer, it carries
 that live slot to the resumed continuation stack pointer just as a
 compiler-generated witness thunk does. Assembly applies the adjustment once on
 both immediate and suspending entry exits, never from the completion
-trampoline. A second narrow integer, split or wider integer value, partial or
+trampoline. A split or wider integer value, partial or
 more-than-four-register vector value, dependent or otherwise non-independent
 indirect argument, accessor, and wider typed-error stack shape remain
 fail-closed.
@@ -245,8 +245,8 @@ contributed by complete concrete one- or two-word integer, `Float16` where
 available, `Float`, `Double`, or SIMD spills occupying one through four
 registers for an instance method, untyped-throwing or not, when target metadata
 and its witness table follow on the same stack path. Each complete 16-byte SIMD
-fragment contributes two words. One narrow integer may use the low bytes of a
-padded eight-byte stack word. A two-word integer must be wholly stack resident
+fragment contributes two words. Narrow integers use the low bytes of their
+padded eight-byte stack words. A two-word integer must be wholly stack resident
 and may contain padding after its stored bytes. An independent indirect
 argument contributes its pointer word; the caller-owned pointee remains live
 through the forwarded call. Synchronous preparation copies every word into
@@ -261,7 +261,7 @@ compiler-generated witness thunk performs the only transition to the
 direct-method continuation stack; forwarding completion does not adjust it
 again. `Float16` and `Float` contribute their payload in the low two or four
 bytes of one eight-byte stack word; each SIMD fragment contributes two words. A
-second narrow integer, ninth retained word, typed-error destination, split or
+ninth retained word, typed-error destination, split or
 wider integer value, partial or more-than-four-register vector spill, dependent
 or otherwise non-independent indirect argument, and async accessor remain
 outside this slice.

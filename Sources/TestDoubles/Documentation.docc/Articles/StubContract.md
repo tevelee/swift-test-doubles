@@ -518,8 +518,8 @@ An async Stub requirement may use the architecture's complete argument-register
 banks plus a sequence of complete, independent one- or two-word integer,
 `Float16` where available, `Float`, `Double`, or complete SIMD values occupying
 one through four 16-byte register fragments. Each SIMD fragment occupies two
-consecutive words. One narrow integer may occupy the low bytes of its padded
-eight-byte stack word. A spilled `Float16` or `Float` occupies one ABI stack
+consecutive words. Narrow integers occupy the low bytes of their padded
+eight-byte stack words. A spilled `Float16` or `Float` occupies one ABI stack
 word with its payload in the low two or four bytes; a complete two-word integer
 occupies two consecutive words. A two-word integer's final word may contain
 only its stored bytes plus padding. An independent indirect argument occupies
@@ -529,7 +529,7 @@ trampoline decodes every spilled value while the caller's invocation frame is
 still live, before an async handler can suspend. Arguments are copied into the
 retained dispatch state; indirect result and the already proven single
 typed-error destination pointer refer to caller-owned async storage and are
-retained separately. A second narrow integer, split or wider integer value,
+retained separately. A split or wider integer value,
 partially spilled or more-than-four-register vector value, dependent or
 otherwise non-independent indirect argument, accessor, and wider typed-error
 stack shape remain fail-closed. Before either an immediate return or a genuine
@@ -540,8 +540,8 @@ A forwarding ``Spy`` supports the corresponding narrow outgoing path for an
 async instance method, untyped-throwing or not, with up to eight retained stack
 words contributed by complete concrete one- or two-word integer, `Float16`
 where available, `Float`, `Double`, or SIMD values occupying one through four
-registers. Each SIMD fragment contributes two retained words. One narrow
-integer may use the low bytes of a padded eight-byte stack word. A two-word
+registers. Each SIMD fragment contributes two retained words. Narrow integers
+may use the low bytes of padded eight-byte stack words. A two-word
 integer must be wholly stack resident and may contain padding after its stored
 bytes. The values must spill consecutively. An independent indirect argument
 contributes its pointer word, whose caller-owned pointee remains live through
@@ -552,8 +552,8 @@ forwarding state then creates Swift 6.3's target witness stack area in
 declaration order from those values, target metadata, and witness table,
 including x86_64's live implicit slot. The target witness transfers that area
 to its continuation boundary exactly once. Indirect results retain the caller's
-result storage independently. A typed throw, a second narrow integer, a ninth
-retained word, split or wider integer value, partially spilled or
+result storage independently. A typed throw, a ninth retained word, split or
+wider integer value, partially spilled or
 more-than-four-register vector value, dependent or otherwise non-independent
 indirect argument, and async accessor remain fail-closed. Typed closure
 adapters keep their independent boundary.

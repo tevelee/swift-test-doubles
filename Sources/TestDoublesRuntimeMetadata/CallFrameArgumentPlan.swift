@@ -7,13 +7,18 @@ package struct CallFrameValuePiece: Equatable, Sendable {
     package let register: DirectValueRegister
     package let valueOffset: Int
     package let byteCount: Int
+    package let stackAlignment: Int
 }
 
 package struct CallFrameArgumentShape: Sendable {
     package let pieces: [CallFrameValuePiece]
 
     package init(type: Any.Type, layout: ABIClass) {
-        let valueByteCount = ValueLayoutInfo(reflecting: type).size
+        let valueLayout = ValueLayoutInfo(reflecting: type)
+        let valueByteCount = valueLayout.size
+        func stackAlignment(for byteCount: Int) -> Int {
+            min(valueLayout.alignment, max(byteCount, 1))
+        }
         pieces =
             switch layout {
                 case .void:
@@ -23,7 +28,10 @@ package struct CallFrameArgumentShape: Sendable {
                         CallFrameValuePiece(
                             register: .fp,
                             valueOffset: 0,
-                            byteCount: valueByteCount
+                            byteCount: valueByteCount,
+                            stackAlignment: stackAlignment(
+                                for: valueByteCount
+                            )
                         )
                     ]
                 case .integer(let words):
@@ -35,6 +43,12 @@ package struct CallFrameArgumentShape: Sendable {
                             byteCount: min(
                                 MemoryLayout<UInt>.size,
                                 max(valueByteCount - offset, 0)
+                            ),
+                            stackAlignment: stackAlignment(
+                                for: min(
+                                    MemoryLayout<UInt>.size,
+                                    max(valueByteCount - offset, 0)
+                                )
                             )
                         )
                     }
@@ -43,7 +57,10 @@ package struct CallFrameArgumentShape: Sendable {
                         CallFrameValuePiece(
                             register: $0.register,
                             valueOffset: $0.offset,
-                            byteCount: $0.byteCount
+                            byteCount: $0.byteCount,
+                            stackAlignment: stackAlignment(
+                                for: $0.byteCount
+                            )
                         )
                     }
                 case .indirect:
@@ -51,7 +68,8 @@ package struct CallFrameArgumentShape: Sendable {
                         CallFrameValuePiece(
                             register: .gp,
                             valueOffset: 0,
-                            byteCount: MemoryLayout<UInt>.size
+                            byteCount: MemoryLayout<UInt>.size,
+                            stackAlignment: MemoryLayout<UInt>.alignment
                         )
                     ]
             }
@@ -80,7 +98,8 @@ package struct CallFrameArgumentLocation: Equatable, Sendable {
 ///
 /// General-purpose and vector registers advance independently. Once either
 /// bank is exhausted, fragments from that bank share one declaration-order
-/// stack cursor, matching the decoder's existing arm64/x86_64 behavior.
+/// stack cursor. arm64 packs values at their natural alignment before aligning
+/// later pointer words; x86_64 preserves one or more eight-byte argument slots.
 package struct CallFrameArgumentLocationPlan: Sendable {
     package let arguments: [[CallFrameArgumentLocation]]
     package let trailingGeneralPurpose: [CallFrameArgumentLocation]
@@ -96,7 +115,8 @@ package struct CallFrameArgumentLocationPlan: Sendable {
         var cursor = Cursor(
             generalPurpose: initialGeneralPurposeOffset,
             generalPurposeLimit: architecture.generalPurposeArgumentRegisterCount,
-            vectorLimit: architecture.vectorArgumentRegisterCount
+            vectorLimit: architecture.vectorArgumentRegisterCount,
+            architecture: architecture
         )
         self.arguments = arguments.map { shape in
             shape.pieces.map { cursor.location(for: $0) }
@@ -108,7 +128,8 @@ package struct CallFrameArgumentLocationPlan: Sendable {
                 for: CallFrameValuePiece(
                     register: .gp,
                     valueOffset: 0,
-                    byteCount: MemoryLayout<UInt>.size
+                    byteCount: MemoryLayout<UInt>.size,
+                    stackAlignment: MemoryLayout<UInt>.alignment
                 ))
         }
         stackByteCount = cursor.stackByteCount
@@ -120,6 +141,7 @@ package struct CallFrameArgumentLocationPlan: Sendable {
         var stackByteCount = 0
         let generalPurposeLimit: Int
         let vectorLimit: Int
+        let architecture: RuntimeArchitecture
 
         mutating func location(
             for piece: CallFrameValuePiece
@@ -133,12 +155,10 @@ package struct CallFrameArgumentLocationPlan: Sendable {
                     storage = .vectorRegister(vector)
                     vector += 1
                 case .gp:
-                    storage = .stack(byteOffset: stackByteCount)
-                    stackByteCount += stackSlotByteCount(for: piece)
+                    storage = .stack(byteOffset: placeOnStack(piece))
                     generalPurpose += 1
                 case .fp:
-                    storage = .stack(byteOffset: stackByteCount)
-                    stackByteCount += stackSlotByteCount(for: piece)
+                    storage = .stack(byteOffset: placeOnStack(piece))
                     vector += 1
             }
             return CallFrameArgumentLocation(
@@ -148,14 +168,40 @@ package struct CallFrameArgumentLocationPlan: Sendable {
             )
         }
 
-        private func stackSlotByteCount(
-            for piece: CallFrameValuePiece
+        private mutating func placeOnStack(
+            _ piece: CallFrameValuePiece
         ) -> Int {
             let wordSize = MemoryLayout<UInt>.size
-            return max(
-                wordSize,
-                (piece.byteCount + wordSize - 1) / wordSize * wordSize
+            switch architecture {
+                case .arm64:
+                    stackByteCount = aligned(
+                        stackByteCount,
+                        to: piece.stackAlignment
+                    )
+                    let offset = stackByteCount
+                    stackByteCount += piece.byteCount
+                    return offset
+                case .x86_64:
+                    let offset = stackByteCount
+                    stackByteCount += max(
+                        wordSize,
+                        (piece.byteCount + wordSize - 1) / wordSize
+                            * wordSize
+                    )
+                    return offset
+            }
+        }
+
+        private func aligned(_ value: Int, to alignment: Int) -> Int {
+            precondition(alignment > 0)
+            let (numerator, overflow) = value.addingReportingOverflow(
+                alignment - 1
             )
+            precondition(
+                overflow == false,
+                "[TestDoubles] Call-frame stack alignment overflowed."
+            )
+            return numerator / alignment * alignment
         }
     }
 }

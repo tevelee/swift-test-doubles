@@ -109,17 +109,13 @@ private func unsupportedAsyncStubIngressReason(
             architecture: architecture
         )
     }
-    guard
-        stackArguments.lazy.filter({
-            isNarrowIntegerAsyncStackValue($0.0)
-        }).count <= 1
-    else {
-        return unsupportedAsyncStubIngressDiagnostic(
-            architecture: architecture
-        )
-    }
     var expectedStackOffset = 0
     for (argument, locations) in stackArguments {
+        expectedStackOffset = alignedAsyncStackOffset(
+            expectedStackOffset,
+            for: argument,
+            architecture: architecture
+        )
         if let byteCount =
             supportedCompleteSIMDAsyncStackValueByteCount(argument)
         {
@@ -134,7 +130,10 @@ private func unsupportedAsyncStubIngressReason(
                     architecture: architecture
                 )
             }
-            expectedStackOffset += byteCount
+            expectedStackOffset += asyncStackConsumedByteCount(
+                byteCount,
+                architecture: architecture
+            )
             continue
         }
 
@@ -152,7 +151,10 @@ private func unsupportedAsyncStubIngressReason(
                     architecture: architecture
                 )
             }
-            expectedStackOffset += 2 * wordByteCount
+            expectedStackOffset += asyncStackConsumedByteCount(
+                byteCount,
+                architecture: architecture
+            )
             continue
         }
 
@@ -190,8 +192,9 @@ private func unsupportedAsyncStubIngressReason(
                 architecture: architecture
             )
         }
-        expectedStackOffset += asyncStackSlotByteCount(
-            forValueByteCount: expectedValueByteCount
+        expectedStackOffset += asyncStackConsumedByteCount(
+            expectedValueByteCount,
+            architecture: architecture
         )
     }
     guard expectedStackOffset == transport.decodedStackByteCount else {
@@ -217,7 +220,7 @@ private func unsupportedAsyncStubIngressDiagnostic(
     "Its caller-stack ingress on \(architecture) is not a sequence of complete, "
         + "independent one- or two-word integer, Float16, Float, Double, or "
         + "SIMD arguments occupying one through four registers "
-        + "supported by the async Stub trampoline. A second narrow integer, "
+        + "supported by the async Stub trampoline. "
         + "split or wider integer, wider-vector, "
         + "dependent, accessor, and wider typed-error shapes remain unsupported. "
         + "Use compatible values or a hand-written test double."
@@ -299,10 +302,10 @@ private func asyncWitnessStackPlan(
 /// This deliberately accepts at most eight stack words contributed by complete
 /// concrete one- or two-word integer, `Float`, `Double`, or concrete SIMD values
 /// occupying one through four registers that spill consecutively from their
-/// banks. A second narrow integer, split or wider integer value, dependent
-/// value, wider-vector value, accessor, and typed-error shape remain
-/// fail-closed. A narrow integer, `Float16`, or independent indirect value still
-/// contributes its complete eight-byte ABI stack slot.
+/// banks. Split or wider integer values, dependent values, wider-vector values,
+/// accessors, and typed-error shapes remain fail-closed. A narrow integer,
+/// `Float16`, or independent indirect value still contributes its complete
+/// eight-byte ABI stack slot.
 package func asyncForwardingStackPlan(
     for method: MethodDescriptor,
     architecture: RuntimeArchitecture
@@ -322,9 +325,7 @@ package func asyncForwardingStackPlan(
     )
 
     let wordByteCount = MemoryLayout<UInt>.size
-    var visibleArgumentLocations: [CallFrameArgumentLocation] = []
     var expectedStackOffset = 0
-    var narrowIntegerCount = 0
     for (argumentIndex, locations) in transport.argumentLocations.enumerated() {
         let stackLocations = locations.filter {
             if case .stack = $0.storage { return true }
@@ -332,10 +333,11 @@ package func asyncForwardingStackPlan(
         }
         guard stackLocations.isEmpty == false else { continue }
         let argument = method.arguments[argumentIndex]
-        if isNarrowIntegerAsyncStackValue(argument) {
-            narrowIntegerCount += 1
-            guard narrowIntegerCount <= 1 else { return nil }
-        }
+        expectedStackOffset = alignedAsyncStackOffset(
+            expectedStackOffset,
+            for: argument,
+            architecture: architecture
+        )
         let consumedStackByteCount: Int
         if let byteCount =
             supportedCompleteSIMDAsyncStackValueByteCount(argument)
@@ -349,12 +351,10 @@ package func asyncForwardingStackPlan(
             else {
                 return nil
             }
-            visibleArgumentLocations.append(
-                contentsOf: locations.flatMap {
-                    asyncForwardingWordLocations(for: $0)
-                }
+            consumedStackByteCount = asyncStackConsumedByteCount(
+                byteCount,
+                architecture: architecture
             )
-            consumedStackByteCount = byteCount
         } else if let byteCount =
             supportedCompleteTwoWordIntegerAsyncStackValueByteCount(argument)
         {
@@ -367,8 +367,10 @@ package func asyncForwardingStackPlan(
             else {
                 return nil
             }
-            visibleArgumentLocations.append(contentsOf: locations)
-            consumedStackByteCount = 2 * wordByteCount
+            consumedStackByteCount = asyncStackConsumedByteCount(
+                byteCount,
+                architecture: architecture
+            )
         } else {
             let expectedValueByteCount =
                 supportedIndependentAsyncStackValueByteCount(argument)
@@ -383,38 +385,48 @@ package func asyncForwardingStackPlan(
             else {
                 return nil
             }
-            visibleArgumentLocations.append(
-                contentsOf: asyncForwardingWordLocations(for: location)
+            consumedStackByteCount = asyncStackConsumedByteCount(
+                expectedValueByteCount,
+                architecture: architecture
             )
-            consumedStackByteCount = asyncStackSlotByteCount(
-                forValueByteCount: expectedValueByteCount
-            )
-        }
-        guard
-            visibleArgumentLocations.count
-                <= AsyncForwardingStackPlan.maximumVisibleStackWordCount
-        else {
-            return nil
         }
         expectedStackOffset += consumedStackByteCount
     }
 
-    guard visibleArgumentLocations.isEmpty == false,
+    guard expectedStackOffset > 0,
         expectedStackOffset == transport.decodedStackByteCount
     else {
         return nil
+    }
+    let visibleWordCount =
+        (expectedStackOffset + wordByteCount - 1) / wordByteCount
+    guard
+        visibleWordCount
+            <= AsyncForwardingStackPlan.maximumVisibleStackWordCount
+    else {
+        return nil
+    }
+    let visibleArgumentLocations = (0 ..< visibleWordCount).map {
+        CallFrameArgumentLocation(
+            storage: .stack(byteOffset: $0 * wordByteCount),
+            valueOffset: 0,
+            byteCount: wordByteCount
+        )
     }
     let witnessPlan = asyncWitnessStackPlan(
         transport: transport,
         architecture: architecture
     )
+    let hiddenStart = visibleWordCount * wordByteCount
     guard witnessPlan.decodedStackByteCount == expectedStackOffset,
-        witnessPlan.hiddenStackByteCount == 2 * wordByteCount
+        let dynamicSelf = transport.dynamicSelfLocations,
+        dynamicSelf.metadata.storage == .stack(byteOffset: hiddenStart),
+        dynamicSelf.witnessTable.storage
+            == .stack(byteOffset: hiddenStart + wordByteCount)
     else {
         return nil
     }
 
-    let visibleWordCount = visibleArgumentLocations.count
     switch architecture {
         case .arm64:
             let expectedByteCount =
@@ -447,8 +459,8 @@ package func unsupportedAsyncForwardingEgressDiagnostic(
         + "complete stack words contributed by independent one- or two-word integer, "
         + "Float16, Float, Double, or concrete SIMD arguments occupying one "
         + "through four registers followed by "
-        + "dynamic-Self metadata and its witness table. A second narrow "
-        + "integer, split or wider integer, wider-vector, "
+        + "dynamic-Self metadata and its witness table. "
+        + "Split or wider integer, wider-vector, "
         + "dependent, accessor, static, and "
         + "typed-error shapes remain unsupported. Use compatible values or a "
         + "hand-written test double."
@@ -475,18 +487,6 @@ private func supportedIndependentAsyncStackValueByteCount(
         default:
             return nil
     }
-}
-
-private func isNarrowIntegerAsyncStackValue(
-    _ argument: WitnessArgumentDescriptor
-) -> Bool {
-    guard argument.value.dependency.isAssociatedTypeDependent == false,
-        case .integer(words: 1) = argument.value.layout
-    else {
-        return false
-    }
-    let byteCount = ValueLayoutInfo(reflecting: argument.value.type).size
-    return byteCount > 0 && byteCount < MemoryLayout<UInt>.size
 }
 
 private func supportedCompleteTwoWordIntegerAsyncStackValueByteCount(
@@ -573,35 +573,43 @@ private func completeTwoWordIntegerStackLocations(
     return true
 }
 
-private func asyncStackSlotByteCount(
-    forValueByteCount byteCount: Int
+private func alignedAsyncStackOffset(
+    _ offset: Int,
+    for argument: WitnessArgumentDescriptor,
+    architecture: RuntimeArchitecture
 ) -> Int {
-    let wordByteCount = MemoryLayout<UInt>.size
-    return max(
-        wordByteCount,
-        (byteCount + wordByteCount - 1) / wordByteCount * wordByteCount
+    guard architecture == .arm64 else { return offset }
+    let alignment: Int
+    if case .indirect = argument.value.layout {
+        alignment = MemoryLayout<UInt>.alignment
+    } else {
+        alignment =
+            ValueLayoutInfo(reflecting: argument.value.type)
+            .alignment
+    }
+    let (numerator, overflow) = offset.addingReportingOverflow(
+        alignment - 1
     )
+    precondition(
+        overflow == false,
+        "[TestDoubles] Async stack alignment overflowed."
+    )
+    return numerator / alignment * alignment
 }
 
-private func asyncForwardingWordLocations(
-    for location: CallFrameArgumentLocation
-) -> [CallFrameArgumentLocation] {
-    guard location.byteCount > MemoryLayout<UInt>.size else {
-        return [location]
-    }
-    guard case .stack(let byteOffset) = location.storage,
-        location.byteCount == 2 * MemoryLayout<UInt>.size
-    else {
-        preconditionFailure(
-            "[TestDoubles] An async forwarding stack value is not word-addressable."
-        )
-    }
-    return (0 ..< 2).map { word in
-        let wordOffset = word * MemoryLayout<UInt>.size
-        return CallFrameArgumentLocation(
-            storage: .stack(byteOffset: byteOffset + wordOffset),
-            valueOffset: location.valueOffset + wordOffset,
-            byteCount: MemoryLayout<UInt>.size
-        )
+private func asyncStackConsumedByteCount(
+    _ byteCount: Int,
+    architecture: RuntimeArchitecture
+) -> Int {
+    switch architecture {
+        case .arm64:
+            return byteCount
+        case .x86_64:
+            let wordByteCount = MemoryLayout<UInt>.size
+            return max(
+                wordByteCount,
+                (byteCount + wordByteCount - 1) / wordByteCount
+                    * wordByteCount
+            )
     }
 }

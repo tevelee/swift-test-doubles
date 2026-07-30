@@ -97,7 +97,7 @@ struct AsyncForwardingStackPlanTests {
                         ),
                         .init(
                             storage: .stack(byteOffset: 8),
-                            valueOffset: 8,
+                            valueOffset: 0,
                             byteCount: 8
                         ),
                         .init(
@@ -107,7 +107,7 @@ struct AsyncForwardingStackPlanTests {
                         ),
                         .init(
                             storage: .stack(byteOffset: 24),
-                            valueOffset: 8,
+                            valueOffset: 0,
                             byteCount: 8
                         ),
                         .init(
@@ -117,7 +117,7 @@ struct AsyncForwardingStackPlanTests {
                         ),
                         .init(
                             storage: .stack(byteOffset: 40),
-                            valueOffset: 8,
+                            valueOffset: 0,
                             byteCount: 8
                         )
                     ],
@@ -149,7 +149,7 @@ struct AsyncForwardingStackPlanTests {
                         ),
                         .init(
                             storage: .stack(byteOffset: 24),
-                            valueOffset: 8,
+                            valueOffset: 0,
                             byteCount: 8
                         ),
                         .init(
@@ -159,7 +159,7 @@ struct AsyncForwardingStackPlanTests {
                         ),
                         .init(
                             storage: .stack(byteOffset: 40),
-                            valueOffset: 8,
+                            valueOffset: 0,
                             byteCount: 8
                         ),
                         .init(
@@ -169,7 +169,7 @@ struct AsyncForwardingStackPlanTests {
                         ),
                         .init(
                             storage: .stack(byteOffset: 56),
-                            valueOffset: 8,
+                            valueOffset: 0,
                             byteCount: 8
                         )
                     ],
@@ -207,13 +207,13 @@ struct AsyncForwardingStackPlanTests {
                             byteOffset: architecture == .arm64 ? 0 : 16
                         ),
                         valueOffset: 0,
-                        byteCount: 4
+                        byteCount: 8
                     )
             )
         }
     }
 
-    @Test func secondNarrowIntegerRemainsFailClosed() {
+    @Test func acceptsRepeatedNarrowIntegersInPackedStackWords() {
         let method = MethodDescriptor(
             kind: .method,
             name: "inspect",
@@ -229,13 +229,13 @@ struct AsyncForwardingStackPlanTests {
             asyncForwardingStackPlan(
                 for: method,
                 architecture: .arm64
-            ) == nil
+            )?.visibleArgumentLocations.count == 1
         )
         #expect(
             asyncForwardingStackPlan(
                 for: method,
                 architecture: .x86_64
-            ) == nil
+            )?.visibleArgumentLocations.count == 4
         )
     }
 
@@ -264,7 +264,7 @@ struct AsyncForwardingStackPlanTests {
                     ),
                     .init(
                         storage: .stack(byteOffset: 8),
-                        valueOffset: 8,
+                        valueOffset: 0,
                         byteCount: 8
                     )
                 ]
@@ -292,7 +292,7 @@ struct AsyncForwardingStackPlanTests {
                     ),
                     .init(
                         storage: .stack(byteOffset: 24),
-                        valueOffset: 8,
+                        valueOffset: 0,
                         byteCount: 8
                     )
                 ]
@@ -353,8 +353,8 @@ struct AsyncForwardingStackPlanTests {
                                 byteOffset:
                                     architecture == .arm64 ? 8 : 24
                             ),
-                            valueOffset: 8,
-                            byteCount: 1
+                            valueOffset: 0,
+                            byteCount: 8
                         )
                     ]
             )

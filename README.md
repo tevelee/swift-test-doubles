@@ -729,10 +729,10 @@ Key limitations:
   rejected. `Self` arguments remain unsupported in explicit schemas, Spies,
   superclass-constrained existentials, throwing methods, `inout`, and wider or
   nested wrappers.
-- Async Stub requirements may fill the general-purpose register bank and use up
-  to eight decoded stack bytes. Async Spy forwarding and dynamic closure
-  bridging narrow that allowance to one complete eight-byte general-purpose
-  word; split, padded, vector, dependent, and additional spills fail closed.
+- Async Stub requirements may fill the argument-register banks and use the
+  documented complete integer, floating-point, SIMD, indirect, and naturally
+  packed narrow stack shapes. Async Spy forwarding retains up to eight visible
+  stack words; dynamic closure bridging has a separate one-word stack boundary.
 - Typed-throwing getters require explicit `signatureOf:` requirements and are
   not forwarded by Spy. Objective-C-only protocols and native-Swift-only
   superclass constraints are outside the boundary.
