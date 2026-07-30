@@ -17,6 +17,38 @@ private struct ReadAbortFailure: Error {}
 private struct Modify2AbortFailure: Error {}
 
 @Suite struct ReadAccessorTests {
+    @Test func dummySupportsUnusedReadRequirements() throws {
+        let dummy = try Dummy<any ExplicitReadAccessorProbe>()
+        let probe: any ExplicitReadAccessorProbe = dummy()
+
+        withExtendedLifetime(probe) {}
+    }
+
+    #if compiler(>=6.2) && (os(macOS) || os(Linux) || targetEnvironment(macCatalyst))
+        @Test
+        func dummyReadInvocationUsesTheStandardFailureDiagnostic() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let probe: any ExplicitReadAccessorProbe = Dummy.make()
+                _ = probe.value
+            }
+            let diagnostic = try #require(
+                String(bytes: result.standardErrorContent, encoding: .utf8)
+            )
+
+            #expect(diagnostic.contains("Dummy<"))
+            #expect(diagnostic.contains("ExplicitReadAccessorProbe"))
+            #expect(diagnostic.contains("getter requirement"))
+            #expect(
+                diagnostic.contains(
+                    "A dummy may only be passed to code paths that do not use it"
+                )
+            )
+        }
+    #endif
+
     @Test func concretePropertyAndSubscriptDispatchThroughReadDescriptors() throws {
         _ = LinkedConcreteReadAccessorProbe()
         let stub = try Stub<any ConcreteReadAccessorProbe>()

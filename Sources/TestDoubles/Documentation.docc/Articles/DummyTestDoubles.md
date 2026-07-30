@@ -33,11 +33,11 @@ with a diagnostic identifying the declaring protocol and witness index. If the
 dependency is expected to respond or if the test needs to verify an
 interaction, use ``Stub`` instead.
 
-Descriptor-based Swift 6.3 `_modify` and `read` accessors, and Swift 6.4
-`yielding borrow` accessors, are result-dependent coroutines and are not
-fabricated for Dummy. Construction rejects a protocol containing one; use a
-Stub with configured getter behavior or a hand-written dummy. Legacy direct
-`_modify` witnesses remain fail-closed at invocation.
+Descriptor-based Swift 6.3 `read` accessors can be present on an unused Dummy.
+Their fabricated entry rejects through the normal Dummy diagnostic before it
+can yield or resume a value. Descriptor-based `_modify`, Swift 6.4 `yielding
+borrow`, and legacy direct coroutine witnesses retain their documented
+fail-closed boundaries.
 
 The generated protocol value owns its fabricated witness tables and page-backed
 executable trampoline arena. It remains valid after the `Dummy` instance is

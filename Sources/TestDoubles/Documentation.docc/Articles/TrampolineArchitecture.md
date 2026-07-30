@@ -346,8 +346,10 @@ opaque and class storage. Ordinary `NSObject`-backed superclass constraints
 support Swift protocol calls, compositions, static concrete results, and real superclass
 members, but not initializer requirements or dynamic `Self` results. Native
 Swift-only superclasses, superclass-constrained extended existentials, broader
-dependent-value lowering, and `read` requirements in Dummy remain outside the
-supported layout. Automatic instance methods may take direct or single-optional
+dependent-value lowering remain outside the supported layout. Dummy publishes
+`read` descriptors with a neutral, unreachable resume discriminator because
+its invocation endpoint terminates before yielding. Automatic instance methods
+may take direct or single-optional
 `Self` arguments with borrowed/default or consuming ownership, including
 untyped and supported typed throwing effects. Explicit schemas, Spies,
 superclass constraints, `inout`, accessors, static methods, and wider wrappers

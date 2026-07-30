@@ -63,13 +63,16 @@ package struct FabricatedWitnessDispatch {
         in node: ProtocolLayout.Node
     ) throws -> YieldOnce2WitnessPlan {
         precondition(requirement.abi == .yieldOnce2)
-        guard let method = invocation.method(at: requirement.recorderDispatchIndex)?.descriptor
+        guard
+            let method = invocation.method(
+                at: requirement.recorderDispatchIndex
+            )?.descriptor
         else {
-            throw RuntimeConstructionError.unsupportedProtocolShape(
-                protocolName: node.descriptor.name,
-                reason:
-                    "The runtime invocation endpoint cannot fabricate the result-dependent resume ABI for the read requirement at witness index \(requirement.witnessIndex)."
-            )
+            // Dummy never resumes: the read entry rejects through its endpoint
+            // before returning a yielded value. A neutral discriminator lets
+            // construction publish the otherwise valid descriptor without
+            // pretending to know the omitted result signature.
+            return YieldOnce2WitnessPlan(resumeDiscriminator: 0)
         }
         guard method.kind == .getter,
             method.receiver == requirement.receiver,
