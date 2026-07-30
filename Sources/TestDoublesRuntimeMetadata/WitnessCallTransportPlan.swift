@@ -192,9 +192,9 @@ package struct WitnessCallTransportPlan: Sendable {
     }
 
     /// One source for an outgoing stack word a forwarding call must copy to
-    /// the real target: either a spilled visible argument (read from the
-    /// captured incoming frame) or the target's own metadata/witness-table
-    /// pointer (computed at forwarding time, never read from the frame).
+    /// the real target: either a spilled visible argument or generic metadata
+    /// word (read from the captured incoming frame), or the target's own
+    /// metadata/witness-table pointer (computed at forwarding time).
     package enum OutgoingStackSource: Equatable, Sendable {
         case argument(CallFrameArgumentLocation)
         case metadata
@@ -229,6 +229,10 @@ package struct WitnessCallTransportPlan: Sendable {
         }
         var sources: [(offset: Int, source: OutgoingStackSource)] = []
         for location in argumentLocations.flatMap({ $0 }) {
+            guard case .stack(let offset) = location.storage else { continue }
+            sources.append((offset, .argument(location)))
+        }
+        for location in genericParameterMetadataLocations {
             guard case .stack(let offset) = location.storage else { continue }
             sources.append((offset, .argument(location)))
         }

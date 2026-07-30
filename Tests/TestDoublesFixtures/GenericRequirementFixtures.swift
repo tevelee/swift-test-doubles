@@ -30,6 +30,43 @@ public struct RealGenericCache: GenericCache {
     public func store<Key, Value>(_ value: Value, forKey key: Key) {}
 }
 
+/// Forces both a generic value pointer and its caller-supplied metadata onto
+/// the synchronous stack on every supported architecture.
+public protocol GenericStackForwardingProbe {
+    func measure<Value>(
+        _ first: Int,
+        _ second: Int,
+        _ third: Int,
+        _ fourth: Int,
+        _ fifth: Int,
+        _ sixth: Int,
+        _ seventh: Int,
+        _ eighth: Int,
+        value: Value
+    ) -> Int
+}
+
+public struct RealGenericStackForwardingProbe:
+    GenericStackForwardingProbe
+{
+    public init() {}
+
+    public func measure<Value>(
+        _ first: Int,
+        _ second: Int,
+        _ third: Int,
+        _ fourth: Int,
+        _ fifth: Int,
+        _ sixth: Int,
+        _ seventh: Int,
+        _ eighth: Int,
+        value: Value
+    ) -> Int {
+        first + second + third + fourth + fifth + sixth + seventh + eighth
+            + MemoryLayout<Value>.size
+    }
+}
+
 /// Generic result shapes whose concrete metadata is supplied by each caller.
 public protocol GenericResultRequirementProbe {
     func echo<Value>(_ value: Value) -> Value

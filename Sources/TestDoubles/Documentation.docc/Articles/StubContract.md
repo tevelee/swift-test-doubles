@@ -419,10 +419,13 @@ same-type requirements on a generic parameter's associated types preserve the
 ordinary metadata transport.
 Use `when(returning:_:)` when a result-only generic type has no value from which
 capture mode can synthesize a placeholder. Consuming, noncopyable, and
-nonescapable generic values remain fail-closed. Generic
-forwarding spies, base-class constraints, equality between whole generic
-parameters, and generic parameter results nested in other containers are not
-supported.
+nonescapable generic values remain fail-closed. Forwarding spies support
+unconstrained and `AnyObject`-constrained generic parameters across
+synchronous, async, and typed-throwing requirements, including `T` and `T?`
+results and bounded synchronous metadata spills. Protocol-constrained
+forwarding remains fail-closed until its extra conformance-witness words can be
+replayed. Base-class constraints, equality between whole generic parameters,
+and generic parameter results nested in other containers are not supported.
 A method may instead declare one standalone borrowed parameter pack. Its
 elements are flattened into recorder order for matching, typed handlers, and
 verification; async dispatch copies every element before suspension.

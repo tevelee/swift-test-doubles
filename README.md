@@ -722,6 +722,9 @@ What's supported:
   and Stub-side Swift 6.4 `yielding borrow`, compound assignment and `inout`
   access through `_modify`, concurrent invocation of generated values, behavior
   chains, argument captors, ordered and event-driven verification.
+- Requirement-level generic methods, including async and typed-throwing
+  stubs, caller-chosen generic results, and forwarding spies for unconstrained
+  or `AnyObject`-constrained parameters.
 
 Key limitations:
 

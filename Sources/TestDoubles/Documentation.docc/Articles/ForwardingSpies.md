@@ -137,6 +137,14 @@ transport. This includes inherited requirements and concretely bound
 associated-type values. Getter effect hints cover nonthrowing, ordinary
 throwing, and typed-throwing accessors.
 
+Ordinary instance methods may also forward unconstrained requirement-level
+generic parameters and `AnyObject`-constrained generic parameters. This
+includes synchronous, async, and typed-throwing methods, caller-chosen `T` and
+`T?` results, and generic metadata that spills to the synchronous outgoing
+stack. Protocol-constrained generic parameters remain fail-closed because
+their additional conformance-witness words are not yet replayed. Parameter
+packs remain a separate unsupported forwarding boundary.
+
 Ordinary instance methods may also forward concrete, copyable
 SIMD values when each value occupies one through four complete vector registers
 on both arm64 and x86_64. Mixed scalar and vector arguments and all eight vector
@@ -194,7 +202,7 @@ Construction fails with ``StubError/unsupportedProtocolShape(protocolName:reason
 when the protocol requires any of these other unsupported forwarding shapes:
 
 - Direct or optional dynamic `Self` results
-- Function-valued arguments or results
+- Protocol-constrained generic methods and parameter packs
 - Stack arguments outside the bounded synchronous and async forwarding paths
   described above
 - SIMD outside the single-register 128-bit synchronous boundary, including a

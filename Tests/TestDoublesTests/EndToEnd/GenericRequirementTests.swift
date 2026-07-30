@@ -288,11 +288,125 @@ import TestDoublesFixtures
         }
     }
 
-    @Test func forwardingSpyDoesNotSupportAGenericParameter() {
+    @Test func forwardingSpySupportsUnconstrainedGenericMethods() throws {
+        let spy = try Spy<any ExternalGenericRequirementProbe>(
+            forwardingTo: RealExternalGenericRequirementProbe()
+        )
+        let probe: any ExternalGenericRequirementProbe = spy()
+
+        #expect(probe.generic(UInt64.max) == MemoryLayout<UInt64>.size)
+        #expect(probe.generic("value") == MemoryLayout<String>.size)
+
+        spy.verify {
+            $0.generic(Match.equal(UInt64.max))
+        }
+        spy.verify {
+            $0.generic(Match.equal("value"))
+        }
+    }
+
+    @Test func forwardingSpyPreservesSpilledGenericMetadata() throws {
+        let spy = try Spy<any GenericStackForwardingProbe>(
+            forwardingTo: RealGenericStackForwardingProbe()
+        )
+        let probe: any GenericStackForwardingProbe = spy()
+
+        let result = probe.measure(
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            value: UInt16.max
+        )
+
+        #expect(result == 38)
+        spy.verify {
+            $0.measure(
+                Match.equal(1),
+                Match.equal(2),
+                Match.equal(3),
+                Match.equal(4),
+                Match.equal(5),
+                Match.equal(6),
+                Match.equal(7),
+                Match.equal(8),
+                value: Match.equal(UInt16.max)
+            )
+        }
+    }
+
+    @Test func forwardingSpySupportsClassConstrainedGenericMethods() throws {
+        let value = ExternalGenericReferenceConstraintValue()
+        let spy = try Spy<any ClassConstrainedGenericRequirementProbe>(
+            forwardingTo: RealClassConstrainedGenericRequirementProbe()
+        )
+        let probe: any ClassConstrainedGenericRequirementProbe = spy()
+
+        probe.generic(value)
+
+        spy.verify {
+            $0.generic(Match.any(using: value))
+        }
+    }
+
+    @Test func forwardingSpySupportsGenericResults() throws {
+        let spy = try Spy<any GenericResultRequirementProbe>(
+            forwardingTo: RealGenericResultRequirementProbe()
+        )
+        let probe: any GenericResultRequirementProbe = spy()
+
+        #expect(probe.echo(42) == 42)
+        #expect(probe.echo("value") == "value")
+        #expect(probe.maybe(7) == 7)
+        #expect(probe.second(1, "second") == "second")
+
+        spy.verify {
+            $0.echo(Match.equal(42))
+        }
+        spy.verify {
+            $0.second(Match.equal(1), Match.equal("second"))
+        }
+    }
+
+    @Test func forwardingSpySupportsAsyncGenericMethods() async throws {
+        let value = UserRegistered(userID: 42)
+        let spy = try Spy<any AsyncGenericRequirementProbe>(
+            forwardingTo: RealAsyncGenericRequirementProbe()
+        )
+        let probe: any AsyncGenericRequirementProbe = spy()
+
+        await probe.publishAsync(value)
+
+        await spy.verify {
+            await $0.publishAsync(Match.equal(value))
+        }
+    }
+
+    @Test func forwardingSpySupportsTypedThrowingGenericMethods() throws {
+        let value = UserRegistered(userID: 42)
+        let spy = try Spy<any TypedThrowingGenericRequirementProbe>(
+            forwardingTo: RealTypedThrowingGenericRequirementProbe()
+        )
+        let probe: any TypedThrowingGenericRequirementProbe = spy()
+
+        try probe.publishThrows(value)
+
+        spy.verify {
+            try $0.publishThrows(Match.equal(value))
+        }
+    }
+
+    @Test func forwardingSpyStillRejectsGenericConformanceWitnesses() {
         expectUnsupportedProtocolShape(
-            containing: "Forwarding Spy does not support requirements with their own generic parameter"
+            containing: "generic conformance witnesses"
         ) {
-            _ = try Spy<any EventBus>(forwardingTo: RealEventBus())
+            _ = try Spy<any ProtocolConstrainedGenericRequirementProbe>(
+                forwardingTo: RealProtocolConstrainedGenericRequirementProbe()
+            )
         }
     }
 }

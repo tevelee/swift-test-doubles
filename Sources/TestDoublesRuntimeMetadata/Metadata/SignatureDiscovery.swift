@@ -131,6 +131,11 @@ package func discoverMethods(
             mangledSignature: parsedMangledName,
             isArgument: false
         )
+        let methodGenericConformanceWitnessCount =
+            methodGenericConformanceWitnessCount(
+                in: RuntimeSymbols.demangle(parsedMangledName),
+                values: parsed.argumentTypes + [parsed.returnType]
+            )
 
         let discoveredTypedError = try resolveTypedError(
             parsed.typedError,
@@ -195,6 +200,8 @@ package func discoverMethods(
                 typedErrorType: typedError?.type,
                 typedErrorDependency: typedError?.dependency ?? .independent,
                 selfIsClassConstrained: protocolUsesClassSelfConvention(proto),
+                methodGenericConformanceWitnessCount:
+                    methodGenericConformanceWitnessCount,
                 isThrowing: getterEffect?.isThrowing ?? parsed.isThrowing,
                 isAsync: isAsync,
                 hasReliableThrowing: getterEffect?.isReliable ?? true
@@ -621,6 +628,48 @@ private func methodGenericParameterPackName(_ spelling: String) -> String? {
         : Substring(spelling)
     guard expansion.hasPrefix("repeat ") else { return nil }
     return String(expansion.dropFirst("repeat ".count))
+}
+
+private func methodGenericConformanceWitnessCount(
+    in demangled: String,
+    values: [DemangledTypeSyntax]
+) -> Int {
+    let parameters = Set(
+        values.compactMap { value -> String? in
+            let spelling = value.canonicalSpelling
+            if methodGenericParameterIndex(spelling) != nil {
+                return spelling
+            }
+            if let parameter = optionalMethodGenericParameterName(spelling),
+                methodGenericParameterIndex(parameter) != nil
+            {
+                return parameter
+            }
+            return methodGenericParameterPackName(spelling)
+        }
+    )
+    var count = 0
+    for parameter in parameters {
+        for marker in ["where \(parameter): ", ", \(parameter): "] {
+            var remaining = demangled[...]
+            while let range = remaining.range(of: marker) {
+                let constraintStart = range.upperBound
+                let suffix = remaining[constraintStart...]
+                let constraintEnd =
+                    suffix.firstIndex(where: { $0 == "," || $0 == ">" })
+                    ?? suffix.endIndex
+                let constraint = suffix[..<constraintEnd]
+                if constraint != "AnyObject"
+                    && constraint != "~Swift.Copyable"
+                    && constraint != "~Swift.Escapable"
+                {
+                    count += 1
+                }
+                remaining = suffix[constraintEnd...]
+            }
+        }
+    }
+    return count
 }
 
 /// The fabricated witness reserves metadata words for copyable, escapable

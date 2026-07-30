@@ -154,8 +154,9 @@ package func runtimeMethodGenericParameterPackUnsupportedReason(
     return "Parameter-pack results cannot be fabricated."
 }
 
-/// Forwarding would need to replay the caller-supplied metadata register
-/// into an outgoing call, which is unverified, so `Spy` always rejects it.
+/// Unconstrained and AnyObject-constrained generic parameters carry metadata
+/// that remains in the captured call frame. Protocol constraints append
+/// conformance-witness words that forwarding does not yet model.
 package func runtimeMethodGenericParameterForwardingUnsupportedReason(
     for method: MethodDescriptor
 ) -> String? {
@@ -175,8 +176,10 @@ package func runtimeMethodGenericParameterForwardingUnsupportedReason(
             default:
                 false
         }
-    if genericArgument || genericResult {
-        return "Forwarding Spy does not support requirements with their own generic parameter."
+    if genericArgument || genericResult,
+        method.methodGenericConformanceWitnessCount > 0
+    {
+        return "Forwarding Spy does not yet replay requirement-level generic conformance witnesses."
     }
     let usesParameterPack = method.arguments.contains {
         if case .methodGenericParameterPack = $0.value.convention { return true }

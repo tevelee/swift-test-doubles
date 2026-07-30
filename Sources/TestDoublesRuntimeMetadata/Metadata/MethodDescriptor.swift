@@ -19,6 +19,10 @@ package struct MethodDescriptor: Sendable {
     package let result: WitnessValueDescriptor
     package let effects: RequirementEffects
     package let selfIsClassConstrained: Bool
+    /// Additional witness-table words carried by protocol-constrained
+    /// requirement-level generic parameters. The recorder can leave them
+    /// opaque, while forwarding must account for them explicitly.
+    package let methodGenericConformanceWitnessCount: Int
     package let typedWitnessAdapterFactory: TypedWitnessAdapterFactory?
 
     package init(
@@ -38,6 +42,7 @@ package struct MethodDescriptor: Sendable {
         typedErrorType: Any.Type? = nil,
         typedErrorDependency: WitnessValueDependency = .independent,
         selfIsClassConstrained: Bool = false,
+        methodGenericConformanceWitnessCount: Int = 0,
         isThrowing: Bool = false,
         isAsync: Bool = false,
         hasReliableThrowing: Bool = true,
@@ -131,6 +136,9 @@ package struct MethodDescriptor: Sendable {
         }
         effects = RequirementEffects(isAsync: isAsync, throwing: throwing)
         self.selfIsClassConstrained = selfIsClassConstrained
+        precondition(methodGenericConformanceWitnessCount >= 0)
+        self.methodGenericConformanceWitnessCount =
+            methodGenericConformanceWitnessCount
         self.typedWitnessAdapterFactory = typedWitnessAdapterFactory
     }
 
@@ -150,6 +158,7 @@ package struct MethodDescriptor: Sendable {
         typedErrorType: Any.Type? = nil,
         typedErrorDependency: WitnessValueDependency = .independent,
         selfIsClassConstrained: Bool,
+        methodGenericConformanceWitnessCount: Int = 0,
         isThrowing: Bool,
         isAsync: Bool,
         hasReliableThrowing: Bool = true,
@@ -194,6 +203,8 @@ package struct MethodDescriptor: Sendable {
             typedErrorType: typedErrorType,
             typedErrorDependency: typedErrorDependency,
             selfIsClassConstrained: selfIsClassConstrained,
+            methodGenericConformanceWitnessCount:
+                methodGenericConformanceWitnessCount,
             isThrowing: isThrowing,
             isAsync: isAsync,
             hasReliableThrowing: hasReliableThrowing,
@@ -328,6 +339,8 @@ package struct MethodDescriptor: Sendable {
         return kind == discovered.kind
             && receiver == discovered.receiver
             && effectsMatch
+            && methodGenericConformanceWitnessCount
+                == discovered.methodGenericConformanceWitnessCount
             && result.matches(discovered.result)
             && arguments.count == discovered.arguments.count
             && zip(arguments, discovered.arguments).allSatisfy { $0.matches($1) }
