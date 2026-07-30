@@ -288,8 +288,10 @@ symbol	TestDoubles	swift.method	AsyncClosureDouble.clearConfiguredBehaviors()	fu
 symbol	TestDoubles	swift.method	AsyncClosureDouble.clearRecordedInvocations()	func clearRecordedInvocations()
 symbol	TestDoubles	swift.method	AsyncClosureDouble.expandedFunction()	func expandedFunction<each Argument>() -> (repeat each Argument) async -> Result where Input == (repeat each Argument)
 symbol	TestDoubles	swift.method	AsyncClosureDouble.invoke(_:)	func invoke<each Argument>(_ argument: repeat each Argument) async -> Result where Input == (repeat each Argument)
+symbol	TestDoubles	swift.method	AsyncClosureDouble.invokeVariadic(_:)	func invokeVariadic<Element>(_ elements: Element...) async -> Result where Input == [Element]
 symbol	TestDoubles	swift.method	AsyncClosureDouble.named(_:)	@discardableResult func named(_ name: String) -> Self
 symbol	TestDoubles	swift.method	AsyncClosureDouble.reset()	func reset()
+symbol	TestDoubles	swift.method	AsyncClosureDouble.variadicFunction()	func variadicFunction<Element>() -> (Element...) async -> Result where Input == [Element]
 symbol	TestDoubles	swift.method	AsyncClosureDouble.verifyNoUnusedStubs(fileID:filePath:line:column:)	func verifyNoUnusedStubs(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	TestDoubles	swift.method	AsyncClosureDouble.when(_:describedBy:fileID:filePath:line:column:)	func when(_ matcher: @escaping Matcher, describedBy description: String = "predicate", fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> AsyncClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	AsyncClosureDouble.when(equal:fileID:filePath:line:column:)	func when(equal value: Input, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> AsyncClosureCallPattern<Input, Result>
@@ -361,8 +363,10 @@ symbol	TestDoubles	swift.method	AsyncThrowingClosureDouble.clearConfiguredBehavi
 symbol	TestDoubles	swift.method	AsyncThrowingClosureDouble.clearRecordedInvocations()	func clearRecordedInvocations()
 symbol	TestDoubles	swift.method	AsyncThrowingClosureDouble.expandedFunction()	func expandedFunction<each Argument>() -> (repeat each Argument) async throws -> Result where Input == (repeat each Argument)
 symbol	TestDoubles	swift.method	AsyncThrowingClosureDouble.invoke(_:)	func invoke<each Argument>(_ argument: repeat each Argument) async throws -> Result where Input == (repeat each Argument)
+symbol	TestDoubles	swift.method	AsyncThrowingClosureDouble.invokeVariadic(_:)	func invokeVariadic<Element>(_ elements: Element...) async throws -> Result where Input == [Element]
 symbol	TestDoubles	swift.method	AsyncThrowingClosureDouble.named(_:)	@discardableResult func named(_ name: String) -> Self
 symbol	TestDoubles	swift.method	AsyncThrowingClosureDouble.reset()	func reset()
+symbol	TestDoubles	swift.method	AsyncThrowingClosureDouble.variadicFunction()	func variadicFunction<Element>() -> (Element...) async throws -> Result where Input == [Element]
 symbol	TestDoubles	swift.method	AsyncThrowingClosureDouble.verifyNoUnusedStubs(fileID:filePath:line:column:)	func verifyNoUnusedStubs(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	TestDoubles	swift.method	AsyncThrowingClosureDouble.when(_:describedBy:fileID:filePath:line:column:)	func when(_ matcher: @escaping Matcher, describedBy description: String = "predicate", fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> AsyncThrowingClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	AsyncThrowingClosureDouble.when(equal:fileID:filePath:line:column:)	func when(equal value: Input, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> AsyncThrowingClosureCallPattern<Input, Result>
@@ -374,8 +378,10 @@ symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.clearConfiguredB
 symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.clearRecordedInvocations()	func clearRecordedInvocations()
 symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.expandedFunction()	func expandedFunction<each Argument>() -> (repeat each Argument) async throws(Failure) -> Result where Input == (repeat each Argument)
 symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.invoke(_:)	func invoke<each Argument>(_ argument: repeat each Argument) async throws(Failure) -> Result where Input == (repeat each Argument)
+symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.invokeVariadic(_:)	func invokeVariadic<Element>(_ elements: Element...) async throws(Failure) -> Result where Input == [Element]
 symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.named(_:)	@discardableResult func named(_ name: String) -> Self
 symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.reset()	func reset()
+symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.variadicFunction()	func variadicFunction<Element>() -> (Element...) async throws(Failure) -> Result where Input == [Element]
 symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.verifyNoUnusedStubs(fileID:filePath:line:column:)	func verifyNoUnusedStubs(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.when(_:describedBy:fileID:filePath:line:column:)	func when(_ matcher: @escaping Matcher, describedBy description: String = "predicate", fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> AsyncThrowingClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.when(equal:fileID:filePath:line:column:)	func when(equal value: Input, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> AsyncThrowingClosureCallPattern<Input, Result>
@@ -553,8 +559,10 @@ symbol	TestDoubles	swift.method	ClosureDouble.describeInteractions()	func descri
 symbol	TestDoubles	swift.method	ClosureDouble.expandedFunction()	func expandedFunction<each Argument>() -> (repeat each Argument) -> Result where Input == (repeat each Argument)
 symbol	TestDoubles	swift.method	ClosureDouble.interactionTimeline()	func interactionTimeline() -> InteractionTimeline
 symbol	TestDoubles	swift.method	ClosureDouble.invoke(_:)	func invoke<each Argument>(_ argument: repeat each Argument) -> Result where Input == (repeat each Argument)
+symbol	TestDoubles	swift.method	ClosureDouble.invokeVariadic(_:)	func invokeVariadic<Element>(_ elements: Element...) -> Result where Input == [Element]
 symbol	TestDoubles	swift.method	ClosureDouble.named(_:)	@discardableResult func named(_ name: String) -> Self
 symbol	TestDoubles	swift.method	ClosureDouble.reset()	func reset()
+symbol	TestDoubles	swift.method	ClosureDouble.variadicFunction()	func variadicFunction<Element>() -> (Element...) -> Result where Input == [Element]
 symbol	TestDoubles	swift.method	ClosureDouble.verify(_:equal:fileID:filePath:line:column:)	func verify(_ expectedCounts: any RangeExpression<Int> = 1 ... 1, equal value: Input, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	TestDoubles	swift.method	ClosureDouble.verify(_:matching:describedBy:fileID:filePath:line:column:)	func verify(_ expectedCounts: any RangeExpression<Int> = 1 ... 1, matching matcher: @escaping Matcher, describedBy description: String = "predicate", fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	TestDoubles	swift.method	ClosureDouble.verifyNoInteractions(fileID:filePath:line:column:)	func verifyNoInteractions(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
@@ -850,8 +858,10 @@ symbol	TestDoubles	swift.method	ThrowingClosureDouble.clearConfiguredBehaviors()
 symbol	TestDoubles	swift.method	ThrowingClosureDouble.clearRecordedInvocations()	func clearRecordedInvocations()
 symbol	TestDoubles	swift.method	ThrowingClosureDouble.expandedFunction()	func expandedFunction<each Argument>() -> (repeat each Argument) throws -> Result where Input == (repeat each Argument)
 symbol	TestDoubles	swift.method	ThrowingClosureDouble.invoke(_:)	func invoke<each Argument>(_ argument: repeat each Argument) throws -> Result where Input == (repeat each Argument)
+symbol	TestDoubles	swift.method	ThrowingClosureDouble.invokeVariadic(_:)	func invokeVariadic<Element>(_ elements: Element...) throws -> Result where Input == [Element]
 symbol	TestDoubles	swift.method	ThrowingClosureDouble.named(_:)	@discardableResult func named(_ name: String) -> Self
 symbol	TestDoubles	swift.method	ThrowingClosureDouble.reset()	func reset()
+symbol	TestDoubles	swift.method	ThrowingClosureDouble.variadicFunction()	func variadicFunction<Element>() -> (Element...) throws -> Result where Input == [Element]
 symbol	TestDoubles	swift.method	ThrowingClosureDouble.verifyNoUnusedStubs(fileID:filePath:line:column:)	func verifyNoUnusedStubs(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	TestDoubles	swift.method	ThrowingClosureDouble.when(_:describedBy:fileID:filePath:line:column:)	func when(_ matcher: @escaping Matcher, describedBy description: String = "predicate", fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> ThrowingClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	ThrowingClosureDouble.when(equal:fileID:filePath:line:column:)	func when(equal value: Input, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> ThrowingClosureCallPattern<Input, Result>
@@ -863,8 +873,10 @@ symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.clearConfiguredBehavi
 symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.clearRecordedInvocations()	func clearRecordedInvocations()
 symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.expandedFunction()	func expandedFunction<each Argument>() -> (repeat each Argument) throws(Failure) -> Result where Input == (repeat each Argument)
 symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.invoke(_:)	func invoke<each Argument>(_ argument: repeat each Argument) throws(Failure) -> Result where Input == (repeat each Argument)
+symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.invokeVariadic(_:)	func invokeVariadic<Element>(_ elements: Element...) throws(Failure) -> Result where Input == [Element]
 symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.named(_:)	@discardableResult func named(_ name: String) -> Self
 symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.reset()	func reset()
+symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.variadicFunction()	func variadicFunction<Element>() -> (Element...) throws(Failure) -> Result where Input == [Element]
 symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.verifyNoUnusedStubs(fileID:filePath:line:column:)	func verifyNoUnusedStubs(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.when(_:describedBy:fileID:filePath:line:column:)	func when(_ matcher: @escaping Matcher, describedBy description: String = "predicate", fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> ThrowingClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	TypedThrowingClosureDouble.when(equal:fileID:filePath:line:column:)	func when(equal value: Input, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> ThrowingClosureCallPattern<Input, Result>
@@ -1277,6 +1289,12 @@ symbol	TestDoubles	swift.typealias	MainActorTypedThrowingClosureDouble	typealias
 symbol	TestDoubles	swift.typealias	ManualStubScenario	typealias ManualStubScenario<T> = TestDoubleScenario<ManualStub<T>>
 symbol	TestDoubles	swift.typealias	ManualThrowingRoute	typealias ManualThrowingRoute<T> = ManualThrowingRequirementRoute<T>
 symbol	TestDoubles	swift.typealias	NonescapingCallbackRecorder.Callback	typealias Callback = (Input) -> Result
+symbol	TestDoubles	swift.typealias	ParameterPackAsyncClosureDouble	typealias ParameterPackAsyncClosureDouble<each Argument, Result> = AsyncClosureDouble<(repeat each Argument), Result>
+symbol	TestDoubles	swift.typealias	ParameterPackAsyncThrowingClosureDouble	typealias ParameterPackAsyncThrowingClosureDouble<each Argument, Result> = AsyncThrowingClosureDouble<(repeat each Argument), Result>
+symbol	TestDoubles	swift.typealias	ParameterPackAsyncTypedThrowingClosureDouble	typealias ParameterPackAsyncTypedThrowingClosureDouble<each Argument, Result, Failure> = AsyncTypedThrowingClosureDouble<(repeat each Argument), Result, Failure> where Failure : Error
+symbol	TestDoubles	swift.typealias	ParameterPackClosureDouble	typealias ParameterPackClosureDouble<each Argument, Result> = ClosureDouble<(repeat each Argument), Result>
+symbol	TestDoubles	swift.typealias	ParameterPackThrowingClosureDouble	typealias ParameterPackThrowingClosureDouble<each Argument, Result> = ThrowingClosureDouble<(repeat each Argument), Result>
+symbol	TestDoubles	swift.typealias	ParameterPackTypedThrowingClosureDouble	typealias ParameterPackTypedThrowingClosureDouble<each Argument, Result, Failure> = TypedThrowingClosureDouble<(repeat each Argument), Result, Failure> where Failure : Error
 symbol	TestDoubles	swift.typealias	ParameterizedManualStubScenario	typealias ParameterizedManualStubScenario<T, Parameter> = ParameterizedTestDoubleScenario<ManualStub<T>, Parameter>
 symbol	TestDoubles	swift.typealias	ParameterizedStubScenario	typealias ParameterizedStubScenario<P, Parameter> = ParameterizedTestDoubleScenario<Stub<P>, Parameter>
 symbol	TestDoubles	swift.typealias	SendableAsyncClosureDouble	typealias SendableAsyncClosureDouble<Input, Result> = AsyncClosureDouble<Input, Result> where Input : Sendable, Result : Sendable
@@ -1293,6 +1311,12 @@ symbol	TestDoubles	swift.typealias	TypedThrowingClosureDouble.Function	typealias
 symbol	TestDoubles	swift.typealias	TypedThrowingClosureDouble.Handler	typealias Handler = @Sendable (Input) throws(Failure) -> Result
 symbol	TestDoubles	swift.typealias	TypedThrowingClosureDouble.Matcher	typealias Matcher = @Sendable (Input) -> Bool
 symbol	TestDoubles	swift.typealias	TypedThrowingClosureSpy	typealias TypedThrowingClosureSpy<Input, Result, Failure> = TypedThrowingClosureDouble<Input, Result, Failure> where Failure : Error
+symbol	TestDoubles	swift.typealias	VariadicAsyncClosureDouble	typealias VariadicAsyncClosureDouble<Element, Result> = AsyncClosureDouble<[Element], Result>
+symbol	TestDoubles	swift.typealias	VariadicAsyncThrowingClosureDouble	typealias VariadicAsyncThrowingClosureDouble<Element, Result> = AsyncThrowingClosureDouble<[Element], Result>
+symbol	TestDoubles	swift.typealias	VariadicAsyncTypedThrowingClosureDouble	typealias VariadicAsyncTypedThrowingClosureDouble<Element, Result, Failure> = AsyncTypedThrowingClosureDouble<[Element], Result, Failure> where Failure : Error
+symbol	TestDoubles	swift.typealias	VariadicClosureDouble	typealias VariadicClosureDouble<Element, Result> = ClosureDouble<[Element], Result>
+symbol	TestDoubles	swift.typealias	VariadicThrowingClosureDouble	typealias VariadicThrowingClosureDouble<Element, Result> = ThrowingClosureDouble<[Element], Result>
+symbol	TestDoubles	swift.typealias	VariadicTypedThrowingClosureDouble	typealias VariadicTypedThrowingClosureDouble<Element, Result, Failure> = TypedThrowingClosureDouble<[Element], Result, Failure> where Failure : Error
 symbol	TestDoubles@Swift	swift.type.method	RangeExpression.exactly(_:)	static func exactly(_ count: Int) -> Self
 symbol	TestDoubles@Swift	swift.type.property	RangeExpression.never	static var never: Self { get }
 symbol	TestDoublesTesting	swift.init	TestDoubleScope.init(strictness:)	init(strictness: TestDoubleStrictness = .noUnusedStubs)
