@@ -183,6 +183,31 @@ public struct RealExternalSelfSubscriptArgumentProbe:
     }
 }
 
+public protocol ExternalClassSelfSubscriptArgumentProbe: AnyObject {
+    subscript(_ value: Self) -> Int { get set }
+    subscript(optional value: Self?) -> Int { get set }
+}
+
+public final class RealExternalClassSelfSubscriptArgumentProbe:
+    ExternalClassSelfSubscriptArgumentProbe
+{
+    public init() {}
+
+    public subscript(
+        _ value: RealExternalClassSelfSubscriptArgumentProbe
+    ) -> Int {
+        get { 0 }
+        set {}
+    }
+
+    public subscript(
+        optional value: RealExternalClassSelfSubscriptArgumentProbe?
+    ) -> Int {
+        get { 0 }
+        set {}
+    }
+}
+
 public protocol ExternalStaticSelfSubscriptArgumentProbe {
     static subscript(_ value: Self) -> Int { get set }
     static subscript(optional value: Self?) -> Int { get set }

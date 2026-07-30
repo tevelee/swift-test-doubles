@@ -60,6 +60,38 @@ import Testing
         stub.verify(.exactly(2)) { captureStaticOptionalSelfSubscriptGet($0) }
         stub.verify(.exactly(2)) { captureStaticOptionalSelfSubscriptSet($0) }
     }
+
+    @Test func classConstrainedArgumentsWorkEndToEnd() throws {
+        _ = RealExternalClassSelfSubscriptArgumentProbe()
+        let stub = try Stub<any ExternalClassSelfSubscriptArgumentProbe>()
+        stub.when { captureClassSelfSubscriptGet($0) }.thenReturn(50)
+        stub.when { captureClassSelfSubscriptSet($0) }.thenDoNothing()
+        stub.when { captureClassOptionalSelfSubscriptGet($0) }.thenReturn(52)
+        stub.when { captureClassOptionalSelfSubscriptSet($0) }.thenDoNothing()
+
+        let source = stub()
+        #expect(invokeClassSelfSubscriptGet(source) == 50)
+        invokeClassSelfSubscriptSet(source)
+        #expect(
+            invokeClassOptionalSelfSubscriptGet(
+                source,
+                includesValue: true
+            ) == 52
+        )
+        #expect(
+            invokeClassOptionalSelfSubscriptGet(
+                source,
+                includesValue: false
+            ) == 52
+        )
+        invokeClassOptionalSelfSubscriptSet(source, includesValue: true)
+        invokeClassOptionalSelfSubscriptSet(source, includesValue: false)
+
+        stub.verify { captureClassSelfSubscriptGet($0) }
+        stub.verify { captureClassSelfSubscriptSet($0) }
+        stub.verify(.exactly(2)) { captureClassOptionalSelfSubscriptGet($0) }
+        stub.verify(.exactly(2)) { captureClassOptionalSelfSubscriptSet($0) }
+    }
 }
 
 private func captureSelfSubscriptGet<
@@ -131,6 +163,76 @@ private func invokeOptionalSelfSubscriptSet<
 ) {
     var receiver = value
     receiver[optional: includesValue ? value : nil] = 45
+}
+
+private func captureClassSelfSubscriptGet<
+    P: ExternalClassSelfSubscriptArgumentProbe
+>(
+    _ value: P
+) -> Int {
+    value[Match.any(using: value)]
+}
+
+private func captureClassSelfSubscriptSet<
+    P: ExternalClassSelfSubscriptArgumentProbe
+>(
+    _ value: P
+) {
+    let receiver = value
+    receiver[Match.any(using: value)] = Match.equal(51)
+}
+
+private func captureClassOptionalSelfSubscriptGet<
+    P: ExternalClassSelfSubscriptArgumentProbe
+>(
+    _ value: P
+) -> Int {
+    value[optional: Match.any(using: Optional(value))]
+}
+
+private func captureClassOptionalSelfSubscriptSet<
+    P: ExternalClassSelfSubscriptArgumentProbe
+>(
+    _ value: P
+) {
+    let receiver = value
+    receiver[optional: Match.any(using: Optional(value))] = Match.equal(53)
+}
+
+private func invokeClassSelfSubscriptGet<
+    P: ExternalClassSelfSubscriptArgumentProbe
+>(
+    _ value: P
+) -> Int {
+    value[value]
+}
+
+private func invokeClassSelfSubscriptSet<
+    P: ExternalClassSelfSubscriptArgumentProbe
+>(
+    _ value: P
+) {
+    let receiver = value
+    receiver[value] = 51
+}
+
+private func invokeClassOptionalSelfSubscriptGet<
+    P: ExternalClassSelfSubscriptArgumentProbe
+>(
+    _ value: P,
+    includesValue: Bool
+) -> Int {
+    value[optional: includesValue ? value : nil]
+}
+
+private func invokeClassOptionalSelfSubscriptSet<
+    P: ExternalClassSelfSubscriptArgumentProbe
+>(
+    _ value: P,
+    includesValue: Bool
+) {
+    let receiver = value
+    receiver[optional: includesValue ? value : nil] = 53
 }
 
 private func captureStaticSelfSubscriptGet<
