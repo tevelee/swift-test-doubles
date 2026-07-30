@@ -273,14 +273,6 @@ private final class ConsumingClassAsyncInvocation<
         stub.verify { try captureStaticTypedReject($0) }
     }
 
-    @Test func nestedOptionalSelfFailsClosedDuringAutomaticDiscovery() {
-        _ = RealExternalNestedOptionalSelfArgumentProbe()
-
-        expectUnsupportedProtocolShape(containing: "embeds Self") {
-            _ = try Stub<any ExternalNestedOptionalSelfArgumentProbe>()
-        }
-    }
-
     @Test func widerSelfFailsClosedDuringAutomaticDiscovery() {
         _ = RealExternalArraySelfArgumentProbe()
 

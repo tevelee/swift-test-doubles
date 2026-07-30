@@ -202,7 +202,9 @@ extension RuntimeStubFactory {
                 .protocolDescriptor.name
             let selfArguments = method.arguments.filter {
                 switch $0.value.convention {
-                    case .selfType, .optionalSelf, .inoutSelf: true
+                    case .selfType, .optionalSelf, .nestedOptionalSelf,
+                        .inoutSelf:
+                        true
                     case .concrete, .associatedType,
                         .methodGenericParameter,
                         .classMethodGenericParameter,

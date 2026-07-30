@@ -464,6 +464,7 @@ struct ProtocolForwardingPlanBuilder<P> {
             method.arguments.allSatisfy({
                 $0.value.convention != .selfType
                     && $0.value.convention != .optionalSelf
+                    && $0.value.convention != .nestedOptionalSelf
                     && $0.value.convention != .inoutSelf
             })
         else {

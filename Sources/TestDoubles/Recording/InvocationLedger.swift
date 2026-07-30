@@ -107,6 +107,7 @@ struct RecordedCall: @unchecked Sendable {
         case strong(Any)
         case selfPayload(WeakPayload, RuntimePayloadMaterializer)
         case optionalSelfPayload(WeakPayload, RuntimePayloadMaterializer)
+        case nestedOptionalSelfPayload(WeakPayload, RuntimePayloadMaterializer)
 
         init(
             _ value: Any,
@@ -144,6 +145,26 @@ struct RecordedCall: @unchecked Sendable {
                     }
                     self = .optionalSelfPayload(WeakPayload(payload), materializer)
 
+                case .nestedOptionalSelf:
+                    guard let materializer else {
+                        preconditionFailure(
+                            "[TestDoubles] Recorded nested Optional Self argument requires a runtime payload materializer."
+                        )
+                    }
+                    guard let nested = value as? (any RuntimePayload)?? else {
+                        preconditionFailure(
+                            "[TestDoubles] Runtime decoded nested Optional Self argument as \(type(of: value)); expected a doubly optional opaque runtime payload."
+                        )
+                    }
+                    guard case .some(.some(let payload)) = nested else {
+                        self = .strong(value)
+                        return
+                    }
+                    self = .nestedOptionalSelfPayload(
+                        WeakPayload(payload),
+                        materializer
+                    )
+
                 case .concrete, .associatedType,
                     .methodGenericParameter,
                     .classMethodGenericParameter,
@@ -155,11 +176,18 @@ struct RecordedCall: @unchecked Sendable {
 
         var value: Any {
             switch self {
-                case .strong(let value): value
+                case .strong(let value): return value
                 case .selfPayload(let weak, let materializer):
-                    weak.value ?? materializer.requirePayload()
+                    return weak.value ?? materializer.requirePayload()
                 case .optionalSelfPayload(let weak, let materializer):
-                    Optional(weak.value ?? materializer.requirePayload()) as Any
+                    return Optional(
+                        weak.value ?? materializer.requirePayload()
+                    ) as Any
+                case .nestedOptionalSelfPayload(let weak, let materializer):
+                    let value: (any RuntimePayload)?? = .some(
+                        .some(weak.value ?? materializer.requirePayload())
+                    )
+                    return value as Any
             }
         }
     }

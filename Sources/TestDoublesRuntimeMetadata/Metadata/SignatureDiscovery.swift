@@ -163,7 +163,8 @@ package func discoverMethods(
                 switch result.convention {
                     case .concrete, .associatedType:
                         true
-                    case .selfType, .optionalSelf, .inoutSelf,
+                    case .selfType, .optionalSelf, .nestedOptionalSelf,
+                        .inoutSelf,
                         .methodGenericParameter,
                         .classMethodGenericParameter,
                         .optionalMethodGenericParameter,
@@ -426,11 +427,20 @@ private func resolveWitnessValue(
                 protocolName: protocolDescriptor.name,
                 reason:
                     "Requirement \(requirementIndex) uses Self through an autoclosure argument. "
-                    + "Automatic Stub supports only direct Self and one Optional layer."
+                    + "Automatic Stub supports direct Self and up to two Optional layers."
+            )
+        }
+        guard isArgument || selfShape != .nestedOptional else {
+            throw RuntimeConstructionError.unsupportedProtocolShape(
+                protocolName: protocolDescriptor.name,
+                reason:
+                    "Requirement \(requirementIndex) returns nested Optional Self. "
+                    + "Automatic Stub supports nested Optional Self only as an argument."
             )
         }
         return .selfValue(
-            isOptional: selfShape == .optional,
+            isOptional: selfShape != .direct,
+            isNestedOptional: selfShape == .nestedOptional,
             isInout: isInout,
             ownership: ownership
         )
@@ -440,7 +450,7 @@ private func resolveWitnessValue(
             protocolName: protocolDescriptor.name,
             reason:
                 "Requirement \(requirementIndex) embeds Self inside unsupported type '\(valueName)'. "
-                + "Automatic Stub supports only direct Self and one Optional layer."
+                + "Automatic Stub supports only direct Self and up to two Optional layers."
         )
     }
 
@@ -516,7 +526,7 @@ private func resolveWitnessValue(
 }
 
 private enum DynamicSelfValueShape {
-    case direct, optional
+    case direct, optional, nestedOptional
 }
 
 /// Whether a demangled type spelling names a generic parameter belonging to the
@@ -698,6 +708,12 @@ private func dynamicSelfValueShape(
         case "Optional<A>", "Swift.Optional<A>",
             "Optional<Self>", "Swift.Optional<Self>":
             .optional
+        case "Optional<Optional<A>>", "Optional<Swift.Optional<A>>",
+            "Swift.Optional<Optional<A>>", "Swift.Optional<Swift.Optional<A>>",
+            "Optional<Optional<Self>>", "Optional<Swift.Optional<Self>>",
+            "Swift.Optional<Optional<Self>>",
+            "Swift.Optional<Swift.Optional<Self>>":
+            .nestedOptional
         default:
             nil
     }

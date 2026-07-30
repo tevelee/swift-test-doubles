@@ -146,5 +146,31 @@ import Testing
         )
     }
 
+    @Test func nestedOptionalSelfUsesIndirectStorageAndSemanticProjection() {
+        let method = MethodDescriptor(
+            kind: .method,
+            name: "accept",
+            index: 0,
+            argumentTypes: [Optional<FabricatedPayload?>.self],
+            returnType: Void.self,
+            argumentConventions: [.nestedOptionalSelf],
+            selfIsClassConstrained: true
+        )
+
+        if case .indirect = method.argumentLayouts[0] {
+            // Expected: nested optional payloads use their value witness ABI.
+        } else {
+            Issue.record("Expected indirect nested Optional Self transport")
+        }
+        #expect(
+            method.runtimeMethod.argumentConventions
+                == [.nestedOptionalSelf]
+        )
+        #expect(
+            method.runtimeMethod.signatureDescription
+                == method.signatureDescription
+        )
+    }
+
     private enum ProjectionError: Error {}
 }
