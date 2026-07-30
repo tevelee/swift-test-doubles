@@ -630,26 +630,46 @@ private func methodGenericParameterPackName(_ spelling: String) -> String? {
     return String(expansion.dropFirst("repeat ".count))
 }
 
+private struct MethodGenericParameters {
+    let ordinary: Set<String>
+    let packs: Set<String>
+
+    var all: Set<String> {
+        ordinary.union(packs)
+    }
+}
+
+private func methodGenericParameters(
+    in values: [DemangledTypeSyntax]
+) -> MethodGenericParameters {
+    var ordinary: Set<String> = []
+    var packs: Set<String> = []
+
+    for value in values {
+        let spelling = value.canonicalSpelling
+        if methodGenericParameterIndex(spelling) != nil {
+            ordinary.insert(spelling)
+        } else if let parameter = optionalMethodGenericParameterName(spelling),
+            methodGenericParameterIndex(parameter) != nil
+        {
+            ordinary.insert(parameter)
+        } else if let parameter = methodGenericParameterPackName(spelling),
+            methodGenericParameterIndex(parameter) != nil
+        {
+            packs.insert(parameter)
+        }
+    }
+
+    return MethodGenericParameters(ordinary: ordinary, packs: packs)
+}
+
 private func methodGenericConformanceWitnessCount(
     in demangled: String,
     values: [DemangledTypeSyntax]
 ) -> Int {
-    let parameters = Set(
-        values.compactMap { value -> String? in
-            let spelling = value.canonicalSpelling
-            if methodGenericParameterIndex(spelling) != nil {
-                return spelling
-            }
-            if let parameter = optionalMethodGenericParameterName(spelling),
-                methodGenericParameterIndex(parameter) != nil
-            {
-                return parameter
-            }
-            return methodGenericParameterPackName(spelling)
-        }
-    )
+    let parameters = methodGenericParameters(in: values)
     var count = 0
-    for parameter in parameters {
+    for parameter in parameters.all {
         for marker in ["where \(parameter): ", ", \(parameter): "] {
             var remaining = demangled[...]
             while let range = remaining.range(of: marker) {
@@ -680,43 +700,15 @@ private func unsupportedRequirementLevelGenericSignatureReason(
     in demangled: String,
     values: [DemangledTypeSyntax]
 ) -> String? {
-    let packParameters = Set(
-        values.compactMap { value -> String? in
-            let spelling = value.canonicalSpelling
-            guard let parameter = methodGenericParameterPackName(spelling),
-                methodGenericParameterIndex(parameter) != nil
-            else {
-                return nil
-            }
-            return parameter
-        }
-    )
-    let parameters = Set(
-        values.compactMap { value -> String? in
-            let spelling = value.canonicalSpelling
-            if methodGenericParameterIndex(spelling) != nil {
-                return spelling
-            }
-            if let parameter = optionalMethodGenericParameterName(spelling),
-                methodGenericParameterIndex(parameter) != nil
-            {
-                return parameter
-            }
-            guard let parameter = methodGenericParameterPackName(spelling),
-                methodGenericParameterIndex(parameter) != nil
-            else {
-                return nil
-            }
-            return parameter
-        })
-    guard parameters.isEmpty == false else { return nil }
+    let parameters = methodGenericParameters(in: values)
+    guard parameters.all.isEmpty == false else { return nil }
 
-    for parameter in parameters
+    for parameter in parameters.all
     where demangledGenericParameterHasConstraint(
         parameter,
         in: demangled
     ) {
-        if packParameters.contains(parameter) {
+        if parameters.packs.contains(parameter) {
             return "Protocol-constrained parameter packs carry additional witness packs whose transport is not implemented."
         }
         if demangled.contains("\(parameter): ~Swift.Copyable") {
