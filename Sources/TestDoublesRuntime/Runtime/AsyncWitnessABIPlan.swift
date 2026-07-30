@@ -197,10 +197,10 @@ private func unsupportedAsyncStubIngressDiagnostic(
     architecture: RuntimeArchitecture
 ) -> String {
     "Its caller-stack ingress on \(architecture) is not a sequence of complete, "
-        + "independent one- or two-word integer, Float, Double, or 16-byte "
+        + "independent one- or two-word integer, Float16, Float, Double, or 16-byte "
         + "single-register SIMD arguments "
         + "supported by the async Stub trampoline. A second narrow integer, "
-        + "split or wider integer, smaller floating-point, wider-vector, "
+        + "split or wider integer, wider-vector, "
         + "dependent, accessor, and wider typed-error shapes remain unsupported. "
         + "Use compatible values or a hand-written test double."
 }
@@ -281,10 +281,10 @@ private func asyncWitnessStackPlan(
 /// This deliberately accepts at most eight stack words contributed by complete
 /// concrete one- or two-word integer, `Float`, `Double`, or one-register
 /// concrete SIMD values that spill consecutively from their register banks. A
-/// second narrow integer, split or wider integer value, smaller floating-point
-/// value, dependent value, wider-vector value, accessor, and typed-error shape
-/// remain fail-closed. A narrow integer or independent indirect value still
-/// contributes its complete eight-byte ABI stack slot.
+/// second narrow integer, split or wider integer value, dependent value,
+/// wider-vector value, accessor, and typed-error shape remain fail-closed. A
+/// narrow integer, `Float16`, or independent indirect value still contributes
+/// its complete eight-byte ABI stack slot.
 package func asyncForwardingStackPlan(
     for method: MethodDescriptor,
     architecture: RuntimeArchitecture
@@ -409,10 +409,10 @@ package func unsupportedAsyncForwardingEgressDiagnostic(
 ) -> String {
     "Its target-stack egress on \(architecture) is not one through eight "
         + "complete stack words contributed by independent one- or two-word integer, "
-        + "Float, Double, or one-register concrete SIMD "
+        + "Float16, Float, Double, or one-register concrete SIMD "
         + "arguments followed by "
         + "dynamic-Self metadata and its witness table. A second narrow "
-        + "integer, split or wider integer, smaller floating-point, wider-vector, "
+        + "integer, split or wider integer, wider-vector, "
         + "dependent, accessor, static, and "
         + "typed-error shapes remain unsupported. Use compatible values or a "
         + "hand-written test double."
@@ -431,7 +431,8 @@ private func supportedIndependentAsyncStackValueByteCount(
             return byteCount
         case .floatingPoint
         where byteCount == MemoryLayout<Float>.size
-            || byteCount == MemoryLayout<Double>.size:
+            || byteCount == MemoryLayout<Double>.size
+            || isFloat16(argument.value.type):
             return byteCount
         case .aggregate(let parts)
         where byteCount == 2 * MemoryLayout<UInt>.size
