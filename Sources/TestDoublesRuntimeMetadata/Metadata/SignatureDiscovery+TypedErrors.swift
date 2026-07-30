@@ -51,7 +51,7 @@ func resolveTypedError(
             protocolName: protocolDescriptor.name,
             reason:
                 "Requirement \(requirementIndex) embeds an associated type inside unsupported typed error '\(name)'. "
-                + "Only a direct associated typed error or a linked, top-level generic class with one or two type parameters is supported."
+                + "Only a direct associated typed error or a linked, top-level generic nominal with supported metadata-accessor key arguments is supported."
         )
     }
     guard let type = resolveRuntimeType(syntax) else {
@@ -112,14 +112,6 @@ private func resolveAssociatedTypedErrorNominalComponent(
     if let application = genericApplication(spelling),
         let argumentSpellings = topLevelComponents(in: application.arguments)
     {
-        guard argumentSpellings.count <= 2 else {
-            throw RuntimeConstructionError.unsupportedProtocolShape(
-                protocolName: protocolDescriptor.name,
-                reason:
-                    "Requirement \(requirementIndex) embeds an associated type inside unsupported typed error '\(spelling)'. "
-                    + "Associated-dependent typed errors currently support generic nominals with at most two type parameters."
-            )
-        }
         let arguments = try argumentSpellings.map {
             try resolveAssociatedTypedErrorNominalComponent(
                 $0,
@@ -156,7 +148,7 @@ private func resolveAssociatedTypedErrorNominalComponent(
             protocolName: protocolDescriptor.name,
             reason:
                 "Requirement \(requirementIndex) embeds an associated type inside unsupported typed error '\(spelling)'. "
-                + "Only a direct associated typed error or a linked, top-level generic class, struct, or enum with one or two type parameters is supported. "
+                + "Only a direct associated typed error or a linked, top-level generic class, struct, or enum with supported metadata-accessor key arguments is supported. "
                 + "Optional and other unproven value wrappers, and source-less constructors remain unsupported."
         )
     }

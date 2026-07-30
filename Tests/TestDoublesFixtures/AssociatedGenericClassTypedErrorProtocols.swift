@@ -18,6 +18,20 @@ public final class ExternalAssociatedPairClassError<First, Second>:
     }
 }
 
+public final class ExternalAssociatedTripleClassError<First, Second, Third>:
+    Error, @unchecked Sendable
+{
+    public let first: First
+    public let second: Second
+    public let third: Third
+
+    public init(_ first: First, _ second: Second, _ third: Third) {
+        self.first = first
+        self.second = second
+        self.third = third
+    }
+}
+
 public final class ExternalConstrainedAssociatedClassError<Value: Hashable>:
     Error, @unchecked Sendable
 {
@@ -89,6 +103,29 @@ public struct RealExternalAssociatedClassTypedErrorProbe:
     ) async throws(ExternalAssociatedClassError<Int>) -> String {
         if code != 0 { throw ExternalAssociatedClassError(code) }
         return "async"
+    }
+}
+
+public protocol ExternalWideAssociatedClassTypedErrorProbe<Element> {
+    associatedtype Element
+
+    func load(
+        _ code: Int
+    ) throws(ExternalAssociatedTripleClassError<Element, String, Bool>) -> Int
+}
+
+public struct RealExternalWideAssociatedClassTypedErrorProbe:
+    ExternalWideAssociatedClassTypedErrorProbe
+{
+    public init() {}
+
+    public func load(
+        _ code: Int
+    ) throws(ExternalAssociatedTripleClassError<Int, String, Bool>) -> Int {
+        if code != 0 {
+            throw ExternalAssociatedTripleClassError(code, "wide", true)
+        }
+        return 10
     }
 }
 

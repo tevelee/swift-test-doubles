@@ -167,6 +167,37 @@ private func useLinkedAssociatedClassTypedErrorProbe(
         await stub.verify { try await $0.asynchronous(Match.equal(4)) }
     }
 
+    @Test func widerGenericClassErrorsPreserveEveryPayload() throws {
+        _ = RealExternalWideAssociatedClassTypedErrorProbe()
+        typealias Failure = ExternalAssociatedTripleClassError<
+            Int,
+            String,
+            Bool
+        >
+        typealias Probe = any ExternalWideAssociatedClassTypedErrorProbe<Int>
+        let stub = try Stub<Probe>()
+        try assertTypedError(
+            #require(stub.recorder.runtimeMethod(for: 0)),
+            type: Failure.self,
+            associatedTypeNames: ["Element"]
+        )
+        stub.when { try $0.load(Match.equal(0)) }.thenReturn(100)
+        stub.when { try $0.load(Match.equal(1)) }.thenThrow(
+            Failure(101, "stub", true)
+        )
+
+        let probe: Probe = stub()
+        #expect(try probe.load(0) == 100)
+        let thrown = try #require(
+            #expect(throws: Failure.self) {
+                _ = try probe.load(1)
+            }
+        )
+        #expect(thrown.first == 101)
+        #expect(thrown.second == "stub")
+        #expect(thrown.third)
+    }
+
     @Test func explicitSchemasCannotEraseClassErrorDependency() {
         _ = RealExternalExplicitAssociatedClassTypedErrorProbe()
         typealias ProbeStub = Stub<

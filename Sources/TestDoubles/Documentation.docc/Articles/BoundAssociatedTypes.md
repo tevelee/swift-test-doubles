@@ -292,9 +292,10 @@ signature validation possible:
   requirements, or source-less explicit generic-nominal schemas.
 - Associated-dependent typed errors whose outer shape is `Optional` or another
   unproven value wrapper, an unlinked generic nominal, or a generic nominal
-  with more than two type parameters. Explicit concrete and string-named
-  associated-error schemas cannot describe the supported generic-nominal
-  source dependency and are rejected when linked validation is available.
+  with unsupported metadata-accessor key arguments. Explicit concrete and
+  string-named associated-error schemas cannot describe the supported
+  generic-nominal source dependency and are rejected when linked validation is
+  available.
 - Same-type constraints other than concrete primary bindings, superclass
   constraints, and other generic constraints outside the directly witnessed
   protocol-conformance or supported `AnyObject` layout forms.
@@ -359,12 +360,11 @@ constrained to `Error & AnyObject` has a formally direct reference channel.
 Swift 6.3 and 6.4 lower `BoxError<Element>` differently: once the exact outer
 generic class descriptor is reconstructed, its reference layout fixes the
 formal error transport and no opaque error slot is needed. The same rule holds
-for proven one- and two-parameter class errors and recursively nested generic
-nominal applications. A reconstructed generic struct or enum error instead
-uses the formal opaque convention, so its typed-error destination is the
-separate caller-provided indirect buffer. That remains stable even when a
-concrete specialization would fit in registers, and composes with `async`
-requirements.
+for any supported generic arity and recursively nested generic nominal
+applications. A reconstructed generic struct or enum error instead uses the
+formal opaque convention, so its typed-error destination is the separate
+caller-provided indirect buffer. That remains stable even when a concrete
+specialization would fit in registers, and composes with `async` requirements.
 
 Optional and other unproven value wrappers and unsupported generic-nominal
 typed errors remain fail-closed. Supporting `Result` as an ordinary argument
