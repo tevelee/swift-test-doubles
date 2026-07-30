@@ -142,6 +142,56 @@ struct ClosureBoundaryExpansionTests {
         #expect(box.transform(21) == "42!")
     }
 
+    @Test func closureContainersForwardThroughSpies() throws {
+        let placeholder: ExternalContainerClosure = { "\($0)" }
+        let tuplePlaceholder: ExternalClosureTuple = (
+            "placeholder",
+            placeholder
+        )
+        let boxPlaceholder = ExternalClosureBox(
+            label: "placeholder",
+            transform: placeholder
+        )
+        let optionalCaptor = Match.Capture<ExternalContainerClosure?>()
+        let spy = try Spy<any ExternalClosureContainerService>(
+            forwardingTo: RealExternalClosureContainerService()
+        )
+        let service: any ExternalClosureContainerService = spy()
+        let transform: ExternalContainerClosure = { "\($0 * 2)!" }
+
+        let optional = service.optional(transform)
+        let array = service.array([transform])
+        let tuple = service.tuple(("tuple", transform))
+        let box = service.nominal(
+            ExternalClosureBox(label: "box", transform: transform)
+        )
+
+        #expect(optional?(21) == "42!")
+        #expect(array.first?(21) == "42!")
+        #expect(tuple.label == "tuple")
+        #expect(tuple.transform(21) == "42!")
+        #expect(box.label == "box")
+        #expect(box.transform(21) == "42!")
+
+        spy.verify(returning: Optional(placeholder)) {
+            $0.optional(
+                optionalCaptor.capture(using: Optional(placeholder))
+            )
+        }
+        spy.verify(returning: [placeholder]) {
+            $0.array(Match.any(using: [placeholder]))
+        }
+        spy.verify(returning: tuplePlaceholder) {
+            $0.tuple(Match.any(using: tuplePlaceholder))
+        }
+        spy.verify(returning: boxPlaceholder) {
+            $0.nominal(Match.any(using: boxPlaceholder))
+        }
+
+        let recordedOptional = try #require(optionalCaptor.first)
+        #expect(recordedOptional?(21) == "42!")
+    }
+
     @Test func nestedNonescapingCallbacksStayWithinOuterInvocation() throws {
         _ = RealExternalNestedNonescapingClosureService()
         let identity: ExternalNestedNonescapingClosure = { callback in

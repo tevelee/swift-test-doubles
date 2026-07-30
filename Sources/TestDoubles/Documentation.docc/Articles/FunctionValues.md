@@ -66,14 +66,15 @@ isolation carried by an `@isolated(any)` value is preserved across the recorder.
 Forwarding Spies support automatically discovered function-valued arguments
 and results on otherwise supported synchronous, throwing, asynchronous,
 async-throwing, and static method witnesses. This includes native Swift
-closures, C function pointers, and Objective-C blocks. Forwarded successes
-return the real target's function value, and forwarded failures preserve the
-target's error. Recording borrows and reabstracts a separate closure value
-while the original call-frame words continue unchanged to the real target,
-preserving captured contexts across suspension. Explicit compiler adapters
-remain Stub-only because their typed entry point changes the witness ABI.
-Function results from coroutine accessors and associated-dependent function
-values remain unsupported in forwarding Spies.
+closures, C function pointers, Objective-C blocks, and supported `Optional`,
+array, tuple, and public nominal containers carrying those values. Forwarded
+successes return the real target's function value, and forwarded failures
+preserve the target's error. Recording borrows and reabstracts a separate
+closure value while the original call-frame words continue unchanged to the
+real target, preserving captured contexts across suspension. Explicit compiler
+adapters remain Stub-only because their typed entry point changes the witness
+ABI. Function results from coroutine accessors and associated-dependent
+function values remain unsupported in forwarding Spies.
 
 The thunk-independent bridge covers ordinary and `@Sendable` synchronous and
 async closures, including untyped and typed `throws`, mixed integer and
