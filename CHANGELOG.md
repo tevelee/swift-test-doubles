@@ -103,6 +103,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Typed-throwing generic methods now compose generic metadata decoding with
   the existing direct and indirect typed-error result transport.
 
+### Changed
+
+- `StubError.trampolineAllocationFailed` now explains that the process could
+  not map executable memory, that the reported index is the first witness slot
+  reached rather than a rejected requirement, and reports only the recovery
+  that applies to the platform running the tests: the
+  `com.apple.security.cs.allow-jit` entitlement with its
+  `RUNTIME_EXCEPTION_ALLOW_JIT` and `ENABLE_HARDENED_RUNTIME` settings on
+  macOS and Mac Catalyst, the platform policy on physical Apple devices, the
+  absence of executable memory on WASI, and policy or limit checks elsewhere.
+  Documented the same hardened-runtime boundary in the README, the
+  Construction Guide, and the Trampoline Architecture article.
+
 ### Fixed
 
 - Call-stack capture now compiles as a safe no-op on WASI, whose Foundation

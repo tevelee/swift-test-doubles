@@ -348,3 +348,36 @@ component that can be discovered reliably. Getter throwing behavior remains
 caller-supplied. The fail-fast `Stub.make`, `Dummy.make`, and `Spy.make` factories
 terminate with the same actionable diagnostic. No construction path launches
 external tools.
+
+### Executable memory on macOS test hosts
+
+``StubError/trampolineAllocationFailed(requirementIndex:)`` reports that the
+process could not map the executable page the trampoline is written into. The
+requirement index names the first witness slot that was attempted, not a
+requirement the runtime objects to; a protocol with one method reports
+`requirement 0` whatever its shape. Its description carries only the recovery
+that applies to the platform the tests are running on, so the entitlement steps
+below appear on macOS and Mac Catalyst, and a device or WASI run is told
+plainly that no setting enables executable memory there.
+
+The usual cause on macOS is the hardened runtime. Trampoline pages are mapped
+with `MAP_JIT`, and the kernel rejects that mapping with `EINVAL` in a process
+signed with the hardened runtime unless it carries the
+`com.apple.security.cs.allow-jit` entitlement. A command-line `swift test` run
+is unaffected. An Xcode app test target running on My Mac is affected whenever
+its host app enables the hardened runtime, because the test bundle is loaded
+into the host process. Grant the entitlement on the host app target:
+
+| Fix | Build setting | Xcode UI |
+| --- | --- | --- |
+| Allow JIT (recommended) | `RUNTIME_EXCEPTION_ALLOW_JIT = YES` | Signing & Capabilities, Hardened Runtime, "Allow Execution of JIT-compiled Code" |
+| Drop the hardened runtime from the test configuration | `ENABLE_HARDENED_RUNTIME = NO` | Build Settings, "Enable Hardened Runtime" |
+| Run the tests on a simulator destination | none | pick a simulator instead of My Mac |
+
+```bash
+xcodebuild test -scheme YourApp -destination 'platform=macOS' RUNTIME_EXCEPTION_ALLOW_JIT=YES
+```
+
+Physical devices and `wasm32-unknown-wasip1` never permit the mapping, and no
+setting changes that. Use ``ManualStub`` there, as described in
+<doc:ManualStubbing>.

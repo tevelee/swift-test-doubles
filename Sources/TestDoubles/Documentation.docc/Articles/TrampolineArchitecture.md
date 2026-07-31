@@ -410,4 +410,16 @@ existential can expose its veneers. Executable-page publication is checked; a
 failed `mprotect` causes construction to fail closed and releases every arena
 page. Custom-executor tests cover handler isolation and caller resumption.
 
+Arena pages are mapped with `MAP_JIT` on Apple platforms. That flag makes the
+mapping fail early, and recoverably, in a process that is not permitted to run
+generated code, rather than letting it fail later at execution time. A plain
+anonymous mapping would be accepted by `mmap` and `mprotect` under the hardened
+runtime, and then terminate the process with `SIGKILL` on the first call
+through a veneer, because code-signing enforcement rejects the unsigned page.
+The kernel rejects `MAP_JIT` with `EINVAL` in a hardened-runtime process that
+lacks the `com.apple.security.cs.allow-jit` entitlement, so
+``StubError/trampolineAllocationFailed(requirementIndex:)`` is raised before any
+witness table is published. See <doc:ConstructionGuide> for the entitlement and
+build settings that grant it.
+
 See <doc:StubContract> for the authoritative signature and platform boundary.

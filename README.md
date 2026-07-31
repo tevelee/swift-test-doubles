@@ -624,6 +624,32 @@ execution policy. [`ManualStub`](Sources/TestDoubles/Documentation.docc/Articles
 provides the same `when`/`then`/`verify` API on those targets with a small
 hand-written conformer.
 
+A macOS test process must be allowed to map JIT memory. The runtime allocates
+its trampoline pages with `MAP_JIT`, which the kernel rejects with `EINVAL` in
+any process signed with the hardened runtime and without the
+`com.apple.security.cs.allow-jit` entitlement. Construction then fails closed
+with `Could not allocate an executable trampoline for requirement 0`, where the
+index only names the first witness slot that was attempted. Command-line
+`swift test` binaries are unaffected. Xcode app test targets running on **My
+Mac** are affected whenever the host app enables the hardened runtime, because
+the `.xctest` bundle is loaded into that host process. Enable the entitlement
+on the **host app target**, not on the test bundle:
+
+| Fix | Build setting | Xcode UI |
+| --- | --- | --- |
+| Allow JIT (recommended) | `RUNTIME_EXCEPTION_ALLOW_JIT = YES` | Signing & Capabilities, Hardened Runtime, "Allow Execution of JIT-compiled Code" |
+| Drop the hardened runtime from the test configuration | `ENABLE_HARDENED_RUNTIME = NO` | Build Settings, "Enable Hardened Runtime" |
+| Run the tests on a simulator destination | none | pick a simulator instead of My Mac |
+
+```bash
+xcodebuild test -scheme YourApp -destination 'platform=macOS' RUNTIME_EXCEPTION_ALLOW_JIT=YES
+```
+
+Removing `MAP_JIT` is not a workaround. A plain anonymous mapping can still be
+`mprotect`ed to read-execute under the hardened runtime, but executing it
+terminates the process with `SIGKILL` under code-signing enforcement, so the
+runtime maps `MAP_JIT` and reports the mapping failure instead.
+
 WebAssembly (`wasm32-unknown-wasip1`) has no facility for executable memory
 and no register-based calling convention to hand-assemble against, so the
 runtime trampoline cannot run there at all, the same limitation as physical
@@ -744,6 +770,10 @@ Key limitations:
   values are retained as escaping `Any` payloads.
 - Physical device targets don't run the executable trampoline; use
   `ManualStub` there.
+- A macOS test host signed with the hardened runtime cannot map the
+  trampoline's JIT pages until the host app carries the
+  `com.apple.security.cs.allow-jit` entitlement
+  (`RUNTIME_EXCEPTION_ALLOW_JIT = YES`).
 
 Everything above fails closed: an unsupported shape throws an actionable
 `StubError` at construction. The precise, normative contract is in the

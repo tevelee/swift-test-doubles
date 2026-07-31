@@ -107,8 +107,12 @@ private let stubErrorDescriptions: [(StubError, String)] = [
     ),
     (
         .trampolineAllocationFailed(requirementIndex: 3),
-        "Could not allocate an executable trampoline for requirement 3.\n"
-            + manualStubbingRecovery
+        "Could not allocate an executable trampoline for requirement 3. "
+            + "The process could not map executable memory, so no witness table was "
+            + "published. Requirement 3 is the first witness slot the runtime reached, "
+            + "not a requirement it rejects; every protocol reports the slot it happened "
+            + "to start with.\n"
+            + executableMemoryRecovery
     ),
     (
         .unsupportedTypeKind(typeName: "Service.Type"),
@@ -120,3 +124,42 @@ private let stubErrorDescriptions: [(StubError, String)] = [
 private let manualStubbingRecovery =
     "Recovery: Use `ManualStub` with a hand-written `ManualStubConformer`, or write a "
     + "hand-written fake, when this protocol must be stubbed."
+
+// Mirrors the platform branch `StubError` reports on the platform these tests
+// run on, so each branch is asserted where it is the one users will read.
+private let executableMemoryRecovery: String = {
+    #if os(WASI)
+        return "WebAssembly has no facility for executable memory, so the runtime "
+            + "trampoline cannot run under WASI at all. No configuration changes that.\n"
+            + manualStubbingRecovery
+    #elseif os(macOS) || targetEnvironment(macCatalyst)
+        return "A macOS process signed with the hardened runtime may only map JIT "
+            + "memory when it carries the `com.apple.security.cs.allow-jit` "
+            + "entitlement, and a `.xctest` bundle inherits that from the process it "
+            + "is loaded into. This usually means an app test target running on My "
+            + "Mac whose host app enables the hardened runtime.\n"
+            + "Pick one:\n"
+            + "1. Grant the entitlement on the host app target, not on the test "
+            + "bundle: Signing & Capabilities, add Hardened Runtime, check \"Allow "
+            + "Execution of JIT-compiled Code\" (`RUNTIME_EXCEPTION_ALLOW_JIT = YES`).\n"
+            + "2. Turn off `ENABLE_HARDENED_RUNTIME` for the configuration the tests "
+            + "run in.\n"
+            + "3. Run the same tests on a simulator destination, or from the command "
+            + "line with `swift test`, where the hardened runtime does not apply.\n"
+            + "Confirm option 1 without editing the project: `xcodebuild test -scheme "
+            + "YourScheme -destination 'platform=macOS' RUNTIME_EXCEPTION_ALLOW_JIT=YES`.\n"
+            + manualStubbingRecovery
+    #elseif (os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)) && !targetEnvironment(simulator)
+        return "Physical Apple devices never let a process map executable memory. "
+            + "That is a platform policy, not a project setting, so no entitlement "
+            + "enables it. Run runtime-generated doubles on a simulator destination "
+            + "or on macOS instead.\n"
+            + manualStubbingRecovery
+    #else
+        return "This platform usually permits executable mappings, so look for a "
+            + "policy or a limit that blocked this one: a kernel, container, or "
+            + "sandbox rule that forbids mapping writable memory executable, an "
+            + "exhausted address space, or a process memory limit.\n"
+            + manualStubbingRecovery
+    #endif
+}()
