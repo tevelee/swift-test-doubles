@@ -25,7 +25,7 @@ struct SmallABIPair: Equatable, Sendable {
     let right: Int32
 }
 
-struct OrdinaryWideABIValue: Sendable {
+struct OrdinaryWideABIValue: Equatable, Sendable {
     let first: Int
     let second: Int
     let third: Int

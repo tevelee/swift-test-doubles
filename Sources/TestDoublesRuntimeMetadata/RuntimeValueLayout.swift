@@ -93,16 +93,56 @@ package func abiClass(for type: Any.Type, isReturn: Bool = false) -> ABIClass {
     if isFloatingPoint(type) {
         return .floatingPoint
     }
+    if isResilientlyPassedSDKValue(type) {
+        return .indirect
+    }
     if let parts = directArgumentParts(for: type) {
         return .aggregate(parts: parts)
     }
     if size > 16 {
-        if isReturn, let parts = directReturnParts(for: type) {
+        // Swift explodes a loadable aggregate into registers whether it is
+        // returned or passed, and only spills to an indirect address once the
+        // explosion no longer fits. Classifying an argument as indirect while
+        // the caller passed it in registers reads a field as an address.
+        if let parts = directReturnParts(for: type) {
             return .aggregate(parts: parts)
         }
         return .indirect
     }
     return .integer(words: size > 8 ? 2 : 1)
+}
+
+/// Foundation value types that a client passes and returns indirectly.
+///
+/// These are not frozen, so a client compiled against the SDK treats them as
+/// address-only and hands the callee an address no matter how small the value
+/// is. Nothing in runtime metadata records that: `String`, which is passed in
+/// registers, and `URL`, which is not, report identical value-witness flags,
+/// size, stride, alignment, and extra inhabitants. Each name below was measured
+/// against the SDK rather than inferred, and
+/// `FoundationValueArgumentTests` fails loudly if one of them ever changes
+/// convention, instead of decoding the wrong value in silence.
+private let resilientlyPassedSDKValueNames: Set<String> = [
+    "Calendar",
+    "CharacterSet",
+    "DateInterval",
+    "IndexPath",
+    "IndexSet",
+    "Locale",
+    "Measurement",
+    "TimeZone",
+    "URL",
+    "UUID"
+]
+
+private func isResilientlyPassedSDKValue(_ type: Any.Type) -> Bool {
+    guard let structMetadata = reflectStruct(type),
+        resilientlyPassedSDKValueNames.contains(structMetadata.descriptor.name),
+        let module = structMetadata.descriptor.parent as? ModuleDescriptor
+    else {
+        return false
+    }
+    return module.name == "Foundation" || module.name == "FoundationEssentials"
 }
 
 /// Whether an `InlineArray` specialization's fixed storage contains values
@@ -352,9 +392,13 @@ package func directReturnParts(for type: Any.Type) -> [DirectValuePart]? {
         }
     }
     var visited: Set<UInt> = []
-    var parts: [DirectValuePart] = []
-    guard appendDirectValueParts(for: type, baseOffset: 0, parts: &parts, visited: &visited),
-        parts.isEmpty == false,
+    var scalars: [DirectValuePart] = []
+    guard appendDirectValueParts(for: type, baseOffset: 0, parts: &scalars, visited: &visited)
+    else {
+        return nil
+    }
+    let parts = wholeIntegerWords(scalars, size: reflect(type).vwt.size)
+    guard parts.isEmpty == false,
         parts.count <= 4,
         parts.filter({ $0.register == .gp }).count <= 4,
         parts.filter({ $0.register == .fp }).count <= 4
@@ -362,6 +406,31 @@ package func directReturnParts(for type: Any.Type) -> [DirectValuePart]? {
         return nil
     }
     return parts
+}
+
+/// Rewrites an all-integer explosion as the machine words it actually occupies.
+///
+/// Swift legalizes a value's scalars into native register types before passing
+/// or returning it, so `{ Int32, Int32 }` takes one register rather than two.
+/// Counting unpacked scalars overstates the register demand, and carrying their
+/// individual offsets drops any byte no field reports, such as the leading
+/// bitfield storage of `Decimal`. Values holding a floating-point field keep
+/// their per-field parts, because those fields travel in their own registers.
+private func wholeIntegerWords(
+    _ parts: [DirectValuePart],
+    size: Int
+) -> [DirectValuePart] {
+    let wordSize = MemoryLayout<UInt>.size
+    guard parts.count > 1, parts.allSatisfy({ $0.register == .gp }), size > 0 else {
+        return parts
+    }
+    return stride(from: 0, to: size, by: wordSize).map { offset in
+        DirectValuePart(
+            register: .gp,
+            offset: offset,
+            byteCount: min(wordSize, size - offset)
+        )
+    }
 }
 
 private func appendDirectValueParts(

@@ -118,6 +118,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Loadable aggregate arguments wider than two words now decode from the
+  registers the caller actually used. They were classified as indirect while
+  only results used the register explosion, so a struct of three or four words
+  (`{ Int, Int, Int }`, `{ Int, String }`, `{ String, String }`) trapped with
+  `Missing indirect argument storage` on the first recorded call. Arguments of
+  five words or more stay indirect, as before.
+- `URL`, `Calendar`, `Locale`, `TimeZone`, `UUID`, `IndexPath`, `IndexSet`,
+  `CharacterSet`, `DateInterval`, and `Measurement` arguments and results now
+  decode from the address the client passes. The SDK does not freeze them, so a
+  client treats them as address-only whatever their size, which runtime
+  metadata does not record: `String` and `URL` report identical value-witness
+  flags, size, stride, alignment, and extra inhabitants. The first seven
+  crashed the test process while recording and the last three decoded a wrong
+  value in silence.
+- Aggregates whose fields are narrower than a machine word now classify by the
+  registers they occupy rather than by field count, so `{ Int32 x 6 }` is three
+  registers instead of six. The rewrite also covers bytes that no field
+  reports, which is what left `Decimal` unusable as an argument or a result.
 - Automatic discovery now reads requirements of protocols declared inside a
   function, method, or closure. Their witness symbols demangle with a trailing
   declaration context, which previously ended up inside the parsed result or
