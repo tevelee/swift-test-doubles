@@ -125,8 +125,7 @@ private let manualStubbingRecovery =
     "Recovery: Use `ManualStub` with a hand-written `ManualStubConformer`, or write a "
     + "hand-written fake, when this protocol must be stubbed."
 
-// Mirrors the platform branch `StubError` reports on the platform these tests
-// run on, so each branch is asserted where it is the one users will read.
+// Mirrors the branch `StubError` reports on the platform under test.
 private let executableMemoryRecovery: String = {
     #if os(WASI)
         return "WebAssembly has no facility for executable memory, so the runtime "

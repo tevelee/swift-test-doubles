@@ -4,9 +4,7 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
         "Recovery: Use `ManualStub` with a hand-written `ManualStubConformer`, or write a "
         + "hand-written fake, when this protocol must be stubbed."
 
-    /// Platform-specific recovery for a process that cannot map executable
-    /// memory. Only the advice that can actually be applied on the platform the
-    /// tests are running on is reported.
+    /// Reports only the recovery that applies on the platform under test.
     private static var executableMemoryRecovery: String {
         #if os(WASI)
             return "WebAssembly has no facility for executable memory, so the runtime "
@@ -107,10 +105,8 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
 
     /// Executable trampoline allocation failed at a zero-based requirement index.
     ///
-    /// The index names the first witness slot the runtime attempted, not a
-    /// requirement it rejects. A hardened-runtime macOS test host without the
-    /// `com.apple.security.cs.allow-jit` entitlement is the usual cause; see
-    /// <doc:ConstructionGuide> for the entitlement and build settings.
+    /// The index names the first witness slot attempted, not a rejected
+    /// requirement. See <doc:ConstructionGuide> for the hardened-runtime case.
     case trampolineAllocationFailed(requirementIndex: Int)
 
     /// Runtime metadata has a type kind the trampoline cannot represent.

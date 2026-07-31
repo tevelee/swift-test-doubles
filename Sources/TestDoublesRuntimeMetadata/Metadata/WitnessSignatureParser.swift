@@ -41,9 +41,10 @@ package func parseWitnessSignature(
         "method descriptor for ",
         "dispatch thunk of "
     ]
-    let cleaned = prefixes.reduce(stripped) { result, prefix in
+    let unwrapped = prefixes.reduce(stripped) { result, prefix in
         result.hasPrefix(prefix) ? String(result.dropFirst(prefix.count)) : result
     }
+    let cleaned = strippingLocalDeclarationContext(unwrapped)
 
     // Accessor: "count.getter : Int", "count.setter : Int", or
     // "subscript.getter : (Swift.Int) -> Swift.String".
@@ -100,6 +101,43 @@ package func parseWitnessSignature(
     }
 
     return nil
+}
+
+/// Strips the trailing declaration context of a requirement declared inside a
+/// function, method, or closure, which prints as
+/// `read(path: Swift.String) -> Foundation.Data in P #1 in test2.f() -> ()`
+/// instead of qualifying the name. Only a local declaration prints the
+/// `Name #<discriminator> in ` head, so the first top-level occurrence marks
+/// where the signature ends.
+private func strippingLocalDeclarationContext(_ text: String) -> String {
+    guard let scanner = DelimitedSyntaxScanner(text) else { return text }
+    var searchStart = text.startIndex
+    while searchStart < text.endIndex,
+        let range = text.range(of: " in ", range: searchStart ..< text.endIndex)
+    {
+        if scanner.isTopLevel(range.lowerBound),
+            startsWithLocalDeclarationContext(text[range.upperBound...])
+        {
+            return String(text[..<range.lowerBound])
+        }
+        searchStart = range.upperBound
+    }
+    return text
+}
+
+private func startsWithLocalDeclarationContext(_ text: Substring) -> Bool {
+    func isNameCharacter(_ character: Character) -> Bool {
+        character == "_" || character.isLetter || character.isNumber
+    }
+    guard let first = text.first, first == "_" || first.isLetter else {
+        return false
+    }
+    var rest = text.drop(while: isNameCharacter)
+    guard rest.hasPrefix(" #") else { return false }
+    rest = rest.dropFirst(2)
+    let discriminator = rest.prefix(while: \.isNumber)
+    guard discriminator.isEmpty == false else { return false }
+    return rest.dropFirst(discriminator.count).hasPrefix(" in ")
 }
 
 /// Parses a property or subscript accessor signature. Swift subscript setters

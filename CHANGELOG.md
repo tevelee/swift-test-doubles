@@ -118,6 +118,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Automatic discovery now reads requirements of protocols declared inside a
+  function, method, or closure. Their witness symbols demangle with a trailing
+  declaration context, which previously ended up inside the parsed result or
+  value type and failed construction with `Could not parse any discovered
+  symbol`.
 - Call-stack capture now compiles as a safe no-op on WASI, whose Foundation
   implementation does not provide `Thread`.
 
