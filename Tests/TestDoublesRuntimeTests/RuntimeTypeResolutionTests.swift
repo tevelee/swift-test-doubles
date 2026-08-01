@@ -33,6 +33,13 @@ private indirect enum RecursiveValueBox<Value> {
         )
     }
 
+    @Test func foundationObjCOverlayNamesResolveToTheirSwiftMetadata() {
+        #expect(
+            resolveRuntimeType("Foundation.NSNotification.Name")
+                == Notification.Name.self
+        )
+    }
+
     @Test func qualifiedProtocolCompositionsResolveToOrdinaryExistentialMetadata() {
         #expect(
             resolveRuntimeType(

@@ -35,6 +35,10 @@ private func resolveUncachedRuntimeType(_ syntax: DemangledTypeSyntax) -> Any.Ty
         case "Double", "Swift.Double": return Double.self
         case "Float", "Swift.Float": return Float.self
         case "Error", "Swift.Error": return (any Error).self
+        // Foundation overlays this source type as `Notification.Name`, while
+        // Linux witness symbols spell it `NSNotification.Name` without a
+        // discoverable nominal metadata descriptor.
+        case "Foundation.NSNotification.Name": return Notification.Name.self
         #if !((os(macOS) || targetEnvironment(macCatalyst)) && arch(x86_64))
             case "Float16", "Swift.Float16": return Float16.self
         #endif
