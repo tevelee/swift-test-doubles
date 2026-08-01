@@ -91,21 +91,14 @@ struct ClosureBoundaryExpansionTests {
         #expect(tuple.transform(21) == "42!")
     }
 
-    @Test func nominalValuesContainingClosuresPreserveTheirPayloads() throws {
+    @Test func nominalClosureResultsFailBeforeTheirABICanCorrupt() throws {
         _ = RealExternalClosureContainerService()
-        let identity: ExternalContainerClosure = { "\($0)" }
-        let result: ExternalContainerClosure = { "\($0 * 2)!" }
-        let boxPlaceholder = ExternalClosureBox(label: "placeholder", transform: identity)
-        let boxResult = ExternalClosureBox(label: "box", transform: result)
-        let stub = try Stub<any ExternalClosureContainerService>()
+        let error = #expect(throws: StubError.self) {
+            _ = try Stub<any ExternalNominalClosureBoxService>()
+        }
 
-        stub.when(returning: boxPlaceholder) {
-            $0.nominal(Match.any(using: boxPlaceholder))
-        }.thenReturn(boxResult)
-
-        let box = stub().nominal(boxPlaceholder)
-        #expect(box.label == "box")
-        #expect(box.transform(21) == "42!")
+        #expect(error?.description.contains("ABI-uncertain result") == true)
+        #expect(error?.description.contains("cannot be calibrated") == true)
     }
 
     @Test func nestedNonescapingCallbacksStayWithinOuterInvocation() throws {
@@ -335,9 +328,6 @@ struct ClosureBoundaryExpansionTests {
         _ = RealExternalAutoclosureParameterService()
         let integerPlaceholder: @Sendable () -> Int = { 0 }
         let floatingPlaceholder: @Sendable () -> Double = { 0 }
-        let aggregatePlaceholder: @Sendable () -> ExternalNullaryAggregate = {
-            ExternalNullaryAggregate(label: "", count: 0, enabled: false)
-        }
         let largePlaceholder: @Sendable () -> ExternalNullaryLargeResult = {
             ExternalNullaryLargeResult(
                 first: 0,
@@ -358,23 +348,12 @@ struct ClosureBoundaryExpansionTests {
             return $0.evaluateFloating(matched())
         }.then { (value: @Sendable () -> Double) in value() + 0.5 }
         stub.when {
-            let matched = Match.any(using: aggregatePlaceholder)
-            return $0.evaluateAggregate(matched())
-        }.then { (value: @Sendable () -> ExternalNullaryAggregate) in value() }
-        stub.when {
             let matched = Match.any(using: largePlaceholder)
             return $0.evaluateLarge(matched())
         }.then { (value: @Sendable () -> ExternalNullaryLargeResult) in value() }
 
         #expect(stub().evaluate(21) == 42)
         #expect(stub().evaluateFloating(13) == 13.5)
-
-        let aggregate = ExternalNullaryAggregate(
-            label: "direct",
-            count: 3,
-            enabled: true
-        )
-        #expect(stub().evaluateAggregate(aggregate) == aggregate)
 
         let large = ExternalNullaryLargeResult(
             first: 1,
@@ -384,6 +363,13 @@ struct ClosureBoundaryExpansionTests {
             fifth: 5
         )
         #expect(stub().evaluateLarge(large) == large)
+
+        let aggregateError = #expect(throws: StubError.self) {
+            _ = try Stub<any ExternalAggregateAutoclosureParameterService>()
+        }
+        #expect(
+            aggregateError?.description.contains("ABI-uncertain result") == true
+        )
     }
 
     @Test func dynamicBridgeCoversOneThroughSixMixedParameters() throws {

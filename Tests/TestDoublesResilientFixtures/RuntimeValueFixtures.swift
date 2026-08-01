@@ -36,3 +36,21 @@ public struct ResilientValueArgument: Equatable, Sendable {
         self.second = second
     }
 }
+
+/// A non-frozen enum is likewise resilient to clients of this module, even
+/// though each current case has a compact tag-only representation.
+public enum ResilientEnumArgument: Sendable {
+    case pending
+    case confirmed
+}
+
+/// Result shapes used to assert the runtime's fail-closed handling of values
+/// whose public ABI cannot reveal frozen-ness to a client.
+public protocol ResilientValueResultABIProbe {
+    func makeValue() -> ResilientValueArgument
+}
+
+/// A frozen control for ``ResilientValueResultABIProbe``.
+public protocol FrozenValueResultABIProbe {
+    func makeValue() -> FrozenValueArgument
+}

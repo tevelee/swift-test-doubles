@@ -130,6 +130,26 @@ package func runtimeMethodGenericParameterPackUnsupportedReason(
     return "Parameter-pack results cannot be fabricated."
 }
 
+/// A direct-sized concrete result can be emitted either through registers or
+/// through the caller's indirect-result storage. Runtime metadata retains both
+/// possibilities for non-frozen values, but a result has no incoming bytes
+/// from which recording can calibrate the client convention. Reject this shape
+/// before a trampoline can write to the wrong transport.
+package func runtimeUncertainConcreteResultUnsupportedReason(
+    for method: MethodDescriptor
+) -> String? {
+    guard method.kind != .setter,
+        method.result.convention == .concrete,
+        argumentABIClassCandidates(for: method.returnType).count > 1
+    else {
+        return nil
+    }
+    return "Its concrete result \(method.returnType) may use either direct or indirect "
+        + "client transport because its defining module does not expose frozen-ness. "
+        + "Return transport cannot be calibrated from a recording call; use a "
+        + "hand-written test double."
+}
+
 /// Unconstrained and AnyObject-constrained generic parameters carry metadata
 /// that remains in the captured call frame. Protocol constraints append
 /// conformance-witness words that forwarding does not yet model.
@@ -236,7 +256,10 @@ private func runtimeContainsSIMDStorage(
     defer { visited.remove(key) }
     return structMetadata.descriptor.fields.records.contains { field in
         guard field.hasMangledTypeName,
-            let fieldType = structMetadata.type(of: field.mangledTypeName)
+            let fieldType = resolvedFieldType(
+                field.mangledTypeName,
+                in: structMetadata
+            )
         else {
             return false
         }

@@ -124,15 +124,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`{ Int, Int, Int }`, `{ Int, String }`, `{ String, String }`) trapped with
   `Missing indirect argument storage` on the first recorded call. Arguments of
   five words or more stay indirect, as before.
-- Concrete struct arguments whose frozen status is absent from runtime
-  metadata now calibrate their complete call-frame layout from `Match`
-  placeholder bytes before typed decoding. This replaces the Foundation
-  argument-name list and covers non-frozen values from any library-evolution
-  module, while keeping identically shaped `@frozen` values direct. The
-  selected layout is cached coherently for consuming, borrowed, async, and spy
-  forwarding plans; unreadable speculative pointers and ambiguous or
-  literal-only recordings fail before value-witness operations. No SDK,
-  module, or type-name special cases remain.
+- Concrete value arguments whose frozen status is absent from runtime metadata
+  now calibrate their complete call-frame layout from `Match` placeholder
+  bytes before typed decoding. This replaces the Foundation argument-name list
+  and covers non-frozen structs and enums from any library-evolution module,
+  plus standard-library generic shells such as `Optional<URL>`,
+  `Result<URL, Error>`, and `ClosedRange<Date>`, while keeping identically
+  shaped `@frozen` values direct. Recording also retains an optional-lifted
+  placeholder representation so `Match.any(using: url)` naturally calibrates
+  a `URL?` argument. The selected layout is cached coherently for consuming,
+  borrowed, async, and spy forwarding plans; unreadable speculative pointers
+  and ambiguous or literal-only recordings fail before value-witness
+  operations. No SDK, module, or type-name special cases remain.
+- Concrete results whose transport remains ABI-uncertain now reject stub or
+  spy construction before the trampoline can corrupt caller storage. A
+  result has no incoming call-frame value with which recording can calibrate
+  direct versus indirect transport; fixed-layout results remain supported.
+- Generic field metadata is now resolved against the concrete specialization
+  rather than a descriptor-wide cache. A prior `ClosedRange<Date>` inspection
+  could otherwise make `ClosedRange<Int>` look like a floating-point
+  aggregate under parallel test execution and decode its bounds as zeroes.
 - Aggregates whose fields are narrower than a machine word now classify by the
   registers they occupy rather than by field count, so `{ Int32 x 6 }` is three
   registers instead of six. The rewrite also covers bytes that no field

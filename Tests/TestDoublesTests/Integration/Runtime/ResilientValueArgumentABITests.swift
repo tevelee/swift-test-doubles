@@ -19,10 +19,26 @@ protocol ResilientValueArgumentABIProbe {
 
     func acceptFrozenFloating(_ value: FrozenFloatingValueArgument) -> Double
 
+    func acceptStatus(_ value: ResilientEnumArgument) -> String
+
     func acceptAsync(
         value: ResilientValueArgument,
         laterMarker: UInt64
     ) async -> UInt64
+}
+
+protocol ResilientValueBatchABIProbe {
+    func acceptBatch(
+        _ first: ResilientValueArgument,
+        _ second: ResilientValueArgument,
+        _ third: ResilientValueArgument,
+        _ fourth: ResilientValueArgument,
+        _ fifth: ResilientValueArgument,
+        _ sixth: ResilientValueArgument,
+        _ seventh: ResilientValueArgument,
+        _ eighth: ResilientValueArgument,
+        _ ninth: ResilientValueArgument
+    ) -> Int
 }
 
 protocol ResilientValueSetterABIProbe {
@@ -50,12 +66,20 @@ private struct LiveResilientValueArgumentABIProbe: ResilientValueArgumentABIProb
         value.first + value.second
     }
 
+    func acceptStatus(_ value: ResilientEnumArgument) -> String {
+        switch value {
+            case .pending: return "pending"
+            case .confirmed: return "confirmed"
+        }
+    }
+
     func acceptAsync(
         value: ResilientValueArgument,
         laterMarker: UInt64
     ) async -> UInt64 {
         value.first ^ value.second ^ laterMarker
     }
+
 }
 
 private struct LiveResilientValueSetterABIProbe:
@@ -164,6 +188,20 @@ private struct LiveResilientValueSetterABIProbe:
         #expect(stub().acceptFrozenFloating(value) == 15.75)
     }
 
+    @Test func importedResilientEnumUsesTheClientsIndirectConvention() throws {
+        _ = LiveResilientValueArgumentABIProbe()
+        let stub = try Stub<any ResilientValueArgumentABIProbe>()
+        stub.when { $0.acceptStatus(Match.any(using: .pending)) }
+            .then { (value: ResilientEnumArgument) in
+                switch value {
+                    case .pending: return "pending"
+                    case .confirmed: return "confirmed"
+                }
+            }
+
+        #expect(stub().acceptStatus(.confirmed) == "confirmed")
+    }
+
     @Test func calibratedResilientValueForwardsWithTheSelectedLayout() throws {
         let placeholder = ResilientValueArgument(
             first: 0x91E4_C72A_5B38_D60F,
@@ -207,24 +245,77 @@ private struct LiveResilientValueSetterABIProbe:
         )
     }
 
-    @Test func resilientSubscriptSetterKeepsValueFirstABIOrder() throws {
-        let placeholder = ResilientValueArgument(first: 127, second: 131)
-        let value = ResilientValueArgument(first: 137, second: 139)
-        let stub = try Spy<any ResilientValueSetterABIProbe>(
-            forwardingTo: LiveResilientValueSetterABIProbe()
+    @Test func calibratesMoreThanEightResilientArgumentsWithoutEnumeratingEveryLayout() throws {
+        let values = (1 ... 9).map {
+            ResilientValueArgument(first: UInt64($0), second: UInt64($0 + 100))
+        }
+        let stub = try Stub<any ResilientValueBatchABIProbe>(
+            .method(
+                ResilientValueArgument.self,
+                ResilientValueArgument.self,
+                ResilientValueArgument.self,
+                ResilientValueArgument.self,
+                ResilientValueArgument.self,
+                ResilientValueArgument.self,
+                ResilientValueArgument.self,
+                ResilientValueArgument.self,
+                ResilientValueArgument.self,
+                returning: Int.self
+            )
         )
         stub.when {
-            $0[Match.equal(149)] = Match.any(using: placeholder)
-        }.then { (received: ResilientValueArgument, index: UInt64) in
-            #expect(received == value)
-            #expect(index == 149)
-        }
+            $0.acceptBatch(
+                Match.any(using: values[0]),
+                Match.any(using: values[1]),
+                Match.any(using: values[2]),
+                Match.any(using: values[3]),
+                Match.any(using: values[4]),
+                Match.any(using: values[5]),
+                Match.any(using: values[6]),
+                Match.any(using: values[7]),
+                Match.any(using: values[8])
+            )
+        }.thenReturn(9)
 
-        var probe: any ResilientValueSetterABIProbe = stub()
-        probe[149] = value
-        stub.verify {
-            $0[Match.equal(149)] = Match.equal(value)
+        #expect(
+            stub().acceptBatch(
+                values[0],
+                values[1],
+                values[2],
+                values[3],
+                values[4],
+                values[5],
+                values[6],
+                values[7],
+                values[8]
+            ) == 9
+        )
+    }
+
+    @Test func resilientSubscriptGetterFailsBeforeItsResultCanCorrupt() {
+        let error = #expect(throws: StubError.self) {
+            _ = try Spy<any ResilientValueSetterABIProbe>(
+                forwardingTo: LiveResilientValueSetterABIProbe()
+            )
         }
+        #expect(error?.description.contains("ABI-uncertain result") == true)
+        #expect(error?.description.contains("cannot be calibrated") == true)
+    }
+
+    @Test func uncertainResilientResultsFailDuringConstruction() {
+        let error = #expect(throws: StubError.self) {
+            _ = try Stub<any ResilientValueResultABIProbe>()
+        }
+        #expect(error?.description.contains("ABI-uncertain result") == true)
+        #expect(error?.description.contains("cannot be calibrated") == true)
+    }
+
+    @Test func frozenResultsRemainSupported() throws {
+        let expected = FrozenValueArgument(first: 151, second: 157)
+        let stub = try Stub<any FrozenValueResultABIProbe>()
+        stub.when { $0.makeValue() }.thenReturn(expected)
+
+        #expect(stub().makeValue() == expected)
     }
 }
 

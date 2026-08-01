@@ -14,9 +14,16 @@ private final class MatcherRecording: @unchecked Sendable {
 
     func appendCalibration<T>(_ placeholder: borrowing T) {
         let bytes = withUnsafeBytes(of: placeholder) { Array($0) }
+        let optionalPlaceholder = Optional.some(copy placeholder)
+        let optionalBytes = withUnsafeBytes(of: optionalPlaceholder) { Array($0) }
         lock.lock()
         calibrations.append(
-            RuntimeArgumentCalibration(type: T.self, bytes: bytes)
+            RuntimeArgumentCalibration(
+                type: T.self,
+                bytes: bytes,
+                optionalType: Optional<T>.self,
+                optionalBytes: optionalBytes
+            )
         )
         lock.unlock()
     }

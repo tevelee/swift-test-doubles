@@ -46,33 +46,21 @@ import Testing
             "placeholder",
             placeholder
         )
-        let boxPlaceholder = ExternalClosureBox(
-            label: "placeholder",
-            transform: placeholder
-        )
         let optionalCaptor = Match.Capture<ExternalContainerClosure?>()
         let spy = try Spy<any ExternalClosureContainerService>(
             forwardingTo: RealExternalClosureContainerService()
         )
-        spy.when(returning: boxPlaceholder) {
-            $0.nominal(Match.any(using: boxPlaceholder))
-        }.thenForward()
         let service: any ExternalClosureContainerService = spy()
         let transform: ExternalContainerClosure = { "\($0 * 2)!" }
 
         let optional = service.optional(transform)
         let array = service.array([transform])
         let tuple = service.tuple(("tuple", transform))
-        let box = service.nominal(
-            ExternalClosureBox(label: "box", transform: transform)
-        )
 
         #expect(optional?(21) == "42!")
         #expect(array.first?(21) == "42!")
         #expect(tuple.label == "tuple")
         #expect(tuple.transform(21) == "42!")
-        #expect(box.label == "box")
-        #expect(box.transform(21) == "42!")
 
         spy.verify(returning: Optional(placeholder)) {
             $0.optional(
@@ -85,9 +73,13 @@ import Testing
         spy.verify(returning: tuplePlaceholder) {
             $0.tuple(Match.any(using: tuplePlaceholder))
         }
-        spy.verify(returning: boxPlaceholder) {
-            $0.nominal(Match.any(using: boxPlaceholder))
+
+        let boxError = #expect(throws: StubError.self) {
+            _ = try Spy<any ExternalNominalClosureBoxService>(
+                forwardingTo: RealExternalClosureContainerService()
+            )
         }
+        #expect(boxError?.description.contains("ABI-uncertain result") == true)
 
         let recordedOptional = try #require(optionalCaptor.first)
         #expect(recordedOptional?(21) == "42!")

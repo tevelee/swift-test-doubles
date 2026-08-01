@@ -10,8 +10,7 @@ struct LargeABIResult: Equatable, Sendable {
 }
 
 struct DirectAggregateABIResult: Equatable, Sendable {
-    let label: String
-    let amount: Double
+    let identifier: UInt64
     let accepted: Bool
 }
 
@@ -126,7 +125,7 @@ protocol DirectAggregateReturnABIProbe {
 
 struct RealDirectAggregateReturnABIProbe: DirectAggregateReturnABIProbe {
     func load(id: Int) -> DirectAggregateABIResult {
-        DirectAggregateABIResult(label: "\(id)", amount: 0, accepted: false)
+        DirectAggregateABIResult(identifier: UInt64(id), accepted: false)
     }
 }
 
@@ -158,7 +157,7 @@ struct RealAsyncABIProbe: AsyncABIProbe {
     func integer(_ value: Int) async -> Int { value }
     func floating(_ value: Double) async -> Double { value }
     func direct(_ id: Int) async -> DirectAggregateABIResult {
-        DirectAggregateABIResult(label: "\(id)", amount: 0, accepted: false)
+        DirectAggregateABIResult(identifier: UInt64(id), accepted: false)
     }
     func indirect(_ id: Int) async -> LargeABIResult {
         LargeABIResult(id: id, amount: 0, label: "", accepted: false)
@@ -727,7 +726,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
     @Test func directAndIndirectAggregateReturns() throws {
         let directStub = try Stub<any DirectAggregateReturnABIProbe>()
         let indirectStub = try Stub<any IndirectReturnABIProbe>()
-        let direct = DirectAggregateABIResult(label: "direct", amount: 12.5, accepted: true)
+        let direct = DirectAggregateABIResult(identifier: 1, accepted: true)
         let indirect = LargeABIResult(id: 7, amount: 19.5, label: "sret", accepted: true)
         directStub.when { $0.load(id: Match.any()) }.thenReturn(direct)
         indirectStub.when { $0.load(id: Match.any()) }.thenReturn(indirect)
@@ -758,7 +757,7 @@ protocol ExtendedAsyncABIProbe: Sendable {
 
     @Test func asyncContinuationsReturnAcrossABIShapes() async throws {
         let stub = try Stub<any AsyncABIProbe>()
-        let direct = DirectAggregateABIResult(label: "async", amount: 3.5, accepted: true)
+        let direct = DirectAggregateABIResult(identifier: 2, accepted: true)
         let indirect = LargeABIResult(id: 11, amount: 8.25, label: "async", accepted: true)
         await stub.when { await $0.noArguments() }.then {
             () async throws -> Int in

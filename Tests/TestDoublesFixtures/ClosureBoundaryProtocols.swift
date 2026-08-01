@@ -61,11 +61,18 @@ public protocol ExternalClosureContainerService {
         _ closures: [ExternalContainerClosure]
     ) -> [ExternalContainerClosure]
     func tuple(_ value: ExternalClosureTuple) -> ExternalClosureTuple
+}
+
+/// A non-frozen nominal result cannot be safely fabricated by the runtime: a
+/// library-evolution client may expect indirect result storage that metadata
+/// does not describe.
+public protocol ExternalNominalClosureBoxService {
     func nominal(_ value: ExternalClosureBox) -> ExternalClosureBox
 }
 
 public struct RealExternalClosureContainerService:
-    ExternalClosureContainerService
+    ExternalClosureContainerService,
+    ExternalNominalClosureBoxService
 {
     public init() {}
 
@@ -304,12 +311,17 @@ public protocol ExternalAutoclosureParameterService {
     func evaluateFloating(
         _ value: @autoclosure @escaping @Sendable () -> Double
     ) -> Double
-    func evaluateAggregate(
-        _ value: @autoclosure @escaping @Sendable () -> ExternalNullaryAggregate
-    ) -> ExternalNullaryAggregate
     func evaluateLarge(
         _ value: @autoclosure @escaping @Sendable () -> ExternalNullaryLargeResult
     ) -> ExternalNullaryLargeResult
+}
+
+/// Keeps the ABI-uncertain aggregate return separate from otherwise supported
+/// autoclosure shapes.
+public protocol ExternalAggregateAutoclosureParameterService {
+    func evaluateAggregate(
+        _ value: @autoclosure @escaping @Sendable () -> ExternalNullaryAggregate
+    ) -> ExternalNullaryAggregate
 }
 
 public struct ExternalNullaryAggregate: Equatable, Sendable {
@@ -341,7 +353,8 @@ public struct ExternalNullaryLargeResult: Equatable, Sendable {
 }
 
 public struct RealExternalAutoclosureParameterService:
-    ExternalAutoclosureParameterService
+    ExternalAutoclosureParameterService,
+    ExternalAggregateAutoclosureParameterService
 {
     public init() {}
 

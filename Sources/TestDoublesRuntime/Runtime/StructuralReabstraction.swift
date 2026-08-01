@@ -321,7 +321,7 @@ extension FunctionReabstraction {
         var payloads: [EnumPayload] = []
         for record in records.prefix(count) {
             guard record.hasMangledTypeName,
-                let type = metadata.type(of: record.mangledTypeName)
+                let type = resolvedFieldType(record.mangledTypeName, in: metadata)
             else {
                 return nil
             }

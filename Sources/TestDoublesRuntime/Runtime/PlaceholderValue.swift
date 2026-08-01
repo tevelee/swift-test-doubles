@@ -132,7 +132,10 @@ package enum PlaceholderValue {
         var elements: [AggregateElement] = []
         for (field, offset) in zip(fields, offsets) {
             guard field.hasMangledTypeName,
-                let fieldType = structMetadata.type(of: field.mangledTypeName),
+                let fieldType = resolvedFieldType(
+                    field.mangledTypeName,
+                    in: structMetadata
+                ),
                 let plan = initializationPlan(for: fieldType, visited: &visited)
             else {
                 return nil

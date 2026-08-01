@@ -51,15 +51,36 @@ package enum RuntimeInvocationMode: Sendable {
 /// the concrete argument convention.
 ///
 /// The ABI runtime compares this independent observation with alternate raw
-/// call-frame transports before it constructs any typed value. `Any.Type` is
-/// retained only to reject positional mismatches without opening the value.
+/// call-frame transports before it constructs any typed value. The optional
+/// form covers Swift's implicit optional injection after a generic matcher
+/// returns. `Any.Type` is retained only to reject positional mismatches
+/// without opening the value.
 package struct RuntimeArgumentCalibration: @unchecked Sendable {
     package let type: Any.Type
     package let bytes: [UInt8]
+    package let optionalType: Any.Type
+    package let optionalBytes: [UInt8]
 
-    package init(type: Any.Type, bytes: [UInt8]) {
+    package init(
+        type: Any.Type,
+        bytes: [UInt8],
+        optionalType: Any.Type,
+        optionalBytes: [UInt8]
+    ) {
         self.type = type
         self.bytes = bytes
+        self.optionalType = optionalType
+        self.optionalBytes = optionalBytes
+    }
+
+    package func bytes(for expectedType: Any.Type) -> [UInt8]? {
+        if ObjectIdentifier(type) == ObjectIdentifier(expectedType) {
+            return bytes
+        }
+        if ObjectIdentifier(optionalType) == ObjectIdentifier(expectedType) {
+            return optionalBytes
+        }
+        return nil
     }
 }
 

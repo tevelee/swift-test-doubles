@@ -112,23 +112,83 @@ package func abiClass(for type: Any.Type) -> ABIClass {
 /// Every argument transport still compatible with the metadata available at
 /// runtime.
 ///
-/// Swift 6.3 marks nominal structs that may need stable storage with
+/// Swift 6.3 marks nominal value types that may need stable storage with
 /// `isAddressableForDependencies`, but that value-witness bit does not encode
-/// whether a client sees the declaration as frozen. For a direct-sized struct
-/// outside the standard library, runtime metadata therefore admits both the
-/// loadable layout and the resilient client convention. The invocation
-/// boundary must calibrate those alternatives before typed decoding.
+/// whether a client sees the declaration as frozen. This also applies to a
+/// standard-library generic shell whose concrete arguments come from a
+/// resilient module, such as `ClosedRange<Date>`. Runtime metadata therefore
+/// admits both the loadable layout and the resilient client convention. The
+/// invocation boundary must calibrate those alternatives before typed
+/// decoding.
 package func argumentABIClassCandidates(for type: Any.Type) -> [ABIClass] {
     let direct = abiClass(for: type)
-    guard direct != .indirect,
-        let metadata = reflectStruct(type),
-        metadata.vwt.flags.isAddressableForDependencies,
-        let module = metadata.descriptor.parent as? ModuleDescriptor,
-        module.name != "Swift"
-    else {
-        return [direct]
-    }
+    guard direct != .indirect else { return [direct] }
+
+    let isAddressableForDependencies =
+        reflectStruct(type).map(hasAddressableArgumentDependencies(in:))
+        ?? reflectEnum(type).map(hasAddressableArgumentDependencies(in:))
+        ?? false
+    guard isAddressableForDependencies else { return [direct] }
     return [direct, .indirect]
+}
+
+private func hasAddressableArgumentDependencies(
+    in metadata: StructMetadata
+) -> Bool {
+    (metadata.vwt.flags.isAddressableForDependencies
+        && nominalModuleName(metadata.descriptor.parent) != "Swift")
+        || storesAddressableGenericArgument(in: metadata)
+}
+
+private func hasAddressableArgumentDependencies(
+    in metadata: EnumMetadata
+) -> Bool {
+    (metadata.vwt.flags.isAddressableForDependencies
+        && nominalModuleName(metadata.descriptor.parent) != "Swift")
+        || storesAddressableGenericArgument(in: metadata)
+}
+
+private func storesAddressableGenericArgument(
+    in metadata: StructMetadata
+) -> Bool {
+    guard metadata.descriptor.flags.isGeneric else { return false }
+    return metadata.descriptor.fields.records.contains { field in
+        guard field.hasMangledTypeName,
+            let fieldType = resolvedFieldType(
+                field.mangledTypeName,
+                in: metadata
+            )
+        else {
+            return false
+        }
+        // A known-indirect implementation detail, such as SIMD's internal
+        // storage type, does not make the outer generic value ABI-uncertain.
+        // Only propagate a field whose own client transport is ambiguous.
+        return argumentABIClassCandidates(for: fieldType).count > 1
+    }
+}
+
+private func storesAddressableGenericArgument(
+    in metadata: EnumMetadata
+) -> Bool {
+    guard metadata.descriptor.flags.isGeneric else { return false }
+    return metadata.descriptor.fields.records.contains { field in
+        guard field.hasMangledTypeName,
+            let fieldType = resolvedFieldType(
+                field.mangledTypeName,
+                in: metadata
+            )
+        else {
+            return false
+        }
+        // See the struct overload above: propagate uncertainty, not a known
+        // indirect storage layout.
+        return argumentABIClassCandidates(for: fieldType).count > 1
+    }
+}
+
+private func nominalModuleName(_ parent: ContextDescriptor?) -> String? {
+    (parent as? ModuleDescriptor)?.name
 }
 
 /// Whether an `InlineArray` specialization's fixed storage contains values
@@ -167,7 +227,7 @@ private func inlineArrayStorage(in type: Any.Type) -> InlineArrayStorage? {
         field.hasMangledTypeName,
         let fieldType = runtimeFieldType(
             field.mangledTypeName,
-            in: metadata,
+            context: metadata.descriptor.ptr,
             genericArgumentWords: [
                 count,
                 UInt(
@@ -208,13 +268,12 @@ private func inlineArrayStorage(in type: Any.Type) -> InlineArrayStorage? {
 
 /// Resolves a field type directly against one concrete metadata instance.
 ///
-/// Echo's general field-name cache is keyed by the descriptor's shared
-/// symbolic mangling, so a value-generic field can otherwise reuse the first
-/// specialization's `Builtin.FixedArray` metadata for later InlineArray
-/// counts or element types.
+/// Echo's general field-name cache is keyed only by the descriptor's shared
+/// symbolic mangling. Resolve against this exact metadata instance instead so
+/// one generic specialization cannot reuse another's field type.
 private func runtimeFieldType(
     _ mangledName: UnsafeRawPointer,
-    in metadata: StructMetadata,
+    context: UnsafeRawPointer,
     genericArgumentWords: [UInt]
 ) -> Any.Type? {
     guard let swiftGetTypeByMangledNameInContextForValueLayout else {
@@ -226,13 +285,74 @@ private func runtimeFieldType(
             let pointer = swiftGetTypeByMangledNameInContextForValueLayout(
                 mangledName.assumingMemoryBound(to: UInt8.self),
                 UInt(length),
-                metadata.descriptor.ptr,
+                context,
                 words.baseAddress.map(UnsafeRawPointer.init)
             )
         else {
             return nil
         }
         return unsafeBitCast(pointer, to: Any.Type.self)
+    }
+}
+
+/// Resolves a stored-field type against the exact generic specialization.
+///
+/// Echo's general symbolic-mangling cache is descriptor-scoped, but a generic
+/// descriptor is shared by all of its specializations. Callers that inspect
+/// stored fields must use this resolver to avoid leaking one specialization's
+/// layout into another.
+package func resolvedFieldType(
+    _ mangledName: UnsafeRawPointer,
+    in metadata: StructMetadata
+) -> Any.Type? {
+    guard metadata.descriptor.flags.isGeneric else {
+        return metadata.type(of: mangledName)
+    }
+    guard let arguments = genericArgumentWords(metadata.genericArguments) else {
+        return nil
+    }
+    return runtimeFieldType(
+        mangledName,
+        context: metadata.descriptor.ptr,
+        genericArgumentWords: arguments
+    )
+}
+
+package func resolvedFieldType(
+    _ mangledName: UnsafeRawPointer,
+    in metadata: EnumMetadata
+) -> Any.Type? {
+    guard metadata.descriptor.flags.isGeneric else {
+        return metadata.type(of: mangledName)
+    }
+    guard let arguments = genericArgumentWords(metadata.genericArguments) else {
+        return nil
+    }
+    return runtimeFieldType(
+        mangledName,
+        context: metadata.descriptor.ptr,
+        genericArgumentWords: arguments
+    )
+}
+
+private func genericArgumentWords(
+    _ arguments: [GenericArgument]
+) -> [UInt]? {
+    arguments.map { argument in
+        switch argument {
+            case .packLength(let length):
+                return UInt(bitPattern: length)
+            case .metadata(let type):
+                return UInt(
+                    bitPattern: unsafeBitCast(type, to: UnsafeRawPointer.self)
+                )
+            case .metadataPack(let pointer), .witnessTablePack(let pointer):
+                return UInt(bitPattern: pointer)
+            case .witnessTable(let table):
+                return UInt(bitPattern: table.ptr)
+            case .value(let value):
+                return value
+        }
     }
 }
 
@@ -345,7 +465,7 @@ private func containsFunctionStorage(
     {
         return enumMetadata.descriptor.fields.records.contains { field in
             field.hasMangledTypeName
-                && enumMetadata.type(of: field.mangledTypeName).map {
+                && resolvedFieldType(field.mangledTypeName, in: enumMetadata).map {
                     containsFunctionStorage($0, visited: &visited)
                 } == true
         }
@@ -360,7 +480,7 @@ private func containsFunctionStorage(
     defer { visited.remove(key) }
     return nominal.descriptor.fields.records.contains { field in
         field.hasMangledTypeName
-            && nominal.type(of: field.mangledTypeName).map {
+            && resolvedFieldType(field.mangledTypeName, in: nominal).map {
                 containsFunctionStorage($0, visited: &visited)
             } == true
     }
@@ -573,9 +693,12 @@ private func appendDirectValueParts(
 
     for (field, offset) in zip(fields, offsets) {
         guard field.hasMangledTypeName,
-            let fieldType = structMetadata.type(of: field.mangledTypeName),
+            let resolvedFieldType = resolvedFieldType(
+                field.mangledTypeName,
+                in: structMetadata
+            ),
             appendDirectValueParts(
-                for: fieldType,
+                for: resolvedFieldType,
                 baseOffset: baseOffset + offset,
                 parts: &parts,
                 visited: &visited

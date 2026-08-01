@@ -1,4 +1,3 @@
-import Foundation
 import Testing
 import TestDoubles
 
@@ -7,19 +6,19 @@ import TestDoubles
 @Suite struct LocalProtocolDeclarationTests {
     @Test func functionLocalProtocolStubsAThrowingMethod() throws {
         protocol FileService {
-            func read(path: String) throws -> Data
+            func read(path: String) throws -> String
         }
 
         struct LinkedFileService: FileService {
-            func read(path: String) throws -> Data { Data() }
+            func read(path: String) throws -> String { "" }
         }
 
         let stub = try Stub<any FileService>()
-        stub.when { try $0.read(path: Match.any()) }.thenReturn(Data([1, 2, 3]))
+        stub.when { try $0.read(path: Match.any()) }.thenReturn("contents")
 
         let sut: any FileService = stub()
 
-        #expect(try sut.read(path: "/test") == Data([1, 2, 3]))
+        #expect(try sut.read(path: "/test") == "contents")
         stub.verify { try $0.read(path: Match.equal("/test")) }
     }
 

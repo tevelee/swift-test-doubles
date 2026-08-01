@@ -379,26 +379,57 @@ private func genericNominalDescriptor(
     let moduleMangle =
         module == "Swift" ? "s" : "\(module.utf8.count)\(module)"
     let prefix = "\(moduleMangle)\(nominal.utf8.count)\(nominal)"
-    guard let pointer = RuntimeSymbols.rawSymbol(named: "$s\(prefix)\(kind)Mn")
-    else {
-        return nil
+    if let pointer = RuntimeSymbols.rawSymbol(named: "$s\(prefix)\(kind)Mn") {
+        return typeContextDescriptor(at: UnsafeRawPointer(pointer), kind: kind)
     }
-    return switch kind {
+
+    // Swift's standard library abbreviates several nominal names in mangled
+    // symbols (`Range`, for example, uses `SN` rather than `s5RangeV`). The
+    // loaded image type sections retain the real descriptors, so search them
+    // by the same semantic identity instead of teaching this resolver a list
+    // of spelling exceptions.
+    return types.lazy.compactMap { descriptor in
+        guard
+            let typeDescriptor = descriptor as? any TypeContextDescriptor,
+            typeDescriptor.name == nominal,
+            (typeDescriptor.parent as? ModuleDescriptor)?.name == module,
+            typeContextDescriptorKind(typeDescriptor) == kind
+        else {
+            return nil
+        }
+        return typeDescriptor
+    }.first
+}
+
+private func typeContextDescriptor(
+    at pointer: UnsafeRawPointer,
+    kind: String
+) -> (any TypeContextDescriptor)? {
+    switch kind {
         case "V":
             unsafeBitCast(
-                UnsafeRawPointer(pointer),
+                pointer,
                 to: StructDescriptor.self
             )
         case "O":
             unsafeBitCast(
-                UnsafeRawPointer(pointer),
+                pointer,
                 to: EnumDescriptor.self
             )
         case "C":
             unsafeBitCast(
-                UnsafeRawPointer(pointer),
+                pointer,
                 to: ClassDescriptor.self
             )
+        default: nil
+    }
+}
+
+private func typeContextDescriptorKind(_ descriptor: any TypeContextDescriptor) -> String? {
+    switch descriptor {
+        case is StructDescriptor: "V"
+        case is EnumDescriptor: "O"
+        case is ClassDescriptor: "C"
         default: nil
     }
 }

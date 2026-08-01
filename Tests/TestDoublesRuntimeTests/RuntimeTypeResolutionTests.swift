@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import TestDoublesRuntimeMetadata
 import TestDoublesFixtures
@@ -23,6 +24,83 @@ import TestDoublesFixtures
             resolveRuntimeType("Swift.Dictionary<Swift.String, Swift.Int>")
                 == [String: Int].self
         )
+    }
+
+    @Test func constructorSpellingsResolveComparableRanges() {
+        #expect(
+            resolveRuntimeType("Swift.ClosedRange<Swift.Int>")
+                == ClosedRange<Int>.self
+        )
+        #expect(
+            resolveRuntimeType("Swift.Range<Swift.String>")
+                == Range<String>.self
+        )
+    }
+
+    @Test func genericAccessorResolvesComparableRangesWithoutATypeSpecificOpener() {
+        #expect(
+            genericNominalType(named: "Swift.ClosedRange<Swift.Int>")
+                == ClosedRange<Int>.self
+        )
+        #expect(
+            genericNominalType(named: "Swift.Range<Foundation.Date>")
+                == Range<Date>.self
+        )
+    }
+
+    @Test func rangeContainingAResilientBoundHasAnIndirectArgumentCandidate() {
+        #expect(
+            argumentABIClassCandidates(for: ClosedRange<Date>.self).contains(.indirect)
+        )
+        #expect(
+            argumentABIClassCandidates(for: Optional<URL>.self).contains(.indirect)
+        )
+        #expect(
+            argumentABIClassCandidates(for: Result<URL, URLError>.self).contains(.indirect)
+        )
+        #expect(
+            argumentABIClassCandidates(for: ClosedRange<Int>.self) == [
+                abiClass(for: ClosedRange<Int>.self)
+            ]
+        )
+    }
+
+    @Test func referenceBackedGenericContainersStayDirect() {
+        #expect(
+            argumentABIClassCandidates(for: Array<URL>.self)
+                == [abiClass(for: Array<URL>.self)]
+        )
+        #expect(
+            argumentABIClassCandidates(for: Set<URL>.self)
+                == [abiClass(for: Set<URL>.self)]
+        )
+        #expect(
+            argumentABIClassCandidates(for: Dictionary<String, URL>.self)
+                == [abiClass(for: Dictionary<String, URL>.self)]
+        )
+        #expect(
+            argumentABIClassCandidates(for: Optional<[URL]>.self)
+                == [abiClass(for: Optional<[URL]>.self)]
+        )
+        #expect(
+            argumentABIClassCandidates(for: SIMD8<Float>.self)
+                == [abiClass(for: SIMD8<Float>.self)]
+        )
+    }
+
+    @Test func genericFieldResolutionDoesNotReuseAnotherSpecializationsLayout() {
+        // Both specializations share `ClosedRange`'s field descriptor. Resolve
+        // the floating-point-bound form first to prove the later integer-bound
+        // form reads its own generic argument metadata rather than a cache
+        // entry keyed only by that shared descriptor.
+        _ = abiClass(for: ClosedRange<Date>.self)
+
+        guard case .integer(let words) = abiClass(for: ClosedRange<Int>.self)
+        else {
+            Issue.record("ClosedRange<Int> must use two integer registers.")
+            return
+        }
+        #expect(words == 2)
     }
 
     @Test func nonHashableKeysFailResolutionSafely() {

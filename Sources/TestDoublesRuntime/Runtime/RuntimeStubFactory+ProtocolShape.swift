@@ -373,6 +373,12 @@ extension RuntimeStubFactory {
                     reason: "Requirement \(method.index) has a requirement-level parameter pack. \(reason)"
                 )
             }
+            if let reason = runtimeUncertainConcreteResultUnsupportedReason(for: method) {
+                throw RuntimeConstructionError.unsupportedProtocolShape(
+                    protocolName: protocolName,
+                    reason: "Requirement \(method.index) has an ABI-uncertain result. \(reason)"
+                )
+            }
             if method.kind == .setter {
                 guard method.arguments.first?.ownership == .owned,
                     method.arguments.dropFirst().allSatisfy({ $0.ownership == .borrowed }),

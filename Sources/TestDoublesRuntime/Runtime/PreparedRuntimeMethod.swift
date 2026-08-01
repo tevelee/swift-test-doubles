@@ -80,23 +80,10 @@ package final class PreparedRuntimeMethod: @unchecked Sendable {
             )
         }
 
-        let vectors = candidateVectors()
-        let matches = vectors.compactMap { layouts in
-            candidateMatches(
-                layouts,
-                calibrations: calibrations,
-                frame: frame
-            )
-                ? (
-                    layouts: layouts,
-                    indirectEvidence: zip(layouts, argumentLayoutCandidates)
-                        .reduce(into: 0) { count, pair in
-                            if pair.0 == .indirect && pair.1.count > 1 {
-                                count += 1
-                            }
-                        }
-                ) : nil
-        }
+        let matches = candidateMatches(
+            calibrations: calibrations,
+            frame: frame
+        )
         let strongestEvidence = matches.map(\.indirectEvidence).max()
         // An exact pointee match is positive evidence for indirect transport.
         // Direct registers may still contain stale construction bytes, so when
@@ -177,60 +164,75 @@ package final class PreparedRuntimeMethod: @unchecked Sendable {
         )
     }
 
-    private func candidateVectors() -> [[ABIClass]] {
-        let maximumCandidateCount = 256
-        var vectors: [[ABIClass]] = [[]]
-        for candidates in argumentLayoutCandidates {
-            guard vectors.count <= maximumCandidateCount / candidates.count else {
-                fatalError(
-                    "[TestDoubles] \(descriptor.name) has too many ambiguous resilient "
-                        + "argument layouts to calibrate safely."
-                )
-            }
-            vectors = vectors.flatMap { prefix in
-                candidates.map { prefix + [$0] }
-            }
-        }
-        return vectors
-    }
-
     private func candidateMatches(
-        _ layouts: [ABIClass],
         calibrations: [RuntimeArgumentCalibration],
         frame: TrampolineCallFrame
-    ) -> Bool {
-        let transport = WitnessCallTransportPlan(
-            method: descriptor,
-            argumentLayouts: layouts
-        )
+    ) -> [(layouts: [ABIClass], indirectEvidence: Int)] {
+        let maximumLiveCandidateCount = 256
+        var matches: [(layouts: [ABIClass], indirectEvidence: Int)] = [([], 0)]
         for index in descriptor.arguments.indices {
             let argument = descriptor.arguments[index]
             let calibration = calibrations[index]
             guard
-                ObjectIdentifier(calibration.type)
-                    == ObjectIdentifier(argument.value.type),
-                calibrationMatches(
-                    calibration,
-                    layout: layouts[index],
-                    comparisonLayout: argumentLayoutCandidates[index][0],
-                    locations: transport.argumentLocations[index],
-                    frame: frame
-                )
+                let calibrationBytes = calibration.bytes(for: argument.value.type)
             else {
-                return false
+                return []
+            }
+            let candidates = argumentLayoutCandidates[index]
+            matches = matches.flatMap { match in
+                candidates.compactMap { layout in
+                    let layouts = match.layouts + [layout]
+                    guard
+                        calibrationMatches(
+                            calibrationBytes,
+                            layout: layout,
+                            comparisonLayout: candidates[0],
+                            locations: argumentLocations(for: layouts),
+                            frame: frame
+                        )
+                    else {
+                        return nil
+                    }
+                    return (
+                        layouts: layouts,
+                        indirectEvidence:
+                            match.indirectEvidence
+                            + (layout == .indirect && candidates.count > 1 ? 1 : 0)
+                    )
+                }
+            }
+            guard matches.count <= maximumLiveCandidateCount else {
+                fatalError(
+                    "[TestDoubles] \(descriptor.name) has too many indistinguishable "
+                        + "resilient argument layouts to calibrate safely."
+                )
             }
         }
-        return true
+        return matches
+    }
+
+    private func argumentLocations(
+        for layouts: [ABIClass]
+    ) -> [CallFrameArgumentLocation] {
+        let initialGeneralPurposeOffset =
+            descriptor.isAsync && descriptor.returnLayout == .indirect ? 1 : 0
+        let plan = CallFrameArgumentLocationPlan(
+            arguments: zip(descriptor.arguments, layouts).map { argument, layout in
+                CallFrameArgumentShape(type: argument.value.type, layout: layout)
+            },
+            initialGeneralPurposeOffset: initialGeneralPurposeOffset
+        )
+        return plan.arguments.last ?? []
     }
 
     private func calibrationMatches(
-        _ calibration: RuntimeArgumentCalibration,
+        _ calibrationBytes: [UInt8],
         layout: ABIClass,
         comparisonLayout: ABIClass,
         locations: [CallFrameArgumentLocation],
         frame: TrampolineCallFrame
     ) -> Bool {
-        let byteCount = calibration.bytes.count
+        let byteCount = calibrationBytes.count
         var observed = [UInt8](repeating: 0, count: byteCount)
         let copied: Bool
         switch layout {
@@ -273,7 +275,7 @@ package final class PreparedRuntimeMethod: @unchecked Sendable {
             byteCount: byteCount
         )
         return ranges.allSatisfy { range in
-            observed[range] == calibration.bytes[range]
+            observed[range] == calibrationBytes[range]
         }
     }
 
