@@ -219,9 +219,12 @@ answer by itself. A client passes a non-`@frozen` struct from a
 library-evolution module by address, but the type descriptor and value-witness
 table do not retain that source-level decision. A standard-library generic
 shell can inherit the same uncertainty through its stored arguments, such as
-`ClosedRange<Date>`. During the first `when` or `verify` recording for such a
-method, each top-level `Match` expression saves the exact placeholder bytes
-before the concrete call. The trampoline evaluates the complete
+`ClosedRange<Date>`. An imported generic struct or enum has the same outer
+uncertainty even when its concrete argument is direct: runtime metadata cannot
+tell a frozen declaration from an evolution-resilient one. During the first
+`when` or `verify` recording for such a method, each top-level `Match`
+expression saves the exact placeholder bytes before the concrete call. The
+trampoline evaluates the complete
 direct/indirect layout vectors against the untouched call frame, using a
 non-trapping current-process memory read for pointer candidates, and publishes
 the one selected vector for borrowed, consuming, async, and forwarding plans.

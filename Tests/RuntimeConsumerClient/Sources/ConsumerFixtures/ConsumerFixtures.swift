@@ -258,6 +258,28 @@ public protocol GenericParentPayloadReporter {
     ) -> String
 }
 
+/// A client boundary whose non-frozen generic payload is itself an escaping
+/// Swift function value, as used by configurable routing or retry policies.
+public protocol GenericClosurePayloadGateway {
+    func submit(
+        _ status: ExternalGenericAPI<@Sendable (Int) -> Int>.Status
+    ) -> Int
+}
+
+/// A frozen generic control proves that calibration keeps the caller's direct
+/// convention when the generic declaration does publish that guarantee.
+@frozen public struct FrozenExternalGenericBox<Value> {
+    public let value: Value
+
+    public init(value: Value) {
+        self.value = value
+    }
+}
+
+public protocol FrozenGenericClosurePayloadGateway {
+    func submit(_ box: FrozenExternalGenericBox<@Sendable (Int) -> Int>) -> Int
+}
+
 public struct OrderedExternalAPI<Payload: Comparable> {
     public struct Status {
         public let payload: Payload

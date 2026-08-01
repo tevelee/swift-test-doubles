@@ -97,6 +97,42 @@ import Testing
         #expect(actual == "draft:ready")
     }
 
+    @Test func genericParentsOfClosureArgumentsResolveInAnOrdinaryConsumer() throws {
+        let placeholder: @Sendable (Int) -> Int = { $0 + 1 }
+        let stub = try Stub<any GenericClosurePayloadGateway>()
+        stub.when {
+            $0.submit(
+                Match.any(
+                    using: ExternalGenericAPI<@Sendable (Int) -> Int>.Status(
+                        payload: placeholder
+                    )
+                )
+            )
+        }.then { (status: ExternalGenericAPI<@Sendable (Int) -> Int>.Status) in
+            status.payload(41)
+        }
+
+        let actual = stub().submit(.init(payload: { value in value + 2 }))
+        #expect(actual == 43)
+    }
+
+    @Test func frozenGenericClosurePayloadsRetainDirectTransport() throws {
+        let placeholder: @Sendable (Int) -> Int = { $0 + 1 }
+        let stub = try Stub<any FrozenGenericClosurePayloadGateway>()
+        stub.when {
+            $0.submit(
+                Match.any(
+                    using: FrozenExternalGenericBox(value: placeholder)
+                )
+            )
+        }.then { (box: FrozenExternalGenericBox<@Sendable (Int) -> Int>) in
+            box.value(41)
+        }
+
+        let actual = stub().submit(.init(value: { value in value + 2 }))
+        #expect(actual == 43)
+    }
+
     @Test func constrainedGenericParentsResolveInAnOrdinaryConsumer() throws {
         let stub = try Stub<any OrderedGenericParentStatusGateway>()
         let placeholder = OrderedExternalAPI<ExternalReservation>.Status(

@@ -195,7 +195,14 @@ private struct ArgumentABIClassificationContext {
         in metadata: StructMetadata
     ) -> Bool {
         (metadata.vwt.flags.isAddressableForDependencies
-            && nominalModuleName(metadata.descriptor.parent) != "Swift")
+            && definingModuleName(of: metadata.descriptor.parent) != "Swift")
+            // Runtime metadata does not record whether an imported generic
+            // nominal was declared `@frozen`. Its field can therefore look
+            // loadable even though a library-evolution client passes the
+            // outer value by address. Calibrate both whole-value conventions
+            // for every non-standard-library generic nominal rather than
+            // guessing from the concrete argument's layout.
+            || isGenericNominalOutsideSwift(metadata.descriptor)
             || storesAddressableGenericArgument(in: metadata)
     }
 
@@ -203,8 +210,16 @@ private struct ArgumentABIClassificationContext {
         in metadata: EnumMetadata
     ) -> Bool {
         (metadata.vwt.flags.isAddressableForDependencies
-            && nominalModuleName(metadata.descriptor.parent) != "Swift")
+            && definingModuleName(of: metadata.descriptor.parent) != "Swift")
+            || isGenericNominalOutsideSwift(metadata.descriptor)
             || storesAddressableGenericArgument(in: metadata)
+    }
+
+    private func isGenericNominalOutsideSwift(
+        _ descriptor: any TypeContextDescriptor
+    ) -> Bool {
+        descriptor.flags.isGeneric
+            && definingModuleName(of: descriptor.parent) != "Swift"
     }
 
     private mutating func storesAddressableGenericArgument(
@@ -249,8 +264,21 @@ private struct ArgumentABIClassificationContext {
     }
 }
 
-private func nominalModuleName(_ parent: ContextDescriptor?) -> String? {
-    (parent as? ModuleDescriptor)?.name
+private func definingModuleName(of parent: ContextDescriptor?) -> String? {
+    var context = parent
+    while let current = context {
+        if let module = current as? ModuleDescriptor {
+            return module.name
+        }
+        if let type = current as? any TypeContextDescriptor {
+            context = type.parent
+        } else if let parentProtocol = current as? ProtocolDescriptor {
+            context = parentProtocol.parent
+        } else {
+            return nil
+        }
+    }
+    return nil
 }
 
 /// Whether an `InlineArray` specialization's fixed storage contains values

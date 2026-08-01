@@ -127,8 +127,10 @@ For a call involving an imported value type, prefer the matcher form for every
 argument from the first recording onward. A non-`@frozen` value from a
 library-evolution module may be passed directly or by address, and those
 matcher placeholders let TestDoubles calibrate the client's convention before
-it decodes a real call. Use a `using:` overload for a type without a
-synthesizable placeholder:
+it decodes a real call. The same rule applies to an imported generic struct or
+enum, even when its current payload looks direct, because runtime metadata does
+not expose whether the outer declaration is `@frozen`. Use a `using:` overload
+for a type without a synthesizable placeholder:
 
 ```swift
 stub.when {
