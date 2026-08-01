@@ -232,6 +232,18 @@ private func noescapeMarkers(
     return true
 }
 
+/// `XK` is the raw-mangling operator for an autoclosure that the callee cannot
+/// retain. It remains visible when the public demangler prints both kinds as
+/// `@autoclosure () -> Result`.
+package func containsNonescapingAutoclosure(in mangledSymbol: String) -> Bool {
+    let bytes = Array(mangledSymbol.utf8)
+    guard bytes.count >= 2 else { return false }
+    return bytes.indices.dropLast().contains { index in
+        bytes[index] == Character("X").asciiValue
+            && bytes[index + 1] == Character("K").asciiValue
+    }
+}
+
 private struct ParsedFunctionType {
     let parameterTypes: [Any.Type]
     let parameterFlags: [UInt32]

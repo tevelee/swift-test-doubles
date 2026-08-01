@@ -91,6 +91,17 @@ package func discoverMethods(
                 details: "Could not parse any discovered symbol: \(attempted.joined(separator: "; ")). Supply explicit Requirement values."
             )
         }
+        if parsed.argumentIsAutoclosure.contains(true),
+            containsNonescapingAutoclosure(in: parsedMangledName)
+        {
+            throw RuntimeConstructionError.unsupportedProtocolShape(
+                protocolName: proto.name,
+                reason:
+                    "Requirement \(requirement.dispatchIndex) has a nonescaping @autoclosure argument. "
+                    + "Automatic Stub retains recorded arguments after the call returns, but a nonescaping autoclosure may capture stack storage. "
+                    + "Declare the autoclosure @escaping, or use ManualStub or a hand-written fake."
+            )
+        }
         let kind = requirement.kind
         // `isAsync` already mirrors `ProtocolRequirementFlags::isAsync()`, which
         // returns false for read/modify coroutines even though they set the

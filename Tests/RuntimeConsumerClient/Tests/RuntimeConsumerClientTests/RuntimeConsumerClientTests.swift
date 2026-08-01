@@ -91,6 +91,14 @@ private struct ReservationStartingAtLeast: CustomMatcher {
         stub().record("delivered")
     }
 
+    @Test func nonescapingAutoclosureRequirementsFailBeforeRecording() throws {
+        let error = #expect(throws: StubError.self) {
+            _ = try Stub<any EagerAutoclosureDeliveryLog>()
+        }
+        #expect(error?.description.contains("nonescaping @autoclosure") == true)
+        #expect(error?.description.contains("ManualStub") == true)
+    }
+
     @Test func foundationRangeCalibratesWithoutTypeSpecificRuntimeLogic() throws {
         let stub = try Stub<any DeliveryGateway>()
         let placeholder =

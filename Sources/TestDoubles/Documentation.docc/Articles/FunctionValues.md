@@ -53,8 +53,11 @@ callbacks, `throws`, typed throws with direct or indirect inner errors, `async`,
 autoclosure parameters inside a closure type, `sending` parameters and results,
 `@isolated(any)`, `nonisolated(nonsending)`, and top-level public noncopyable
 nominal parameters. Declaration-level borrowing is also supported. An
-autoclosure parameter, including one declared directly on a protocol
-requirement, uses the same closure bridge. For a direct requirement, bind a
+escaping autoclosure parameter, including one declared directly on a protocol
+requirement, uses the same closure bridge. Automatic `Stub` rejects a
+nonescaping direct autoclosure before it can retain a closure that captures
+stack storage; declare the parameter `@escaping` or use `ManualStub` or a
+hand-written fake. For a direct requirement, bind a
 closure-typed `Match` expression inside the recording closure before invoking
 the requirement, then invoke the matcher inside the autoclosure. Writing
 `Match.any()` directly there defers the matcher body, so TestDoubles rejects
@@ -252,8 +255,11 @@ Swift's public demangler erases the escaping distinction. To avoid illegally
 retaining a stack closure, automatic discovery checks every raw `XE` noescape
 operator against the exact mangling of one reconstructed outer function type.
 This admits a noescape callback that remains scoped to an escaping outer
-invocation, while any uncovered marker—including a top-level noescape
-argument—still rejects the requirement.
+invocation, while any uncovered marker, including a top-level noescape
+argument, still rejects the requirement. A direct autoclosure is inspected
+separately: raw `XA` is escaping and raw `XK` is nonescaping. `XK` nested
+inside an escaping function value remains supported because it cannot outlive
+that function invocation.
 
 The explicit adapter supports synchronous and async requirements, including
 untyped and concrete typed throws. Initializers, `_modify`, `read`,

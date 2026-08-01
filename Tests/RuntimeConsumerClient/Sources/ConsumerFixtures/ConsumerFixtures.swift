@@ -117,6 +117,11 @@ public protocol AutoclosureDeliveryLog {
     func record(_ message: @autoclosure @escaping () -> String)
 }
 
+/// A logging dependency that evaluates its call-site expression immediately.
+public protocol EagerAutoclosureDeliveryLog {
+    func record(_ message: @autoclosure () -> String)
+}
+
 /// A UI-facing dependency whose requirements are isolated to the main actor.
 @MainActor
 public protocol MainActorReservationGateway {
@@ -263,6 +268,14 @@ public struct LiveAutoclosureDeliveryLog: AutoclosureDeliveryLog {
     public init() {}
 
     public func record(_ message: @autoclosure @escaping () -> String) {
+        _ = message()
+    }
+}
+
+public struct LiveEagerAutoclosureDeliveryLog: EagerAutoclosureDeliveryLog {
+    public init() {}
+
+    public func record(_ message: @autoclosure () -> String) {
         _ = message()
     }
 }

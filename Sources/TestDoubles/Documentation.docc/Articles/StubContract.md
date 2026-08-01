@@ -74,6 +74,11 @@ explicit requirement chunks. The explicit `using:` overloads documented in
 slice; their `@convention(thin)` adapter repeats the requirement signature and
 appends ``Stub/Invocation``.
 
+A direct nonescaping `@autoclosure` is rejected during construction. Its closure
+can capture stack storage, while automatic recording and matching retain the
+decoded value after the call. Declare that parameter `@escaping`, or use
+``ManualStub`` or a hand-written fake.
+
 The bounded associated-type path uses
 ``Stub/Requirement/Value/associatedType(named:)`` for a direct dependent value,
 ``Stub/Requirement/Value/optionalAssociatedType(named:)`` or

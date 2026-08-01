@@ -33,6 +33,19 @@ import Testing
         #expect(signature.argumentIsAutoclosure == [true])
     }
 
+    @Test func rawAutoclosureManglingRetainsEscapingConvention() {
+        #expect(
+            containsNonescapingAutoclosure(
+                in: "$s16ConsumerFixtures22AutoclosureDeliveryLogP6recordyySSyXAFTj"
+            ) == false
+        )
+        #expect(
+            containsNonescapingAutoclosure(
+                in: "$s16ConsumerFixtures27EagerAutoclosureDeliveryLogP6recordyySSyXKFTj"
+            )
+        )
+    }
+
     @Test func methodNameDotsInsideGenericArgumentsAreNotSplitOn() throws {
         let signature = try #require(
             parseWitnessSignature(
