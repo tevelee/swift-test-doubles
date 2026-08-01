@@ -28,6 +28,20 @@ private indirect enum RecursiveValueBox<Value> {
         )
     }
 
+    @Test func qualifiedProtocolCompositionsResolveToOrdinaryExistentialMetadata() {
+        #expect(
+            resolveRuntimeType(
+                "TestDoublesFixtures.ExternalFirstGenericConstraint & "
+                    + "TestDoublesFixtures.ExternalSecondGenericConstraint"
+            ) == (any ExternalFirstGenericConstraint & ExternalSecondGenericConstraint).self
+        )
+        #expect(
+            resolveRuntimeType(
+                "TestDoublesFixtures.ExternalFirstGenericConstraint & Swift.Sendable"
+            ) == (any ExternalFirstGenericConstraint & Sendable).self
+        )
+    }
+
     @Test func bracketSugarResolvesArbitraryElements() {
         #expect(resolveRuntimeType("[Swift.UInt8]") == [UInt8].self)
         #expect(resolveRuntimeType("[[Swift.Int]]") == [[Int]].self)

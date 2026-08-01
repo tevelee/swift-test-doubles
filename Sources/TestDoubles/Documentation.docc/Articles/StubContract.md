@@ -320,6 +320,14 @@ Direct and optional dynamic `Self` results also create a distinct payload backed
 by the same recorder; optional handlers may instead return `nil`. This works for
 methods, getters, static requirements, and ordinary untyped throwing or async
 effects.
+
+Requirement arguments and results may themselves be ordinary Swift
+existentials, including `any Payload`, `any Payload & Sendable`, and
+`any Payload & AnyObject`. Automatic discovery reconstructs the same
+existential metadata the client uses. When recording one of these arguments,
+pass a real conforming value to `Match.any(using:)` rather than trying to
+synthesize an existential placeholder.
+
 On Apple platforms, an ordinary existential may additionally constrain its
 payload to an imported Objective-C class or Swift-defined `NSObject` subclass.
 Construction calls the superclass's default initializer, uses that genuine

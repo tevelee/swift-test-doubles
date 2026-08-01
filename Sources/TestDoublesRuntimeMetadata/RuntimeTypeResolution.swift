@@ -47,6 +47,9 @@ private func resolveCompositeRuntimeType(_ syntax: DemangledTypeSyntax) -> Any.T
     if let type = _typeByName(name) {
         return type
     }
+    if let type = protocolCompositionType(named: name) {
+        return type
+    }
     if case .function(let function) = syntax,
         let type = functionType(function)
     {
@@ -728,114 +731,6 @@ private func openedSIMD64Type<Scalar: SIMDScalar>(of _: Scalar.Type) -> Any.Type
 
 private func metatypeType<Instance>(of _: Instance.Type) -> Any.Type {
     Instance.Type.self
-}
-
-private func swiftTypeByNominalName(_ name: String) -> Any.Type? {
-    let parts = name.split(separator: ".").map(String.init)
-    guard parts.count == 2 else { return nil }
-    let module = parts[0]
-    let typeName = parts[1]
-    let modulePrefix = module == "Swift" ? "s" : "\(module.utf8.count)\(module)"
-    let prefix = "\(modulePrefix)\(typeName.utf8.count)\(typeName)"
-    for suffix in ["V", "O", "C"] {
-        if let type = swiftTypeByMangledName(prefix + suffix) {
-            return type
-        }
-        if let type = swiftTypeByExportedMetadataSymbol(prefix + suffix) {
-            return type
-        }
-    }
-    return swiftProtocolExistentialType(withMangledPrefix: prefix)
-}
-
-/// Function-signature demangling spells an ordinary existential as the
-/// qualified protocol name, without the source-level `any` keyword. A protocol
-/// declaration has no type metadata of its own, so resolve the compiler-emitted
-/// descriptor and ask the Swift runtime to unique its one-protocol existential
-/// metadata instead of guessing from layout.
-private func swiftProtocolExistentialType(withMangledPrefix prefix: String) -> Any.Type? {
-    guard
-        let descriptorPointer = RuntimeSymbols.rawSymbol(named: "$s\(prefix)Mp"),
-        let swiftGetExistentialTypeMetadata,
-        let classConstrained = protocolDescriptorClassConstraint(
-            at: UnsafeRawPointer(descriptorPointer)
-        )
-    else {
-        return nil
-    }
-    let protocols = [UnsafeRawPointer(descriptorPointer)]
-    let metadata: UnsafeRawPointer? = protocols.withUnsafeBufferPointer { protocols in
-        guard let baseAddress = protocols.baseAddress else { return nil }
-        return swiftGetExistentialTypeMetadata(
-            !classConstrained,
-            nil,
-            protocols.count,
-            baseAddress
-        )
-    }
-    return metadata.map { unsafeBitCast($0, to: Any.Type.self) }
-}
-
-/// The first word of a protocol descriptor is `ContextDescriptorFlags`. The
-/// protocol kind must be `3`; the first kind-specific bit stores the inverted
-/// `ProtocolClassConstraint` value, where zero means class-constrained.
-private func protocolDescriptorClassConstraint(at pointer: UnsafeRawPointer) -> Bool? {
-    let flags = pointer.loadUnaligned(as: UInt32.self)
-    guard flags & 0x1F == 3 else { return nil }
-    return flags & 0x10000 == 0
-}
-
-/// Public noncopyable nominal types expose concrete metadata even though the
-/// runtime's generic mangled-name lookup intentionally declines to instantiate
-/// them. Swift's exported `N` symbol is the metadata object itself.
-private func swiftTypeByExportedMetadataSymbol(_ mangledType: String) -> Any.Type? {
-    let symbolName = "$s\(mangledType)N"
-    guard let metadata = RuntimeSymbols.rawSymbol(named: symbolName) else { return nil }
-    return unsafeBitCast(metadata, to: Any.Type.self)
-}
-
-private func swiftTypeByMangledName(_ name: String) -> Any.Type? {
-    guard let swiftGetTypeByMangledNameInContext else {
-        return nil
-    }
-    return name.utf8CString.withUnsafeBufferPointer { buffer -> Any.Type? in
-        guard let base = buffer.baseAddress else { return nil }
-        guard
-            let metadata = swiftGetTypeByMangledNameInContext(
-                UnsafeRawPointer(base).assumingMemoryBound(to: UInt8.self),
-                UInt(name.utf8.count),
-                nil,
-                nil
-            )
-        else {
-            return nil
-        }
-        return unsafeBitCast(metadata, to: Any.Type.self)
-    }
-}
-
-private typealias SwiftGetTypeByMangledNameInContext =
-    @convention(c) (
-        UnsafePointer<UInt8>,
-        UInt,
-        UnsafeRawPointer?,
-        UnsafeRawPointer?
-    ) -> UnsafeRawPointer?
-
-private var swiftGetTypeByMangledNameInContext: SwiftGetTypeByMangledNameInContext? {
-    RuntimeSymbols.function(named: "swift_getTypeByMangledNameInContext")
-}
-
-private typealias SwiftGetExistentialTypeMetadata =
-    @convention(c) (
-        Bool,
-        UnsafeRawPointer?,
-        Int,
-        UnsafePointer<UnsafeRawPointer>
-    ) -> UnsafeRawPointer
-
-private var swiftGetExistentialTypeMetadata: SwiftGetExistentialTypeMetadata? {
-    RuntimeSymbols.function(named: "swift_getExistentialTypeMetadata")
 }
 
 private typealias SwiftGetFunctionTypeMetadata =

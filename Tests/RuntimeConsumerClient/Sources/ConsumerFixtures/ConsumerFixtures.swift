@@ -142,7 +142,7 @@ public protocol ReportPayload {
     var summary: String { get }
 }
 
-public struct ExternalReportPayload: ReportPayload {
+public struct ExternalReportPayload: ReportPayload, Sendable {
     public let summary: String
 
     public init(summary: String) {
@@ -152,6 +152,22 @@ public struct ExternalReportPayload: ReportPayload {
 
 public protocol PayloadReporter {
     func report(_ payload: any ReportPayload) -> String
+}
+
+public protocol SendablePayloadReporter {
+    func report(_ payload: any ReportPayload & Sendable) -> String
+}
+
+public final class ExternalReferenceReportPayload: ReportPayload {
+    public let summary: String
+
+    public init(summary: String) {
+        self.summary = summary
+    }
+}
+
+public protocol ClassConstrainedPayloadReporter {
+    func report(_ payload: any ReportPayload & AnyObject) -> String
 }
 
 /// A deliberately unsupported mixed tuple transport. The first member is

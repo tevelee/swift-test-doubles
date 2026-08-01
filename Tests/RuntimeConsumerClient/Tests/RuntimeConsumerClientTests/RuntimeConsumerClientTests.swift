@@ -263,6 +263,32 @@ private func archiveScore(
         )
     }
 
+    @Test func protocolCompositionArgumentsResolveInAnOrdinaryConsumer() throws {
+        let stub = try Stub<any SendablePayloadReporter>()
+        let placeholder = ExternalReportPayload(summary: "placeholder")
+        stub.when { $0.report(Match.any(using: placeholder)) }
+            .then { (payload: any ReportPayload & Sendable) in
+                payload.summary
+            }
+
+        #expect(
+            stub().report(ExternalReportPayload(summary: "actual")) == "actual"
+        )
+    }
+
+    @Test func classConstrainedProtocolCompositionArgumentsResolveInAnOrdinaryConsumer() throws {
+        let stub = try Stub<any ClassConstrainedPayloadReporter>()
+        let placeholder = ExternalReferenceReportPayload(summary: "placeholder")
+        stub.when { $0.report(Match.any(using: placeholder)) }
+            .then { (payload: any ReportPayload & AnyObject) in
+                payload.summary
+            }
+
+        #expect(
+            stub().report(ExternalReferenceReportPayload(summary: "actual")) == "actual"
+        )
+    }
+
     @Test func mixedResilientTupleArgumentsFailBeforeRecording() {
         let error = #expect(throws: StubError.self) {
             _ = try Stub<any MixedTupleGateway>()
