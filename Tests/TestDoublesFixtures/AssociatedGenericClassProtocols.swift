@@ -204,6 +204,46 @@ public struct RealExternalGenericStructAssociatedProbe:
     }
 }
 
+public protocol ExternalGenericParentAssociatedProbe<Element> {
+    associatedtype Element
+
+    func transform(
+        _ value: ExternalGenericParent<Element>.Payload
+    ) -> ExternalGenericParent<Element>.Payload
+}
+
+public struct RealExternalGenericParentAssociatedProbe:
+    ExternalGenericParentAssociatedProbe
+{
+    public init() {}
+
+    public func transform(
+        _ value: ExternalGenericParent<Int>.Payload
+    ) -> ExternalGenericParent<Int>.Payload {
+        value
+    }
+}
+
+public protocol ExternalConstrainedGenericParentAssociatedProbe<Element> {
+    associatedtype Element: ExternalFirstGenericConstraint
+
+    func transform(
+        _ value: ConstrainedGenericParent<Element>.Payload
+    ) -> ConstrainedGenericParent<Element>.Payload
+}
+
+public struct RealExternalConstrainedGenericParentAssociatedProbe:
+    ExternalConstrainedGenericParentAssociatedProbe
+{
+    public init() {}
+
+    public func transform(
+        _ value: ConstrainedGenericParent<String>.Payload
+    ) -> ConstrainedGenericParent<String>.Payload {
+        value
+    }
+}
+
 public protocol ExternalConstrainedGenericStructAssociatedProbe<Element> {
     associatedtype Element
 

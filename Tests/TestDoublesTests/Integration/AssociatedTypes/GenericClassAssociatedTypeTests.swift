@@ -18,6 +18,20 @@ private func useLinkedGenericStructAssociatedProbe(
 }
 
 @inline(never)
+private func useLinkedGenericParentAssociatedProbe(
+    _ value: any ExternalGenericParentAssociatedProbe<Int>
+) -> Int {
+    value.transform(ExternalGenericParent.Payload(outer: 1)).outer
+}
+
+@inline(never)
+private func useLinkedConstrainedGenericParentAssociatedProbe(
+    _ value: any ExternalConstrainedGenericParentAssociatedProbe<String>
+) -> String {
+    value.transform(ConstrainedGenericParent.Payload(outer: "one")).outer
+}
+
+@inline(never)
 private func useLinkedGenericEnumAssociatedProbe(
     _ value: any ExternalGenericEnumAssociatedProbe<Int>
 ) -> Int {
@@ -220,6 +234,59 @@ private func useLinkedConstrainedGenericClassAssociatedProbe(
             constrainedStructStub().transform(
                 ExternalSecondParameterConstrainedPair(41, "answer")
             ).first == 42
+        )
+    }
+
+    @Test func automaticDiscoverySupportsGenericNominalsNestedInGenericParents() throws {
+        #expect(
+            useLinkedGenericParentAssociatedProbe(
+                RealExternalGenericParentAssociatedProbe()
+            ) == 1
+        )
+
+        let stub = try Stub<any ExternalGenericParentAssociatedProbe<Int>>()
+        try assertGenericValueDescriptor(
+            #require(stub.recorder.runtimeMethod(for: 0)),
+            type: ExternalGenericParent<Int>.Payload.self,
+            associatedTypeNames: ["Element"]
+        )
+
+        let placeholder = ExternalGenericParent<Int>.Payload(outer: 0)
+        stub.when(returning: placeholder) {
+            $0.transform(Match.any(using: placeholder))
+        }.then { (value: ExternalGenericParent<Int>.Payload) in
+            ExternalGenericParent.Payload(outer: value.outer + 1)
+        }
+        #expect(
+            stub().transform(ExternalGenericParent.Payload(outer: 41)).outer == 42
+        )
+    }
+
+    @Test func automaticDiscoverySupportsConstrainedGenericParents() throws {
+        #expect(
+            useLinkedConstrainedGenericParentAssociatedProbe(
+                RealExternalConstrainedGenericParentAssociatedProbe()
+            ) == "one"
+        )
+
+        let stub = try Stub<
+            any ExternalConstrainedGenericParentAssociatedProbe<String>
+        >()
+        try assertGenericValueDescriptor(
+            #require(stub.recorder.runtimeMethod(for: 0)),
+            type: ConstrainedGenericParent<String>.Payload.self,
+            associatedTypeNames: ["Element"]
+        )
+
+        let placeholder = ConstrainedGenericParent<String>.Payload(outer: "zero")
+        stub.when(returning: placeholder) {
+            $0.transform(Match.any(using: placeholder))
+        }.then { (value: ConstrainedGenericParent<String>.Payload) in
+            ConstrainedGenericParent.Payload(outer: value.outer + "!")
+        }
+        #expect(
+            stub().transform(ConstrainedGenericParent.Payload(outer: "answer")).outer
+                == "answer!"
         )
     }
 
