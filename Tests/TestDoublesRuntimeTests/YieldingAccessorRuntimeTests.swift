@@ -27,6 +27,15 @@ private final class TestYieldingAccessorState:
 }
 
 @Suite struct YieldingAccessorRuntimeTests {
+    @Test func yieldOnce2UsesTheArchitectureSpecificArgumentOffset() {
+        #expect(
+            yieldOnce2InitialGeneralPurposeOffset(architecture: .arm64) == 1
+        )
+        #expect(
+            yieldOnce2InitialGeneralPurposeOffset(architecture: .x86_64) == 2
+        )
+    }
+
     @Test func readStateIsRetainedUntilNormalResumption() {
         exerciseRetainedState(kind: .read, isAborting: false)
     }

@@ -80,11 +80,6 @@ package final class ProtocolForwarder<P>: RuntimeForwarding, @unchecked Sendable
                 "[TestDoubles] No read forwarding plan exists for requirement \(method.index)."
             )
         }
-        #if arch(x86_64)
-            let initialGeneralPurposeOffset = 2
-        #else
-            let initialGeneralPurposeOffset = 1
-        #endif
         let calibratedPlan = ForwardedReadPlan(
             entry: plan.entry,
             descriptorSlot: plan.descriptorSlot,
@@ -94,7 +89,8 @@ package final class ProtocolForwarder<P>: RuntimeForwarding, @unchecked Sendable
             witnessTable: plan.witnessTable,
             hiddenArgumentIndex:
                 runtimeMethod.coroutineDynamicSelfHiddenArgumentIndex(
-                    initialGeneralPurposeOffset: initialGeneralPurposeOffset
+                    initialGeneralPurposeOffset:
+                        yieldOnce2InitialGeneralPurposeOffset()
                 ),
             callerFrameSize: plan.callerFrameSize,
             resultIsIndirect: plan.resultIsIndirect
@@ -117,13 +113,9 @@ package final class ProtocolForwarder<P>: RuntimeForwarding, @unchecked Sendable
                 "[TestDoubles] No _modify forwarding plan exists for requirement \(method.index)."
             )
         }
-        #if arch(x86_64)
-            let descriptorArgumentOffset = 2
-        #else
-            let descriptorArgumentOffset = 1
-        #endif
         let initialGeneralPurposeOffset =
-            plan.abi == .yieldOnce2 ? descriptorArgumentOffset : 1
+            plan.abi == .yieldOnce2
+            ? yieldOnce2InitialGeneralPurposeOffset() : 1
         let calibratedPlan = ForwardedModifyPlan(
             entry: plan.entry,
             entrySlot: plan.entrySlot,

@@ -54,6 +54,15 @@ struct ProtocolForwardingPlans: @unchecked Sendable {
     let modifications: [Int: ForwardedModifyPlan]
 }
 
+/// The `yield_once_2` descriptor consumes one extra x86_64 argument register
+/// before the original getter arguments. Other supported coroutine entry
+/// points start their visible arguments at the first captured GP register.
+package func yieldOnce2InitialGeneralPurposeOffset(
+    architecture: RuntimeArchitecture = .current
+) -> Int {
+    architecture == .x86_64 ? 2 : 1
+}
+
 struct ProtocolForwardingPlanBuilder<P> {
     let target: ForwardingTarget<P>
     let methods: [MethodDescriptor]
@@ -267,11 +276,6 @@ struct ProtocolForwardingPlanBuilder<P> {
                 resumeDiscriminator = discriminator
                 callerFrameSize = Int(descriptorTarget.callerFrameSize)
         }
-        #if arch(x86_64)
-            let descriptorArgumentOffset = 2
-        #else
-            let descriptorArgumentOffset = 1
-        #endif
         return try ForwardedModifyPlan(
             entry: entry,
             entrySlot: UnsafeRawPointer(modifyWitnessSlot),
@@ -284,7 +288,7 @@ struct ProtocolForwardingPlanBuilder<P> {
                 protocolName: protocolName,
                 initialGeneralPurposeOffset:
                     modifyRequirement.abi == .yieldOnce2
-                    ? descriptorArgumentOffset : 1
+                    ? yieldOnce2InitialGeneralPurposeOffset() : 1
             ),
             callerFrameSize: callerFrameSize,
             abi: modifyRequirement.abi
@@ -335,11 +339,6 @@ struct ProtocolForwardingPlanBuilder<P> {
                     "The forwarding target's read witness at index \(readRequirement.witnessIndex) is not a supported Swift 6.3 yield_once_2 descriptor with a 32-byte caller frame."
             )
         }
-        #if arch(x86_64)
-            let initialGeneralPurposeOffset = 2
-        #else
-            let initialGeneralPurposeOffset = 1
-        #endif
         return try ForwardedReadPlan(
             entry: entry,
             descriptorSlot: UnsafeRawPointer(witnessSlot),
@@ -350,7 +349,8 @@ struct ProtocolForwardingPlanBuilder<P> {
             hiddenArgumentIndex: hiddenArgumentIndex(
                 for: method,
                 protocolName: protocolName,
-                initialGeneralPurposeOffset: initialGeneralPurposeOffset
+                initialGeneralPurposeOffset:
+                    yieldOnce2InitialGeneralPurposeOffset()
             ),
             callerFrameSize: Int(descriptorTarget.callerFrameSize),
             resultIsIndirect: {
