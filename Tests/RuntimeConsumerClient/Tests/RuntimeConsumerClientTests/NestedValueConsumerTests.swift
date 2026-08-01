@@ -133,6 +133,26 @@ import Testing
         #expect(actual == 43)
     }
 
+    @Test func genericClosureEnumPayloadsCalibrateInAnOrdinaryConsumer() throws {
+        let placeholder: @Sendable (Int) -> Int = { $0 + 1 }
+        let stub = try Stub<any GenericClosureChoiceGateway>()
+        stub.when {
+            $0.submit(
+                Match.any(
+                    using: ExternalGenericChoice.value(placeholder)
+                )
+            )
+        }.then { (choice: ExternalGenericChoice<@Sendable (Int) -> Int>) in
+            switch choice {
+                case .value(let transform): transform(41)
+                case .unavailable: 0
+            }
+        }
+
+        let actual = stub().submit(.value { value in value + 2 })
+        #expect(actual == 43)
+    }
+
     @Test func constrainedGenericParentsResolveInAnOrdinaryConsumer() throws {
         let stub = try Stub<any OrderedGenericParentStatusGateway>()
         let placeholder = OrderedExternalAPI<ExternalReservation>.Status(

@@ -280,6 +280,17 @@ public protocol FrozenGenericClosurePayloadGateway {
     func submit(_ box: FrozenExternalGenericBox<@Sendable (Int) -> Int>) -> Int
 }
 
+/// A resilient generic enum mirrors a state-machine payload from a framework
+/// rather than a struct model.
+public enum ExternalGenericChoice<Payload> {
+    case value(Payload)
+    case unavailable
+}
+
+public protocol GenericClosureChoiceGateway {
+    func submit(_ choice: ExternalGenericChoice<@Sendable (Int) -> Int>) -> Int
+}
+
 public struct OrderedExternalAPI<Payload: Comparable> {
     public struct Status {
         public let payload: Payload
