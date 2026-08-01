@@ -1,19 +1,17 @@
 import Testing
 import TestDoubles
 
-/// Requirements of a protocol declared inside a function, method, or closure
-/// demangle with a trailing declaration context instead of a qualified name.
+/// Function-scoped protocols do not leave a discoverable linked witness in an
+/// optimized client. Their source-level requirement references remain stable.
 @Suite struct LocalProtocolDeclarationTests {
     @Test func functionLocalProtocolStubsAThrowingMethod() throws {
         protocol FileService {
             func read(path: String) throws -> String
         }
 
-        struct LinkedFileService: FileService {
-            func read(path: String) throws -> String { "" }
-        }
-
-        let stub = try Stub<any FileService>()
+        let stub = try Stub<any FileService>(
+            .method(signatureOf: FileService.read)
+        )
         stub.when { try $0.read(path: Match.any()) }.thenReturn("contents")
 
         let sut: any FileService = stub()
@@ -27,11 +25,9 @@ import TestDoubles
             var count: Int { get }
         }
 
-        struct LinkedCounter: Counter {
-            var count: Int { 0 }
-        }
-
-        let stub = try Stub<any Counter>()
+        let stub = try Stub<any Counter>(
+            .getter(signatureOf: \Counter.count)
+        )
         stub.when { $0.count }.thenReturn(7)
 
         #expect(stub().count == 7)
@@ -43,28 +39,24 @@ import TestDoubles
             func load(id: Int) async throws -> String
         }
 
-        struct LinkedLoader: Loader {
-            func load(id: Int) async throws -> String { "" }
-        }
-
-        let stub = try Stub<any Loader>()
+        let stub = try Stub<any Loader>(
+            .method(signatureOf: Loader.load)
+        )
         await stub.when { try await $0.load(id: Match.equal(3)) }.thenReturn("loaded")
 
         #expect(try await stub().load(id: 3) == "loaded")
         await stub.verify { try await $0.load(id: Match.equal(3)) }
     }
 
-    @Test func closureLocalProtocolIsDiscovered() throws {
+    @Test func closureLocalProtocolUsesItsSourceLevelRequirement() throws {
         let body: () throws -> Int = {
             protocol Pinger {
                 func ping() -> Int
             }
 
-            struct LinkedPinger: Pinger {
-                func ping() -> Int { 0 }
-            }
-
-            let stub = try Stub<any Pinger>()
+            let stub = try Stub<any Pinger>(
+                .method(signatureOf: Pinger.ping)
+            )
             stub.when { $0.ping() }.thenReturn(42)
             return stub().ping()
         }
@@ -72,7 +64,7 @@ import TestDoubles
         #expect(try body() == 42)
     }
 
-    @Test func methodLocalProtocolIsDiscovered() throws {
+    @Test func methodLocalProtocolUsesItsSourceLevelRequirement() throws {
         #expect(try LocalProtocolHost.makeDouble() == "stubbed")
     }
 }
@@ -83,11 +75,9 @@ private enum LocalProtocolHost {
             func describe() -> String
         }
 
-        struct LinkedDescriber: Describer {
-            func describe() -> String { "" }
-        }
-
-        let stub = try Stub<any Describer>()
+        let stub = try Stub<any Describer>(
+            .method(signatureOf: Describer.describe)
+        )
         stub.when { $0.describe() }.thenReturn("stubbed")
         return stub().describe()
     }
