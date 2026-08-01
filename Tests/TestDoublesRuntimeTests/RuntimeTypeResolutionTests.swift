@@ -70,6 +70,23 @@ import TestDoublesResilientFixtures
         )
     }
 
+    @Test func tupleWithAResilientMemberRequiresStructuralTransport() {
+        #expect(
+            requiresStructuralABITransport(
+                for: (ResilientValueArgument, UInt64).self
+            )
+        )
+        #expect(
+            requiresStructuralABITransport(
+                for: Optional<(ResilientValueArgument, UInt64)>.self
+            )
+        )
+        #expect(
+            requiresStructuralABITransport(for: (FrozenValueArgument, UInt64).self)
+                == false
+        )
+    }
+
     @Test func referenceBackedGenericContainersStayDirect() {
         #expect(
             argumentABIClassCandidates(for: Array<URL>.self)

@@ -132,6 +132,63 @@ package func argumentABIClassCandidates(for type: Any.Type) -> [ABIClass] {
     return [direct, .indirect]
 }
 
+/// Whether a value contains a tuple member whose client ABI is ambiguous.
+///
+/// `ABIClass` can model a whole value as either direct or indirect. Swift
+/// lowers tuple elements independently, though, so `(ResilientValue, Int)`
+/// has a mixed transport: an address for the first element and a register for
+/// the second. That cannot be represented by one `ABIClass`; callers must
+/// reject the shape until they have a member-level transport plan.
+package func requiresStructuralABITransport(for type: Any.Type) -> Bool {
+    var visited: Set<UInt> = []
+    return requiresStructuralABITransport(for: type, visited: &visited)
+}
+
+private func requiresStructuralABITransport(
+    for type: Any.Type,
+    visited: inout Set<UInt>
+) -> Bool {
+    let metadata = reflect(type)
+    if let tuple = metadata as? TupleMetadata {
+        return tuple.elements.contains { element in
+            argumentABIClassCandidates(for: element.type).count > 1
+                || requiresStructuralABITransport(
+                    for: element.type,
+                    visited: &visited
+                )
+        }
+    }
+    if metadata.kind == .optional,
+        let optional = metadata as? EnumMetadata,
+        let wrapped = optional.genericTypes.first
+    {
+        return requiresStructuralABITransport(for: wrapped, visited: &visited)
+    }
+    if let enumMetadata = metadata as? EnumMetadata,
+        enumMetadata.descriptor.isReflectable
+    {
+        let key = UInt(bitPattern: enumMetadata.ptr)
+        guard visited.insert(key).inserted else { return false }
+        defer { visited.remove(key) }
+        return enumMetadata.descriptor.fields.records.contains { field in
+            field.hasMangledTypeName
+                && resolvedFieldType(field.mangledTypeName, in: enumMetadata).map {
+                    requiresStructuralABITransport(for: $0, visited: &visited)
+                } == true
+        }
+    }
+    guard let structMetadata = reflectStruct(type) else { return false }
+    let key = UInt(bitPattern: structMetadata.ptr)
+    guard visited.insert(key).inserted else { return false }
+    defer { visited.remove(key) }
+    return structMetadata.descriptor.fields.records.contains { field in
+        field.hasMangledTypeName
+            && resolvedFieldType(field.mangledTypeName, in: structMetadata).map {
+                requiresStructuralABITransport(for: $0, visited: &visited)
+            } == true
+    }
+}
+
 private func hasAddressableArgumentDependencies(
     in metadata: StructMetadata
 ) -> Bool {

@@ -139,15 +139,54 @@ package func runtimeUncertainConcreteResultUnsupportedReason(
     for method: MethodDescriptor
 ) -> String? {
     guard method.kind != .setter,
-        method.result.convention == .concrete,
-        argumentABIClassCandidates(for: method.returnType).count > 1
+        method.result.convention == .concrete
     else {
+        return nil
+    }
+    if requiresStructuralABITransport(for: method.returnType) {
+        return "Its result contains a tuple member whose client ABI may be direct or indirect. "
+            + "Tuple members are lowered independently, and result transport cannot be calibrated from a recording call; use a hand-written test double."
+    }
+    guard argumentABIClassCandidates(for: method.returnType).count > 1 else {
         return nil
     }
     return "Its concrete result \(method.returnType) may use either direct or indirect "
         + "client transport because its defining module does not expose frozen-ness. "
         + "Return transport cannot be calibrated from a recording call; use a "
         + "hand-written test double."
+}
+
+/// A tuple with an ABI-ambiguous member is lowered as a mixed sequence of
+/// element transports. The runtime's current top-level `ABIClass` model cannot
+/// calibrate or decode that sequence safely.
+package func runtimeStructuralArgumentTransportUnsupportedReason(
+    for method: MethodDescriptor
+) -> String? {
+    guard
+        let argument = method.arguments.first(where: {
+            $0.value.convention == .concrete
+                && requiresStructuralABITransport(for: $0.value.type)
+        })
+    else {
+        return nil
+    }
+    return "Its argument \(argument.value.type) contains a tuple member whose client ABI may be direct or indirect. "
+        + "Tuple members are lowered independently, and this mixed transport cannot be calibrated safely; use a hand-written test double."
+}
+
+/// Typed error payloads have no incoming recording bytes from which the
+/// runtime can establish whether their result slot is direct or indirect.
+package func runtimeUncertainTypedErrorUnsupportedReason(
+    for method: MethodDescriptor
+) -> String? {
+    guard let typedErrorType = method.typedErrorType,
+        argumentABIClassCandidates(for: typedErrorType).count > 1
+            || requiresStructuralABITransport(for: typedErrorType)
+    else {
+        return nil
+    }
+    return "Its typed error \(typedErrorType) may use either direct or indirect "
+        + "client transport. Error-result transport cannot be calibrated from a recording call; use a hand-written test double."
 }
 
 /// Unconstrained and AnyObject-constrained generic parameters carry metadata

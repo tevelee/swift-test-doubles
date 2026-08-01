@@ -45,6 +45,18 @@ protocol ResilientValueSetterABIProbe {
     subscript(_ index: UInt64) -> ResilientValueArgument { get set }
 }
 
+protocol ResilientTupleArgumentABIProbe {
+    func accept(_ value: (ResilientValueArgument, UInt64)) -> Int
+}
+
+protocol ResilientTupleResultABIProbe {
+    func makeValue() -> (ResilientValueArgument, UInt64)
+}
+
+protocol ResilientTypedErrorABIProbe {
+    func load() throws(ResilientTypedError) -> Int
+}
+
 private struct LiveResilientValueArgumentABIProbe: ResilientValueArgumentABIProbe {
     func accept(
         marker: UInt64,
@@ -88,6 +100,24 @@ private struct LiveResilientValueSetterABIProbe:
     subscript(index: UInt64) -> ResilientValueArgument {
         get { ResilientValueArgument(first: index, second: index) }
         set {}
+    }
+}
+
+private struct LiveResilientTupleArgumentABIProbe: ResilientTupleArgumentABIProbe {
+    func accept(_ value: (ResilientValueArgument, UInt64)) -> Int {
+        Int(value.0.first ^ value.0.second ^ value.1)
+    }
+}
+
+private struct LiveResilientTupleResultABIProbe: ResilientTupleResultABIProbe {
+    func makeValue() -> (ResilientValueArgument, UInt64) {
+        (ResilientValueArgument(first: 0, second: 0), 0)
+    }
+}
+
+private struct LiveResilientTypedErrorABIProbe: ResilientTypedErrorABIProbe {
+    func load() throws(ResilientTypedError) -> Int {
+        throw ResilientTypedError(code: 1)
     }
 }
 
@@ -307,6 +337,33 @@ private struct LiveResilientValueSetterABIProbe:
             _ = try Stub<any ResilientValueResultABIProbe>()
         }
         #expect(error?.description.contains("ABI-uncertain result") == true)
+        #expect(error?.description.contains("cannot be calibrated") == true)
+    }
+
+    @Test func tuplesWithResilientArgumentsFailBeforeMixedTransportCanCorrupt() {
+        _ = LiveResilientTupleArgumentABIProbe()
+        let error = #expect(throws: StubError.self) {
+            _ = try Stub<any ResilientTupleArgumentABIProbe>()
+        }
+        #expect(error?.description.contains("tuple argument") == true)
+        #expect(error?.description.contains("cannot be calibrated") == true)
+    }
+
+    @Test func tuplesWithResilientResultsFailBeforeMixedTransportCanCorrupt() {
+        _ = LiveResilientTupleResultABIProbe()
+        let error = #expect(throws: StubError.self) {
+            _ = try Stub<any ResilientTupleResultABIProbe>()
+        }
+        #expect(error?.description.contains("ABI-uncertain result") == true)
+        #expect(error?.description.contains("Tuple members are lowered independently") == true)
+    }
+
+    @Test func resilientTypedErrorsFailBeforeTheirResultSlotCanCorrupt() {
+        _ = LiveResilientTypedErrorABIProbe()
+        let error = #expect(throws: StubError.self) {
+            _ = try Stub<any ResilientTypedErrorABIProbe>()
+        }
+        #expect(error?.description.contains("ABI-uncertain typed error") == true)
         #expect(error?.description.contains("cannot be calibrated") == true)
     }
 

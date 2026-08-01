@@ -48,6 +48,16 @@ public enum ResilientEnumArgument: Sendable {
     case confirmed
 }
 
+/// A non-frozen typed error whose transport is resilient to clients of this
+/// module.
+public struct ResilientTypedError: Error, Equatable, Sendable {
+    public let code: Int
+
+    public init(code: Int) {
+        self.code = code
+    }
+}
+
 /// Result shapes used to assert the runtime's fail-closed handling of values
 /// whose public ABI cannot reveal frozen-ness to a client.
 public protocol ResilientValueResultABIProbe {

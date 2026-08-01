@@ -373,10 +373,22 @@ extension RuntimeStubFactory {
                     reason: "Requirement \(method.index) has a requirement-level parameter pack. \(reason)"
                 )
             }
+            if let reason = runtimeStructuralArgumentTransportUnsupportedReason(for: method) {
+                throw RuntimeConstructionError.unsupportedProtocolShape(
+                    protocolName: protocolName,
+                    reason: "Requirement \(method.index) has an ABI-uncertain tuple argument. \(reason)"
+                )
+            }
             if let reason = runtimeUncertainConcreteResultUnsupportedReason(for: method) {
                 throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: protocolName,
                     reason: "Requirement \(method.index) has an ABI-uncertain result. \(reason)"
+                )
+            }
+            if let reason = runtimeUncertainTypedErrorUnsupportedReason(for: method) {
+                throw RuntimeConstructionError.unsupportedProtocolShape(
+                    protocolName: protocolName,
+                    reason: "Requirement \(method.index) has an ABI-uncertain typed error. \(reason)"
                 )
             }
             if method.kind == .setter {
