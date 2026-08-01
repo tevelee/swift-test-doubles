@@ -142,7 +142,10 @@ Composition stays positional, so
 `Match.allOf(events.capture(), Match.hasPrefix("purchase"))` captures only the
 arguments that satisfy the whole expression. Use matcher functions for every
 argument of a registration or none — a call cannot mix bare literals and
-matchers.
+matchers. Literal-only registrations use `==` for `Equatable` values, identity
+for references, and equality for metatypes. A closure or other value without a
+generic equality relation needs an explicit matcher, and a mixed registration
+stops at `when` with a rewrite hint rather than becoming a nonmatching stub.
 
 ### Simulate failure and recovery
 

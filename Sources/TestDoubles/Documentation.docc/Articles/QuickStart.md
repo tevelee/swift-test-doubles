@@ -116,7 +116,11 @@ handler, so the pasted registration compiles for any result type and keeps the
 unfinished return behavior visible.
 
 Every argument in one recorded invocation must either use a matcher or use its
-literal value. Do not mix the two styles in one call.
+literal value. Literals compare `Equatable` values with `==`, reference values
+by identity, and metatypes by equality. Values without a generic equality
+relation, such as closures, need a `Match` expression. Do not mix the two
+styles in one call: TestDoubles rejects a mixed recording immediately; rewrite
+a pinned value as `Match.equal(value)` or `Match.identical(to: object)`.
 
 For a call involving an imported value type, prefer the matcher form for every
 argument from the first recording onward. A non-`@frozen` value from a

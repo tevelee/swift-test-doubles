@@ -215,8 +215,12 @@ tables.
 When multiple registrations match, the first registration wins, like the
 first matching case of a `switch`. Register specific matchers before broad
 fallbacks; an earlier registration shadows any later one it overlaps with.
-Literal matching is best-effort textual matching; prefer `Match.equal(_:)` for
-meaningful equality.
+For a literal-only recording, `Equatable` values use `==`, reference values use
+identity, and metatypes use equality. A value without one of those relations,
+such as a closure, must use a `Match` expression. Every argument in one
+recording must use the same style: either all literals or one `Match` expression
+per argument. A mixed recording stops at registration with a rewrite hint
+instead of installing a pattern that can never match.
 
 ### Verification
 
