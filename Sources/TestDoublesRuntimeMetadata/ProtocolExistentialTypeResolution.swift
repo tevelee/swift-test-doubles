@@ -1,16 +1,18 @@
+import Echo
 import TestDoublesRuntimeSupport
 
 func swiftTypeByNominalName(_ name: String) -> Any.Type? {
-    guard let prefix = nominalMangledPrefix(for: name) else { return nil }
-    for suffix in ["V", "O", "C"] {
-        if let type = swiftTypeByMangledName(prefix + suffix) {
-            return type
-        }
-        if let type = swiftTypeByExportedMetadataSymbol(prefix + suffix) {
-            return type
+    if let prefix = nominalMangledPrefix(for: name) {
+        for suffix in ["V", "O", "C"] {
+            if let type = swiftTypeByMangledName(prefix + suffix) {
+                return type
+            }
+            if let type = swiftTypeByExportedMetadataSymbol(prefix + suffix) {
+                return type
+            }
         }
     }
-    return swiftProtocolExistentialType(withMangledPrefix: prefix)
+    return swiftProtocolExistentialType(named: name)
 }
 
 func protocolCompositionType(named name: String) -> Any.Type? {
@@ -29,10 +31,7 @@ func protocolCompositionType(named name: String) -> Any.Type? {
         if isRuntimeErasedProtocolMarker(member) {
             continue
         }
-        guard
-            let prefix = nominalMangledPrefix(for: member),
-            let descriptor = protocolExistentialDescriptor(withMangledPrefix: prefix)
-        else {
+        guard let descriptor = protocolExistentialDescriptor(named: member) else {
             return nil
         }
         isClassConstrained = isClassConstrained || descriptor.isClassConstrained
@@ -66,8 +65,8 @@ private func isRuntimeErasedProtocolMarker(_ name: String) -> Bool {
 /// declaration has no type metadata of its own, so resolve the compiler-emitted
 /// descriptor and ask the Swift runtime to unique its one-protocol existential
 /// metadata instead of guessing from layout.
-private func swiftProtocolExistentialType(withMangledPrefix prefix: String) -> Any.Type? {
-    guard let descriptor = protocolExistentialDescriptor(withMangledPrefix: prefix) else {
+private func swiftProtocolExistentialType(named name: String) -> Any.Type? {
+    guard let descriptor = protocolExistentialDescriptor(named: name) else {
         return nil
     }
     return swiftProtocolExistentialType(
@@ -81,21 +80,65 @@ private struct ProtocolExistentialDescriptor {
     let isClassConstrained: Bool
 }
 
-private func protocolExistentialDescriptor(
-    withMangledPrefix prefix: String
-) -> ProtocolExistentialDescriptor? {
-    guard
+private func protocolExistentialDescriptor(named name: String) -> ProtocolExistentialDescriptor? {
+    if let prefix = nominalMangledPrefix(for: name),
         let descriptorPointer = RuntimeSymbols.rawSymbol(named: "$s\(prefix)Mp"),
-        let isClassConstrained = protocolDescriptorClassConstraint(
+        let descriptor = protocolExistentialDescriptor(
             at: UnsafeRawPointer(descriptorPointer)
         )
+    {
+        return descriptor
+    }
+
+    guard
+        let descriptor = protocols.lazy.first(where: {
+            qualifiedProtocolName($0) == name
+        })
     else {
         return nil
     }
+    return protocolExistentialDescriptor(at: descriptor.ptr)
+}
+
+private func protocolExistentialDescriptor(
+    at descriptorPointer: UnsafeRawPointer
+) -> ProtocolExistentialDescriptor? {
+    guard
+        let isClassConstrained = protocolDescriptorClassConstraint(
+            at: descriptorPointer
+        )
+    else { return nil }
     return ProtocolExistentialDescriptor(
-        pointer: UnsafeRawPointer(descriptorPointer),
+        pointer: descriptorPointer,
         isClassConstrained: isClassConstrained
     )
+}
+
+/// Protocol descriptors retain their full parent context even when their
+/// linker symbol uses mangling substitutions. Compare that semantic name when
+/// a source spelling names a nested protocol instead of attempting to recreate
+/// every nested mangling form.
+private func qualifiedProtocolName(_ descriptor: ProtocolDescriptor) -> String? {
+    var components = [descriptor.name]
+    var context = descriptor.parent
+    while let current = context {
+        if let module = current as? ModuleDescriptor {
+            components.append(module.name)
+            return components.reversed().joined(separator: ".")
+        }
+        if let type = current as? any TypeContextDescriptor {
+            components.append(type.name)
+            context = type.parent
+            continue
+        }
+        if let parentProtocol = current as? ProtocolDescriptor {
+            components.append(parentProtocol.name)
+            context = parentProtocol.parent
+            continue
+        }
+        return nil
+    }
+    return nil
 }
 
 private func swiftProtocolExistentialType(

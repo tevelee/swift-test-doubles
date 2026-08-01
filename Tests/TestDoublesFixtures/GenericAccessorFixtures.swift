@@ -1,6 +1,10 @@
 public protocol ExternalFirstGenericConstraint {}
 public protocol ExternalSecondGenericConstraint {}
 
+public enum ExternalNestedProtocolNamespace {
+    public protocol Constraint {}
+}
+
 extension String: ExternalFirstGenericConstraint {}
 extension Bool: ExternalSecondGenericConstraint {}
 extension Int: ExternalFirstGenericConstraint, ExternalSecondGenericConstraint {}

@@ -326,7 +326,8 @@ existentials, including `any Payload`, `any Payload & Sendable`, and
 `any Payload & AnyObject`. Automatic discovery reconstructs the same
 existential metadata the client uses. When recording one of these arguments,
 pass a real conforming value to `Match.any(using:)` rather than trying to
-synthesize an existential placeholder.
+synthesize an existential placeholder. The protocol may be declared at module
+scope or nested inside a type namespace.
 
 On Apple platforms, an ordinary existential may additionally constrain its
 payload to an imported Objective-C class or Swift-defined `NSObject` subclass.

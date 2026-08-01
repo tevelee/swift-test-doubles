@@ -289,6 +289,19 @@ private func archiveScore(
         )
     }
 
+    @Test func nestedProtocolArgumentsResolveInAnOrdinaryConsumer() throws {
+        let stub = try Stub<any NestedPayloadReporter>()
+        let placeholder = NestedPayloadNamespace.Value(summary: "placeholder")
+        stub.when { $0.report(Match.any(using: placeholder)) }
+            .then { (payload: any NestedPayloadNamespace.Payload) in
+                payload.summary
+            }
+
+        #expect(
+            stub().report(NestedPayloadNamespace.Value(summary: "actual")) == "actual"
+        )
+    }
+
     @Test func mixedResilientTupleArgumentsFailBeforeRecording() {
         let error = #expect(throws: StubError.self) {
             _ = try Stub<any MixedTupleGateway>()

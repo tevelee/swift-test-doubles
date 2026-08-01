@@ -26,6 +26,11 @@ private indirect enum RecursiveValueBox<Value> {
             resolveRuntimeType("TestDoublesFixtures.ExternalReferenceAssociatedMarker")
                 == (any ExternalReferenceAssociatedMarker).self
         )
+        #expect(
+            resolveRuntimeType(
+                "TestDoublesFixtures.ExternalNestedProtocolNamespace.Constraint"
+            ) == (any ExternalNestedProtocolNamespace.Constraint).self
+        )
     }
 
     @Test func qualifiedProtocolCompositionsResolveToOrdinaryExistentialMetadata() {

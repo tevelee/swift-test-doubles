@@ -170,6 +170,24 @@ public protocol ClassConstrainedPayloadReporter {
     func report(_ payload: any ReportPayload & AnyObject) -> String
 }
 
+public enum NestedPayloadNamespace {
+    public protocol Payload {
+        var summary: String { get }
+    }
+
+    public struct Value: Payload {
+        public let summary: String
+
+        public init(summary: String) {
+            self.summary = summary
+        }
+    }
+}
+
+public protocol NestedPayloadReporter {
+    func report(_ payload: any NestedPayloadNamespace.Payload) -> String
+}
+
 /// A deliberately unsupported mixed tuple transport. The first member is
 /// resilient to this module while the second is a direct scalar.
 public protocol MixedTupleGateway {
