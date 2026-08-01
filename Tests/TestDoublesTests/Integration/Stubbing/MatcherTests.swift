@@ -48,6 +48,7 @@ protocol MatcherPlaceholderService {
 
 protocol OptionalMatcherPlaceholderService {
     func inspect(reference: MatcherReferenceBox?) -> String
+    func inspect(nestedReference: MatcherReferenceBox??) -> String
 }
 
 @Suite struct MatcherTests {
@@ -101,7 +102,8 @@ protocol OptionalMatcherPlaceholderService {
 
     @Test func literalOptionalReferenceValuesUseIdentityAndMatchNil() throws {
         let stub = try Stub<any OptionalMatcherPlaceholderService>(
-            .method(MatcherReferenceBox?.self, returning: String.self)
+            .method(MatcherReferenceBox?.self, returning: String.self),
+            .method(MatcherReferenceBox??.self, returning: String.self)
         )
         let first: MatcherReferenceBox? = MatcherReferenceBox(value: 1)
         let second: MatcherReferenceBox? = MatcherReferenceBox(value: 1)
@@ -112,6 +114,25 @@ protocol OptionalMatcherPlaceholderService {
 
         #expect(stub().inspect(reference: second) == "second")
         #expect(stub().inspect(reference: nil) == "nil")
+    }
+
+    @Test func literalNestedOptionalReferencesPreserveNilDepthAndIdentity() throws {
+        let stub = try Stub<any OptionalMatcherPlaceholderService>(
+            .method(MatcherReferenceBox?.self, returning: String.self),
+            .method(MatcherReferenceBox??.self, returning: String.self)
+        )
+        let first: MatcherReferenceBox?? = .some(.some(MatcherReferenceBox(value: 1)))
+        let second: MatcherReferenceBox?? = .some(.some(MatcherReferenceBox(value: 1)))
+        let innerNil: MatcherReferenceBox?? = .some(nil)
+        let outerNil: MatcherReferenceBox?? = nil
+        stub.when { $0.inspect(nestedReference: first) }.thenReturn("first")
+        stub.when { $0.inspect(nestedReference: second) }.thenReturn("second")
+        stub.when { $0.inspect(nestedReference: innerNil) }.thenReturn("inner nil")
+        stub.when { $0.inspect(nestedReference: outerNil) }.thenReturn("outer nil")
+
+        #expect(stub().inspect(nestedReference: second) == "second")
+        #expect(stub().inspect(nestedReference: .some(nil)) == "inner nil")
+        #expect(stub().inspect(nestedReference: nil) == "outer nil")
     }
 
     @Test func catchAllRegisteredFirstShadowsLaterMatchers() throws {

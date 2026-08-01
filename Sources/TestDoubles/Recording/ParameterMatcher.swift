@@ -171,19 +171,55 @@ extension Optional: OptionalRuntimeType {
 }
 
 private func optionalReferenceMatcher(for value: Any) -> ParameterMatcher? {
-    guard let optionalType = type(of: value) as? any OptionalRuntimeType.Type,
-        optionalType.wrappedType is AnyObject.Type
-    else {
-        return nil
-    }
-    guard let wrapped = unwrapOptional(value) else {
-        return OptionalReferenceMatcher(optionalType: type(of: value), expected: nil)
-    }
-    guard type(of: wrapped) is AnyObject.Type else { return nil }
+    let optionalType = type(of: value)
+    guard nestedOptionalReferenceType(optionalType) else { return nil }
     return OptionalReferenceMatcher(
-        optionalType: type(of: value),
-        expected: wrapped as AnyObject
+        optionalType: optionalType,
+        expected: optionalReferenceValue(value, of: optionalType)
     )
+}
+
+/// Reports whether `type` is one or more optional layers around a reference.
+///
+/// `Optional<Reference>` does not itself conform to `Equatable`, so literal
+/// recording needs the same identity semantics as a direct reference. Keep
+/// peeling the declared optional shape rather than inspecting only the outer
+/// layer: `Reference??` must distinguish `.none`, `.some(.none)`, and a
+/// concrete object just as ordinary Swift equality would if it were available.
+private func nestedOptionalReferenceType(_ type: Any.Type) -> Bool {
+    var currentType = type
+    var hasOptionalLayer = false
+    while let optional = currentType as? any OptionalRuntimeType.Type {
+        hasOptionalLayer = true
+        currentType = optional.wrappedType
+    }
+    return hasOptionalLayer && currentType is AnyObject.Type
+}
+
+private enum OptionalReferenceValue {
+    case none(atLayer: Int)
+    case object(AnyObject)
+}
+
+private func optionalReferenceValue(
+    _ value: Any,
+    of optionalType: Any.Type
+) -> OptionalReferenceValue {
+    var currentValue = value
+    var currentType = optionalType
+    var layer = 0
+    while let optional = currentType as? any OptionalRuntimeType.Type {
+        guard let unwrapped = unwrapOptional(currentValue) else {
+            return .none(atLayer: layer)
+        }
+        currentValue = unwrapped
+        currentType = optional.wrappedType
+        layer += 1
+    }
+    // `nestedOptionalReferenceType(_:)` proves the terminal declared type is
+    // a reference. Keeping that proof next to the conversion avoids bridging
+    // arbitrary value types through `AnyObject`.
+    return .object(currentValue as AnyObject)
 }
 
 struct EqualMatcher<Value: Equatable>: ParameterMatcher {
@@ -239,21 +275,30 @@ struct IdenticalMatcher: ParameterMatcher {
 
 private struct OptionalReferenceMatcher: ParameterMatcher {
     let optionalType: Any.Type
-    let expected: AnyObject?
+    let expected: OptionalReferenceValue
 
     func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
         guard ObjectIdentifier(type(of: value)) == ObjectIdentifier(optionalType) else {
             return nil
         }
-        guard let actual = unwrapOptional(value) else {
-            return expected == nil ? .matched : nil
+        let actual = optionalReferenceValue(value, of: optionalType)
+        switch (expected, actual) {
+            case (.none(let expectedLayer), .none(let actualLayer)):
+                return expectedLayer == actualLayer ? .matched : nil
+            case (.object(let expected), .object(let actual)):
+                return expected === actual ? .matched : nil
+            case (.none, .object), (.object, .none):
+                return nil
         }
-        guard let expected, type(of: actual) is AnyObject.Type else { return nil }
-        return (actual as AnyObject) === expected ? .matched : nil
     }
 
     var diagnosticDescription: String {
-        expected.map { "literal(\($0))" } ?? "literal(nil)"
+        switch expected {
+            case .none:
+                return "literal(nil)"
+            case .object(let expected):
+                return "literal(\(expected))"
+        }
     }
 }
 

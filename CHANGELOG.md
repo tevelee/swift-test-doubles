@@ -123,6 +123,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   than comparing their rendered descriptions. Values without a generic equality
   relation, such as closures, now stop during registration with guidance to use
   explicit `Match` expressions instead of silently matching unrelated values.
+- Literal recordings now preserve both object identity and `nil` depth through
+  nested optional references, such as `User??.none` versus `.some(nil)`.
 - Mixed literal and `Match` argument recordings now fail immediately with a
   rewrite hint instead of registering a pattern that cannot match any call.
 - Loadable aggregate arguments wider than two words now decode from the
