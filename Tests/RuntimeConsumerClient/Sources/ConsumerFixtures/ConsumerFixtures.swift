@@ -84,6 +84,8 @@ public protocol DeliveryGateway: Sendable {
 
     func settle(_ value: (ExternalReservation, UInt64)?) -> Int
 
+    func review(_ reservation: ExternalReservation?) -> UInt64
+
     func deliver(_ value: ReservationEnvelope) -> Int
 
     func package(_ value: ReservationBox<(ExternalReservation, UInt64)>) -> Int
@@ -166,6 +168,11 @@ public struct LiveDeliveryGateway: DeliveryGateway, Sendable {
     public func settle(_ value: (ExternalReservation, UInt64)?) -> Int {
         guard let value else { return 0 }
         return Int(value.0.start ^ value.0.end ^ value.1)
+    }
+
+    public func review(_ reservation: ExternalReservation?) -> UInt64 {
+        guard let reservation else { return 0 }
+        return reservation.start ^ reservation.end
     }
 
     public func deliver(_ value: ReservationEnvelope) -> Int {

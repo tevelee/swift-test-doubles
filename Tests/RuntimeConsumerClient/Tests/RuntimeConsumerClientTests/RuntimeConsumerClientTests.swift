@@ -214,6 +214,20 @@ import Testing
         #expect(nominalShellStub().deliver(nominalActual) == 31 ^ 37 ^ 41)
     }
 
+    @Test func composedOptionalMatchersCalibrateResilientArguments() throws {
+        let stub = try Stub<any DeliveryGateway>()
+        let excluded = ExternalReservation(start: 43, end: 47)
+        stub.when {
+            $0.review(Match.some(Match.not(Match.equal(excluded))))
+        }.then { (reservation: ExternalReservation?) in
+            guard let reservation else { return 0 }
+            return reservation.start ^ reservation.end
+        }
+
+        let actual = ExternalReservation(start: 53, end: 59)
+        #expect(stub().review(actual) == 53 ^ 59)
+    }
+
     @Test func genericTupleShellsCalibrateInAnOrdinaryConsumer() throws {
         let boxStub = try Stub<any DeliveryGateway>()
         let boxPlaceholder: ReservationBox<(ExternalReservation, UInt64)> = ReservationBox(
