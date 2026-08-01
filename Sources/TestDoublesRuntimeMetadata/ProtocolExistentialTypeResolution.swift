@@ -46,7 +46,17 @@ func protocolCompositionType(named name: String) -> Any.Type? {
 
 private func nominalMangledPrefixes(for name: String) -> [String] {
     let parts = name.split(separator: ".").map(String.init)
-    guard parts.count >= 2 else { return [] }
+    // Function and generic spellings can contain qualified type names, but
+    // only a plain nominal path can be reconstructed component by component.
+    // Reject the rest before generating parent-kind candidates: doing so for a
+    // long function spelling grows exponentially and can make a valid
+    // `signatureOf:` check appear to hang in optimized clients.
+    guard
+        (2 ... 6).contains(parts.count),
+        parts.allSatisfy(isNominalNameComponent)
+    else {
+        return []
+    }
     let module = parts[0]
     let modulePrefix = module == "Swift" ? "s" : "\(module.utf8.count)\(module)"
     var prefixes = [modulePrefix]
@@ -60,6 +70,17 @@ private func nominalMangledPrefixes(for name: String) -> [String] {
         }
     }
     return []
+}
+
+private func isNominalNameComponent(_ name: String) -> Bool {
+    guard name.isEmpty == false else { return false }
+    return name.unicodeScalars.allSatisfy { scalar in
+        guard scalar.value <= 0x7F else { return true }
+        return switch scalar.value {
+            case 48 ... 57, 65 ... 90, 95, 97 ... 122: true
+            default: false
+        }
+    }
 }
 
 /// `Sendable` is a source-level marker protocol. Swift erases it before
