@@ -363,12 +363,13 @@ single-`Optional` reference slice. Direct
 and supported container method arguments may be consuming.
 Methods may combine these values with `async`, untyped `throws`, and a direct
 associated typed error. Automatic discovery also accepts a typed error whose
-outer shape is one of those proven generic classes, structs, or enums and whose
-arguments are direct associated, concrete, or recursively nested proven generic
-nominals. Class errors use their fixed reference transport; struct and enum
-errors use a caller-provided opaque error buffer. These generic-nominal error
-shapes have no explicit source-less schema. Effectful getters must be described
-explicitly. Both automatic discovery and explicit
+outer shape is a proven generic class and whose arguments are direct associated,
+concrete, or recursively nested proven generic nominals. Class errors use their
+fixed reference transport. Generic struct and enum errors fail closed: their
+metadata cannot reveal whether a client uses a direct result or a caller-provided
+opaque error buffer. Use a hand-written test double for those protocol
+boundaries. Effectful getters must be described explicitly. Both automatic
+discovery and explicit
 ``Stub/Requirement`` construction are supported. See
 <doc:BoundAssociatedTypes> for its ABI findings and intentionally narrow limits.
 An unbound existential may instead receive a complete set of caller-supplied

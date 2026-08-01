@@ -133,10 +133,10 @@ private indirect enum RecursiveValueBox<Value> {
         )
     }
 
-    @Test func recursiveGenericFieldsDoNotRevisitTheSameSpecialization() {
+    @Test func recursiveGenericFieldsKeepTheGenericNominalTransportCandidate() {
         #expect(
             argumentABIClassCandidates(for: RecursiveValueBox<Int>.self)
-                == [abiClass(for: RecursiveValueBox<Int>.self)]
+                == [abiClass(for: RecursiveValueBox<Int>.self), .indirect]
         )
         #expect(
             argumentABIClassCandidates(

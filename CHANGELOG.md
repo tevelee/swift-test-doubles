@@ -118,6 +118,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Generic struct and enum typed errors now fail closed before transport when
+  runtime metadata cannot prove their direct versus indirect error convention,
+  instead of selecting a layout from their current fields.
 - Recording a protocol `@autoclosure` with `Match.any()` directly now stops
   before literal closure matching. The diagnostic explains how to prebind a
   closure-typed matcher and invoke it inside the autoclosure; supported

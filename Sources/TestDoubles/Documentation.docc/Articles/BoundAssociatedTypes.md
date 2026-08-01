@@ -242,11 +242,12 @@ it must evolve alongside the repository's Swift runtime support matrix.
   registers. An associated error constrained to both `Error` and `AnyObject`
   instead uses its proven direct reference channel.
 - Automatic discovery also supports an associated-dependent typed error whose
-  outer type is a linked, top-level generic class, struct, or enum with one or
-  two type parameters. Direct associated arguments and recursively nested
+  outer type is a linked, top-level generic class with one or two type
+  parameters. Direct associated arguments and recursively nested
   generic-nominal applications are supported. Exact descriptor-based metadata
-  reconstruction proves class reference layout before construction, while
-  generic structs and enums use the formal opaque indirect-error convention.
+  reconstruction proves the class's fixed reference layout before construction.
+  Generic struct and enum errors fail closed because their metadata does not
+  reveal whether a client uses direct or opaque indirect-error transport.
 - Automatic discovery and explicit requirement descriptions.
 - Complete caller-supplied bindings for unbound associated types used in
   covariant method or getter results, as a direct typed error, or as a direct or
@@ -361,10 +362,11 @@ Swift 6.3 and 6.4 lower `BoxError<Element>` differently: once the exact outer
 generic class descriptor is reconstructed, its reference layout fixes the
 formal error transport and no opaque error slot is needed. The same rule holds
 for any supported generic arity and recursively nested generic nominal
-applications. A reconstructed generic struct or enum error instead uses the
-formal opaque convention, so its typed-error destination is the separate
-caller-provided indirect buffer. That remains stable even when a concrete
-specialization would fit in registers, and composes with `async` requirements.
+applications. A generic struct or enum error can instead be direct or use a
+caller-provided opaque buffer, depending on its defining module's frozen-ness.
+That source-level ABI fact is absent from runtime metadata, and an error result
+has no recording call from which to calibrate it. `Stub` therefore rejects those
+requirements before invocation; use a hand-written test double at that boundary.
 
 Optional and other unproven value wrappers and unsupported generic-nominal
 typed errors remain fail-closed. Supporting `Result` as an ordinary argument

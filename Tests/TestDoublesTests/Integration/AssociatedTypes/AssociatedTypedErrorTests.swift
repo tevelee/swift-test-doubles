@@ -75,20 +75,14 @@ import Testing
         }
     }
 
-    @Test func linkedGenericValueAssociatedTypedErrorsRoundTrip() throws {
+    @Test func genericValueAssociatedTypedErrorsFailClosedBeforeTransport() {
         _ = RealWrappedAssociatedTypedThrowingProbe()
-        typealias Error = WrappedAssociatedTypedError<ThrowingProbeError>
         typealias Probe = any WrappedAssociatedTypedThrowingProbe<ThrowingProbeError>
 
-        let stub = try Stub<Probe>()
-        let method = try #require(stub.recorder.runtimeMethod(for: 0))
-        #expect(method.typedErrorType.map(ObjectIdentifier.init) == ObjectIdentifier(Error.self))
-
-        stub.when { try $0.load() }.thenThrow(Error())
-        let error = #expect(throws: Error.self) {
-            _ = try stub().load()
+        let error = #expect(throws: StubError.self) {
+            _ = try Stub<Probe>()
         }
-
-        #expect(error != nil)
+        #expect(error?.description.contains("ABI-uncertain typed error") == true)
+        #expect(error?.description.contains("hand-written test double") == true)
     }
 }
