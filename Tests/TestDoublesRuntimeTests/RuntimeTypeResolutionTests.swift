@@ -42,9 +42,10 @@ private indirect enum RecursiveValueBox<Value> {
             resolveRuntimeType("Foundation.NSAttributedString.Key")
                 == NSAttributedString.Key.self
         )
+        let calendarIdentifier = Calendar.Identifier.self
         #expect(
-            resolveRuntimeType("Foundation.Calendar.Identifier")
-                == Calendar.Identifier.self
+            resolveRuntimeType(String(reflecting: calendarIdentifier))
+                == calendarIdentifier
         )
     }
 
