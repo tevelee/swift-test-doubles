@@ -301,6 +301,15 @@ public protocol AsyncValueTransformer {
     ) async -> Int
 }
 
+public typealias CIntTransformer = @convention(c) (Int32) -> Int32
+
+public protocol CValueTransformer {
+    func transform(
+        _ transformer: @escaping CIntTransformer,
+        value: Int32
+    ) -> Int32
+}
+
 /// A deliberately unsupported mixed tuple transport. The first member is
 /// resilient to this module while the second is a direct scalar.
 public protocol MixedTupleGateway {

@@ -51,4 +51,20 @@ private typealias AsyncTransformer = @Sendable (Int) async -> Int
         let actual = await stub().transform(increment, value: 41)
         #expect(actual == 42)
     }
+
+    @Test func cFunctionPointerArgumentsResolveInAnOrdinaryConsumer() throws {
+        let increment: CIntTransformer = { $0 + 1 }
+        let stub = try Stub<any CValueTransformer>()
+        stub.when {
+            $0.transform(
+                Match.any(using: increment),
+                value: Match.any()
+            )
+        }.thenEscaping { (transform: CIntTransformer, value: Int32) in
+            transform(value)
+        }
+
+        let actual = stub().transform(increment, value: 41)
+        #expect(actual == 42)
+    }
 }
