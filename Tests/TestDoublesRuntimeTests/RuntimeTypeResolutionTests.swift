@@ -107,6 +107,11 @@ private indirect enum RecursiveValueBox<Value> {
         #expect(genericNominalType(named: String(reflecting: type)) == type)
     }
 
+    @Test func genericAccessorResolvesConstrainedGenericParents() {
+        let type = ConstrainedGenericParent<String>.Payload.self
+        #expect(genericNominalType(named: String(reflecting: type)) == type)
+    }
+
     @Test func rangeContainingAResilientBoundHasAnIndirectArgumentCandidate() {
         #expect(
             argumentABIClassCandidates(for: ClosedRange<ResilientValueArgument>.self)

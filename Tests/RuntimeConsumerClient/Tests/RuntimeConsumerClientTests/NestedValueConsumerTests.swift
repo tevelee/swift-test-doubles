@@ -61,4 +61,22 @@ import Testing
         )
         #expect(actual == 4)
     }
+
+    @Test func constrainedGenericParentsResolveInAnOrdinaryConsumer() throws {
+        let stub = try Stub<any OrderedGenericParentStatusGateway>()
+        let placeholder = OrderedExternalAPI<ExternalReservation>.Status(
+            payload: ExternalReservation(start: 10, end: 12)
+        )
+        stub.when { $0.submit(Match.any(using: placeholder)) }
+            .then { (status: OrderedExternalAPI<ExternalReservation>.Status) in
+                status.payload.end - status.payload.start
+            }
+
+        let actual = stub().submit(
+            OrderedExternalAPI<ExternalReservation>.Status(
+                payload: ExternalReservation(start: 30, end: 34)
+            )
+        )
+        #expect(actual == 4)
+    }
 }

@@ -35,6 +35,16 @@ public struct ExternalGenericParent<Outer> {
     }
 }
 
+public struct ConstrainedGenericParent<Outer: ExternalFirstGenericConstraint> {
+    public struct Payload {
+        public let outer: Outer
+
+        public init(outer: Outer) {
+            self.outer = outer
+        }
+    }
+}
+
 extension String: ExternalFirstGenericConstraint {}
 extension Bool: ExternalSecondGenericConstraint {}
 extension Int: ExternalFirstGenericConstraint, ExternalSecondGenericConstraint {}

@@ -246,6 +246,20 @@ public protocol GenericParentStatusGateway {
     func submit(_ status: ExternalGenericAPI<ExternalReservation>.Status) -> UInt64
 }
 
+public struct OrderedExternalAPI<Payload: Comparable> {
+    public struct Status {
+        public let payload: Payload
+
+        public init(payload: Payload) {
+            self.payload = payload
+        }
+    }
+}
+
+public protocol OrderedGenericParentStatusGateway {
+    func submit(_ status: OrderedExternalAPI<ExternalReservation>.Status) -> UInt64
+}
+
 /// A deliberately unsupported mixed tuple transport. The first member is
 /// resilient to this module while the second is a direct scalar.
 public protocol MixedTupleGateway {
