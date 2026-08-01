@@ -138,6 +138,33 @@ A literal-only recording cannot establish that convention independently for
 every argument. Configure or verify the requirement before its first ordinary
 or forwarded call.
 
+### Imported value results need a manual double
+
+An imported non-`@frozen` value can be an argument because the matcher call
+gives TestDoubles bytes to compare with the caller's frame. The same value as a
+result cannot be calibrated: the caller has already chosen registers or result
+storage before a fabricated witness can observe anything. To prevent a wrong
+return convention from corrupting memory, `Stub` rejects a protocol with an
+ABI-uncertain imported result or typed error during construction.
+
+This can occur with a Foundation value such as `URL`, or with a non-frozen
+struct or enum from your own library-evolution framework. It is not a matcher
+configuration problem, so adding more `Match.any(using:)` calls will not make a
+return value safe. Use a small hand-written fake or <doc:ManualStubbing> for
+that protocol boundary instead:
+
+```swift
+struct FixtureLocationService: LocationService {
+    let fixture: URL
+
+    func currentLocation() -> URL { fixture }
+}
+```
+
+If you own the returned type, marking it `@frozen` is a permanent ABI promise
+to every client, not a testing switch. Make that API decision only when its
+stored layout is deliberately stable.
+
 Reusable matcher packages can conform a value to ``CustomMatcher``:
 
 ```swift
