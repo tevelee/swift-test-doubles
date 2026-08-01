@@ -1,3 +1,4 @@
+import Dispatch
 import Foundation
 import IssueReporting
 import Testing
@@ -39,12 +40,16 @@ private final class OrderedVerificationGate: @unchecked Sendable {
         return value == 42
     }
 
-    /// Wait off the cooperative executor: verification cannot begin while
-    /// its caller blocks that executor.
+    /// Wait on a Dispatch worker: verification cannot begin while its caller
+    /// blocks a cooperative executor.
     func waitUntilMatcherEntered(within timeout: TimeInterval) async -> Bool {
-        await Task.detached { [self] in
-            waitForMatcherEntrySynchronously(within: timeout)
-        }.value
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async { [self] in
+                continuation.resume(
+                    returning: waitForMatcherEntrySynchronously(within: timeout)
+                )
+            }
+        }
     }
 
     private func waitForMatcherEntrySynchronously(within timeout: TimeInterval) -> Bool {

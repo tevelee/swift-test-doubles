@@ -130,12 +130,18 @@
             return true
         }
 
-        /// Wait off the cooperative executor: the matcher under test is
-        /// synchronous and cannot begin while its caller blocks that executor.
+        /// Wait on a Dispatch worker: the matcher under test is synchronous
+        /// and cannot begin while its caller blocks a cooperative executor.
         func waitUntilBlockedMatcherEntered(within timeout: TimeInterval) async -> Bool {
-            await Task.detached { [self] in
-                waitForBlockedMatcherEntrySynchronously(within: timeout)
-            }.value
+            await withCheckedContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async { [self] in
+                    continuation.resume(
+                        returning: waitForBlockedMatcherEntrySynchronously(
+                            within: timeout
+                        )
+                    )
+                }
+            }
         }
 
         private func waitForBlockedMatcherEntrySynchronously(
