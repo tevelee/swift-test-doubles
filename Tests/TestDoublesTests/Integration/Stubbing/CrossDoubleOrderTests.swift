@@ -39,7 +39,15 @@ private final class OrderedVerificationGate: @unchecked Sendable {
         return value == 42
     }
 
-    func waitUntilMatcherEntered(within timeout: TimeInterval) -> Bool {
+    /// Wait off the cooperative executor: verification cannot begin while
+    /// its caller blocks that executor.
+    func waitUntilMatcherEntered(within timeout: TimeInterval) async -> Bool {
+        await Task.detached { [self] in
+            waitForMatcherEntrySynchronously(within: timeout)
+        }.value
+    }
+
+    private func waitForMatcherEntrySynchronously(within timeout: TimeInterval) -> Bool {
         condition.lock()
         defer { condition.unlock() }
 
@@ -361,7 +369,7 @@ private final class ConcurrentGatewayStub: @unchecked Sendable {
             }
         }
 
-        guard gate.waitUntilMatcherEntered(within: 60) else {
+        guard await gate.waitUntilMatcherEntered(within: 60) else {
             gate.releaseMatcher()
             blockedVerification.cancel()
             await blockedVerification.value
