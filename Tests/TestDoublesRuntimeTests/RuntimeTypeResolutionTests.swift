@@ -4,6 +4,10 @@ import Testing
 import TestDoublesFixtures
 import TestDoublesResilientFixtures
 
+private struct NominalResilientTupleWrapper {
+    let pair: (ResilientValueArgument, UInt64)
+}
+
 /// Unit coverage for demangled-name resolution: no stubs are constructed and
 /// no witness tables are involved.
 @Suite struct RuntimeTypeResolutionTests {
@@ -70,7 +74,7 @@ import TestDoublesResilientFixtures
         )
     }
 
-    @Test func tupleWithAResilientMemberRequiresStructuralTransport() {
+    @Test func onlyTopLevelTuplesWithAResilientMemberRequireStructuralTransport() {
         #expect(
             requiresStructuralABITransport(
                 for: (ResilientValueArgument, UInt64).self
@@ -79,7 +83,17 @@ import TestDoublesResilientFixtures
         #expect(
             requiresStructuralABITransport(
                 for: Optional<(ResilientValueArgument, UInt64)>.self
-            )
+            ) == false
+        )
+        #expect(
+            requiresStructuralABITransport(
+                for: NominalResilientTupleWrapper.self
+            ) == false
+        )
+        #expect(
+            argumentABIClassCandidates(
+                for: Optional<(ResilientValueArgument, UInt64)>.self
+            ).contains(.indirect)
         )
         #expect(
             requiresStructuralABITransport(for: (FrozenValueArgument, UInt64).self)
