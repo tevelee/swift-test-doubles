@@ -44,6 +44,16 @@ import Testing
                 in: "$s16ConsumerFixtures27EagerAutoclosureDeliveryLogP6recordyySSyXKFTj"
             )
         )
+        #expect(
+            containsNonescapingAutoclosure(
+                in: "$s16ConsumerFixtures34EagerIntegerAutoclosureDeliveryLogP6recordyySiyXKtF"
+            )
+        )
+        #expect(
+            containsNonescapingAutoclosure(
+                in: "$s16ConsumerFixtures25XKFAutoclosureDeliveryLogP6recordyySSyXAFTj"
+            ) == false
+        )
     }
 
     @Test func methodNameDotsInsideGenericArgumentsAreNotSplitOn() throws {

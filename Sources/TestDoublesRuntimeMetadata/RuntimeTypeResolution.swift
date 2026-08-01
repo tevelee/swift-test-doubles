@@ -237,11 +237,52 @@ private func noescapeMarkers(
 /// `@autoclosure () -> Result`.
 package func containsNonescapingAutoclosure(in mangledSymbol: String) -> Bool {
     let bytes = Array(mangledSymbol.utf8)
-    guard bytes.count >= 2 else { return false }
-    return bytes.indices.dropLast().contains { index in
-        bytes[index] == Character("X").asciiValue
-            && bytes[index + 1] == Character("K").asciiValue
+    var index = bytes.startIndex
+    while index < bytes.endIndex {
+        if let endOfIdentifier = endOfLengthPrefixedIdentifier(
+            in: bytes,
+            startingAt: index
+        ) {
+            index = endOfIdentifier
+            continue
+        }
+        guard index + 1 < bytes.endIndex else { return false }
+        if bytes[index] == Character("X").asciiValue,
+            bytes[index + 1] == Character("K").asciiValue
+        {
+            return true
+        }
+        index += 1
     }
+    return false
+}
+
+/// Mangled identifiers are length-prefixed, so an identifier may legally
+/// contain any operator-like spelling. Skipping them prevents a type name such
+/// as `XKFAutoclosureDeliveryLog` from being mistaken for the `XK` operator.
+private func endOfLengthPrefixedIdentifier(
+    in bytes: [UInt8],
+    startingAt start: Int
+) -> Int? {
+    guard isASCIIDigit(bytes[start]) else { return nil }
+    var length = 0
+    var index = start
+    while index < bytes.endIndex, isASCIIDigit(bytes[index]) {
+        let (nextLength, overflow) = length.multipliedReportingOverflow(by: 10)
+        guard overflow == false else { return nil }
+        let (updatedLength, additionOverflow) = nextLength.addingReportingOverflow(
+            Int(bytes[index] - Character("0").asciiValue!)
+        )
+        guard additionOverflow == false else { return nil }
+        length = updatedLength
+        index += 1
+    }
+    guard length > 0, length <= bytes.endIndex - index else { return nil }
+    return index + length
+}
+
+private func isASCIIDigit(_ byte: UInt8) -> Bool {
+    (48 ... 57).contains(byte)
 }
 
 private struct ParsedFunctionType {

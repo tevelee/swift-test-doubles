@@ -117,9 +117,21 @@ public protocol AutoclosureDeliveryLog {
     func record(_ message: @autoclosure @escaping () -> String)
 }
 
+/// Verifies that raw-mangling convention detection does not confuse an
+/// identifier's spelling with an autoclosure type operator.
+public protocol XKFAutoclosureDeliveryLog {
+    func record(_ message: @autoclosure @escaping () -> String)
+}
+
 /// A logging dependency that evaluates its call-site expression immediately.
 public protocol EagerAutoclosureDeliveryLog {
     func record(_ message: @autoclosure () -> String)
+}
+
+/// An eager metric dependency whose autoclosure returns a scalar instead of a
+/// standard-library value with a specialized mangling.
+public protocol EagerIntegerAutoclosureDeliveryLog {
+    func record(_ value: @autoclosure () -> Int)
 }
 
 /// A UI-facing dependency whose requirements are isolated to the main actor.
@@ -272,11 +284,29 @@ public struct LiveAutoclosureDeliveryLog: AutoclosureDeliveryLog {
     }
 }
 
+public struct LiveXKFAutoclosureDeliveryLog: XKFAutoclosureDeliveryLog {
+    public init() {}
+
+    public func record(_ message: @autoclosure @escaping () -> String) {
+        _ = message()
+    }
+}
+
 public struct LiveEagerAutoclosureDeliveryLog: EagerAutoclosureDeliveryLog {
     public init() {}
 
     public func record(_ message: @autoclosure () -> String) {
         _ = message()
+    }
+}
+
+public struct LiveEagerIntegerAutoclosureDeliveryLog:
+    EagerIntegerAutoclosureDeliveryLog
+{
+    public init() {}
+
+    public func record(_ value: @autoclosure () -> Int) {
+        _ = value()
     }
 }
 

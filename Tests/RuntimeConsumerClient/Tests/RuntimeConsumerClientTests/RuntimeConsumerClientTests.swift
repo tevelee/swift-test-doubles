@@ -91,6 +91,17 @@ private struct ReservationStartingAtLeast: CustomMatcher {
         stub().record("delivered")
     }
 
+    @Test func escapingAutoclosureRequirementsIgnoreXKFInAnIdentifier() throws {
+        let stub = try Stub<any XKFAutoclosureDeliveryLog>()
+        let placeholder: () -> String = { "" }
+        stub.when {
+            let matcher = Match.any(using: placeholder)
+            return $0.record(matcher())
+        }.thenDoNothing()
+
+        stub().record("delivered")
+    }
+
     @Test func signatureOfFunctionValuesExplainTheTypedAdapterBoundary() throws {
         let error = #expect(throws: StubError.self) {
             _ = try Stub<any AutoclosureDeliveryLog>(
@@ -103,6 +114,14 @@ private struct ReservationStartingAtLeast: CustomMatcher {
     @Test func nonescapingAutoclosureRequirementsFailBeforeRecording() throws {
         let error = #expect(throws: StubError.self) {
             _ = try Stub<any EagerAutoclosureDeliveryLog>()
+        }
+        #expect(error?.description.contains("nonescaping @autoclosure") == true)
+        #expect(error?.description.contains("ManualStub") == true)
+    }
+
+    @Test func nonescapingIntegerAutoclosureRequirementsFailBeforeRecording() throws {
+        let error = #expect(throws: StubError.self) {
+            _ = try Stub<any EagerIntegerAutoclosureDeliveryLog>()
         }
         #expect(error?.description.contains("nonescaping @autoclosure") == true)
         #expect(error?.description.contains("ManualStub") == true)
