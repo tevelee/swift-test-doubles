@@ -51,7 +51,11 @@ do {
         at: outputURL.deletingLastPathComponent(),
         withIntermediateDirectories: true
     )
-    try output.write(to: outputURL, atomically: true, encoding: .utf8)
+    // A build-tool plugin sandbox grants write access to its declared output,
+    // not to the sibling temporary file Foundation creates for an atomic
+    // write. A failed command is rerun by the build system, so write the
+    // generated output directly instead.
+    try output.write(to: outputURL, atomically: false, encoding: .utf8)
 } catch {
     writeError("ManualStubGeneratorTool: \(error.localizedDescription)")
     exit(1)
