@@ -8,4 +8,5 @@ The scenarios cover imported resilient and frozen structs, `URL`, nested
 optional `URL`, all standard generic range forms over imported values,
 reference-backed `Array` and `Dictionary` batches, `ClosedRange<Date>`, Spy
 forwarding after calibration, static methods with hidden metatype payloads,
-and fail-closed resilient method and property results.
+initializer requirements, and fail-closed resilient method and property
+results.

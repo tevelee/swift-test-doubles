@@ -322,4 +322,22 @@ import Testing
         }
         #expect(error?.description.contains("ABI-uncertain result") == true)
     }
+
+    @Test func resilientInitializerArgumentsCalibrateInAnOrdinaryConsumer() throws {
+        let stub = try Stub<any ReservationSession>()
+        stub.when(initializer: {
+            type(of: $0).init(
+                seed: Match.any(
+                    using: ExternalReservation(start: 90, end: 96)
+                )
+            )
+        }).thenInitialize()
+        stub.when { $0.identifier() }.thenReturn(101)
+
+        let seed: any ReservationSession = stub()
+        let session = type(of: seed).init(
+            seed: ExternalReservation(start: 100, end: 108)
+        )
+        #expect(session.identifier() == 101)
+    }
 }

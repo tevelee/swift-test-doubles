@@ -112,6 +112,12 @@ public protocol ReservationStore {
     var reservation: ExternalReservation { get set }
 }
 
+/// A configured session created by a protocol initializer.
+public protocol ReservationSession {
+    init(seed: ExternalReservation)
+    func identifier() -> UInt64
+}
+
 public struct LiveDeliveryGateway: DeliveryGateway, Sendable {
     public init() {}
 
@@ -222,5 +228,17 @@ public struct LiveReservationStore: ReservationStore {
 
     public init(reservation: ExternalReservation) {
         self.reservation = reservation
+    }
+}
+
+public struct LiveReservationSession: ReservationSession {
+    public let seed: ExternalReservation
+
+    public init(seed: ExternalReservation) {
+        self.seed = seed
+    }
+
+    public func identifier() -> UInt64 {
+        seed.start ^ seed.end
     }
 }
