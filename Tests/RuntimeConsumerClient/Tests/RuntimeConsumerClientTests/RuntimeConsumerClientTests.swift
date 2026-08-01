@@ -3,51 +3,8 @@ import Foundation
 import TestDoubles
 import Testing
 
-private protocol DeliveryGateway: Sendable {
-    func schedule(
-        destination: URL,
-        window: ClosedRange<ExternalReservation>,
-        notes: URL??
-    ) -> Int
-
-    func day(_ window: ClosedRange<Date>) -> Int
-
-    func map(_ point: FrozenExternalPoint) -> UInt64
-}
-
-private protocol ReservationSource {
-    func currentReservation() -> ExternalReservation
-}
-
-private struct LiveDeliveryGateway: DeliveryGateway, Sendable {
-    func schedule(
-        destination: URL,
-        window: ClosedRange<ExternalReservation>,
-        notes: URL??
-    ) -> Int {
-        destination.absoluteString.count
-            + Int(window.lowerBound.start)
-            + (notes == nil ? 0 : 1)
-    }
-
-    func day(_ window: ClosedRange<Date>) -> Int {
-        Int(window.lowerBound.timeIntervalSinceReferenceDate)
-    }
-
-    func map(_ point: FrozenExternalPoint) -> UInt64 {
-        point.x ^ point.y
-    }
-}
-
-private struct LiveReservationSource: ReservationSource {
-    func currentReservation() -> ExternalReservation {
-        ExternalReservation(start: 1, end: 2)
-    }
-}
-
 @Suite struct RuntimeConsumerClientTests {
     @Test func importedAndGenericValuesDecodeInAnOrdinaryConsumer() throws {
-        _ = LiveDeliveryGateway()
         let stub = try Stub<any DeliveryGateway>()
         let destination = URL(string: "https://example.com/delivery")!
         let window =
@@ -89,7 +46,6 @@ private struct LiveReservationSource: ReservationSource {
     }
 
     @Test func foundationRangeCalibratesWithoutTypeSpecificRuntimeLogic() throws {
-        _ = LiveDeliveryGateway()
         let stub = try Stub<any DeliveryGateway>()
         let placeholder =
             Date(timeIntervalSinceReferenceDate: 10)
@@ -133,7 +89,6 @@ private struct LiveReservationSource: ReservationSource {
     }
 
     @Test func frozenImportedValuesRemainDirectInAnOrdinaryConsumer() throws {
-        _ = LiveDeliveryGateway()
         let stub = try Stub<any DeliveryGateway>()
         let placeholder = FrozenExternalPoint(x: 1, y: 2)
         stub.when { $0.map(Match.any(using: placeholder)) }.then {
@@ -145,9 +100,9 @@ private struct LiveReservationSource: ReservationSource {
     }
 
     @Test func uncertainImportedResultsFailBeforeInvocation() {
-        _ = LiveReservationSource()
-        #expect(throws: StubError.self) {
+        let error = #expect(throws: StubError.self) {
             _ = try Stub<any ReservationSource>()
         }
+        #expect(error?.description.contains("ABI-uncertain result") == true)
     }
 }
