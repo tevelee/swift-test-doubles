@@ -109,23 +109,14 @@ private func archiveScore(
 
     @Test func foundationArchiveParametersCalibrateInAnOrdinaryConsumer() throws {
         let stub = try Stub<any FoundationArchiveGateway>()
-        let placeholderSource = URL(string: "https://example.com/placeholder")!
-        let placeholderBytes = Data([1, 2, 3])
-        let placeholderInterval = DateInterval(
-            start: Date(timeIntervalSinceReferenceDate: 10),
-            duration: 20
-        )
-        let placeholderLocale = Locale(identifier: "en_US")
-        let placeholderTimeZone = try #require(TimeZone(secondsFromGMT: 0))
-        let placeholderAmount = Decimal(7)
         stub.when {
             $0.archive(
-                source: Match.any(using: placeholderSource),
-                bytes: Match.any(using: placeholderBytes),
-                interval: Match.any(using: placeholderInterval),
-                locale: Match.any(using: placeholderLocale),
-                timeZone: Match.any(using: placeholderTimeZone),
-                amount: Match.any(using: placeholderAmount)
+                source: Match.any(),
+                bytes: Match.any(),
+                interval: Match.any(),
+                locale: Match.any(),
+                timeZone: Match.any(),
+                amount: Match.any()
             )
         }.then {
             (

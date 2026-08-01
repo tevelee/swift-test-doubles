@@ -42,6 +42,7 @@ protocol ReferenceBackedFoundationProbe {
     func indexSet(_ value: IndexSet) -> Int
     func dateInterval(_ value: DateInterval) -> Int
     func measurement(_ value: Measurement<UnitLength>) -> Int
+    func characterSet(_ value: CharacterSet) -> Bool
     func route(
         in window: ClosedRange<Date>,
         to endpoint: URL,
@@ -60,6 +61,7 @@ struct LiveReferenceBackedFoundationProbe: ReferenceBackedFoundationProbe {
     func indexSet(_ value: IndexSet) -> Int { 0 }
     func dateInterval(_ value: DateInterval) -> Int { 0 }
     func measurement(_ value: Measurement<UnitLength>) -> Int { 0 }
+    func characterSet(_ value: CharacterSet) -> Bool { false }
     func route(
         in window: ClosedRange<Date>,
         to endpoint: URL,
@@ -110,19 +112,19 @@ struct LiveReferenceBackedFoundationProbe: ReferenceBackedFoundationProbe {
         #expect(stub().openDateRange(range) == 86_400)
     }
 
-    @Test func optionalResilientValueUsesTheNaturalMatcherSpelling() throws {
+    @Test func synthesizesOptionalURLPlaceholder() throws {
         let address = URL(filePath: "/optional")
         let stub = try Stub<any FoundationValueProbe>()
-        stub.when { $0.optionalURL(Match.any(using: address)) }
+        stub.when { $0.optionalURL(Match.any()) }
             .then { (value: URL?) in value?.path().count ?? 0 }
 
         #expect(stub().optionalURL(address) == 9)
     }
 
-    @Test func nestedOptionalResilientValueUsesTheNaturalMatcherSpelling() throws {
+    @Test func synthesizesNestedOptionalURLPlaceholder() throws {
         let address = URL(filePath: "/nested-optional")
         let stub = try Stub<any FoundationValueProbe>()
-        stub.when { $0.nestedOptionalURL(Match.any(using: address)) }
+        stub.when { $0.nestedOptionalURL(Match.any()) }
             .then { (value: URL??) in value??.path().count ?? 0 }
 
         #expect(stub().nestedOptionalURL(.some(.some(address))) == 16)
@@ -153,10 +155,10 @@ struct LiveReferenceBackedFoundationProbe: ReferenceBackedFoundationProbe {
         #expect(stub().triplyOptionalURL(.some(.some(.some(address)))) == 21)
     }
 
-    @Test func asyncOptionalResilientValueUsesTheNaturalMatcherSpelling() async throws {
+    @Test func synthesizesAsyncOptionalURLPlaceholder() async throws {
         let address = URL(filePath: "/async-optional")
         let stub = try Stub<any FoundationValueProbe>()
-        await stub.when { await $0.optionalURLAsync(Match.any(using: address)) }
+        await stub.when { await $0.optionalURLAsync(Match.any()) }
             .then { (value: URL?) async in value?.path().count ?? 0 }
 
         #expect(await stub().optionalURLAsync(address) == 15)
@@ -172,7 +174,7 @@ struct LiveReferenceBackedFoundationProbe: ReferenceBackedFoundationProbe {
 
     @Test func indexPathArgument() throws {
         let stub = try Stub<any FoundationValueProbe>()
-        stub.when { $0.indexPath(Match.any(using: IndexPath())) }
+        stub.when { $0.indexPath(Match.any()) }
             .then { (value: IndexPath) in value.count }
 
         #expect(stub().indexPath(IndexPath(indexes: [1, 2])) == 2)
@@ -188,7 +190,7 @@ struct LiveReferenceBackedFoundationProbe: ReferenceBackedFoundationProbe {
 
     @Test func urlArgument() throws {
         let stub = try Stub<any ReferenceBackedFoundationProbe>()
-        stub.when { $0.url(Match.any(using: URL(filePath: "/"))) }.then { (value: URL) in value.path() }
+        stub.when { $0.url(Match.any()) }.then { (value: URL) in value.path() }
 
         #expect(stub().url(URL(filePath: "/tmp")) == "/tmp")
     }
@@ -196,7 +198,7 @@ struct LiveReferenceBackedFoundationProbe: ReferenceBackedFoundationProbe {
     @Test func calendarArgument() throws {
         let calendar = Calendar(identifier: .gregorian)
         let stub = try Stub<any ReferenceBackedFoundationProbe>()
-        stub.when { $0.calendar(Match.any(using: calendar)) }
+        stub.when { $0.calendar(Match.any()) }
             .then { (value: Calendar) in "\(value.identifier)" }
 
         #expect(stub().calendar(calendar) == "gregorian")
@@ -204,9 +206,9 @@ struct LiveReferenceBackedFoundationProbe: ReferenceBackedFoundationProbe {
 
     @Test func localeAndTimeZoneArguments() throws {
         let stub = try Stub<any ReferenceBackedFoundationProbe>()
-        stub.when { $0.locale(Match.any(using: Locale(identifier: "en_US"))) }
+        stub.when { $0.locale(Match.any()) }
             .then { (value: Locale) in value.identifier }
-        stub.when { $0.timeZone(Match.any(using: TimeZone(identifier: "UTC")!)) }
+        stub.when { $0.timeZone(Match.any()) }
             .then { (value: TimeZone) in value.identifier }
 
         let sut = stub()
@@ -216,8 +218,8 @@ struct LiveReferenceBackedFoundationProbe: ReferenceBackedFoundationProbe {
 
     @Test func collectionAndUnitArguments() throws {
         let stub = try Stub<any ReferenceBackedFoundationProbe>()
-        stub.when { $0.indexSet(Match.any(using: IndexSet())) }.then { (value: IndexSet) in value.count }
-        stub.when { $0.dateInterval(Match.any(using: DateInterval())) }
+        stub.when { $0.indexSet(Match.any()) }.then { (value: IndexSet) in value.count }
+        stub.when { $0.dateInterval(Match.any()) }
             .then { (value: DateInterval) in Int(value.duration) }
         stub.when { $0.measurement(Match.any(using: Measurement(value: 0, unit: UnitLength.meters))) }
             .then { (value: Measurement<UnitLength>) in Int(value.value) }
@@ -226,6 +228,15 @@ struct LiveReferenceBackedFoundationProbe: ReferenceBackedFoundationProbe {
         #expect(sut.indexSet(IndexSet(integersIn: 0 ..< 3)) == 3)
         #expect(sut.dateInterval(DateInterval(start: Date(timeIntervalSince1970: 0), duration: 5)) == 5)
         #expect(sut.measurement(Measurement(value: 7, unit: UnitLength.meters)) == 7)
+    }
+
+    @Test func characterSetArgument() throws {
+        let stub = try Stub<any ReferenceBackedFoundationProbe>()
+        stub.when { $0.characterSet(Match.any()) }
+            .then { (value: CharacterSet) in value.contains("A") }
+
+        #expect(stub().characterSet(CharacterSet(charactersIn: "A")))
+        #expect(stub().characterSet(CharacterSet(charactersIn: "B")) == false)
     }
 
     @Test func calibratesSeveralResilientArgumentsAsOneCallFrame() throws {
@@ -237,8 +248,8 @@ struct LiveReferenceBackedFoundationProbe: ReferenceBackedFoundationProbe {
         stub.when {
             $0.route(
                 in: Match.any(using: range),
-                to: Match.any(using: endpoint),
-                with: Match.any(using: baggage)
+                to: Match.any(),
+                with: Match.any()
             )
         }.then { (window: ClosedRange<Date>, url: URL, data: Data) in
             Int(window.upperBound.timeIntervalSince(window.lowerBound))

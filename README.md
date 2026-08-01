@@ -113,7 +113,10 @@ Use matcher expressions for every argument when recording a call that involves
 an imported value type. In the uncommon case where a non-`@frozen` value from
 a library-evolution module could be passed either directly or by address,
 those matchers let the runtime calibrate the client's convention before it
-decodes a real call. Use a `using:` overload when the value cannot be
+decodes a real call. Common Foundation values such as `URL`, `Data`, `Date`,
+`UUID`, `Calendar`, `Locale`, and `TimeZone`, including optional wrappers,
+synthesize their recording values automatically, so they use ordinary
+`Match.any()`. Use a `using:` overload for a custom value that cannot be
 synthesized:
 
 ```swift

@@ -130,8 +130,10 @@ public enum Match {}
 extension Match {
     /// Matches any argument of type `T`.
     ///
-    /// This overload synthesizes a valid recording placeholder. For reference,
-    /// existential, or other unsupported types, use ``Match/any(using:)``.
+    /// This overload synthesizes a valid recording placeholder, including for
+    /// common Foundation value types and optional wrappers around them. For
+    /// reference, existential, or other unsupported types, use
+    /// ``Match/any(using:)``.
     public static func any<T>() -> T {
         MatcherContext.append(AnyMatcher())
         return MatcherContext.returning(
@@ -263,6 +265,9 @@ extension Match.Capture: @unchecked Sendable where T: Sendable {}
 func synthesizedPlaceholder<T>(for api: String, fallback: String) -> T {
     if let registered = Match.Placeholders.make(T.self) {
         return registered
+    }
+    if let builtIn = BuiltInRecordingPlaceholders.make(T.self) {
+        return builtIn
     }
     guard let placeholder = RuntimeStubFactory.makeRecordingPlaceholder(for: T.self) else {
         fatalError(

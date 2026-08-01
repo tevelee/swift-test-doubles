@@ -129,8 +129,11 @@ library-evolution module may be passed directly or by address, and those
 matcher placeholders let TestDoubles calibrate the client's convention before
 it decodes a real call. The same rule applies to an imported generic struct or
 enum, even when its current payload looks direct, because runtime metadata does
-not expose whether the outer declaration is `@frozen`. Use a `using:` overload
-for a type without a synthesizable placeholder:
+not expose whether the outer declaration is `@frozen`. Common Foundation values
+such as `URL`, `Data`, `Date`, `UUID`, `Calendar`, `Locale`, and `TimeZone`,
+including optional wrappers, synthesize their recording values automatically
+and use ordinary `Match.any()`. Use a `using:` overload for a custom type
+without a synthesizable placeholder:
 
 ```swift
 stub.when {
@@ -267,8 +270,9 @@ Match.matching(description: "positive") {
 
 Use ``Match/any(using:)`` or
 ``Match/matching(using:description:where:)`` when the recording pass cannot
-safely synthesize a temporary class or existential value. The supplied value
-is never matched against or returned.
+safely synthesize a temporary class, existential, or custom imported value.
+Common Foundation values and their optional wrappers use the zero-argument
+forms. A supplied value is never matched against or returned.
 
 #### Optionals, collections, and strings
 

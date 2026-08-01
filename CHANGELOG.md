@@ -105,6 +105,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `Match.any()` and the other zero-argument matcher forms now synthesize valid
+  recording placeholders for common Foundation values, including `URL`,
+  `Data`, `Date`, `UUID`, `Calendar`, `Locale`, `TimeZone`, `IndexPath`,
+  `IndexSet`, `DateInterval`, `CharacterSet`, and `Decimal`. Optional wrappers
+  recursively use a populated value, so these arguments no longer need an
+  arbitrary `using:` fixture merely to calibrate their client ABI.
 - `StubError.trampolineAllocationFailed` now explains that the process could
   not map executable memory, that the reported index is the first witness slot
   reached rather than a rejected requirement, and reports only the recovery
