@@ -6,5 +6,5 @@ sees rather than the root package's test-target layout.
 
 The scenarios cover imported resilient and frozen structs, `URL`, nested
 optional `URL`, all standard generic range forms over imported values,
-`ClosedRange<Date>`, Spy forwarding after calibration, and fail-closed
-resilient results.
+reference-backed `Array` and `Dictionary` batches, `ClosedRange<Date>`, Spy
+forwarding after calibration, and fail-closed resilient results.

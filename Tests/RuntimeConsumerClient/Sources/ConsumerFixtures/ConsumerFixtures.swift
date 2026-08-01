@@ -73,6 +73,11 @@ public protocol DeliveryGateway: Sendable {
         before: PartialRangeUpTo<ExternalReservation>
     ) -> UInt64
 
+    func importBatch(
+        urls: [URL],
+        reservations: [String: ExternalReservation]
+    ) -> Int
+
     func map(_ point: FrozenExternalPoint) -> UInt64
 
     func settle(_ value: (ExternalReservation, UInt64)?) -> Int
@@ -122,6 +127,16 @@ public struct LiveDeliveryGateway: DeliveryGateway, Sendable {
         before: PartialRangeUpTo<ExternalReservation>
     ) -> UInt64 {
         after.lowerBound.start ^ through.upperBound.end ^ before.upperBound.start
+    }
+
+    public func importBatch(
+        urls: [URL],
+        reservations: [String: ExternalReservation]
+    ) -> Int {
+        urls.count
+            + reservations.values.reduce(0) { partial, reservation in
+                partial + Int(reservation.start ^ reservation.end)
+            }
     }
 
     public func map(_ point: FrozenExternalPoint) -> UInt64 {

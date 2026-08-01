@@ -91,6 +91,35 @@ import Testing
         )
     }
 
+    @Test func referenceBackedCollectionsStayDirectInAnOrdinaryConsumer() throws {
+        let stub = try Stub<any DeliveryGateway>()
+        let urls = [
+            URL(string: "https://example.com/first")!,
+            URL(string: "https://example.com/second")!
+        ]
+        let reservations = [
+            "first": ExternalReservation(start: 10, end: 12),
+            "second": ExternalReservation(start: 20, end: 24)
+        ]
+        stub.when {
+            $0.importBatch(
+                urls: Match.any(using: urls),
+                reservations: Match.any(using: reservations)
+            )
+        }.then { (urls: [URL], reservations: [String: ExternalReservation]) in
+            urls.count
+                + reservations.values.reduce(0) { partial, reservation in
+                    partial + Int(reservation.start ^ reservation.end)
+                }
+        }
+
+        let actualURLs = [URL(string: "https://example.com/actual")!]
+        let actualReservations = [
+            "actual": ExternalReservation(start: 30, end: 36)
+        ]
+        #expect(stub().importBatch(urls: actualURLs, reservations: actualReservations) == 59)
+    }
+
     @Test func forwardingReusesTheCalibratedImportedValuePlan() throws {
         let spy = try Spy<any DeliveryGateway>(
             forwardingTo: LiveDeliveryGateway()
