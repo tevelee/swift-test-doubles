@@ -8,7 +8,7 @@ import Testing
         @Sendable (
             UInt8,
             Int16,
-            Float16,
+            Float,
             String,
             (Int, String)
         ) async throws -> (UInt64, Int)
