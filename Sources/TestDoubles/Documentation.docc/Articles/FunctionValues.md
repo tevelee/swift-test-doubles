@@ -175,6 +175,11 @@ unavailable but the requirement remains inside the adapter's concrete slice.
 The protocol may still come from a separate module; only its ordinary Swift
 interface must be importable.
 
+The `signatureOf:` convenience preserves ordinary argument and result metadata,
+but it cannot preserve the compiler's function reabstraction contract. Use a
+`using:` adapter for every function-valued argument or result, including an
+`@autoclosure`; do not use `signatureOf:` for that shape.
+
 The adapter is a noncapturing `@convention(thin)` function. It repeats the
 requirement's explicit parameters exactly and appends ``Stub/Invocation``:
 

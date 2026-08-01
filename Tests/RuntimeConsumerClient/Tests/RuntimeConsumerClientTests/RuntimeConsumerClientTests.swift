@@ -91,6 +91,15 @@ private struct ReservationStartingAtLeast: CustomMatcher {
         stub().record("delivered")
     }
 
+    @Test func signatureOfFunctionValuesExplainTheTypedAdapterBoundary() throws {
+        let error = #expect(throws: StubError.self) {
+            _ = try Stub<any AutoclosureDeliveryLog>(
+                .method(signatureOf: (any AutoclosureDeliveryLog).record)
+            )
+        }
+        #expect(error?.description.contains("compiler-typed `using:` adapter") == true)
+    }
+
     @Test func nonescapingAutoclosureRequirementsFailBeforeRecording() throws {
         let error = #expect(throws: StubError.self) {
             _ = try Stub<any EagerAutoclosureDeliveryLog>()
