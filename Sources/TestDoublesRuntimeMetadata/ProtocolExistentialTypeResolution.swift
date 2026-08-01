@@ -2,7 +2,7 @@ import Echo
 import TestDoublesRuntimeSupport
 
 func swiftTypeByNominalName(_ name: String) -> Any.Type? {
-    if let prefix = nominalMangledPrefix(for: name) {
+    for prefix in nominalMangledPrefixes(for: name) {
         for suffix in ["V", "O", "C"] {
             if let type = swiftTypeByMangledName(prefix + suffix) {
                 return type
@@ -44,13 +44,22 @@ func protocolCompositionType(named name: String) -> Any.Type? {
     )
 }
 
-private func nominalMangledPrefix(for name: String) -> String? {
+private func nominalMangledPrefixes(for name: String) -> [String] {
     let parts = name.split(separator: ".").map(String.init)
-    guard parts.count == 2 else { return nil }
+    guard parts.count >= 2 else { return [] }
     let module = parts[0]
-    let typeName = parts[1]
     let modulePrefix = module == "Swift" ? "s" : "\(module.utf8.count)\(module)"
-    return "\(modulePrefix)\(typeName.utf8.count)\(typeName)"
+    var prefixes = [modulePrefix]
+    for (index, typeName) in parts.dropFirst().enumerated() {
+        let stems = prefixes.map { "\($0)\(typeName.utf8.count)\(typeName)" }
+        if index == parts.count - 2 {
+            return stems
+        }
+        prefixes = stems.flatMap { prefix in
+            ["V", "O", "C"].map { prefix + $0 }
+        }
+    }
+    return []
 }
 
 /// `Sendable` is a source-level marker protocol. Swift erases it before
@@ -81,12 +90,15 @@ private struct ProtocolExistentialDescriptor {
 }
 
 private func protocolExistentialDescriptor(named name: String) -> ProtocolExistentialDescriptor? {
-    if let prefix = nominalMangledPrefix(for: name),
-        let descriptorPointer = RuntimeSymbols.rawSymbol(named: "$s\(prefix)Mp"),
-        let descriptor = protocolExistentialDescriptor(
-            at: UnsafeRawPointer(descriptorPointer)
-        )
-    {
+    for prefix in nominalMangledPrefixes(for: name) {
+        guard
+            let descriptorPointer = RuntimeSymbols.rawSymbol(named: "$s\(prefix)Mp"),
+            let descriptor = protocolExistentialDescriptor(
+                at: UnsafeRawPointer(descriptorPointer)
+            )
+        else {
+            continue
+        }
         return descriptor
     }
 

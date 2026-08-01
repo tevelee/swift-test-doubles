@@ -35,10 +35,6 @@ private func resolveUncachedRuntimeType(_ syntax: DemangledTypeSyntax) -> Any.Ty
         case "Double", "Swift.Double": return Double.self
         case "Float", "Swift.Float": return Float.self
         case "Error", "Swift.Error": return (any Error).self
-        // Foundation overlays this source type as `Notification.Name`, while
-        // Linux witness symbols spell it `NSNotification.Name` without a
-        // discoverable nominal metadata descriptor.
-        case "Foundation.NSNotification.Name": return Notification.Name.self
         #if !((os(macOS) || targetEnvironment(macCatalyst)) && arch(x86_64))
             case "Float16", "Swift.Float16": return Float16.self
         #endif
@@ -114,7 +110,33 @@ private func resolveCompositeRuntimeType(_ syntax: DemangledTypeSyntax) -> Any.T
     if !name.contains("."), let type = _typeByName("Swift.\(name)") {
         return type
     }
-    return swiftTypeByNominalName(name) ?? swiftTypeByMangledName(name)
+    return foreignObjectiveCType(named: name)
+        ?? swiftTypeByNominalName(name)
+        ?? swiftTypeByMangledName(name)
+}
+
+/// Linux Foundation witness symbols retain a source alias such as
+/// `Foundation.NSNotification.Name`, but the concrete metadata uses the
+/// Objective-C type encoding (`So18NSNotificationNamea`). Recover that
+/// encoding from its fully-qualified components instead of maintaining an
+/// alias list.
+private func foreignObjectiveCType(named name: String) -> Any.Type? {
+    let components = name.split(separator: ".")
+    guard
+        components.count > 1,
+        components.first == "Foundation",
+        components[1].hasPrefix("NS")
+    else {
+        return nil
+    }
+    let foreignName = components.dropFirst().joined()
+    let prefix = "So\(foreignName.utf8.count)\(foreignName)"
+    for suffix in ["a", "V", "O", "C"] {
+        if let type = swiftTypeByMangledName(prefix + suffix) {
+            return type
+        }
+    }
+    return nil
 }
 
 private func twoArgumentGenericType(_ name: String) -> Any.Type? {
