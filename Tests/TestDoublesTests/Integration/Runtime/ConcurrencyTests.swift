@@ -130,7 +130,17 @@
             return true
         }
 
-        func waitUntilBlockedMatcherEntered(within timeout: TimeInterval) -> Bool {
+        /// Wait off the cooperative executor: the matcher under test is
+        /// synchronous and cannot begin while its caller blocks that executor.
+        func waitUntilBlockedMatcherEntered(within timeout: TimeInterval) async -> Bool {
+            await Task.detached { [self] in
+                waitForBlockedMatcherEntrySynchronously(within: timeout)
+            }.value
+        }
+
+        private func waitForBlockedMatcherEntrySynchronously(
+            within timeout: TimeInterval
+        ) -> Bool {
             condition.lock()
             defer { condition.unlock() }
             let deadline = Date().addingTimeInterval(timeout)
@@ -247,7 +257,7 @@
             let firstCall = Task.detached(priority: Task.currentPriority) {
                 probe.synchronous(1)
             }
-            guard gate.waitUntilBlockedMatcherEntered(within: 60) else {
+            guard await gate.waitUntilBlockedMatcherEntered(within: 60) else {
                 gate.releaseBlockedMatcher()
                 firstCall.cancel()
                 _ = await firstCall.value
