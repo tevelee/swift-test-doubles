@@ -274,6 +274,22 @@ private struct ReservationStartingAtLeast: CustomMatcher {
         #expect(stub().review(ExternalReservation(start: 59, end: 61)) == 0)
     }
 
+    @Test func capturesCalibrateOptionalResilientArgumentsInAnOrdinaryConsumer() throws {
+        let stub = try Stub<any DeliveryGateway>()
+        let capture = Match.Capture<ExternalReservation?>()
+        let placeholder: ExternalReservation? = ExternalReservation(start: 79, end: 83)
+        stub.when { $0.review(capture.capture(using: placeholder)) }
+            .then { (reservation: ExternalReservation?) in
+                guard let reservation else { return 0 }
+                return reservation.start ^ reservation.end
+            }
+
+        let actual = ExternalReservation(start: 89, end: 97)
+        #expect(stub().review(actual) == 89 ^ 97)
+        #expect(stub().review(nil) == 0)
+        #expect(capture.values == [actual, nil])
+    }
+
     @Test func genericTupleShellsCalibrateInAnOrdinaryConsumer() throws {
         let boxStub = try Stub<any DeliveryGateway>()
         let boxPlaceholder: ReservationBox<(ExternalReservation, UInt64)> = ReservationBox(
