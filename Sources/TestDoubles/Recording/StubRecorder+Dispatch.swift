@@ -510,6 +510,14 @@ extension StubRecorder {
 
     private func recordPlaceholder(method: Int, name: String, args: [Any]) {
         var matchers = MatcherContext.takeMatchers()
+        if matchers.isEmpty == false, matchers.count != args.count {
+            preconditionFailure(
+                "[TestDoubles] Recording \(name) used \(matchers.count) Match expression(s) for "
+                    + "\(args.count) argument(s). Use either literals for every argument or exactly one "
+                    + "Match expression per argument; do not mix them. Rewrite a pinned literal with "
+                    + "Match.equal(_:) or Match.identical(to:)."
+            )
+        }
         let runtimeMethod = runtimeMethod(for: method)
         if runtimeMethod?.kind == .setter,
             args.count > 1,

@@ -253,6 +253,21 @@ protocol MatcherPlaceholderService {
 
 #if compiler(>=6.2) && (os(macOS) || os(Linux) || targetEnvironment(macCatalyst))
     @Suite struct MatcherExitTests {
+        @Test func mixedLiteralAndMatcherRecordingFailsBeforeRegistration() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let stub = try Stub<any MatcherService>()
+                _ = stub.when {
+                    $0.search(query: "literal", limit: Match.any())
+                }
+            }
+            let diagnostic = try requireStandardErrorDiagnostic(from: result)
+            #expect(diagnostic.contains("Use either literals for every argument"))
+            #expect(diagnostic.contains("Match.equal(_:)"))
+        }
+
         @Test func literalClosureRecordingFailsWithMatcherGuidance() async throws {
             let result = try await #require(
                 processExitsWith: .failure,

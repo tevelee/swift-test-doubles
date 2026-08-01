@@ -123,6 +123,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rendered descriptions. Values without a generic equality relation, such as
   closures, now stop during registration with guidance to use explicit
   `Match` expressions instead of silently matching unrelated values.
+- Mixed literal and `Match` argument recordings now fail immediately with a
+  rewrite hint instead of registering a pattern that cannot match any call.
 - Loadable aggregate arguments wider than two words now decode from the
   registers the caller actually used. They were classified as indirect while
   only results used the register explosion, so a struct of three or four words

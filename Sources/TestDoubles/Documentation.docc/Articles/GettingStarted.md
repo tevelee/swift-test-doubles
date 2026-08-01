@@ -84,6 +84,11 @@ objects — must use a `Match` expression for every argument. `Match.any(using:)
 and `Match.matching(using:description:where:)` accept an explicit recording
 placeholder when the library cannot synthesize one safely.
 
+Do not mix the two styles in one call. For example, rewrite
+`find(id: 42, scope: Match.any())` as
+`find(id: Match.equal(42), scope: Match.any())`; TestDoubles rejects a mixed
+recording immediately so it cannot become a stub that never matches.
+
 For floating-point values, `Match.approximately` combines absolute and relative
 tolerance:
 
