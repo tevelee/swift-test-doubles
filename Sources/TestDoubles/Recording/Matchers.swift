@@ -55,7 +55,9 @@ private func optionalPromotionBytes<T>(
 ) -> [UInt8]? {
     var optionalLayers: [any RuntimeOptionalType.Type] = []
     var wrappedType = expectedType
-    while let optional = wrappedType as? any RuntimeOptionalType.Type {
+    while ObjectIdentifier(wrappedType) != ObjectIdentifier(baseType),
+        let optional = wrappedType as? any RuntimeOptionalType.Type
+    {
         optionalLayers.append(optional)
         wrappedType = optional.runtimeWrappedType
     }

@@ -13,6 +13,7 @@ protocol FoundationValueProbe {
     func openDateRange(_ value: Range<Date>) -> TimeInterval
     func optionalURL(_ value: URL?) -> Int
     func nestedOptionalURL(_ value: URL??) -> Int
+    func triplyOptionalURL(_ value: URL???) -> Int
     func optionalURLAsync(_ value: URL?) async -> Int
     func uuid(_ value: UUID) -> String
     func indexPath(_ value: IndexPath) -> Int
@@ -25,6 +26,7 @@ struct LiveFoundationValueProbe: FoundationValueProbe {
     func openDateRange(_ value: Range<Date>) -> TimeInterval { 0 }
     func optionalURL(_ value: URL?) -> Int { 0 }
     func nestedOptionalURL(_ value: URL??) -> Int { 0 }
+    func triplyOptionalURL(_ value: URL???) -> Int { 0 }
     func optionalURLAsync(_ value: URL?) async -> Int { 0 }
     func uuid(_ value: UUID) -> String { "" }
     func indexPath(_ value: IndexPath) -> Int { 0 }
@@ -124,6 +126,31 @@ struct LiveReferenceBackedFoundationProbe: ReferenceBackedFoundationProbe {
             .then { (value: URL??) in value??.path().count ?? 0 }
 
         #expect(stub().nestedOptionalURL(.some(.some(address))) == 16)
+    }
+
+    @Test func optionalPlaceholderPromotesThroughOneAdditionalOptionalLayer() throws {
+        let placeholder: URL? = URL(filePath: "/optional-placeholder")
+        let stub = try Stub<any FoundationValueProbe>()
+        stub.when { $0.nestedOptionalURL(Match.any(using: placeholder)) }
+            .then { (value: URL??) in value??.path().count ?? 0 }
+
+        let address = URL(filePath: "/nested-actual")
+        #expect(stub().nestedOptionalURL(.some(.some(address))) == 14)
+    }
+
+    @Test func nestedOptionalPlaceholderPromotesThroughMultipleAdditionalLayers() throws {
+        let placeholder: URL?? = .some(.some(URL(filePath: "/nested-placeholder")))
+        let stub = try Stub<any FoundationValueProbe>()
+        stub.when { $0.triplyOptionalURL(Match.any(using: placeholder)) }
+            .then { (value: URL???) in
+                if case .some(.some(.some(let address))) = value {
+                    return address.path().count
+                }
+                return 0
+            }
+
+        let address = URL(filePath: "/triply-nested-actual")
+        #expect(stub().triplyOptionalURL(.some(.some(.some(address)))) == 21)
     }
 
     @Test func asyncOptionalResilientValueUsesTheNaturalMatcherSpelling() async throws {
