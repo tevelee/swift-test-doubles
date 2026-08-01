@@ -1,4 +1,6 @@
-import Dispatch
+#if canImport(Dispatch)
+    import Dispatch
+#endif
 import Foundation
 import IssueReporting
 import TestDoubles
@@ -46,17 +48,19 @@ private final class BlockedBehaviorMatcherGate: @unchecked Sendable {
         return value == 7
     }
 
-    /// Wait on a Dispatch worker: the matcher under test is synchronous and
-    /// cannot begin while its caller blocks a cooperative executor.
-    func waitUntilMatcherEntered(within timeout: TimeInterval) async -> Bool {
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async { [self] in
-                continuation.resume(
-                    returning: waitForMatcherEntrySynchronously(within: timeout)
-                )
+    #if canImport(Dispatch)
+        /// Wait on a Dispatch worker: the matcher under test is synchronous and
+        /// cannot begin while its caller blocks a cooperative executor.
+        func waitUntilMatcherEntered(within timeout: TimeInterval) async -> Bool {
+            await withCheckedContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async { [self] in
+                    continuation.resume(
+                        returning: waitForMatcherEntrySynchronously(within: timeout)
+                    )
+                }
             }
         }
-    }
+    #endif
 
     private func waitForMatcherEntrySynchronously(within timeout: TimeInterval) -> Bool {
         condition.lock()
@@ -141,37 +145,39 @@ private actor MatcherEvaluationGate {
         #expect(service.value(for: 7) == "7")
     }
 
-    @Test(.timeLimit(.minutes(2)))
-    func clearingWhileMatcherIsBlockedCannotDispatchRemovedBehavior() async throws {
-        let spy: Spy<any InvocationManagementService> = Spy.make(
-            forwardingTo: RealInvocationManagementService()
-        )
-        let gate = BlockedBehaviorMatcherGate()
-        spy.when {
-            $0.value(
-                for: Match.matching(
-                    description: "blocked",
-                    where: gate.matchAfterRelease
-                )
+    #if canImport(Dispatch)
+        @Test(.timeLimit(.minutes(2)))
+        func clearingWhileMatcherIsBlockedCannotDispatchRemovedBehavior() async throws {
+            let spy: Spy<any InvocationManagementService> = Spy.make(
+                forwardingTo: RealInvocationManagementService()
             )
-        }.thenReturn("stale")
-        let service: any InvocationManagementService = spy()
+            let gate = BlockedBehaviorMatcherGate()
+            spy.when {
+                $0.value(
+                    for: Match.matching(
+                        description: "blocked",
+                        where: gate.matchAfterRelease
+                    )
+                )
+            }.thenReturn("stale")
+            let service: any InvocationManagementService = spy()
 
-        let invocation = Task.detached {
-            service.value(for: 7)
-        }
-        guard await gate.waitUntilMatcherEntered(within: 60) else {
+            let invocation = Task.detached {
+                service.value(for: 7)
+            }
+            guard await gate.waitUntilMatcherEntered(within: 60) else {
+                gate.releaseMatcher()
+                invocation.cancel()
+                _ = await invocation.value
+                Issue.record("The blocking matcher did not start within 60 seconds.")
+                return
+            }
+            spy.clearConfiguredBehaviors()
             gate.releaseMatcher()
-            invocation.cancel()
-            _ = await invocation.value
-            Issue.record("The blocking matcher did not start within 60 seconds.")
-            return
-        }
-        spy.clearConfiguredBehaviors()
-        gate.releaseMatcher()
 
-        #expect(await invocation.value == "7")
-    }
+            #expect(await invocation.value == "7")
+        }
+    #endif
 
     @Test func manualStubClearingBehaviorsRemovesShadowingRegistrations() {
         let stub = ManualStub<ManualInvocationManagementServiceStub>()

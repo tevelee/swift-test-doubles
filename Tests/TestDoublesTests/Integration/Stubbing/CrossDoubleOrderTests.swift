@@ -1,4 +1,6 @@
-import Dispatch
+#if canImport(Dispatch)
+    import Dispatch
+#endif
 import Foundation
 import IssueReporting
 import Testing
@@ -40,17 +42,19 @@ private final class OrderedVerificationGate: @unchecked Sendable {
         return value == 42
     }
 
-    /// Wait on a Dispatch worker: verification cannot begin while its caller
-    /// blocks a cooperative executor.
-    func waitUntilMatcherEntered(within timeout: TimeInterval) async -> Bool {
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async { [self] in
-                continuation.resume(
-                    returning: waitForMatcherEntrySynchronously(within: timeout)
-                )
+    #if canImport(Dispatch)
+        /// Wait on a Dispatch worker: verification cannot begin while its caller
+        /// blocks a cooperative executor.
+        func waitUntilMatcherEntered(within timeout: TimeInterval) async -> Bool {
+            await withCheckedContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async { [self] in
+                    continuation.resume(
+                        returning: waitForMatcherEntrySynchronously(within: timeout)
+                    )
+                }
             }
         }
-    }
+    #endif
 
     private func waitForMatcherEntrySynchronously(within timeout: TimeInterval) -> Bool {
         condition.lock()
@@ -350,46 +354,48 @@ private final class ConcurrentGatewayStub: @unchecked Sendable {
         order.verify(analytics) { $0.track(event: Match.equal("settled")) }
     }
 
-    @Test(.timeLimit(.minutes(2)))
-    func concurrentVerificationsCannotClaimTheSameInteraction() async throws {
-        let gateway = ConcurrentGatewayStub(try Stub<any CrossOrderGateway>())
-        gateway.value.when { $0.charge(amount: Match.any()) }.thenDoNothing()
-        gateway.value().charge(amount: 42)
+    #if canImport(Dispatch)
+        @Test(.timeLimit(.minutes(2)))
+        func concurrentVerificationsCannotClaimTheSameInteraction() async throws {
+            let gateway = ConcurrentGatewayStub(try Stub<any CrossOrderGateway>())
+            gateway.value.when { $0.charge(amount: Match.any()) }.thenDoNothing()
+            gateway.value().charge(amount: 42)
 
-        let order = InvocationOrder()
-        let captor = Match.Capture<Int>()
-        let gate = OrderedVerificationGate()
-        let blockedVerification = Task {
-            expectReportsIssue {
-                order.verify(gateway.value) {
-                    $0.charge(
-                        amount: Match.allOf(
-                            Match.matching(description: "blocked", where: gate.matchAfterRelease),
-                            captor.capture()
+            let order = InvocationOrder()
+            let captor = Match.Capture<Int>()
+            let gate = OrderedVerificationGate()
+            let blockedVerification = Task {
+                expectReportsIssue {
+                    order.verify(gateway.value) {
+                        $0.charge(
+                            amount: Match.allOf(
+                                Match.matching(description: "blocked", where: gate.matchAfterRelease),
+                                captor.capture()
+                            )
                         )
-                    )
+                    }
+                } matching: {
+                    $0.description.contains("Ordered verification failed")
                 }
-            } matching: {
-                $0.description.contains("Ordered verification failed")
             }
-        }
 
-        guard await gate.waitUntilMatcherEntered(within: 60) else {
+            guard await gate.waitUntilMatcherEntered(within: 60) else {
+                gate.releaseMatcher()
+                blockedVerification.cancel()
+                await blockedVerification.value
+                Issue.record("The blocking matcher did not start within 60 seconds.")
+                return
+            }
+
+            order.verify(gateway.value) {
+                $0.charge(amount: Match.allOf(Match.equal(42), captor.capture()))
+            }
             gate.releaseMatcher()
-            blockedVerification.cancel()
             await blockedVerification.value
-            Issue.record("The blocking matcher did not start within 60 seconds.")
-            return
-        }
 
-        order.verify(gateway.value) {
-            $0.charge(amount: Match.allOf(Match.equal(42), captor.capture()))
+            #expect(captor.values == [42])
         }
-        gate.releaseMatcher()
-        await blockedVerification.value
-
-        #expect(captor.values == [42])
-    }
+    #endif
 
     @Test func verifyNoMoreInteractionsPassesWhenEveryTouchedDoublesCallsAreVerified() throws {
         let gateway = try Stub<any CrossOrderGateway>()
