@@ -21,6 +21,22 @@ import Testing
         #expect(actual == 30 ^ 34)
     }
 
+    @Test func genericExistentialArgumentsResolveInAnOrdinaryConsumer() throws {
+        let stub = try Stub<any GenericPayloadReporter>()
+        let placeholder: ExternalAPI.Envelope<any ReportPayload & DetailedReportPayload> = .init(
+            value: ExternalReportPayload(summary: "placeholder")
+        )
+        stub.when { $0.report(Match.any(using: placeholder)) }
+            .then { (envelope: ExternalAPI.Envelope<any ReportPayload & DetailedReportPayload>) in
+                "\(envelope.value.summary):\(envelope.value.detail)"
+            }
+
+        let actual = stub().report(
+            .init(value: ExternalReportPayload(summary: "draft", detail: "ready"))
+        )
+        #expect(actual == "draft:ready")
+    }
+
     @Test func genericParentsOfNestedValueArgumentsResolveInAnOrdinaryConsumer() throws {
         let stub = try Stub<any GenericNestedEnvelopeGateway>()
         let placeholder = ExternalGenericAPI<ExternalReservation>.Envelope(
@@ -60,6 +76,25 @@ import Testing
             )
         )
         #expect(actual == 4)
+    }
+
+    @Test func genericParentsOfExistentialArgumentsResolveInAnOrdinaryConsumer() throws {
+        let stub = try Stub<any GenericParentPayloadReporter>()
+        let placeholder: ExternalGenericAPI<any ReportPayload & DetailedReportPayload>.Status = .init(
+            payload: ExternalReportPayload(summary: "placeholder")
+        )
+        stub.when { $0.report(Match.any(using: placeholder)) }
+            .then {
+                (
+                    status: ExternalGenericAPI<any ReportPayload & DetailedReportPayload>.Status
+                ) in
+                "\(status.payload.summary):\(status.payload.detail)"
+            }
+
+        let actual = stub().report(
+            .init(payload: ExternalReportPayload(summary: "draft", detail: "ready"))
+        )
+        #expect(actual == "draft:ready")
     }
 
     @Test func constrainedGenericParentsResolveInAnOrdinaryConsumer() throws {

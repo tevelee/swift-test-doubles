@@ -216,6 +216,12 @@ public protocol NestedGenericEnvelopeGateway {
     func submit(_ envelope: ExternalAPI.Envelope<ExternalReservation>) -> UInt64
 }
 
+public protocol GenericPayloadReporter {
+    func report(
+        _ envelope: ExternalAPI.Envelope<any ReportPayload & DetailedReportPayload>
+    ) -> String
+}
+
 public struct ExternalGenericAPI<Payload> {
     public struct Status {
         public let payload: Payload
@@ -244,6 +250,12 @@ public protocol GenericNestedEnvelopeGateway {
 
 public protocol GenericParentStatusGateway {
     func submit(_ status: ExternalGenericAPI<ExternalReservation>.Status) -> UInt64
+}
+
+public protocol GenericParentPayloadReporter {
+    func report(
+        _ status: ExternalGenericAPI<any ReportPayload & DetailedReportPayload>.Status
+    ) -> String
 }
 
 public struct OrderedExternalAPI<Payload: Comparable> {
