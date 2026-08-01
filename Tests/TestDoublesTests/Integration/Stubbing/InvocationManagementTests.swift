@@ -45,7 +45,15 @@ private final class BlockedBehaviorMatcherGate: @unchecked Sendable {
         return value == 7
     }
 
-    func waitUntilMatcherEntered(within timeout: TimeInterval) -> Bool {
+    /// Wait off the cooperative executor: the matcher under test is
+    /// synchronous and cannot begin while its caller blocks that executor.
+    func waitUntilMatcherEntered(within timeout: TimeInterval) async -> Bool {
+        await Task.detached { [self] in
+            waitForMatcherEntrySynchronously(within: timeout)
+        }.value
+    }
+
+    private func waitForMatcherEntrySynchronously(within timeout: TimeInterval) -> Bool {
         condition.lock()
         defer { condition.unlock() }
         let deadline = Date().addingTimeInterval(timeout)
@@ -147,7 +155,7 @@ private actor MatcherEvaluationGate {
         let invocation = Task.detached {
             service.value(for: 7)
         }
-        guard gate.waitUntilMatcherEntered(within: 60) else {
+        guard await gate.waitUntilMatcherEntered(within: 60) else {
             gate.releaseMatcher()
             invocation.cancel()
             _ = await invocation.value
