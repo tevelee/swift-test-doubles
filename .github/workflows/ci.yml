@@ -195,6 +195,9 @@ jobs:
           swift test
           --package-path Tests/ManualOnlyClient
           --scratch-path .build/manual-only
+      - name: Test external runtime consumer
+        if: matrix.architecture == 'x86_64'
+        run: Scripts/validate-runtime-consumer.sh
       - name: Test debug
         run: >-
           swift test
