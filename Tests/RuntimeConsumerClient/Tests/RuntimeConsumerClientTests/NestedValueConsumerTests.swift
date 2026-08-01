@@ -146,6 +146,25 @@ import Testing
         #expect(actual == 84)
     }
 
+    @Test func asyncGenericClosurePayloadsCalibrateInAnOrdinaryConsumer() async throws {
+        let placeholder: @Sendable (Int) -> Int = { $0 + 1 }
+        let stub = try Stub<any AsyncGenericClosurePayloadGateway>()
+        await stub.when {
+            await $0.submit(
+                Match.any(
+                    using: ExternalGenericAPI<@Sendable (Int) -> Int>.Status(
+                        payload: placeholder
+                    )
+                )
+            )
+        }.then { (status: ExternalGenericAPI<@Sendable (Int) -> Int>.Status) async in
+            status.payload(41)
+        }
+
+        let actual = await stub().submit(.init(payload: { value in value + 2 }))
+        #expect(actual == 43)
+    }
+
     @Test func genericClosurePayloadResultsFailBeforeInvocation() {
         let error = #expect(throws: StubError.self) {
             _ = try Stub<any GenericClosurePayloadSource>()

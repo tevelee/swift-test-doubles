@@ -280,6 +280,14 @@ public protocol GenericClosurePayloadSource {
     func current() -> ExternalGenericAPI<@Sendable (Int) -> Int>.Status
 }
 
+/// An async boundary combines resilient generic storage with a hidden
+/// continuation argument in the witness ABI.
+public protocol AsyncGenericClosurePayloadGateway {
+    func submit(
+        _ status: ExternalGenericAPI<@Sendable (Int) -> Int>.Status
+    ) async -> Int
+}
+
 /// A frozen generic control proves that calibration keeps the caller's direct
 /// convention when the generic declaration does publish that guarantee.
 @frozen public struct FrozenExternalGenericBox<Value> {
