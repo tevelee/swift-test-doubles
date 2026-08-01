@@ -103,22 +103,43 @@ private struct LiveResilientValueSetterABIProbe:
     }
 }
 
-private struct LiveResilientTupleArgumentABIProbe: ResilientTupleArgumentABIProbe {
+struct LiveResilientTupleArgumentABIProbe: ResilientTupleArgumentABIProbe {
     func accept(_ value: (ResilientValueArgument, UInt64)) -> Int {
         Int(value.0.first ^ value.0.second ^ value.1)
     }
 }
 
-private struct LiveResilientTupleResultABIProbe: ResilientTupleResultABIProbe {
+struct LiveResilientTupleResultABIProbe: ResilientTupleResultABIProbe {
     func makeValue() -> (ResilientValueArgument, UInt64) {
         (ResilientValueArgument(first: 0, second: 0), 0)
     }
 }
 
-private struct LiveResilientTypedErrorABIProbe: ResilientTypedErrorABIProbe {
+struct LiveResilientTypedErrorABIProbe: ResilientTypedErrorABIProbe {
     func load() throws(ResilientTypedError) -> Int {
         throw ResilientTypedError(code: 1)
     }
+}
+
+@inline(never)
+private func useLinkedResilientTupleArgument(
+    _ probe: any ResilientTupleArgumentABIProbe
+) -> Int {
+    probe.accept((ResilientValueArgument(first: 1, second: 2), 4))
+}
+
+@inline(never)
+private func useLinkedResilientTupleResult(
+    _ probe: any ResilientTupleResultABIProbe
+) -> (ResilientValueArgument, UInt64) {
+    probe.makeValue()
+}
+
+@inline(never)
+private func useLinkedResilientTypedError(
+    _ probe: any ResilientTypedErrorABIProbe
+) throws(ResilientTypedError) -> Int {
+    try probe.load()
 }
 
 @Suite struct ResilientValueArgumentABITests {
@@ -341,7 +362,10 @@ private struct LiveResilientTypedErrorABIProbe: ResilientTypedErrorABIProbe {
     }
 
     @Test func tuplesWithResilientArgumentsFailBeforeMixedTransportCanCorrupt() {
-        _ = LiveResilientTupleArgumentABIProbe()
+        #expect(
+            useLinkedResilientTupleArgument(
+                LiveResilientTupleArgumentABIProbe()
+            ) == 7)
         let error = #expect(throws: StubError.self) {
             _ = try Stub<any ResilientTupleArgumentABIProbe>()
         }
@@ -350,7 +374,11 @@ private struct LiveResilientTypedErrorABIProbe: ResilientTypedErrorABIProbe {
     }
 
     @Test func tuplesWithResilientResultsFailBeforeMixedTransportCanCorrupt() {
-        _ = LiveResilientTupleResultABIProbe()
+        #expect(
+            useLinkedResilientTupleResult(
+                LiveResilientTupleResultABIProbe()
+            ) == (ResilientValueArgument(first: 0, second: 0), 0)
+        )
         let error = #expect(throws: StubError.self) {
             _ = try Stub<any ResilientTupleResultABIProbe>()
         }
@@ -359,7 +387,12 @@ private struct LiveResilientTypedErrorABIProbe: ResilientTypedErrorABIProbe {
     }
 
     @Test func resilientTypedErrorsFailBeforeTheirResultSlotCanCorrupt() {
-        _ = LiveResilientTypedErrorABIProbe()
+        let typedError = #expect(throws: ResilientTypedError.self) {
+            try useLinkedResilientTypedError(
+                LiveResilientTypedErrorABIProbe()
+            )
+        }
+        #expect(typedError == ResilientTypedError(code: 1))
         let error = #expect(throws: StubError.self) {
             _ = try Stub<any ResilientTypedErrorABIProbe>()
         }
