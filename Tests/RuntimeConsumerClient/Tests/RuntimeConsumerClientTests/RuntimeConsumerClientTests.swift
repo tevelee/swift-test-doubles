@@ -300,4 +300,11 @@ import Testing
         }
         #expect(error?.description.contains("ABI-uncertain result") == true)
     }
+
+    @Test func resilientPropertyResultsFailBeforeASetterCanBeConfigured() {
+        let error = #expect(throws: StubError.self) {
+            _ = try Stub<any ReservationStore>()
+        }
+        #expect(error?.description.contains("ABI-uncertain result") == true)
+    }
 }

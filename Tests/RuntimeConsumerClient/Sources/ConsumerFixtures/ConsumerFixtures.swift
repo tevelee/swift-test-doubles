@@ -104,6 +104,12 @@ public protocol ReservationSource {
     func currentReservation() -> ExternalReservation
 }
 
+/// A property-backed store such as an injected preference or configuration
+/// boundary. Swift requires every settable protocol property to be gettable.
+public protocol ReservationStore {
+    var reservation: ExternalReservation { get set }
+}
+
 public struct LiveDeliveryGateway: DeliveryGateway, Sendable {
     public init() {}
 
@@ -202,5 +208,13 @@ public struct LiveReservationSource: ReservationSource {
 
     public func currentReservation() -> ExternalReservation {
         ExternalReservation(start: 1, end: 2)
+    }
+}
+
+public struct LiveReservationStore: ReservationStore {
+    public var reservation: ExternalReservation
+
+    public init(reservation: ExternalReservation) {
+        self.reservation = reservation
     }
 }

@@ -360,6 +360,10 @@ machinery; they do not each need a dedicated stubbing API. A top-level tuple
 that contains a value with an ABI-uncertain client convention remains
 unsupported because Swift lowers its elements independently. Optional and
 nominal wrappers around the same tuple remain one whole, calibratable value.
+Likewise, a `get set` property whose value is ABI-uncertain cannot be prepared,
+even when a test only assigns it: its required getter still returns the same
+uncertain type. Model a write-only boundary as a method, or use
+``ManualStub`` when the property contract must remain unchanged.
 Automatic and linked mangled-type discovery also reconstruct metadata for
 other public, top-level generic nominal types whose parameters carry protocol
 conformance requirements, not only unconstrained ones. A `struct Box<T:
