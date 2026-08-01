@@ -1,4 +1,5 @@
 import Foundation
+import TestDoublesResilientFixtures
 
 public protocol ConcreteReadAccessorProbe {
     var integer: Int { read }
@@ -49,6 +50,52 @@ public struct LinkedModify2AccessorProbe: Modify2AccessorProbe {
         get { storage }
         set { storage = newValue }
         _modify { yield &storage }
+    }
+}
+
+public protocol ResilientReadAccessorProbe {
+    subscript(_ index: ResilientValueArgument) -> Int { read }
+}
+
+public final class ForwardingResilientReadAccessorProbe:
+    ResilientReadAccessorProbe
+{
+    public private(set) var receivedIndices: [ResilientValueArgument] = []
+
+    public init() {}
+
+    public subscript(_ index: ResilientValueArgument) -> Int {
+        read {
+            receivedIndices.append(index)
+            yield Int(index.first ^ index.second)
+        }
+    }
+}
+
+public protocol ResilientModifyAccessorProbe {
+    subscript(_ index: ResilientValueArgument) -> Int { get set }
+}
+
+public final class ForwardingResilientModifyAccessorProbe:
+    ResilientModifyAccessorProbe
+{
+    public private(set) var receivedIndices: [ResilientValueArgument] = []
+    private var storage: Int
+
+    public init(value: Int) {
+        storage = value
+    }
+
+    public subscript(_ index: ResilientValueArgument) -> Int {
+        get {
+            receivedIndices.append(index)
+            return storage
+        }
+        set { storage = newValue }
+        _modify {
+            receivedIndices.append(index)
+            yield &storage
+        }
     }
 }
 

@@ -1,5 +1,6 @@
 import InternalRuntimeContract
 import TestDoublesReadFixtures
+import TestDoublesResilientFixtures
 import Testing
 @testable import TestDoubles
 @testable import TestDoublesRuntime
@@ -129,6 +130,46 @@ private struct Modify2AbortFailure: Error {}
 
         #expect(probe.value == 42)
         spy.verify(.exactly(2)) { $0.value }
+    }
+
+    @Test func resilientReadIndexUsesTheCalibratedLayout() throws {
+        let placeholder = ResilientValueArgument(first: 3, second: 5)
+        let value = ResilientValueArgument(first: 7, second: 11)
+        let stub = try Stub<any ResilientReadAccessorProbe>()
+        stub.when { $0[Match.any(using: placeholder)] }.then {
+            (index: ResilientValueArgument) in
+            Int(index.first ^ index.second)
+        }
+
+        let probe: any ResilientReadAccessorProbe = stub()
+        #expect(probe[value] == Int(value.first ^ value.second))
+        stub.verify { $0[Match.equal(value)] }
+    }
+
+    @Test func resilientReadIndexForwardsWithTheCalibratedLayout() throws {
+        let placeholder = ResilientValueArgument(first: 13, second: 17)
+        let value = ResilientValueArgument(first: 19, second: 23)
+        let target = ForwardingResilientReadAccessorProbe()
+        let spy = try Spy<any ResilientReadAccessorProbe>(forwardingTo: target)
+        spy.when { $0[Match.any(using: placeholder)] }.thenForward()
+
+        let probe: any ResilientReadAccessorProbe = spy()
+        #expect(probe[value] == Int(value.first ^ value.second))
+        #expect(target.receivedIndices == [value])
+    }
+
+    @Test func resilientModifyIndexUsesTheCalibratedLayout() throws {
+        let placeholder = ResilientValueArgument(first: 29, second: 31)
+        let value = ResilientValueArgument(first: 37, second: 41)
+        let target = ForwardingResilientModifyAccessorProbe(value: 40)
+        let spy = try Spy<any ResilientModifyAccessorProbe>(forwardingTo: target)
+        spy.when { $0[Match.any(using: placeholder)] }.thenForward()
+        var probe: any ResilientModifyAccessorProbe = spy()
+
+        probe[value] += 2
+
+        #expect(target.receivedIndices == [value])
+        #expect(probe[value] == 42)
     }
 
     @Test func readResultRemainsAliveForBorrowAndReleasesAfterUse() throws {

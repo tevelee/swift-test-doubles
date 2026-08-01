@@ -11,10 +11,17 @@ import TestDoublesRuntimeMetadata
 /// publish one complete argument-layout vector atomically after the recording
 /// call proves it from matcher placeholder bytes.
 package final class PreparedRuntimeMethod: @unchecked Sendable {
+    private struct CoroutinePlans: Sendable {
+        let consuming: RuntimeArgumentDecodingPlan
+        let borrowed: RuntimeArgumentDecodingPlan
+        let dynamicSelfHiddenArgumentIndex: Int?
+    }
+
     private struct Plans: Sendable {
         let argumentLayouts: [ABIClass]
         let consuming: RuntimeArgumentDecodingPlan
         let borrowed: RuntimeArgumentDecodingPlan
+        let coroutinePlans: [Int: CoroutinePlans]
         let asyncStackAdjustmentByteCount: Int?
     }
 
@@ -61,11 +68,40 @@ package final class PreparedRuntimeMethod: @unchecked Sendable {
         return consumeOwnedArguments ? plans.consuming : plans.borrowed
     }
 
+    package func coroutineDecodingPlan(
+        initialGeneralPurposeOffset: Int,
+        consumeOwnedArguments: Bool
+    ) -> RuntimeArgumentDecodingPlan {
+        let plans = resolvedPlans()
+        guard let coroutine = plans.coroutinePlans[initialGeneralPurposeOffset]
+        else {
+            preconditionFailure(
+                "[TestDoubles] Unsupported coroutine argument offset \(initialGeneralPurposeOffset)."
+            )
+        }
+        return consumeOwnedArguments ? coroutine.consuming : coroutine.borrowed
+    }
+
+    package func coroutineDynamicSelfHiddenArgumentIndex(
+        initialGeneralPurposeOffset: Int
+    ) -> Int {
+        let plans = resolvedPlans()
+        guard let coroutine = plans.coroutinePlans[initialGeneralPurposeOffset],
+            let index = coroutine.dynamicSelfHiddenArgumentIndex
+        else {
+            preconditionFailure(
+                "[TestDoubles] Calibrated coroutine forwarding for \(descriptor.name) exceeded its hidden-argument transport boundary."
+            )
+        }
+        return index
+    }
+
     /// Resolves every ambiguous argument as one transport vector before any
     /// value witness operation can observe incorrectly reconstructed bytes.
     package func calibrateArgumentLayouts(
         using calibrations: [RuntimeArgumentCalibration],
-        from frame: TrampolineCallFrame
+        from frame: TrampolineCallFrame,
+        initialGeneralPurposeOffset: Int? = nil
     ) {
         lock.lock()
         let alreadyResolved = plans != nil
@@ -82,7 +118,8 @@ package final class PreparedRuntimeMethod: @unchecked Sendable {
 
         let matches = candidateMatches(
             calibrations: calibrations,
-            frame: frame
+            frame: frame,
+            initialGeneralPurposeOffset: initialGeneralPurposeOffset
         )
         let strongestEvidence = matches.map(\.indirectEvidence).max()
         // An exact pointee match is positive evidence for indirect transport.
@@ -153,6 +190,36 @@ package final class PreparedRuntimeMethod: @unchecked Sendable {
                 argumentLayouts: argumentLayouts,
                 consumeOwnedArguments: false
             ),
+            coroutinePlans: Dictionary(
+                uniqueKeysWithValues: [1, 2].map { offset in
+                    let coroutineTransport = WitnessCallTransportPlan(
+                        method: descriptor,
+                        argumentLayouts: argumentLayouts,
+                        initialGeneralPurposeOffset: offset,
+                        trailingPayload: .dynamicSelf
+                    )
+                    return (
+                        offset,
+                        CoroutinePlans(
+                            consuming: RuntimeArgumentDecodingPlan.witness(
+                                method: descriptor,
+                                transport: coroutineTransport,
+                                argumentLayouts: argumentLayouts,
+                                consumeOwnedArguments: true
+                            ),
+                            borrowed: RuntimeArgumentDecodingPlan.witness(
+                                method: descriptor,
+                                transport: coroutineTransport,
+                                argumentLayouts: argumentLayouts,
+                                consumeOwnedArguments: false
+                            ),
+                            dynamicSelfHiddenArgumentIndex:
+                                coroutineTransport
+                                .directForwardingHiddenArgumentIndex
+                        )
+                    )
+                }
+            ),
             asyncStackAdjustmentByteCount:
                 descriptor.isAsync
                 ? asyncWitnessStackPlan(
@@ -166,7 +233,8 @@ package final class PreparedRuntimeMethod: @unchecked Sendable {
 
     private func candidateMatches(
         calibrations: [RuntimeArgumentCalibration],
-        frame: TrampolineCallFrame
+        frame: TrampolineCallFrame,
+        initialGeneralPurposeOffset: Int?
     ) -> [(layouts: [ABIClass], indirectEvidence: Int)] {
         let maximumLiveCandidateCount = 256
         var matches: [(layouts: [ABIClass], indirectEvidence: Int)] = [([], 0)]
@@ -187,7 +255,11 @@ package final class PreparedRuntimeMethod: @unchecked Sendable {
                             calibrationBytes,
                             layout: layout,
                             comparisonLayout: candidates[0],
-                            locations: argumentLocations(for: layouts),
+                            locations: argumentLocations(
+                                for: layouts,
+                                initialGeneralPurposeOffset:
+                                    initialGeneralPurposeOffset
+                            ),
                             frame: frame
                         )
                     else {
@@ -212,10 +284,12 @@ package final class PreparedRuntimeMethod: @unchecked Sendable {
     }
 
     private func argumentLocations(
-        for layouts: [ABIClass]
+        for layouts: [ABIClass],
+        initialGeneralPurposeOffset: Int?
     ) -> [CallFrameArgumentLocation] {
         let initialGeneralPurposeOffset =
-            descriptor.isAsync && descriptor.returnLayout == .indirect ? 1 : 0
+            initialGeneralPurposeOffset
+            ?? (descriptor.isAsync && descriptor.returnLayout == .indirect ? 1 : 0)
         let plan = CallFrameArgumentLocationPlan(
             arguments: zip(descriptor.arguments, layouts).map { argument, layout in
                 CallFrameArgumentShape(type: argument.value.type, layout: layout)

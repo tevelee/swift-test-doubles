@@ -4,11 +4,11 @@ import TestDoublesRuntimeMetadata
 package protocol RuntimeForwarding: AnyObject, Sendable {
     func forward(_ method: PreparedRuntimeMethod, frame: TrampolineCallFrame)
     func makeModifyState(
-        for method: MethodDescriptor,
+        for method: PreparedRuntimeMethod,
         frame: TrampolineCallFrame
     ) -> any YieldingAccessorState
     func makeReadState(
-        for method: MethodDescriptor,
+        for method: PreparedRuntimeMethod,
         frame: TrampolineCallFrame
     ) -> any YieldingAccessorState
     func makeAsyncState(
@@ -71,34 +71,76 @@ package final class ProtocolForwarder<P>: RuntimeForwarding, @unchecked Sendable
     }
 
     package func makeReadState(
-        for method: MethodDescriptor,
+        for runtimeMethod: PreparedRuntimeMethod,
         frame: TrampolineCallFrame
     ) -> any YieldingAccessorState {
+        let method = runtimeMethod.descriptor
         guard let plan = plans.reads[method.index] else {
             preconditionFailure(
                 "[TestDoubles] No read forwarding plan exists for requirement \(method.index)."
             )
         }
+        #if arch(x86_64)
+            let initialGeneralPurposeOffset = 2
+        #else
+            let initialGeneralPurposeOffset = 1
+        #endif
+        let calibratedPlan = ForwardedReadPlan(
+            entry: plan.entry,
+            descriptorSlot: plan.descriptorSlot,
+            declarationDiscriminator: plan.declarationDiscriminator,
+            resumeDiscriminator: plan.resumeDiscriminator,
+            selfValue: plan.selfValue,
+            witnessTable: plan.witnessTable,
+            hiddenArgumentIndex:
+                runtimeMethod.coroutineDynamicSelfHiddenArgumentIndex(
+                    initialGeneralPurposeOffset: initialGeneralPurposeOffset
+                ),
+            callerFrameSize: plan.callerFrameSize,
+            resultIsIndirect: plan.resultIsIndirect
+        )
         return ForwardedReadState(
             owner: self,
-            plan: plan,
+            plan: calibratedPlan,
             metadata: target.metadata,
             frame: frame
         )
     }
 
     package func makeModifyState(
-        for method: MethodDescriptor,
+        for runtimeMethod: PreparedRuntimeMethod,
         frame: TrampolineCallFrame
     ) -> any YieldingAccessorState {
+        let method = runtimeMethod.descriptor
         guard let plan = plans.modifications[method.index] else {
             preconditionFailure(
                 "[TestDoubles] No _modify forwarding plan exists for requirement \(method.index)."
             )
         }
+        #if arch(x86_64)
+            let descriptorArgumentOffset = 2
+        #else
+            let descriptorArgumentOffset = 1
+        #endif
+        let initialGeneralPurposeOffset =
+            plan.abi == .yieldOnce2 ? descriptorArgumentOffset : 1
+        let calibratedPlan = ForwardedModifyPlan(
+            entry: plan.entry,
+            entrySlot: plan.entrySlot,
+            declarationDiscriminator: plan.declarationDiscriminator,
+            resumeDiscriminator: plan.resumeDiscriminator,
+            selfValue: plan.selfValue,
+            witnessTable: plan.witnessTable,
+            hiddenArgumentIndex:
+                runtimeMethod.coroutineDynamicSelfHiddenArgumentIndex(
+                    initialGeneralPurposeOffset: initialGeneralPurposeOffset
+                ),
+            callerFrameSize: plan.callerFrameSize,
+            abi: plan.abi
+        )
         return ForwardedModifyState(
             owner: self,
-            plan: plan,
+            plan: calibratedPlan,
             metadata: target.metadata,
             frame: frame
         )

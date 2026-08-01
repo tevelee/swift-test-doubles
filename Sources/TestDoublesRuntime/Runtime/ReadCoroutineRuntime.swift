@@ -89,10 +89,11 @@ enum ReadCoroutineRuntime {
                 "[TestDoubles] read trampoline could not resolve recorder dispatch \(dispatchIndex)."
             )
         }
-        let method = invocation.requireMethod(
+        let runtimeMethod = invocation.requireRuntimeMethod(
             failureMessage:
                 "[TestDoubles] read trampoline could not resolve recorder dispatch \(dispatchIndex)."
         )
+        let method = runtimeMethod.descriptor
         guard method.kind == .getter else {
             fatalError(
                 "[TestDoubles] read trampoline could not resolve recorder dispatch \(dispatchIndex)."
@@ -104,10 +105,23 @@ enum ReadCoroutineRuntime {
         #else
             let argumentOffset = 1
         #endif
+        if invocation.endpoint.invocationMode == .capturing {
+            runtimeMethod.calibrateArgumentLayouts(
+                using: invocation.endpoint.recordingArgumentCalibrations(
+                    at: dispatchIndex
+                ),
+                from: frame,
+                initialGeneralPurposeOffset: argumentOffset
+            )
+        }
         let arguments = RuntimeArgumentDecoder.decode(
-            for: method,
+            runtimeMethod.coroutineDecodingPlan(
+                initialGeneralPurposeOffset: argumentOffset,
+                consumeOwnedArguments:
+                    invocation.forwarder == nil
+                    || invocation.endpoint.invocationMode == .capturing
+            ),
             from: frame,
-            initialGeneralPurposeOffset: argumentOffset
         ).values
         let state: any YieldingAccessorState
         if let forwarder = invocation.forwarder {
@@ -117,7 +131,7 @@ enum ReadCoroutineRuntime {
                 case .forwarding(let token):
                     state = ForwardingCompletionYieldingState(
                         base: forwarder.makeReadState(
-                            for: method,
+                            for: runtimeMethod,
                             frame: frame
                         ),
                         endpoint: invocation.endpoint,

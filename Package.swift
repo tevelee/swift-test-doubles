@@ -260,6 +260,7 @@ private func allTargets(
         ),
         .target(
             name: "TestDoublesReadFixtures",
+            dependencies: ["TestDoublesResilientFixtures"],
             path: "Tests/TestDoublesReadFixtures",
             swiftSettings: [
                 .enableExperimentalFeature("CoroutineAccessors")
@@ -350,7 +351,8 @@ private func allTargets(
                 "TestDoublesRuntime",
                 "TestDoublesRuntimeMetadata",
                 "InternalRuntimeContract",
-                "TestDoublesReadFixtures"
+                "TestDoublesReadFixtures",
+                "TestDoublesResilientFixtures"
             ],
             path: "Tests/TestDoublesReadTests",
             swiftSettings: [

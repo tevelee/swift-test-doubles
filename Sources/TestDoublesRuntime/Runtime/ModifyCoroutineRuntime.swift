@@ -181,9 +181,11 @@ private enum ModifyCoroutineRuntime {
         let setter = runtimeSetter.descriptor
 
         let indices = RuntimeArgumentDecoder.decode(
-            for: getter,
+            runtimeGetter.coroutineDecodingPlan(
+                initialGeneralPurposeOffset: 1,
+                consumeOwnedArguments: invocation.forwarder == nil
+            ),
             from: frame,
-            initialGeneralPurposeOffset: 1
         ).values
         let state: any YieldingAccessorState
         if let forwarder = invocation.forwarder {
@@ -193,7 +195,7 @@ private enum ModifyCoroutineRuntime {
                 case .forwarding(let token):
                     state = ForwardingCompletionYieldingState(
                         base: forwarder.makeModifyState(
-                            for: getter,
+                            for: runtimeGetter,
                             frame: frame
                         ),
                         endpoint: invocation.endpoint,
