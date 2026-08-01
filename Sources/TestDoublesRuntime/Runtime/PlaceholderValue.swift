@@ -70,6 +70,7 @@ package enum PlaceholderValue {
         case collection(CollectionKind, Any.Type)
         case dummyFunction(DummyValue.FunctionPlan)
         case emptyEnum(Any.Type)
+        case opaqueExistential(OpaqueExistentialKind)
         case payloadEnum(Any.Type, tag: UInt32, payload: InitializationPlan)
         case aggregate([AggregateElement])
         case metatype(UInt)
@@ -95,6 +96,11 @@ package enum PlaceholderValue {
         case string
     }
 
+    private enum OpaqueExistentialKind {
+        case any
+        case anyObject
+    }
+
     private struct AggregateElement {
         let offset: Int
         let plan: InitializationPlan
@@ -109,6 +115,12 @@ package enum PlaceholderValue {
     ) -> InitializationPlan? {
         if let scalar = scalarInitialization(for: type) {
             return .scalar(scalar)
+        }
+        if type == Any.self {
+            return .opaqueExistential(.any)
+        }
+        if type == AnyObject.self {
+            return .opaqueExistential(.anyObject)
         }
         let metadata = reflect(type)
         if includingDummyFunctions,
@@ -239,6 +251,10 @@ package enum PlaceholderValue {
                     for: destination,
                     tag: UInt32(metadata.descriptor.numPayloadCases)
                 )
+            case .opaqueExistential(.any):
+                initialize(() as Any, at: destination)
+            case .opaqueExistential(.anyObject):
+                initialize(OpaquePlaceholderObject() as AnyObject, at: destination)
             case .payloadEnum(let type, let tag, let payload):
                 guard let metadata = reflect(type) as? EnumMetadata else {
                     preconditionFailure("[TestDoubles] Missing enum metadata for \(type).")
@@ -413,3 +429,5 @@ package enum PlaceholderValue {
         }
     }
 }
+
+private final class OpaquePlaceholderObject {}

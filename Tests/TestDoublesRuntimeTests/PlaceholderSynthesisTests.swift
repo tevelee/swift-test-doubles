@@ -17,6 +17,11 @@ private struct DummyFunctionAggregate {
     let completion: @Sendable () async -> Void
 }
 
+private struct OpaqueExistentialAggregate {
+    let value: Any
+    let object: AnyObject
+}
+
 private enum DummyFunctionPayload {
     case transform((Int) -> String)
 }
@@ -78,6 +83,16 @@ private final class UnsupportedPlaceholder {}
     @Test func metatypePlaceholdersPreserveTheirInstanceType() {
         #expect(PlaceholderValue.make(Int.Type.self) == Int.self)
         #expect(PlaceholderValue.make((any Error).Type.self) == (any Error).self)
+    }
+
+    @Test func opaqueExistentialsContainValidPlaceholderValues() {
+        let any = PlaceholderValue.make(Any.self)
+        let object = PlaceholderValue.make(AnyObject.self)
+        let aggregate = PlaceholderValue.make(OpaqueExistentialAggregate.self)
+
+        #expect(any != nil)
+        #expect(object != nil)
+        #expect(aggregate != nil)
     }
 
     @Test func unsupportedTypesFailBeforeInitializingStorage() {

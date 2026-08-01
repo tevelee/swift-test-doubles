@@ -87,6 +87,11 @@ private struct ConcreteDummyFunctionContainer {
     let asynchronous: ConcreteAsyncDummyFunction
 }
 
+private struct ConcreteOpaqueExistentialContainer {
+    let value: Any
+    let object: AnyObject
+}
+
 @inline(never)
 private func fallbackValue(using service: any DummyService) -> Int {
     withExtendedLifetime(service) { 42 }
@@ -255,6 +260,16 @@ struct DummyTests {
         #expect(container.count == 0)
         withExtendedLifetime(container.transform) {}
         withExtendedLifetime(container.asynchronous) {}
+    }
+
+    @Test func synthesizesOpaqueExistentials() {
+        let value: Any = Dummy.make()
+        let object: AnyObject = Dummy.make()
+        let container: ConcreteOpaqueExistentialContainer = Dummy.make()
+
+        withExtendedLifetime(value) {}
+        withExtendedLifetime(object) {}
+        withExtendedLifetime(container) {}
     }
 }
 
