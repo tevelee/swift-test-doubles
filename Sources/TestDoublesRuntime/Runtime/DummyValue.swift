@@ -4,7 +4,7 @@ import EchoRuntimeSupport
 /// Extends safe placeholder synthesis with fail-closed function values for Dummy.
 package enum DummyValue {
     package static func make<T>(_ type: T.Type = T.self) -> T? {
-        PlaceholderValue.make(type, includingDummyFunctions: true)
+        PlaceholderValue.make(type, includingDummyValues: true)
     }
 
     struct FunctionPlan {

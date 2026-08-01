@@ -71,13 +71,14 @@ private final class UnsupportedPlaceholder {}
                 == PlaceholderChoice.none
         )
         #expect(
-            PlaceholderValue.make(PayloadOnlyPlaceholderChoice.self)
+            DummyValue.make(PayloadOnlyPlaceholderChoice.self)
                 == PayloadOnlyPlaceholderChoice.label("")
         )
         #expect(
-            PlaceholderValue.make(Result<Int, PlaceholderTestError>.self)
+            DummyValue.make(Result<Int, PlaceholderTestError>.self)
                 == .success(0)
         )
+        #expect(PlaceholderValue.make(PayloadOnlyPlaceholderChoice.self) == nil)
     }
 
     @Test func metatypePlaceholdersPreserveTheirInstanceType() {
@@ -86,13 +87,15 @@ private final class UnsupportedPlaceholder {}
     }
 
     @Test func opaqueExistentialsContainValidPlaceholderValues() {
-        let any = PlaceholderValue.make(Any.self)
-        let object = PlaceholderValue.make(AnyObject.self)
-        let aggregate = PlaceholderValue.make(OpaqueExistentialAggregate.self)
+        let any = DummyValue.make(Any.self)
+        let object = DummyValue.make(AnyObject.self)
+        let aggregate = DummyValue.make(OpaqueExistentialAggregate.self)
 
         #expect(any != nil)
         #expect(object != nil)
         #expect(aggregate != nil)
+        #expect(PlaceholderValue.make(AnyObject.self) == nil)
+        #expect(PlaceholderValue.make(OpaqueExistentialAggregate.self) == nil)
     }
 
     @Test func unsupportedTypesFailBeforeInitializingStorage() {

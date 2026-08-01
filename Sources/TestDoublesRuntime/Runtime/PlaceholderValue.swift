@@ -6,19 +6,19 @@ import TestDoublesRuntimeMetadata
 package enum PlaceholderValue {
     /// Creates a placeholder of `type`, or returns `nil` when the type cannot be synthesized safely.
     package static func make<T>(_ type: T.Type = T.self) -> T? {
-        make(type, includingDummyFunctions: false)
+        make(type, includingDummyValues: false)
     }
 
     static func make<T>(
         _ type: T.Type,
-        includingDummyFunctions: Bool
+        includingDummyValues: Bool
     ) -> T? {
         let storage = ValueStorage.allocate(for: type)
         var visited: Set<UInt> = []
         guard let plan = initializationPlan(
             for: type,
             visited: &visited,
-            includingDummyFunctions: includingDummyFunctions
+            includingDummyValues: includingDummyValues
         ) else {
             storage.deallocate()
             return nil
@@ -42,7 +42,7 @@ package enum PlaceholderValue {
         guard let plan = initializationPlan(
             for: type,
             visited: &visited,
-            includingDummyFunctions: false
+            includingDummyValues: false
         ) else {
             return false
         }
@@ -61,7 +61,7 @@ package enum PlaceholderValue {
         return initializationPlan(
             for: type,
             visited: &visited,
-            includingDummyFunctions: false
+            includingDummyValues: false
         ) != nil
     }
 
@@ -111,19 +111,19 @@ package enum PlaceholderValue {
     private static func initializationPlan(
         for type: Any.Type,
         visited: inout Set<UInt>,
-        includingDummyFunctions: Bool
+        includingDummyValues: Bool
     ) -> InitializationPlan? {
         if let scalar = scalarInitialization(for: type) {
             return .scalar(scalar)
         }
-        if type == Any.self {
+        if includingDummyValues, type == Any.self {
             return .opaqueExistential(.any)
         }
-        if type == AnyObject.self {
+        if includingDummyValues, type == AnyObject.self {
             return .opaqueExistential(.anyObject)
         }
         let metadata = reflect(type)
-        if includingDummyFunctions,
+        if includingDummyValues,
             let function = DummyValue.functionPlan(for: type)
         {
             return .dummyFunction(function)
@@ -135,6 +135,7 @@ package enum PlaceholderValue {
             if enumMetadata.descriptor.numEmptyCases > 0 {
                 return .emptyEnum(type)
             }
+            guard includingDummyValues else { return nil }
 
             let key = UInt(bitPattern: enumMetadata.ptr)
             guard visited.insert(key).inserted else { return nil }
@@ -155,7 +156,7 @@ package enum PlaceholderValue {
                     let payload = initializationPlan(
                         for: payloadType,
                         visited: &visited,
-                        includingDummyFunctions: includingDummyFunctions
+                        includingDummyValues: includingDummyValues
                     )
                 else {
                     continue
@@ -174,7 +175,7 @@ package enum PlaceholderValue {
                 guard let plan = initializationPlan(
                     for: element.type,
                     visited: &visited,
-                    includingDummyFunctions: includingDummyFunctions
+                    includingDummyValues: includingDummyValues
                 ) else {
                     return nil
                 }
@@ -222,7 +223,7 @@ package enum PlaceholderValue {
                 let plan = initializationPlan(
                     for: fieldType,
                     visited: &visited,
-                    includingDummyFunctions: includingDummyFunctions
+                    includingDummyValues: includingDummyValues
                 )
             else {
                 return nil
