@@ -11,9 +11,34 @@ private struct PlaceholderAggregate: Equatable {
     let values: [Int]
 }
 
+private struct DummyFunctionAggregate {
+    let count: Int
+    let transform: (Int) -> String
+    let completion: @Sendable () async -> Void
+}
+
+private struct OpaqueExistentialAggregate {
+    let value: Any
+    let object: AnyObject
+}
+
+private enum DummyFunctionPayload {
+    case transform((Int) -> String)
+}
+
 private enum PlaceholderChoice: Equatable {
     case none
     case value(Int)
+}
+
+private enum PayloadOnlyPlaceholderChoice: Equatable {
+    case label(String)
+    case count(Int)
+}
+
+private indirect enum UnsupportedRecursivePlaceholder {
+    case next(UnsupportedRecursivePlaceholder)
+    case reference(UnsupportedPlaceholder)
 }
 
 private final class UnsupportedPlaceholder {}
@@ -45,6 +70,15 @@ private final class UnsupportedPlaceholder {}
             PlaceholderValue.make(PlaceholderChoice.self)
                 == PlaceholderChoice.none
         )
+        #expect(
+            DummyValue.make(PayloadOnlyPlaceholderChoice.self)
+                == PayloadOnlyPlaceholderChoice.label("")
+        )
+        #expect(
+            DummyValue.make(Result<Int, PlaceholderTestError>.self)
+                == .success(0)
+        )
+        #expect(PlaceholderValue.make(PayloadOnlyPlaceholderChoice.self) == nil)
     }
 
     @Test func metatypePlaceholdersPreserveTheirInstanceType() {
@@ -52,10 +86,48 @@ private final class UnsupportedPlaceholder {}
         #expect(PlaceholderValue.make((any Error).Type.self) == (any Error).self)
     }
 
+    @Test func opaqueExistentialsContainValidPlaceholderValues() {
+        let any = DummyValue.make(Any.self)
+        let object = DummyValue.make(AnyObject.self)
+        let aggregate = DummyValue.make(OpaqueExistentialAggregate.self)
+
+        #expect(any != nil)
+        #expect(object != nil)
+        #expect(aggregate != nil)
+        #expect(PlaceholderValue.make(AnyObject.self) == nil)
+        #expect(PlaceholderValue.make(OpaqueExistentialAggregate.self) == nil)
+    }
+
     @Test func unsupportedTypesFailBeforeInitializingStorage() {
         #expect(PlaceholderValue.canInitialize(type: UnsupportedPlaceholder.self) == false)
         #expect(PlaceholderValue.make(UnsupportedPlaceholder.self) == nil)
         #expect(PlaceholderValue.canInitialize(type: ((Int) -> Int).self) == false)
         #expect(PlaceholderValue.make(((Int) -> Int).self) == nil)
+        #expect(PlaceholderValue.make(UnsupportedRecursivePlaceholder.self) == nil)
     }
+
+    @Test func dummySynthesisAddsFunctionValuesWithoutChangingRecordingPlaceholders() {
+        typealias SwiftFunction = (Int, String) -> Bool
+        typealias AsyncThrowingFunction = @Sendable (Int) async throws -> String
+        typealias ThinFunction = @convention(thin) (Int) -> Int
+        typealias CFunction = @convention(c) (Int32) -> Int32
+
+        #expect(DummyValue.make(SwiftFunction.self) != nil)
+        #expect(DummyValue.make(AsyncThrowingFunction.self) != nil)
+        #expect(DummyValue.make(ThinFunction.self) != nil)
+        #expect(DummyValue.make(CFunction.self) != nil)
+        #if canImport(ObjectiveC)
+            typealias BlockFunction = @convention(block) (Int) -> Int
+            #expect(DummyValue.make(BlockFunction.self) != nil)
+        #endif
+        #expect(PlaceholderValue.make(SwiftFunction.self) == nil)
+        #expect(DummyValue.make(DummyFunctionAggregate.self) != nil)
+        #expect(DummyValue.make(DummyFunctionPayload.self) != nil)
+        #expect(PlaceholderValue.make(DummyFunctionAggregate.self) == nil)
+        #expect(PlaceholderValue.make(DummyFunctionPayload.self) == nil)
+    }
+}
+
+private enum PlaceholderTestError: Error {
+    case failed
 }

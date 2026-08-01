@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Dummy` synthesis for concrete scalars, collections, tuples, structs, direct
+  enum cases, metatypes, `Any`, `AnyObject`, and fail-closed function values,
+  including recursive function fields. Unsupported concrete types can use a
+  call-site factory or an exact-type registered factory.
 - Typed invocation outcome inspection through `results()`, `errors()`,
   `outcomes()`, and `lastOutcome`, including pending async calls and completed
   spy forwarding.

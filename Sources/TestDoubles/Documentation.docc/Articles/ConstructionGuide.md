@@ -386,8 +386,10 @@ remain unsupported.
 ### Construction failures
 
 The recoverable ``Stub``, ``Dummy``, and ``Spy`` constructors declare
-`throws(StubError)` when the protocol or a requirement shape cannot be
-supported. Automatic discovery resolves concrete runtime metadata for every
+`throws(StubError)` when the requested value, protocol, or requirement shape
+cannot be supported. `Dummy` additionally synthesizes safely initializable
+concrete values and accepts caller-supplied factories for other concrete types.
+Automatic discovery resolves concrete runtime metadata for every
 argument and result before allocating a witness table. When a linked
 conformance is available, explicit construction also validates every signature
 component that can be discovered reliably. Getter throwing behavior remains

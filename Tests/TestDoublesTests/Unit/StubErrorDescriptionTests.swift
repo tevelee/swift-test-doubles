@@ -14,6 +14,10 @@ private let stubErrorDescriptions: [(StubError, String)] = [
         "Could not extract a protocol from 'Int'. Use a protocol existential such as `any YourProtocol` as the generic argument."
     ),
     (
+        .dummyValueNotSynthesizable(typeDescription: "Example.Reference"),
+        "Could not safely synthesize a dummy value for 'Example.Reference'. Use `Dummy.make(using:)` or `Dummy.init(using:)` to supply a valid placeholder."
+    ),
+    (
         .compositionRequiresGroupedRequirements(typeDescription: "First & Second"),
         "Protocol composition 'First & Second' requires grouped explicit requirements. Use `init(requirementsByProtocol:)` with one `ProtocolRequirements.requirements(declaredBy:_:)` group per declaring protocol."
     ),

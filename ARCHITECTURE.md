@@ -208,7 +208,9 @@ An unmatched `Spy` call follows the same path through the endpoint, which
 returns the contract's forwarding outcome; execution then invokes the retained
 target through its prepared forwarding plan. A `Dummy` instead installs a
 semantic rejection endpoint, so any requirement call stops with its stable,
-source-level diagnostic.
+source-level diagnostic. Concrete `Dummy` values take a separate path through
+valid placeholder synthesis; function placeholders point to fail-closed bodies,
+while other concrete contents remain unspecified and must not be observed.
 
 ## Runtime dispatch boundary
 
