@@ -51,23 +51,27 @@ package enum RuntimeInvocationMode: Sendable {
 /// the concrete argument convention.
 ///
 /// The ABI runtime compares this independent observation with alternate raw
-/// call-frame transports before it constructs any typed value. The promotion
-/// closure covers Swift's implicit injection through any number of optional
-/// layers after a generic matcher returns. `Any.Type` is retained only to
-/// reject positional mismatches without opening the value.
+/// call-frame transports before it constructs any typed value. Swift can
+/// implicitly inject the generic matcher result through optional layers after
+/// this value is captured; the calibration preserves enough type information
+/// to reproduce those bytes without asking the public matcher layer to
+/// participate in ABI transport.
 package struct RuntimeArgumentCalibration: @unchecked Sendable {
     package let type: Any.Type
     package let bytes: [UInt8]
     private let promotedBytes: (Any.Type) -> [UInt8]?
 
-    package init(
-        type: Any.Type,
-        bytes: [UInt8],
-        promotedBytes: @escaping (Any.Type) -> [UInt8]?
-    ) {
-        self.type = type
-        self.bytes = bytes
-        self.promotedBytes = promotedBytes
+    package init<T>(placeholder: borrowing T) {
+        type = T.self
+        bytes = withUnsafeBytes(of: placeholder) { Array($0) }
+        let value: Any = copy placeholder
+        promotedBytes = { expectedType in
+            optionalPromotionBytes(
+                value,
+                baseType: T.self,
+                expectedType: expectedType
+            )
+        }
     }
 
     package func bytes(for expectedType: Any.Type) -> [UInt8]? {
@@ -81,18 +85,51 @@ package struct RuntimeArgumentCalibration: @unchecked Sendable {
 /// Runtime operations needed to inject a matcher placeholder through optional
 /// layers whose concrete wrapped types are known only from requirement
 /// metadata.
-package protocol RuntimeOptionalType {
+private protocol RuntimeOptionalType {
     static var runtimeWrappedType: Any.Type { get }
     static func injectRuntimeOptional(_ value: Any) -> Any?
 }
 
 extension Optional: RuntimeOptionalType {
-    package static var runtimeWrappedType: Any.Type { Wrapped.self }
+    fileprivate static var runtimeWrappedType: Any.Type { Wrapped.self }
 
-    package static func injectRuntimeOptional(_ value: Any) -> Any? {
+    fileprivate static func injectRuntimeOptional(_ value: Any) -> Any? {
         guard let wrapped = value as? Wrapped else { return nil }
         return Self.some(wrapped)
     }
+}
+
+private func optionalPromotionBytes<T>(
+    _ value: Any,
+    baseType: T.Type,
+    expectedType: Any.Type
+) -> [UInt8]? {
+    var optionalLayers: [any RuntimeOptionalType.Type] = []
+    var wrappedType = expectedType
+    while ObjectIdentifier(wrappedType) != ObjectIdentifier(baseType),
+        let optional = wrappedType as? any RuntimeOptionalType.Type
+    {
+        optionalLayers.append(optional)
+        wrappedType = optional.runtimeWrappedType
+    }
+    guard optionalLayers.isEmpty == false,
+        ObjectIdentifier(wrappedType) == ObjectIdentifier(baseType)
+    else {
+        return nil
+    }
+
+    var promoted = value
+    for optional in optionalLayers.reversed() {
+        guard let injected = optional.injectRuntimeOptional(promoted) else {
+            return nil
+        }
+        promoted = injected
+    }
+    return _openExistential(promoted, do: rawValueBytes)
+}
+
+private func rawValueBytes<T>(_ value: T) -> [UInt8] {
+    withUnsafeBytes(of: value) { Array($0) }
 }
 
 /// A behavior selected by the public semantic layer after recording the call.

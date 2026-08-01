@@ -13,22 +13,8 @@ private final class MatcherRecording: @unchecked Sendable {
     }
 
     func appendCalibration<T>(_ placeholder: borrowing T) {
-        let bytes = withUnsafeBytes(of: placeholder) { Array($0) }
-        let value: Any = copy placeholder
         lock.lock()
-        calibrations.append(
-            RuntimeArgumentCalibration(
-                type: T.self,
-                bytes: bytes,
-                promotedBytes: { expectedType in
-                    optionalPromotionBytes(
-                        value,
-                        baseType: T.self,
-                        expectedType: expectedType
-                    )
-                }
-            )
-        )
+        calibrations.append(RuntimeArgumentCalibration(placeholder: placeholder))
         lock.unlock()
     }
 
@@ -46,39 +32,6 @@ private final class MatcherRecording: @unchecked Sendable {
         calibrations.removeAll(keepingCapacity: true)
         return matchers
     }
-}
-
-private func optionalPromotionBytes<T>(
-    _ value: Any,
-    baseType: T.Type,
-    expectedType: Any.Type
-) -> [UInt8]? {
-    var optionalLayers: [any RuntimeOptionalType.Type] = []
-    var wrappedType = expectedType
-    while ObjectIdentifier(wrappedType) != ObjectIdentifier(baseType),
-        let optional = wrappedType as? any RuntimeOptionalType.Type
-    {
-        optionalLayers.append(optional)
-        wrappedType = optional.runtimeWrappedType
-    }
-    guard optionalLayers.isEmpty == false,
-        ObjectIdentifier(wrappedType) == ObjectIdentifier(baseType)
-    else {
-        return nil
-    }
-
-    var promoted = value
-    for optional in optionalLayers.reversed() {
-        guard let injected = optional.injectRuntimeOptional(promoted) else {
-            return nil
-        }
-        promoted = injected
-    }
-    return _openExistential(promoted, do: rawValueBytes)
-}
-
-private func rawValueBytes<T>(_ value: T) -> [UInt8] {
-    withUnsafeBytes(of: value) { Array($0) }
 }
 
 enum MatcherContext {
