@@ -155,10 +155,12 @@ return convention from corrupting memory, `Stub` rejects a protocol with an
 ABI-uncertain imported result or typed error during construction.
 
 This can occur with a Foundation value such as `URL`, or with a non-frozen
-struct or enum from your own library-evolution framework. It is not a matcher
-configuration problem, so adding more `Match.any(using:)` calls will not make a
-return value safe. Use a small hand-written fake or <doc:ManualStubbing> for
-that protocol boundary instead:
+struct or enum from your own library-evolution framework. It also includes an
+imported generic struct or enum because the runtime cannot see the outer
+declaration's `@frozen` status. It is not a matcher configuration problem, so
+adding more `Match.any(using:)` calls will not make a return value safe. Use a
+small hand-written fake or <doc:ManualStubbing> for that protocol boundary
+instead:
 
 ```swift
 struct FixtureLocationService: LocationService {

@@ -275,6 +275,11 @@ public protocol GenericClosurePayloadWithMarkersGateway {
     ) -> Int
 }
 
+/// A result boundary that cannot observe the caller's generic value convention.
+public protocol GenericClosurePayloadSource {
+    func current() -> ExternalGenericAPI<@Sendable (Int) -> Int>.Status
+}
+
 /// A frozen generic control proves that calibration keeps the caller's direct
 /// convention when the generic declaration does publish that guarantee.
 @frozen public struct FrozenExternalGenericBox<Value> {

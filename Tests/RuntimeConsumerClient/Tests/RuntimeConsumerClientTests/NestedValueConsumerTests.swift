@@ -146,6 +146,14 @@ import Testing
         #expect(actual == 84)
     }
 
+    @Test func genericClosurePayloadResultsFailBeforeInvocation() {
+        let error = #expect(throws: StubError.self) {
+            _ = try Stub<any GenericClosurePayloadSource>()
+        }
+        #expect(error?.description.contains("ABI-uncertain result") == true)
+        #expect(error?.description.contains("hand-written test double") == true)
+    }
+
     @Test func frozenGenericClosurePayloadsRetainDirectTransport() throws {
         let placeholder: @Sendable (Int) -> Int = { $0 + 1 }
         let stub = try Stub<any FrozenGenericClosurePayloadGateway>()
