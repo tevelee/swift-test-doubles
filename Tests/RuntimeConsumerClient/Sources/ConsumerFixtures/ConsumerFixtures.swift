@@ -36,6 +36,16 @@ public struct ReservationEnvelope: Sendable {
     }
 }
 
+/// A generic shell representative of a model type owned by a third-party
+/// library-evolution module.
+public struct ReservationBox<Value: Sendable>: Sendable {
+    public let value: Value
+
+    public init(_ value: Value) {
+        self.value = value
+    }
+}
+
 /// A production-style dependency surface exposed to an external test client.
 public protocol DeliveryGateway: Sendable {
     func schedule(
@@ -51,6 +61,10 @@ public protocol DeliveryGateway: Sendable {
     func settle(_ value: (ExternalReservation, UInt64)?) -> Int
 
     func deliver(_ value: ReservationEnvelope) -> Int
+
+    func package(_ value: ReservationBox<(ExternalReservation, UInt64)>) -> Int
+
+    func resolve(_ value: Result<(ExternalReservation, UInt64), Never>) -> Int
 }
 
 public protocol ReservationSource {
@@ -85,6 +99,23 @@ public struct LiveDeliveryGateway: DeliveryGateway, Sendable {
 
     public func deliver(_ value: ReservationEnvelope) -> Int {
         Int(value.payload.0.start ^ value.payload.0.end ^ value.payload.1)
+    }
+
+    public func package(
+        _ value: ReservationBox<(ExternalReservation, UInt64)>
+    ) -> Int {
+        Int(value.value.0.start ^ value.value.0.end ^ value.value.1)
+    }
+
+    public func resolve(
+        _ value: Result<(ExternalReservation, UInt64), Never>
+    ) -> Int {
+        switch value {
+            case .success(let value):
+                return Int(value.0.start ^ value.0.end ^ value.1)
+            case .failure(let impossible):
+                switch impossible {}
+        }
     }
 }
 

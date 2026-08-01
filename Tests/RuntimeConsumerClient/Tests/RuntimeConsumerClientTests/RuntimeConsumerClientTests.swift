@@ -137,6 +137,39 @@ import Testing
         #expect(nominalShellStub().deliver(nominalActual) == 31 ^ 37 ^ 41)
     }
 
+    @Test func genericTupleShellsCalibrateInAnOrdinaryConsumer() throws {
+        let boxStub = try Stub<any DeliveryGateway>()
+        let boxPlaceholder: ReservationBox<(ExternalReservation, UInt64)> = ReservationBox(
+            (ExternalReservation(start: 43, end: 47), 53)
+        )
+        boxStub.when { $0.package(Match.any(using: boxPlaceholder)) }
+            .then { (value: ReservationBox<(ExternalReservation, UInt64)>) in
+                Int(value.value.0.start ^ value.value.0.end ^ value.value.1)
+            }
+
+        let boxActual: ReservationBox<(ExternalReservation, UInt64)> = ReservationBox(
+            (ExternalReservation(start: 59, end: 61), 67)
+        )
+        #expect(boxStub().package(boxActual) == 59 ^ 61 ^ 67)
+
+        let resultStub = try Stub<any DeliveryGateway>()
+        let resultPlaceholder: Result<(ExternalReservation, UInt64), Never> =
+            .success((ExternalReservation(start: 71, end: 73), 79))
+        resultStub.when { $0.resolve(Match.any(using: resultPlaceholder)) }
+            .then { (value: Result<(ExternalReservation, UInt64), Never>) in
+                switch value {
+                    case .success(let value):
+                        return Int(value.0.start ^ value.0.end ^ value.1)
+                    case .failure(let impossible):
+                        switch impossible {}
+                }
+            }
+
+        let resultActual: Result<(ExternalReservation, UInt64), Never> =
+            .success((ExternalReservation(start: 83, end: 89), 97))
+        #expect(resultStub().resolve(resultActual) == 83 ^ 89 ^ 97)
+    }
+
     @Test func uncertainImportedResultsFailBeforeInvocation() {
         let error = #expect(throws: StubError.self) {
             _ = try Stub<any ReservationSource>()
