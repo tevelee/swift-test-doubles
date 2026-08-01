@@ -385,6 +385,21 @@ private struct ReservationStartingAtLeast: CustomMatcher {
         #expect(await stub().reserve(actual, marker: 151) == 137 ^ 139 ^ 149 ^ 151)
     }
 
+    @Test func asyncThrowingResilientArgumentsCalibrateInAnOrdinaryConsumer() async throws {
+        let stub = try Stub<any DeliveryGateway>()
+        let placeholder = ExternalReservation(start: 157, end: 163)
+        await stub.when {
+            try await $0.confirm(Match.any(using: placeholder))
+        }.then { (reservation: ExternalReservation) async throws in
+            reservation.start ^ reservation.end
+        }
+
+        #expect(
+            try await stub().confirm(ExternalReservation(start: 167, end: 173))
+                == 167 ^ 173
+        )
+    }
+
     @Test func uncertainImportedResultsFailBeforeInvocation() {
         let error = #expect(throws: StubError.self) {
             _ = try Stub<any ReservationSource>()

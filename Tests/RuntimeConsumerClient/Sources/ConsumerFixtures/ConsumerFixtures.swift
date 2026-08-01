@@ -102,6 +102,8 @@ public protocol DeliveryGateway: Sendable {
         _ value: ReservationBox<(ExternalReservation, UInt64)>,
         marker: UInt64
     ) async -> Int
+
+    func confirm(_ reservation: ExternalReservation) async throws -> UInt64
 }
 
 public protocol ReservationSource {
@@ -231,6 +233,10 @@ public struct LiveDeliveryGateway: DeliveryGateway, Sendable {
         marker: UInt64
     ) async -> Int {
         Int(value.value.0.start ^ value.value.0.end ^ value.value.1 ^ marker)
+    }
+
+    public func confirm(_ reservation: ExternalReservation) async throws -> UInt64 {
+        reservation.start ^ reservation.end
     }
 }
 
