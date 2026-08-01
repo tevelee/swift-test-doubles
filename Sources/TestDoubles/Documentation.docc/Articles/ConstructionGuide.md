@@ -74,7 +74,9 @@ let stub = try Stub<any UserRepository>(discoveringFrom: conformer)
 ```
 
 `discoveringFrom:` reads the witness table carried by that existential during
-construction. It never invokes or retains the conformer.
+construction. It never invokes or retains the conformer. Its requirement
+witnesses must still be linked; when an optimized private conformer omits one,
+use explicit requirements instead.
 
 It can also construct a protocol with no implementation when that protocol was
 compiled with library evolution and its per-requirement method descriptor

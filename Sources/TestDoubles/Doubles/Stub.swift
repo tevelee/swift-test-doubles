@@ -60,10 +60,9 @@ public class Stub<P> {
     /// its requirement signatures.
     ///
     /// Use this form for a test-only or private conformer. It reads the
-    /// witness table carried by `conformer`, so optimized builds do not need
-    /// to retain that conformance for process-wide discovery. The conformer is
-    /// inspected during construction and is never invoked or retained by the
-    /// stub.
+    /// witness table carried by `conformer` instead of scanning the process
+    /// image. The conformer is inspected during construction and is never
+    /// invoked or retained by the stub.
     public convenience init(discoveringFrom conformer: P) throws(StubError) {
         let prepared = try withStubConstructionError(for: P.self) {
             try Self.prepare(discoveringFrom: conformer)
