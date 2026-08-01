@@ -46,6 +46,11 @@ public struct ReservationBox<Value: Sendable>: Sendable {
     }
 }
 
+/// A non-frozen error emitted by the same external module as the payload.
+public enum ReservationFailure: Error, Sendable {
+    case unavailable(code: UInt64)
+}
+
 /// A production-style dependency surface exposed to an external test client.
 public protocol DeliveryGateway: Sendable {
     func schedule(
@@ -65,6 +70,10 @@ public protocol DeliveryGateway: Sendable {
     func package(_ value: ReservationBox<(ExternalReservation, UInt64)>) -> Int
 
     func resolve(_ value: Result<(ExternalReservation, UInt64), Never>) -> Int
+
+    func resolveOutcome(
+        _ value: Result<(ExternalReservation, UInt64), ReservationFailure>
+    ) -> String
 }
 
 public protocol ReservationSource {
@@ -115,6 +124,17 @@ public struct LiveDeliveryGateway: DeliveryGateway, Sendable {
                 return Int(value.0.start ^ value.0.end ^ value.1)
             case .failure(let impossible):
                 switch impossible {}
+        }
+    }
+
+    public func resolveOutcome(
+        _ value: Result<(ExternalReservation, UInt64), ReservationFailure>
+    ) -> String {
+        switch value {
+            case .success(let value):
+                return "reservation:\(value.0.start ^ value.0.end ^ value.1)"
+            case .failure(.unavailable(let code)):
+                return "failure:\(code)"
         }
     }
 }

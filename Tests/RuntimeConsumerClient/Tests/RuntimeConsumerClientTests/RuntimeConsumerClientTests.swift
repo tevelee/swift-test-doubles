@@ -168,6 +168,27 @@ import Testing
         let resultActual: Result<(ExternalReservation, UInt64), Never> =
             .success((ExternalReservation(start: 83, end: 89), 97))
         #expect(resultStub().resolve(resultActual) == 83 ^ 89 ^ 97)
+
+        let outcomeStub = try Stub<any DeliveryGateway>()
+        let outcomePlaceholder:
+            Result<
+                (ExternalReservation, UInt64), ReservationFailure
+            > = .success((ExternalReservation(start: 101, end: 103), 107))
+        outcomeStub.when { $0.resolveOutcome(Match.any(using: outcomePlaceholder)) }
+            .then {
+                (value: Result<(ExternalReservation, UInt64), ReservationFailure>) in
+                switch value {
+                    case .success(let value):
+                        return "reservation:\(value.0.start ^ value.0.end ^ value.1)"
+                    case .failure(.unavailable(let code)):
+                        return "failure:\(code)"
+                }
+            }
+
+        #expect(
+            outcomeStub().resolveOutcome(.failure(.unavailable(code: 109)))
+                == "failure:109"
+        )
     }
 
     @Test func uncertainImportedResultsFailBeforeInvocation() {
