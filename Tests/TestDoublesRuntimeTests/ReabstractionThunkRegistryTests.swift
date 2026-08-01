@@ -2,6 +2,17 @@ import Testing
 @testable import TestDoublesRuntimeMetadata
 
 @Suite struct ReabstractionThunkRegistryTests {
+    /// This exact shape has no reabstraction thunk in the test binary. A
+    /// lookup therefore refreshes the registry after reading its snapshot.
+    private typealias UnlinkedFunction =
+        @Sendable (
+            UInt8,
+            Int16,
+            Float16,
+            String,
+            (Int, String)
+        ) async throws -> (UInt64, Int)
+
     // Captured with `nm ... | swift-demangle` from this package's own
     // compiled test binary: a real generic reabstraction thunk helper, where
     // NodePrinter.cpp inserts the thunk's own generic clause ("<A> ")
@@ -44,6 +55,20 @@ import Testing
         let full = "prefix <A> from x to y"
         let sliced = full[full.index(full.startIndex, offsetBy: 7)...]
         #expect(bodyAfterHelper(in: sliced).map(String.init) == "x to y")
+    }
+
+    @Test func concurrentUnlinkedLookupsRefreshSafely() async {
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0 ..< 16 {
+                group.addTask {
+                    #expect(
+                        ReabstractionThunkRegistry.shared.directToGeneric(
+                            for: UnlinkedFunction.self
+                        ) == nil
+                    )
+                }
+            }
+        }
     }
 }
 import TestDoublesRuntime

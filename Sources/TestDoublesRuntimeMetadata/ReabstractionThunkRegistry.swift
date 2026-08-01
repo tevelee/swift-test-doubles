@@ -11,6 +11,7 @@ package final class ReabstractionThunkRegistry: @unchecked Sendable {
     private var genericToDirectThunks: [DirectToGenericThunk] = []
     private var directAddresses: Set<UInt> = []
     private var genericAddresses: Set<UInt> = []
+    private var refreshGeneration = 0
 
     private init() {
         refresh()
@@ -18,14 +19,24 @@ package final class ReabstractionThunkRegistry: @unchecked Sendable {
 
     package func directToGeneric(for type: Any.Type) -> UnsafeRawPointer? {
         guard let function = FunctionTypeInfo(reflecting: type) else { return nil }
-        return lookup(in: directToGenericSnapshot(), function: function)
-            ?? refreshedLookup(in: directToGenericSnapshot, function: function)
+        let snapshot = directToGenericSnapshot()
+        return lookup(in: snapshot.thunks, function: function)
+            ?? refreshedLookup(
+                in: directToGenericSnapshot,
+                after: snapshot.generation,
+                function: function
+            )
     }
 
     package func genericToDirect(for type: Any.Type) -> UnsafeRawPointer? {
         guard let function = FunctionTypeInfo(reflecting: type) else { return nil }
-        return lookup(in: genericToDirectSnapshot(), function: function)
-            ?? refreshedLookup(in: genericToDirectSnapshot, function: function)
+        let snapshot = genericToDirectSnapshot()
+        return lookup(in: snapshot.thunks, function: function)
+            ?? refreshedLookup(
+                in: genericToDirectSnapshot,
+                after: snapshot.generation,
+                function: function
+            )
     }
 
     package func hasBothDirections(for type: Any.Type) -> Bool {
@@ -50,14 +61,34 @@ package final class ReabstractionThunkRegistry: @unchecked Sendable {
     }
 
     private func refreshedLookup(
-        in snapshot: () -> [DirectToGenericThunk],
+        in snapshot: () -> ThunkSnapshot,
+        after generation: Int,
         function: FunctionTypeInfo
     ) -> UnsafeRawPointer? {
-        refresh()
-        return lookup(in: snapshot(), function: function)
+        refresh(ifUnchangedSince: generation)
+        return lookup(in: snapshot().thunks, function: function)
     }
 
     private func refresh() {
+        refresh(ifUnchangedSince: nil)
+    }
+
+    private func refresh(ifUnchangedSince expectedGeneration: Int?) {
+        // Local-symbol traversal and demangling are not safe to run in
+        // parallel. More than one requirement discovery can miss the same
+        // snapshot while Swift Testing is constructing stubs concurrently,
+        // so serialise the entire refresh rather than only merging its
+        // result into the cache.
+        lock.lock()
+        defer { lock.unlock() }
+
+        // A concurrent lookup may already have populated the missing thunk
+        // while this caller waited for the scanner. Reuse that result instead
+        // of rescanning every image for the same cache generation.
+        guard refreshGeneration == expectedGeneration || expectedGeneration == nil else {
+            return
+        }
+
         let collector = ReabstractionThunkCollector()
         td_visit_local_symbols(
             collectReabstractionThunk,
@@ -87,7 +118,6 @@ package final class ReabstractionThunkRegistry: @unchecked Sendable {
                 )
             }
         }
-        lock.lock()
         for thunk in direct {
             let address = UInt(bitPattern: thunk.thunk.address)
             if directAddresses.insert(address).inserted {
@@ -100,19 +130,25 @@ package final class ReabstractionThunkRegistry: @unchecked Sendable {
                 genericToDirectThunks.append(thunk)
             }
         }
-        lock.unlock()
+        refreshGeneration += 1
     }
 
-    private func directToGenericSnapshot() -> [DirectToGenericThunk] {
+    private func directToGenericSnapshot() -> ThunkSnapshot {
         lock.lock()
         defer { lock.unlock() }
-        return directToGenericThunks
+        return ThunkSnapshot(
+            thunks: directToGenericThunks,
+            generation: refreshGeneration
+        )
     }
 
-    private func genericToDirectSnapshot() -> [DirectToGenericThunk] {
+    private func genericToDirectSnapshot() -> ThunkSnapshot {
         lock.lock()
         defer { lock.unlock() }
-        return genericToDirectThunks
+        return ThunkSnapshot(
+            thunks: genericToDirectThunks,
+            generation: refreshGeneration
+        )
     }
 }
 
@@ -125,6 +161,11 @@ private struct DirectToGenericThunk {
     let directSignature: LoweredFunctionSyntax
     let genericSignature: LoweredFunctionSyntax
     let thunk: ReabstractionThunk
+}
+
+private struct ThunkSnapshot {
+    let thunks: [DirectToGenericThunk]
+    let generation: Int
 }
 
 private final class ReabstractionThunkCollector {
