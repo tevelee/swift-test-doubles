@@ -364,6 +364,7 @@ private func allTargets(
                 "TestDoublesRuntimeMetadata",
                 "TestDoublesRuntimeSupport",
                 "TestDoublesFixtures",
+                "TestDoublesResilientFixtures",
                 .product(name: "Echo", package: "Echo"),
                 .product(
                     name: "EchoRuntimeReflection",

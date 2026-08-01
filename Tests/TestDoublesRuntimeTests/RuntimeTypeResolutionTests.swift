@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import TestDoublesRuntimeMetadata
 import TestDoublesFixtures
+import TestDoublesResilientFixtures
 
 /// Unit coverage for demangled-name resolution: no stubs are constructed and
 /// no witness tables are involved.
@@ -43,20 +44,24 @@ import TestDoublesFixtures
                 == ClosedRange<Int>.self
         )
         #expect(
-            genericNominalType(named: "Swift.Range<Foundation.Date>")
+            genericNominalType(named: "Swift.Range<\(String(reflecting: Date.self))>")
                 == Range<Date>.self
         )
     }
 
     @Test func rangeContainingAResilientBoundHasAnIndirectArgumentCandidate() {
         #expect(
-            argumentABIClassCandidates(for: ClosedRange<Date>.self).contains(.indirect)
+            argumentABIClassCandidates(for: ClosedRange<ResilientValueArgument>.self)
+                .contains(.indirect)
         )
         #expect(
-            argumentABIClassCandidates(for: Optional<URL>.self).contains(.indirect)
+            argumentABIClassCandidates(for: Optional<ResilientValueArgument>.self)
+                .contains(.indirect)
         )
         #expect(
-            argumentABIClassCandidates(for: Result<URL, URLError>.self).contains(.indirect)
+            argumentABIClassCandidates(
+                for: Result<ResilientValueArgument, ResilientRuntimeError>.self
+            ).contains(.indirect)
         )
         #expect(
             argumentABIClassCandidates(for: ClosedRange<Int>.self) == [

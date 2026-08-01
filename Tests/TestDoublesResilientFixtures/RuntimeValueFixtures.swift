@@ -3,13 +3,17 @@
 /// Although its current layout is two machine words, clients must pass it by
 /// address because this module is built with library evolution enabled and the
 /// declaration is not frozen.
-public struct ResilientValueArgument: Equatable, Sendable {
+public struct ResilientValueArgument: Comparable, Sendable {
     public let first: UInt64
     public let second: UInt64
 
     public init(first: UInt64, second: UInt64) {
         self.first = first
         self.second = second
+    }
+
+    public static func < (lhs: Self, rhs: Self) -> Bool {
+        (lhs.first, lhs.second) < (rhs.first, rhs.second)
     }
 }
 
