@@ -74,6 +74,11 @@ public protocol DeliveryGateway: Sendable {
     func resolveOutcome(
         _ value: Result<(ExternalReservation, UInt64), ReservationFailure>
     ) -> String
+
+    func reserve(
+        _ value: ReservationBox<(ExternalReservation, UInt64)>,
+        marker: UInt64
+    ) async -> Int
 }
 
 public protocol ReservationSource {
@@ -136,6 +141,13 @@ public struct LiveDeliveryGateway: DeliveryGateway, Sendable {
             case .failure(.unavailable(let code)):
                 return "failure:\(code)"
         }
+    }
+
+    public func reserve(
+        _ value: ReservationBox<(ExternalReservation, UInt64)>,
+        marker: UInt64
+    ) async -> Int {
+        Int(value.value.0.start ^ value.value.0.end ^ value.value.1 ^ marker)
     }
 }
 

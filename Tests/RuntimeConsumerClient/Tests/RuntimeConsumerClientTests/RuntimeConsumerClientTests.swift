@@ -191,6 +191,24 @@ import Testing
         )
     }
 
+    @Test func asyncResilientGenericShellCalibratesInAnOrdinaryConsumer() async throws {
+        let stub = try Stub<any DeliveryGateway>()
+        let placeholder: ReservationBox<(ExternalReservation, UInt64)> =
+            ReservationBox((ExternalReservation(start: 113, end: 127), 131))
+        await stub.when {
+            await $0.reserve(
+                Match.any(using: placeholder),
+                marker: Match.any()
+            )
+        }.then { (value: ReservationBox<(ExternalReservation, UInt64)>, marker: UInt64) async in
+            Int(value.value.0.start ^ value.value.0.end ^ value.value.1 ^ marker)
+        }
+
+        let actual: ReservationBox<(ExternalReservation, UInt64)> =
+            ReservationBox((ExternalReservation(start: 137, end: 139), 149))
+        #expect(await stub().reserve(actual, marker: 151) == 137 ^ 139 ^ 149 ^ 151)
+    }
+
     @Test func uncertainImportedResultsFailBeforeInvocation() {
         let error = #expect(throws: StubError.self) {
             _ = try Stub<any ReservationSource>()
