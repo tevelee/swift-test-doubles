@@ -57,7 +57,8 @@ extension Match {
             lock.lock()
             let factory = factories[ObjectIdentifier(type)]
             lock.unlock()
-            return factory?() as? Value
+            guard let factory else { return nil }
+            return factory() as? Value
         }
     }
 }

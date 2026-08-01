@@ -130,10 +130,12 @@ matcher placeholders let TestDoubles calibrate the client's convention before
 it decodes a real call. The same rule applies to an imported generic struct or
 enum, even when its current payload looks direct, because runtime metadata does
 not expose whether the outer declaration is `@frozen`. Common Foundation values
-such as `URL`, `Data`, `Date`, `UUID`, `Calendar`, `Locale`, and `TimeZone`,
-including optional wrappers, synthesize their recording values automatically
-and use ordinary `Match.any()`. Use a `using:` overload for a custom type
-without a synthesizable placeholder:
+such as `URL`, `Data`, `Date`, `UUID`, `Calendar`, `Locale`, and `TimeZone`
+synthesize their recording values automatically. `Optional` and `Result`
+recursively synthesize their payloads and use ordinary `Match.any()`. Generic
+wrappers such as `Range<Date>` and `ClosedRange<Date>` still need a valid
+example through `using:`, as does a custom type without a synthesizable
+placeholder:
 
 ```swift
 stub.when {
@@ -271,8 +273,11 @@ Match.matching(description: "positive") {
 Use ``Match/any(using:)`` or
 ``Match/matching(using:description:where:)`` when the recording pass cannot
 safely synthesize a temporary class, existential, or custom imported value.
-Common Foundation values and their optional wrappers use the zero-argument
-forms. A supplied value is never matched against or returned.
+Common Foundation values and recursively populated `Optional` and `Result`
+wrappers use the zero-argument forms. Imported generic wrappers such as
+`Range<Date>` and `ClosedRange<Date>` need `using:` even when their bounds are
+common Foundation values. A supplied value is never matched against or
+returned.
 
 #### Optionals, collections, and strings
 

@@ -522,9 +522,7 @@ private func archiveScore(
         #expect(boxStub().package(boxActual) == 59 ^ 61 ^ 67)
 
         let resultStub = try Stub<any DeliveryGateway>()
-        let resultPlaceholder: Result<(ExternalReservation, UInt64), Never> =
-            .success((ExternalReservation(start: 71, end: 73), 79))
-        resultStub.when { $0.resolve(Match.any(using: resultPlaceholder)) }
+        resultStub.when { $0.resolve(Match.any()) }
             .then { (value: Result<(ExternalReservation, UInt64), Never>) in
                 switch value {
                     case .success(let value):
@@ -539,11 +537,7 @@ private func archiveScore(
         #expect(resultStub().resolve(resultActual) == 83 ^ 89 ^ 97)
 
         let outcomeStub = try Stub<any DeliveryGateway>()
-        let outcomePlaceholder:
-            Result<
-                (ExternalReservation, UInt64), ReservationFailure
-            > = .success((ExternalReservation(start: 101, end: 103), 107))
-        outcomeStub.when { $0.resolveOutcome(Match.any(using: outcomePlaceholder)) }
+        outcomeStub.when { $0.resolveOutcome(Match.any()) }
             .then {
                 (value: Result<(ExternalReservation, UInt64), ReservationFailure>) in
                 switch value {

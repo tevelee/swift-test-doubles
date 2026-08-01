@@ -273,7 +273,7 @@ struct LiveReferenceBackedFoundationProbe: ReferenceBackedFoundationProbe {
             URL(filePath: "/result")
         )
         let stub = try Stub<any ReferenceBackedFoundationProbe>()
-        stub.when { $0.result(Match.any(using: expected)) }
+        stub.when { $0.result(Match.any()) }
             .then { (value: Result<URL, FoundationValueArgumentError>) in
                 switch value {
                     case .success(let address): return address.path().count

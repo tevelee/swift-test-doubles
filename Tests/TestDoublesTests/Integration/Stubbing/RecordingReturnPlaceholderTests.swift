@@ -25,6 +25,14 @@ private protocol ExistentialResultProbe {
     func load() -> any ResultMarker
 }
 
+private enum SynthesizedRecordingResultFailure: Error {
+    case unavailable
+}
+
+private protocol SynthesizedRecordingResultProbe {
+    func load() -> Result<Int, SynthesizedRecordingResultFailure>
+}
+
 @Suite struct RecordingReturnPlaceholderTests {
     @Test func referenceResultPlaceholderSupportsStubbingAndVerification() throws {
         let stub = try makeReferenceResultStub()
@@ -76,6 +84,20 @@ private protocol ExistentialResultProbe {
         let result = stub().load()
         #expect(result === configured)
         stub.verify(returning: placeholder) { $0.load() }
+    }
+
+    @Test func resultRecordingUsesARecursivePlaceholder() throws {
+        let stub = try Stub<any SynthesizedRecordingResultProbe>(
+            .method(
+                returning: Result<Int, SynthesizedRecordingResultFailure>.self
+            )
+        )
+        let configured: Result<Int, SynthesizedRecordingResultFailure> = .success(42)
+
+        stub.when { $0.load() }.thenReturn(configured)
+
+        #expect(stub().load() == configured)
+        stub.verify { $0.load() }
     }
 }
 

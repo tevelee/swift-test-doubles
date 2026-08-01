@@ -1,23 +1,10 @@
 import Foundation
 
-/// Stable temporary values for common Foundation types, including values whose
-/// private storage reflection cannot initialize portably.
+/// Stable leaf values whose private storage reflection cannot initialize portably.
 enum BuiltInRecordingPlaceholders {
     static func make<Value>(_ type: Value.Type) -> Value? {
-        make(type as Any.Type) as? Value
-    }
-
-    private static func make(_ type: Any.Type) -> Any? {
-        if let value = foundationValue(for: type) {
-            return value
-        }
-        guard
-            let optionalType = type as? any BuiltInOptionalPlaceholder.Type,
-            let wrapped = make(optionalType.wrappedType)
-        else {
-            return nil
-        }
-        return optionalType.wrapping(wrapped)
+        guard let value = foundationValue(for: type) else { return nil }
+        return value as? Value
     }
 
     private static func foundationValue(for type: Any.Type) -> Any? {
@@ -52,19 +39,5 @@ enum BuiltInRecordingPlaceholders {
             default:
                 nil
         }
-    }
-}
-
-private protocol BuiltInOptionalPlaceholder {
-    static var wrappedType: Any.Type { get }
-    static func wrapping(_ value: Any) -> Any?
-}
-
-extension Optional: BuiltInOptionalPlaceholder {
-    fileprivate static var wrappedType: Any.Type { Wrapped.self }
-
-    fileprivate static func wrapping(_ value: Any) -> Any? {
-        guard let value = value as? Wrapped else { return nil }
-        return Self.some(value) as Any
     }
 }
