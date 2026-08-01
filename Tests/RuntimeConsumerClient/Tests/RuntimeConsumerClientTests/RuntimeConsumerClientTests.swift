@@ -13,6 +13,22 @@ private struct ReservationStartingAtLeast: CustomMatcher {
     }
 }
 
+private func archiveScore(
+    source: URL,
+    bytes: Data,
+    interval: DateInterval,
+    locale: Locale,
+    timeZone: TimeZone,
+    amount: Decimal
+) -> Int {
+    source.absoluteString.count
+        + bytes.count
+        + Int(interval.duration)
+        + locale.identifier.count
+        + timeZone.secondsFromGMT()
+        + NSDecimalNumber(decimal: amount).intValue
+}
+
 @Suite struct RuntimeConsumerClientTests {
     @Test func importedAndGenericValuesDecodeInAnOrdinaryConsumer() throws {
         let stub = try Stub<any DeliveryGateway>()
@@ -89,6 +105,74 @@ private struct ReservationStartingAtLeast: CustomMatcher {
         }.thenDoNothing()
 
         stub().record("delivered")
+    }
+
+    @Test func foundationArchiveParametersCalibrateInAnOrdinaryConsumer() throws {
+        let stub = try Stub<any FoundationArchiveGateway>()
+        let placeholderSource = URL(string: "https://example.com/placeholder")!
+        let placeholderBytes = Data([1, 2, 3])
+        let placeholderInterval = DateInterval(
+            start: Date(timeIntervalSinceReferenceDate: 10),
+            duration: 20
+        )
+        let placeholderLocale = Locale(identifier: "en_US")
+        let placeholderTimeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let placeholderAmount = Decimal(7)
+        stub.when {
+            $0.archive(
+                source: Match.any(using: placeholderSource),
+                bytes: Match.any(using: placeholderBytes),
+                interval: Match.any(using: placeholderInterval),
+                locale: Match.any(using: placeholderLocale),
+                timeZone: Match.any(using: placeholderTimeZone),
+                amount: Match.any(using: placeholderAmount)
+            )
+        }.then {
+            (
+                source: URL,
+                bytes: Data,
+                interval: DateInterval,
+                locale: Locale,
+                timeZone: TimeZone,
+                amount: Decimal
+            ) in
+            archiveScore(
+                source: source,
+                bytes: bytes,
+                interval: interval,
+                locale: locale,
+                timeZone: timeZone,
+                amount: amount
+            )
+        }
+
+        let actualSource = URL(string: "https://example.com/archive")!
+        let actualBytes = Data([4, 5, 6, 7])
+        let actualInterval = DateInterval(
+            start: Date(timeIntervalSinceReferenceDate: 30),
+            duration: 40
+        )
+        let actualLocale = Locale(identifier: "hu_HU")
+        let actualTimeZone = try #require(TimeZone(secondsFromGMT: 3_600))
+        let actualAmount = Decimal(11)
+        #expect(
+            stub().archive(
+                source: actualSource,
+                bytes: actualBytes,
+                interval: actualInterval,
+                locale: actualLocale,
+                timeZone: actualTimeZone,
+                amount: actualAmount
+            )
+                == archiveScore(
+                    source: actualSource,
+                    bytes: actualBytes,
+                    interval: actualInterval,
+                    locale: actualLocale,
+                    timeZone: actualTimeZone,
+                    amount: actualAmount
+                )
+        )
     }
 
     @Test func escapingAutoclosureRequirementsIgnoreXKFInAnIdentifier() throws {

@@ -112,6 +112,19 @@ public protocol ReservationSource {
     func currentReservation() -> ExternalReservation
 }
 
+/// A typical application boundary that combines several Foundation values
+/// originating in distinct library-evolution modules.
+public protocol FoundationArchiveGateway {
+    func archive(
+        source: URL,
+        bytes: Data,
+        interval: DateInterval,
+        locale: Locale,
+        timeZone: TimeZone,
+        amount: Decimal
+    ) -> Int
+}
+
 /// A logging dependency that uses call-site expression syntax.
 public protocol AutoclosureDeliveryLog {
     func record(_ message: @autoclosure @escaping () -> String)
@@ -276,6 +289,28 @@ public struct LiveReservationSource: ReservationSource {
     }
 }
 
+public struct LiveFoundationArchiveGateway: FoundationArchiveGateway {
+    public init() {}
+
+    public func archive(
+        source: URL,
+        bytes: Data,
+        interval: DateInterval,
+        locale: Locale,
+        timeZone: TimeZone,
+        amount: Decimal
+    ) -> Int {
+        archiveScore(
+            source: source,
+            bytes: bytes,
+            interval: interval,
+            locale: locale,
+            timeZone: timeZone,
+            amount: amount
+        )
+    }
+}
+
 public struct LiveAutoclosureDeliveryLog: AutoclosureDeliveryLog {
     public init() {}
 
@@ -308,6 +343,22 @@ public struct LiveEagerIntegerAutoclosureDeliveryLog:
     public func record(_ value: @autoclosure () -> Int) {
         _ = value()
     }
+}
+
+private func archiveScore(
+    source: URL,
+    bytes: Data,
+    interval: DateInterval,
+    locale: Locale,
+    timeZone: TimeZone,
+    amount: Decimal
+) -> Int {
+    source.absoluteString.count
+        + bytes.count
+        + Int(interval.duration)
+        + locale.identifier.count
+        + timeZone.secondsFromGMT()
+        + NSDecimalNumber(decimal: amount).intValue
 }
 
 public struct LiveReservationStore: ReservationStore {
