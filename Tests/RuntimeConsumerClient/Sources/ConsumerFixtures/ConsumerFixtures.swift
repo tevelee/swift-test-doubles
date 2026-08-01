@@ -142,11 +142,17 @@ public protocol ReportPayload {
     var summary: String { get }
 }
 
-public struct ExternalReportPayload: ReportPayload, Sendable {
-    public let summary: String
+public protocol DetailedReportPayload {
+    var detail: String { get }
+}
 
-    public init(summary: String) {
+public struct ExternalReportPayload: ReportPayload, DetailedReportPayload, Sendable {
+    public let summary: String
+    public let detail: String
+
+    public init(summary: String, detail: String = "") {
         self.summary = summary
+        self.detail = detail
     }
 }
 
@@ -156,6 +162,14 @@ public protocol PayloadReporter {
 
 public protocol SendablePayloadReporter {
     func report(_ payload: any ReportPayload & Sendable) -> String
+}
+
+public protocol DetailedPayloadReporter {
+    func report(_ payload: any ReportPayload & DetailedReportPayload) -> String
+}
+
+public protocol PayloadMetatypeReporter {
+    func report(_ type: any ReportPayload.Type) -> String
 }
 
 public final class ExternalReferenceReportPayload: ReportPayload {

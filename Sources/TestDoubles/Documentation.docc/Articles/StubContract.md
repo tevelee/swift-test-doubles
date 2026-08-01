@@ -329,6 +329,10 @@ pass a real conforming value to `Match.any(using:)` rather than trying to
 synthesize an existential placeholder. The protocol may be declared at module
 scope or nested inside a type namespace.
 
+For an existential metatype argument such as `any Payload.Type`, use a
+concrete conformer's metatype: `Match.any(using: SomePayload.self)`. This
+lets Swift perform the required conversion while recording the call.
+
 On Apple platforms, an ordinary existential may additionally constrain its
 payload to an imported Objective-C class or Swift-defined `NSObject` subclass.
 Construction calls the superclass's default initializer, uses that genuine
