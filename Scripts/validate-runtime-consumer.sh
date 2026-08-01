@@ -9,6 +9,12 @@ else
     swift_command=(swift)
 fi
 
+# This consumer points at the root package by path. Reset its generated build
+# graph so newly added root sources are compiled before either configuration.
+"${swift_command[@]}" package clean \
+    --package-path "$root/Tests/RuntimeConsumerClient" \
+    --scratch-path "$root/.build/runtime-consumer"
+
 "${swift_command[@]}" test \
     --package-path "$root/Tests/RuntimeConsumerClient" \
     --scratch-path "$root/.build/runtime-consumer"
