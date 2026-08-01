@@ -116,6 +116,36 @@ import Testing
         #expect(actual == 43)
     }
 
+    @Test func genericClosurePayloadsRecalculateFollowingArgumentLocations() throws {
+        let placeholder: @Sendable (Int) -> Int = { $0 + 1 }
+        let stub = try Stub<any GenericClosurePayloadWithMarkersGateway>()
+        stub.when {
+            $0.submit(
+                prefix: Match.any(),
+                status: Match.any(
+                    using: ExternalGenericAPI<@Sendable (Int) -> Int>.Status(
+                        payload: placeholder
+                    )
+                ),
+                suffix: Match.any()
+            )
+        }.then {
+            (
+                prefix: UInt64,
+                status: ExternalGenericAPI<@Sendable (Int) -> Int>.Status,
+                suffix: UInt64
+            ) in
+            status.payload(Int(prefix + suffix))
+        }
+
+        let actual = stub().submit(
+            prefix: 19,
+            status: .init(payload: { value in value * 2 }),
+            suffix: 23
+        )
+        #expect(actual == 84)
+    }
+
     @Test func frozenGenericClosurePayloadsRetainDirectTransport() throws {
         let placeholder: @Sendable (Int) -> Int = { $0 + 1 }
         let stub = try Stub<any FrozenGenericClosurePayloadGateway>()

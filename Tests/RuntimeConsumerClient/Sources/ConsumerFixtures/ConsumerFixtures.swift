@@ -266,6 +266,15 @@ public protocol GenericClosurePayloadGateway {
     ) -> Int
 }
 
+/// Exercises argument-location recalculation after a resilient generic value.
+public protocol GenericClosurePayloadWithMarkersGateway {
+    func submit(
+        prefix: UInt64,
+        status: ExternalGenericAPI<@Sendable (Int) -> Int>.Status,
+        suffix: UInt64
+    ) -> Int
+}
+
 /// A frozen generic control proves that calibration keeps the caller's direct
 /// convention when the generic declaration does publish that guarantee.
 @frozen public struct FrozenExternalGenericBox<Value> {
