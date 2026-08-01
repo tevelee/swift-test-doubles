@@ -373,26 +373,30 @@ private func genericNominalDescriptor(
     kind: String
 ) -> (any TypeContextDescriptor)? {
     let components = constructorName.split(separator: ".").map(String.init)
-    guard components.count == 2 else { return nil }
-    let module = components[0]
-    let nominal = components[1]
-    let moduleMangle =
-        module == "Swift" ? "s" : "\(module.utf8.count)\(module)"
-    let prefix = "\(moduleMangle)\(nominal.utf8.count)\(nominal)"
-    if let pointer = RuntimeSymbols.rawSymbol(named: "$s\(prefix)\(kind)Mn") {
-        return typeContextDescriptor(at: UnsafeRawPointer(pointer), kind: kind)
+    guard components.count >= 2 else { return nil }
+    if components.count == 2 {
+        let module = components[0]
+        let nominal = components[1]
+        let moduleMangle =
+            module == "Swift" ? "s" : "\(module.utf8.count)\(module)"
+        let prefix = "\(moduleMangle)\(nominal.utf8.count)\(nominal)"
+        if let pointer = RuntimeSymbols.rawSymbol(named: "$s\(prefix)\(kind)Mn") {
+            return typeContextDescriptor(at: UnsafeRawPointer(pointer), kind: kind)
+        }
     }
 
-    // Swift's standard library abbreviates several nominal names in mangled
-    // symbols (`Range`, for example, uses `SN` rather than `s5RangeV`). The
-    // loaded image type sections retain the real descriptors, so search them
-    // by the same semantic identity instead of teaching this resolver a list
-    // of spelling exceptions.
+    // Swift's standard library abbreviates some nominal names in mangled
+    // symbols (`Range`, for example), and nested declarations may use
+    // substitutions. The loaded image type sections retain the complete parent
+    // chain, so compare semantic identities instead of teaching this resolver
+    // spelling exceptions.
     return types.lazy.compactMap { descriptor in
         guard
             let typeDescriptor = descriptor as? any TypeContextDescriptor,
-            typeDescriptor.name == nominal,
-            (typeDescriptor.parent as? ModuleDescriptor)?.name == module,
+            qualifiedContextName(
+                typeDescriptor.name,
+                parent: typeDescriptor.parent
+            ) == constructorName,
             typeContextDescriptorKind(typeDescriptor) == kind
         else {
             return nil

@@ -202,6 +202,20 @@ public protocol NestedPayloadReporter {
     func report(_ payload: any NestedPayloadNamespace.Payload) -> String
 }
 
+public enum ExternalAPI {
+    public struct Envelope<Value> {
+        public let value: Value
+
+        public init(value: Value) {
+            self.value = value
+        }
+    }
+}
+
+public protocol NestedGenericEnvelopeGateway {
+    func submit(_ envelope: ExternalAPI.Envelope<ExternalReservation>) -> UInt64
+}
+
 /// A deliberately unsupported mixed tuple transport. The first member is
 /// resilient to this module while the second is a direct scalar.
 public protocol MixedTupleGateway {

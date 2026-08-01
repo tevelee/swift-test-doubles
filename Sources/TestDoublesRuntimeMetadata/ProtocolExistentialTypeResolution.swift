@@ -92,7 +92,7 @@ private func protocolExistentialDescriptor(named name: String) -> ProtocolExiste
 
     guard
         let descriptor = protocols.lazy.first(where: {
-            qualifiedProtocolName($0) == name
+            qualifiedContextName($0.name, parent: $0.parent) == name
         })
     else {
         return nil
@@ -112,33 +112,6 @@ private func protocolExistentialDescriptor(
         pointer: descriptorPointer,
         isClassConstrained: isClassConstrained
     )
-}
-
-/// Protocol descriptors retain their full parent context even when their
-/// linker symbol uses mangling substitutions. Compare that semantic name when
-/// a source spelling names a nested protocol instead of attempting to recreate
-/// every nested mangling form.
-private func qualifiedProtocolName(_ descriptor: ProtocolDescriptor) -> String? {
-    var components = [descriptor.name]
-    var context = descriptor.parent
-    while let current = context {
-        if let module = current as? ModuleDescriptor {
-            components.append(module.name)
-            return components.reversed().joined(separator: ".")
-        }
-        if let type = current as? any TypeContextDescriptor {
-            components.append(type.name)
-            context = type.parent
-            continue
-        }
-        if let parentProtocol = current as? ProtocolDescriptor {
-            components.append(parentProtocol.name)
-            context = parentProtocol.parent
-            continue
-        }
-        return nil
-    }
-    return nil
 }
 
 private func swiftProtocolExistentialType(

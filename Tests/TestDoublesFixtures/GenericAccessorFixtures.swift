@@ -5,6 +5,16 @@ public enum ExternalNestedProtocolNamespace {
     public protocol Constraint {}
 }
 
+public enum ExternalNestedGenericNamespace {
+    public struct Box<Value> {
+        public let value: Value
+
+        public init(value: Value) {
+            self.value = value
+        }
+    }
+}
+
 extension String: ExternalFirstGenericConstraint {}
 extension Bool: ExternalSecondGenericConstraint {}
 extension Int: ExternalFirstGenericConstraint, ExternalSecondGenericConstraint {}
