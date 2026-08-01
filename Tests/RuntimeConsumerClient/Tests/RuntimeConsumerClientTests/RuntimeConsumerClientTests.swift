@@ -250,6 +250,27 @@ private func archiveScore(
         )
     }
 
+    @Test func concretePayloadMatchersCalibrateProtocolExistentialArguments() throws {
+        let stub = try Stub<any PayloadReporter>()
+        let placeholder = ExternalReportPayload(summary: "placeholder")
+        stub.when { $0.report(Match.any(using: placeholder)) }
+            .then { (payload: any ReportPayload) in
+                payload.summary
+            }
+
+        #expect(
+            stub().report(ExternalReportPayload(summary: "actual")) == "actual"
+        )
+    }
+
+    @Test func mixedResilientTupleArgumentsFailBeforeRecording() {
+        let error = #expect(throws: StubError.self) {
+            _ = try Stub<any MixedTupleGateway>()
+        }
+        #expect(error?.description.contains("Tuple members are lowered independently") == true)
+        #expect(error?.description.contains("hand-written test double") == true)
+    }
+
     @Test func escapingAutoclosureRequirementsIgnoreXKFInAnIdentifier() throws {
         let stub = try Stub<any XKFAutoclosureDeliveryLog>()
         let placeholder: () -> String = { "" }

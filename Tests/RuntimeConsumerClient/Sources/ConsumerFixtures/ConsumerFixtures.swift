@@ -137,6 +137,29 @@ public protocol FailureReporter {
     func report(_ error: any Error) -> String
 }
 
+/// A payload protocol that represents an opaque domain-model argument.
+public protocol ReportPayload {
+    var summary: String { get }
+}
+
+public struct ExternalReportPayload: ReportPayload {
+    public let summary: String
+
+    public init(summary: String) {
+        self.summary = summary
+    }
+}
+
+public protocol PayloadReporter {
+    func report(_ payload: any ReportPayload) -> String
+}
+
+/// A deliberately unsupported mixed tuple transport. The first member is
+/// resilient to this module while the second is a direct scalar.
+public protocol MixedTupleGateway {
+    func submit(_ payload: (ExternalReservation, UInt64)) -> Int
+}
+
 /// A logging dependency that uses call-site expression syntax.
 public protocol AutoclosureDeliveryLog {
     func record(_ message: @autoclosure @escaping () -> String)

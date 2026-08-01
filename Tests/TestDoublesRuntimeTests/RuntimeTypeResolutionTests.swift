@@ -16,6 +16,18 @@ private indirect enum RecursiveValueBox<Value> {
 /// Unit coverage for demangled-name resolution: no stubs are constructed and
 /// no witness tables are involved.
 @Suite struct RuntimeTypeResolutionTests {
+    @Test func qualifiedProtocolNamesResolveToOrdinaryExistentialMetadata() {
+        #expect(resolveRuntimeType("Swift.Encodable") == (any Encodable).self)
+        #expect(
+            resolveRuntimeType("TestDoublesFixtures.ExternalFirstGenericConstraint")
+                == (any ExternalFirstGenericConstraint).self
+        )
+        #expect(
+            resolveRuntimeType("TestDoublesFixtures.ExternalReferenceAssociatedMarker")
+                == (any ExternalReferenceAssociatedMarker).self
+        )
+    }
+
     @Test func bracketSugarResolvesArbitraryElements() {
         #expect(resolveRuntimeType("[Swift.UInt8]") == [UInt8].self)
         #expect(resolveRuntimeType("[[Swift.Int]]") == [[Int]].self)
