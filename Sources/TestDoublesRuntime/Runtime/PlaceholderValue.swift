@@ -6,11 +6,29 @@ import TestDoublesRuntimeMetadata
 package enum PlaceholderValue {
     /// Creates a placeholder of `type`, or returns `nil` when the type cannot be synthesized safely.
     package static func make<T>(_ type: T.Type = T.self) -> T? {
+        make(type, includingDummyFunctions: false)
+    }
+
+    static func make<T>(
+        _ type: T.Type,
+        includingDummyFunctions: Bool
+    ) -> T? {
         let storage = ValueStorage.allocate(for: type)
-        guard initialize(type: type, at: storage) else {
+        var visited: Set<UInt> = []
+        guard let plan = initializationPlan(
+            for: type,
+            visited: &visited,
+            includingDummyFunctions: includingDummyFunctions
+        ) else {
             storage.deallocate()
             return nil
         }
+        storage.initializeMemory(
+            as: UInt8.self,
+            repeating: 0,
+            count: ValueStorage.byteCount(for: type)
+        )
+        execute(plan, at: storage)
         defer { storage.deallocate() }
 
         // `initialize(type:at:)` constructs a valid `T`. Move that initialized
@@ -21,7 +39,11 @@ package enum PlaceholderValue {
     /// Initializes a placeholder at `destination` when `type` can be synthesized safely.
     package static func initialize(type: Any.Type, at destination: UnsafeMutableRawPointer) -> Bool {
         var visited: Set<UInt> = []
-        guard let plan = initializationPlan(for: type, visited: &visited) else {
+        guard let plan = initializationPlan(
+            for: type,
+            visited: &visited,
+            includingDummyFunctions: false
+        ) else {
             return false
         }
         destination.initializeMemory(
@@ -36,12 +58,17 @@ package enum PlaceholderValue {
     /// Returns whether `type` can be initialized as a valid placeholder.
     package static func canInitialize(type: Any.Type) -> Bool {
         var visited: Set<UInt> = []
-        return initializationPlan(for: type, visited: &visited) != nil
+        return initializationPlan(
+            for: type,
+            visited: &visited,
+            includingDummyFunctions: false
+        ) != nil
     }
 
     private indirect enum InitializationPlan {
         case scalar(ScalarInitialization)
         case collection(CollectionKind, Any.Type)
+        case dummyFunction(DummyValue.FunctionPlan)
         case emptyEnum(Any.Type)
         case payloadEnum(Any.Type, tag: UInt32, payload: InitializationPlan)
         case aggregate([AggregateElement])
@@ -77,12 +104,18 @@ package enum PlaceholderValue {
     /// is initialized, so support checks and initialization cannot drift apart.
     private static func initializationPlan(
         for type: Any.Type,
-        visited: inout Set<UInt>
+        visited: inout Set<UInt>,
+        includingDummyFunctions: Bool
     ) -> InitializationPlan? {
         if let scalar = scalarInitialization(for: type) {
             return .scalar(scalar)
         }
         let metadata = reflect(type)
+        if includingDummyFunctions,
+            let function = DummyValue.functionPlan(for: type)
+        {
+            return .dummyFunction(function)
+        }
         if let kind = collectionKind(of: metadata) {
             return .collection(kind, type)
         }
@@ -109,7 +142,8 @@ package enum PlaceholderValue {
                     ),
                     let payload = initializationPlan(
                         for: payloadType,
-                        visited: &visited
+                        visited: &visited,
+                        includingDummyFunctions: includingDummyFunctions
                     )
                 else {
                     continue
@@ -125,7 +159,11 @@ package enum PlaceholderValue {
         if let tupleMetadata = metadata as? TupleMetadata {
             var elements: [AggregateElement] = []
             for element in tupleMetadata.elements {
-                guard let plan = initializationPlan(for: element.type, visited: &visited) else {
+                guard let plan = initializationPlan(
+                    for: element.type,
+                    visited: &visited,
+                    includingDummyFunctions: includingDummyFunctions
+                ) else {
                     return nil
                 }
                 elements.append(AggregateElement(offset: element.offset, plan: plan))
@@ -169,7 +207,11 @@ package enum PlaceholderValue {
                     field.mangledTypeName,
                     in: structMetadata
                 ),
-                let plan = initializationPlan(for: fieldType, visited: &visited)
+                let plan = initializationPlan(
+                    for: fieldType,
+                    visited: &visited,
+                    includingDummyFunctions: includingDummyFunctions
+                )
             else {
                 return nil
             }
@@ -187,6 +229,8 @@ package enum PlaceholderValue {
                 initializeScalar(scalar, at: destination)
             case .collection(let kind, let type):
                 initializeEmptyCollection(kind, type: type, at: destination)
+            case .dummyFunction(let plan):
+                DummyValue.initialize(plan, at: destination)
             case .emptyEnum(let type):
                 guard let metadata = reflect(type) as? EnumMetadata else {
                     preconditionFailure("[TestDoubles] Missing enum metadata for \(type).")

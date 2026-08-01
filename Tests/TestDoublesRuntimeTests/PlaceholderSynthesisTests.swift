@@ -11,6 +11,16 @@ private struct PlaceholderAggregate: Equatable {
     let values: [Int]
 }
 
+private struct DummyFunctionAggregate {
+    let count: Int
+    let transform: (Int) -> String
+    let completion: @Sendable () async -> Void
+}
+
+private enum DummyFunctionPayload {
+    case transform((Int) -> String)
+}
+
 private enum PlaceholderChoice: Equatable {
     case none
     case value(Int)
@@ -93,6 +103,10 @@ private final class UnsupportedPlaceholder {}
             #expect(DummyValue.make(BlockFunction.self) != nil)
         #endif
         #expect(PlaceholderValue.make(SwiftFunction.self) == nil)
+        #expect(DummyValue.make(DummyFunctionAggregate.self) != nil)
+        #expect(DummyValue.make(DummyFunctionPayload.self) != nil)
+        #expect(PlaceholderValue.make(DummyFunctionAggregate.self) == nil)
+        #expect(PlaceholderValue.make(DummyFunctionPayload.self) == nil)
     }
 }
 

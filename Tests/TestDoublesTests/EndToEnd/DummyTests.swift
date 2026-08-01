@@ -73,6 +73,12 @@ private typealias ConcreteCDummyFunction = @convention(c) (Int32) -> Int32
     private typealias ConcreteBlockDummyFunction = @convention(block) (Int) -> Int
 #endif
 
+private struct ConcreteDummyFunctionContainer {
+    let count: Int
+    let transform: ConcreteDummyFunction
+    let asynchronous: ConcreteAsyncDummyFunction
+}
+
 @inline(never)
 private func fallbackValue(using service: any DummyService) -> Int {
     withExtendedLifetime(service) { 42 }
@@ -221,6 +227,14 @@ struct DummyTests {
             withExtendedLifetime(block) {}
         #endif
     }
+
+    @Test func recursivelySynthesizesFunctionFields() {
+        let container: ConcreteDummyFunctionContainer = Dummy.make()
+
+        #expect(container.count == 0)
+        withExtendedLifetime(container.transform) {}
+        withExtendedLifetime(container.asynchronous) {}
+    }
 }
 
 #if compiler(>=6.2) && (os(macOS) || os(Linux) || targetEnvironment(macCatalyst))
@@ -231,6 +245,7 @@ struct DummyTests {
         case staticRequirement
         case function
         case asyncFunction
+        case nestedFunction
         case thinFunction
         case cFunction
         #if canImport(ObjectiveC)
@@ -257,6 +272,8 @@ struct DummyTests {
                     try await functionInvocationFailsClosed()
                 case .asyncFunction:
                     try await asyncFunctionInvocationFailsClosed()
+                case .nestedFunction:
+                    try await nestedFunctionInvocationFailsClosed()
                 case .thinFunction:
                     try await thinFunctionInvocationFailsClosed()
                 case .cFunction:
@@ -336,6 +353,17 @@ struct DummyTests {
             ) {
                 let function: ConcreteAsyncDummyFunction = Dummy.make()
                 _ = try await function(1)
+            }
+            try expectDummyFunctionDiagnostic(result)
+        }
+
+        private func nestedFunctionInvocationFailsClosed() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let container: ConcreteDummyFunctionContainer = Dummy.make()
+                _ = container.transform(1, "unused")
             }
             try expectDummyFunctionDiagnostic(result)
         }
