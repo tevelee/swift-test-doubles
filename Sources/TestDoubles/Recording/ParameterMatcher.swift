@@ -419,6 +419,33 @@ struct SomeMatcher: ParameterMatcher {
     }
 }
 
+/// Applies source-level matcher expressions to the elements of a variadic
+/// argument. Swift lowers the whole argument as one Array, but the recording
+/// closure still evaluates one `Match` expression per written element.
+struct VariadicElementsMatcher: ParameterMatcher {
+    let elements: [ParameterMatcher]
+
+    func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
+        let reflected = Mirror(reflecting: value)
+        guard reflected.displayStyle == .collection else { return nil }
+        let values = reflected.children.map(\.value)
+        guard values.count == elements.count else { return nil }
+
+        var combined = PreparedMatcherTransaction.matched
+        for (matcher, value) in zip(elements, values) {
+            guard let transaction = matcher.prepareMatch(value: value) else {
+                return nil
+            }
+            combined.append(transaction)
+        }
+        return combined
+    }
+
+    var diagnosticDescription: String {
+        "variadic(\(elements.map(\.diagnosticDescription).joined(separator: ", ")))"
+    }
+}
+
 /// Combines nested matchers with boolean logic while remaining a single
 /// positional matcher, so composed expressions align with one argument.
 struct CompositeMatcher: ParameterMatcher {

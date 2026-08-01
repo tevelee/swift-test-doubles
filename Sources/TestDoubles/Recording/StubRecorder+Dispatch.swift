@@ -510,15 +510,29 @@ extension StubRecorder {
 
     private func recordPlaceholder(method: Int, name: String, args: [Any]) {
         var matchers = MatcherContext.takeMatchers()
+        let runtimeMethod = runtimeMethod(for: method)
+        if matchers.isEmpty == false,
+            let runtimeMethod,
+            runtimeMethod.argumentIsVariadic.contains(true)
+        {
+            matchers = variadicMatchers(
+                from: matchers,
+                arguments: args,
+                method: runtimeMethod
+            )
+        }
         if matchers.isEmpty == false, matchers.count != args.count {
+            let variadicGuidance =
+                runtimeMethod?.argumentIsVariadic.contains(true) == true
+                ? " A variadic parameter is one array at runtime; write one Match expression for each element in the recorded call."
+                : ""
             preconditionFailure(
                 "[TestDoubles] Recording \(name) used \(matchers.count) Match expression(s) for "
                     + "\(args.count) argument(s). Use either literals for every argument or exactly one "
                     + "Match expression per argument; do not mix them. Rewrite a pinned literal with "
-                    + "Match.equal(_:) or Match.identical(to:)."
+                    + "Match.equal(_:) or Match.identical(to:).\(variadicGuidance)"
             )
         }
-        let runtimeMethod = runtimeMethod(for: method)
         if runtimeMethod?.kind == .setter,
             args.count > 1,
             matchers.count == args.count,
@@ -544,6 +558,36 @@ extension StubRecorder {
             ),
             to: self
         )
+    }
+
+    private func variadicMatchers(
+        from matchers: [ParameterMatcher],
+        arguments: [Any],
+        method: RuntimeMethod
+    ) -> [ParameterMatcher] {
+        guard arguments.count == method.arguments.count else { return matchers }
+
+        var sourceIndex = matchers.startIndex
+        var grouped: [ParameterMatcher] = []
+        for (argument, isVariadic) in zip(arguments, method.argumentIsVariadic) {
+            guard isVariadic else {
+                guard sourceIndex < matchers.endIndex else { return matchers }
+                grouped.append(matchers[sourceIndex])
+                sourceIndex += 1
+                continue
+            }
+
+            let elements = Mirror(reflecting: argument).children
+            let endIndex = sourceIndex + elements.count
+            guard endIndex <= matchers.endIndex else { return matchers }
+            grouped.append(
+                VariadicElementsMatcher(
+                    elements: Array(matchers[sourceIndex ..< endIndex])
+                )
+            )
+            sourceIndex = endIndex
+        }
+        return sourceIndex == matchers.endIndex ? grouped : matchers
     }
 
     private func recordingArgumentConventions(

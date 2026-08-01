@@ -6,6 +6,7 @@ import Foundation
 package struct ParsedWitnessSignature {
     package let name: String
     package let argumentTypes: [DemangledTypeSyntax]
+    package let argumentIsVariadic: [Bool]
     package let returnType: DemangledTypeSyntax
     package let isThrowing: Bool
     package let typedError: DemangledTypeSyntax?
@@ -94,6 +95,7 @@ package func parseWitnessSignature(
         return ParsedWitnessSignature(
             name: buildMethodName(methodName, parameters: parameters),
             argumentTypes: parameters.map(\.type),
+            argumentIsVariadic: parameters.map(\.isVariadic),
             returnType: returnType,
             isThrowing: effects.isThrowing,
             typedError: effects.thrownError
@@ -175,6 +177,10 @@ private func parseAccessorSignature(
         argumentTypes: kind == .setter
             ? [valueType] + indexTypes
             : indexTypes,
+        argumentIsVariadic: Array(
+            repeating: false,
+            count: (kind == .setter ? 1 : 0) + indexTypes.count
+        ),
         returnType: kind == .setter
             ? .concrete("Swift.Void")
             : valueType,
@@ -214,6 +220,7 @@ private func parseSubscriptAccessorType(
 private struct ParsedParameter {
     let label: String
     let type: DemangledTypeSyntax
+    let isVariadic: Bool
 }
 
 private func parseParameters(_ text: String) -> [ParsedParameter]? {
@@ -222,21 +229,55 @@ private func parseParameters(_ text: String) -> [ParsedParameter]? {
     var parameters: [ParsedParameter] = []
     for parameter in components {
         guard let colon = lastTopLevelColon(in: parameter) else {
-            guard let type = DemangledTypeSyntax(parameter) else { return nil }
-            parameters.append(ParsedParameter(label: "_", type: type))
+            guard let parsed = parameterType(parameter) else { return nil }
+            parameters.append(
+                ParsedParameter(
+                    label: "_",
+                    type: parsed.type,
+                    isVariadic: parsed.isVariadic
+                )
+            )
             continue
         }
         let label = parameter[..<colon].trimmingCharacters(in: .whitespaces)
         guard
-            let type = DemangledTypeSyntax(
+            let parsed = parameterType(
                 String(parameter[parameter.index(after: colon)...])
             )
         else {
             return nil
         }
-        parameters.append(ParsedParameter(label: label, type: type))
+        parameters.append(
+            ParsedParameter(
+                label: label,
+                type: parsed.type,
+                isVariadic: parsed.isVariadic
+            )
+        )
     }
     return parameters
+}
+
+/// Swift's demangler preserves source-level `...` spelling in a witness
+/// symbol, while the witness ABI receives one `Array<Element>` parameter.
+/// Normalize it before metadata resolution so the decoded runtime argument,
+/// typed handler, and matcher list all agree on the single collection value.
+private func parameterType(
+    _ spelling: String
+) -> (type: DemangledTypeSyntax, isVariadic: Bool)? {
+    let spelling = spelling.trimmingCharacters(in: .whitespaces)
+    let isVariadic = spelling.hasSuffix("...")
+    let elementSpelling =
+        isVariadic
+        ? String(spelling.dropLast(3)).trimmingCharacters(in: .whitespaces)
+        : spelling
+    guard let type = DemangledTypeSyntax(elementSpelling) else { return nil }
+    guard isVariadic else { return (type, false) }
+    guard let array = DemangledTypeSyntax("Swift.Array<\(type.canonicalSpelling)>")
+    else {
+        return nil
+    }
+    return (array, true)
 }
 
 private func buildMethodName(_ baseName: String, parameters: [ParsedParameter]) -> String {

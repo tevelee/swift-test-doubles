@@ -16,6 +16,8 @@ package struct MethodDescriptor: Sendable {
     /// Slot in the declaring protocol's witness table.
     package let witnessIndex: Int
     package let arguments: [WitnessArgumentDescriptor]
+    /// Source-level variadic parameters, represented by one Array in the ABI.
+    package let argumentIsVariadic: [Bool]
     package let result: WitnessValueDescriptor
     package let effects: RequirementEffects
     package let selfIsClassConstrained: Bool
@@ -37,6 +39,7 @@ package struct MethodDescriptor: Sendable {
         argumentConventions: [WitnessValueConvention]? = nil,
         argumentDependencies: [WitnessValueDependency]? = nil,
         argumentOwnerships: [WitnessArgumentOwnership]? = nil,
+        argumentIsVariadic: [Bool]? = nil,
         returnConvention: WitnessValueConvention = .concrete,
         returnDependency: WitnessValueDependency? = nil,
         typedErrorType: Any.Type? = nil,
@@ -64,10 +67,14 @@ package struct MethodDescriptor: Sendable {
         let ownerships =
             argumentOwnerships
             ?? argumentTypes.indices.map(kind.defaultArgumentOwnership(at:))
+        let variadics =
+            argumentIsVariadic
+            ?? Array(repeating: false, count: argumentTypes.count)
 
         precondition(conventions.count == argumentTypes.count)
         precondition(dependencies.count == argumentTypes.count)
         precondition(ownerships.count == argumentTypes.count)
+        precondition(variadics.count == argumentTypes.count)
 
         arguments = argumentTypes.indices.map { offset in
             let type = argumentTypes[offset]
@@ -87,6 +94,7 @@ package struct MethodDescriptor: Sendable {
                 ownership: ownerships[offset]
             )
         }
+        self.argumentIsVariadic = variadics
 
         let resultDependency =
             returnDependency ?? Self.defaultDependency(for: returnConvention)
@@ -153,6 +161,7 @@ package struct MethodDescriptor: Sendable {
         index: Int,
         witnessIndex: Int,
         arguments: [ResolvedWitnessValue],
+        argumentIsVariadic: [Bool]? = nil,
         result: ResolvedWitnessValue,
         protocolName: String,
         typedErrorType: Any.Type? = nil,
@@ -198,6 +207,7 @@ package struct MethodDescriptor: Sendable {
             argumentOwnerships: arguments.enumerated().map { offset, argument in
                 argument.argumentOwnership(for: kind, at: offset)
             },
+            argumentIsVariadic: argumentIsVariadic,
             returnConvention: result.convention,
             returnDependency: result.dependency,
             typedErrorType: typedErrorType,
@@ -273,6 +283,7 @@ package struct MethodDescriptor: Sendable {
                     ownership: RuntimeArgumentOwnership(argument.ownership)
                 )
             },
+            argumentIsVariadic: argumentIsVariadic,
             result: RuntimeValue(
                 type: result.type,
                 convention: RuntimeValueConvention(result.convention),

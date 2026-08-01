@@ -116,6 +116,8 @@ package struct RuntimeMethod: @unchecked Sendable {
     package let name: String
     package let slot: Int
     package let arguments: [RuntimeArgument]
+    /// Source-level variadic arguments, each decoded as one Array value.
+    package let argumentIsVariadic: [Bool]
     package let result: RuntimeValue
     package let typedErrorType: Any.Type?
     package let typedErrorAssociatedTypeUse: RuntimeAssociatedTypeUse?
@@ -133,6 +135,7 @@ package struct RuntimeMethod: @unchecked Sendable {
         name: String,
         slot: Int,
         arguments: [RuntimeArgument],
+        argumentIsVariadic: [Bool]? = nil,
         result: RuntimeValue,
         typedErrorType: Any.Type?,
         typedErrorAssociatedTypeUse: RuntimeAssociatedTypeUse?,
@@ -148,6 +151,10 @@ package struct RuntimeMethod: @unchecked Sendable {
         self.name = name
         self.slot = slot
         self.arguments = arguments
+        self.argumentIsVariadic =
+            argumentIsVariadic
+            ?? Array(repeating: false, count: arguments.count)
+        precondition(self.argumentIsVariadic.count == arguments.count)
         self.result = result
         self.typedErrorType = typedErrorType
         self.typedErrorAssociatedTypeUse = typedErrorAssociatedTypeUse

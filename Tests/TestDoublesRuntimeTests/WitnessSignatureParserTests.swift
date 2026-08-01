@@ -12,6 +12,17 @@ import Testing
         #expect(signature.name == "fetch(_:)")
     }
 
+    @Test func variadicParametersResolveAsOneArrayArgument() throws {
+        let signature = try #require(
+            parseWitnessSignature(
+                "protocol witness for test2.P.tally(test2.Value...) -> Swift.UInt64 in conformance test2.S : test2.P in test2",
+                kind: .method
+            )
+        )
+        #expect(signature.name == "tally(_:)")
+        #expect(signature.argumentTypeNames == ["Swift.Array<test2.Value>"])
+    }
+
     @Test func methodNameDotsInsideGenericArgumentsAreNotSplitOn() throws {
         let signature = try #require(
             parseWitnessSignature(

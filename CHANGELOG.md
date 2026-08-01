@@ -118,6 +118,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Automatic protocol discovery now lowers source-level variadic parameters to
+  their one-array witness ABI. Record one matcher per variadic element; the
+  matcher order and element count are preserved instead of decoding an array
+  as its element type.
 - Literal-only recordings now compare `Equatable` values with `==`, reference
   values and optional references by identity, and metatypes by equality rather
   than comparing their rendered descriptions. Values without a generic equality

@@ -104,6 +104,8 @@ public protocol DeliveryGateway: Sendable {
     ) async -> Int
 
     func confirm(_ reservation: ExternalReservation) async throws -> UInt64
+
+    func tally(_ reservations: ExternalReservation...) -> UInt64
 }
 
 public protocol ReservationSource {
@@ -237,6 +239,10 @@ public struct LiveDeliveryGateway: DeliveryGateway, Sendable {
 
     public func confirm(_ reservation: ExternalReservation) async throws -> UInt64 {
         reservation.start ^ reservation.end
+    }
+
+    public func tally(_ reservations: ExternalReservation...) -> UInt64 {
+        reservations.reduce(0) { $0 ^ $1.start ^ $1.end }
     }
 }
 

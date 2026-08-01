@@ -195,6 +195,7 @@ package func discoverMethods(
                 index: requirement.dispatchIndex,
                 witnessIndex: requirementIndex,
                 arguments: arguments,
+                argumentIsVariadic: parsed.argumentIsVariadic,
                 result: result,
                 protocolName: proto.name,
                 typedErrorType: typedError?.type,

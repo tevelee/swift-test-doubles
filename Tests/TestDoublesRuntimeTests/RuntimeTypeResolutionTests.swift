@@ -130,6 +130,10 @@ private indirect enum RecursiveValueBox<Value> {
 
     @Test func referenceBackedGenericContainersStayDirect() {
         #expect(
+            argumentABIClassCandidates(for: Array<ResilientValueArgument>.self)
+                == [abiClass(for: Array<ResilientValueArgument>.self)]
+        )
+        #expect(
             argumentABIClassCandidates(for: Array<URL>.self)
                 == [abiClass(for: Array<URL>.self)]
         )

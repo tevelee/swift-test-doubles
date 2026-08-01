@@ -55,6 +55,31 @@ private struct ReservationStartingAtLeast: CustomMatcher {
         )
     }
 
+    @Test func variadicResilientArgumentsDecodeAsOneCollectionInAnOrdinaryConsumer() throws {
+        let stub = try Stub<any DeliveryGateway>()
+        let first = ExternalReservation(start: 10, end: 12)
+        let second = ExternalReservation(start: 14, end: 18)
+        stub.when { $0.tally(Match.equal(first), Match.equal(second)) }
+            .then { (reservations: [ExternalReservation]) in
+                reservations.reduce(0) { $0 ^ $1.start ^ $1.end }
+            }
+        stub.when { $0.tally(Match.any(using: first), Match.any(using: second)) }
+            .thenReturn(0)
+
+        #expect(
+            stub().tally(
+                ExternalReservation(start: 10, end: 12),
+                ExternalReservation(start: 14, end: 18)
+            ) == 10 ^ 12 ^ 14 ^ 18
+        )
+        #expect(
+            stub().tally(
+                ExternalReservation(start: 20, end: 24),
+                ExternalReservation(start: 30, end: 36)
+            ) == 0
+        )
+    }
+
     @Test func foundationRangeCalibratesWithoutTypeSpecificRuntimeLogic() throws {
         let stub = try Stub<any DeliveryGateway>()
         let placeholder =

@@ -90,6 +90,20 @@ Do not mix the two styles in one call. For example, rewrite
 `find(id: Match.equal(42), scope: Match.any())`; TestDoubles rejects a mixed
 recording immediately so it cannot become a stub that never matches.
 
+A variadic protocol requirement is one array at the witness boundary, even
+though its call syntax has separate elements. Write one matcher for every
+element and TestDoubles preserves the list's order and count:
+
+```swift
+stub.when {
+    $0.record(Match.equal("started"), Match.hasPrefix("user:"))
+}.thenDoNothing()
+```
+
+The registration matches exactly two entries. A call with one or three entries
+does not match it; use literals for an exact list or repeat `Match.any()` for
+each accepted position.
+
 For floating-point values, `Match.approximately` combines absolute and relative
 tolerance:
 
