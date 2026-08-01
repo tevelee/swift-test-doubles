@@ -111,6 +111,38 @@ process-wide. Keep the protocol existential: erasing it to `AnyObject` discards
 the fabricated witness tables, and dynamically casting it back is unsupported
 and may trap under optimization.
 
+### Protocols declared inside a test
+
+It is convenient to declare a tiny protocol inside one test, but that protocol
+has no separately compiled module and an optimized test build may remove the
+local conformer that automatic discovery would inspect. A test can therefore
+appear to work in Debug and fail in Release with a message that no linked
+conformer or resilient requirement symbols were found.
+
+Keep the protocol local if that makes the test clearer, but describe its
+requirements with source-level member references:
+
+```swift
+@Test func loadsAProfile() throws {
+    protocol ProfileLoading {
+        func load(id: Int) throws -> String
+    }
+
+    let stub = try Stub<any ProfileLoading>(
+        .method(signatureOf: ProfileLoading.load)
+    )
+    stub.when { try $0.load(id: Match.equal(42)) }.thenReturn("Ada")
+
+    #expect(try stub().load(id: 42) == "Ada")
+}
+```
+
+The member reference is checked by the compiler, so it follows the declaration
+when labels, argument types, effects, or the result change. Supply one entry
+for every requirement, in declaration order. Moving a reused protocol to file
+or module scope and linking a real conformer is the alternative when automatic
+discovery is preferred.
+
 For a superclass constraint, construction creates a genuine superclass instance
 through `init()` and attaches the stub's runtime resources to it. This supports
 imported Objective-C classes and Swift-defined `NSObject` subclasses whose
