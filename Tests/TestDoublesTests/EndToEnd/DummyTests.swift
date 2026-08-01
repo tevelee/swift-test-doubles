@@ -39,6 +39,27 @@ private protocol DummyStaticService {
     static func value() -> Int
 }
 
+private struct ConcreteDummyValue {
+    let count: Int
+    let title: String
+    let flags: [Bool]
+    let location: (x: Double, y: Double)
+    let note: String?
+}
+
+private enum EmptyCaseDummyValue {
+    case payload(String)
+    case empty
+}
+
+private final class FactoryDummyValue: @unchecked Sendable {
+    let identifier: Int
+
+    init(identifier: Int) {
+        self.identifier = identifier
+    }
+}
+
 @inline(never)
 private func fallbackValue(using service: any DummyService) -> Int {
     withExtendedLifetime(service) { 42 }
@@ -120,13 +141,48 @@ struct DummyTests {
         #expect(fallbackValue(using: second) == 42)
     }
 
-    @Test func rejectsNonProtocolTypesAtConstruction() {
+    @Test func synthesizesScalarDummyValues() throws {
+        let dummy = try Dummy<Int>()
+        #expect(dummy() == 0)
+        #expect(Dummy<String>.make() == "")
+    }
+
+    @Test func synthesizesAggregateDummyValues() throws {
+        let value: ConcreteDummyValue = try Dummy()()
+
+        #expect(value.count == 0)
+        #expect(value.title == "")
+        #expect(value.flags.isEmpty)
+        #expect(value.location.x == 0)
+        #expect(value.location.y == 0)
+        #expect(value.note == nil)
+    }
+
+    @Test func synthesizesAnEmptyEnumCase() {
+        let value: EmptyCaseDummyValue = Dummy.make()
+        guard case .empty = value else {
+            Issue.record("Expected the synthesized empty enum case")
+            return
+        }
+    }
+
+    @Test func acceptsAFactoryForUnsupportedConcreteTypes() throws {
         expectStubError({
-            _ = try Dummy<Int>()
+            _ = try Dummy<FactoryDummyValue>()
         }) { error in
-            guard case .typeIsNotProtocol = error else { return false }
+            guard case .dummyValueNotSynthesizable = error else { return false }
             return true
         }
+
+        let generated = Dummy<FactoryDummyValue>(using: {
+            FactoryDummyValue(identifier: 41)
+        })
+        let made: FactoryDummyValue = Dummy.make(using: {
+            FactoryDummyValue(identifier: 42)
+        })
+
+        #expect(generated().identifier == 41)
+        #expect(made.identifier == 42)
     }
 }
 
@@ -136,7 +192,7 @@ struct DummyTests {
         case asynchronous
         case modify
         case staticRequirement
-        case nonProtocolFactoryConstruction
+        case unsupportedConcreteFactoryConstruction
     }
 
     @Suite struct DummyInvocationExitTests {
@@ -153,8 +209,8 @@ struct DummyTests {
                     try await modifyInvocationFailsClosed()
                 case .staticRequirement:
                     try await staticInvocationFailsClosed()
-                case .nonProtocolFactoryConstruction:
-                    try await nonProtocolFactoryConstructionFailsClosed()
+                case .unsupportedConcreteFactoryConstruction:
+                    try await unsupportedConcreteFactoryConstructionFailsClosed()
             }
         }
 
@@ -206,18 +262,19 @@ struct DummyTests {
             )
         }
 
-        private func nonProtocolFactoryConstructionFailsClosed() async throws {
+        private func unsupportedConcreteFactoryConstructionFailsClosed() async throws {
             let result = try await #require(
                 processExitsWith: .failure,
                 observing: [\.standardErrorContent]
             ) {
-                _ = Dummy.make(Int.self)
+                _ = Dummy.make(FactoryDummyValue.self)
             }
             let diagnostic = try #require(
                 String(bytes: result.standardErrorContent, encoding: .utf8)
             )
-            #expect(diagnostic.contains("Could not construct a dummy for 'Swift.Int'"))
-            #expect(diagnostic.contains("Use a protocol existential"))
+            #expect(diagnostic.contains("Could not construct a dummy for"))
+            #expect(diagnostic.contains("FactoryDummyValue"))
+            #expect(diagnostic.contains("Dummy.make(using:)"))
         }
 
         private func expectDummyDiagnostic(

@@ -45,6 +45,9 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
     /// The generic argument is not a protocol existential.
     case typeIsNotProtocol(typeDescription: String)
 
+    /// A concrete dummy value cannot be initialized safely without a factory.
+    case dummyValueNotSynthesizable(typeDescription: String)
+
     /// Flat explicit requirements were supplied for a multi-root composition.
     case compositionRequiresGroupedRequirements(typeDescription: String)
 
@@ -117,6 +120,9 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
         switch self {
             case .typeIsNotProtocol(let typeDescription):
                 return "Could not extract a protocol from '\(typeDescription)'. Use a protocol existential such as `any YourProtocol` as the generic argument."
+
+            case .dummyValueNotSynthesizable(let typeDescription):
+                return "Could not safely synthesize a dummy value for '\(typeDescription)'. Use `Dummy.make(using:)` or `Dummy.init(using:)` to supply a valid placeholder."
 
             case .compositionRequiresGroupedRequirements(let typeDescription):
                 return "Protocol composition '\(typeDescription)' requires grouped explicit requirements. Use `init(requirementsByProtocol:)` with one `ProtocolRequirements.requirements(declaredBy:_:)` group per declaring protocol."

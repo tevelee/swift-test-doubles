@@ -156,6 +156,7 @@ symbol	TestDoubles	swift.enum.case	Stub.GetterEffect.throwing	case throwing
 symbol	TestDoubles	swift.enum.case	Stub.GetterEffect.typedThrowing(_:)	case typedThrowing(any Error.Type)
 symbol	TestDoubles	swift.enum.case	StubError.compositionRequiresGroupedGetterEffects(typeDescription:)	case compositionRequiresGroupedGetterEffects(typeDescription: String)
 symbol	TestDoubles	swift.enum.case	StubError.compositionRequiresGroupedRequirements(typeDescription:)	case compositionRequiresGroupedRequirements(typeDescription: String)
+symbol	TestDoubles	swift.enum.case	StubError.dummyValueNotSynthesizable(typeDescription:)	case dummyValueNotSynthesizable(typeDescription: String)
 symbol	TestDoubles	swift.enum.case	StubError.duplicateProtocolGetterEffectGroup(protocolName:)	case duplicateProtocolGetterEffectGroup(protocolName: String)
 symbol	TestDoubles	swift.enum.case	StubError.duplicateProtocolRequirementGroup(protocolName:)	case duplicateProtocolRequirementGroup(protocolName: String)
 symbol	TestDoubles	swift.enum.case	StubError.foreignProtocolGetterEffectGroup(protocolName:typeDescription:)	case foreignProtocolGetterEffectGroup(protocolName: String, typeDescription: String)
@@ -195,6 +196,7 @@ symbol	TestDoubles	swift.init	ClosureDouble.init(forwardingTo:)	init(forwardingT
 symbol	TestDoubles	swift.init	CompletionOrder.init()	init()
 symbol	TestDoubles	swift.init	CompletionOrder.init(_:)	@discardableResult convenience init(@CompletionOrder.Builder _ expectations: () -> [Expectation])
 symbol	TestDoubles	swift.init	Dummy.init()	convenience init() throws(StubError)
+symbol	TestDoubles	swift.init	Dummy.init(using:)	convenience init(using makeValue: () -> P)
 symbol	TestDoubles	swift.init	FixtureRedactor.init(_:)	init(_ transform: @escaping @Sendable (String, FixtureValueRole, Data) -> Data)
 symbol	TestDoubles	swift.init	InoutClosureDouble.init()	init()
 symbol	TestDoubles	swift.init	InoutClosureDouble.init(forwardingTo:)	init(forwardingTo target: @escaping @Sendable (inout Value) -> Result)
@@ -1106,7 +1108,8 @@ symbol	TestDoubles	swift.type.method	CompletionOrder.Builder.buildExpression(_:f
 symbol	TestDoubles	swift.type.method	CompletionOrder.Builder.buildExpression(_:fileID:filePath:line:column:)	static func buildExpression<Input, Result>(_ pattern: ThrowingClosureCallPattern<Input, Result>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> [Expectation]
 symbol	TestDoubles	swift.type.method	CompletionOrder.Builder.buildExpression(_:fileID:filePath:line:column:)	static func buildExpression<Result>(_ pattern: CallPattern<Result>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> [Expectation]
 symbol	TestDoubles	swift.type.method	CompletionOrder.Builder.buildOptional(_:)	static func buildOptional(_ component: [Expectation]?) -> [Expectation]
-symbol	TestDoubles	swift.type.method	Dummy.make(_:)	static func make(_ protocolType: P.Type = P.self) -> P
+symbol	TestDoubles	swift.type.method	Dummy.make(_:)	static func make(_ type: P.Type = P.self) -> P
+symbol	TestDoubles	swift.type.method	Dummy.make(_:using:)	static func make(_ type: P.Type = P.self, using makeValue: () -> P) -> P
 symbol	TestDoubles	swift.type.method	InteractionFixture.load(from:)	static func load(from url: URL) throws -> InteractionFixture
 symbol	TestDoubles	swift.type.method	InvocationOrder.Builder.buildArray(_:)	static func buildArray(_ components: [[Expectation]]) -> [Expectation]
 symbol	TestDoubles	swift.type.method	InvocationOrder.Builder.buildBlock(_:)	static func buildBlock(_ components: [Expectation]...) -> [Expectation]
