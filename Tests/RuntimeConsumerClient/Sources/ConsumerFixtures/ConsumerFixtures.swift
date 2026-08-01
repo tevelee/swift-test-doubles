@@ -108,6 +108,12 @@ public protocol ReservationSource {
     func currentReservation() -> ExternalReservation
 }
 
+/// A UI-facing dependency whose requirements are isolated to the main actor.
+@MainActor
+public protocol MainActorReservationGateway {
+    func review(_ reservation: ExternalReservation) -> UInt64
+}
+
 /// A property-backed store such as an injected preference or configuration
 /// boundary. Swift requires every settable protocol property to be gettable.
 public protocol ReservationStore {
@@ -241,6 +247,15 @@ public struct LiveReservationStore: ReservationStore {
 
     public init(reservation: ExternalReservation) {
         self.reservation = reservation
+    }
+}
+
+@MainActor
+public struct LiveMainActorReservationGateway: MainActorReservationGateway {
+    public init() {}
+
+    public func review(_ reservation: ExternalReservation) -> UInt64 {
+        reservation.start ^ reservation.end
     }
 }
 

@@ -135,6 +135,19 @@ import Testing
         )
     }
 
+    @MainActor
+    @Test func mainActorResilientArgumentsCalibrateInAnOrdinaryConsumer() throws {
+        let stub = try Stub<any MainActorReservationGateway>()
+        let placeholder = ExternalReservation(start: 89, end: 97)
+        stub.when { $0.review(Match.any(using: placeholder)) }
+            .then { (reservation: ExternalReservation) in
+                reservation.start ^ reservation.end
+            }
+
+        let gateway: any MainActorReservationGateway = stub()
+        #expect(gateway.review(ExternalReservation(start: 101, end: 103)) == 2)
+    }
+
     @Test func forwardingReusesTheCalibratedImportedValuePlan() throws {
         let spy = try Spy<any DeliveryGateway>(
             forwardingTo: LiveDeliveryGateway()
