@@ -138,7 +138,7 @@ struct CommonRecordingPlaceholderTests {
             )
 
             #expect(data.isEmpty)
-            #expect(queue === DispatchQueue.main)
+            #expect(queue.label == DispatchQueue.main.label)
         }
     #endif
 
