@@ -280,6 +280,20 @@ public protocol ByteBufferReader {
     func sum(_ buffer: UnsafeBufferPointer<UInt8>) -> UInt
 }
 
+public protocol ValueTransformer {
+    func transform(
+        _ transformer: @escaping @Sendable (Int) -> Int,
+        value: Int
+    ) -> Int
+}
+
+public protocol TrailingValueTransformer {
+    func transform(
+        _ value: Int,
+        using transformer: @escaping @Sendable (Int) -> Int
+    ) -> Int
+}
+
 /// A deliberately unsupported mixed tuple transport. The first member is
 /// resilient to this module while the second is a direct scalar.
 public protocol MixedTupleGateway {

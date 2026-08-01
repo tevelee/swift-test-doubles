@@ -117,9 +117,9 @@ representations and their ownership rules.
 Tuple and `Optional` payloads are recursively reabstracted. `Result`, arrays,
 dictionaries, user enums, and public generic nominal wrappers keep their opaque
 value representation while their metadata and value witnesses carry closure
-payloads. Source-less generic nominal discovery accepts exported struct, enum,
-and class descriptors with up to four runtime key type arguments. A constrained
-generic that also needs runtime witness-table arguments fails closed.
+payloads. Source-less generic nominal discovery accepts linked exported struct,
+enum, and class descriptors when their generic parameters and key conformance
+arguments can be reconstructed. Packs and unknown key requirements fail closed.
 
 Actor-isolated, ownership-qualified, variadic, autoclosure-parameter, and other
 extended native closure shapes still require an exact compiler-emitted
@@ -167,6 +167,13 @@ stub.when {
 
 The asynchronous overload accepts an `async` or `async throws` handler when the
 protocol requirement is asynchronous.
+
+The callback must be the first explicit requirement parameter when the handler
+needs to invoke it. Swift's generic parameter packs cannot preserve an unknown
+escaping closure convention for a later handler parameter, so that spelling is
+rejected by the compiler. A later callback can still be matched and given a
+fixed outcome such as `thenReturn`; when its behavior must invoke it, expose an
+application-owned callback-first facade or use a hand-written fake.
 
 ### Explicit compiler adapter
 
