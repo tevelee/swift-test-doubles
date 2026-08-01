@@ -60,6 +60,14 @@ private final class FactoryDummyValue: @unchecked Sendable {
     }
 }
 
+private typealias ConcreteDummyFunction = (Int, String) -> Bool
+private typealias ConcreteAsyncDummyFunction = @Sendable (Int) async throws -> String
+private typealias ConcreteThinDummyFunction = @convention(thin) (Int) -> Int
+private typealias ConcreteCDummyFunction = @convention(c) (Int32) -> Int32
+#if canImport(ObjectiveC)
+    private typealias ConcreteBlockDummyFunction = @convention(block) (Int) -> Int
+#endif
+
 @inline(never)
 private func fallbackValue(using service: any DummyService) -> Int {
     withExtendedLifetime(service) { 42 }
@@ -184,6 +192,22 @@ struct DummyTests {
         #expect(generated().identifier == 41)
         #expect(made.identifier == 42)
     }
+
+    @Test func synthesizesUnusedFunctionValues() {
+        let synchronous: ConcreteDummyFunction = Dummy.make()
+        let asynchronous: ConcreteAsyncDummyFunction = Dummy.make()
+        let thin: ConcreteThinDummyFunction = Dummy.make()
+        let c: ConcreteCDummyFunction = Dummy.make()
+
+        withExtendedLifetime(synchronous) {}
+        withExtendedLifetime(asynchronous) {}
+        withExtendedLifetime(thin) {}
+        withExtendedLifetime(c) {}
+        #if canImport(ObjectiveC)
+            let block: ConcreteBlockDummyFunction = Dummy.make()
+            withExtendedLifetime(block) {}
+        #endif
+    }
 }
 
 #if compiler(>=6.2) && (os(macOS) || os(Linux) || targetEnvironment(macCatalyst))
@@ -192,6 +216,13 @@ struct DummyTests {
         case asynchronous
         case modify
         case staticRequirement
+        case function
+        case asyncFunction
+        case thinFunction
+        case cFunction
+        #if canImport(ObjectiveC)
+            case blockFunction
+        #endif
         case unsupportedConcreteFactoryConstruction
     }
 
@@ -209,6 +240,18 @@ struct DummyTests {
                     try await modifyInvocationFailsClosed()
                 case .staticRequirement:
                     try await staticInvocationFailsClosed()
+                case .function:
+                    try await functionInvocationFailsClosed()
+                case .asyncFunction:
+                    try await asyncFunctionInvocationFailsClosed()
+                case .thinFunction:
+                    try await thinFunctionInvocationFailsClosed()
+                case .cFunction:
+                    try await cFunctionInvocationFailsClosed()
+                #if canImport(ObjectiveC)
+                    case .blockFunction:
+                        try await blockFunctionInvocationFailsClosed()
+                #endif
                 case .unsupportedConcreteFactoryConstruction:
                     try await unsupportedConcreteFactoryConstructionFailsClosed()
             }
@@ -259,6 +302,75 @@ struct DummyTests {
                 result,
                 protocolName: "DummyStaticService",
                 containing: "method requirement"
+            )
+        }
+
+        private func functionInvocationFailsClosed() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let function: ConcreteDummyFunction = Dummy.make()
+                _ = function(1, "unused")
+            }
+            try expectDummyFunctionDiagnostic(result)
+        }
+
+        private func asyncFunctionInvocationFailsClosed() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let function: ConcreteAsyncDummyFunction = Dummy.make()
+                _ = try await function(1)
+            }
+            try expectDummyFunctionDiagnostic(result)
+        }
+
+        private func thinFunctionInvocationFailsClosed() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let function: ConcreteThinDummyFunction = Dummy.make()
+                _ = function(1)
+            }
+            try expectDummyFunctionDiagnostic(result)
+        }
+
+        private func cFunctionInvocationFailsClosed() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let function: ConcreteCDummyFunction = Dummy.make()
+                _ = function(1)
+            }
+            try expectDummyFunctionDiagnostic(result)
+        }
+
+        #if canImport(ObjectiveC)
+            private func blockFunctionInvocationFailsClosed() async throws {
+                let result = try await #require(
+                    processExitsWith: .failure,
+                    observing: [\.standardErrorContent]
+                ) {
+                    let function: ConcreteBlockDummyFunction = Dummy.make()
+                    _ = function(1)
+                }
+                try expectDummyFunctionDiagnostic(result)
+            }
+        #endif
+
+        private func expectDummyFunctionDiagnostic(
+            _ result: ExitTest.Result
+        ) throws {
+            let diagnostic = try #require(
+                String(bytes: result.standardErrorContent, encoding: .utf8)
+            )
+            #expect(diagnostic.contains("A dummy function was invoked"))
+            #expect(
+                diagnostic.contains("may only be passed to code paths that do not use it")
             )
         }
 

@@ -40,7 +40,7 @@ public final class Dummy<P> {
     ///
     /// - Throws: ``StubError`` when `P` cannot be fabricated safely.
     public convenience init() throws(StubError) {
-        if let value = RuntimeStubFactory.makeRecordingPlaceholder(for: P.self) {
+        if let value = RuntimeStubFactory.makeDummyValue(for: P.self) {
             self.init(value: value)
             return
         }

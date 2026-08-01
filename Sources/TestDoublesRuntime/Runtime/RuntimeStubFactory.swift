@@ -113,6 +113,11 @@ package enum RuntimeStubFactory {
         PlaceholderValue.make(type)
     }
 
+    /// Synthesizes a valid concrete dummy, including fail-closed function values.
+    package static func makeDummyValue<T>(for type: T.Type) -> T? {
+        DummyValue.make(type)
+    }
+
     /// Fabricates one complete conformance graph and materializable
     /// existential value.
     ///

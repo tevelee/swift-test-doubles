@@ -33,6 +33,14 @@ enum RuntimeStubFactory {
         #endif
     }
 
+    static func makeDummyValue<T>(for type: T.Type) -> T? {
+        #if TESTDOUBLES_RUNTIME_STUBS
+            TestDoublesRuntime.RuntimeStubFactory.makeDummyValue(for: type)
+        #else
+            sourceRecordingPlaceholder(for: type)
+        #endif
+    }
+
     @inline(never)
     static func scrubArgumentRegisters() {
         #if TESTDOUBLES_RUNTIME_STUBS

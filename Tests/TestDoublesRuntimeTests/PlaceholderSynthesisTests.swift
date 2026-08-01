@@ -58,4 +58,21 @@ private final class UnsupportedPlaceholder {}
         #expect(PlaceholderValue.canInitialize(type: ((Int) -> Int).self) == false)
         #expect(PlaceholderValue.make(((Int) -> Int).self) == nil)
     }
+
+    @Test func dummySynthesisAddsFunctionValuesWithoutChangingRecordingPlaceholders() {
+        typealias SwiftFunction = (Int, String) -> Bool
+        typealias AsyncThrowingFunction = @Sendable (Int) async throws -> String
+        typealias ThinFunction = @convention(thin) (Int) -> Int
+        typealias CFunction = @convention(c) (Int32) -> Int32
+
+        #expect(DummyValue.make(SwiftFunction.self) != nil)
+        #expect(DummyValue.make(AsyncThrowingFunction.self) != nil)
+        #expect(DummyValue.make(ThinFunction.self) != nil)
+        #expect(DummyValue.make(CFunction.self) != nil)
+        #if canImport(ObjectiveC)
+            typealias BlockFunction = @convention(block) (Int) -> Int
+            #expect(DummyValue.make(BlockFunction.self) != nil)
+        #endif
+        #expect(PlaceholderValue.make(SwiftFunction.self) == nil)
+    }
 }
