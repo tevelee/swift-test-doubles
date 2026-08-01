@@ -11,11 +11,21 @@ protocol ParameterMatcher {
     var acceptsAnyValue: Bool { get }
 
     /// A stable identity for matchers whose accepted set is fully determined
-    /// by their description (value matchers like `equal`/`inRange`). Two
-    /// matchers with equal, non-`nil` identities provably accept the same
-    /// set. `nil` when acceptance depends on an opaque predicate, a captured
-    /// reference, or composition, so equality cannot be proven soundly.
-    var acceptanceIdentity: String? { get }
+    /// by hashable semantic data. Two matchers with equal, non-`nil`
+    /// identities provably accept the same set. `nil` when acceptance depends
+    /// on an opaque predicate, a captured reference, or unhashable data, so
+    /// equality cannot be proven soundly.
+    var acceptanceIdentity: MatcherAcceptanceIdentity? { get }
+}
+
+struct MatcherAcceptanceIdentity: Hashable {
+    let matcherType: ObjectIdentifier
+    let values: [AnyHashable]
+
+    init(_ matcherType: Any.Type, values: [AnyHashable]) {
+        self.matcherType = ObjectIdentifier(matcherType)
+        self.values = values
+    }
 }
 
 /// A matcher whose accepted set has a sound hash key. The schema separates
@@ -89,7 +99,7 @@ extension ParameterMatcher {
     func matches(value: Any) -> Bool { prepareMatch(value: value) != nil }
     var diagnosticDescription: String { String(describing: Self.self) }
     var acceptsAnyValue: Bool { false }
-    var acceptanceIdentity: String? { nil }
+    var acceptanceIdentity: MatcherAcceptanceIdentity? { nil }
 }
 
 struct AnyMatcher: ParameterMatcher {
@@ -139,7 +149,9 @@ struct DescriptionMatcher: ParameterMatcher {
     }
 
     var diagnosticDescription: String { "literal(\(description))" }
-    var acceptanceIdentity: String? { diagnosticDescription }
+    var acceptanceIdentity: MatcherAcceptanceIdentity? {
+        MatcherAcceptanceIdentity(Self.self, values: [AnyHashable(description)])
+    }
 }
 
 extension DescriptionMatcher: ExactMatchIndexable {
@@ -163,7 +175,10 @@ struct EqualMatcher<Value: Equatable>: ParameterMatcher {
         (value as? Value) == expected ? .matched : nil
     }
     var diagnosticDescription: String { "Match.equal(\(String(describing: expected)))" }
-    var acceptanceIdentity: String? { diagnosticDescription }
+    var acceptanceIdentity: MatcherAcceptanceIdentity? {
+        guard let expected = expected as? any Hashable else { return nil }
+        return MatcherAcceptanceIdentity(Self.self, values: [AnyHashable(expected)])
+    }
 }
 
 extension EqualMatcher: ExactMatchIndexable where Value: Hashable {
@@ -188,7 +203,10 @@ struct NotEqualMatcher<Value: Equatable>: ParameterMatcher {
         (value as? Value) != expected ? .matched : nil
     }
     var diagnosticDescription: String { "Match.notEqual(\(String(describing: expected)))" }
-    var acceptanceIdentity: String? { diagnosticDescription }
+    var acceptanceIdentity: MatcherAcceptanceIdentity? {
+        guard let expected = expected as? any Hashable else { return nil }
+        return MatcherAcceptanceIdentity(Self.self, values: [AnyHashable(expected)])
+    }
 }
 
 struct IdenticalMatcher: ParameterMatcher {
@@ -224,7 +242,13 @@ struct ComparisonMatcher<Value: Comparable>: ParameterMatcher {
     }
 
     var diagnosticDescription: String { "\(relation.rawValue)(\(String(describing: bound)))" }
-    var acceptanceIdentity: String? { diagnosticDescription }
+    var acceptanceIdentity: MatcherAcceptanceIdentity? {
+        guard let bound = bound as? any Hashable else { return nil }
+        return MatcherAcceptanceIdentity(
+            Self.self,
+            values: [AnyHashable(relation.rawValue), AnyHashable(bound)]
+        )
+    }
 }
 
 struct RangeMatcher<Bound: Comparable>: ParameterMatcher {
@@ -237,7 +261,9 @@ struct RangeMatcher<Bound: Comparable>: ParameterMatcher {
     }
 
     var diagnosticDescription: String { "Match.inRange(\(boundsDescription))" }
-    var acceptanceIdentity: String? { diagnosticDescription }
+    // The closure is the semantic range; its display text is only a
+    // diagnostic and cannot prove two ranges identical.
+    var acceptanceIdentity: MatcherAcceptanceIdentity? { nil }
 }
 
 struct ApproximateMatcher<Value: BinaryFloatingPoint>: ParameterMatcher {
@@ -260,7 +286,16 @@ struct ApproximateMatcher<Value: BinaryFloatingPoint>: ParameterMatcher {
             + "\(absoluteTolerance), relativeTolerance: \(relativeTolerance))"
     }
 
-    var acceptanceIdentity: String? { diagnosticDescription }
+    var acceptanceIdentity: MatcherAcceptanceIdentity? {
+        MatcherAcceptanceIdentity(
+            Self.self,
+            values: [
+                AnyHashable(expected),
+                AnyHashable(absoluteTolerance),
+                AnyHashable(relativeTolerance)
+            ]
+        )
+    }
 }
 
 struct NilMatcher: ParameterMatcher {
@@ -270,7 +305,9 @@ struct NilMatcher: ParameterMatcher {
         valueIsNil(value) == expectsNil ? .matched : nil
     }
     var diagnosticDescription: String { expectsNil ? "Match.isNil()" : "Match.notNil()" }
-    var acceptanceIdentity: String? { diagnosticDescription }
+    var acceptanceIdentity: MatcherAcceptanceIdentity? {
+        MatcherAcceptanceIdentity(Self.self, values: [AnyHashable(expectsNil)])
+    }
 }
 
 /// Matches a non-`nil` optional whose wrapped value satisfies every nested matcher.

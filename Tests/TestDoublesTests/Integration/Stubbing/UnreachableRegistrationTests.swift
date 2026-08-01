@@ -14,6 +14,12 @@ struct RealUnreachableProbeFlags: UnreachableProbeFlags {
     func reset() {}
 }
 
+private struct SameDescriptionValue: Equatable, CustomStringConvertible {
+    let rawValue: Int
+
+    var description: String { "value" }
+}
+
 @Suite struct UnreachableRegistrationTests {
     @Test func catchAllBeforeSpecificReportsAtTheWhenSite() throws {
         let stub = try Stub<any UnreachableProbeFlags>()
@@ -87,5 +93,17 @@ struct RealUnreachableProbeFlags: UnreachableProbeFlags {
         stub.when {
             $0.isEnabled(Match.matching(description: "short", where: { $0.count <= 3 }), for: Match.any())
         }.thenReturn(false)
+    }
+
+    @Test func distinctEqualityMatchersWithTheSameDescriptionAreNotFalseShadows() {
+        let first = EqualMatcher(expected: SameDescriptionValue(rawValue: 1))
+        let second = EqualMatcher(expected: SameDescriptionValue(rawValue: 2))
+
+        #expect(
+            StubBehaviorRegistry.matchesSuperset(
+                [first],
+                of: [second]
+            ) == false
+        )
     }
 }
