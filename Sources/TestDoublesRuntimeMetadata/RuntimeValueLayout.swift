@@ -142,9 +142,19 @@ package func argumentABIClassCandidates(for type: Any.Type) -> [ABIClass] {
 package func requiresStructuralABITransport(for type: Any.Type) -> Bool {
     guard let tuple = reflect(type) as? TupleMetadata else { return false }
     return tuple.elements.contains { element in
-        argumentABIClassCandidates(for: element.type).count > 1
-            || requiresStructuralABITransport(for: element.type)
+        hasUncertainArgumentABITransport(for: element.type)
     }
+}
+
+/// Whether runtime metadata cannot select one decodable argument transport.
+///
+/// An uncertain whole-value convention can be calibrated from recording bytes.
+/// A structural tuple convention instead requires a member-level plan, which
+/// the runtime does not yet implement. Callers that cannot calibrate either
+/// form use this shared predicate to reject the type before decoding.
+package func hasUncertainArgumentABITransport(for type: Any.Type) -> Bool {
+    argumentABIClassCandidates(for: type).count > 1
+        || requiresStructuralABITransport(for: type)
 }
 
 private func hasAddressableArgumentDependencies(
@@ -181,8 +191,7 @@ private func storesAddressableGenericArgument(
         // Propagate a field whose own client transport is ambiguous, including
         // a tuple whose individually lowered members make the enclosing
         // generic shell ABI-uncertain.
-        return argumentABIClassCandidates(for: fieldType).count > 1
-            || requiresStructuralABITransport(for: fieldType)
+        return hasUncertainArgumentABITransport(for: fieldType)
     }
 }
 
@@ -201,8 +210,7 @@ private func storesAddressableGenericArgument(
         }
         // See the struct overload above: propagate uncertainty, not a known
         // indirect storage layout.
-        return argumentABIClassCandidates(for: fieldType).count > 1
-            || requiresStructuralABITransport(for: fieldType)
+        return hasUncertainArgumentABITransport(for: fieldType)
     }
 }
 

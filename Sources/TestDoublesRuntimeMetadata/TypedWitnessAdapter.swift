@@ -41,8 +41,7 @@ package struct TypedWitnessAdapterFactory: @unchecked Sendable {
             return "The typed adapter's throwing effect does not match the requirement."
         }
         if let argument = method.arguments.first(where: {
-            argumentABIClassCandidates(for: $0.value.type).count > 1
-                || requiresStructuralABITransport(for: $0.value.type)
+            hasUncertainArgumentABITransport(for: $0.value.type)
         }) {
             return "The requirement argument \(argument.value.type) may use either direct or indirect client transport. "
                 + "A compiler-typed adapter's Stub.Invocation position cannot be calibrated."

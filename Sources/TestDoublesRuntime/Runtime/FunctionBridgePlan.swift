@@ -213,10 +213,7 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
         for type: Any.Type,
         role: String
     ) -> String? {
-        guard
-            argumentABIClassCandidates(for: type).count > 1
-                || requiresStructuralABITransport(for: type)
-        else {
+        guard hasUncertainArgumentABITransport(for: type) else {
             return nil
         }
         return "\(role) \(type) may use either direct or indirect client transport. "

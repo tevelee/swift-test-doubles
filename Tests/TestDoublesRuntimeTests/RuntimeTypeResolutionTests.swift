@@ -96,6 +96,16 @@ private struct NominalResilientTupleWrapper {
             ).contains(.indirect)
         )
         #expect(
+            hasUncertainArgumentABITransport(
+                for: Optional<(ResilientValueArgument, UInt64)>.self
+            )
+        )
+        #expect(
+            hasUncertainArgumentABITransport(
+                for: (ResilientValueArgument, UInt64).self
+            )
+        )
+        #expect(
             requiresStructuralABITransport(for: (FrozenValueArgument, UInt64).self)
                 == false
         )

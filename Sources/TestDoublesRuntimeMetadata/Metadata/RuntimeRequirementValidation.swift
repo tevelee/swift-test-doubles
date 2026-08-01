@@ -180,8 +180,7 @@ package func runtimeUncertainTypedErrorUnsupportedReason(
     for method: MethodDescriptor
 ) -> String? {
     guard let typedErrorType = method.typedErrorType,
-        argumentABIClassCandidates(for: typedErrorType).count > 1
-            || requiresStructuralABITransport(for: typedErrorType)
+        hasUncertainArgumentABITransport(for: typedErrorType)
     else {
         return nil
     }
