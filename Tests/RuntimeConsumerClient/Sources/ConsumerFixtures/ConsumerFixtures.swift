@@ -46,6 +46,12 @@ public struct ReservationBox<Value: Sendable>: Sendable {
     }
 }
 
+/// A recursive generic model such as a delivery itinerary or document tree.
+public indirect enum ReservationTree<Value: Sendable>: Sendable {
+    case value(Value)
+    case child(ReservationTree)
+}
+
 /// A non-frozen error emitted by the same external module as the payload.
 public enum ReservationFailure: Error, Sendable {
     case unavailable(code: UInt64)
@@ -74,6 +80,8 @@ public protocol DeliveryGateway: Sendable {
     func resolveOutcome(
         _ value: Result<(ExternalReservation, UInt64), ReservationFailure>
     ) -> String
+
+    func inspect(_ value: ReservationTree<ExternalReservation>) -> Int
 
     func reserve(
         _ value: ReservationBox<(ExternalReservation, UInt64)>,
@@ -140,6 +148,15 @@ public struct LiveDeliveryGateway: DeliveryGateway, Sendable {
                 return "reservation:\(value.0.start ^ value.0.end ^ value.1)"
             case .failure(.unavailable(let code)):
                 return "failure:\(code)"
+        }
+    }
+
+    public func inspect(_ value: ReservationTree<ExternalReservation>) -> Int {
+        switch value {
+            case .value(let reservation):
+                return Int(reservation.start ^ reservation.end)
+            case .child(let value):
+                return inspect(value)
         }
     }
 

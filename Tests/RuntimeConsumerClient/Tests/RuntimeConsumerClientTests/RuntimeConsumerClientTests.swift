@@ -191,6 +191,29 @@ import Testing
         )
     }
 
+    @Test func recursiveGenericValuesCalibrateInAnOrdinaryConsumer() throws {
+        let stub = try Stub<any DeliveryGateway>()
+        let placeholder: ReservationTree<ExternalReservation> = .child(
+            .value(ExternalReservation(start: 113, end: 127))
+        )
+        stub.when { $0.inspect(Match.any(using: placeholder)) }
+            .then { (value: ReservationTree<ExternalReservation>) in
+                switch value {
+                    case .value(let reservation):
+                        return Int(reservation.start ^ reservation.end)
+                    case .child(.value(let reservation)):
+                        return Int(reservation.start ^ reservation.end)
+                    case .child(.child):
+                        return -1
+                }
+            }
+
+        let actual: ReservationTree<ExternalReservation> = .child(
+            .value(ExternalReservation(start: 137, end: 139))
+        )
+        #expect(stub().inspect(actual) == 137 ^ 139)
+    }
+
     @Test func asyncResilientGenericShellCalibratesInAnOrdinaryConsumer() async throws {
         let stub = try Stub<any DeliveryGateway>()
         let placeholder: ReservationBox<(ExternalReservation, UInt64)> =
