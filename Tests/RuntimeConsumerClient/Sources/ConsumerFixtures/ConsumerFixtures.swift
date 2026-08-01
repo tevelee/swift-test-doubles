@@ -67,6 +67,12 @@ public protocol DeliveryGateway: Sendable {
 
     func day(_ window: ClosedRange<Date>) -> Int
 
+    func classify(
+        after: PartialRangeFrom<ExternalReservation>,
+        through: PartialRangeThrough<ExternalReservation>,
+        before: PartialRangeUpTo<ExternalReservation>
+    ) -> UInt64
+
     func map(_ point: FrozenExternalPoint) -> UInt64
 
     func settle(_ value: (ExternalReservation, UInt64)?) -> Int
@@ -108,6 +114,14 @@ public struct LiveDeliveryGateway: DeliveryGateway, Sendable {
 
     public func day(_ window: ClosedRange<Date>) -> Int {
         Int(window.lowerBound.timeIntervalSinceReferenceDate)
+    }
+
+    public func classify(
+        after: PartialRangeFrom<ExternalReservation>,
+        through: PartialRangeThrough<ExternalReservation>,
+        before: PartialRangeUpTo<ExternalReservation>
+    ) -> UInt64 {
+        after.lowerBound.start ^ through.upperBound.end ^ before.upperBound.start
     }
 
     public func map(_ point: FrozenExternalPoint) -> UInt64 {

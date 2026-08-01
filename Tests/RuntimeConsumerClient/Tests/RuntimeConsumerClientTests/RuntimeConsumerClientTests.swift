@@ -58,6 +58,39 @@ import Testing
         #expect(stub().day(actual) == 17)
     }
 
+    @Test func partialRangesCalibrateThroughTheGenericMetadataResolver() throws {
+        let stub = try Stub<any DeliveryGateway>()
+        let after = ExternalReservation(start: 10, end: 12)...
+        let through = ...ExternalReservation(start: 20, end: 24)
+        let before = ..<ExternalReservation(start: 30, end: 36)
+
+        stub.when {
+            $0.classify(
+                after: Match.any(using: after),
+                through: Match.any(using: through),
+                before: Match.any(using: before)
+            )
+        }.then {
+            (
+                after: PartialRangeFrom<ExternalReservation>,
+                through: PartialRangeThrough<ExternalReservation>,
+                before: PartialRangeUpTo<ExternalReservation>
+            ) in
+            after.lowerBound.start ^ through.upperBound.end ^ before.upperBound.start
+        }
+
+        let actualAfter = ExternalReservation(start: 40, end: 44)...
+        let actualThrough = ...ExternalReservation(start: 50, end: 56)
+        let actualBefore = ..<ExternalReservation(start: 60, end: 68)
+        #expect(
+            stub().classify(
+                after: actualAfter,
+                through: actualThrough,
+                before: actualBefore
+            ) == 40 ^ 56 ^ 60
+        )
+    }
+
     @Test func forwardingReusesTheCalibratedImportedValuePlan() throws {
         let spy = try Spy<any DeliveryGateway>(
             forwardingTo: LiveDeliveryGateway()
