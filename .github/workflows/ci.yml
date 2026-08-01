@@ -158,6 +158,8 @@ jobs:
           --experimental-maximum-parallelization-width 4
           --skip ExitTests
           --scratch-path .build/ci-current
+      - name: Test external runtime consumer
+        run: Scripts/validate-runtime-consumer.sh
   linux:
     name: Swift 6.3 / Ubuntu 24.04 / ${{ matrix.architecture }}
     strategy:
@@ -196,7 +198,6 @@ jobs:
           --package-path Tests/ManualOnlyClient
           --scratch-path .build/manual-only
       - name: Test external runtime consumer
-        if: matrix.architecture == 'x86_64'
         run: Scripts/validate-runtime-consumer.sh
       - name: Test debug
         run: >-
