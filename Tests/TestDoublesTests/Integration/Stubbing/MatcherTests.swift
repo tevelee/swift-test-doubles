@@ -29,6 +29,10 @@ final class MatcherReferenceBox {
     }
 }
 
+final class MatcherUnsupportedResultValue {}
+
+final class MatcherUnsupportedResultFailure: Error {}
+
 protocol MatcherExistentialValue {
     var value: Int { get }
 }
@@ -326,6 +330,26 @@ protocol OptionalMatcherPlaceholderService {
                 observing: [\.standardErrorContent]
             ) {
                 let _: MatcherReferenceBox = Match.any()
+            }
+            let diagnostic = try requireStandardErrorDiagnostic(from: result)
+            #expect(
+                diagnostic.contains(
+                    "Match.any() cannot safely synthesize a placeholder"
+                )
+            )
+            #expect(diagnostic.contains("Match.any(using:)"))
+        }
+
+        @Test func synthesizedResultPlaceholderPreservesTheDiagnostic() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let _:
+                    Result<
+                        MatcherUnsupportedResultValue,
+                        MatcherUnsupportedResultFailure
+                    > = Match.any()
             }
             let diagnostic = try requireStandardErrorDiagnostic(from: result)
             #expect(

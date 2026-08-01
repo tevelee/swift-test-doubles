@@ -1,3 +1,8 @@
+import Foundation
+#if canImport(Combine)
+    import Combine
+#endif
+
 /// Resolves valid temporary values for matcher and result recording.
 enum RecordingPlaceholderResolver {
     /// Returns a registered, built-in, composite, or runtime-synthesized value.
@@ -59,3 +64,107 @@ extension Result: CompositeRecordingPlaceholder {
         return nil
     }
 }
+
+extension ArraySlice: CompositeRecordingPlaceholder {
+    fileprivate static func make(
+        using _: RecordingPlaceholderResolution
+    ) -> Any? {
+        Self() as Any
+    }
+}
+
+extension ContiguousArray: CompositeRecordingPlaceholder {
+    fileprivate static func make(
+        using _: RecordingPlaceholderResolution
+    ) -> Any? {
+        Self() as Any
+    }
+}
+
+extension AnySequence: CompositeRecordingPlaceholder {
+    fileprivate static func make(
+        using _: RecordingPlaceholderResolution
+    ) -> Any? {
+        Self(EmptyCollection<Element>()) as Any
+    }
+}
+
+extension AnyIterator: CompositeRecordingPlaceholder {
+    fileprivate static func make(
+        using _: RecordingPlaceholderResolution
+    ) -> Any? {
+        Self { nil } as Any
+    }
+}
+
+extension AnyCollection: CompositeRecordingPlaceholder {
+    fileprivate static func make(
+        using _: RecordingPlaceholderResolution
+    ) -> Any? {
+        Self(EmptyCollection<Element>()) as Any
+    }
+}
+
+extension AnyBidirectionalCollection: CompositeRecordingPlaceholder {
+    fileprivate static func make(
+        using _: RecordingPlaceholderResolution
+    ) -> Any? {
+        Self(EmptyCollection<Element>()) as Any
+    }
+}
+
+extension AnyRandomAccessCollection: CompositeRecordingPlaceholder {
+    fileprivate static func make(
+        using _: RecordingPlaceholderResolution
+    ) -> Any? {
+        Self(EmptyCollection<Element>()) as Any
+    }
+}
+
+extension Measurement: CompositeRecordingPlaceholder {
+    fileprivate static func make(
+        using resolver: RecordingPlaceholderResolution
+    ) -> Any? {
+        guard let unit = resolver.make(UnitType.self) else { return nil }
+        return Self(value: 0, unit: unit) as Any
+    }
+}
+
+#if canImport(Combine)
+    extension AnyPublisher: CompositeRecordingPlaceholder {
+        fileprivate static func make(
+            using _: RecordingPlaceholderResolution
+        ) -> Any? {
+            Empty<Output, Failure>().eraseToAnyPublisher() as Any
+        }
+    }
+
+    extension AnySubscriber: CompositeRecordingPlaceholder {
+        fileprivate static func make(
+            using _: RecordingPlaceholderResolution
+        ) -> Any? {
+            Self(
+                receiveSubscription: { _ in },
+                receiveValue: { _ in .none },
+                receiveCompletion: { _ in }
+            ) as Any
+        }
+    }
+
+    extension PassthroughSubject: CompositeRecordingPlaceholder {
+        fileprivate static func make(
+            using _: RecordingPlaceholderResolution
+        ) -> Any? {
+            Self() as Any
+        }
+    }
+
+    extension CurrentValueSubject: CompositeRecordingPlaceholder {
+        fileprivate static func make(
+            using resolver: RecordingPlaceholderResolution
+        ) -> Any? {
+            guard let output = resolver.make(Output.self) else { return nil }
+            return Self(output) as Any
+        }
+    }
+#endif

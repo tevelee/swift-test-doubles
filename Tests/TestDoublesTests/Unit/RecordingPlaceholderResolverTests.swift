@@ -12,6 +12,8 @@ private final class RegisteredResultValue {
 
 private final class UnsupportedResultValue {}
 
+private final class UnsupportedResultFailure: Error {}
+
 private enum SynthesizableResultFailure: Error {
     case fallback
 }
@@ -33,7 +35,7 @@ private enum SynthesizableResultFailure: Error {
     @Test func resultRecursivelyBuildsFoundationAndOptionalPayloads() throws {
         let placeholder = try #require(
             RecordingPlaceholderResolver.make(
-                Result<URL?, SynthesizableResultFailure>.self
+                Result<URL?, any Error>.self
             )
         )
 
@@ -42,6 +44,35 @@ private enum SynthesizableResultFailure: Error {
                 #expect(value.path() == "/test-doubles-placeholder")
             case .success(.none), .failure:
                 Issue.record("Expected a populated URL success placeholder.")
+        }
+    }
+
+    @Test func resultUsesAFoundationLeafBeforeAnExistentialError() throws {
+        let placeholder = try #require(
+            RecordingPlaceholderResolver.make(Result<URL, any Error>.self)
+        )
+
+        switch placeholder {
+            case .success(let value):
+                #expect(value.path() == "/test-doubles-placeholder")
+            case .failure:
+                Issue.record("Expected the Foundation success placeholder.")
+        }
+    }
+
+    @Test func optionalResultRecursivelyBuildsEveryWrapper() throws {
+        let optional = try #require(
+            RecordingPlaceholderResolver.make(
+                Optional<Result<URL, any Error>>.self
+            )
+        )
+        let placeholder = try #require(optional)
+
+        switch placeholder {
+            case .success(let value):
+                #expect(value.path() == "/test-doubles-placeholder")
+            case .failure:
+                Issue.record("Expected the nested Foundation success placeholder.")
         }
     }
 
@@ -82,7 +113,7 @@ private enum SynthesizableResultFailure: Error {
 
     @Test func resultWithoutAConstructiblePayloadRemainsUnsupported() {
         let placeholder = RecordingPlaceholderResolver.make(
-            Result<UnsupportedResultValue, Never>.self
+            Result<UnsupportedResultValue, UnsupportedResultFailure>.self
         )
 
         #expect(placeholder == nil)

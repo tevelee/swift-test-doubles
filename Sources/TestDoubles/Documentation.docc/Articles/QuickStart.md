@@ -129,13 +129,19 @@ library-evolution module may be passed directly or by address, and those
 matcher placeholders let TestDoubles calibrate the client's convention before
 it decodes a real call. The same rule applies to an imported generic struct or
 enum, even when its current payload looks direct, because runtime metadata does
-not expose whether the outer declaration is `@frozen`. Common Foundation values
-such as `URL`, `Data`, `Date`, `UUID`, `Calendar`, `Locale`, and `TimeZone`
-synthesize their recording values automatically. `Optional` and `Result`
-recursively synthesize their payloads and use ordinary `Match.any()`. Generic
-wrappers such as `Range<Date>` and `ClosedRange<Date>` still need a valid
-example through `using:`, as does a custom type without a synthesizable
-placeholder:
+not expose whether the outer declaration is `@frozen`. Common standard-library
+and framework values synthesize their recording values automatically. These
+include `StaticString`, `AnyHashable`, empty collection wrappers, `any Error`,
+`URLRequest`, notifications, attributed strings, person names, common
+`Measurement` units, and Foundation's URL, data, date, locale, and archive
+values. Dispatch values use `.empty` or `.main`. On Combine platforms,
+subscriptions, type erasers, cancellables, and subjects also work as arguments
+without fixtures. `Optional`, `Result`, and `CurrentValueSubject` recursively
+synthesize their payloads and use ordinary `Match.any()`. This does not make an
+ABI-uncertain framework value, such as an `AnyPublisher` result, a supported
+result shape. Generic wrappers such as `Range<Date>` and `ClosedRange<Date>`
+still need a valid example through `using:`, as does a custom type without a
+synthesizable placeholder:
 
 ```swift
 stub.when {
@@ -273,11 +279,11 @@ Match.matching(description: "positive") {
 Use ``Match/any(using:)`` or
 ``Match/matching(using:description:where:)`` when the recording pass cannot
 safely synthesize a temporary class, existential, or custom imported value.
-Common Foundation values and recursively populated `Optional` and `Result`
-wrappers use the zero-argument forms. Imported generic wrappers such as
-`Range<Date>` and `ClosedRange<Date>` need `using:` even when their bounds are
-common Foundation values. A supplied value is never matched against or
-returned.
+Common standard-library and framework values, along with recursively populated
+`Optional` and `Result` wrappers, use the zero-argument forms. Imported generic
+wrappers such as `Range<Date>` and `ClosedRange<Date>` need `using:` even when
+their bounds are common Foundation values. A supplied value is never matched
+against or returned.
 
 #### Optionals, collections, and strings
 

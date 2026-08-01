@@ -113,12 +113,17 @@ Use matcher expressions for every argument when recording a call that involves
 an imported value type. In the uncommon case where a non-`@frozen` value from
 a library-evolution module could be passed either directly or by address,
 those matchers let the runtime calibrate the client's convention before it
-decodes a real call. Common Foundation values such as `URL`, `Data`, `Date`,
-`UUID`, `Calendar`, `Locale`, and `TimeZone` synthesize their recording values
-automatically. `Optional` and `Result` recursively synthesize their payloads,
-so they also use ordinary `Match.any()`. Generic wrappers such as
-`Range<Date>` and `ClosedRange<Date>` still need a valid example through
-`using:`, as does a custom value that cannot be synthesized:
+decodes a real call. Common standard-library and framework values synthesize
+their recording values automatically. These include `StaticString`,
+`AnyHashable`, empty collection wrappers, `any Error`, `URLRequest`,
+notifications, attributed strings, person names, common `Measurement` units,
+and Foundation's URL, data, date, locale, and archive values. Dispatch values
+use `.empty` or `.main`. On Combine platforms, subscriptions, type erasers,
+cancellables, and subjects also work as arguments without fixtures. `Optional`,
+`Result`, and `CurrentValueSubject` recursively synthesize their payloads, so
+they also use ordinary `Match.any()`. Generic wrappers such as `Range<Date>`
+and `ClosedRange<Date>` still need a valid example through `using:`, as does a
+custom value that cannot be synthesized:
 
 ```swift
 stub.when {

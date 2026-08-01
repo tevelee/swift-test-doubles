@@ -221,7 +221,7 @@ struct LiveReferenceBackedFoundationProbe: ReferenceBackedFoundationProbe {
         stub.when { $0.indexSet(Match.any()) }.then { (value: IndexSet) in value.count }
         stub.when { $0.dateInterval(Match.any()) }
             .then { (value: DateInterval) in Int(value.duration) }
-        stub.when { $0.measurement(Match.any(using: Measurement(value: 0, unit: UnitLength.meters))) }
+        stub.when { $0.measurement(Match.any()) }
             .then { (value: Measurement<UnitLength>) in Int(value.value) }
 
         let sut = stub()
