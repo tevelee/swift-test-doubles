@@ -65,6 +65,14 @@ private final class FactoryDummyValue: @unchecked Sendable {
     }
 }
 
+private final class RegisteredDummyValue: @unchecked Sendable {
+    let identifier: Int
+
+    init(identifier: Int) {
+        self.identifier = identifier
+    }
+}
+
 private typealias ConcreteDummyFunction = (Int, String) -> Bool
 private typealias ConcreteAsyncDummyFunction = @Sendable (Int) async throws -> String
 private typealias ConcreteThinDummyFunction = @convention(thin) (Int) -> Int
@@ -210,6 +218,19 @@ struct DummyTests {
 
         #expect(generated().identifier == 41)
         #expect(made.identifier == 42)
+    }
+
+    @Test func registeredFactorySupportsOrdinaryClassDummyConstruction() throws {
+        Dummy<RegisteredDummyValue>.register {
+            RegisteredDummyValue(identifier: 43)
+        }
+        defer { Dummy<RegisteredDummyValue>.unregister() }
+
+        let generated = try Dummy<RegisteredDummyValue>()()
+        let made: RegisteredDummyValue = Dummy.make()
+
+        #expect(generated.identifier == 43)
+        #expect(made.identifier == 43)
     }
 
     @Test func synthesizesUnusedFunctionValues() {

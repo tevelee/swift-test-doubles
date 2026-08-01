@@ -40,6 +40,10 @@ public final class Dummy<P> {
     ///
     /// - Throws: ``StubError`` when `P` cannot be fabricated safely.
     public convenience init() throws(StubError) {
+        if let value = DummyValueFactories.make(P.self) {
+            self.init(value: value)
+            return
+        }
         if let value = RuntimeStubFactory.makeDummyValue(for: P.self) {
             self.init(value: value)
             return
@@ -81,6 +85,24 @@ public final class Dummy<P> {
 extension Dummy: @unchecked Sendable where P: Sendable {}
 
 extension Dummy {
+    /// Registers an exact-type factory used by no-argument dummy construction.
+    ///
+    /// Register a factory in suite-level setup when a class or invariant-heavy
+    /// concrete type appears at many dummy call sites. The latest registration
+    /// for `P` wins and takes precedence over automatic synthesis. The registry
+    /// is process-global, so avoid mutating the same type's registration from
+    /// parallel tests.
+    public static func register(
+        _ makeValue: @escaping @Sendable () -> P
+    ) {
+        DummyValueFactories.register(P.self, factory: makeValue)
+    }
+
+    /// Removes the exact-type factory registered for `P`.
+    public static func unregister() {
+        DummyValueFactories.unregister(P.self)
+    }
+
     /// Returns a generated dummy value for `type`.
     ///
     /// Common concrete values are synthesized as valid placeholders. Protocol
