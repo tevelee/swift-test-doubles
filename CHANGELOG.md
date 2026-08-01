@@ -118,6 +118,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Automatic `Stub` construction now rejects protocol `@autoclosure` arguments
+  before recording, explaining that their matcher body is deferred and directing
+  users to a hand-written `ManualStub` conformer or fake. This replaces a later
+  literal-closure fatal error.
 - Automatic protocol discovery now lowers source-level variadic parameters to
   their one-array witness ABI. Record one matcher per variadic element; the
   matcher order and element count are preserved instead of decoding an array

@@ -80,6 +80,14 @@ private struct ReservationStartingAtLeast: CustomMatcher {
         )
     }
 
+    @Test func autoclosureRequirementsFailWithRecordingGuidance() {
+        let error = #expect(throws: StubError.self) {
+            _ = try Stub<any AutoclosureDeliveryLog>()
+        }
+        #expect(error?.description.contains("@autoclosure") == true)
+        #expect(error?.description.contains("ManualStub") == true)
+    }
+
     @Test func foundationRangeCalibratesWithoutTypeSpecificRuntimeLogic() throws {
         let stub = try Stub<any DeliveryGateway>()
         let placeholder =

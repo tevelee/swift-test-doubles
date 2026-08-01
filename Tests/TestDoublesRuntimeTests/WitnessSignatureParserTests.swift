@@ -23,6 +23,16 @@ import Testing
         #expect(signature.argumentTypeNames == ["Swift.Array<test2.Value>"])
     }
 
+    @Test func autoclosureParametersRemainVisibleToConstructionValidation() throws {
+        let signature = try #require(
+            parseWitnessSignature(
+                "protocol witness for test2.P.record(@autoclosure @escaping () -> Swift.String) -> () in conformance test2.S : test2.P in test2",
+                kind: .method
+            )
+        )
+        #expect(signature.argumentIsAutoclosure == [true])
+    }
+
     @Test func methodNameDotsInsideGenericArgumentsAreNotSplitOn() throws {
         let signature = try #require(
             parseWitnessSignature(

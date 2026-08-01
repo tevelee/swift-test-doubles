@@ -7,6 +7,7 @@ package struct ParsedWitnessSignature {
     package let name: String
     package let argumentTypes: [DemangledTypeSyntax]
     package let argumentIsVariadic: [Bool]
+    package let argumentIsAutoclosure: [Bool]
     package let returnType: DemangledTypeSyntax
     package let isThrowing: Bool
     package let typedError: DemangledTypeSyntax?
@@ -96,6 +97,7 @@ package func parseWitnessSignature(
             name: buildMethodName(methodName, parameters: parameters),
             argumentTypes: parameters.map(\.type),
             argumentIsVariadic: parameters.map(\.isVariadic),
+            argumentIsAutoclosure: parameters.map(\.isAutoclosure),
             returnType: returnType,
             isThrowing: effects.isThrowing,
             typedError: effects.thrownError
@@ -181,6 +183,10 @@ private func parseAccessorSignature(
             repeating: false,
             count: (kind == .setter ? 1 : 0) + indexTypes.count
         ),
+        argumentIsAutoclosure: Array(
+            repeating: false,
+            count: (kind == .setter ? 1 : 0) + indexTypes.count
+        ),
         returnType: kind == .setter
             ? .concrete("Swift.Void")
             : valueType,
@@ -221,6 +227,7 @@ private struct ParsedParameter {
     let label: String
     let type: DemangledTypeSyntax
     let isVariadic: Bool
+    let isAutoclosure: Bool
 }
 
 private func parseParameters(_ text: String) -> [ParsedParameter]? {
@@ -234,7 +241,8 @@ private func parseParameters(_ text: String) -> [ParsedParameter]? {
                 ParsedParameter(
                     label: "_",
                     type: parsed.type,
-                    isVariadic: parsed.isVariadic
+                    isVariadic: parsed.isVariadic,
+                    isAutoclosure: parsed.isAutoclosure
                 )
             )
             continue
@@ -251,7 +259,8 @@ private func parseParameters(_ text: String) -> [ParsedParameter]? {
             ParsedParameter(
                 label: label,
                 type: parsed.type,
-                isVariadic: parsed.isVariadic
+                isVariadic: parsed.isVariadic,
+                isAutoclosure: parsed.isAutoclosure
             )
         )
     }
@@ -264,20 +273,25 @@ private func parseParameters(_ text: String) -> [ParsedParameter]? {
 /// typed handler, and matcher list all agree on the single collection value.
 private func parameterType(
     _ spelling: String
-) -> (type: DemangledTypeSyntax, isVariadic: Bool)? {
+) -> (
+    type: DemangledTypeSyntax,
+    isVariadic: Bool,
+    isAutoclosure: Bool
+)? {
     let spelling = spelling.trimmingCharacters(in: .whitespaces)
     let isVariadic = spelling.hasSuffix("...")
     let elementSpelling =
         isVariadic
         ? String(spelling.dropLast(3)).trimmingCharacters(in: .whitespaces)
         : spelling
+    let isAutoclosure = elementSpelling.hasPrefix("@autoclosure ")
     guard let type = DemangledTypeSyntax(elementSpelling) else { return nil }
-    guard isVariadic else { return (type, false) }
+    guard isVariadic else { return (type, false, isAutoclosure) }
     guard let array = DemangledTypeSyntax("Swift.Array<\(type.canonicalSpelling)>")
     else {
         return nil
     }
-    return (array, true)
+    return (array, true, isAutoclosure)
 }
 
 private func buildMethodName(_ baseName: String, parameters: [ParsedParameter]) -> String {

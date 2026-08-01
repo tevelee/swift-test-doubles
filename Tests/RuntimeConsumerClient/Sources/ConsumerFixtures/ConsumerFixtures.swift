@@ -112,6 +112,11 @@ public protocol ReservationSource {
     func currentReservation() -> ExternalReservation
 }
 
+/// A logging dependency that uses call-site expression syntax.
+public protocol AutoclosureDeliveryLog {
+    func record(_ message: @autoclosure @escaping () -> String)
+}
+
 /// A UI-facing dependency whose requirements are isolated to the main actor.
 @MainActor
 public protocol MainActorReservationGateway {
@@ -251,6 +256,14 @@ public struct LiveReservationSource: ReservationSource {
 
     public func currentReservation() -> ExternalReservation {
         ExternalReservation(start: 1, end: 2)
+    }
+}
+
+public struct LiveAutoclosureDeliveryLog: AutoclosureDeliveryLog {
+    public init() {}
+
+    public func record(_ message: @autoclosure @escaping () -> String) {
+        _ = message()
     }
 }
 

@@ -52,8 +52,12 @@ callbacks, `throws`, typed throws with direct or indirect inner errors, `async`,
 `async throws`, `inout`, `borrowing`, `consuming`, isolated, variadic, and
 autoclosure parameters inside a closure type, `sending` parameters and results,
 `@isolated(any)`, `nonisolated(nonsending)`, and top-level public noncopyable
-nominal parameters. Declaration-level borrowing and escaping autoclosure
-closure parameters are also supported.
+nominal parameters. Declaration-level borrowing is also supported. An
+autoclosure parameter *inside a function value* uses the same closure bridge.
+A protocol requirement declared with `@autoclosure` itself is different: its
+matcher expression lives inside a deferred body, so automatic ``Stub``
+construction rejects it before recording. Use a hand-written ``ManualStub``
+conformer or fake that makes the closure-evaluation policy explicit.
 
 Closure values can cross synchronous, throwing, async, and async-throwing
 methods, static methods, initializers, properties, and subscripts. Read-write
