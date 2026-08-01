@@ -287,7 +287,7 @@ private func depthZeroGenericParameterIndex(mangledName: UnsafeRawPointer) -> In
     return natural + 2
 }
 
-/// Reconstructs metadata only for a linked, top-level generic Swift class.
+/// Reconstructs metadata only for a linked generic Swift class.
 ///
 /// A constrained parameter (`Box<Value: Hashable>`) resolves through the
 /// same witness-table key-argument path `resolvedGenericAccessorType` uses
@@ -325,7 +325,7 @@ package func genericClassType(
     )
 }
 
-/// Reconstructs metadata for a linked, top-level generic struct or enum whose
+/// Reconstructs metadata for a linked generic struct or enum whose
 /// formal associated-type substitution keeps the complete value opaque.
 ///
 /// The protocol witness ABI passes and returns these values indirectly, even
@@ -438,15 +438,42 @@ private func typeContextDescriptorKind(_ descriptor: any TypeContextDescriptor) 
     }
 }
 
+/// Separates a generic nominal's complete context name from all of its
+/// metadata arguments. Each generic parent contributes arguments before its
+/// nested declaration, so `Module.Outer<A>.Inner<B>` becomes constructor
+/// `Module.Outer.Inner` with arguments `A, B`.
 package func genericApplication(
     _ name: String
 ) -> (constructor: String, arguments: String)? {
-    guard name.last == ">" else { return nil }
-    for index in name.indices where name[index] == "<" {
-        return (
-            String(name[..<index]),
-            String(name[name.index(after: index) ..< name.index(before: name.endIndex)])
-        )
+    guard let scanner = DelimitedSyntaxScanner(name) else { return nil }
+    let pairs = scanner.pairs(openedBy: "<").filter {
+        scanner.isTopLevel($0.opening)
     }
-    return nil
+    guard pairs.isEmpty == false else { return nil }
+
+    var constructor = ""
+    var arguments: [String] = []
+    var cursor = name.startIndex
+    for pair in pairs {
+        constructor += name[cursor ..< pair.opening]
+        guard
+            let components = topLevelComponents(
+                in: String(name[name.index(after: pair.opening) ..< pair.closing])
+            ), components.isEmpty == false,
+            components.allSatisfy({ $0.isEmpty == false })
+        else {
+            return nil
+        }
+        arguments += components
+        cursor = name.index(after: pair.closing)
+    }
+    constructor += name[cursor...]
+
+    let components = constructor.split(separator: ".", omittingEmptySubsequences: false)
+    guard components.count >= 2,
+        components.allSatisfy({ $0.isEmpty == false })
+    else {
+        return nil
+    }
+    return (constructor, arguments.joined(separator: ", "))
 }

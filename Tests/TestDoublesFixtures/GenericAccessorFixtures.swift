@@ -15,6 +15,26 @@ public enum ExternalNestedGenericNamespace {
     }
 }
 
+public struct ExternalGenericParent<Outer> {
+    public struct Payload {
+        public let outer: Outer
+
+        public init(outer: Outer) {
+            self.outer = outer
+        }
+    }
+
+    public struct Box<Inner> {
+        public let outer: Outer
+        public let inner: Inner
+
+        public init(outer: Outer, inner: Inner) {
+            self.outer = outer
+            self.inner = inner
+        }
+    }
+}
+
 extension String: ExternalFirstGenericConstraint {}
 extension Bool: ExternalSecondGenericConstraint {}
 extension Int: ExternalFirstGenericConstraint, ExternalSecondGenericConstraint {}

@@ -216,6 +216,36 @@ public protocol NestedGenericEnvelopeGateway {
     func submit(_ envelope: ExternalAPI.Envelope<ExternalReservation>) -> UInt64
 }
 
+public struct ExternalGenericAPI<Payload> {
+    public struct Status {
+        public let payload: Payload
+
+        public init(payload: Payload) {
+            self.payload = payload
+        }
+    }
+
+    public struct Envelope<Metadata> {
+        public let payload: Payload
+        public let metadata: Metadata
+
+        public init(payload: Payload, metadata: Metadata) {
+            self.payload = payload
+            self.metadata = metadata
+        }
+    }
+}
+
+public protocol GenericNestedEnvelopeGateway {
+    func submit(
+        _ envelope: ExternalGenericAPI<ExternalReservation>.Envelope<String>
+    ) -> UInt64
+}
+
+public protocol GenericParentStatusGateway {
+    func submit(_ status: ExternalGenericAPI<ExternalReservation>.Status) -> UInt64
+}
+
 /// A deliberately unsupported mixed tuple transport. The first member is
 /// resilient to this module while the second is a direct scalar.
 public protocol MixedTupleGateway {

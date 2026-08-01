@@ -186,7 +186,7 @@ private func resolveSupportedTypeComponent(
             protocolName: protocolDescriptor.name,
             reason:
                 "Requirement \(requirementIndex) embeds an associated type inside unsupported generic nominal '\(spelling)'. "
-                + "Only linked, top-level generic classes, structs, and enums whose metadata accessor uses supported type and protocol-conformance key arguments are supported."
+                + "Only linked generic classes, structs, and enums whose metadata accessor uses supported type and protocol-conformance key arguments are supported."
         )
     }
     if referencesAssociatedType(

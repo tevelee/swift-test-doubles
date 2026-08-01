@@ -97,6 +97,16 @@ private indirect enum RecursiveValueBox<Value> {
         )
     }
 
+    @Test func genericAccessorResolvesNominalsNestedInAGenericParent() {
+        let type = ExternalGenericParent<Int>.Box<String>.self
+        #expect(genericNominalType(named: String(reflecting: type)) == type)
+    }
+
+    @Test func genericAccessorResolvesNonGenericNominalsInAGenericParent() {
+        let type = ExternalGenericParent<Int>.Payload.self
+        #expect(genericNominalType(named: String(reflecting: type)) == type)
+    }
+
     @Test func rangeContainingAResilientBoundHasAnIndirectArgumentCandidate() {
         #expect(
             argumentABIClassCandidates(for: ClosedRange<ResilientValueArgument>.self)
