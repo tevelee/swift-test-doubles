@@ -26,6 +26,16 @@ public struct ExternalReservation: Comparable, Equatable, Sendable {
     }
 }
 
+/// A non-frozen nominal shell around a tuple whose first member is itself
+/// resilient to this module's future evolution.
+public struct ReservationEnvelope: Sendable {
+    public let payload: (ExternalReservation, UInt64)
+
+    public init(reservation: ExternalReservation, identifier: UInt64) {
+        payload = (reservation, identifier)
+    }
+}
+
 /// A production-style dependency surface exposed to an external test client.
 public protocol DeliveryGateway: Sendable {
     func schedule(
@@ -37,6 +47,10 @@ public protocol DeliveryGateway: Sendable {
     func day(_ window: ClosedRange<Date>) -> Int
 
     func map(_ point: FrozenExternalPoint) -> UInt64
+
+    func settle(_ value: (ExternalReservation, UInt64)?) -> Int
+
+    func deliver(_ value: ReservationEnvelope) -> Int
 }
 
 public protocol ReservationSource {
@@ -62,6 +76,15 @@ public struct LiveDeliveryGateway: DeliveryGateway, Sendable {
 
     public func map(_ point: FrozenExternalPoint) -> UInt64 {
         point.x ^ point.y
+    }
+
+    public func settle(_ value: (ExternalReservation, UInt64)?) -> Int {
+        guard let value else { return 0 }
+        return Int(value.0.start ^ value.0.end ^ value.1)
+    }
+
+    public func deliver(_ value: ReservationEnvelope) -> Int {
+        Int(value.payload.0.start ^ value.payload.0.end ^ value.payload.1)
     }
 }
 

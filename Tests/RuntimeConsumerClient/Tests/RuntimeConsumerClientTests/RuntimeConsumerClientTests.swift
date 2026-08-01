@@ -99,6 +99,44 @@ import Testing
         #expect(stub().map(FrozenExternalPoint(x: 5, y: 9)) == 12)
     }
 
+    @Test func wrappedResilientTuplesCalibrateInAnOrdinaryConsumer() throws {
+        let optionalTupleStub = try Stub<any DeliveryGateway>()
+        let optionalPlaceholder: (ExternalReservation, UInt64)? = (
+            ExternalReservation(start: 3, end: 5),
+            7
+        )
+        optionalTupleStub.when {
+            $0.settle(Match.any(using: optionalPlaceholder))
+        }.then { (value: (ExternalReservation, UInt64)?) in
+            guard let value else { return 0 }
+            return Int(value.0.start ^ value.0.end ^ value.1)
+        }
+
+        let optionalActual: (ExternalReservation, UInt64)? = (
+            ExternalReservation(start: 11, end: 13),
+            17
+        )
+        #expect(optionalTupleStub().settle(optionalActual) == 11 ^ 13 ^ 17)
+        #expect(optionalTupleStub().settle(nil) == 0)
+
+        let nominalShellStub = try Stub<any DeliveryGateway>()
+        let nominalPlaceholder = ReservationEnvelope(
+            reservation: ExternalReservation(start: 19, end: 23),
+            identifier: 29
+        )
+        nominalShellStub.when {
+            $0.deliver(Match.any(using: nominalPlaceholder))
+        }.then { (value: ReservationEnvelope) in
+            Int(value.payload.0.start ^ value.payload.0.end ^ value.payload.1)
+        }
+
+        let nominalActual = ReservationEnvelope(
+            reservation: ExternalReservation(start: 31, end: 37),
+            identifier: 41
+        )
+        #expect(nominalShellStub().deliver(nominalActual) == 31 ^ 37 ^ 41)
+    }
+
     @Test func uncertainImportedResultsFailBeforeInvocation() {
         let error = #expect(throws: StubError.self) {
             _ = try Stub<any ReservationSource>()
