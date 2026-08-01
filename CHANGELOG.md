@@ -118,6 +118,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Release builds now retain diagnostics when a recording mixes literals and
+  matchers, records an unsupported literal such as a closure, or puts a matcher
+  directly inside an `@autoclosure`.
 - Generic struct and enum typed errors now fail closed before transport when
   runtime metadata cannot prove their direct versus indirect error convention,
   instead of selecting a layout from their current fields.

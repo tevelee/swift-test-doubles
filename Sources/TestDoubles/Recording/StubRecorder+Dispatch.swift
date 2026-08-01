@@ -524,7 +524,7 @@ extension StubRecorder {
         if runtimeMethod?.argumentIsAutoclosure.contains(true) == true,
             matchers.count != args.count
         {
-            preconditionFailure(
+            fatalError(
                 "[TestDoubles] Recording \(name) has an @autoclosure argument whose "
                     + "Match expression was not captured. An @autoclosure defers its "
                     + "body until the implementation invokes it, after TestDoubles must "
@@ -540,7 +540,7 @@ extension StubRecorder {
                 runtimeMethod?.argumentIsVariadic.contains(true) == true
                 ? " A variadic parameter is one array at runtime; write one Match expression for each element in the recorded call."
                 : ""
-            preconditionFailure(
+            fatalError(
                 "[TestDoubles] Recording \(name) used \(matchers.count) Match expression(s) for "
                     + "\(args.count) argument(s). Use either literals for every argument or exactly one "
                     + "Match expression per argument; do not mix them. Rewrite a pinned literal with "

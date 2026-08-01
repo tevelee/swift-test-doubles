@@ -154,7 +154,7 @@ func literalMatcher(for value: Any) -> ParameterMatcher {
     if let value = value as? Any.Type {
         return MetatypeMatcher(expected: value)
     }
-    preconditionFailure(
+    fatalError(
         "[TestDoubles] Cannot record the literal value of type \(type(of: value)) because it has no "
             + "generic equality. Use Match expressions for every argument in this call, such as "
             + "Match.any(using:), Match.identical(to:), or "
