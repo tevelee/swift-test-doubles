@@ -833,8 +833,11 @@ protocol ExtendedAsyncABIProbe: Sendable {
 
     @Test func asyncExistentialValueShape() async throws {
         let stub = try makeExtendedAsyncStub()
-        await stub.when { await $0.existential(FirstABIExistentialValue(id: 12)) }
-            .thenReturn(SecondABIExistentialValue(id: 13))
+        let placeholder = FirstABIExistentialValue(id: 12)
+        await stub.when {
+            await $0.existential(Match.any(using: placeholder))
+        }
+        .thenReturn(SecondABIExistentialValue(id: 13))
 
         let existential = await stub().existential(
             FirstABIExistentialValue(id: 12)
