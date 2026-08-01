@@ -18,6 +18,8 @@ package struct MethodDescriptor: Sendable {
     package let arguments: [WitnessArgumentDescriptor]
     /// Source-level variadic parameters, represented by one Array in the ABI.
     package let argumentIsVariadic: [Bool]
+    /// Source-level autoclosure parameters, represented by one closure in the ABI.
+    package let argumentIsAutoclosure: [Bool]
     package let result: WitnessValueDescriptor
     package let effects: RequirementEffects
     package let selfIsClassConstrained: Bool
@@ -40,6 +42,7 @@ package struct MethodDescriptor: Sendable {
         argumentDependencies: [WitnessValueDependency]? = nil,
         argumentOwnerships: [WitnessArgumentOwnership]? = nil,
         argumentIsVariadic: [Bool]? = nil,
+        argumentIsAutoclosure: [Bool]? = nil,
         returnConvention: WitnessValueConvention = .concrete,
         returnDependency: WitnessValueDependency? = nil,
         typedErrorType: Any.Type? = nil,
@@ -70,11 +73,15 @@ package struct MethodDescriptor: Sendable {
         let variadics =
             argumentIsVariadic
             ?? Array(repeating: false, count: argumentTypes.count)
+        let autoclosures =
+            argumentIsAutoclosure
+            ?? Array(repeating: false, count: argumentTypes.count)
 
         precondition(conventions.count == argumentTypes.count)
         precondition(dependencies.count == argumentTypes.count)
         precondition(ownerships.count == argumentTypes.count)
         precondition(variadics.count == argumentTypes.count)
+        precondition(autoclosures.count == argumentTypes.count)
 
         arguments = argumentTypes.indices.map { offset in
             let type = argumentTypes[offset]
@@ -95,6 +102,7 @@ package struct MethodDescriptor: Sendable {
             )
         }
         self.argumentIsVariadic = variadics
+        self.argumentIsAutoclosure = autoclosures
 
         let resultDependency =
             returnDependency ?? Self.defaultDependency(for: returnConvention)
@@ -162,6 +170,7 @@ package struct MethodDescriptor: Sendable {
         witnessIndex: Int,
         arguments: [ResolvedWitnessValue],
         argumentIsVariadic: [Bool]? = nil,
+        argumentIsAutoclosure: [Bool]? = nil,
         result: ResolvedWitnessValue,
         protocolName: String,
         typedErrorType: Any.Type? = nil,
@@ -208,6 +217,7 @@ package struct MethodDescriptor: Sendable {
                 argument.argumentOwnership(for: kind, at: offset)
             },
             argumentIsVariadic: argumentIsVariadic,
+            argumentIsAutoclosure: argumentIsAutoclosure,
             returnConvention: result.convention,
             returnDependency: result.dependency,
             typedErrorType: typedErrorType,
@@ -284,6 +294,7 @@ package struct MethodDescriptor: Sendable {
                 )
             },
             argumentIsVariadic: argumentIsVariadic,
+            argumentIsAutoclosure: argumentIsAutoclosure,
             result: RuntimeValue(
                 type: result.type,
                 convention: RuntimeValueConvention(result.convention),

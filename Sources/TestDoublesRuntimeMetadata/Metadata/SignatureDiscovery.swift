@@ -91,18 +91,6 @@ package func discoverMethods(
                 details: "Could not parse any discovered symbol: \(attempted.joined(separator: "; ")). Supply explicit Requirement values."
             )
         }
-        if let argumentIndex = parsed.argumentIsAutoclosure.firstIndex(of: true) {
-            throw RuntimeConstructionError.unsupportedProtocolShape(
-                protocolName: proto.name,
-                reason:
-                    "Requirement \(requirement.dispatchIndex) has an @autoclosure "
-                    + "argument at position \(argumentIndex + 1). Its Match expression "
-                    + "runs only when the implementation evaluates the deferred body, "
-                    + "after automatic Stub must already have recorded the call. Use a "
-                    + "hand-written ManualStub conformer or fake that chooses when to "
-                    + "evaluate the closure."
-            )
-        }
         let kind = requirement.kind
         // `isAsync` already mirrors `ProtocolRequirementFlags::isAsync()`, which
         // returns false for read/modify coroutines even though they set the
@@ -208,6 +196,7 @@ package func discoverMethods(
                 witnessIndex: requirementIndex,
                 arguments: arguments,
                 argumentIsVariadic: parsed.argumentIsVariadic,
+                argumentIsAutoclosure: parsed.argumentIsAutoclosure,
                 result: result,
                 protocolName: proto.name,
                 typedErrorType: typedError?.type,

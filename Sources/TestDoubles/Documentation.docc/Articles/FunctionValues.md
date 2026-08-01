@@ -53,11 +53,12 @@ callbacks, `throws`, typed throws with direct or indirect inner errors, `async`,
 autoclosure parameters inside a closure type, `sending` parameters and results,
 `@isolated(any)`, `nonisolated(nonsending)`, and top-level public noncopyable
 nominal parameters. Declaration-level borrowing is also supported. An
-autoclosure parameter *inside a function value* uses the same closure bridge.
-A protocol requirement declared with `@autoclosure` itself is different: its
-matcher expression lives inside a deferred body, so automatic ``Stub``
-construction rejects it before recording. Use a hand-written ``ManualStub``
-conformer or fake that makes the closure-evaluation policy explicit.
+autoclosure parameter, including one declared directly on a protocol
+requirement, uses the same closure bridge. For a direct requirement, bind a
+closure-typed `Match` expression inside the recording closure before invoking
+the requirement, then invoke the matcher inside the autoclosure. Writing
+`Match.any()` directly there defers the matcher body, so TestDoubles rejects
+the recording with that guidance.
 
 Closure values can cross synchronous, throwing, async, and async-throwing
 methods, static methods, initializers, properties, and subscripts. Read-write

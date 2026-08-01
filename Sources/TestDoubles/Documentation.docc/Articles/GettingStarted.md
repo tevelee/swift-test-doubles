@@ -104,12 +104,21 @@ The registration matches exactly two entries. A call with one or three entries
 does not match it; use literals for an exact list or repeat `Match.any()` for
 each accepted position.
 
-An `@autoclosure` requirement such as
-`record(_ message: @autoclosure () -> String)` fails during automatic `Stub`
-construction. Its `Match` expression would run only when the implementation
-evaluates the deferred body, after TestDoubles has to record the call. Use a
-hand-written ``ManualStub`` conformer or a fake and make the closure-evaluation
-policy explicit there.
+An `@autoclosure` requirement records its closure value, not the value its
+body eventually returns. Inside the recording closure, bind a closure-typed
+matcher before the invocation, then invoke it inside the autoclosure:
+
+```swift
+let placeholder: () -> String = { "" }
+stub.when {
+    let message = Match.any(using: placeholder)
+    return $0.record(message())
+}.thenDoNothing()
+```
+
+Writing `record(Match.any())` directly defers `Match.any()` into the body, so
+TestDoubles rejects the recording before it can silently become a literal
+closure match.
 
 For floating-point values, `Match.approximately` combines absolute and relative
 tolerance:

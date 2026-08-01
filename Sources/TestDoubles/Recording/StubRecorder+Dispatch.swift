@@ -521,6 +521,20 @@ extension StubRecorder {
                 method: runtimeMethod
             )
         }
+        if runtimeMethod?.argumentIsAutoclosure.contains(true) == true,
+            matchers.count != args.count
+        {
+            preconditionFailure(
+                "[TestDoubles] Recording \(name) has an @autoclosure argument whose "
+                    + "Match expression was not captured. An @autoclosure defers its "
+                    + "body until the implementation invokes it, after TestDoubles must "
+                    + "record the call. Create a closure-typed Match expression before "
+                    + "the invocation inside the recording closure, then invoke that matcher "
+                    + "inside the autoclosure. For example, declare a closure placeholder "
+                    + "and `let matcher = Match.any(using: placeholder)` before returning "
+                    + "$0.requirement(matcher())."
+            )
+        }
         if matchers.isEmpty == false, matchers.count != args.count {
             let variadicGuidance =
                 runtimeMethod?.argumentIsVariadic.contains(true) == true
