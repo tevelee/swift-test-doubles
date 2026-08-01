@@ -16,6 +16,16 @@ private enum PlaceholderChoice: Equatable {
     case value(Int)
 }
 
+private enum PayloadOnlyPlaceholderChoice: Equatable {
+    case label(String)
+    case count(Int)
+}
+
+private indirect enum UnsupportedRecursivePlaceholder {
+    case next(UnsupportedRecursivePlaceholder)
+    case reference(UnsupportedPlaceholder)
+}
+
 private final class UnsupportedPlaceholder {}
 
 @Suite struct PlaceholderSynthesisTests {
@@ -45,6 +55,14 @@ private final class UnsupportedPlaceholder {}
             PlaceholderValue.make(PlaceholderChoice.self)
                 == PlaceholderChoice.none
         )
+        #expect(
+            PlaceholderValue.make(PayloadOnlyPlaceholderChoice.self)
+                == PayloadOnlyPlaceholderChoice.label("")
+        )
+        #expect(
+            PlaceholderValue.make(Result<Int, PlaceholderTestError>.self)
+                == .success(0)
+        )
     }
 
     @Test func metatypePlaceholdersPreserveTheirInstanceType() {
@@ -57,6 +75,7 @@ private final class UnsupportedPlaceholder {}
         #expect(PlaceholderValue.make(UnsupportedPlaceholder.self) == nil)
         #expect(PlaceholderValue.canInitialize(type: ((Int) -> Int).self) == false)
         #expect(PlaceholderValue.make(((Int) -> Int).self) == nil)
+        #expect(PlaceholderValue.make(UnsupportedRecursivePlaceholder.self) == nil)
     }
 
     @Test func dummySynthesisAddsFunctionValuesWithoutChangingRecordingPlaceholders() {
@@ -75,4 +94,8 @@ private final class UnsupportedPlaceholder {}
         #endif
         #expect(PlaceholderValue.make(SwiftFunction.self) == nil)
     }
+}
+
+private enum PlaceholderTestError: Error {
+    case failed
 }

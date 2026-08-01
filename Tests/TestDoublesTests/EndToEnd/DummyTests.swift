@@ -52,6 +52,11 @@ private enum EmptyCaseDummyValue {
     case empty
 }
 
+private enum PayloadOnlyDummyValue {
+    case text(String)
+    case number(Int)
+}
+
 private final class FactoryDummyValue: @unchecked Sendable {
     let identifier: Int
 
@@ -170,6 +175,14 @@ struct DummyTests {
         let value: EmptyCaseDummyValue = Dummy.make()
         guard case .empty = value else {
             Issue.record("Expected the synthesized empty enum case")
+            return
+        }
+    }
+
+    @Test func synthesizesAPayloadOnlyEnumCase() {
+        let value: PayloadOnlyDummyValue = Dummy.make()
+        guard case .text("") = value else {
+            Issue.record("Expected the first safely synthesizable payload case")
             return
         }
     }

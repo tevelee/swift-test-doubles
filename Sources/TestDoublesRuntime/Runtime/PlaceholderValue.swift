@@ -43,6 +43,7 @@ package enum PlaceholderValue {
         case scalar(ScalarInitialization)
         case collection(CollectionKind, Any.Type)
         case emptyEnum(Any.Type)
+        case payloadEnum(Any.Type, tag: UInt32, payload: InitializationPlan)
         case aggregate([AggregateElement])
         case metatype(UInt)
     }
@@ -86,8 +87,40 @@ package enum PlaceholderValue {
             return .collection(kind, type)
         }
         if let enumMetadata = metadata as? EnumMetadata {
-            guard enumMetadata.descriptor.numEmptyCases > 0 else { return nil }
-            return .emptyEnum(type)
+            if enumMetadata.descriptor.numEmptyCases > 0 {
+                return .emptyEnum(type)
+            }
+
+            let key = UInt(bitPattern: enumMetadata.ptr)
+            guard visited.insert(key).inserted else { return nil }
+            defer { visited.remove(key) }
+
+            let payloadCount = enumMetadata.descriptor.numPayloadCases
+            let records = enumMetadata.descriptor.fields.records
+            guard payloadCount > 0, records.count >= payloadCount else {
+                return nil
+            }
+            for (index, record) in records.prefix(payloadCount).enumerated() {
+                guard record.flags.isIndirectCase == false,
+                    record.hasMangledTypeName,
+                    let payloadType = resolvedFieldType(
+                        record.mangledTypeName,
+                        in: enumMetadata
+                    ),
+                    let payload = initializationPlan(
+                        for: payloadType,
+                        visited: &visited
+                    )
+                else {
+                    continue
+                }
+                return .payloadEnum(
+                    type,
+                    tag: UInt32(index),
+                    payload: payload
+                )
+            }
+            return nil
         }
         if let tupleMetadata = metadata as? TupleMetadata {
             var elements: [AggregateElement] = []
@@ -161,6 +194,15 @@ package enum PlaceholderValue {
                 metadata.enumVwt.destructiveInjectEnumTag(
                     for: destination,
                     tag: UInt32(metadata.descriptor.numPayloadCases)
+                )
+            case .payloadEnum(let type, let tag, let payload):
+                guard let metadata = reflect(type) as? EnumMetadata else {
+                    preconditionFailure("[TestDoubles] Missing enum metadata for \(type).")
+                }
+                execute(payload, at: destination)
+                metadata.enumVwt.destructiveInjectEnumTag(
+                    for: destination,
+                    tag: tag
                 )
             case .aggregate(let elements):
                 for element in elements {
