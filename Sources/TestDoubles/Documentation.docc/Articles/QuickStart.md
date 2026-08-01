@@ -825,11 +825,12 @@ before the clear.
 
 - Use ``Stub`` for a runtime-generated configurable protocol value.
 - Use ``Spy`` when a real implementation should remain the default.
-- Use ``Dummy`` when the exercised path must not touch the dependency.
+- Use ``Dummy`` when the exercised path must not touch a protocol, concrete
+  value, or function dependency.
 - Use ``ManualStub`` when the runtime trampoline cannot represent the
   requirement or cannot run on the platform.
-- Use a closure double when the injected dependency is a function rather than
-  a protocol.
+- Use a closure double when an injected function needs behavior or interaction
+  verification; use ``Dummy`` when it must remain unused.
 
 The fail-fast factories are convenient when construction failure is a test
 configuration error:

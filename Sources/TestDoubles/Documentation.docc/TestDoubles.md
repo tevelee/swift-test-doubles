@@ -13,9 +13,9 @@ Use ``Spy`` to keep a real implementation as the default. Unmatched calls
 forward to its target while matching `when` registrations override behavior;
 both paths are recorded for verification.
 
-Use ``Dummy`` when an API requires a protocol value that the exercised code path
-must not use. A dummy has no behavior or recorder, and every invocation fails
-closed with an actionable diagnostic.
+Use ``Dummy`` when an API requires a value that the exercised code path must not
+use. It fabricates protocol existentials, concrete placeholders, and functions;
+protocol or function invocation fails closed with an actionable diagnostic.
 
 Start with <doc:QuickStart> for the complete everyday API workflow, then use
 <doc:GettingStarted> for properties, subscripts, initializers, dynamic `Self`,

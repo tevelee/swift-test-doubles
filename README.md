@@ -547,15 +547,25 @@ verification, and `InvocationOrder` composition as the unfiltered pattern.
 ### Dummy: dependencies that must never be touched
 
 When an initializer demands a dependency the exercised code path must not
-use, pass a dummy. Any call on it fails the test with a diagnostic naming the
-requirement, which is a stronger guarantee than a silent no-op mock.
+use, pass a dummy. `Dummy.make()` fabricates supported protocol existentials,
+concrete values, and functions. Protocol and function calls fail with an
+actionable diagnostic, which is a stronger guarantee than a silent no-op mock.
 
 ```swift
 let checkout = Checkout(
     gateway: gateway(),
-    analytics: Dummy.make() // this path must never track anything
+    analytics: Dummy.make() // protocol existential
 )
+
+let context: CheckoutContext = Dummy.make()       // constructible struct
+let completion: (Receipt) -> Void = Dummy.make()  // fail-on-use closure
 ```
+
+Scalars, strings, empty collections, tuples, structs, direct enum cases,
+metatypes, `Any`, `AnyObject`, and supported function conventions are
+synthesized automatically. Supply `Dummy.make(using:)` for a class or custom
+invariant, or register one reusable exact-type factory with
+`Dummy<YourType>.register`.
 
 ### One-shot stubs
 
