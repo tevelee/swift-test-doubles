@@ -145,6 +145,9 @@ func literalMatcher(for value: Any) -> ParameterMatcher {
     if type(of: value) is AnyObject.Type {
         return IdenticalMatcher(expected: value as AnyObject)
     }
+    if let matcher = optionalReferenceMatcher(for: value) {
+        return matcher
+    }
     if let value = value as? any Equatable {
         return _openExistential(value, do: equalityMatcher)
     }
@@ -156,6 +159,30 @@ func literalMatcher(for value: Any) -> ParameterMatcher {
             + "generic equality. Use Match expressions for every argument in this call, such as "
             + "Match.any(using:), Match.identical(to:), or "
             + "Match.matching(using:description:where:)."
+    )
+}
+
+private protocol OptionalRuntimeType {
+    static var wrappedType: Any.Type { get }
+}
+
+extension Optional: OptionalRuntimeType {
+    fileprivate static var wrappedType: Any.Type { Wrapped.self }
+}
+
+private func optionalReferenceMatcher(for value: Any) -> ParameterMatcher? {
+    guard let optionalType = type(of: value) as? any OptionalRuntimeType.Type,
+        optionalType.wrappedType is AnyObject.Type
+    else {
+        return nil
+    }
+    guard let wrapped = unwrapOptional(value) else {
+        return OptionalReferenceMatcher(optionalType: type(of: value), expected: nil)
+    }
+    guard type(of: wrapped) is AnyObject.Type else { return nil }
+    return OptionalReferenceMatcher(
+        optionalType: type(of: value),
+        expected: wrapped as AnyObject
     )
 }
 
@@ -208,6 +235,26 @@ struct IdenticalMatcher: ParameterMatcher {
         return (value as AnyObject) === expected ? .matched : nil
     }
     var diagnosticDescription: String { "Match.identical(to: \(expected))" }
+}
+
+private struct OptionalReferenceMatcher: ParameterMatcher {
+    let optionalType: Any.Type
+    let expected: AnyObject?
+
+    func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
+        guard ObjectIdentifier(type(of: value)) == ObjectIdentifier(optionalType) else {
+            return nil
+        }
+        guard let actual = unwrapOptional(value) else {
+            return expected == nil ? .matched : nil
+        }
+        guard let expected, type(of: actual) is AnyObject.Type else { return nil }
+        return (actual as AnyObject) === expected ? .matched : nil
+    }
+
+    var diagnosticDescription: String {
+        expected.map { "literal(\($0))" } ?? "literal(nil)"
+    }
 }
 
 struct MetatypeMatcher: ParameterMatcher {

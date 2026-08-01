@@ -46,6 +46,10 @@ protocol MatcherPlaceholderService {
     func inspect(existential: any MatcherExistentialValue) -> String
 }
 
+protocol OptionalMatcherPlaceholderService {
+    func inspect(reference: MatcherReferenceBox?) -> String
+}
+
 @Suite struct MatcherTests {
     @Test func matchingSupportsDefaultAndNamedDescriptions() throws {
         let stub = try Stub<any MatcherService>()
@@ -93,6 +97,21 @@ protocol MatcherPlaceholderService {
         stub.when { $0.inspect(reference: second) }.thenReturn("second")
 
         #expect(stub().inspect(reference: second) == "second")
+    }
+
+    @Test func literalOptionalReferenceValuesUseIdentityAndMatchNil() throws {
+        let stub = try Stub<any OptionalMatcherPlaceholderService>(
+            .method(MatcherReferenceBox?.self, returning: String.self)
+        )
+        let first: MatcherReferenceBox? = MatcherReferenceBox(value: 1)
+        let second: MatcherReferenceBox? = MatcherReferenceBox(value: 1)
+        let noReference: MatcherReferenceBox? = nil
+        stub.when { $0.inspect(reference: first) }.thenReturn("first")
+        stub.when { $0.inspect(reference: second) }.thenReturn("second")
+        stub.when { $0.inspect(reference: noReference) }.thenReturn("nil")
+
+        #expect(stub().inspect(reference: second) == "second")
+        #expect(stub().inspect(reference: nil) == "nil")
     }
 
     @Test func catchAllRegisteredFirstShadowsLaterMatchers() throws {
