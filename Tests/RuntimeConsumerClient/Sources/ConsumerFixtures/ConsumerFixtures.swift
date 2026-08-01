@@ -132,6 +132,11 @@ public protocol OptionalDestinationGateway {
     func cascade(_ destination: URL???) -> Int
 }
 
+/// A reporting boundary that erases the application's concrete error type.
+public protocol FailureReporter {
+    func report(_ error: any Error) -> String
+}
+
 /// A logging dependency that uses call-site expression syntax.
 public protocol AutoclosureDeliveryLog {
     func record(_ message: @autoclosure @escaping () -> String)

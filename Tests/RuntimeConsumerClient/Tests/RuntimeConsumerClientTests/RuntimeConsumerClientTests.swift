@@ -236,6 +236,20 @@ private func archiveScore(
         )
     }
 
+    @Test func concreteErrorMatchersCalibrateExistentialArguments() throws {
+        let stub = try Stub<any FailureReporter>()
+        let placeholder = ReservationFailure.unavailable(code: 29)
+        stub.when { $0.report(Match.any(using: placeholder)) }
+            .then { (error: any Error) in
+                String(describing: error)
+            }
+
+        #expect(
+            stub().report(ReservationFailure.unavailable(code: 31))
+                == "unavailable(code: 31)"
+        )
+    }
+
     @Test func escapingAutoclosureRequirementsIgnoreXKFInAnIdentifier() throws {
         let stub = try Stub<any XKFAutoclosureDeliveryLog>()
         let placeholder: () -> String = { "" }
