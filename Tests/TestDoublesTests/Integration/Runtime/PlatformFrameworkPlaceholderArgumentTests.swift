@@ -1,5 +1,5 @@
 import Foundation
-#if canImport(FoundationNetworking)
+#if canImport(FoundationNetworking) && !os(Android)
     import FoundationNetworking
 #endif
 #if canImport(Dispatch)
@@ -12,7 +12,7 @@ import Testing
 import TestDoubles
 
 protocol FoundationPlaceholderArgumentProbe {
-    #if canImport(Darwin) || canImport(FoundationNetworking)
+    #if canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))
         func request(_ value: URLRequest) -> String
     #endif
     func name(_ value: Notification.Name) -> String
@@ -23,7 +23,7 @@ protocol FoundationPlaceholderArgumentProbe {
 }
 
 struct LiveFoundationPlaceholderArgumentProbe: FoundationPlaceholderArgumentProbe {
-    #if canImport(Darwin) || canImport(FoundationNetworking)
+    #if canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))
         func request(_ value: URLRequest) -> String { "" }
     #endif
     func name(_ value: Notification.Name) -> String { "" }
@@ -34,7 +34,7 @@ struct LiveFoundationPlaceholderArgumentProbe: FoundationPlaceholderArgumentProb
 }
 
 struct FoundationPlaceholderArgumentTests {
-    #if canImport(Darwin) || canImport(FoundationNetworking)
+    #if canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))
         @Test func urlRequestRecordsWithoutAFixture() throws {
             let stub = try makeFoundationPlaceholderArgumentStub()
             stub.when { $0.request(Match.any()) }

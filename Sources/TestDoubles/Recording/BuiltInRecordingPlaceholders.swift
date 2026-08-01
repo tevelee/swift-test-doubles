@@ -1,5 +1,5 @@
 import Foundation
-#if canImport(FoundationNetworking)
+#if canImport(FoundationNetworking) && !os(Android)
     import FoundationNetworking
 #endif
 #if canImport(Dispatch)
@@ -57,7 +57,7 @@ enum BuiltInRecordingPlaceholders {
         return switch type {
             case is URL.Type:
                 URL(filePath: "/test-doubles-placeholder")
-            #if canImport(Darwin) || canImport(FoundationNetworking)
+            #if canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))
                 case is URLRequest.Type:
                     URLRequest(url: URL(filePath: "/test-doubles-placeholder"))
             #endif

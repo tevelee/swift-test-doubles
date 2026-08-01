@@ -1,5 +1,5 @@
 import Foundation
-#if canImport(FoundationNetworking)
+#if canImport(FoundationNetworking) && !os(Android)
     import FoundationNetworking
 #endif
 #if canImport(Dispatch)
@@ -85,7 +85,7 @@ struct CommonRecordingPlaceholderTests {
         #expect(person.familyName == "Doubles")
     }
 
-    #if canImport(Darwin) || canImport(FoundationNetworking)
+    #if canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))
         @Test func urlRequestUsesTheBuiltInURL() throws {
             let request = try #require(
                 RecordingPlaceholderResolver.make(URLRequest.self)
