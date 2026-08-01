@@ -119,7 +119,7 @@ struct LiveResilientTupleResultABIProbe: ResilientTupleResultABIProbe {
     }
 }
 
-private struct LiveOptionalResilientTupleABIProbe: OptionalResilientTupleABIProbe {
+struct LiveOptionalResilientTupleABIProbe: OptionalResilientTupleABIProbe {
     func accept(_ value: (ResilientValueArgument, UInt64)?) -> Int {
         guard let value else { return 0 }
         return Int(value.0.first ^ value.0.second ^ value.1)
@@ -144,6 +144,13 @@ private func useLinkedResilientTupleResult(
     _ probe: any ResilientTupleResultABIProbe
 ) -> (ResilientValueArgument, UInt64) {
     probe.makeValue()
+}
+
+@inline(never)
+private func useLinkedOptionalResilientTuple(
+    _ probe: any OptionalResilientTupleABIProbe
+) -> Int {
+    probe.accept((ResilientValueArgument(first: 1, second: 2), 4))
 }
 
 @inline(never)
@@ -385,7 +392,10 @@ private func useLinkedResilientTypedError(
     }
 
     @Test func optionalTupleUsesOneCalibratableTransport() throws {
-        _ = LiveOptionalResilientTupleABIProbe()
+        #expect(
+            useLinkedOptionalResilientTuple(
+                LiveOptionalResilientTupleABIProbe()
+            ) == 7)
         let placeholder: (ResilientValueArgument, UInt64)? = (
             ResilientValueArgument(first: 3, second: 5),
             7
