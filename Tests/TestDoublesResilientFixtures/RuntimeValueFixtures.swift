@@ -58,6 +58,17 @@ public struct ResilientTypedError: Error, Equatable, Sendable {
     }
 }
 
+/// A frozen control for typed-error transport tests.
+@frozen public struct TypedThrowsPayloadError: Error, Equatable, Sendable {
+    public let code: Int
+    public let sequence: Int
+
+    public init(code: Int, sequence: Int) {
+        self.code = code
+        self.sequence = sequence
+    }
+}
+
 /// Result shapes used to assert the runtime's fail-closed handling of values
 /// whose public ABI cannot reveal frozen-ness to a client.
 public protocol ResilientValueResultABIProbe {

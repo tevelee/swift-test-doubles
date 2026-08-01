@@ -1,6 +1,7 @@
 import TestDoublesRuntime
 import TestDoublesRuntimeMetadata
 import Testing
+import TestDoublesResilientFixtures
 @testable import TestDoubles
 
 // Runtime-discovery fixtures must remain module-internal so optimized tests
@@ -170,7 +171,7 @@ private func callWithValue(
 ) async throws(TypedThrowsPayloadError) {
     try await stub.withValue {
         _ async throws(TypedThrowsPayloadError) in
-        throw TypedThrowsPayloadError(code: 42, message: "failed")
+        throw TypedThrowsPayloadError(code: 42, sequence: 1)
     }
 }
 
@@ -188,7 +189,7 @@ private func callWithValue(
         await stub.when { try await $0.load(Match.equal(0)) }.thenReturn("immediate")
         await stub.when { try await $0.load(Match.equal(1)) }.then {
             (_: Int) throws -> String in
-            throw TypedThrowsPayloadError(code: 1, message: "immediate")
+            throw TypedThrowsPayloadError(code: 1, sequence: 1)
         }
         await stub.when { try await $0.load(Match.equal(2)) }.then {
             (_: Int) async throws -> String in
@@ -198,7 +199,7 @@ private func callWithValue(
         await stub.when { try await $0.load(Match.equal(3)) }.then {
             (_: Int) async throws -> String in
             await Task.yield()
-            throw TypedThrowsPayloadError(code: 3, message: "suspending")
+            throw TypedThrowsPayloadError(code: 3, sequence: 1)
         }
 
         let probe = stub()
@@ -206,12 +207,12 @@ private func callWithValue(
         let immediateError = await #expect(throws: TypedThrowsPayloadError.self) {
             _ = try await probe.load(1)
         }
-        #expect(immediateError == TypedThrowsPayloadError(code: 1, message: "immediate"))
+        #expect(immediateError == TypedThrowsPayloadError(code: 1, sequence: 1))
         #expect(try await probe.load(2) == "suspending")
         let suspendingError = await #expect(throws: TypedThrowsPayloadError.self) {
             _ = try await probe.load(3)
         }
-        #expect(suspendingError == TypedThrowsPayloadError(code: 3, message: "suspending"))
+        #expect(suspendingError == TypedThrowsPayloadError(code: 3, sequence: 1))
     }
 
     @Test func directAssociatedTypedErrorsUseIndirectStorageAcrossSuspension() async throws {
@@ -295,13 +296,13 @@ private func callWithValue(
         await indirectResult.when { try await $0.load(Match.equal(true)) }.then {
             (_: Bool) async throws -> IndirectTypedThrowsResult in
             await Task.yield()
-            throw TypedThrowsPayloadError(code: 42, message: "failed")
+            throw TypedThrowsPayloadError(code: 42, sequence: 1)
         }
         #expect(try await indirectResult().load(false) == expected)
         let directError = await #expect(throws: TypedThrowsPayloadError.self) {
             _ = try await indirectResult().load(true)
         }
-        #expect(directError == TypedThrowsPayloadError(code: 42, message: "failed"))
+        #expect(directError == TypedThrowsPayloadError(code: 42, sequence: 1))
     }
 
     @Test func typedErrorBuffersBeyondOneSpilledWordFailClosed() async throws {
@@ -446,13 +447,13 @@ private func callWithValue(
             MainActor.preconditionIsolated()
             await Task.yield()
             MainActor.preconditionIsolated()
-            throw TypedThrowsPayloadError(code: 9, message: "main actor")
+            throw TypedThrowsPayloadError(code: 9, sequence: 1)
         }
 
         let error = await #expect(throws: TypedThrowsPayloadError.self) {
             _ = try await stub().load(9)
         }
-        #expect(error == TypedThrowsPayloadError(code: 9, message: "main actor"))
+        #expect(error == TypedThrowsPayloadError(code: 9, sequence: 1))
         MainActor.preconditionIsolated()
     }
 
@@ -490,6 +491,6 @@ private func callWithValue(
         let error = await #expect(throws: TypedThrowsPayloadError.self) {
             try await callWithValue(stub)
         }
-        #expect(error == TypedThrowsPayloadError(code: 42, message: "failed"))
+        #expect(error == TypedThrowsPayloadError(code: 42, sequence: 1))
     }
 }

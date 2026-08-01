@@ -80,6 +80,28 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
         guard function.convention == .swift else {
             return "Only native Swift functions need this bridge."
         }
+        if let reason = uncertainABITransportReason(
+            for: resultType,
+            role: "The result"
+        ) {
+            return reason
+        }
+        if let typedErrorType,
+            let reason = uncertainABITransportReason(
+                for: typedErrorType,
+                role: "The typed error"
+            )
+        {
+            return reason
+        }
+        for parameterType in parameterTypes {
+            if let reason = uncertainABITransportReason(
+                for: parameterType,
+                role: "A parameter"
+            ) {
+                return reason
+            }
+        }
         if direction == .directToGeneric, function.parameters.count > 6 {
             return "The dynamic bridge currently supports at most six parameters."
         }
@@ -185,6 +207,20 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
             return "\(role) is lifetime-dependent (addressable for dependencies) and noncopyable. Runtime recording cannot box a value into `Any` or retain it past the call for a type shaped like this."
         }
         return "\(role) is noncopyable."
+    }
+
+    private func uncertainABITransportReason(
+        for type: Any.Type,
+        role: String
+    ) -> String? {
+        guard
+            argumentABIClassCandidates(for: type).count > 1
+                || requiresStructuralABITransport(for: type)
+        else {
+            return nil
+        }
+        return "\(role) \(type) may use either direct or indirect client transport. "
+            + "The dynamic closure bridge has no recording call from which to calibrate it."
     }
 
     package func validated(

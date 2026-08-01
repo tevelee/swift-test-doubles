@@ -1,5 +1,6 @@
 import EchoRuntimeReflection
 import Testing
+import TestDoublesResilientFixtures
 
 @testable import TestDoublesRuntime
 
@@ -48,6 +49,20 @@ struct FunctionBridgePlanTests {
         #expect(
             analysis.unsupportedReason(for: .directToGeneric)
                 == "The dynamic bridge currently supports at most six parameters."
+        )
+    }
+
+    @Test func resilientValuesNeverUseTheUncalibratedDynamicBridge() throws {
+        typealias Function = (ResilientValueArgument) -> Int
+        let function = try #require(FunctionTypeInfo(reflecting: Function.self))
+        let analysis = FunctionBridgeAnalysis(function)
+
+        #expect(analysis.validated(for: .directToGeneric) == nil)
+        #expect(analysis.validated(for: .genericToDirect) == nil)
+        #expect(
+            analysis.unsupportedReason(for: .directToGeneric)?.contains(
+                "The dynamic closure bridge has no recording call"
+            ) == true
         )
     }
 

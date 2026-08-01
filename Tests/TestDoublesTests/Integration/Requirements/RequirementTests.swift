@@ -1,6 +1,7 @@
 import TestDoublesRuntime
 import TestDoublesRuntimeMetadata
 import Testing
+import TestDoublesResilientFixtures
 @testable import TestDoubles
 
 private protocol RequirementProbe {
@@ -31,6 +32,13 @@ protocol TypedThrowingClosureRequirementProbe {
 
 protocol ClosureAndValueRequirementProbe {
     func apply(_ closure: @escaping RequirementClosure, to value: Int) -> Int
+}
+
+protocol ResilientClosureAdapterProbe {
+    func apply(
+        _ value: ResilientValueArgument,
+        _ closure: @escaping RequirementClosure
+    ) -> Int
 }
 
 protocol AsyncClosureRequirementProbe {
@@ -283,6 +291,28 @@ private func useLinkedSelfArgument<T: SelfArgumentRequirementProbe>(
         }
 
         #expect(stub().apply({ $0 * 2 }, to: 20) == 42)
+    }
+
+    @Test func typedAdapterRejectsAnUncalibratableResilientPrefix() {
+        let adapter:
+            @convention(thin) (
+                ResilientValueArgument,
+                @escaping RequirementClosure,
+                Stub<any ResilientClosureAdapterProbe>.Invocation
+            ) -> Int = { value, closure, invocation in
+                invocation.call(value, closure)
+            }
+
+        expectUnsupportedProtocolShape(containing: "cannot be calibrated") {
+            _ = try Stub<any ResilientClosureAdapterProbe>(
+                .method(
+                    ResilientValueArgument.self,
+                    RequirementClosure.self,
+                    returning: Int.self,
+                    using: adapter
+                )
+            )
+        }
     }
 
     @Test func asyncTypedAdapterTransportsClosureArgumentsAcrossSuspension() async throws {

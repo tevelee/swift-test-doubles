@@ -1,4 +1,5 @@
 import Testing
+import TestDoublesResilientFixtures
 @testable import TestDoubles
 
 enum TypedThrowsRequirementError: Error, Equatable {
@@ -13,11 +14,6 @@ struct RealTypedThrowsRequirementProbe: TypedThrowsRequirementProbe {
     func load() throws(TypedThrowsRequirementError) -> Int { 1 }
 }
 
-struct TypedThrowsPayloadError: Error, Equatable {
-    let code: Int
-    let message: String
-}
-
 protocol TypedThrowsPayloadProbe {
     func load(_ shouldFail: Bool) throws(TypedThrowsPayloadError) -> String
 }
@@ -25,7 +21,7 @@ protocol TypedThrowsPayloadProbe {
 struct RealTypedThrowsPayloadProbe: TypedThrowsPayloadProbe {
     func load(_ shouldFail: Bool) throws(TypedThrowsPayloadError) -> String {
         if shouldFail {
-            throw TypedThrowsPayloadError(code: 1, message: "linked")
+            throw TypedThrowsPayloadError(code: 1, sequence: 1)
         }
         return "linked"
     }
@@ -147,7 +143,7 @@ private func callWithValue(
         stub.when { try $0.load(Match.equal(false)) }.thenReturn("loaded")
         stub.when { try $0.load(Match.equal(true)) }.then {
             (_: Bool) throws -> String in
-            throw TypedThrowsPayloadError(code: 42, message: "failed")
+            throw TypedThrowsPayloadError(code: 42, sequence: 1)
         }
 
         let probe = stub()
@@ -156,7 +152,7 @@ private func callWithValue(
         let error = #expect(throws: TypedThrowsPayloadError.self) {
             _ = try probe.load(true)
         }
-        #expect(error == TypedThrowsPayloadError(code: 42, message: "failed"))
+        #expect(error == TypedThrowsPayloadError(code: 42, sequence: 1))
     }
 
     @Test func indirectTypedThrowsUseCallerProvidedErrorStorage() throws {
@@ -264,12 +260,12 @@ private func callWithValue(
         )
         failure.when { try $0.load(Match.equal(2)) }.then {
             (_: Int) throws -> String in
-            throw TypedThrowsPayloadError(code: 42, message: "failed")
+            throw TypedThrowsPayloadError(code: 42, sequence: 1)
         }
         let error = #expect(throws: TypedThrowsPayloadError.self) {
             _ = try failure().load(2)
         }
-        #expect(error == TypedThrowsPayloadError(code: 42, message: "failed"))
+        #expect(error == TypedThrowsPayloadError(code: 42, sequence: 1))
 
         typealias AssociatedStub =
             Stub<any ExplicitTypedThrowsAssociatedProbe<Int>>
