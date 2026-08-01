@@ -175,6 +175,67 @@ private func archiveScore(
         )
     }
 
+    @Test func defaultMatchersCalibrateResilientOptionalArguments() throws {
+        let stub = try Stub<any DeliveryGateway>()
+        stub.when { $0.review(Match.any()) }.then {
+            (reservation: ExternalReservation?) in
+            guard let reservation else { return 0 }
+            return reservation.start ^ reservation.end
+        }
+
+        #expect(
+            stub().review(ExternalReservation(start: 17, end: 23)) == 17 ^ 23
+        )
+        #expect(stub().review(nil) == 0)
+    }
+
+    @Test func nestedOptionalMatchersRetainTheirConcretePlaceholderShape() throws {
+        let doubleOptionalStub = try Stub<any OptionalDestinationGateway>()
+        let doubleOptionalPlaceholder: URL? = URL(
+            string: "https://example.com/double-placeholder"
+        )
+        doubleOptionalStub.when {
+            $0.deliver(Match.any(using: doubleOptionalPlaceholder))
+        }.then { (destination: URL??) in
+            guard case .some(.some(let destination)) = destination else { return 0 }
+            return destination.absoluteString.count
+        }
+
+        let doubleOptionalActual: URL?? = .some(
+            .some(
+                URL(string: "https://example.com/double-actual")!
+            ))
+        #expect(
+            doubleOptionalStub().deliver(doubleOptionalActual)
+                == "https://example.com/double-actual".count
+        )
+
+        let tripleOptionalStub = try Stub<any OptionalDestinationGateway>()
+        let tripleOptionalPlaceholder: URL?? = .some(
+            .some(
+                URL(string: "https://example.com/triple-placeholder")!
+            ))
+        tripleOptionalStub.when {
+            $0.cascade(Match.any(using: tripleOptionalPlaceholder))
+        }.then { (destination: URL???) in
+            guard case .some(.some(.some(let destination))) = destination
+            else {
+                return 0
+            }
+            return destination.absoluteString.count
+        }
+
+        let tripleOptionalActual: URL??? = .some(
+            .some(
+                .some(
+                    URL(string: "https://example.com/triple-actual")!
+                )))
+        #expect(
+            tripleOptionalStub().cascade(tripleOptionalActual)
+                == "https://example.com/triple-actual".count
+        )
+    }
+
     @Test func escapingAutoclosureRequirementsIgnoreXKFInAnIdentifier() throws {
         let stub = try Stub<any XKFAutoclosureDeliveryLog>()
         let placeholder: () -> String = { "" }

@@ -125,6 +125,13 @@ public protocol FoundationArchiveGateway {
     ) -> Int
 }
 
+/// An API that receives optional values after Swift implicitly promotes a
+/// generic matcher result through one or more optional layers.
+public protocol OptionalDestinationGateway {
+    func deliver(_ destination: URL??) -> Int
+    func cascade(_ destination: URL???) -> Int
+}
+
 /// A logging dependency that uses call-site expression syntax.
 public protocol AutoclosureDeliveryLog {
     func record(_ message: @autoclosure @escaping () -> String)
