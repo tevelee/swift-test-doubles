@@ -100,11 +100,7 @@ enum ReadCoroutineRuntime {
             )
         }
 
-        #if arch(x86_64)
-            let argumentOffset = 2
-        #else
-            let argumentOffset = 1
-        #endif
+        let argumentOffset = yieldOnce2InitialGeneralPurposeOffset()
         if invocation.endpoint.invocationMode == .capturing {
             runtimeMethod.calibrateArgumentLayouts(
                 using: invocation.endpoint.recordingArgumentCalibrations(

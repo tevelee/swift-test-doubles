@@ -54,15 +54,6 @@ struct ProtocolForwardingPlans: @unchecked Sendable {
     let modifications: [Int: ForwardedModifyPlan]
 }
 
-/// The `yield_once_2` descriptor consumes one extra x86_64 argument register
-/// before the original getter arguments. Other supported coroutine entry
-/// points start their visible arguments at the first captured GP register.
-package func yieldOnce2InitialGeneralPurposeOffset(
-    architecture: RuntimeArchitecture = .current
-) -> Int {
-    architecture == .x86_64 ? 2 : 1
-}
-
 struct ProtocolForwardingPlanBuilder<P> {
     let target: ForwardingTarget<P>
     let methods: [MethodDescriptor]

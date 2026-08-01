@@ -1,6 +1,7 @@
 import CTestDoublesTrampoline
 import InternalRuntimeContract
 import TestDoublesRuntimeMetadata
+import TestDoublesRuntimeSupport
 
 /// Distinguishes retained coroutine states that otherwise share one lifecycle.
 package enum YieldingAccessorKind: Equatable {
@@ -12,6 +13,15 @@ package protocol YieldingAccessorState: AnyObject, Sendable {
     var kind: YieldingAccessorKind { get }
     var yieldedStorage: UnsafeMutableRawPointer? { get }
     func finish(isAborting: Bool)
+}
+
+/// The `yield_once_2` descriptor consumes one extra x86_64 argument register
+/// before the original getter arguments. Other supported coroutine entry
+/// points start their visible arguments at the first captured GP register.
+package func yieldOnce2InitialGeneralPurposeOffset(
+    architecture: RuntimeArchitecture = .current
+) -> Int {
+    architecture == .x86_64 ? 2 : 1
 }
 
 final class ForwardingCompletionYieldingState:
