@@ -272,6 +272,14 @@ public protocol OrderedGenericParentStatusGateway {
     func submit(_ status: OrderedExternalAPI<ExternalReservation>.Status) -> UInt64
 }
 
+public protocol ByteReader {
+    func read(_ pointer: UnsafePointer<UInt8>) -> UInt8
+}
+
+public protocol ByteBufferReader {
+    func sum(_ buffer: UnsafeBufferPointer<UInt8>) -> UInt
+}
+
 /// A deliberately unsupported mixed tuple transport. The first member is
 /// resilient to this module while the second is a direct scalar.
 public protocol MixedTupleGateway {
