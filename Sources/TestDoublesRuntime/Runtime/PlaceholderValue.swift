@@ -15,11 +15,13 @@ package enum PlaceholderValue {
     ) -> T? {
         let storage = ValueStorage.allocate(for: type)
         var visited: Set<UInt> = []
-        guard let plan = initializationPlan(
-            for: type,
-            visited: &visited,
-            includingDummyValues: includingDummyValues
-        ) else {
+        guard
+            let plan = initializationPlan(
+                for: type,
+                visited: &visited,
+                includingDummyValues: includingDummyValues
+            )
+        else {
             storage.deallocate()
             return nil
         }
@@ -39,11 +41,13 @@ package enum PlaceholderValue {
     /// Initializes a placeholder at `destination` when `type` can be synthesized safely.
     package static func initialize(type: Any.Type, at destination: UnsafeMutableRawPointer) -> Bool {
         var visited: Set<UInt> = []
-        guard let plan = initializationPlan(
-            for: type,
-            visited: &visited,
-            includingDummyValues: false
-        ) else {
+        guard
+            let plan = initializationPlan(
+                for: type,
+                visited: &visited,
+                includingDummyValues: false
+            )
+        else {
             return false
         }
         destination.initializeMemory(
@@ -172,11 +176,13 @@ package enum PlaceholderValue {
         if let tupleMetadata = metadata as? TupleMetadata {
             var elements: [AggregateElement] = []
             for element in tupleMetadata.elements {
-                guard let plan = initializationPlan(
-                    for: element.type,
-                    visited: &visited,
-                    includingDummyValues: includingDummyValues
-                ) else {
+                guard
+                    let plan = initializationPlan(
+                        for: element.type,
+                        visited: &visited,
+                        includingDummyValues: includingDummyValues
+                    )
+                else {
                     return nil
                 }
                 elements.append(AggregateElement(offset: element.offset, plan: plan))

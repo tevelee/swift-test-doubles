@@ -2,9 +2,7 @@ import Foundation
 
 enum DummyValueFactories {
     private static let lock = NSLock()
-    nonisolated(unsafe) private static var factories: [
-        ObjectIdentifier: @Sendable () -> Any
-    ] = [:]
+    nonisolated(unsafe) private static var factories: [ObjectIdentifier: @Sendable () -> Any] = [:]
 
     static func register<Value>(
         _ type: Value.Type,

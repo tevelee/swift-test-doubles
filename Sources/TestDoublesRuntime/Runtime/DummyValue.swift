@@ -97,7 +97,6 @@ package enum DummyValue {
     }
 }
 
-// swiftlint:disable:next unavailable_function
 private func dummyFunctionWasInvoked() -> Never {
     fatalError(
         "[TestDoubles] A dummy function was invoked. A dummy may only be passed "
