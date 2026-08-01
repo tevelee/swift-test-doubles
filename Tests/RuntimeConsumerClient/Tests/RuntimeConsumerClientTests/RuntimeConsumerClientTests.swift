@@ -3,6 +3,16 @@ import Foundation
 import TestDoubles
 import Testing
 
+private struct ReservationStartingAtLeast: CustomMatcher {
+    let lowerBound: UInt64
+
+    var diagnosticDescription: String { "startsAtLeast(\(lowerBound))" }
+
+    func matches(_ value: ExternalReservation) -> Bool {
+        value.start >= lowerBound
+    }
+}
+
 @Suite struct RuntimeConsumerClientTests {
     @Test func importedAndGenericValuesDecodeInAnOrdinaryConsumer() throws {
         let stub = try Stub<any DeliveryGateway>()
@@ -239,6 +249,29 @@ import Testing
 
         let actual = ExternalReservation(start: 53, end: 59)
         #expect(stub().review(actual) == 53 ^ 59)
+    }
+
+    @Test func customMatchersCalibrateResilientArgumentsInAnOrdinaryConsumer() throws {
+        let stub = try Stub<any DeliveryGateway>()
+        let placeholder = ExternalReservation(start: 61, end: 67)
+        stub.when {
+            $0.review(
+                Match.custom(
+                    using: placeholder,
+                    ReservationStartingAtLeast(lowerBound: 60)
+                )
+            )
+        }.then { (reservation: ExternalReservation?) in
+            guard let reservation else { return 0 }
+            return reservation.start ^ reservation.end
+        }
+        stub.when { $0.review(Match.any(using: placeholder)) }.thenReturn(0)
+
+        #expect(
+            stub().review(ExternalReservation(start: 71, end: 73))
+                == 71 ^ 73
+        )
+        #expect(stub().review(ExternalReservation(start: 59, end: 61)) == 0)
     }
 
     @Test func genericTupleShellsCalibrateInAnOrdinaryConsumer() throws {
