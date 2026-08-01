@@ -137,35 +137,26 @@ struct PredicateMatcher<Value>: ParameterMatcher {
     var diagnosticDescription: String { "Match.matching(\(description))" }
 }
 
-struct DescriptionMatcher: ParameterMatcher {
-    let description: String
-
-    init(value: Any) {
-        description = String(describing: value)
+func literalMatcher(for value: Any) -> ParameterMatcher {
+    func equalityMatcher<Value: Equatable>(for value: Value) -> ParameterMatcher {
+        EqualMatcher(expected: value)
     }
 
-    func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
-        String(describing: value) == description ? .matched : nil
+    if type(of: value) is AnyObject.Type {
+        return IdenticalMatcher(expected: value as AnyObject)
     }
-
-    var diagnosticDescription: String { "literal(\(description))" }
-    var acceptanceIdentity: MatcherAcceptanceIdentity? {
-        MatcherAcceptanceIdentity(Self.self, values: [AnyHashable(description)])
+    if let value = value as? any Equatable {
+        return _openExistential(value, do: equalityMatcher)
     }
-}
-
-extension DescriptionMatcher: ExactMatchIndexable {
-    var exactMatchIndexSchema: ObjectIdentifier {
-        ObjectIdentifier(Self.self)
+    if let value = value as? Any.Type {
+        return MetatypeMatcher(expected: value)
     }
-
-    var exactMatchIndexValue: AnyHashable {
-        AnyHashable(description)
-    }
-
-    func exactMatchIndexValue(for value: Any) -> AnyHashable? {
-        AnyHashable(String(describing: value))
-    }
+    preconditionFailure(
+        "[TestDoubles] Cannot record the literal value of type \(type(of: value)) because it has no "
+            + "generic equality. Use Match expressions for every argument in this call, such as "
+            + "Match.any(using:), Match.identical(to:), or "
+            + "Match.matching(using:description:where:)."
+    )
 }
 
 struct EqualMatcher<Value: Equatable>: ParameterMatcher {
@@ -213,9 +204,21 @@ struct IdenticalMatcher: ParameterMatcher {
     let expected: AnyObject
 
     func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
-        (value as AnyObject) === expected ? .matched : nil
+        guard type(of: value) is AnyObject.Type else { return nil }
+        return (value as AnyObject) === expected ? .matched : nil
     }
     var diagnosticDescription: String { "Match.identical(to: \(expected))" }
+}
+
+struct MetatypeMatcher: ParameterMatcher {
+    let expected: Any.Type
+
+    func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
+        guard let value = value as? Any.Type else { return nil }
+        return value == expected ? .matched : nil
+    }
+
+    var diagnosticDescription: String { "literal(\(expected))" }
 }
 
 struct ComparisonMatcher<Value: Comparable>: ParameterMatcher {

@@ -394,7 +394,7 @@ struct RecordedCall: @unchecked Sendable {
 
     var resolvedMatchers: [ParameterMatcher] {
         matchers.isEmpty
-            ? args.map { DescriptionMatcher(value: $0) }
+            ? args.map(literalMatcher)
             : matchers
     }
 }

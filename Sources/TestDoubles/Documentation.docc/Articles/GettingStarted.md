@@ -77,6 +77,13 @@ and does not terminate the process. When calls reached the same requirement
 with different arguments, the issue also shows the closest observed calls and
 which matcher rejected each argument.
 
+You can also use literals for every argument in one recorded call. A literal
+uses `Equatable` equality, object identity, or metatype equality, as appropriate.
+Values without one of those relations — for example, closures and opaque domain
+objects — must use a `Match` expression for every argument. `Match.any(using:)`
+and `Match.matching(using:description:where:)` accept an explicit recording
+placeholder when the library cannot synthesize one safely.
+
 For floating-point values, `Match.approximately` combines absolute and relative
 tolerance:
 

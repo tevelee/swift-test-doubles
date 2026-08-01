@@ -6,7 +6,7 @@ import Testing
         var registry = StubBehaviorRegistry()
         registry.add(
             method: 0,
-            matchers: [DescriptionMatcher(value: 1)],
+            matchers: [EqualMatcher(expected: 1)],
             diagnosticSignature: "literal one",
             behavior: .fixed(.success(1))
         )
@@ -23,14 +23,14 @@ import Testing
         )
         registry.add(
             method: 0,
-            matchers: [DescriptionMatcher(value: 3)],
+            matchers: [EqualMatcher(expected: 3)],
             diagnosticSignature: "literal three",
             behavior: .fixed(.success(3))
         )
         for value in 4 ... 5 {
             registry.add(
                 method: 0,
-                matchers: [DescriptionMatcher(value: value)],
+                matchers: [EqualMatcher(expected: value)],
                 diagnosticSignature: "literal \(value)",
                 behavior: .fixed(.success(value))
             )

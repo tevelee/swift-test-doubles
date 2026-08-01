@@ -262,7 +262,6 @@ struct StubBehaviorRegistry {
             let values: [AnyHashable]
         }
 
-        private var singleDescriptionEntryIndices: [String: [Int]] = [:]
         private var entryIndicesByKey: [Key: [Int]] = [:]
         private var representativeMatchersBySchema: [Schema: [ParameterMatcher]] = [:]
         private var unindexedEntryIndices: [Int] = []
@@ -271,16 +270,6 @@ struct StubBehaviorRegistry {
         var isWorthUsing: Bool { indexedEntryCount >= 4 }
 
         mutating func add(_ entry: Entry, at entryIndex: Int) {
-            if entry.matchers.count == 1,
-                let matcher = entry.matchers[0] as? DescriptionMatcher
-            {
-                singleDescriptionEntryIndices[
-                    matcher.description,
-                    default: []
-                ].append(entryIndex)
-                indexedEntryCount += 1
-                return
-            }
             let indexedMatchers = entry.matchers.compactMap {
                 $0 as? any ExactMatchIndexable
             }
@@ -304,13 +293,6 @@ struct StubBehaviorRegistry {
 
         func candidateEntryIndices(for args: [Any]) -> [Int] {
             var candidates = unindexedEntryIndices
-            if args.count == 1 {
-                candidates.append(
-                    contentsOf: singleDescriptionEntryIndices[
-                        String(describing: args[0])
-                    ] ?? []
-                )
-            }
             for (schema, matchers) in representativeMatchersBySchema {
                 guard matchers.count == args.count else { continue }
                 let values = zip(matchers, args).compactMap { matcher, argument in

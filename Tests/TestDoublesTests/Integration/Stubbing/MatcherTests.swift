@@ -6,11 +6,19 @@ import TestDoublesFixtures
 protocol MatcherService {
     func find(id: Int) -> String
     func search(query: String, limit: Int) -> [String]
+    func resolve(_ value: SameDescriptionMatcherValue) -> String
 }
 
 struct RealMatcherService: MatcherService {
     func find(id: Int) -> String { "" }
     func search(query: String, limit: Int) -> [String] { [] }
+    func resolve(_ value: SameDescriptionMatcherValue) -> String { "" }
+}
+
+struct SameDescriptionMatcherValue: Equatable, CustomStringConvertible {
+    let rawValue: Int
+
+    var description: String { "value" }
 }
 
 final class MatcherReferenceBox {
@@ -64,6 +72,27 @@ protocol MatcherPlaceholderService {
 
         #expect(stub().find(id: 42) == "exact")
         #expect(stub().find(id: 1) == "fallback")
+    }
+
+    @Test func literalEquatableValuesUseEqualityInsteadOfTheirDescription() throws {
+        let stub = try Stub<any MatcherService>()
+        stub.when { $0.resolve(SameDescriptionMatcherValue(rawValue: 1)) }.thenReturn("first")
+        stub.when { $0.resolve(SameDescriptionMatcherValue(rawValue: 2)) }.thenReturn("second")
+
+        #expect(stub().resolve(SameDescriptionMatcherValue(rawValue: 2)) == "second")
+    }
+
+    @Test func literalReferenceValuesUseIdentityInsteadOfTheirDescription() throws {
+        let stub = try Stub<any MatcherPlaceholderService>(
+            .method(MatcherReferenceBox.self, returning: String.self),
+            .method((any MatcherExistentialValue).self, returning: String.self)
+        )
+        let first = MatcherReferenceBox(value: 1)
+        let second = MatcherReferenceBox(value: 1)
+        stub.when { $0.inspect(reference: first) }.thenReturn("first")
+        stub.when { $0.inspect(reference: second) }.thenReturn("second")
+
+        #expect(stub().inspect(reference: second) == "second")
     }
 
     @Test func catchAllRegisteredFirstShadowsLaterMatchers() throws {
@@ -224,6 +253,18 @@ protocol MatcherPlaceholderService {
 
 #if compiler(>=6.2) && (os(macOS) || os(Linux) || targetEnvironment(macCatalyst))
     @Suite struct MatcherExitTests {
+        @Test func literalClosureRecordingFailsWithMatcherGuidance() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                _ = literalMatcher(for: {})
+            }
+            let diagnostic = try requireStandardErrorDiagnostic(from: result)
+            #expect(diagnostic.contains("has no generic equality"))
+            #expect(diagnostic.contains("Match.any(using:)"))
+        }
+
         @Test func synthesizedReferencePlaceholderFailsClosed() async throws {
             let result = try await #require(
                 processExitsWith: .failure,

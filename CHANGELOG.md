@@ -118,6 +118,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Literal-only recordings now compare `Equatable` values with `==`, reference
+  values by identity, and metatypes by equality rather than comparing their
+  rendered descriptions. Values without a generic equality relation, such as
+  closures, now stop during registration with guidance to use explicit
+  `Match` expressions instead of silently matching unrelated values.
 - Loadable aggregate arguments wider than two words now decode from the
   registers the caller actually used. They were classified as indirect while
   only results used the register explosion, so a struct of three or four words
