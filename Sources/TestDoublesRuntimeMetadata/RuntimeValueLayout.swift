@@ -157,7 +157,6 @@ private struct ArgumentABIClassificationContext {
 
     mutating func candidates(for type: Any.Type) -> [ABIClass] {
         let direct = abiClass(for: type)
-        guard direct != .indirect else { return [direct] }
 
         let identifier = ObjectIdentifier(type)
         guard activeTypes.insert(identifier).inserted else { return [direct] }
@@ -165,13 +164,25 @@ private struct ArgumentABIClassificationContext {
 
         let isAddressableForDependencies: Bool
         if let metadata = reflectStruct(type) {
-            isAddressableForDependencies = hasAddressableArgumentDependencies(in: metadata)
+            isAddressableForDependencies = hasAddressableArgumentDependencies(
+                in: metadata,
+                directLayout: direct
+            )
         } else if let metadata = reflectEnum(type) {
-            isAddressableForDependencies = hasAddressableArgumentDependencies(in: metadata)
+            isAddressableForDependencies = hasAddressableArgumentDependencies(
+                in: metadata,
+                directLayout: direct
+            )
         } else {
             isAddressableForDependencies = false
         }
         guard isAddressableForDependencies else { return [direct] }
+        if direct == .indirect,
+            let scalarDirect = scalarDirectArgumentLayout(for: type)
+        {
+            return [scalarDirect, direct]
+        }
+        guard direct != .indirect else { return [direct] }
         return [direct, .indirect]
     }
 
@@ -188,10 +199,15 @@ private struct ArgumentABIClassificationContext {
     }
 
     private mutating func hasAddressableArgumentDependencies(
-        in metadata: StructMetadata
+        in metadata: StructMetadata,
+        directLayout: ABIClass
     ) -> Bool {
         (metadata.vwt.flags.isAddressableForDependencies
-            && definingModuleName(of: metadata.descriptor.parent) != "Swift")
+            && (definingModuleName(of: metadata.descriptor.parent) != "Swift"
+                || isAddressableStandardLibraryGenericValue(
+                    metadata.descriptor,
+                    directLayout: directLayout
+                )))
             // Runtime metadata does not record whether an imported generic
             // nominal was declared `@frozen`. Its field can therefore look
             // loadable even though a library-evolution client passes the
@@ -203,10 +219,15 @@ private struct ArgumentABIClassificationContext {
     }
 
     private mutating func hasAddressableArgumentDependencies(
-        in metadata: EnumMetadata
+        in metadata: EnumMetadata,
+        directLayout: ABIClass
     ) -> Bool {
         (metadata.vwt.flags.isAddressableForDependencies
-            && definingModuleName(of: metadata.descriptor.parent) != "Swift")
+            && (definingModuleName(of: metadata.descriptor.parent) != "Swift"
+                || isAddressableStandardLibraryGenericValue(
+                    metadata.descriptor,
+                    directLayout: directLayout
+                )))
             || isGenericNominalOutsideSwift(metadata.descriptor)
             || storesAddressableGenericArgument(in: metadata)
     }
@@ -216,6 +237,39 @@ private struct ArgumentABIClassificationContext {
     ) -> Bool {
         descriptor.flags.isGeneric
             && definingModuleName(of: descriptor.parent) != "Swift"
+    }
+
+    /// A standard-library generic value can carry the addressable-dependency
+    /// bit while reflection cannot decompose its apparently indirect layout.
+    /// That combination has an unobservable direct scalar alternative, so
+    /// recording must calibrate both whole-value transports.
+    private func isAddressableStandardLibraryGenericValue(
+        _ descriptor: any TypeContextDescriptor,
+        directLayout: ABIClass
+    ) -> Bool {
+        guard descriptor.flags.isGeneric else { return false }
+        return directLayout == .indirect
+    }
+
+    /// Some standard-library generic values expose only their fixed byte
+    /// layout, not field records the reflection decoder can flatten. A
+    /// loadable client may still lower up to four scalar words directly. This
+    /// is a calibration candidate, not a claim about the metadata's preferred
+    /// transport: a matching recording frame supplies the proof before it is
+    /// ever decoded as a value.
+    private func scalarDirectArgumentLayout(for type: Any.Type) -> ABIClass? {
+        let size = reflect(type).vwt.size
+        let wordSize = MemoryLayout<UInt>.size
+        guard size > 0, size <= 4 * wordSize else { return nil }
+        return .aggregate(
+            parts: stride(from: 0, to: size, by: wordSize).map { offset in
+                DirectValuePart(
+                    register: .gp,
+                    offset: offset,
+                    byteCount: min(wordSize, size - offset)
+                )
+            }
+        )
     }
 
     private mutating func storesAddressableGenericArgument(

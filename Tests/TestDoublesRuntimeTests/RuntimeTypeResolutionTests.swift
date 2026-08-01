@@ -225,11 +225,24 @@ private indirect enum RecursiveValueBox<Value> {
         )
     }
 
-    @Test func frozenStandardLibraryGenericAggregatesStayDirect() {
+    @Test func addressableStandardLibraryGenericValuesCanBeCalibrated() {
+        let candidates = argumentABIClassCandidates(for: ArraySlice<Int>.self)
+        #expect(candidates.contains(.indirect))
+        #if os(Linux)
+            #expect(
+                candidates.contains { candidate in
+                    if case .aggregate = candidate { return true }
+                    return false
+                })
+        #else
+            #expect(candidates == [abiClass(for: ArraySlice<Int>.self)])
+        #endif
+    }
+
+    @Test func standardLibraryGenericsWithReflectedDirectLayoutsStayFixed() {
         #expect(
-            argumentABIClassCandidates(for: ArraySlice<Int>.self) == [
-                abiClass(for: ArraySlice<Int>.self)
-            ]
+            argumentABIClassCandidates(for: Optional<String>.self)
+                == [abiClass(for: Optional<String>.self)]
         )
     }
 
