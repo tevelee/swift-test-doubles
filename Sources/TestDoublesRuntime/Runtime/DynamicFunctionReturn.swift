@@ -197,7 +197,7 @@ private final class DynamicFunctionReturnContext: @unchecked Sendable {
                 RuntimeValueTransport.encodeReturn(
                     result,
                     expectedType: signature.resultType,
-                    layout: abiClass(for: signature.resultType, isReturn: true),
+                    layout: abiClass(for: signature.resultType),
                     context: "dynamic function return",
                     isAsync: isAsync,
                     into: frame

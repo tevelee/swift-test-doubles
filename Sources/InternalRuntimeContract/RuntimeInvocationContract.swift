@@ -47,6 +47,22 @@ package enum RuntimeInvocationMode: Sendable {
     case capturing
 }
 
+/// Raw bytes of one top-level matcher placeholder before the caller applies
+/// the concrete argument convention.
+///
+/// The ABI runtime compares this independent observation with alternate raw
+/// call-frame transports before it constructs any typed value. `Any.Type` is
+/// retained only to reject positional mismatches without opening the value.
+package struct RuntimeArgumentCalibration: @unchecked Sendable {
+    package let type: Any.Type
+    package let bytes: [UInt8]
+
+    package init(type: Any.Type, bytes: [UInt8]) {
+        self.type = type
+        self.bytes = bytes
+    }
+}
+
 /// A behavior selected by the public semantic layer after recording the call.
 package enum RuntimeDispatchBehavior: @unchecked Sendable {
     case fixed(Result<Any, any Error>)
@@ -91,6 +107,13 @@ package enum RuntimeAsyncDispatch: @unchecked Sendable {
 /// slots and boxed Swift values; metadata, ABI plans, and frame storage stay
 /// implementation details of `TestDoublesRuntime`.
 package protocol RuntimeInvocationEndpoint: AnyObject, Sendable {
+    /// Returns one positional placeholder observation per visible argument
+    /// while a `when`/`verify` call is being captured. An empty array means the
+    /// recording used literals rather than matchers.
+    func recordingArgumentCalibrations(
+        at slot: Int
+    ) -> [RuntimeArgumentCalibration]
+
     func prepareDispatch(
         _ request: RuntimeInvocationRequest
     ) -> RuntimePreparedDispatch

@@ -172,7 +172,7 @@ enum RuntimeTrampolineHandler {
                         "[TestDoubles] A forwarding dispatch has no target transport."
                     )
                 }
-                forwarder.forward(method, frame: frame)
+                forwarder.forward(invocation.runtimeMethod, frame: frame)
                 invocation.endpoint.completeForwardedInvocation(token)
                 return
 
@@ -180,7 +180,7 @@ enum RuntimeTrampolineHandler {
                 completionToken = token
                 if invocation.forwarder != nil {
                     _ = RuntimeArgumentDecoder.decode(
-                        for: method,
+                        for: invocation.runtimeMethod,
                         from: frame,
                         consumeOwnedArguments: true
                     )
@@ -315,7 +315,7 @@ enum RuntimeTrampolineHandler {
                 }
                 let state = ForwardingCompletionState(
                     base: forwarder.makeAsyncState(
-                        for: invocation.method,
+                        for: invocation.runtimeMethod,
                         frame: frame
                     ),
                     endpoint: invocation.endpoint,
@@ -380,6 +380,14 @@ enum RuntimeTrampolineHandler {
             failureMessage:
                 "[TestDoubles] No method descriptor registered for witness slot \(slot)."
         )
+        if resolved.endpoint.invocationMode == .capturing {
+            runtimeMethod.calibrateArgumentLayouts(
+                using: resolved.endpoint.recordingArgumentCalibrations(
+                    at: slot
+                ),
+                from: frame
+            )
+        }
         return Invocation(
             endpoint: resolved.endpoint,
             forwarder: resolved.forwarder,

@@ -33,6 +33,13 @@ enum RuntimeStubFactory {
         #endif
     }
 
+    @inline(never)
+    static func scrubArgumentRegisters() {
+        #if TESTDOUBLES_RUNTIME_STUBS
+            TestDoublesRuntimeSupport.scrubArgumentRegisters()
+        #endif
+    }
+
     static func makeTypedWitnessAdapter<P, Adapter>(
         _ adapter: Adapter,
         invocationType: Stub<P>.Invocation.Type
@@ -456,6 +463,12 @@ extension Stub {
 final class DummyInvocationEndpoint: RuntimeInvocationEndpoint,
     @unchecked Sendable
 {
+    func recordingArgumentCalibrations(
+        at slot: Int
+    ) -> [RuntimeArgumentCalibration] {
+        []
+    }
+
     private let typeDescription: String
     private let requirements: [Int: String]
 

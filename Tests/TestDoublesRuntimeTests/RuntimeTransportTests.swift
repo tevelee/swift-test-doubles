@@ -87,7 +87,7 @@ private final class TransportReference {}
     }
 
     private func roundTrip<Value>(_ value: Value) -> Value {
-        let layout = abiClass(for: Value.self, isReturn: true)
+        let layout = abiClass(for: Value.self)
         let call = ManagedDynamicCall(resultType: Value.self, errorType: nil)
         if case .indirect = layout {
             call.frame.storeIndirectResultAddress(
@@ -139,7 +139,7 @@ private final class TransportReference {}
         _ error: Failure,
         usesIndirectResultSlot: Bool
     ) -> Failure {
-        let layout = abiClass(for: Failure.self, isReturn: true)
+        let layout = abiClass(for: Failure.self)
         let call = ManagedDynamicCall(
             resultType: Void.self,
             errorType: Failure.self

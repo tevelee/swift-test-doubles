@@ -284,9 +284,9 @@ package func dynamicDirectTypedErrorUsesIndirectResultSlot(
     effects: RuntimeFunctionEffectInfo
 ) -> Bool {
     guard let errorType = effects.typedErrorType else { return false }
-    return abiClassIsIndirect(abiClass(for: function.resultType, isReturn: true))
+    return abiClassIsIndirect(abiClass(for: function.resultType))
         || typedErrorLayoutRequiresIndirectSlot(
-            abiClass(for: errorType, isReturn: true)
+            abiClass(for: errorType)
         )
 }
 

@@ -19,6 +19,20 @@ final class StubRecorderInvocationEndpoint: RuntimeInvocationEndpoint,
         }
     }
 
+    func recordingArgumentCalibrations(
+        at slot: Int
+    ) -> [RuntimeArgumentCalibration] {
+        var calibrations = MatcherContext.currentCalibrations()
+        let method = method(at: slot)
+        if method.kind == .setter,
+            calibrations.count > 1,
+            let value = calibrations.last
+        {
+            calibrations = [value] + calibrations.dropLast()
+        }
+        return calibrations
+    }
+
     func prepareDispatch(
         _ request: RuntimeInvocationRequest
     ) -> RuntimePreparedDispatch {

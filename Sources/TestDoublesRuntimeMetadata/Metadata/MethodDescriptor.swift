@@ -109,7 +109,7 @@ package struct MethodDescriptor: Sendable {
                 isThrowing,
                 "[TestDoubles] A typed-error transport requires a throwing requirement."
             )
-            let errorLayout = abiClass(for: typedErrorType, isReturn: true)
+            let errorLayout = abiClass(for: typedErrorType)
             let concreteLayoutUsesIndirectResultSlot =
                 switch (resultLayout, errorLayout) {
                     case (.indirect, _), (_, .indirect): true
@@ -403,14 +403,14 @@ package struct MethodDescriptor: Sendable {
             return .indirect
         }
         return switch convention {
-            case .concrete: abiClass(for: type, isReturn: true)
+            case .concrete: abiClass(for: type)
             case .associatedType: .indirect
             case .selfType, .optionalSelf:
                 selfIsClassConstrained ? .integer(words: 1) : .indirect
             case .nestedOptionalSelf, .inoutSelf:
                 .indirect
             case .arraySelf, .optionalArraySelf:
-                abiClass(for: type, isReturn: true)
+                abiClass(for: type)
             case .classMethodGenericParameter: .integer(words: 1)
             case .methodGenericParameter, .optionalMethodGenericParameter,
                 .methodGenericParameterPack:

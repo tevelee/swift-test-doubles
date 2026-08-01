@@ -1,8 +1,10 @@
 import Foundation
+import InternalRuntimeContract
 
 private final class MatcherRecording: @unchecked Sendable {
     private let lock = NSLock()
     private var storage: [ParameterMatcher] = []
+    private var calibrations: [RuntimeArgumentCalibration] = []
 
     func append(_ matcher: ParameterMatcher) {
         lock.lock()
@@ -10,11 +12,27 @@ private final class MatcherRecording: @unchecked Sendable {
         lock.unlock()
     }
 
+    func appendCalibration<T>(_ placeholder: borrowing T) {
+        let bytes = withUnsafeBytes(of: placeholder) { Array($0) }
+        lock.lock()
+        calibrations.append(
+            RuntimeArgumentCalibration(type: T.self, bytes: bytes)
+        )
+        lock.unlock()
+    }
+
+    func currentCalibrations() -> [RuntimeArgumentCalibration] {
+        lock.lock()
+        defer { lock.unlock() }
+        return calibrations
+    }
+
     func takeMatchers() -> [ParameterMatcher] {
         lock.lock()
         defer { lock.unlock() }
         let matchers = storage
         storage.removeAll(keepingCapacity: true)
+        calibrations.removeAll(keepingCapacity: true)
         return matchers
     }
 }
@@ -69,6 +87,19 @@ enum MatcherContext {
         activeRecording?.append(matcher)
     }
 
+    /// Records the exact value returned by the most recently appended
+    /// top-level matcher before the caller applies its concrete ABI.
+    @inline(never)
+    static func returning<T>(_ placeholder: T) -> T {
+        activeRecording?.appendCalibration(placeholder)
+        RuntimeStubFactory.scrubArgumentRegisters()
+        return placeholder
+    }
+
+    static func currentCalibrations() -> [RuntimeArgumentCalibration] {
+        activeRecording?.currentCalibrations() ?? []
+    }
+
     /// Runs `body` against a fresh sub-recording and returns the matchers it
     /// appended without leaking them into the enclosing invocation's list.
     ///
@@ -106,7 +137,12 @@ extension Match {
     /// existential, or other unsupported types, use ``Match/any(using:)``.
     public static func any<T>() -> T {
         MatcherContext.append(AnyMatcher())
-        return synthesizedPlaceholder(for: "Match.any()", fallback: "Match.any(using:)")
+        return MatcherContext.returning(
+            synthesizedPlaceholder(
+                for: "Match.any()",
+                fallback: "Match.any(using:)"
+            )
+        )
     }
 
     /// Matches any argument of type `T`, using `placeholder` while recording the call.
@@ -117,13 +153,13 @@ extension Match {
     /// - Parameter placeholder: A valid value accepted by the stubbed requirement.
     public static func any<T>(using placeholder: T) -> T {
         MatcherContext.append(AnyMatcher())
-        return placeholder
+        return MatcherContext.returning(placeholder)
     }
 
     /// Matches an argument that is equal to `value`.
     public static func equal<T: Equatable>(_ value: T) -> T {
         MatcherContext.append(EqualMatcher(expected: value))
-        return value
+        return MatcherContext.returning(value)
     }
 
     /// Matches an argument accepted by `predicate`.
@@ -136,9 +172,11 @@ extension Match {
         where predicate: @escaping @Sendable (T) -> Bool
     ) -> T {
         MatcherContext.append(PredicateMatcher(description: description, predicate: predicate))
-        return synthesizedPlaceholder(
-            for: "Match.matching(description:where:)",
-            fallback: "Match.matching(using:description:where:)"
+        return MatcherContext.returning(
+            synthesizedPlaceholder(
+                for: "Match.matching(description:where:)",
+                fallback: "Match.matching(using:description:where:)"
+            )
         )
     }
 
@@ -156,7 +194,7 @@ extension Match {
         where predicate: @escaping @Sendable (T) -> Bool
     ) -> T {
         MatcherContext.append(PredicateMatcher(description: description, predicate: predicate))
-        return placeholder
+        return MatcherContext.returning(placeholder)
     }
 
     /// Captures matching argument values for later inspection.
@@ -182,9 +220,11 @@ extension Match {
         /// existential, or other unsupported types, use ``capture(using:)``.
         public func capture() -> T {
             MatcherContext.append(CaptureMatcher(capture: self))
-            return synthesizedPlaceholder(
-                for: "Match.Capture.capture()",
-                fallback: "Match.Capture.capture(using:)"
+            return MatcherContext.returning(
+                synthesizedPlaceholder(
+                    for: "Match.Capture.capture()",
+                    fallback: "Match.Capture.capture(using:)"
+                )
             )
         }
 
@@ -196,7 +236,7 @@ extension Match {
         /// - Parameter placeholder: A valid value accepted by the stubbed requirement.
         public func capture(using placeholder: T) -> T {
             MatcherContext.append(CaptureMatcher(capture: self))
-            return placeholder
+            return MatcherContext.returning(placeholder)
         }
 
         /// Removes all previously captured values.

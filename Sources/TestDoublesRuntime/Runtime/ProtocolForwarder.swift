@@ -2,7 +2,7 @@ import CTestDoublesTrampoline
 import TestDoublesRuntimeMetadata
 
 package protocol RuntimeForwarding: AnyObject, Sendable {
-    func forward(_ method: MethodDescriptor, frame: TrampolineCallFrame)
+    func forward(_ method: PreparedRuntimeMethod, frame: TrampolineCallFrame)
     func makeModifyState(
         for method: MethodDescriptor,
         frame: TrampolineCallFrame
@@ -12,7 +12,7 @@ package protocol RuntimeForwarding: AnyObject, Sendable {
         frame: TrampolineCallFrame
     ) -> any YieldingAccessorState
     func makeAsyncState(
-        for method: MethodDescriptor,
+        for method: PreparedRuntimeMethod,
         frame: TrampolineCallFrame
     ) -> any AsyncTrampolineDispatchState
 }
@@ -34,8 +34,8 @@ package final class ProtocolForwarder<P>: RuntimeForwarding, @unchecked Sendable
         ).build()
     }
 
-    package func forward(_ method: MethodDescriptor, frame: TrampolineCallFrame) {
-        let plan = prepareCall(method, frame: frame)
+    package func forward(_ runtimeMethod: PreparedRuntimeMethod, frame: TrampolineCallFrame) {
+        let plan = prepareCall(runtimeMethod, frame: frame)
         precondition(
             plan.isAsync == false,
             "[TestDoubles] An async forwarding requirement entered synchronous transport."
@@ -105,10 +105,11 @@ package final class ProtocolForwarder<P>: RuntimeForwarding, @unchecked Sendable
     }
 
     package func makeAsyncState(
-        for method: MethodDescriptor,
+        for runtimeMethod: PreparedRuntimeMethod,
         frame: TrampolineCallFrame
     ) -> any AsyncTrampolineDispatchState {
-        let plan = prepareCall(method, frame: frame)
+        let method = runtimeMethod.descriptor
+        let plan = prepareCall(runtimeMethod, frame: frame)
         precondition(
             plan.isAsync,
             "[TestDoubles] A synchronous forwarding requirement entered async transport."
@@ -123,14 +124,52 @@ package final class ProtocolForwarder<P>: RuntimeForwarding, @unchecked Sendable
     }
 
     private func prepareCall(
-        _ method: MethodDescriptor,
+        _ runtimeMethod: PreparedRuntimeMethod,
         frame: TrampolineCallFrame
     ) -> ForwardedCallPlan {
-        guard let plan = plans.calls[method.index] else {
+        let method = runtimeMethod.descriptor
+        guard let basePlan = plans.calls[method.index] else {
             preconditionFailure(
                 "[TestDoubles] No forwarding plan exists for requirement \(method.index)."
             )
         }
+        let transport = WitnessCallTransportPlan(
+            method: method,
+            argumentLayouts: runtimeMethod.argumentLayouts,
+            trailingPayload: .dynamicSelf
+        )
+        let asyncStackPlan =
+            method.isAsync
+            ? asyncForwardingStackPlan(
+                for: method,
+                argumentLayouts: runtimeMethod.argumentLayouts,
+                architecture: .current
+            )
+            : nil
+        let dynamicSelfLocations: WitnessCallTransportPlan.DynamicSelfLocations?
+        let outgoingStackSources: [WitnessCallTransportPlan.OutgoingStackSource]
+        if asyncStackPlan == nil {
+            guard let sources = transport.directForwardingOutgoingStackSources else {
+                preconditionFailure(
+                    "[TestDoubles] Calibrated forwarding for requirement \(method.index) "
+                        + "exceeded its outgoing stack transport boundary."
+                )
+            }
+            dynamicSelfLocations = transport.dynamicSelfLocations
+            outgoingStackSources = sources
+        } else {
+            dynamicSelfLocations = nil
+            outgoingStackSources = []
+        }
+        let plan = ForwardedCallPlan(
+            function: basePlan.function,
+            selfValue: basePlan.selfValue,
+            witnessTable: basePlan.witnessTable,
+            dynamicSelfLocations: dynamicSelfLocations,
+            outgoingStackSources: outgoingStackSources,
+            asyncStackPlan: asyncStackPlan,
+            isAsync: basePlan.isAsync
+        )
         // Metadata and witness table each independently land in a register
         // or spill to the outgoing stack -- whichever one the target's own
         // competitive register allocation produced. Register-located values

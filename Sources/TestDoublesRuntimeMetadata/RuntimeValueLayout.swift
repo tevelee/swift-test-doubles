@@ -3,7 +3,7 @@ import Echo
 import Foundation
 import TestDoublesRuntimeSupport
 
-package enum ABIClass: Sendable {
+package enum ABIClass: Equatable, Sendable {
     case void
     case integer(words: Int)
     case floatingPoint
@@ -16,7 +16,7 @@ package enum DirectValueRegister: Equatable, Sendable {
     case fp
 }
 
-package struct DirectValuePart: Sendable {
+package struct DirectValuePart: Equatable, Sendable {
     package let register: DirectValueRegister
     package let offset: Int
     package let byteCount: Int
@@ -84,7 +84,7 @@ package struct DirectValuePart: Sendable {
     }
 }
 
-package func abiClass(for type: Any.Type, isReturn: Bool = false) -> ABIClass {
+package func abiClass(for type: Any.Type) -> ABIClass {
     let metadata = reflect(type)
     let size = metadata.vwt.size
     if size == 0 {
@@ -93,10 +93,7 @@ package func abiClass(for type: Any.Type, isReturn: Bool = false) -> ABIClass {
     if isFloatingPoint(type) {
         return .floatingPoint
     }
-    if isResilientlyPassedSDKValue(type) {
-        return .indirect
-    }
-    if let parts = directArgumentParts(for: type) {
+    if let parts = directArgumentParts(for: type), parts.isEmpty == false {
         return .aggregate(parts: parts)
     }
     if size > 16 {
@@ -112,37 +109,26 @@ package func abiClass(for type: Any.Type, isReturn: Bool = false) -> ABIClass {
     return .integer(words: size > 8 ? 2 : 1)
 }
 
-/// Foundation value types that a client passes and returns indirectly.
+/// Every argument transport still compatible with the metadata available at
+/// runtime.
 ///
-/// These are not frozen, so a client compiled against the SDK treats them as
-/// address-only and hands the callee an address no matter how small the value
-/// is. Nothing in runtime metadata records that: `String`, which is passed in
-/// registers, and `URL`, which is not, report identical value-witness flags,
-/// size, stride, alignment, and extra inhabitants. Each name below was measured
-/// against the SDK rather than inferred, and
-/// `FoundationValueArgumentTests` fails loudly if one of them ever changes
-/// convention, instead of decoding the wrong value in silence.
-private let resilientlyPassedSDKValueNames: Set<String> = [
-    "Calendar",
-    "CharacterSet",
-    "DateInterval",
-    "IndexPath",
-    "IndexSet",
-    "Locale",
-    "Measurement",
-    "TimeZone",
-    "URL",
-    "UUID"
-]
-
-private func isResilientlyPassedSDKValue(_ type: Any.Type) -> Bool {
-    guard let structMetadata = reflectStruct(type),
-        resilientlyPassedSDKValueNames.contains(structMetadata.descriptor.name),
-        let module = structMetadata.descriptor.parent as? ModuleDescriptor
+/// Swift 6.3 marks nominal structs that may need stable storage with
+/// `isAddressableForDependencies`, but that value-witness bit does not encode
+/// whether a client sees the declaration as frozen. For a direct-sized struct
+/// outside the standard library, runtime metadata therefore admits both the
+/// loadable layout and the resilient client convention. The invocation
+/// boundary must calibrate those alternatives before typed decoding.
+package func argumentABIClassCandidates(for type: Any.Type) -> [ABIClass] {
+    let direct = abiClass(for: type)
+    guard direct != .indirect,
+        let metadata = reflectStruct(type),
+        metadata.vwt.flags.isAddressableForDependencies,
+        let module = metadata.descriptor.parent as? ModuleDescriptor,
+        module.name != "Swift"
     else {
-        return false
+        return [direct]
     }
-    return module.name == "Foundation" || module.name == "FoundationEssentials"
+    return [direct, .indirect]
 }
 
 /// Whether an `InlineArray` specialization's fixed storage contains values

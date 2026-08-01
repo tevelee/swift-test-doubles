@@ -26,7 +26,7 @@ extension Match {
     public static func not<T>(_ matcher: @autoclosure () -> T) -> T {
         let (placeholder, matchers) = MatcherContext.captureNested { matcher() }
         MatcherContext.append(CompositeMatcher(mode: .not, matchers: matchers))
-        return placeholder
+        return MatcherContext.returning(placeholder)
     }
 
     /// Matches an argument accepted by both nested matchers.
@@ -34,7 +34,7 @@ extension Match {
         let (placeholder, a) = MatcherContext.captureNested(first)
         let b = MatcherContext.captureNested(second).matchers
         MatcherContext.append(CompositeMatcher(mode: .all, matchers: a + b))
-        return placeholder
+        return MatcherContext.returning(placeholder)
     }
 
     /// Matches an argument accepted by all three nested matchers.
@@ -47,7 +47,7 @@ extension Match {
         let b = MatcherContext.captureNested(second).matchers
         let c = MatcherContext.captureNested(third).matchers
         MatcherContext.append(CompositeMatcher(mode: .all, matchers: a + b + c))
-        return placeholder
+        return MatcherContext.returning(placeholder)
     }
 
     /// Matches an argument accepted by all four nested matchers.
@@ -62,7 +62,7 @@ extension Match {
         let c = MatcherContext.captureNested(third).matchers
         let d = MatcherContext.captureNested(fourth).matchers
         MatcherContext.append(CompositeMatcher(mode: .all, matchers: a + b + c + d))
-        return placeholder
+        return MatcherContext.returning(placeholder)
     }
 
     /// Matches an argument accepted by either nested matcher.
@@ -70,7 +70,7 @@ extension Match {
         let (placeholder, a) = MatcherContext.captureNested(first)
         let b = MatcherContext.captureNested(second).matchers
         MatcherContext.append(CompositeMatcher(mode: .any, matchers: a + b))
-        return placeholder
+        return MatcherContext.returning(placeholder)
     }
 
     /// Matches an argument accepted by any of the three nested matchers.
@@ -83,7 +83,7 @@ extension Match {
         let b = MatcherContext.captureNested(second).matchers
         let c = MatcherContext.captureNested(third).matchers
         MatcherContext.append(CompositeMatcher(mode: .any, matchers: a + b + c))
-        return placeholder
+        return MatcherContext.returning(placeholder)
     }
 
     /// Matches an argument accepted by any of the four nested matchers.
@@ -98,7 +98,7 @@ extension Match {
         let c = MatcherContext.captureNested(third).matchers
         let d = MatcherContext.captureNested(fourth).matchers
         MatcherContext.append(CompositeMatcher(mode: .any, matchers: a + b + c + d))
-        return placeholder
+        return MatcherContext.returning(placeholder)
     }
 
     /// Matches an argument equal to any of the listed values.
@@ -109,7 +109,7 @@ extension Match {
         MatcherContext.append(
             CompositeMatcher(mode: .any, matchers: values.map { EqualMatcher(expected: $0) })
         )
-        return values[0]
+        return MatcherContext.returning(values[0])
     }
 
     // MARK: - Equality and identity
@@ -117,13 +117,13 @@ extension Match {
     /// Matches an argument not equal to `value`.
     public static func notEqual<T: Equatable>(_ value: T) -> T {
         MatcherContext.append(NotEqualMatcher(expected: value))
-        return value
+        return MatcherContext.returning(value)
     }
 
     /// Matches an argument that is the same object instance as `object` (`===`).
     public static func identical<T: AnyObject>(to object: T) -> T {
         MatcherContext.append(IdenticalMatcher(expected: object))
-        return object
+        return MatcherContext.returning(object)
     }
 
     // MARK: - Comparison
@@ -131,25 +131,25 @@ extension Match {
     /// Matches an argument greater than `value`.
     public static func greaterThan<T: Comparable>(_ value: T) -> T {
         MatcherContext.append(ComparisonMatcher(relation: .greaterThan, bound: value))
-        return value
+        return MatcherContext.returning(value)
     }
 
     /// Matches an argument greater than or equal to `value`.
     public static func atLeast<T: Comparable>(_ value: T) -> T {
         MatcherContext.append(ComparisonMatcher(relation: .atLeast, bound: value))
-        return value
+        return MatcherContext.returning(value)
     }
 
     /// Matches an argument less than `value`.
     public static func lessThan<T: Comparable>(_ value: T) -> T {
         MatcherContext.append(ComparisonMatcher(relation: .lessThan, bound: value))
-        return value
+        return MatcherContext.returning(value)
     }
 
     /// Matches an argument less than or equal to `value`.
     public static func atMost<T: Comparable>(_ value: T) -> T {
         MatcherContext.append(ComparisonMatcher(relation: .atMost, bound: value))
-        return value
+        return MatcherContext.returning(value)
     }
 
     /// Matches an argument contained in `range`.
@@ -157,7 +157,7 @@ extension Match {
         MatcherContext.append(
             RangeMatcher<Bound>(contains: { range.contains($0) }, boundsDescription: "\(range)")
         )
-        return range.lowerBound
+        return MatcherContext.returning(range.lowerBound)
     }
 
     /// Matches an argument contained in `range`.
@@ -165,7 +165,7 @@ extension Match {
         MatcherContext.append(
             RangeMatcher<Bound>(contains: { range.contains($0) }, boundsDescription: "\(range)")
         )
-        return range.lowerBound
+        return MatcherContext.returning(range.lowerBound)
     }
 
     /// Matches a floating-point argument within absolute or relative
@@ -194,7 +194,7 @@ extension Match {
                 relativeTolerance: relativeTolerance
             )
         )
-        return value
+        return MatcherContext.returning(value)
     }
 
     // MARK: - Projection
@@ -209,9 +209,11 @@ extension Match {
         equalTo expected: Value
     ) -> Root {
         appendPropertyMatcher(keyPath, equalTo: expected)
-        return synthesizedPlaceholder(
-            for: "Match.property(_:equalTo:)",
-            fallback: "Match.property(using:_:equalTo:)"
+        return MatcherContext.returning(
+            synthesizedPlaceholder(
+                for: "Match.property(_:equalTo:)",
+                fallback: "Match.property(using:_:equalTo:)"
+            )
         )
     }
 
@@ -223,7 +225,7 @@ extension Match {
         equalTo expected: Value
     ) -> Root {
         appendPropertyMatcher(keyPath, equalTo: expected)
-        return placeholder
+        return MatcherContext.returning(placeholder)
     }
 
     private static func appendPropertyMatcher<Root, Value: Equatable>(
@@ -260,9 +262,11 @@ extension Match {
             }
             return [associated]
         }
-        return synthesizedPlaceholder(
-            for: "Match.enumCase(_:extracting:matching:)",
-            fallback: "Match.enumCase(using:_:extracting:matching:)"
+        return MatcherContext.returning(
+            synthesizedPlaceholder(
+                for: "Match.enumCase(_:extracting:matching:)",
+                fallback: "Match.enumCase(using:_:extracting:matching:)"
+            )
         )
     }
 
@@ -288,10 +292,11 @@ extension Match {
             }
             return [associated.0, associated.1]
         }
-        return synthesizedPlaceholder(
-            for: "Match.enumCase(_:extracting:matching:_:)",
-            fallback: "Match.enumCase(using:_:extracting:matching:_:)"
-        )
+        return MatcherContext.returning(
+            synthesizedPlaceholder(
+                for: "Match.enumCase(_:extracting:matching:_:)",
+                fallback: "Match.enumCase(using:_:extracting:matching:_:)"
+            ))
     }
 
     /// Matches an enum case and its associated value, using `placeholder` only
@@ -309,7 +314,7 @@ extension Match {
             }
             return [associated]
         }
-        return placeholder
+        return MatcherContext.returning(placeholder)
     }
 
     /// Matches an enum case and its two associated values, using `placeholder`
@@ -333,7 +338,7 @@ extension Match {
             }
             return [associated.0, associated.1]
         }
-        return placeholder
+        return MatcherContext.returning(placeholder)
     }
 
     private static func appendEnumCaseMatcher(
@@ -361,13 +366,13 @@ extension Match {
     /// Matches a `nil` optional argument.
     public static func isNil<Wrapped>() -> Wrapped? {
         MatcherContext.append(NilMatcher(expectsNil: true))
-        return nil
+        return MatcherContext.returning(nil as Wrapped?)
     }
 
     /// Matches a non-`nil` optional argument, regardless of the wrapped value.
     public static func notNil<Wrapped>() -> Wrapped? {
         MatcherContext.append(NilMatcher(expectsNil: false))
-        return nil
+        return MatcherContext.returning(nil as Wrapped?)
     }
 
     /// Matches a non-`nil` optional whose wrapped value satisfies `matcher`.
@@ -377,7 +382,7 @@ extension Match {
     public static func some<Wrapped>(_ matcher: @autoclosure () -> Wrapped) -> Wrapped? {
         let (placeholder, matchers) = MatcherContext.captureNested { matcher() }
         MatcherContext.append(SomeMatcher(wrapped: matchers))
-        return placeholder
+        return MatcherContext.returning(Optional.some(placeholder))
     }
 
     // MARK: - Collections
@@ -387,7 +392,12 @@ extension Match {
         MatcherContext.append(
             TypedPredicateMatcher<C>(diagnosticDescription: "isEmpty()") { $0.isEmpty }
         )
-        return synthesizedPlaceholder(for: "isEmpty()", fallback: collectionPlaceholderFallback)
+        return MatcherContext.returning(
+            synthesizedPlaceholder(
+                for: "isEmpty()",
+                fallback: collectionPlaceholderFallback
+            )
+        )
     }
 
     /// Matches a non-empty collection argument.
@@ -395,7 +405,12 @@ extension Match {
         MatcherContext.append(
             TypedPredicateMatcher<C>(diagnosticDescription: "nonEmpty()") { $0.isEmpty == false }
         )
-        return synthesizedPlaceholder(for: "nonEmpty()", fallback: collectionPlaceholderFallback)
+        return MatcherContext.returning(
+            synthesizedPlaceholder(
+                for: "nonEmpty()",
+                fallback: collectionPlaceholderFallback
+            )
+        )
     }
 
     /// Matches a collection argument whose element count equals `count`.
@@ -403,7 +418,12 @@ extension Match {
         MatcherContext.append(
             TypedPredicateMatcher<C>(diagnosticDescription: "hasCount(\(count))") { $0.count == count }
         )
-        return synthesizedPlaceholder(for: "hasCount(_:)", fallback: collectionPlaceholderFallback)
+        return MatcherContext.returning(
+            synthesizedPlaceholder(
+                for: "hasCount(_:)",
+                fallback: collectionPlaceholderFallback
+            )
+        )
     }
 
     /// Matches a collection argument whose element count satisfies `matcher`.
@@ -418,9 +438,11 @@ extension Match {
                 return collection.count
             }
         )
-        return synthesizedPlaceholder(
-            for: "hasCount(matching:)",
-            fallback: collectionPlaceholderFallback
+        return MatcherContext.returning(
+            synthesizedPlaceholder(
+                for: "hasCount(matching:)",
+                fallback: collectionPlaceholderFallback
+            )
         )
     }
 
@@ -431,7 +453,12 @@ extension Match {
                 $0.contains(element)
             }
         )
-        return synthesizedPlaceholder(for: "contains(_:)", fallback: collectionPlaceholderFallback)
+        return MatcherContext.returning(
+            synthesizedPlaceholder(
+                for: "contains(_:)",
+                fallback: collectionPlaceholderFallback
+            )
+        )
     }
 
     /// Matches a collection argument that contains an element accepted by `predicate`.
@@ -441,7 +468,12 @@ extension Match {
                 $0.contains(where: predicate)
             }
         )
-        return synthesizedPlaceholder(for: "contains(where:)", fallback: collectionPlaceholderFallback)
+        return MatcherContext.returning(
+            synthesizedPlaceholder(
+                for: "contains(where:)",
+                fallback: collectionPlaceholderFallback
+            )
+        )
     }
 
     /// Matches a collection argument that contains every listed element.
@@ -451,7 +483,12 @@ extension Match {
                 collection in elements.allSatisfy { collection.contains($0) }
             }
         )
-        return synthesizedPlaceholder(for: "containsAll(_:)", fallback: collectionPlaceholderFallback)
+        return MatcherContext.returning(
+            synthesizedPlaceholder(
+                for: "containsAll(_:)",
+                fallback: collectionPlaceholderFallback
+            )
+        )
     }
 
     /// Matches a collection argument whose leading elements equal `prefix`.
@@ -461,7 +498,12 @@ extension Match {
                 $0.starts(with: prefix)
             }
         )
-        return synthesizedPlaceholder(for: "startsWith(_:)", fallback: collectionPlaceholderFallback)
+        return MatcherContext.returning(
+            synthesizedPlaceholder(
+                for: "startsWith(_:)",
+                fallback: collectionPlaceholderFallback
+            )
+        )
     }
 
     /// Matches a collection argument whose trailing elements equal `suffix`.
@@ -471,7 +513,12 @@ extension Match {
                 $0.suffix(suffix.count).elementsEqual(suffix)
             }
         )
-        return synthesizedPlaceholder(for: "endsWith(_:)", fallback: collectionPlaceholderFallback)
+        return MatcherContext.returning(
+            synthesizedPlaceholder(
+                for: "endsWith(_:)",
+                fallback: collectionPlaceholderFallback
+            )
+        )
     }
 
     // MARK: - Strings
@@ -483,7 +530,7 @@ extension Match {
                 $0.hasPrefix(prefix)
             }
         )
-        return ""
+        return MatcherContext.returning("")
     }
 
     /// Matches a string argument that ends with `suffix`.
@@ -493,7 +540,7 @@ extension Match {
                 $0.hasSuffix(suffix)
             }
         )
-        return ""
+        return MatcherContext.returning("")
     }
 
     /// Matches a string argument that contains `substring`.
@@ -503,7 +550,7 @@ extension Match {
                 diagnosticDescription: "containsSubstring(\"\(substring)\")"
             ) { $0.range(of: substring) != nil }
         )
-        return ""
+        return MatcherContext.returning("")
     }
 
     /// Matches a string argument equal to `value`, ignoring case.
@@ -513,7 +560,7 @@ extension Match {
                 $0.lowercased() == value.lowercased()
             }
         )
-        return ""
+        return MatcherContext.returning("")
     }
 
     /// Matches a string argument that contains a match for the regular expression `pattern`.
@@ -523,7 +570,7 @@ extension Match {
                 $0.range(of: pattern, options: .regularExpression) != nil
             }
         )
-        return ""
+        return MatcherContext.returning("")
     }
 
     /// Matches a string argument that contains a match for a native Swift
@@ -539,7 +586,7 @@ extension Match {
                 $0.firstMatch(of: regex) != nil
             }
         )
-        return ""
+        return MatcherContext.returning("")
     }
 
     private static func descriptionOf<Element>(_ values: [Element]) -> String {

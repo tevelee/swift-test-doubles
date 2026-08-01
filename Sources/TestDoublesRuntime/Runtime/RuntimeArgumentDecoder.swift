@@ -87,18 +87,24 @@ package struct RuntimeArgumentDecodingPlan: Sendable {
     package static func witness(
         method: MethodDescriptor,
         transport: WitnessCallTransportPlan,
+        argumentLayouts: [ABIClass]? = nil,
         consumeOwnedArguments: Bool
     ) -> Self {
-        Self(
-            arguments: method.arguments.map {
+        let layouts = argumentLayouts ?? method.arguments.map(\.value.layout)
+        precondition(
+            layouts.count == method.arguments.count,
+            "[TestDoubles] Calibrated argument layouts do not match the decoding signature."
+        )
+        return Self(
+            arguments: zip(method.arguments, layouts).map { argument, layout in
                 RuntimeArgumentSpec(
-                    type: $0.value.type,
-                    convention: $0.value.convention,
-                    layout: $0.value.layout,
+                    type: argument.value.type,
+                    convention: argument.value.convention,
+                    layout: layout,
                     ownership:
-                        consumeOwnedArguments ? $0.ownership : .borrowed,
+                        consumeOwnedArguments ? argument.ownership : .borrowed,
                     functionReabstraction: FunctionReabstraction.prepare(
-                        type: $0.value.type,
+                        type: argument.value.type,
                         direction: .directToGeneric
                     )
                 )
@@ -119,10 +125,12 @@ package enum RuntimeArgumentDecoder {
         from frame: TrampolineCallFrame,
         consumeOwnedArguments: Bool = true
     ) -> DecodedArguments {
-        if consumeOwnedArguments {
-            return decode(runtimeMethod.consumingDecodingPlan, from: frame)
-        }
-        return decode(runtimeMethod.borrowedDecodingPlan, from: frame)
+        decode(
+            runtimeMethod.decodingPlan(
+                consumeOwnedArguments: consumeOwnedArguments
+            ),
+            from: frame
+        )
     }
 
     package static func decode(

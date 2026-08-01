@@ -36,9 +36,11 @@ extension Match {
     /// ``custom(using:_:)`` when `M.Value` needs an explicit placeholder.
     public static func custom<M: CustomMatcher>(_ matcher: M) -> M.Value {
         MatcherContext.append(CustomMatcherAdapter(matcher: matcher))
-        return synthesizedPlaceholder(
-            for: "Match.custom(_:)",
-            fallback: "Match.custom(using:_:)"
+        return MatcherContext.returning(
+            synthesizedPlaceholder(
+                for: "Match.custom(_:)",
+                fallback: "Match.custom(using:_:)"
+            )
         )
     }
 
@@ -49,7 +51,7 @@ extension Match {
         _ matcher: M
     ) -> M.Value {
         MatcherContext.append(CustomMatcherAdapter(matcher: matcher))
-        return placeholder
+        return MatcherContext.returning(placeholder)
     }
 }
 

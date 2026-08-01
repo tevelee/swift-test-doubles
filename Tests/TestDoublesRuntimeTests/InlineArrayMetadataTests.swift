@@ -152,10 +152,7 @@ import Testing
             return
         }
         guard
-            case .indirect = abiClass(
-                for: InlineArray<8, Int>.self,
-                isReturn: true
-            )
+            case .indirect = abiClass(for: InlineArray<8, Int>.self)
         else {
             Issue.record("Expected a large InlineArray result to be indirect.")
             return

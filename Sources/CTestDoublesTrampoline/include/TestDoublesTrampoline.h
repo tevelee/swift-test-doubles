@@ -383,6 +383,32 @@ TDMetadataResponse td_swift_get_tuple_type_metadata(uintptr_t request,
 /// Returns the next process-global monotonic invocation sequence number.
 uint64_t td_next_global_invocation_sequence(void);
 
+/// Copies bytes from this process without dereferencing a speculative pointer.
+/// Returns false when any byte in the requested range is unreadable.
+bool td_read_process_memory(const void *source,
+                            void *destination,
+                            size_t byteCount);
+
+/// Overwrites every captured C argument register bank. Matcher placeholders
+/// cross this opaque boundary before entering a fabricated Swift witness so
+/// stale construction values cannot masquerade as a direct ABI transport.
+void td_scrub_argument_registers(uintptr_t gp0,
+                                 uintptr_t gp1,
+                                 uintptr_t gp2,
+                                 uintptr_t gp3,
+                                 uintptr_t gp4,
+                                 uintptr_t gp5,
+                                 uintptr_t gp6,
+                                 uintptr_t gp7,
+                                 double fp0,
+                                 double fp1,
+                                 double fp2,
+                                 double fp3,
+                                 double fp4,
+                                 double fp5,
+                                 double fp6,
+                                 double fp7);
+
 #ifdef __cplusplus
 }
 #endif

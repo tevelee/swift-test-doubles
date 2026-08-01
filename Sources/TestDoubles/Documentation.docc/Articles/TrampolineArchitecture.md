@@ -214,6 +214,22 @@ invocation access. The class decision is local to the protocol descriptor that
 declares the requirement. A class-bound child therefore does not reinterpret an
 inherited unconstrained base witness.
 
+Concrete nominal arguments add one runtime boundary that metadata cannot
+answer by itself. A client passes a non-`@frozen` struct from a
+library-evolution module by address, but the type descriptor and value-witness
+table do not retain that source-level decision. During the first `when` or
+`verify` recording for such a method, each top-level `Match` expression saves
+the exact placeholder bytes before the concrete call. The trampoline evaluates
+the complete direct/indirect layout vectors against the untouched call frame,
+using a non-trapping current-process memory read for pointer candidates, and
+publishes the one selected vector for borrowed, consuming, async, and
+forwarding plans. Invalid pointers, no match, or unresolved equal-strength
+matches stop before typed decoding. Use one `Match` expression for every
+argument; a literal-only recording cannot provide independent calibration
+evidence. A normal call or unconfigured spy cannot be the first observation of
+an ambiguous method for the same reason. Result layout continues through the
+ordinary metadata classifier, without SDK or type-name exceptions.
+
 For an async call, the entry trampoline preserves the caller continuation,
 creates a Swift task continuation around recorder dispatch, and resumes through
 an architecture-specific continuation trampoline after recorder dispatch

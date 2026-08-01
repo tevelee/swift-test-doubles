@@ -124,14 +124,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`{ Int, Int, Int }`, `{ Int, String }`, `{ String, String }`) trapped with
   `Missing indirect argument storage` on the first recorded call. Arguments of
   five words or more stay indirect, as before.
-- `URL`, `Calendar`, `Locale`, `TimeZone`, `UUID`, `IndexPath`, `IndexSet`,
-  `CharacterSet`, `DateInterval`, and `Measurement` arguments and results now
-  decode from the address the client passes. The SDK does not freeze them, so a
-  client treats them as address-only whatever their size, which runtime
-  metadata does not record: `String` and `URL` report identical value-witness
-  flags, size, stride, alignment, and extra inhabitants. The first seven
-  crashed the test process while recording and the last three decoded a wrong
-  value in silence.
+- Concrete struct arguments whose frozen status is absent from runtime
+  metadata now calibrate their complete call-frame layout from `Match`
+  placeholder bytes before typed decoding. This replaces the Foundation
+  argument-name list and covers non-frozen values from any library-evolution
+  module, while keeping identically shaped `@frozen` values direct. The
+  selected layout is cached coherently for consuming, borrowed, async, and spy
+  forwarding plans; unreadable speculative pointers and ambiguous or
+  literal-only recordings fail before value-witness operations. No SDK,
+  module, or type-name special cases remain.
 - Aggregates whose fields are narrower than a machine word now classify by the
   registers they occupy rather than by field count, so `{ Int32 x 6 }` is three
   registers instead of six. The rewrite also covers bytes that no field

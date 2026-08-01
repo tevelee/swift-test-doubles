@@ -38,11 +38,11 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
         self.effects = effects
         parameterTypes = function.parameters.map(\.type)
         resultType = function.resultType
-        resultLayout = abiClass(for: function.resultType, isReturn: true)
+        resultLayout = abiClass(for: function.resultType)
         let typedErrorType = effects.typedErrorType
         self.typedErrorType = typedErrorType
         typedErrorLayout = typedErrorType.map {
-            abiClass(for: $0, isReturn: true)
+            abiClass(for: $0)
         }
         isAsync = function.effects.isAsync
         isThrowing = function.effects.isThrowing

@@ -54,6 +54,9 @@ import Testing
         let spy = try Spy<any ExternalClosureContainerService>(
             forwardingTo: RealExternalClosureContainerService()
         )
+        spy.when(returning: boxPlaceholder) {
+            $0.nominal(Match.any(using: boxPlaceholder))
+        }.thenForward()
         let service: any ExternalClosureContainerService = spy()
         let transform: ExternalContainerClosure = { "\($0 * 2)!" }
 

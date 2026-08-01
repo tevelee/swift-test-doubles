@@ -140,12 +140,14 @@ private func unsupportedAsyncStubIngressDiagnostic(
 
 package func asyncWitnessStackPlan(
     for method: MethodDescriptor,
+    argumentLayouts: [ABIClass]? = nil,
     architecture: RuntimeArchitecture
 ) -> AsyncWitnessStackPlan {
     precondition(method.isAsync)
 
     let transport = WitnessCallTransportPlan(
         method: method,
+        argumentLayouts: argumentLayouts,
         trailingPayload: .dynamicSelf,
         architecture: architecture
     )
@@ -220,6 +222,7 @@ private func asyncWitnessStackPlan(
 /// independent indirect value contributes one complete pointer word.
 package func asyncForwardingStackPlan(
     for method: MethodDescriptor,
+    argumentLayouts: [ABIClass]? = nil,
     architecture: RuntimeArchitecture
 ) -> AsyncForwardingStackPlan? {
     guard method.isAsync,
@@ -232,6 +235,7 @@ package func asyncForwardingStackPlan(
 
     let transport = WitnessCallTransportPlan(
         method: method,
+        argumentLayouts: argumentLayouts,
         trailingPayload: .dynamicSelf,
         architecture: architecture
     )

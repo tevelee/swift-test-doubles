@@ -57,6 +57,7 @@ package struct WitnessCallTransportPlan: Sendable {
 
     package init(
         method: MethodDescriptor,
+        argumentLayouts: [ABIClass]? = nil,
         initialGeneralPurposeOffset: Int = 0,
         trailingPayload: TrailingPayload = .none,
         architecture: RuntimeArchitecture = .current
@@ -89,11 +90,16 @@ package struct WitnessCallTransportPlan: Sendable {
         let methodGenericParameterCount =
             method.methodGenericParameterCount
         let typedErrorWordCount = method.typedErrorUsesIndirectResultSlot ? 1 : 0
+        let layouts = argumentLayouts ?? method.arguments.map(\.value.layout)
+        precondition(
+            layouts.count == method.arguments.count,
+            "[TestDoubles] Calibrated argument layouts do not match the method signature."
+        )
         let locationPlan = CallFrameArgumentLocationPlan(
-            arguments: method.arguments.map {
+            arguments: zip(method.arguments, layouts).map { argument, layout in
                 CallFrameArgumentShape(
-                    type: $0.value.type,
-                    layout: $0.value.layout
+                    type: argument.value.type,
+                    layout: layout
                 )
             },
             initialGeneralPurposeOffset: initialGeneralPurposeOffset
