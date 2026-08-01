@@ -166,11 +166,13 @@ private struct ArgumentABIClassificationContext {
         let isAddressableForDependencies: Bool
         if let metadata = reflectStruct(type) {
             isAddressableForDependencies = hasAddressableArgumentDependencies(
-                in: metadata
+                in: metadata,
+                directLayout: direct
             )
         } else if let metadata = reflectEnum(type) {
             isAddressableForDependencies = hasAddressableArgumentDependencies(
-                in: metadata
+                in: metadata,
+                directLayout: direct
             )
         } else {
             isAddressableForDependencies = false
@@ -192,10 +194,15 @@ private struct ArgumentABIClassificationContext {
     }
 
     private mutating func hasAddressableArgumentDependencies(
-        in metadata: StructMetadata
+        in metadata: StructMetadata,
+        directLayout: ABIClass
     ) -> Bool {
         (metadata.vwt.flags.isAddressableForDependencies
-            && definingModuleName(of: metadata.descriptor.parent) != "Swift")
+            && (definingModuleName(of: metadata.descriptor.parent) != "Swift"
+                || isAddressableGenericAggregate(
+                    metadata.descriptor,
+                    directLayout: directLayout
+                )))
             // Runtime metadata does not record whether an imported generic
             // nominal was declared `@frozen`. Its field can therefore look
             // loadable even though a library-evolution client passes the
@@ -207,10 +214,15 @@ private struct ArgumentABIClassificationContext {
     }
 
     private mutating func hasAddressableArgumentDependencies(
-        in metadata: EnumMetadata
+        in metadata: EnumMetadata,
+        directLayout: ABIClass
     ) -> Bool {
         (metadata.vwt.flags.isAddressableForDependencies
-            && definingModuleName(of: metadata.descriptor.parent) != "Swift")
+            && (definingModuleName(of: metadata.descriptor.parent) != "Swift"
+                || isAddressableGenericAggregate(
+                    metadata.descriptor,
+                    directLayout: directLayout
+                )))
             || isGenericNominalOutsideSwift(metadata.descriptor)
             || storesAddressableGenericArgument(in: metadata)
     }
@@ -220,6 +232,24 @@ private struct ArgumentABIClassificationContext {
     ) -> Bool {
         descriptor.flags.isGeneric
             && definingModuleName(of: descriptor.parent) != "Swift"
+    }
+
+    /// An addressable generic aggregate in the standard library can still be
+    /// resilient. Unlike pointer-sized collection shells, it consumes several
+    /// captured words when direct and one when indirect, so recording bytes
+    /// can distinguish the two without guessing from its private layout.
+    private func isAddressableGenericAggregate(
+        _ descriptor: any TypeContextDescriptor,
+        directLayout: ABIClass
+    ) -> Bool {
+        guard descriptor.flags.isGeneric,
+            case .aggregate(let parts) = directLayout
+        else {
+            return false
+        }
+        // SIMD aggregates use vector registers, a convention that cannot be
+        // replaced with the scalar indirect form this calibration models.
+        return parts.allSatisfy { $0.register == .gp }
     }
 
     private mutating func storesAddressableGenericArgument(

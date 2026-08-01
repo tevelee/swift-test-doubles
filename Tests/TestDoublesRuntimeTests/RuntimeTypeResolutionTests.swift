@@ -209,6 +209,12 @@ private indirect enum RecursiveValueBox<Value> {
         )
     }
 
+    @Test func addressableStandardLibraryGenericAggregatesCanBeCalibrated() {
+        #expect(
+            argumentABIClassCandidates(for: ArraySlice<Int>.self).contains(.indirect)
+        )
+    }
+
     @Test func genericFieldResolutionDoesNotReuseAnotherSpecializationsLayout() {
         // Both specializations share `ClosedRange`'s field descriptor. Resolve
         // the floating-point-bound form first to prove the later integer-bound
