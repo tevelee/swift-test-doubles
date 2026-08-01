@@ -378,6 +378,29 @@ private struct LiveResilientTypedErrorABIProbe: ResilientTypedErrorABIProbe {
 
 #if compiler(>=6.2) && (os(macOS) || os(Linux) || targetEnvironment(macCatalyst))
     @Suite struct ResilientValueArgumentABIExitTests {
+        @Test func unconfiguredForwardingFailsBeforeAmbiguousValuesCanDecode() async throws {
+            let result = try await #require(
+                processExitsWith: .failure,
+                observing: [\.standardErrorContent]
+            ) {
+                let spy = try Spy<any ResilientValueArgumentABIProbe>(
+                    forwardingTo: LiveResilientValueArgumentABIProbe()
+                )
+                _ = spy().accept(
+                    marker: 1,
+                    value: ResilientValueArgument(first: 2, second: 3),
+                    laterMarker: 4
+                )
+            }
+            let diagnostic = try requireStandardErrorDiagnostic(from: result)
+            #expect(diagnostic.contains("has not been calibrated"))
+            #expect(
+                diagnostic.contains(
+                    "Configure or verify the method with Match expressions"
+                )
+            )
+        }
+
         @Test func literalOnlyRecordingFailsBeforeTypedDecoding() async throws {
             let result = try await #require(
                 processExitsWith: .failure,

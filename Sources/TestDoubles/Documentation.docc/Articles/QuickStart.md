@@ -118,6 +118,26 @@ unfinished return behavior visible.
 Every argument in one recorded invocation must either use a matcher or use its
 literal value. Do not mix the two styles in one call.
 
+For a call involving an imported value type, prefer the matcher form for every
+argument from the first recording onward. A non-`@frozen` value from a
+library-evolution module may be passed directly or by address, and those
+matcher placeholders let TestDoubles calibrate the client's convention before
+it decodes a real call. Use a `using:` overload for a type without a
+synthesizable placeholder:
+
+```swift
+stub.when {
+    $0.open(
+        Match.any(),
+        at: Match.any(using: importedValue)
+    )
+}.thenReturn(result)
+```
+
+A literal-only recording cannot establish that convention independently for
+every argument. Configure or verify the requirement before its first ordinary
+or forwarded call.
+
 Reusable matcher packages can conform a value to ``CustomMatcher``:
 
 ```swift

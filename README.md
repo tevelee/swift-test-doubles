@@ -109,6 +109,25 @@ wins, like the cases of a `switch`: register specific matchers first and
 broad fallbacks last, because a catch-all registered first swallows
 everything after it.
 
+Use matcher expressions for every argument when recording a call that involves
+an imported value type. In the uncommon case where a non-`@frozen` value from
+a library-evolution module could be passed either directly or by address,
+those matchers let the runtime calibrate the client's convention before it
+decodes a real call. Use a `using:` overload when the value cannot be
+synthesized:
+
+```swift
+stub.when {
+    $0.open(
+        Match.any(),
+        at: Match.any(using: importedValue)
+    )
+}.thenReturn(result)
+```
+
+Do this before the first ordinary or forwarded call to that requirement. A
+literal-only recording has no independent calibration value for each argument.
+
 There is a richer vocabulary for common cases. `Match.notEqual(_:)` and
 `Match.identical(to:)` refine equality; `Match.greaterThan`,
 `Match.atLeast`, `Match.lessThan`, `Match.atMost`, and `Match.inRange(_:)`

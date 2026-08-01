@@ -40,6 +40,30 @@ error through the target's witness. Both overridden and forwarded calls enter
 the same invocation log, so count, ordered, eventual, and no-more-interactions
 verification work across both paths.
 
+### Calibrate imported values before forwarding
+
+For a requirement that accepts imported value types, configure or verify it
+with one ``Match`` expression per argument before the first ordinary forwarded
+call. A non-`@frozen` struct from a library-evolution module can have the same
+runtime metadata as a direct-passing value while the client's compiler passes
+it by address. The recording call supplies the placeholder bytes that select
+the client's transport safely:
+
+```swift
+spy.when {
+    $0.send(
+        Match.any(),
+        to: Match.any(using: importedDestination)
+    )
+}.thenForward()
+```
+
+Use a `using:` matcher when TestDoubles cannot synthesize the imported value.
+A literal-only recording cannot calibrate each argument independently, and an
+unconfigured forwarding call cannot be the first observation of an ambiguous
+requirement. Once calibrated, the requirement reuses that transport plan for
+later configured, verified, and forwarded calls.
+
 ### Override initializers explicitly
 
 An initializer's result must retain the fabricated existential type used by the
