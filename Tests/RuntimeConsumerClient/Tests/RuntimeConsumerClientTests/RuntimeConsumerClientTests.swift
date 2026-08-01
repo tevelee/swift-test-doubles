@@ -120,6 +120,21 @@ import Testing
         #expect(stub().importBatch(urls: actualURLs, reservations: actualReservations) == 59)
     }
 
+    @Test func staticResilientArgumentsCalibrateAfterTheMetatypePayload() throws {
+        let stub = try Stub<any DeliveryGateway>()
+        let placeholder = ExternalReservation(start: 70, end: 76)
+        stub.when { type(of: $0).tier(Match.any(using: placeholder)) }
+            .then { (reservation: ExternalReservation) in
+                reservation.start ^ reservation.end
+            }
+
+        let value: any DeliveryGateway = stub()
+        #expect(
+            type(of: value).tier(ExternalReservation(start: 80, end: 88))
+                == 8
+        )
+    }
+
     @Test func forwardingReusesTheCalibratedImportedValuePlan() throws {
         let spy = try Spy<any DeliveryGateway>(
             forwardingTo: LiveDeliveryGateway()

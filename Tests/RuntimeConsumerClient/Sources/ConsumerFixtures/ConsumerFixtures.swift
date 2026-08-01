@@ -78,6 +78,8 @@ public protocol DeliveryGateway: Sendable {
         reservations: [String: ExternalReservation]
     ) -> Int
 
+    static func tier(_ reservation: ExternalReservation) -> UInt64
+
     func map(_ point: FrozenExternalPoint) -> UInt64
 
     func settle(_ value: (ExternalReservation, UInt64)?) -> Int
@@ -173,6 +175,10 @@ public struct LiveDeliveryGateway: DeliveryGateway, Sendable {
             case .failure(let impossible):
                 switch impossible {}
         }
+    }
+
+    public static func tier(_ reservation: ExternalReservation) -> UInt64 {
+        reservation.start ^ reservation.end
     }
 
     public func resolveOutcome(
