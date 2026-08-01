@@ -12,6 +12,7 @@ protocol FoundationValueProbe {
     func dateRange(_ value: ClosedRange<Date>) -> TimeInterval
     func openDateRange(_ value: Range<Date>) -> TimeInterval
     func optionalURL(_ value: URL?) -> Int
+    func nestedOptionalURL(_ value: URL??) -> Int
     func optionalURLAsync(_ value: URL?) async -> Int
     func uuid(_ value: UUID) -> String
     func indexPath(_ value: IndexPath) -> Int
@@ -23,6 +24,7 @@ struct LiveFoundationValueProbe: FoundationValueProbe {
     func dateRange(_ value: ClosedRange<Date>) -> TimeInterval { 0 }
     func openDateRange(_ value: Range<Date>) -> TimeInterval { 0 }
     func optionalURL(_ value: URL?) -> Int { 0 }
+    func nestedOptionalURL(_ value: URL??) -> Int { 0 }
     func optionalURLAsync(_ value: URL?) async -> Int { 0 }
     func uuid(_ value: UUID) -> String { "" }
     func indexPath(_ value: IndexPath) -> Int { 0 }
@@ -113,6 +115,15 @@ struct LiveReferenceBackedFoundationProbe: ReferenceBackedFoundationProbe {
             .then { (value: URL?) in value?.path().count ?? 0 }
 
         #expect(stub().optionalURL(address) == 9)
+    }
+
+    @Test func nestedOptionalResilientValueUsesTheNaturalMatcherSpelling() throws {
+        let address = URL(filePath: "/nested-optional")
+        let stub = try Stub<any FoundationValueProbe>()
+        stub.when { $0.nestedOptionalURL(Match.any(using: address)) }
+            .then { (value: URL??) in value??.path().count ?? 0 }
+
+        #expect(stub().nestedOptionalURL(.some(.some(address))) == 16)
     }
 
     @Test func asyncOptionalResilientValueUsesTheNaturalMatcherSpelling() async throws {

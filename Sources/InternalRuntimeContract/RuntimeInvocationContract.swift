@@ -51,36 +51,47 @@ package enum RuntimeInvocationMode: Sendable {
 /// the concrete argument convention.
 ///
 /// The ABI runtime compares this independent observation with alternate raw
-/// call-frame transports before it constructs any typed value. The optional
-/// form covers Swift's implicit optional injection after a generic matcher
-/// returns. `Any.Type` is retained only to reject positional mismatches
-/// without opening the value.
+/// call-frame transports before it constructs any typed value. The promotion
+/// closure covers Swift's implicit injection through any number of optional
+/// layers after a generic matcher returns. `Any.Type` is retained only to
+/// reject positional mismatches without opening the value.
 package struct RuntimeArgumentCalibration: @unchecked Sendable {
     package let type: Any.Type
     package let bytes: [UInt8]
-    package let optionalType: Any.Type
-    package let optionalBytes: [UInt8]
+    private let promotedBytes: (Any.Type) -> [UInt8]?
 
     package init(
         type: Any.Type,
         bytes: [UInt8],
-        optionalType: Any.Type,
-        optionalBytes: [UInt8]
+        promotedBytes: @escaping (Any.Type) -> [UInt8]?
     ) {
         self.type = type
         self.bytes = bytes
-        self.optionalType = optionalType
-        self.optionalBytes = optionalBytes
+        self.promotedBytes = promotedBytes
     }
 
     package func bytes(for expectedType: Any.Type) -> [UInt8]? {
         if ObjectIdentifier(type) == ObjectIdentifier(expectedType) {
             return bytes
         }
-        if ObjectIdentifier(optionalType) == ObjectIdentifier(expectedType) {
-            return optionalBytes
-        }
-        return nil
+        return promotedBytes(expectedType)
+    }
+}
+
+/// Runtime operations needed to inject a matcher placeholder through optional
+/// layers whose concrete wrapped types are known only from requirement
+/// metadata.
+package protocol RuntimeOptionalType {
+    static var runtimeWrappedType: Any.Type { get }
+    static func injectRuntimeOptional(_ value: Any) -> Any?
+}
+
+extension Optional: RuntimeOptionalType {
+    package static var runtimeWrappedType: Any.Type { Wrapped.self }
+
+    package static func injectRuntimeOptional(_ value: Any) -> Any? {
+        guard let wrapped = value as? Wrapped else { return nil }
+        return Self.some(wrapped)
     }
 }
 
