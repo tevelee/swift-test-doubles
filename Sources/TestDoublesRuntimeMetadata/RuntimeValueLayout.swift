@@ -121,15 +121,8 @@ package func abiClass(for type: Any.Type) -> ABIClass {
 /// invocation boundary must calibrate those alternatives before typed
 /// decoding.
 package func argumentABIClassCandidates(for type: Any.Type) -> [ABIClass] {
-    let direct = abiClass(for: type)
-    guard direct != .indirect else { return [direct] }
-
-    let isAddressableForDependencies =
-        reflectStruct(type).map(hasAddressableArgumentDependencies(in:))
-        ?? reflectEnum(type).map(hasAddressableArgumentDependencies(in:))
-        ?? false
-    guard isAddressableForDependencies else { return [direct] }
-    return [direct, .indirect]
+    var context = ArgumentABIClassificationContext()
+    return context.candidates(for: type)
 }
 
 /// Whether a top-level tuple contains an ABI-ambiguous member.
@@ -140,10 +133,8 @@ package func argumentABIClassCandidates(for type: Any.Type) -> [ABIClass] {
 /// the second. That cannot be represented by one `ABIClass`; callers must
 /// reject the shape until they have a member-level transport plan.
 package func requiresStructuralABITransport(for type: Any.Type) -> Bool {
-    guard let tuple = reflect(type) as? TupleMetadata else { return false }
-    return tuple.elements.contains { element in
-        hasUncertainArgumentABITransport(for: element.type)
-    }
+    var context = ArgumentABIClassificationContext()
+    return context.requiresStructuralTransport(for: type)
 }
 
 /// Whether runtime metadata cannot select one decodable argument transport.
@@ -153,64 +144,108 @@ package func requiresStructuralABITransport(for type: Any.Type) -> Bool {
 /// the runtime does not yet implement. Callers that cannot calibrate either
 /// form use this shared predicate to reject the type before decoding.
 package func hasUncertainArgumentABITransport(for type: Any.Type) -> Bool {
-    argumentABIClassCandidates(for: type).count > 1
-        || requiresStructuralABITransport(for: type)
+    var context = ArgumentABIClassificationContext()
+    return context.hasUncertainTransport(for: type)
 }
 
-private func hasAddressableArgumentDependencies(
-    in metadata: StructMetadata
-) -> Bool {
-    (metadata.vwt.flags.isAddressableForDependencies
-        && nominalModuleName(metadata.descriptor.parent) != "Swift")
-        || storesAddressableGenericArgument(in: metadata)
-}
+/// Recursively classifies a value while breaking metadata cycles. Recursive
+/// generic enums can record their own specialization in a field descriptor;
+/// revisiting that edge adds no new evidence, so it retains the direct layout
+/// already observed for the active type.
+private struct ArgumentABIClassificationContext {
+    private var activeTypes: Set<ObjectIdentifier> = []
 
-private func hasAddressableArgumentDependencies(
-    in metadata: EnumMetadata
-) -> Bool {
-    (metadata.vwt.flags.isAddressableForDependencies
-        && nominalModuleName(metadata.descriptor.parent) != "Swift")
-        || storesAddressableGenericArgument(in: metadata)
-}
+    mutating func candidates(for type: Any.Type) -> [ABIClass] {
+        let direct = abiClass(for: type)
+        guard direct != .indirect else { return [direct] }
 
-private func storesAddressableGenericArgument(
-    in metadata: StructMetadata
-) -> Bool {
-    guard metadata.descriptor.flags.isGeneric else { return false }
-    return metadata.descriptor.fields.records.contains { field in
-        guard field.hasMangledTypeName,
-            let fieldType = resolvedFieldType(
-                field.mangledTypeName,
+        let identifier = ObjectIdentifier(type)
+        guard activeTypes.insert(identifier).inserted else { return [direct] }
+        defer { activeTypes.remove(identifier) }
+
+        let isAddressableForDependencies: Bool
+        if let metadata = reflectStruct(type) {
+            isAddressableForDependencies = hasAddressableArgumentDependencies(
                 in: metadata
             )
-        else {
-            return false
+        } else if let metadata = reflectEnum(type) {
+            isAddressableForDependencies = hasAddressableArgumentDependencies(
+                in: metadata
+            )
+        } else {
+            isAddressableForDependencies = false
         }
-        // A known-indirect implementation detail, such as SIMD's internal
-        // storage type, does not make the outer generic value ABI-uncertain.
-        // Propagate a field whose own client transport is ambiguous, including
-        // a tuple whose individually lowered members make the enclosing
-        // generic shell ABI-uncertain.
-        return hasUncertainArgumentABITransport(for: fieldType)
+        guard isAddressableForDependencies else { return [direct] }
+        return [direct, .indirect]
     }
-}
 
-private func storesAddressableGenericArgument(
-    in metadata: EnumMetadata
-) -> Bool {
-    guard metadata.descriptor.flags.isGeneric else { return false }
-    return metadata.descriptor.fields.records.contains { field in
-        guard field.hasMangledTypeName,
-            let fieldType = resolvedFieldType(
-                field.mangledTypeName,
-                in: metadata
-            )
-        else {
-            return false
+    mutating func requiresStructuralTransport(for type: Any.Type) -> Bool {
+        guard let tuple = reflect(type) as? TupleMetadata else { return false }
+        return tuple.elements.contains { element in
+            hasUncertainTransport(for: element.type)
         }
-        // See the struct overload above: propagate uncertainty, not a known
-        // indirect storage layout.
-        return hasUncertainArgumentABITransport(for: fieldType)
+    }
+
+    mutating func hasUncertainTransport(for type: Any.Type) -> Bool {
+        candidates(for: type).count > 1
+            || requiresStructuralTransport(for: type)
+    }
+
+    private mutating func hasAddressableArgumentDependencies(
+        in metadata: StructMetadata
+    ) -> Bool {
+        (metadata.vwt.flags.isAddressableForDependencies
+            && nominalModuleName(metadata.descriptor.parent) != "Swift")
+            || storesAddressableGenericArgument(in: metadata)
+    }
+
+    private mutating func hasAddressableArgumentDependencies(
+        in metadata: EnumMetadata
+    ) -> Bool {
+        (metadata.vwt.flags.isAddressableForDependencies
+            && nominalModuleName(metadata.descriptor.parent) != "Swift")
+            || storesAddressableGenericArgument(in: metadata)
+    }
+
+    private mutating func storesAddressableGenericArgument(
+        in metadata: StructMetadata
+    ) -> Bool {
+        guard metadata.descriptor.flags.isGeneric else { return false }
+        return metadata.descriptor.fields.records.contains { field in
+            guard field.hasMangledTypeName,
+                let fieldType = resolvedFieldType(
+                    field.mangledTypeName,
+                    in: metadata
+                )
+            else {
+                return false
+            }
+            // A known-indirect implementation detail, such as SIMD's internal
+            // storage type, does not make the outer generic value ABI-uncertain.
+            // Propagate a field whose own client transport is ambiguous, including
+            // a tuple whose individually lowered members make the enclosing
+            // generic shell ABI-uncertain.
+            return hasUncertainTransport(for: fieldType)
+        }
+    }
+
+    private mutating func storesAddressableGenericArgument(
+        in metadata: EnumMetadata
+    ) -> Bool {
+        guard metadata.descriptor.flags.isGeneric else { return false }
+        return metadata.descriptor.fields.records.contains { field in
+            guard field.hasMangledTypeName,
+                let fieldType = resolvedFieldType(
+                    field.mangledTypeName,
+                    in: metadata
+                )
+            else {
+                return false
+            }
+            // See the struct overload above: propagate uncertainty, not a known
+            // indirect storage layout.
+            return hasUncertainTransport(for: fieldType)
+        }
     }
 }
 

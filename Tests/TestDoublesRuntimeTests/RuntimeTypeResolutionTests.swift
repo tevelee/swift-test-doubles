@@ -8,6 +8,11 @@ private struct NominalResilientTupleWrapper {
     let pair: (ResilientValueArgument, UInt64)
 }
 
+private indirect enum RecursiveValueBox<Value> {
+    case value(Value)
+    case child(RecursiveValueBox)
+}
+
 /// Unit coverage for demangled-name resolution: no stubs are constructed and
 /// no witness tables are involved.
 @Suite struct RuntimeTypeResolutionTests {
@@ -71,6 +76,18 @@ private struct NominalResilientTupleWrapper {
             argumentABIClassCandidates(for: ClosedRange<Int>.self) == [
                 abiClass(for: ClosedRange<Int>.self)
             ]
+        )
+    }
+
+    @Test func recursiveGenericFieldsDoNotRevisitTheSameSpecialization() {
+        #expect(
+            argumentABIClassCandidates(for: RecursiveValueBox<Int>.self)
+                == [abiClass(for: RecursiveValueBox<Int>.self)]
+        )
+        #expect(
+            argumentABIClassCandidates(
+                for: RecursiveValueBox<ResilientValueArgument>.self
+            ).contains(.indirect)
         )
     }
 
