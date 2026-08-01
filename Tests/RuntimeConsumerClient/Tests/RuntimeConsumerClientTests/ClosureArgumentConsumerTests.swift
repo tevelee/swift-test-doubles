@@ -3,6 +3,7 @@ import TestDoubles
 import Testing
 
 private typealias Transformer = @Sendable (Int) -> Int
+private typealias AsyncTransformer = @Sendable (Int) async -> Int
 
 @Suite struct ClosureArgumentConsumerTests {
     @Test func escapingClosureArgumentsResolveInAnOrdinaryConsumer() throws {
@@ -32,6 +33,22 @@ private typealias Transformer = @Sendable (Int) -> Int
         }.thenReturn(42)
 
         let actual = stub().transform(41, using: increment)
+        #expect(actual == 42)
+    }
+
+    @Test func asyncEscapingClosureArgumentsResolveInAnOrdinaryConsumer() async throws {
+        let increment: AsyncTransformer = { $0 + 1 }
+        let stub = try Stub<any AsyncValueTransformer>()
+        await stub.when {
+            await $0.transform(
+                Match.any(using: increment),
+                value: Match.any()
+            )
+        }.thenEscaping { (transform: AsyncTransformer, value: Int) async in
+            await transform(value)
+        }
+
+        let actual = await stub().transform(increment, value: 41)
         #expect(actual == 42)
     }
 }

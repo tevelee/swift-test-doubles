@@ -294,6 +294,13 @@ public protocol TrailingValueTransformer {
     ) -> Int
 }
 
+public protocol AsyncValueTransformer {
+    func transform(
+        _ transformer: @escaping @Sendable (Int) async -> Int,
+        value: Int
+    ) async -> Int
+}
+
 /// A deliberately unsupported mixed tuple transport. The first member is
 /// resilient to this module while the second is a direct scalar.
 public protocol MixedTupleGateway {
