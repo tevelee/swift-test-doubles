@@ -132,6 +132,17 @@ enum RuntimeStubFactory {
             PreparedPlan(plan: try TestDoublesRuntime.RuntimeStubFactory.prepareStub(request))
         }
 
+        static func prepareStub<P>(
+            discoveringFrom conformer: P,
+            _ request: RuntimeStubPreparationRequest
+        ) throws -> PreparedPlan<P> {
+            PreparedPlan(
+                plan: try TestDoublesRuntime.RuntimeStubFactory.prepareStub(
+                    discoveringFrom: conformer,
+                    request
+                ))
+        }
+
         static func prepareForwardingStub<P>(
             to target: P,
             request: RuntimeStubPreparationRequest
@@ -178,6 +189,14 @@ enum RuntimeStubFactory {
         static func prepareStub<P>(
             _ request: RuntimeStubPreparationRequest
         ) throws -> PreparedPlan<P> {
+            throw runtimeStubsDisabledError(protocolName: request.shape.typeDescription)
+        }
+
+        static func prepareStub<P>(
+            discoveringFrom conformer: P,
+            _ request: RuntimeStubPreparationRequest
+        ) throws -> PreparedPlan<P> {
+            _ = conformer
             throw runtimeStubsDisabledError(protocolName: request.shape.typeDescription)
         }
 
@@ -276,6 +295,18 @@ extension Stub {
     static func prepare() throws -> PreparedStub {
         try prepare {
             try RuntimeStubFactory.prepareStub(
+                runtimePreparationRequest(
+                    requirements: .automatic,
+                    getterEffects: .automatic
+                )
+            )
+        }
+    }
+
+    static func prepare(discoveringFrom conformer: P) throws -> PreparedStub {
+        try prepare {
+            try RuntimeStubFactory.prepareStub(
+                discoveringFrom: conformer,
                 runtimePreparationRequest(
                     requirements: .automatic,
                     getterEffects: .automatic

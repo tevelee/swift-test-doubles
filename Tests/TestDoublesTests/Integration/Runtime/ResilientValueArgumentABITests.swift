@@ -119,7 +119,7 @@ struct LiveResilientTupleResultABIProbe: ResilientTupleResultABIProbe {
     }
 }
 
-struct LiveOptionalResilientTupleABIProbe: OptionalResilientTupleABIProbe {
+private struct LiveOptionalResilientTupleABIProbe: OptionalResilientTupleABIProbe {
     func accept(_ value: (ResilientValueArgument, UInt64)?) -> Int {
         guard let value else { return 0 }
         return Int(value.0.first ^ value.0.second ^ value.1)
@@ -144,13 +144,6 @@ private func useLinkedResilientTupleResult(
     _ probe: any ResilientTupleResultABIProbe
 ) -> (ResilientValueArgument, UInt64) {
     probe.makeValue()
-}
-
-@inline(never)
-private func useLinkedOptionalResilientTuple(
-    _ probe: any OptionalResilientTupleABIProbe
-) -> Int {
-    probe.accept((ResilientValueArgument(first: 1, second: 2), 4))
 }
 
 @inline(never)
@@ -392,10 +385,6 @@ private func useLinkedResilientTypedError(
     }
 
     @Test func optionalTupleUsesOneCalibratableTransport() throws {
-        #expect(
-            useLinkedOptionalResilientTuple(
-                LiveOptionalResilientTupleABIProbe()
-            ) == 7)
         let placeholder: (ResilientValueArgument, UInt64)? = (
             ResilientValueArgument(first: 3, second: 5),
             7
@@ -404,7 +393,9 @@ private func useLinkedResilientTypedError(
             ResilientValueArgument(first: 11, second: 13),
             17
         )
-        let stub = try Stub<any OptionalResilientTupleABIProbe>()
+        let stub = try Stub<any OptionalResilientTupleABIProbe>(
+            discoveringFrom: LiveOptionalResilientTupleABIProbe()
+        )
         stub.when { $0.accept(Match.any(using: placeholder)) }
             .then { (value: (ResilientValueArgument, UInt64)?) in
                 guard let value else { return 0 }

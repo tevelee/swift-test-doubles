@@ -56,6 +56,21 @@ public class Stub<P> {
         self.init(prepared: prepared)
     }
 
+    /// Creates a stub using a concrete conformer's witness tables to discover
+    /// its requirement signatures.
+    ///
+    /// Use this form for a test-only or private conformer. It reads the
+    /// witness table carried by `conformer`, so optimized builds do not need
+    /// to retain that conformance for process-wide discovery. The conformer is
+    /// inspected during construction and is never invoked or retained by the
+    /// stub.
+    public convenience init(discoveringFrom conformer: P) throws(StubError) {
+        let prepared = try withStubConstructionError(for: P.self) {
+            try Self.prepare(discoveringFrom: conformer)
+        }
+        self.init(prepared: prepared)
+    }
+
     /// Creates a stub for an unbound protocol existential using caller-supplied
     /// associated-type bindings.
     ///

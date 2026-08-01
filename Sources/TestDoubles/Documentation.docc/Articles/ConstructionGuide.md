@@ -64,6 +64,18 @@ conformers linked into the test process:
 let stub = try Stub<any UserRepository>()
 ```
 
+When a test-only conformer is available, pass it directly instead of relying
+on process-wide image discovery. This keeps automatic discovery reliable for
+private conformers in optimized test builds:
+
+```swift
+let conformer: any UserRepository = LiveUserRepository()
+let stub = try Stub<any UserRepository>(discoveringFrom: conformer)
+```
+
+`discoveringFrom:` reads the witness table carried by that existential during
+construction. It never invokes or retains the conformer.
+
 It can also construct a protocol with no implementation when that protocol was
 compiled with library evolution and its per-requirement method descriptor
 symbols are present. The metatype and existential records expose the protocol

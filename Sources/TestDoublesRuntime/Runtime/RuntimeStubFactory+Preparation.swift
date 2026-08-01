@@ -37,6 +37,40 @@ extension RuntimeStubFactory {
         return PreparedStubPlanCache.insert(plan, for: cacheKey)
     }
 
+    /// Discovers signatures from a concrete existential instead of scanning
+    /// the process image. The passed witness table remains available even when
+    /// an optimized client devirtualizes and omits its conformance descriptor.
+    package static func prepareStub<P>(
+        discoveringFrom conformer: P,
+        _ request: RuntimeStubPreparationRequest
+    ) throws -> PreparedPlan<P> {
+        let shape = try prepareProtocolShape(request.shape)
+        let getterEffectPolicy = try getterEffectPolicy(
+            request.getterEffects,
+            layout: shape.layout,
+            typeDescription: request.shape.typeDescription
+        )
+        let source = try ForwardingTarget(
+            conformer,
+            layout: shape.layout,
+            representation: shape.representation
+        )
+        let methods = try TestDoublesRuntimeMetadata.discoverMethods(
+            witnessTables: source.witnessTables,
+            layout: shape.layout,
+            associatedTypeBindings: shape.associatedTypeBindings,
+            getterEffectPolicy: getterEffectPolicy
+        )
+        if request.shape.callerAssociatedTypeBindings.isEmpty == false {
+            try validateCallerBoundAssociatedTypeUse(methods, layout: shape.layout)
+        }
+        return try preparedPlan(
+            shape: shape,
+            methods: methods,
+            forwarder: nil
+        )
+    }
+
     /// Resolves a forwarding target and source-level getter hints into an
     /// opaque runtime plan.
     package static func prepareForwardingStub<P>(
