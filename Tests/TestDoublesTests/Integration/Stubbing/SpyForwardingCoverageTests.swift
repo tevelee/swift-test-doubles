@@ -20,7 +20,7 @@ enum SpyForwardingError: Error, Equatable {
 }
 
 enum SpyTypedForwardingError: Error, Equatable {
-    case rejected(code: Int, message: String)
+    case rejected(code: Int, disposition: Int)
 }
 
 /// Large enough that its error layout is `.indirect`, forcing
@@ -90,14 +90,14 @@ struct RealSpyForwardingMatrixService: SpyForwardingMatrixService {
 
     func typed(_ value: Int) throws(SpyTypedForwardingError) -> Int {
         guard value >= 0 else {
-            throw .rejected(code: value, message: "sync")
+            throw .rejected(code: value, disposition: 1)
         }
         return value * 2
     }
 
     func typedLater(_ value: Int) async throws(SpyTypedForwardingError) -> Int {
         guard value >= 0 else {
-            throw .rejected(code: value, message: "async")
+            throw .rejected(code: value, disposition: 2)
         }
         return value * 3
     }
@@ -330,13 +330,13 @@ struct RealSpyGetterService: SpyGetterService {
         let syncError = #expect(throws: SpyTypedForwardingError.self) {
             _ = try service.typed(-6)
         }
-        #expect(syncError == .rejected(code: -6, message: "sync"))
+        #expect(syncError == .rejected(code: -6, disposition: 1))
 
         #expect(try await service.typedLater(7) == 21)
         let asyncError = await #expect(throws: SpyTypedForwardingError.self) {
             _ = try await service.typedLater(-7)
         }
-        #expect(asyncError == .rejected(code: -7, message: "async"))
+        #expect(asyncError == .rejected(code: -7, disposition: 2))
     }
 
     @Test func forwardsIndirectTypedErrors() throws {
