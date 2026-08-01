@@ -70,7 +70,7 @@ actor-isolation metadata. The runtime constructs canonical function metadata
 from the witness symbol and pairs compiler-emitted reabstraction thunks already
 linked into the client. This does not require protocol source, annotations, or
 explicit requirement chunks. The explicit `using:` overloads documented in
-<doc:FunctionValues> remain the fallback for the synchronous compiler-typed
+<doc:FunctionValues> remain the fallback for the compiler-typed
 slice; their `@convention(thin)` adapter repeats the requirement signature and
 appends ``Stub/Invocation``.
 
@@ -449,9 +449,10 @@ remain fail-closed.
   ownership-qualified, and parameter-flagged closures require exact linked
   thunks. C function pointers and block values are supported without native
   reabstraction thunks. The
-  explicit adapter path remains unavailable for async requirements, initializers,
-  `_modify`, `read`, dependent closure shapes, and signatures without a free
-  general-purpose argument register. A
+  explicit adapter path supports ordinary async requirements, including typed
+  throws, but remains unavailable for initializers, `_modify`, `read`,
+  dependent closure shapes, ABI-ambiguous imported value arguments, and
+  signatures without a free general-purpose argument register. A
   thick closure cannot serve as that adapter because its abstraction ABI is not
   a witness ABI.
 - Associated-type protocols outside the bounded slice documented in

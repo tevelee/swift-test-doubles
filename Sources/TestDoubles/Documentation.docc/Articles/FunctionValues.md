@@ -250,9 +250,10 @@ This admits a noescape callback that remains scoped to an escaping outer
 invocation, while any uncovered marker—including a top-level noescape
 argument—still rejects the requirement.
 
-The explicit adapter supports synchronous effects and async nonthrowing
-requirements. Async throwing effects, initializers, `_modify`, dependent
-closure shapes, and signatures without a free general-purpose argument
-register remain unavailable. A thick Swift closure is deliberately rejected
-as an adapter: its abstraction ABI is not the protocol witness ABI even when
-the printed source signature is identical.
+The explicit adapter supports synchronous and async requirements, including
+untyped and concrete typed throws. Initializers, `_modify`, `read`,
+dependent closure shapes, ABI-ambiguous imported value arguments, and
+signatures without a free general-purpose argument register remain unavailable.
+A thick Swift closure is deliberately rejected as an adapter: its abstraction
+ABI is not the protocol witness ABI even when the printed source signature is
+identical.
