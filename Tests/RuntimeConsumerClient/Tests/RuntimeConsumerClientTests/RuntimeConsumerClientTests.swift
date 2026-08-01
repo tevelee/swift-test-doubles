@@ -340,4 +340,22 @@ import Testing
         )
         #expect(session.identifier() == 101)
     }
+
+    @Test func asyncResilientInitializerArgumentsCalibrateInAnOrdinaryConsumer() async throws {
+        let stub = try Stub<any AsyncReservationSession>()
+        await stub.when(initializer: {
+            try await type(of: $0).init(
+                seed: Match.any(
+                    using: ExternalReservation(start: 110, end: 116)
+                )
+            )
+        }).thenInitialize()
+        stub.when { $0.identifier() }.thenReturn(121)
+
+        let seed: any AsyncReservationSession = stub()
+        let session = try await type(of: seed).init(
+            seed: ExternalReservation(start: 120, end: 128)
+        )
+        #expect(session.identifier() == 121)
+    }
 }

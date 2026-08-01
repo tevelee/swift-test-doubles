@@ -118,6 +118,12 @@ public protocol ReservationSession {
     func identifier() -> UInt64
 }
 
+/// An asynchronously configured session such as one that performs setup I/O.
+public protocol AsyncReservationSession {
+    init(seed: ExternalReservation) async throws
+    func identifier() -> UInt64
+}
+
 public struct LiveDeliveryGateway: DeliveryGateway, Sendable {
     public init() {}
 
@@ -235,6 +241,18 @@ public struct LiveReservationSession: ReservationSession {
     public let seed: ExternalReservation
 
     public init(seed: ExternalReservation) {
+        self.seed = seed
+    }
+
+    public func identifier() -> UInt64 {
+        seed.start ^ seed.end
+    }
+}
+
+public struct LiveAsyncReservationSession: AsyncReservationSession {
+    public let seed: ExternalReservation
+
+    public init(seed: ExternalReservation) async throws {
         self.seed = seed
     }
 
