@@ -368,7 +368,12 @@ struct ClosureBoundaryExpansionTests {
             _ = try Stub<any ExternalAggregateAutoclosureParameterService>()
         }
         #expect(
-            aggregateError?.description.contains("ABI-uncertain result") == true
+            aggregateError?.description.contains("ExternalNullaryAggregate") == true
+        )
+        #expect(
+            aggregateError?.description.contains(
+                "direct or indirect client transport"
+            ) == true
         )
     }
 
