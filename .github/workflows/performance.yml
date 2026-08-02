@@ -109,12 +109,16 @@ jobs:
           benchmark_baseline() {
             baseline/Scripts/run-benchmarks.sh \
               --suite comparable \
+              --samples 3 \
+              --target-ms 1 \
               --output "$RUNNER_TEMP/baseline-$1.json" \
               --quiet
           }
           benchmark_candidate() {
             candidate/Scripts/run-benchmarks.sh \
               --suite comparable \
+              --samples 3 \
+              --target-ms 1 \
               --output "$RUNNER_TEMP/candidate-$1.json"
           }
 
