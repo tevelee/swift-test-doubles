@@ -110,9 +110,10 @@ broad fallbacks last, because a catch-all registered first swallows
 everything after it.
 
 Use matcher expressions for every argument when recording a call that involves
-an imported value type. In the uncommon case where a non-`@frozen` value from
-a library-evolution module could be passed either directly or by address,
-those matchers let the runtime calibrate the client's convention before it
+an ABI-uncertain concrete value. The common case is a non-`@frozen` imported
+value from a library-evolution module, but an opaque standard-library generic
+value such as `ArraySlice<Int>` can need the same calibration. Those matchers
+let the runtime establish the client's direct or indirect convention before it
 decodes a real call. Common standard-library and framework values synthesize
 their recording values automatically. These include `StaticString`,
 `AnyHashable`, empty collection wrappers, `any Error`, `URLRequest`,

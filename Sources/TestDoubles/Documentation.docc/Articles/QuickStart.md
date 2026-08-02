@@ -123,13 +123,15 @@ expression. Do not mix the two styles in one call: TestDoubles rejects a mixed
 recording immediately; rewrite a pinned value as `Match.equal(value)` or
 `Match.identical(to: object)`.
 
-For a call involving an imported value type, prefer the matcher form for every
-argument from the first recording onward. A non-`@frozen` value from a
-library-evolution module may be passed directly or by address, and those
+For a call involving an ABI-uncertain concrete value, prefer the matcher form
+for every argument from the first recording onward. A non-`@frozen` value from
+a library-evolution module may be passed directly or by address, and those
 matcher placeholders let TestDoubles calibrate the client's convention before
 it decodes a real call. The same rule applies to an imported generic struct or
 enum, even when its current payload looks direct, because runtime metadata does
-not expose whether the outer declaration is `@frozen`. Common standard-library
+not expose whether the outer declaration is `@frozen`. Some opaque
+standard-library generics, such as `ArraySlice<Int>`, have the same runtime
+ambiguity even though they are not imported values. Common standard-library
 and framework values synthesize their recording values automatically. These
 include `StaticString`, `AnyHashable`, empty collection wrappers, `any Error`,
 `URLRequest`, notifications, attributed strings, person names, common
