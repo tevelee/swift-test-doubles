@@ -25,7 +25,7 @@ xcrun docc convert \
     --output-path "$site" \
     --fallback-display-name TestDoubles \
     --fallback-bundle-identifier com.tevelee.TestDoubles \
-    --fallback-bundle-version 0.0.2 \
+    --fallback-bundle-version 0.0.3 \
     --transform-for-static-hosting \
     --hosting-base-path "$hosting_base_path"
 

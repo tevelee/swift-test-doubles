@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.3] - 2026-08-02
+
 ### Added
 
 - `Dummy` synthesis for concrete scalars, collections, tuples, structs, direct
@@ -545,6 +547,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Runtime and ABI boundaries fail closed when a protocol requirement cannot be
   represented safely.
 
-[Unreleased]: https://github.com/tevelee/swift-test-doubles/compare/0.0.2...HEAD
+[Unreleased]: https://github.com/tevelee/swift-test-doubles/compare/0.0.3...HEAD
+[0.0.3]: https://github.com/tevelee/swift-test-doubles/compare/0.0.2...0.0.3
 [0.0.2]: https://github.com/tevelee/swift-test-doubles/compare/0.0.1...0.0.2
 [0.0.1]: https://github.com/tevelee/swift-test-doubles/tree/0.0.1

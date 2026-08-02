@@ -610,7 +610,7 @@ Use `AsyncStubScenario` when the setup records async requirements.
 dependencies: [
     .package(
         url: "https://github.com/tevelee/swift-test-doubles",
-        .upToNextMinor(from: "0.0.2")
+        .upToNextMinor(from: "0.0.3")
     ),
 ],
 targets: [
@@ -631,7 +631,7 @@ package's default traits:
 ```swift
 .package(
     url: "https://github.com/tevelee/swift-test-doubles",
-    .upToNextMinor(from: "0.0.2"),
+    .upToNextMinor(from: "0.0.3"),
     traits: []
 )
 ```

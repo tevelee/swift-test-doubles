@@ -27,7 +27,7 @@ xcrun docc convert \
     --output-path "$build_path/docc" \
     --fallback-display-name TestDoubles \
     --fallback-bundle-identifier com.tevelee.TestDoubles \
-    --fallback-bundle-version 0.0.2 \
+    --fallback-bundle-version 0.0.3 \
     --analyze \
     --warnings-as-errors
 
