@@ -346,6 +346,14 @@ private func archiveScore(
         #expect(stub().importBatch(urls: actualURLs, reservations: actualReservations) == 59)
     }
 
+    @Test func opaqueStandardLibraryGenericArgumentsCalibrateInAnOrdinaryConsumer() throws {
+        let stub = try Stub<any DeliveryGateway>()
+        stub.when { $0.sum(Match.any()) }
+            .then { (values: ArraySlice<Int>) in values.reduce(0, +) }
+
+        #expect(stub().sum([3, 5, 8][...]) == 16)
+    }
+
     @Test func staticResilientArgumentsCalibrateAfterTheMetatypePayload() throws {
         let stub = try Stub<any DeliveryGateway>()
         let placeholder = ExternalReservation(start: 70, end: 76)

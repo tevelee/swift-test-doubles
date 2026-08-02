@@ -78,6 +78,8 @@ public protocol DeliveryGateway: Sendable {
         reservations: [String: ExternalReservation]
     ) -> Int
 
+    func sum(_ values: ArraySlice<Int>) -> Int
+
     static func tier(_ reservation: ExternalReservation) -> UInt64
 
     func map(_ point: FrozenExternalPoint) -> UInt64
@@ -450,6 +452,10 @@ public struct LiveDeliveryGateway: DeliveryGateway, Sendable {
             + reservations.values.reduce(0) { partial, reservation in
                 partial + Int(reservation.start ^ reservation.end)
             }
+    }
+
+    public func sum(_ values: ArraySlice<Int>) -> Int {
+        values.reduce(0, +)
     }
 
     public func map(_ point: FrozenExternalPoint) -> UInt64 {
