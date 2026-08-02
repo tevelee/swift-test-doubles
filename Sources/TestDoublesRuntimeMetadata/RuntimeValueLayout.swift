@@ -163,25 +163,32 @@ private struct ArgumentABIClassificationContext {
         defer { activeTypes.remove(identifier) }
 
         let isAddressableForDependencies: Bool
+        let hasOpaqueStandardLibraryDirectLayout: Bool
         if let metadata = reflectStruct(type) {
-            isAddressableForDependencies = hasAddressableArgumentDependencies(
-                in: metadata,
-                directLayout: direct
-            )
+            isAddressableForDependencies = hasAddressableArgumentDependencies(in: metadata)
+            hasOpaqueStandardLibraryDirectLayout =
+                hasOpaqueStandardLibraryDirectCandidate(
+                    metadata.descriptor,
+                    directLayout: direct
+                )
         } else if let metadata = reflectEnum(type) {
-            isAddressableForDependencies = hasAddressableArgumentDependencies(
-                in: metadata,
-                directLayout: direct
-            )
+            isAddressableForDependencies = hasAddressableArgumentDependencies(in: metadata)
+            hasOpaqueStandardLibraryDirectLayout =
+                hasOpaqueStandardLibraryDirectCandidate(
+                    metadata.descriptor,
+                    directLayout: direct
+                )
         } else {
             isAddressableForDependencies = false
+            hasOpaqueStandardLibraryDirectLayout = false
         }
-        guard isAddressableForDependencies else { return [direct] }
         if direct == .indirect,
+            isAddressableForDependencies || hasOpaqueStandardLibraryDirectLayout,
             let scalarDirect = scalarDirectArgumentLayout(for: type)
         {
             return [scalarDirect, direct]
         }
+        guard isAddressableForDependencies else { return [direct] }
         guard direct != .indirect else { return [direct] }
         return [direct, .indirect]
     }
@@ -199,15 +206,10 @@ private struct ArgumentABIClassificationContext {
     }
 
     private mutating func hasAddressableArgumentDependencies(
-        in metadata: StructMetadata,
-        directLayout: ABIClass
+        in metadata: StructMetadata
     ) -> Bool {
         (metadata.vwt.flags.isAddressableForDependencies
-            && (definingModuleName(of: metadata.descriptor.parent) != "Swift"
-                || isAddressableStandardLibraryGenericValue(
-                    metadata.descriptor,
-                    directLayout: directLayout
-                )))
+            && definingModuleName(of: metadata.descriptor.parent) != "Swift")
             // Runtime metadata does not record whether an imported generic
             // nominal was declared `@frozen`. Its field can therefore look
             // loadable even though a library-evolution client passes the
@@ -219,15 +221,10 @@ private struct ArgumentABIClassificationContext {
     }
 
     private mutating func hasAddressableArgumentDependencies(
-        in metadata: EnumMetadata,
-        directLayout: ABIClass
+        in metadata: EnumMetadata
     ) -> Bool {
         (metadata.vwt.flags.isAddressableForDependencies
-            && (definingModuleName(of: metadata.descriptor.parent) != "Swift"
-                || isAddressableStandardLibraryGenericValue(
-                    metadata.descriptor,
-                    directLayout: directLayout
-                )))
+            && definingModuleName(of: metadata.descriptor.parent) != "Swift")
             || isGenericNominalOutsideSwift(metadata.descriptor)
             || storesAddressableGenericArgument(in: metadata)
     }
@@ -239,16 +236,17 @@ private struct ArgumentABIClassificationContext {
             && definingModuleName(of: descriptor.parent) != "Swift"
     }
 
-    /// A standard-library generic value can carry the addressable-dependency
-    /// bit while reflection cannot decompose its apparently indirect layout.
-    /// That combination has an unobservable direct scalar alternative, so
-    /// recording must calibrate both whole-value transports.
-    private func isAddressableStandardLibraryGenericValue(
+    /// Some standard-library generic values reveal neither a reflected field
+    /// decomposition nor a value-witness discriminator for their scalar
+    /// direct ABI. A generic value with that opaque, apparently indirect shape
+    /// must retain both candidates until recording observes the client call.
+    private func hasOpaqueStandardLibraryDirectCandidate(
         _ descriptor: any TypeContextDescriptor,
         directLayout: ABIClass
     ) -> Bool {
-        guard descriptor.flags.isGeneric else { return false }
-        return directLayout == .indirect
+        descriptor.flags.isGeneric
+            && definingModuleName(of: descriptor.parent) == "Swift"
+            && directLayout == .indirect
     }
 
     /// Some standard-library generic values expose only their fixed byte
