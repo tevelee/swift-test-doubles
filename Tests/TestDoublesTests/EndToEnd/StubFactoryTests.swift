@@ -27,8 +27,32 @@ struct LiveFactorySendableService: FactorySendableService {
     var value: Int { 0 }
 }
 
+protocol FactoryFileService {
+    func read(path: String) throws -> String
+}
+
+struct LiveFactoryFileService: FactoryFileService {
+    func read(path: String) throws -> String { "live" }
+}
+
+private struct FactoryReadError: Error {}
+
 @Suite("Stub factory")
 struct StubFactoryTests {
+    @Test func configuresAndReturnsTheStub() throws {
+        _ = LiveFactoryFileService()
+        let stub = try Stub<any FactoryFileService>().configure {
+            $0.when { try $0.read(path: "/test") }.thenReturn("contents")
+            $0.when { try $0.read(path: Match.any()) }.thenThrow(FactoryReadError())
+        }
+
+        #expect(try stub().read(path: "/test") == "contents")
+        #expect(throws: FactoryReadError.self) {
+            try stub().read(path: "/missing")
+        }
+        stub.verify { try $0.read(path: "/test") }
+    }
+
     @Test func returnsAConfiguredProtocolValue() {
         let service: any FactoryCurrencyService = Stub.make {
             $0.when { $0.currency }.then { "EUR" }

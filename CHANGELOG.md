@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A fluent `Stub.configure` scope keeps related registrations beside construction
+  while returning the stub for verification and later reconfiguration.
+
 ## [0.0.3] - 2026-08-02
 
 ### Added

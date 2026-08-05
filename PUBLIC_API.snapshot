@@ -725,6 +725,7 @@ symbol	TestDoubles	swift.method	Stub.callAsFunction()	func callAsFunction() -> P
 symbol	TestDoubles	swift.method	Stub.captureCallStacks(maxFrames:)	@discardableResult func captureCallStacks(maxFrames: Int = 32) -> Self
 symbol	TestDoubles	swift.method	Stub.clearConfiguredBehaviors()	func clearConfiguredBehaviors()
 symbol	TestDoubles	swift.method	Stub.clearRecordedInvocations()	func clearRecordedInvocations()
+symbol	TestDoubles	swift.method	Stub.configure(_:)	@discardableResult func configure(_ configure: (Stub<P>) -> Void) -> Self
 symbol	TestDoubles	swift.method	Stub.describeInteractions()	func describeInteractions() -> String
 symbol	TestDoubles	swift.method	Stub.interactionTimeline()	func interactionTimeline() -> InteractionTimeline
 symbol	TestDoubles	swift.method	Stub.named(_:)	@discardableResult func named(_ name: String) -> Self

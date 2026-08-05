@@ -1,4 +1,24 @@
 extension Stub {
+    /// Applies configuration to this test double and returns it.
+    ///
+    /// Use this method to keep construction and related registrations in one
+    /// expression while retaining the test double for verification or later
+    /// reconfiguration.
+    ///
+    /// ```swift
+    /// let stub = try Stub<any CurrencyService>().configure {
+    ///     $0.when { $0.currency }.thenReturn("EUR")
+    /// }
+    /// ```
+    ///
+    /// - Parameter configure: An operation that configures this test double.
+    /// - Returns: This test double after applying `configure`.
+    @discardableResult
+    public func configure(_ configure: (Stub<P>) -> Void) -> Self {
+        configure(self)
+        return self
+    }
+
     /// Returns a configured runtime-generated stub value.
     ///
     /// The surrounding assignment, argument, or return context must determine the

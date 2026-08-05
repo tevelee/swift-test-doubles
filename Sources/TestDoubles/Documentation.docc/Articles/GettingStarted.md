@@ -190,6 +190,22 @@ stub.verify { $0.save(user: users.capture(using: placeholder)) }
 The supplied value is used only while recording the call. It does not
 participate in matching and is not captured.
 
+### Configure a stub in one expression
+
+Use ``Stub/configure(_:)`` to group related registrations with construction
+while retaining the stub for verification, invocation history, and later
+reconfiguration:
+
+```swift
+let repository = try Stub<any UserRepository>().configure {
+    $0.when { $0.find(id: 42) }.thenReturn("Fixture User")
+    $0.when { $0.find(id: Match.any()) }.thenReturn(nil)
+}
+
+#expect(repository().find(id: 42) == "Fixture User")
+repository.verify { $0.find(id: 42) }
+```
+
 ### Create a one-shot stub value
 
 Use `Stub.make` when the test only needs a configured protocol value and

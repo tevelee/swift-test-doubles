@@ -573,6 +573,20 @@ synthesized automatically. Supply `Dummy.make(using:)` for a class or custom
 invariant, or register one reusable exact-type factory with
 `Dummy<YourType>.register`.
 
+### Scoped configuration
+
+Use `configure` to keep related registrations beside construction while
+retaining the stub for verification or later reconfiguration:
+
+```swift
+let translator = try Stub<any Translator>().configure {
+    $0.when { $0.translate("welcome") }.thenReturn("Bienvenue")
+    $0.when { $0.translate(Match.any()) }.thenReturn("Missing translation")
+}
+
+translator.verify(.never) { $0.translate(Match.any()) }
+```
+
 ### One-shot stubs
 
 When a test only needs a configured value and no verification afterward,
