@@ -114,6 +114,10 @@ public protocol ReservationSource {
     func currentReservation() -> ExternalReservation
 }
 
+public protocol ImportedDataSource: Sendable {
+    func loadData() async throws -> Data
+}
+
 /// A typical application boundary that combines several Foundation values
 /// originating in distinct library-evolution modules.
 public protocol FoundationArchiveGateway {
@@ -538,6 +542,14 @@ public struct LiveReservationSource: ReservationSource {
 
     public func currentReservation() -> ExternalReservation {
         ExternalReservation(start: 1, end: 2)
+    }
+}
+
+public struct LiveImportedDataSource: ImportedDataSource {
+    public init() {}
+
+    public func loadData() async throws -> Data {
+        Data([1, 2, 3])
     }
 }
 

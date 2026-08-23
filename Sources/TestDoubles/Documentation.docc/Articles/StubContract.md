@@ -20,6 +20,7 @@ For construction examples and requirement-order recipes, see
 | Bounded primary associated types | Supported for the documented direct, recursive standard-library container, linked generic-nominal, concrete-reference, setter, initializer, and associated-error slices | See <doc:BoundAssociatedTypes> for exact supported and rejected shapes. |
 | Copyable `InlineArray` values | Automatic metadata discovery and ABI transport for canonical nonnegative integer counts | Small integer arrays use general-purpose registers, homogeneous floating-point arrays use floating-point registers, zero-count values use no registers, and large values use indirect storage. |
 | Function arguments and results | Automatic for concrete native Swift closures, C function pointers, blocks, and documented structural containers; explicit compiler-typed adapter otherwise | See <doc:FunctionValues>; top-level nonescaping, thin, declaration-level consuming or `inout`, dependent, and parameter-pack closure shapes remain fail-closed. |
+| ABI-uncertain imported results | Explicit compiler-typed adapters preserve the client return convention for ordinary methods and synchronous getters or subscripts | Automatic construction remains fail-closed; typed-error buffers and ABI-uncertain arguments require a manual double. |
 | Unsupported dependent shapes, native Swift-only superclasses, and device-only execution policy | Use ``ManualStub`` or a hand-written fake | These stay fail-closed instead of guessing at ABI behavior. |
 
 ### Construction

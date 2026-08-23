@@ -158,30 +158,48 @@ A literal-only recording cannot establish that convention independently for
 every argument. Configure or verify the requirement before its first ordinary
 or forwarded call.
 
-### Imported value results need a manual double
+### Adapt imported value results through the compiler
 
 An imported non-`@frozen` value can be an argument because the matcher call
 gives TestDoubles bytes to compare with the caller's frame. The same value as a
 result cannot be calibrated: the caller has already chosen registers or result
 storage before a fabricated witness can observe anything. To prevent a wrong
-return convention from corrupting memory, `Stub` rejects a protocol with an
-ABI-uncertain imported result or typed error during construction.
+return convention from corrupting memory, automatic `Stub` construction
+rejects a protocol with an ABI-uncertain imported result or typed error.
 
 This can occur with a Foundation value such as `URL`, or with a non-frozen
 struct or enum from your own library-evolution framework. It also includes a
 generic struct or enum because the runtime cannot see the outer declaration's
 `@frozen` status. It is not a matcher configuration problem, so
-adding more `Match.any(using:)` calls will not make a return value safe. Use a
-small hand-written fake or <doc:ManualStubbing> for that protocol boundary
-instead:
+adding more `Match.any(using:)` calls will not make a return value safe. Supply
+an explicit requirement with an exact compiler-typed `@convention(thin)`
+adapter when the requirement has room for its trailing ``Stub/Invocation``:
 
 ```swift
-struct FixtureLocationService: LocationService {
-    let fixture: URL
+let adapter:
+    @convention(thin) (
+        Stub<any LocationService>.Invocation
+    ) -> URL = { invocation in
+        invocation.call()
+    }
 
-    func currentLocation() -> URL { fixture }
-}
+let locations = try Stub<any LocationService>(
+    .method(returning: URL.self, using: adapter)
+)
+let fixture = URL(filePath: "/fixture")
+locations.when(returning: fixture) {
+    $0.currentLocation()
+}.thenReturn(fixture)
 ```
+
+The adapter is compiled in the client context, so its argument and result ABI
+matches the protocol witness without runtime frozen-ness inference. It repeats
+the requirement's exact explicit arguments and effects, then appends
+``Stub/Invocation``. Use `callThrowing` for untyped throwing requirements and
+the async overloads for async requirements. A mismatched or non-thin adapter
+fails during construction. Typed-error buffers and ABI-uncertain arguments
+remain outside this adapter slice. Use <doc:ManualStubbing> when the adapter
+cannot be installed.
 
 If you own the returned type, marking it `@frozen` is a permanent ABI promise
 to every client, not a testing switch. Make that API decision only when its

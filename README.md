@@ -808,6 +808,8 @@ What's supported:
 - Requirement-level generic methods, including async and typed-throwing
   stubs, caller-chosen generic results, and forwarding spies for unconstrained
   or `AnyObject`-constrained parameters.
+- Explicit compiler-typed adapters for ABI-uncertain imported or resilient
+  method and getter results, including async throwing Foundation values.
 
 Key limitations:
 

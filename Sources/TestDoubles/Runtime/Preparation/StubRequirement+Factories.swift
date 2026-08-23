@@ -15,7 +15,7 @@ extension Stub.Requirement {
         )
     }
 
-    /// Describes a method whose signature contains a function value.
+    /// Describes a method dispatched through a compiler-typed witness adapter.
     ///
     /// The noncapturing adapter must use `@convention(thin)`, repeat the
     /// protocol requirement's exact explicit argument, result, and
@@ -317,7 +317,8 @@ extension Stub.Requirement {
         )
     }
 
-    /// Describes a synchronous property getter whose result is a function value.
+    /// Describes a synchronous property getter dispatched through a
+    /// compiler-typed witness adapter.
     ///
     /// The adapter must be an exact
     /// `@convention(thin) (Stub.Invocation) -> Concrete` function.
@@ -367,7 +368,8 @@ extension Stub.Requirement {
         )
     }
 
-    /// Describes a synchronous subscript getter whose indices or result contain a function value.
+    /// Describes a synchronous subscript getter dispatched through a
+    /// compiler-typed witness adapter.
     ///
     /// The thin adapter repeats the index parameters, appends
     /// ``Stub/Invocation``, and returns `Result`.

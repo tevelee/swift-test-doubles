@@ -341,18 +341,13 @@ extension RuntimeStubFactory {
                         )
                     }
                 }
-                if let factory = method.typedWitnessAdapterFactory,
-                    let incompatibility = factory.incompatibility(with: method)
-                {
-                    throw RuntimeConstructionError.unsupportedProtocolShape(
-                        protocolName: protocolName,
-                        reason: "Requirement \(method.index) has an incompatible typed adapter. \(incompatibility)"
-                    )
-                }
-            } else if method.typedWitnessAdapterFactory != nil {
+            }
+            if let factory = method.typedWitnessAdapterFactory,
+                let incompatibility = factory.incompatibility(with: method)
+            {
                 throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: protocolName,
-                    reason: "Requirement \(method.index) supplies a typed adapter but has no direct function argument or result."
+                    reason: "Requirement \(method.index) has an incompatible typed adapter. \(incompatibility)"
                 )
             }
             if let reason = runtimeSIMDUnsupportedReason(for: method) {
@@ -379,7 +374,9 @@ extension RuntimeStubFactory {
                     reason: "Requirement \(method.index) has an ABI-uncertain tuple argument. \(reason)"
                 )
             }
-            if let reason = runtimeUncertainConcreteResultUnsupportedReason(for: method) {
+            if method.typedWitnessAdapterFactory == nil,
+                let reason = runtimeUncertainConcreteResultUnsupportedReason(for: method)
+            {
                 throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: protocolName,
                     reason: "Requirement \(method.index) has an ABI-uncertain result. \(reason)"

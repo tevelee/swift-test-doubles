@@ -152,7 +152,8 @@ package func runtimeUncertainConcreteResultUnsupportedReason(
     }
     return "Its concrete result \(method.returnType) may use either direct or indirect "
         + "client transport because its defining module does not expose frozen-ness. "
-        + "Return transport cannot be calibrated from a recording call; use a "
+        + "Return transport cannot be calibrated from a recording call. Supply an "
+        + "explicit Requirement with a compiler-typed `using:` adapter, or use a "
         + "hand-written test double."
 }
 

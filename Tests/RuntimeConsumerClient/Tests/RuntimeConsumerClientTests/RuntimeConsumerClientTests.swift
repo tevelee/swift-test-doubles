@@ -625,6 +625,89 @@ private func archiveScore(
         #expect(error?.description.contains("ABI-uncertain result") == true)
     }
 
+    @Test func compilerAdapterTransportsAResilientResult() throws {
+        let adapter:
+            @convention(thin) (
+                Stub<any ReservationSource>.Invocation
+            ) -> ExternalReservation = { invocation in
+                invocation.call()
+            }
+        let stub = try Stub<any ReservationSource>(
+            .method(
+                returning: ExternalReservation.self,
+                using: adapter
+            )
+        )
+        let expected = ExternalReservation(start: 173, end: 179)
+        stub.when(returning: expected) {
+            $0.currentReservation()
+        }.thenReturn(expected)
+
+        #expect(stub().currentReservation() == expected)
+        stub.verify(returning: expected) { $0.currentReservation() }
+    }
+
+    @Test func compilerAdapterTransportsAsyncThrowingData() async throws {
+        let adapter:
+            @convention(thin) (
+                Stub<any ImportedDataSource>.Invocation
+            ) async throws -> Data = { invocation in
+                try await invocation.callThrowing()
+            }
+        let stub = try Stub<any ImportedDataSource>(
+            .method(
+                returning: Data.self,
+                isThrowing: true,
+                isAsync: true,
+                using: adapter
+            )
+        )
+        let expected = Data([181, 191, 193])
+        await stub.when(returning: expected) {
+            try await $0.loadData()
+        }.thenReturn(expected)
+
+        #expect(try await stub().loadData() == expected)
+        await stub.verify(returning: expected) { try await $0.loadData() }
+    }
+
+    @Test func compilerAdapterTransportsAResilientPropertyResult() throws {
+        let adapter:
+            @convention(thin) (
+                Stub<any ReservationStore>.Invocation
+            ) -> ExternalReservation = { invocation in
+                invocation.call()
+            }
+        let stub = try Stub<any ReservationStore>(
+            .getter(ExternalReservation.self, using: adapter),
+            .setter(ExternalReservation.self)
+        )
+        let expected = ExternalReservation(start: 197, end: 199)
+        stub.when(returning: expected) { $0.reservation }.thenReturn(expected)
+
+        #expect(stub().reservation == expected)
+        stub.verify(returning: expected) { $0.reservation }
+    }
+
+    @Test func opaqueResultAdapterMustUseTheThinConvention() {
+        let adapter:
+            (
+                Stub<any ReservationSource>.Invocation
+            ) -> ExternalReservation = { invocation in
+                invocation.call()
+            }
+
+        let error = #expect(throws: StubError.self) {
+            _ = try Stub<any ReservationSource>(
+                .method(
+                    returning: ExternalReservation.self,
+                    using: adapter
+                )
+            )
+        }
+        #expect(error?.description.contains("@convention(thin)") == true)
+    }
+
     @Test func resilientPropertyResultsFailBeforeASetterCanBeConfigured() {
         let error = #expect(throws: StubError.self) {
             _ = try Stub<any ReservationStore>()

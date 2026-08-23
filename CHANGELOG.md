@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - A fluent `Stub.configure` scope keeps related registrations beside construction
   while returning the stub for verification and later reconfiguration.
+- Explicit compiler-typed witness adapters can transport ABI-uncertain imported
+  and resilient method or getter results, including asynchronous throwing
+  Foundation values, without guessing their direct or indirect return convention.
 
 ## [0.0.3] - 2026-08-02
 
