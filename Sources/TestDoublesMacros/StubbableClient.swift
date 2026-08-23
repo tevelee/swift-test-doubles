@@ -6,10 +6,12 @@ import TestDoubles
     /// Enable the `StubbableMacros` SwiftPM trait before importing this module.
     /// The generated namespace appends `Doubles` to the client name and exposes
     /// a `preset` that builds live, failing, spying, and partially overridden
-    /// variants. Ordinary generic parameters and custom initializers are
-    /// supported. Required non-closure stored properties become arguments of
-    /// the generated `preset(...)` factory, while initialized immutable closure
-    /// properties retain their defaults.
+    /// variants, plus a fail-closed concrete `testValue` suitable for
+    /// swift-dependencies, TCA, and other environment-style dependency systems.
+    /// Ordinary generic parameters and custom initializers are supported.
+    /// Required non-closure stored properties become arguments of the generated
+    /// `preset(...)` and `testValue(...)` factories, while initialized immutable
+    /// closure properties retain their defaults.
     ///
     /// Name properties in `aliasedEndpoints` when their closure type is a
     /// global, imported, or generic type alias that syntax-only macro expansion

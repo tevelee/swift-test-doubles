@@ -65,6 +65,18 @@
     }
 
     @Suite struct StubbableClientMacroIntegrationTests {
+        @Test func generatedPresetExposesDependencyTestValues() {
+            let direct: GeneratedClosureClient =
+                GeneratedClosureClientDoubles.testValue
+            let configured: GeneratedGenericClient<Int> =
+                GeneratedGenericClientDoubles<Int>.testValue(
+                    namespace: "dependencies"
+                )
+
+            #expect(configured.namespace == "dependencies")
+            _ = direct
+        }
+
         @Test func generatedPresetStubsAndForwardsClosureFields() async throws {
             let failing = GeneratedClosureClientDoubles.preset.failing()
             failing.when {

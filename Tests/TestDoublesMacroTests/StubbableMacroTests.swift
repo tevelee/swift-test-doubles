@@ -157,6 +157,10 @@
                             _testDoubleEndpoints: endpoints
                         )
                     }
+
+                    static var testValue: StatusClient {
+                        preset.testValue()
+                    }
                 }
 
                 extension StatusClient {
@@ -217,6 +221,14 @@
                                 namespace: namespace
                             )
                         }
+                    }
+
+                    static func testValue(
+                        namespace: String
+                    ) -> CacheClient<Value> {
+                        preset(
+                            namespace: namespace
+                        ).testValue()
                     }
                 }
 
@@ -283,6 +295,14 @@
                                 namespace: namespace
                             )
                         }
+                    }
+
+                    static func testValue(
+                        namespace: String
+                    ) -> ExternalClient<Value> {
+                        preset(
+                            namespace: namespace
+                        ).testValue()
                     }
                 }
 

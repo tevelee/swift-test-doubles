@@ -380,6 +380,33 @@ configuration inputs, and initialized immutable closure defaults. Name global,
 imported, or generic closure-alias fields in `aliasedEndpoints` so the generated
 wiring can use their declared function type directly.
 
+The generated namespace also exposes a fail-closed concrete `testValue`, ready
+for closure-client ecosystems such as swift-dependencies and TCA without an
+integration module:
+
+```swift
+extension APIClient: TestDependencyKey {
+    static var testValue: Self { APIClientDoubles.testValue }
+}
+
+@Test(
+    .dependencies {
+        $0.apiClient = await APIClientDoubles.preset.testValue { stub in
+            await stub.when { try await $0.fetch(Match.equal(42)) }
+                .thenReturn(Data())
+        }
+    }
+)
+func loadsFromTheConfiguredDependency() async throws {
+    @Dependency(\.apiClient) var apiClient
+    _ = try await apiClient.fetch(42)
+}
+```
+
+If the generated preset needs non-closure inputs, the namespace emits a
+matching `testValue(...)` function. TCA tests can assign either form directly
+through `store.dependencies`.
+
 ### Control async timing
 
 Testing async code often means asserting what happens *while* a call is in

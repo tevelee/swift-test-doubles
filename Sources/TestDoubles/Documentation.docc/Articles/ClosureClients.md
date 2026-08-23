@@ -222,6 +222,48 @@ let partiallyLive = await apiClients.testValue(overriding: liveAPI) {
 generated endpoint reports the ordinary missing-stub failure. The endpoint
 closures retain their recorder even though the controller is not returned.
 
+### Install generated values in swift-dependencies and TCA
+
+`@StubbableClient` also puts a fail-closed concrete `testValue` on its generated
+namespace. Use it to implement a swift-dependencies test key without coupling
+the client or TestDoubles to that package:
+
+```swift
+import Dependencies
+
+extension APIClient: TestDependencyKey {
+    static var testValue: Self { APIClientDoubles.testValue }
+}
+```
+
+The same value can be assigned directly to a key-path dependency, including a
+TCA `TestStore` dependency:
+
+```swift
+store.dependencies.apiClient = APIClientDoubles.testValue
+```
+
+For a configured Swift Testing override, build the concrete value from the
+generated preset inside the dependency trait:
+
+```swift
+@Test(
+    .dependencies {
+        $0.apiClient = await APIClientDoubles.preset.testValue { stub in
+            await stub.when { try await $0.fetchUser(Match.equal(42)) }
+                .thenReturn(testUser)
+        }
+    }
+)
+func loadsTheUser() async throws {
+    @Dependency(\.apiClient) var apiClient
+    #expect(try await apiClient.fetchUser(42) == testUser)
+}
+```
+
+Clients whose generated preset requires non-closure inputs receive a matching
+`testValue(...)` function instead of a property.
+
 When the `StubbableMacros` package trait is enabled, `@StubbableClient` can
 derive the preset from stored closure fields:
 

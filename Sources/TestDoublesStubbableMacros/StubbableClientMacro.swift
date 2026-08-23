@@ -83,6 +83,7 @@
             .joined(separator: "\n")
 
             let preset: String
+            let testValue: String
             if properties.inputs.isEmpty {
                 if genericShape.isGeneric {
                     preset = [
@@ -95,6 +96,12 @@
                     preset =
                         "\(memberAccess)static let preset = \(materializer)"
                 }
+                testValue = [
+                    "\(memberAccess)static var testValue: \(genericShape.clientType) {",
+                    "    preset.testValue()",
+                    "}"
+                ]
+                .joined(separator: "\n")
             } else {
                 let parameters = properties.inputs.map {
                     "    \($0.name): \($0.type)"
@@ -108,11 +115,27 @@
                     "}"
                 ]
                 .joined(separator: "\n")
+                let forwardedInputs = properties.inputs.map {
+                    "    \($0.name): \($0.name)"
+                }
+                .joined(separator: ",\n")
+                testValue = [
+                    "\(memberAccess)static func testValue(",
+                    parameters,
+                    ") -> \(genericShape.clientType) {",
+                    "    preset(",
+                    indented(forwardedInputs, by: 4),
+                    "    ).testValue()",
+                    "}"
+                ]
+                .joined(separator: "\n")
             }
 
             let source = [
                 "\(access)enum \(clientName)Doubles\(genericShape.declarationClause)\(genericShape.whereClause) {",
                 indented(preset, by: 4),
+                "",
+                indented(testValue, by: 4),
                 "}"
             ]
             .joined(separator: "\n")
