@@ -28,10 +28,6 @@
                 struct StubbableMacroServiceStubConformer: StubbableMacroService, ManualStubConformer {
                     let stub: ManualStub<Self>
 
-                    init(stub: ManualStub<Self>) {
-                        self.stub = stub
-                    }
-
                     func fetch(_ identifier: Int) -> String {
                         stub.call(identifier)
                     }
@@ -47,6 +43,13 @@
                 }
 
                 typealias StubbableMacroServiceStub = ManualStub<StubbableMacroServiceStubConformer>
+
+                extension ManualStub where T == StubbableMacroServiceStubConformer {
+                    /// Tries runtime synthesis, then uses this compiled conformer when needed.
+                    static func automatic() -> Stub<any StubbableMacroService> {
+                        Stub(fallingBackTo: StubbableMacroServiceStubConformer.self, erasingWith: { $0 })
+                    }
+                }
                 """
             }
         }

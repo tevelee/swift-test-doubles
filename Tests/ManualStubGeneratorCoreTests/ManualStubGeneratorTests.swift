@@ -23,6 +23,16 @@ import Testing
                 "typealias RendererStub = ManualStub<RendererStubConformer>"
             )
         )
+        #expect(
+            output.contains(
+                "static func automatic() -> Stub<any Renderer>"
+            )
+        )
+        #expect(
+            output.contains(
+                "Stub(fallingBackTo: RendererStubConformer.self, erasingWith: { $0 })"
+            )
+        )
         #expect(output.contains("ManualRouteID") == false)
     }
 
@@ -45,6 +55,21 @@ import Testing
                 "try await stub.throwingCall(value, throwing: LoadFailure.self)"
             )
         )
+    }
+
+    @Test func preservesImportsNeededByGeneratedSignatures() throws {
+        let output = try render(
+            """
+            import Foundation
+
+            protocol PayloadSource {
+                func load() -> Data
+            }
+            """,
+            protocolName: "PayloadSource"
+        )
+
+        #expect(output.hasPrefix("import Foundation\n\n"))
     }
 
     @Test func emitsImplicitGettersForReadOnlySynchronousRequirements() throws {
@@ -115,12 +140,19 @@ import Testing
             sources: [
                 .init(
                     identifier: "B.swift",
-                    contents: "protocol Second { var value: Int { get } }"
+                    contents:
+                        """
+                        import Foundation
+                        protocol Second { var value: Int { get } }
+                        """
                 ),
                 .init(
                     identifier: "A.swift",
                     contents:
                         """
+                        import Foundation
+                        import Dispatch
+
                         // protocol CommentedOut {}
                         let example = "protocol InAString {}"
                         protocol First {
@@ -136,6 +168,8 @@ import Testing
         #expect(result.source.contains("SecondStubConformer"))
         #expect(result.source.contains("CommentedOutStubConformer") == false)
         #expect(result.source.contains("InAStringStubConformer") == false)
+        #expect(result.source.contains("import Foundation\nimport Dispatch"))
+        #expect(result.source.components(separatedBy: "import Foundation").count == 2)
     }
 
     @Test func batchGenerationReportsUnsupportedProtocolsWhileGeneratingEligibleOnes() throws {

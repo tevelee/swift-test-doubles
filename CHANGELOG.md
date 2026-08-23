@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `thenStream()` and `thenThrowingStream()` return controllers for yielding,
   finishing, failing, buffering, and observing cancellation of stubbed async
   sequences, with strict-scope detection of controllers left open at teardown.
+- Generated manual stubs now expose `automatic()`, which prefers runtime
+  synthesis and transparently falls back to their compiled conformer while
+  preserving the `Stub` configuration and verification API. The selected
+  `StubConstructionStrategy` and runtime failure are available for diagnostics.
 
 ## [0.0.3] - 2026-08-02
 

@@ -9,28 +9,56 @@ package struct ManualStubGenerator {
         self.source = source
     }
 
-    package func render(importingTestDoubles: Bool = true) throws -> String {
+    package func render(
+        importingTestDoubles: Bool = true,
+        preservingSourceImports: Bool = true
+    ) throws -> String {
         let requirements = try protocolBody().requirements
         let conformerName = "\(protocolName)StubConformer"
         let stubName = "\(protocolName)Stub"
-        var members = [
-            "let stub: ManualStub<Self>",
-            "init(stub: ManualStub<Self>) { self.stub = stub }"
-        ]
+        var members = ["let stub: ManualStub<Self>"]
         for requirement in requirements {
             try requireInstanceRequirement(requirement)
             if let member = try forwarder(for: requirement) {
                 members.append(member)
             }
         }
-        let importLine = importingTestDoubles ? "import TestDoubles\n\n" : ""
+        var imports = preservingSourceImports ? sourceImportLines() : []
+        if importingTestDoubles, imports.contains("import TestDoubles") == false {
+            imports.append("import TestDoubles")
+        }
+        let importBlock = imports.isEmpty ? "" : imports.joined(separator: "\n") + "\n\n"
         return """
-            \(importLine)struct \(conformerName): \(protocolName), ManualStubConformer {
+            \(importBlock)struct \(conformerName): \(protocolName), ManualStubConformer {
                 \(members.joined(separator: "\n\n    "))
             }
 
             typealias \(stubName) = ManualStub<\(conformerName)>
+
+            extension ManualStub where T == \(conformerName) {
+                /// Tries runtime synthesis, then uses this compiled conformer when needed.
+                static func automatic() -> Stub<any \(protocolName)> {
+                    Stub(fallingBackTo: \(conformerName).self, erasingWith: { $0 })
+                }
+            }
             """ + "\n"
+    }
+
+    private func sourceImportLines() -> [String] {
+        var seen: Set<String> = []
+        return source.split(separator: "\n").compactMap { line in
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard
+                trimmed.hasPrefix("import ")
+                    || trimmed.hasPrefix("@testable import ")
+                    || trimmed.hasPrefix("@preconcurrency import ")
+                    || trimmed.hasPrefix("@_exported import ")
+            else {
+                return nil
+            }
+            guard seen.insert(trimmed).inserted else { return nil }
+            return trimmed
+        }
     }
 
     private func protocolBody() throws -> String {

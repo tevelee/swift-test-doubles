@@ -67,6 +67,7 @@ isolation. See
 ### Runtime Stub API
 
 - ``Stub``
+- ``StubConstructionStrategy``
 - ``Spy``
 - ``CallPattern``
 - ``CallInteractions``

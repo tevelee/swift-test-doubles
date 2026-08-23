@@ -1,3 +1,12 @@
+/// The implementation route selected while constructing a ``Stub``.
+public enum StubConstructionStrategy: Sendable {
+    /// The protocol existential was synthesized at runtime.
+    case runtimeGenerated
+
+    /// A compiler-generated or hand-written `ManualStubConformer` was used.
+    case compiledFallback
+}
+
 /// A runtime-generated test double for a protocol existential.
 ///
 /// Use the throwing initializer without requirements when signatures are
@@ -12,7 +21,7 @@
 /// ```
 public class Stub<P> {
     let recorder: StubRecorder
-    private let storage: RuntimeStubFactory.Storage<P>
+    private let materializeValue: () -> P
 
     struct PreparedStub {
         let recorder: StubRecorder
@@ -22,8 +31,10 @@ public class Stub<P> {
 
     init(prepared: PreparedStub) {
         self.recorder = prepared.recorder
-        self.storage = prepared.storage
+        materializeValue = { prepared.storage.materialize() }
         constructionPerformance = prepared.constructionPerformance
+        constructionStrategy = .runtimeGenerated
+        runtimeFallbackReason = nil
         if let session = TestDoubleTestingContext.session {
             session.register(prepared.recorder)
             let recorder = prepared.recorder
@@ -33,7 +44,28 @@ public class Stub<P> {
         }
     }
 
+    private init<Fallback: ManualStubConformer>(
+        manualFallback: ManualStub<Fallback>,
+        erasingWith erase: @escaping (Fallback) -> P,
+        runtimeFallbackReason: StubError,
+        constructionPerformance: StubPerformanceDiagnostics.Construction
+    ) {
+        recorder = manualFallback.recorder
+        materializeValue = { erase(manualFallback()) }
+        self.constructionPerformance = constructionPerformance
+        constructionStrategy = .compiledFallback
+        self.runtimeFallbackReason = runtimeFallbackReason
+    }
+
     let constructionPerformance: StubPerformanceDiagnostics.Construction
+
+    /// The implementation route selected for this stub.
+    public let constructionStrategy: StubConstructionStrategy
+
+    /// Why runtime construction failed before a compiled fallback was used.
+    ///
+    /// This is `nil` when ``constructionStrategy`` is ``StubConstructionStrategy/runtimeGenerated``.
+    public let runtimeFallbackReason: StubError?
 
     /// Creates a stub from runtime-discovered or explicitly supplied
     /// requirement signatures.
@@ -54,6 +86,45 @@ public class Stub<P> {
             }
         }
         self.init(prepared: prepared)
+    }
+
+    /// Creates a stub that automatically falls back to a compiled conformer.
+    ///
+    /// Runtime synthesis is attempted first. If protocol metadata, executable
+    /// memory, platform policy, or a requirement shape prevents it, the stub
+    /// constructs `Fallback` through `ManualStub` and keeps the same `Stub`
+    /// configuration, verification, and interaction API.
+    ///
+    /// Prefer the generated `YourProtocolStub.automatic()` factory when using
+    /// `@Stubbable` or `ManualStubGenerator`.
+    public convenience init<Fallback: ManualStubConformer>(
+        fallingBackTo _: Fallback.Type,
+        erasingWith erase: @escaping (Fallback) -> P
+    ) {
+        let constructionStartedAt = ContinuousClock.now
+        do {
+            let prepared = try withStubConstructionError(for: P.self) {
+                try Self.prepare()
+            }
+            self.init(prepared: prepared)
+        } catch {
+            let runtimeFailedAt = ContinuousClock.now
+            let fallback = ManualStub<Fallback>()
+            let fallbackMaterializedAt = ContinuousClock.now
+            self.init(
+                manualFallback: fallback,
+                erasingWith: erase,
+                runtimeFallbackReason: error,
+                constructionPerformance: StubPerformanceDiagnostics.Construction(
+                    planPreparationDuration: constructionStartedAt.duration(
+                        to: runtimeFailedAt
+                    ),
+                    materializationDuration: runtimeFailedAt.duration(
+                        to: fallbackMaterializedAt
+                    )
+                )
+            )
+        }
     }
 
     /// Creates a stub using a concrete conformer's witness tables to discover
@@ -200,7 +271,7 @@ public class Stub<P> {
     }
 
     private func materializeUnchecked() -> P {
-        storage.materialize()
+        materializeValue()
     }
 
     private func withMaterializedValue<Result, Failure: Error>(

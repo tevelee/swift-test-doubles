@@ -36,3 +36,16 @@ func runtimeStubConstructionExplainsDisabledTrait() {
         #expect(String(describing: error).contains("RuntimeStubs"))
     }
 }
+
+@Test
+func automaticStubUsesCompiledFallbackWithoutRuntimeTrait() {
+    let stub = Stub<any ManualOnlyService>(
+        fallingBackTo: ManualOnlyServiceStub.self,
+        erasingWith: { $0 }
+    )
+    stub.when { $0.value(for: Match.equal(7)) }.thenReturn("seven")
+
+    #expect(stub().value(for: 7) == "seven")
+    #expect(stub.constructionStrategy == .compiledFallback)
+    #expect(stub.runtimeFallbackReason?.description.contains("RuntimeStubs") == true)
+}

@@ -12,6 +12,26 @@ getter's throwing convention. Use explicit requirements when neither runtime
 signature source is available, or when the test needs to describe an
 effectful getter precisely.
 
+When a generated conformer is available, its `automatic()` factory keeps one
+nonthrowing construction call across runtime-capable hosts and compiled-only
+destinations. It attempts runtime construction first and falls back to the
+generated conformer after any ``StubError``:
+
+```swift
+let stub = UserRepositoryStub.automatic()
+
+#expect(
+    stub.constructionStrategy == .runtimeGenerated
+        || stub.constructionStrategy == .compiledFallback
+)
+```
+
+Both strategies return `Stub<any UserRepository>` and share its configuration,
+interaction, and verification surface. ``Stub/runtimeFallbackReason`` is `nil`
+for the runtime route and preserves the triggering error for the compiled
+route. Use `UserRepositoryStub()` when the test deliberately requires manual
+dispatch rather than automatic selection.
+
 For the complete support boundary, see <doc:StubContract>. For bounded
 associated-type signatures, see <doc:BoundAssociatedTypes>.
 

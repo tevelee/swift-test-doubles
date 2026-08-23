@@ -1,4 +1,5 @@
 import Testing
+import Foundation
 import TestDoubles
 @testable import ManualStubGeneratorIntegrationFixtures
 
@@ -23,5 +24,29 @@ import TestDoubles
             try service.save(1)
         }
         #expect(try await service.refresh(2) == "fresh")
+    }
+
+    @Test func automaticFactoryUsesRuntimeSynthesisWhenSupported() {
+        let stub = GeneratedManualStubCounterStub.automatic()
+        stub.when { $0.increment(by: Match.equal(3)) }.thenDoNothing()
+        stub.when { $0.value }.thenReturn(3)
+
+        let counter: any GeneratedManualStubCounter = stub()
+        counter.increment(by: 3)
+        #expect(counter.value == 3)
+        #expect(stub.constructionStrategy == .runtimeGenerated)
+        #expect(stub.runtimeFallbackReason == nil)
+    }
+
+    @Test func automaticFactoryFallsBackForAnOpaqueImportedResult() {
+        let stub = GeneratedOpaqueResultServiceStub.automatic()
+        let expected = Data([2, 3, 5, 7])
+        stub.when(returning: expected) { $0.load() }.thenReturn(expected)
+
+        #expect(stub().load() == expected)
+        #expect(stub.constructionStrategy == .compiledFallback)
+        #expect(
+            stub.runtimeFallbackReason?.description.contains("ABI-uncertain result") == true
+        )
     }
 }

@@ -15,3 +15,8 @@ protocol GeneratedManualStubCounter {
     func increment(by amount: Int)
     var value: Int { get }
 }
+
+protocol GeneratedOpaqueResultService {
+    func load() -> Data
+}
+import Foundation

@@ -73,6 +73,23 @@ static types of their arguments automatically, so overloads that differ only by
 argument type remain independent. Typed-throws requirements preserve their
 declared failure type instead of erasing it to ordinary `throws`.
 
+The generated alias also exposes an automatic factory when runtime synthesis
+is preferred but cannot be required on every test destination:
+
+```swift
+let stub = WeatherServiceStub.automatic()
+stub.when { $0.forecast(for: "Budapest") }.thenReturn("Sunny")
+
+let service: any WeatherService = stub()
+```
+
+The result is a ``Stub`` on both paths. It first attempts runtime synthesis,
+then uses `WeatherServiceStubConformer` when a requirement shape, missing
+runtime metadata, platform policy, or executable-memory restriction produces a
+``StubError``. Inspect ``Stub/constructionStrategy`` to distinguish the paths
+and ``Stub/runtimeFallbackReason`` for the preserved diagnostic. Constructing
+`WeatherServiceStub()` directly remains the explicit always-manual path.
+
 Pass `--all` to generate every supported protocol declared in one file:
 
 ```sh
@@ -169,8 +186,9 @@ let service: any WeatherService = stub()
 // service.forecast(for: "Budapest") == "Sunny"
 ```
 
-`@Stubbable` emits `WeatherServiceStubConformer` and the
-`WeatherServiceStub` controller alias.
+`@Stubbable` emits `WeatherServiceStubConformer`, the `WeatherServiceStub`
+controller alias, and the same `WeatherServiceStub.automatic()` factory as the
+command plugin.
 The macro is deliberately a convenience layer over the same explicit
 forwarding code as the command plugin: generated source stays inspectable, and
 the hand-written ``ManualStub`` escape hatches remain available for requirement

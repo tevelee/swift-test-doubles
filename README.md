@@ -74,6 +74,25 @@ instead of an approximation that silently misbehaves. The boundary is wide
 (see [the fine print](#the-fine-print)), and `ManualStub` covers what's
 beyond it with the same API.
 
+When a protocol must work both inside and outside that runtime boundary,
+generate its manual conformer and use the generated `automatic()` factory:
+
+```swift
+let weather = WeatherServiceStub.automatic()
+weather.when { $0.forecast(for: "Budapest") }.thenReturn("Sunny")
+
+let service: any WeatherService = weather()
+#expect(service.forecast(for: "Budapest") == "Sunny")
+```
+
+It tries runtime synthesis first, then transparently uses the compiled
+conformer for unsupported requirement shapes, physical Apple devices, WASI,
+or restricted executable-memory environments. Both routes return `Stub<any
+WeatherService>`, so configuration and verification stay unchanged.
+`constructionStrategy` reports which route was selected, and
+`runtimeFallbackReason` preserves the runtime diagnostic. Calling
+`WeatherServiceStub()` directly remains the explicit always-manual choice.
+
 ## What you can do
 
 ### Shape responses per argument
@@ -693,11 +712,11 @@ configures, invokes, and verifies a `Stub`. The full test suites do not
 currently execute on an Android emulator or device, so Android remains
 provisional.
 
-Physical iOS, tvOS, visionOS, and watchOS devices are unsupported because the
-runtime generates executable trampoline code and CI cannot exercise device
-execution policy. [`ManualStub`](Sources/TestDoubles/Documentation.docc/Articles/ManualStubbing.md)
-provides the same `when`/`then`/`verify` API on those targets with a small
-hand-written conformer.
+Physical iOS, tvOS, visionOS, and watchOS devices cannot run the executable
+runtime trampoline. A generated
+[`ManualStub`](Sources/TestDoubles/Documentation.docc/Articles/ManualStubbing.md)
+provides the same `when`/`then`/`verify` API there, and its `automatic()`
+factory selects that compiled route without changing call sites.
 
 A macOS test process must be allowed to map JIT memory. The runtime allocates
 its trampoline pages with `MAP_JIT`, which the kernel rejects with `EINVAL` in
@@ -731,7 +750,8 @@ runtime trampoline cannot run there at all, the same limitation as physical
 Apple devices, but more fundamental: it isn't a policy restriction to route
 around, WASI's own `<sys/mman.h>` rejects even its mmap emulation shim for
 executable pages. `Stub`/`Spy` construction fails closed there with the usual
-actionable `StubError` diagnostic; use `ManualStub`. CI cross-builds the
+actionable `StubError` diagnostic; use `ManualStub` directly or its generated
+`automatic()` factory. CI cross-builds the
 library for `wasm32-unknown-wasip1` in debug and release with the official
 Swift 6.3.1 WASI SDK, and actually runs both a small standalone executable and
 the `TestDoublesWasmTests` suite under `wasmtime`, demonstrating both halves

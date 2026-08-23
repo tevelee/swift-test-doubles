@@ -57,12 +57,21 @@
                 return [DeclSyntax(stringLiteral: source)]
             }
             let conformer = String(source[..<aliasSeparator.lowerBound])
-            let alias =
-                "typealias "
-                + source[aliasSeparator.upperBound...]
+            let aliasAndExtension = String(source[aliasSeparator.upperBound...])
+            guard let extensionSeparator = aliasAndExtension.range(of: "\n\nextension ") else {
+                return [
+                    DeclSyntax(stringLiteral: conformer),
+                    DeclSyntax(stringLiteral: "typealias " + aliasAndExtension)
+                ]
+            }
+            let alias = "typealias " + aliasAndExtension[..<extensionSeparator.lowerBound]
+            let generatedExtension =
+                "extension "
+                + aliasAndExtension[extensionSeparator.upperBound...]
             return [
                 DeclSyntax(stringLiteral: conformer),
-                DeclSyntax(stringLiteral: alias)
+                DeclSyntax(stringLiteral: alias),
+                DeclSyntax(stringLiteral: generatedExtension)
             ]
         }
 
