@@ -371,17 +371,20 @@ let client = spy() // unmatched calls forward and every call is recorded
 repeating field mappings. Each controller factory accepts synchronous and
 asynchronous configuration closures. When later verification is unnecessary,
 `testValue { ... }` and `testValue(overriding: live) { ... }` return a concrete
-dependency value directly.
+dependency value directly. `ClientDoublePreset` and `testValue` are ordinary
+library API: no macro, and no `StubbableMacros` trait, is required to use them.
 
-With the opt-in `StubbableMacros` trait, `@StubbableClient` derives this wiring
-as `APIClientDoubles.preset`. The macro supports ordinary generic clients,
-nested closure type aliases, custom initializers, required non-closure
-configuration inputs, and initialized immutable closure defaults. Name global,
-imported, or generic closure-alias fields in `aliasedEndpoints` so the generated
-wiring can use their declared function type directly.
+With the opt-in `StubbableMacros` trait, `@StubbableClient` additionally
+derives the `ClientDoublePreset` wiring for you, as `APIClientDoubles.preset`,
+from a closure-field struct's stored properties. The macro supports ordinary
+generic clients, nested closure type aliases, custom initializers, required
+non-closure configuration inputs, and initialized immutable closure defaults.
+Name global, imported, or generic closure-alias fields in `aliasedEndpoints` so
+the generated wiring can use their declared function type directly.
 
-The generated namespace also exposes a fail-closed concrete `testValue`, ready
-for closure-client ecosystems such as swift-dependencies and TCA without an
+The generated namespace also exposes a fail-closed concrete `testValue`, built
+on the same `ClientDoublePreset.testValue()` shown above, ready for
+closure-client ecosystems such as swift-dependencies and TCA without an
 integration module:
 
 ```swift

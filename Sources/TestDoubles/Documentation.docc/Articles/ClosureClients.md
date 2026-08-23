@@ -222,11 +222,20 @@ let partiallyLive = await apiClients.testValue(overriding: liveAPI) {
 generated endpoint reports the ordinary missing-stub failure. The endpoint
 closures retain their recorder even though the controller is not returned.
 
+`ClientDoublePreset` and `testValue` are ordinary library API. Neither
+`@StubbableClient` nor the `StubbableMacros` package trait is required to
+build or use them: construct the preset by hand, as shown above, wherever a
+concrete fail-closed value is all a test or a dependency key needs.
+
 ### Install generated values in swift-dependencies and TCA
 
-`@StubbableClient` also puts a fail-closed concrete `testValue` on its generated
-namespace. Use it to implement a swift-dependencies test key without coupling
-the client or TestDoubles to that package:
+`@StubbableClient` is an opt-in convenience that derives a `ClientDoublePreset`
+from a closure-field struct's stored properties instead of writing the
+`ClientDoublePreset` initializer by hand. Its generated namespace exposes the
+same fail-closed concrete `testValue`, built on `ClientDoublePreset.testValue()`
+under the hood. Use either the manual preset or the macro-generated namespace
+to implement a swift-dependencies test key without coupling the client or
+TestDoubles to that package:
 
 ```swift
 import Dependencies

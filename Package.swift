@@ -282,10 +282,6 @@ private func allTargets(
                 .target(
                     name: "TestDoublesMacros",
                     condition: .when(traits: ["StubbableMacros"])
-                ),
-                .product(
-                    name: "IssueReportingTestSupport",
-                    package: "xctest-dynamic-overlay"
                 )
             ],
             swiftSettings: [
