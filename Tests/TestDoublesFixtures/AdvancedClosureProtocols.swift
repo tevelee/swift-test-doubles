@@ -203,6 +203,41 @@ public typealias ExternalMainActorClosure =
 // swift-format-ignore
 public typealias ExternalNonsendingClosure =
     nonisolated(nonsending) @Sendable (Int) async -> String
+
+@globalActor
+public actor FixturePersistenceActor {
+    public static let shared = FixturePersistenceActor()
+}
+
+@FixturePersistenceActor
+public protocol FixturePersistingService: Sendable {
+    func store(_ value: Int) -> String
+}
+
+@FixturePersistenceActor
+public struct LiveFixturePersistingService: FixturePersistingService {
+    public init() {}
+
+    public func store(_ value: Int) -> String {
+        FixturePersistenceActor.preconditionIsolated()
+        return "live-\(value)"
+    }
+}
+
+@MainActor
+public protocol FixtureMainActorService: Sendable {
+    func render(_ value: Int) -> String
+}
+
+@MainActor
+public struct LiveFixtureMainActorService: FixtureMainActorService {
+    public init() {}
+
+    public func render(_ value: Int) -> String {
+        MainActor.preconditionIsolated()
+        return "live-\(value)"
+    }
+}
 public typealias ExternalSendingClosure =
     @Sendable (sending String) -> sending String
 

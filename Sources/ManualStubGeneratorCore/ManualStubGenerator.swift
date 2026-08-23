@@ -13,10 +13,16 @@ package struct ManualStubGenerator {
         importingTestDoubles: Bool = true,
         preservingSourceImports: Bool = true
     ) throws -> String {
-        let requirements = try protocolBody().requirements
+        let declaration = try protocolDeclaration()
+        let requirements = declaration.body.requirements
         let conformerName = "\(protocolName)StubConformer"
         let stubName = "\(protocolName)Stub"
-        var members = ["let stub: ManualStub<Self>"]
+        let conformerKind = declaration.inheritsActor ? "actor" : "struct"
+        var members = [
+            declaration.inheritsActor
+                ? "let stub: ManualStub<\(conformerName)>\n\n    init(stub: ManualStub<\(conformerName)>) { self.stub = stub }"
+                : "let stub: ManualStub<Self>"
+        ]
         for requirement in requirements {
             try requireInstanceRequirement(requirement)
             if let member = try forwarder(for: requirement) {
@@ -29,7 +35,7 @@ package struct ManualStubGenerator {
         }
         let importBlock = imports.isEmpty ? "" : imports.joined(separator: "\n") + "\n\n"
         return """
-            \(importBlock)struct \(conformerName): \(protocolName), ManualStubConformer {
+            \(importBlock)\(conformerKind) \(conformerName): \(protocolName), ManualStubConformer {
                 \(members.joined(separator: "\n\n    "))
             }
 
@@ -61,7 +67,7 @@ package struct ManualStubGenerator {
         }
     }
 
-    private func protocolBody() throws -> String {
+    private func protocolDeclaration() throws -> SwiftProtocolDeclaration {
         guard
             let declaration = SwiftProtocolDeclarationScanner(source: source)
                 .declarations()
@@ -69,7 +75,7 @@ package struct ManualStubGenerator {
         else {
             throw ManualStubGeneratorError.protocolNotFound(protocolName)
         }
-        return declaration.body
+        return declaration
     }
 
     private func forwarder(for requirement: String) throws -> String? {

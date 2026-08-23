@@ -72,6 +72,29 @@ import Testing
         #expect(output.hasPrefix("import Foundation\n\n"))
     }
 
+    @Test func actorProtocolsGenerateGenuineActorConformers() throws {
+        let output = try render(
+            """
+            protocol ImageLoader: Sendable, Actor {
+                func load(_ identifier: Int) -> String
+            }
+            """,
+            protocolName: "ImageLoader"
+        )
+
+        #expect(
+            output.contains(
+                "actor ImageLoaderStubConformer: ImageLoader, ManualStubConformer"
+            )
+        )
+        #expect(
+            output.contains(
+                "init(stub: ManualStub<ImageLoaderStubConformer>) { self.stub = stub }"
+            )
+        )
+        #expect(output.contains("struct ImageLoaderStubConformer") == false)
+    }
+
     @Test func emitsImplicitGettersForReadOnlySynchronousRequirements() throws {
         let output = try render(
             """

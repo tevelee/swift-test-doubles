@@ -65,3 +65,20 @@ extension ManualStub where T == GeneratedOpaqueResultServiceStubConformer {
         Stub(fallingBackTo: GeneratedOpaqueResultServiceStubConformer.self, erasingWith: { $0 })
     }
 }
+
+actor GeneratedActorServiceStubConformer: GeneratedActorService, ManualStubConformer {
+    let stub: ManualStub<GeneratedActorServiceStubConformer>
+
+    init(stub: ManualStub<GeneratedActorServiceStubConformer>) { self.stub = stub }
+
+    func load(_ identifier: Int) -> String { stub.call(identifier) }
+}
+
+typealias GeneratedActorServiceStub = ManualStub<GeneratedActorServiceStubConformer>
+
+extension ManualStub where T == GeneratedActorServiceStubConformer {
+    /// Tries runtime synthesis, then uses this compiled conformer when needed.
+    static func automatic() -> Stub<any GeneratedActorService> {
+        Stub(fallingBackTo: GeneratedActorServiceStubConformer.self, erasingWith: { $0 })
+    }
+}

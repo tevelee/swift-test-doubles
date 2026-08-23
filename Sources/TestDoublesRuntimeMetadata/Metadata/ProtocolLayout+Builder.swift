@@ -34,6 +34,14 @@ extension ProtocolLayout {
         var callableRequirements: [CallableRequirement] = []
 
         mutating func visit(_ descriptor: ProtocolDescriptor) throws {
+            if qualifiedContextName(descriptor.name, parent: descriptor.parent)
+                == "Swift.Actor"
+            {
+                throw RuntimeConstructionError.unsupportedProtocolShape(
+                    protocolName: contextName,
+                    reason: "Actor protocols require a genuine actor instance. Use a generated compiled fallback so Swift owns the actor's executor and lifetime."
+                )
+            }
             let identifier = DescriptorID(descriptor)
             guard visited.contains(identifier) == false else { return }
             guard active.insert(identifier).inserted else {

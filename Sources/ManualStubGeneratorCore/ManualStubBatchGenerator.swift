@@ -109,6 +109,11 @@ package struct ManualStubBatchGenerator {
 struct SwiftProtocolDeclaration {
     let name: String
     let body: String
+    let inheritedTypeNames: [String]
+
+    var inheritsActor: Bool {
+        inheritedTypeNames.contains("Actor")
+    }
 }
 
 struct SwiftProtocolDeclarationScanner {
@@ -153,6 +158,10 @@ struct SwiftProtocolDeclarationScanner {
                 continue
             }
 
+            let inheritedTypeNames = inheritedTypeNames(
+                in: tokens[(tokenIndex + 2) ..< openingIndex]
+            )
+
             var depth = 1
             var closingIndex = openingIndex + 1
             while closingIndex < tokens.endIndex, depth > 0 {
@@ -177,12 +186,27 @@ struct SwiftProtocolDeclarationScanner {
                             tokens[openingIndex].range.upperBound
                                 ..< closingToken.range.lowerBound
                         ]
-                    )
+                    ),
+                    inheritedTypeNames: inheritedTypeNames
                 )
             )
             tokenIndex = closingIndex
         }
         return result
+    }
+
+    private func inheritedTypeNames(
+        in header: ArraySlice<Token>
+    ) -> [String] {
+        guard let colon = header.firstIndex(where: { $0.kind == .punctuation(":") })
+        else { return [] }
+        let inheritance = header[header.index(after: colon)...]
+            .prefix { token in
+                token.kind != .identifier || token.text != "where"
+            }
+        return inheritance.compactMap { token in
+            token.kind == .identifier ? token.text : nil
+        }
     }
 
     private func tokens() -> [Token] {

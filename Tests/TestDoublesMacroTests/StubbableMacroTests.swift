@@ -54,6 +54,44 @@
             }
         }
 
+        @Test func generatesAGenuineActorConformerForActorProtocols() {
+            assertMacro {
+                """
+                @Stubbable
+                protocol StubbableActorService: Actor {
+                    func fetch(_ identifier: Int) -> String
+                }
+                """
+            } expansion: {
+                """
+                protocol StubbableActorService: Actor {
+                    func fetch(_ identifier: Int) -> String
+                }
+
+                actor StubbableActorServiceStubConformer: StubbableActorService, ManualStubConformer {
+                    let stub: ManualStub<StubbableActorServiceStubConformer>
+
+                    init(stub: ManualStub<StubbableActorServiceStubConformer>) {
+                        self.stub = stub
+                    }
+
+                    func fetch(_ identifier: Int) -> String {
+                        stub.call(identifier)
+                    }
+                }
+
+                typealias StubbableActorServiceStub = ManualStub<StubbableActorServiceStubConformer>
+
+                extension ManualStub where T == StubbableActorServiceStubConformer {
+                    /// Tries runtime synthesis, then uses this compiled conformer when needed.
+                    static func automatic() -> Stub<any StubbableActorService> {
+                        Stub(fallingBackTo: StubbableActorServiceStubConformer.self, erasingWith: { $0 })
+                    }
+                }
+                """
+            }
+        }
+
         @Test func rejectsStaticRequirementsAtTheirDeclaration() {
             assertMacro {
                 """

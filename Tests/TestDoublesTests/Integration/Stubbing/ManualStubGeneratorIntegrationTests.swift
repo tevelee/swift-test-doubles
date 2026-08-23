@@ -49,4 +49,18 @@ import TestDoubles
             stub.runtimeFallbackReason?.description.contains("ABI-uncertain result") == true
         )
     }
+
+    @Test func automaticFactoryUsesAGenuineActorForActorProtocols() async {
+        let stub = GeneratedActorServiceStub.automatic()
+        await stub.when { await $0.load(Match.equal(42)) }.thenReturn("image")
+
+        let service: any GeneratedActorService = stub()
+        #expect(await service.load(42) == "image")
+        #expect(stub.constructionStrategy == .compiledFallback)
+        #expect(
+            stub.runtimeFallbackReason?.description.contains(
+                "Actor protocols require a genuine actor instance"
+            ) == true
+        )
+    }
 }

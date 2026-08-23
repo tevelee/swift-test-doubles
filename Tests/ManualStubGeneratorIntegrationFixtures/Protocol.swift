@@ -19,4 +19,8 @@ protocol GeneratedManualStubCounter {
 protocol GeneratedOpaqueResultService {
     func load() -> Data
 }
+
+protocol GeneratedActorService: Actor {
+    func load(_ identifier: Int) -> String
+}
 import Foundation

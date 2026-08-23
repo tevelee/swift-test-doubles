@@ -71,7 +71,15 @@ The plugin emits a forwarding implementation named
 Create the alias directly in a test. Generated methods and subscripts use the
 static types of their arguments automatically, so overloads that differ only by
 argument type remain independent. Typed-throws requirements preserve their
-declared failure type instead of erasing it to ordinary `throws`.
+declared failure type instead of erasing it to ordinary `throws`. Protocols
+that inherit from `Actor` generate a genuine actor conformer. Their
+`automatic()` factory deliberately selects that compiled fallback because a
+fabricated object cannot safely provide Swift's actor executor or lifetime.
+
+Protocols isolated to `@MainActor` or a custom global actor remain eligible
+for runtime-generated stubs and forwarding spies. Calls, configured handlers,
+and forwarded targets execute after Swift performs the protocol's normal actor
+hop, so the double does not erase the protocol's isolation contract.
 
 The generated alias also exposes an automatic factory when runtime synthesis
 is preferred but cannot be required on every test destination:

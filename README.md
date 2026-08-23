@@ -718,6 +718,11 @@ runtime trampoline. A generated
 provides the same `when`/`then`/`verify` API there, and its `automatic()`
 factory selects that compiled route without changing call sites.
 
+Generated conformers for protocols inheriting `Actor` are actors themselves;
+their `automatic()` factory uses the compiled route so Swift owns the executor
+and actor lifetime. `@MainActor` and custom-global-actor protocols can use
+runtime stubs and forwarding spies while preserving the protocol's actor hop.
+
 A macOS test process must be allowed to map JIT memory. The runtime allocates
 its trampoline pages with `MAP_JIT`, which the kernel rejects with `EINVAL` in
 any process signed with the hardened runtime and without the
