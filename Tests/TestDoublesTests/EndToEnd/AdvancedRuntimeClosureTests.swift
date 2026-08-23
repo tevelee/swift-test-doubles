@@ -531,6 +531,27 @@ private actor ClosureIsolationActor {
         #expect(await stub().nonsending(nonsendingIdentity)(21) == "42!")
     }
 
+    @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
+    @MainActor
+    @Test func nonsendingClosurePreservesCallerIsolation() async throws {
+        _ = RealExternalConcurrencyClosureService()
+        let identity: ExternalNonsendingClosure = { value in
+            MainActor.preconditionIsolated()
+            return "\(value)"
+        }
+        let result: ExternalNonsendingClosure = { value in
+            MainActor.preconditionIsolated()
+            return "main:\(value * 2)"
+        }
+        let stub = try Stub<any ExternalConcurrencyClosureService>()
+
+        stub.when(returning: identity) {
+            $0.nonsending(Match.any(using: identity))
+        }.then { (_: ExternalNonsendingClosure) in result }
+
+        #expect(await stub().nonsending(identity)(21) == "main:42")
+    }
+
     @Test func sourceLessSendingClosureFailsClosedWithoutExactThunks() {
         let argumentReason =
             FunctionReabstraction.automaticArgumentUnsupportedReason(

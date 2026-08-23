@@ -61,6 +61,10 @@ signature, `nonisolated(nonsending)` must carry its implicit actor parameter,
 and every sending parameter and result marker must match runtime metadata.
 This admits source-backed concurrency closures without treating a
 same-arity thunk as arbitrary reabstraction.
+Swift 6.4 adds `@caller_isolated` to the lowered nonsending convention. When
+the process demangler predates that mangling node, TestDoubles reconstructs the
+lowered spelling through an older compatible surrogate, restores the
+caller-isolated marker, and applies the same exact implicit-actor match.
 Swift 6.3 can omit the sending-result bit from raw extended metadata, so lookup
 also validates that marker against the canonical runtime type spelling. The
 dynamic bridge rejects a sending result even when the raw bit is absent.

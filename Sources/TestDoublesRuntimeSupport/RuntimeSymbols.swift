@@ -198,8 +198,9 @@ package enum RuntimeSymbols {
         )
     }
 
-    /// Bridges Swift 6.3's lowered `Builtin.ImplicitActor` parameter when the
-    /// process runtime's demangler predates that builtin mangling.
+    /// Bridges lowered `Builtin.ImplicitActor` parameters when the process
+    /// runtime's demangler predates either Swift 6.3's builtin mangling or
+    /// Swift 6.4's caller-isolated function convention.
     private static func demangleImplicitActorCompatibilitySymbol(
         _ mangledName: String
     ) -> String? {
@@ -209,12 +210,16 @@ package enum RuntimeSymbols {
             return nil
         }
 
+        let callerCompatibleName = mangledName.replacingOccurrences(
+            of: "eNgh",
+            with: "egh"
+        )
         let nativeObjectSurrogate =
-            mangledName
+            callerCompatibleName
             .replacingOccurrences(of: "BA", with: "Bo")
             .replacingOccurrences(of: "gIL", with: "g")
         let plainSurrogate =
-            mangledName
+            callerCompatibleName
             .replacingOccurrences(of: "BA", with: "")
             .replacingOccurrences(of: "gIL", with: "")
         let nativeObjectDemangling = swiftDemangledName(nativeObjectSurrogate)
@@ -225,7 +230,7 @@ package enum RuntimeSymbols {
             return nil
         }
 
-        return replacingInsertedOccurrences(
+        let demangled = replacingInsertedOccurrences(
             [
                 (
                     marker: "@guaranteed Builtin.NativeObject, ",
@@ -238,6 +243,11 @@ package enum RuntimeSymbols {
             ],
             in: nativeObjectDemangling,
             relativeTo: plainDemangling
+        )
+        guard mangledName != callerCompatibleName else { return demangled }
+        return demangled?.replacingOccurrences(
+            of: "@callee_guaranteed",
+            with: "@caller_isolated @callee_guaranteed"
         )
     }
 

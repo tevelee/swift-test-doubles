@@ -154,6 +154,24 @@ import Testing
         #expect(RuntimeSymbols.compatibilityDemangle(mangled) == expected)
     }
 
+    @Test func callerIsolatedThunkSymbolsDemangleOnOlderProcessRuntimes() {
+        let mangled =
+            "$sBASiSSIeNghHgILnr_BASiSSIeNghHgILyo_TR"
+        let direct =
+            "@escaping @caller_isolated @callee_guaranteed @Sendable @async"
+            + " (@guaranteed Builtin.ImplicitActor, @in_guaranteed Swift.Int)"
+            + " -> (@out Swift.String)"
+        let generic =
+            "@escaping @caller_isolated @callee_guaranteed @Sendable @async"
+            + " (@guaranteed Builtin.ImplicitActor, @unowned Swift.Int)"
+            + " -> (@owned Swift.String)"
+        let expected =
+            "reabstraction thunk helper from \(direct) to \(generic)"
+
+        #expect(RuntimeSymbols.demangle(mangled) == expected)
+        #expect(RuntimeSymbols.compatibilityDemangle(mangled) == expected)
+    }
+
     @Test func isolatedParameterThunkSymbolsDemangleOnOlderProcessRuntimes() {
         let mangled =
             "$s19TestDoublesFixtures21ExternalClosureWorkerCS2iIeghHgIyd_ACS2iIeghHnInr_TR"
