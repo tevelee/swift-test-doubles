@@ -200,8 +200,9 @@ dependent or otherwise non-independent indirect argument, accessor, static
 requirement, and typed-error stack shape remain fail-closed.
 
 Compound assignment and `inout` access use the target's `_modify` coroutine.
-Both legacy direct witnesses and descriptor-based public Swift 6.3 witnesses
-are supported. A matching getter registration keeps the configured
+Legacy direct witnesses, descriptor-based public Swift 6.3 witnesses, and
+Swift 6.4's adjacent compatibility pair are supported. A matching getter
+registration keeps the configured
 writable-storage path and does not enter the target. Otherwise the spy relays
 the storage yielded by the target, keeps the target alive for the entire
 access, and resumes or aborts the target exactly once. Mutations and target

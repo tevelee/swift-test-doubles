@@ -74,8 +74,8 @@ package struct ProtocolLayout {
     package enum ModifyCoroutineABI: Equatable {
         /// The legacy `yield_once` witness is stored as a direct function.
         case yieldOnce
-        /// `CoroutineAccessors` stores `modify2` as a `yield_once_2`
-        /// descriptor with a caller-allocated frame.
+        /// Swift 6.3 `modify2` and Swift 6.4's modern paired `_modify` slot use
+        /// a `yield_once_2` descriptor with a caller-allocated frame.
         case yieldOnce2
     }
 

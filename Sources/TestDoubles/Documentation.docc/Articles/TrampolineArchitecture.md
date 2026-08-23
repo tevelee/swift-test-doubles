@@ -154,9 +154,10 @@ mandatory `_modify` coroutine for a read-write property or subscript. Internal
 protocols use the legacy direct `yield_once` witness. A public Swift 6.3
 protocol built with coroutine accessors instead uses a `yield_once_2` descriptor
 whose requirement flags carry the `0x20` descriptor bit and whose caller frame
-is 32 bytes. The runtime classifies these forms from the protocol metadata and
-installs either a direct entry point or a descriptor with the
-compiler-compatible frame size and resume discriminator.
+is 32 bytes. Swift 6.4 with coroutine accessors emits the legacy direct slot
+and the modern descriptor adjacently for one logical accessor. The runtime
+validates that pairing and installs both entries with the compiler-compatible
+frame size and resume discriminator.
 
 Both veneers dispatch the paired getter and yield aligned metadata-backed
 storage. The resume function boxes and destroys that storage exactly once,

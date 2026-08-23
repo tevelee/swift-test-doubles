@@ -350,7 +350,19 @@ private struct Modify2AbortFailure: Error {}
     @Test func fabricatedModify2WitnessContainsDescriptor() throws {
         let layout = try protocolLayout((any Modify2AccessorProbe).self)
         let node = try #require(layout.nodes.first)
-        let modify = try #require(node.modifyCoroutineRequirements.first)
+        #if compiler(>=6.4)
+            #expect(
+                node.modifyCoroutineRequirements.map(\.abi) == [
+                    .yieldOnce,
+                    .yieldOnce2
+                ])
+            #expect(node.modifyCoroutineRequirements.map(\.witnessIndex) == [2, 3])
+        #else
+            #expect(node.modifyCoroutineRequirements.count == 1)
+        #endif
+        let modify = try #require(
+            node.modifyCoroutineRequirements.first { $0.abi == .yieldOnce2 }
+        )
         #expect(modify.abi == .yieldOnce2)
 
         let stub = try Stub<any Modify2AccessorProbe>(
@@ -368,6 +380,12 @@ private struct Modify2AbortFailure: Error {}
         let witnessTable = try #require(
             UnsafeRawPointer(bitPattern: witnessAddress)
         )
+        #if compiler(>=6.4)
+            let legacy = (witnessTable + (1 + 2) * wordSize).load(
+                as: UnsafeRawPointer.self
+            )
+            #expect(legacy != UnsafeRawPointer(bitPattern: 0))
+        #endif
         let descriptor = (witnessTable + (1 + modify.witnessIndex) * wordSize)
             .load(as: UnsafeRawPointer.self)
         let relativeEntry = descriptor.load(as: Int32.self)

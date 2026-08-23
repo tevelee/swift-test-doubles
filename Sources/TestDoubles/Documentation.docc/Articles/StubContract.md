@@ -177,8 +177,9 @@ metadata-backed writable storage, then dispatches the setter with the final
 value. Swift unwind is non-transactional, so a value changed before a thrown
 error is written back on the abort path too. Subscript indices are retained
 across the yield and passed after the final value in setter ABI order.
-The runtime supports both legacy direct `_modify` witnesses and the
-descriptor-based form emitted for public Swift 6.3 protocols.
+The runtime supports legacy direct `_modify` witnesses, the descriptor-based
+form emitted for public Swift 6.3 protocols, and Swift 6.4's adjacent legacy
+and descriptor compatibility pair.
 
 For a forwarding ``Spy``, a matching getter registration keeps that configured
 getter-and-setter path and does not enter the target. An unmatched mutation

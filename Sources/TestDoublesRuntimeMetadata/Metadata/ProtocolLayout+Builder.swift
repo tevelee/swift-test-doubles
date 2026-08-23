@@ -339,27 +339,13 @@ extension ProtocolLayout {
                             ))
 
                     case .modifyCoroutine:
-                        guard index >= localRequirements.startIndex + 2,
-                            localRequirementKinds[index - 1] == .setter,
-                            localRequirements[index - 1].flags.isInstance == requirement.flags.isInstance,
-                            localRequirementKinds[index - 2] == .getter,
-                            localRequirements[index - 2].flags.isInstance == requirement.flags.isInstance
-                        else {
-                            throw RuntimeConstructionError.unsupportedProtocolShape(
-                                protocolName: descriptor.name,
-                                reason: "Requirement \(index) is an unsupported standalone _modify coroutine."
-                            )
-                        }
-                        modifyCoroutineRequirements.append(
-                            (
-                                witnessIndex: index,
-                                getterWitnessIndex: index - 2,
-                                setterWitnessIndex: index - 1,
-                                receiver: requirement.flags.isInstance ? .instance : .metatype,
-                                abi:
-                                    requirement.flags.isCalleeAllocatedCoroutine
-                                    ? .yieldOnce2 : .yieldOnce
-                            ))
+                        try appendModifyCoroutineRequirement(
+                            at: index,
+                            from: localRequirements,
+                            kinds: localRequirementKinds,
+                            for: descriptor,
+                            modifyCoroutineRequirements: &modifyCoroutineRequirements
+                        )
 
                     case .readCoroutine:
                         try appendReadCoroutineRequirement(
@@ -508,6 +494,88 @@ extension ProtocolLayout {
                     witnessIndex: pairedIndex,
                     recorderWitnessIndex: pairedIndex,
                     receiver: receiver,
+                    abi: .yieldOnce2
+                ))
+        }
+
+        private func appendModifyCoroutineRequirement(
+            at index: Int,
+            from localRequirements: [ProtocolRequirement],
+            kinds: [ProtocolRequirement.Kind],
+            for descriptor: ProtocolDescriptor,
+            modifyCoroutineRequirements: inout [LocalModifyRequirement]
+        ) throws {
+            let requirement = localRequirements[index]
+            let receiver: StubRequirementReceiver =
+                requirement.flags.isInstance ? .instance : .metatype
+            let usesYieldOnce2 = requirement.flags.isCalleeAllocatedCoroutine
+            if usesYieldOnce2,
+                index > localRequirements.startIndex,
+                kinds[index - 1] == .modifyCoroutine,
+                localRequirements[index - 1].flags.isCalleeAllocatedCoroutine == false
+            {
+                // Swift 6.4's second physical _modify witness was recorded
+                // together with its adjacent legacy slot.
+                return
+            }
+
+            guard index >= localRequirements.startIndex + 2,
+                kinds[index - 1] == .setter,
+                localRequirements[index - 1].flags.isInstance
+                    == requirement.flags.isInstance,
+                kinds[index - 2] == .getter,
+                localRequirements[index - 2].flags.isInstance
+                    == requirement.flags.isInstance
+            else {
+                throw RuntimeConstructionError.unsupportedProtocolShape(
+                    protocolName: descriptor.name,
+                    reason: "Requirement \(index) is an unsupported standalone _modify coroutine."
+                )
+            }
+
+            let local = (
+                getterWitnessIndex: index - 2,
+                setterWitnessIndex: index - 1,
+                receiver: receiver
+            )
+            if usesYieldOnce2 {
+                // Swift 6.3 emits only the caller-allocated descriptor slot.
+                modifyCoroutineRequirements.append(
+                    (
+                        witnessIndex: index,
+                        getterWitnessIndex: local.getterWitnessIndex,
+                        setterWitnessIndex: local.setterWitnessIndex,
+                        receiver: local.receiver,
+                        abi: .yieldOnce2
+                    ))
+                return
+            }
+
+            let pairedIndex = index + 1
+            modifyCoroutineRequirements.append(
+                (
+                    witnessIndex: index,
+                    getterWitnessIndex: local.getterWitnessIndex,
+                    setterWitnessIndex: local.setterWitnessIndex,
+                    receiver: local.receiver,
+                    abi: .yieldOnce
+                ))
+            guard pairedIndex < localRequirements.endIndex,
+                kinds[pairedIndex] == .modifyCoroutine,
+                localRequirements[pairedIndex].flags.isCalleeAllocatedCoroutine,
+                localRequirements[pairedIndex].flags.isInstance
+                    == requirement.flags.isInstance
+            else {
+                // Ordinary Swift 6.4 get/set declarations retain only the
+                // legacy slot unless CoroutineAccessors is enabled.
+                return
+            }
+            modifyCoroutineRequirements.append(
+                (
+                    witnessIndex: pairedIndex,
+                    getterWitnessIndex: local.getterWitnessIndex,
+                    setterWitnessIndex: local.setterWitnessIndex,
+                    receiver: local.receiver,
                     abi: .yieldOnce2
                 ))
         }
