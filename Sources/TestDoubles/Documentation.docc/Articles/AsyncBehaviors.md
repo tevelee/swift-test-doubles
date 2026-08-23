@@ -233,3 +233,45 @@ delay, or complete differently. And they preserve the async handler contract
 from <doc:GettingStarted>: a resumed or delayed completion runs on the calling
 task, preserving its task-local values, cancellation state, priority, and
 executor.
+
+### Drive an asynchronous sequence
+
+When a dependency returns `AsyncStream`, use `whenStream` to record the
+requirement without manufacturing a recording placeholder, then `thenStream`
+to install the stream and receive its controller:
+
+```swift
+protocol EventSource {
+    func events() -> AsyncStream<Event>
+}
+
+let stub = try Stub<any EventSource>(
+    .method(
+        returning: AsyncStream<Event>.self,
+        using: eventStreamAdapter
+    )
+)
+let calls = stub.whenStream { $0.events() }
+let controller = calls.thenStream(bufferingPolicy: .bufferingNewest(10))
+
+let model = EventModel(source: stub())
+let observation = Task { await model.observe() }
+
+controller.yield(.connected)
+controller.yield(.message("Hello"))
+controller.finish()
+await observation.value
+
+calls.verify()
+#expect(controller.termination == .finished)
+```
+
+Use `whenThrowingStream` and `thenThrowingStream` for an
+`AsyncThrowingStream<Element, any Error>`. Its controller adds
+`finish(throwing:)`, so error handling can be driven without a producer task.
+Both forms honor the standard buffering policies. Cancelling a task that is
+waiting on the stream changes the controller's `termination` to `.cancelled`.
+
+Under `.strictTestDoubles`, an active controller is a teardown failure. Finish
+it normally, finish it with an error, or cancel and await the consuming task so
+tests cannot silently leave event producers open.

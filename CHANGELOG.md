@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Explicit compiler-typed witness adapters can transport ABI-uncertain imported
   and resilient method or getter results, including asynchronous throwing
   Foundation values, without guessing their direct or indirect return convention.
+- `thenStream()` and `thenThrowingStream()` return controllers for yielding,
+  finishing, failing, buffering, and observing cancellation of stubbed async
+  sequences, with strict-scope detection of controllers left open at teardown.
 
 ## [0.0.3] - 2026-08-02
 

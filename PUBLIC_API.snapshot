@@ -14,8 +14,13 @@ availability	TestDoubles	ManualThrowingRoute	{"domain":"*","isUnconditionallyDep
 availability	TestDoubles	StubConformer	{"domain":"*","isUnconditionallyDeprecated":true,"renamed":"ManualStubConformer"}
 conformance	TestDoubles	AsyncClosureCallPattern	Swift.Sendable	[]
 conformance	TestDoubles	AsyncClosureDouble	Swift.Sendable	[{"kind":"conformance","lhs":"Input","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Input","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Input","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
+conformance	TestDoubles	AsyncStreamController	Swift.Sendable	[]
+conformance	TestDoubles	AsyncStreamControllerTermination	Swift.Equatable	[]
+conformance	TestDoubles	AsyncStreamControllerTermination	Swift.Hashable	[]
+conformance	TestDoubles	AsyncStreamControllerTermination	Swift.Sendable	[]
 conformance	TestDoubles	AsyncThrowingClosureCallPattern	Swift.Sendable	[]
 conformance	TestDoubles	AsyncThrowingClosureDouble	Swift.Sendable	[{"kind":"conformance","lhs":"Input","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Input","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Input","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
+conformance	TestDoubles	AsyncThrowingStreamController	Swift.Sendable	[]
 conformance	TestDoubles	AsyncTypedThrowingClosureDouble	Swift.Sendable	[{"kind":"conformance","lhs":"Failure","rhs":"Error","rhsPrecise":"s:s5ErrorP"},{"kind":"conformance","lhs":"Input","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Input","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Input","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 conformance	TestDoubles	CallInteractions	Swift.Sendable	[]
 conformance	TestDoubles	CallPattern	Swift.Sendable	[]
@@ -108,7 +113,9 @@ conformance	TestDoublesTesting	TestDoubleStrictness	Swift.Sendable	[]
 conformance	TestDoublesTesting	TestDoubleStrictness	Swift.SetAlgebra	[]
 symbol	TestDoubles	swift.associatedtype	CustomMatcher.Value	associatedtype Value
 symbol	TestDoubles	swift.class	AsyncClosureDouble	final class AsyncClosureDouble<Input, Result>
+symbol	TestDoubles	swift.class	AsyncStreamController	final class AsyncStreamController<Element>
 symbol	TestDoubles	swift.class	AsyncThrowingClosureDouble	final class AsyncThrowingClosureDouble<Input, Result>
+symbol	TestDoubles	swift.class	AsyncThrowingStreamController	final class AsyncThrowingStreamController<Element>
 symbol	TestDoubles	swift.class	AsyncTypedThrowingClosureDouble	final class AsyncTypedThrowingClosureDouble<Input, Result, Failure> where Failure : Error
 symbol	TestDoubles	swift.class	CallbackCapture	final class CallbackCapture<Value>
 symbol	TestDoubles	swift.class	ClosureDouble	final class ClosureDouble<Input, Result>
@@ -129,6 +136,7 @@ symbol	TestDoubles	swift.class	StubSuspension	final class StubSuspension<Result>
 symbol	TestDoubles	swift.class	ThrowingClosureDouble	final class ThrowingClosureDouble<Input, Result>
 symbol	TestDoubles	swift.class	TypedThrowingClosureDouble	final class TypedThrowingClosureDouble<Input, Result, Failure> where Failure : Error
 symbol	TestDoubles	swift.class	VoidClosureDouble	final class VoidClosureDouble<Result>
+symbol	TestDoubles	swift.enum	AsyncStreamControllerTermination	enum AsyncStreamControllerTermination
 symbol	TestDoubles	swift.enum	CompletionOrder.Builder	@resultBuilder enum Builder
 symbol	TestDoubles	swift.enum	FixtureValueRole	enum FixtureValueRole
 symbol	TestDoubles	swift.enum	InteractionTimeline.Dispatch	enum Dispatch
@@ -141,6 +149,9 @@ symbol	TestDoubles	swift.enum	StubClocks	enum StubClocks
 symbol	TestDoubles	swift.enum	StubError	enum StubError
 symbol	TestDoubles	swift.enum	StubFailableInitializerBuilder.Outcome	enum Outcome
 symbol	TestDoubles	swift.enum	StubOptionalSelfResultBuilder.Outcome	enum Outcome
+symbol	TestDoubles	swift.enum.case	AsyncStreamControllerTermination.active	case active
+symbol	TestDoubles	swift.enum.case	AsyncStreamControllerTermination.cancelled	case cancelled
+symbol	TestDoubles	swift.enum.case	AsyncStreamControllerTermination.finished	case finished
 symbol	TestDoubles	swift.enum.case	FixtureValueRole.error	case error
 symbol	TestDoubles	swift.enum.case	FixtureValueRole.request	case request
 symbol	TestDoubles	swift.enum.case	FixtureValueRole.result	case result
@@ -183,10 +194,12 @@ symbol	TestDoubles	swift.init	AsyncClosureDouble.init()	init()
 symbol	TestDoubles	swift.init	AsyncClosureDouble.init(forwardingTo:)	init(forwardingTo target: @escaping @Sendable (Input) async -> Result)
 symbol	TestDoubles	swift.init	AsyncParameterizedTestDoubleScenario.init(_:)	init(_ configure: @escaping (Subject, Parameter) async -> Void)
 symbol	TestDoubles	swift.init	AsyncParameterizedTestDoubleScenario.init(named:_:)	init(named name: String, _ configure: @escaping (Subject, Parameter) async -> Void)
+symbol	TestDoubles	swift.init	AsyncStreamController.init(bufferingPolicy:)	init(bufferingPolicy: AsyncStream<Element>.Continuation.BufferingPolicy = .unbounded)
 symbol	TestDoubles	swift.init	AsyncTestDoubleScenario.init(_:)	init(_ configure: @escaping (Subject) async -> Void)
 symbol	TestDoubles	swift.init	AsyncTestDoubleScenario.init(named:_:)	init(named name: String, _ configure: @escaping (Subject) async -> Void)
 symbol	TestDoubles	swift.init	AsyncThrowingClosureDouble.init()	init()
 symbol	TestDoubles	swift.init	AsyncThrowingClosureDouble.init(forwardingTo:)	init(forwardingTo target: @escaping @Sendable (Input) async throws -> Result)
+symbol	TestDoubles	swift.init	AsyncThrowingStreamController.init(bufferingPolicy:)	init(bufferingPolicy: AsyncThrowingStream<Element, any Error>.Continuation.BufferingPolicy = .unbounded)
 symbol	TestDoubles	swift.init	AsyncTypedThrowingClosureDouble.init()	init()
 symbol	TestDoubles	swift.init	AsyncTypedThrowingClosureDouble.init(forwardingTo:)	init(forwardingTo target: @escaping @Sendable (Input) async throws(Failure) -> Result)
 symbol	TestDoubles	swift.init	CallbackCapture.init()	init()
@@ -304,6 +317,9 @@ symbol	TestDoubles	swift.method	AsyncClosureDouble.whenAny(fileID:filePath:line:
 symbol	TestDoubles	swift.method	AsyncClosureDouble.whenArguments(_:describedBy:fileID:filePath:line:column:)	func whenArguments<each Argument>(_ matcher: @escaping @Sendable (repeat each Argument) -> Bool, describedBy description: String = "predicate", fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> AsyncClosureCallPattern<Input, Result> where Input == (repeat each Argument)
 symbol	TestDoubles	swift.method	AsyncParameterizedTestDoubleScenario.apply(_:to:)	func apply(_ parameter: Parameter, to subject: Subject) async
 symbol	TestDoubles	swift.method	AsyncParameterizedTestDoubleScenario.scenario(for:)	func scenario(for parameter: Parameter) -> AsyncTestDoubleScenario<Subject>
+symbol	TestDoubles	swift.method	AsyncStreamController.finish()	func finish()
+symbol	TestDoubles	swift.method	AsyncStreamController.named(_:)	@discardableResult func named(_ name: String) -> Self
+symbol	TestDoubles	swift.method	AsyncStreamController.yield(_:)	@discardableResult func yield(_ value: sending Element) -> AsyncStream<Element>.Continuation.YieldResult
 symbol	TestDoubles	swift.method	AsyncTestDoubleScenario.appending(_:)	func appending(_ next: `Self`) -> AsyncTestDoubleScenario<Subject>
 symbol	TestDoubles	swift.method	AsyncTestDoubleScenario.apply(to:)	func apply(to subject: Subject) async
 symbol	TestDoubles	swift.method	AsyncThrowingClosureCallPattern.afterEachCall(_:)	func afterEachCall(_ action: @escaping @Sendable (Input) -> Void) -> AsyncThrowingClosureCallPattern<Input, Result>
@@ -377,6 +393,10 @@ symbol	TestDoubles	swift.method	AsyncThrowingClosureDouble.when(_:describedBy:fi
 symbol	TestDoubles	swift.method	AsyncThrowingClosureDouble.when(equal:fileID:filePath:line:column:)	func when(equal value: Input, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> AsyncThrowingClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	AsyncThrowingClosureDouble.whenAny(fileID:filePath:line:column:)	func whenAny(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> AsyncThrowingClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	AsyncThrowingClosureDouble.whenArguments(_:describedBy:fileID:filePath:line:column:)	func whenArguments<each Argument>(_ matcher: @escaping @Sendable (repeat each Argument) -> Bool, describedBy description: String = "predicate", fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> AsyncThrowingClosureCallPattern<Input, Result> where Input == (repeat each Argument)
+symbol	TestDoubles	swift.method	AsyncThrowingStreamController.finish()	func finish()
+symbol	TestDoubles	swift.method	AsyncThrowingStreamController.finish(throwing:)	func finish(throwing error: any Error)
+symbol	TestDoubles	swift.method	AsyncThrowingStreamController.named(_:)	@discardableResult func named(_ name: String) -> Self
+symbol	TestDoubles	swift.method	AsyncThrowingStreamController.yield(_:)	@discardableResult func yield(_ value: sending Element) -> AsyncThrowingStream<Element, any Error>.Continuation.YieldResult
 symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.argumentHistory()	func argumentHistory() -> ClosureArgumentHistory<Input>
 symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.callAsFunction(_:)	func callAsFunction(_ input: Input) async throws(Failure) -> Result
 symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.clearConfiguredBehaviors()	func clearConfiguredBehaviors()
@@ -454,11 +474,13 @@ symbol	TestDoubles	swift.method	CallPattern.thenReturn(_:_:_:)	@discardableResul
 symbol	TestDoubles	swift.method	CallPattern.thenReturn(_:after:times:)	@discardableResult func thenReturn(_ value: Result, after delay: Duration? = nil, times: Int = 1) -> StubBehaviorChain<Result>
 symbol	TestDoubles	swift.method	CallPattern.thenReturn(_:after:times:)	@discardableResult func thenReturn(_ value: Result, after delay: Duration? = nil, times: PartialRangeFrom<Int> = 1...) -> CallInteractions
 symbol	TestDoubles	swift.method	CallPattern.thenReturn(_:after:using:)	@discardableResult func thenReturn(_ value: Result, after delay: Duration, using clock: any StubClock) -> CallInteractions
+symbol	TestDoubles	swift.method	CallPattern.thenStream(bufferingPolicy:)	func thenStream<Element>(bufferingPolicy: AsyncStream<Element>.Continuation.BufferingPolicy = .unbounded) -> AsyncStreamController<Element> where Result == AsyncStream<Element>
 symbol	TestDoubles	swift.method	CallPattern.thenSuspend()	func thenSuspend() -> StubSuspension<Result>
 symbol	TestDoubles	swift.method	CallPattern.thenThrow(_:after:times:)	@discardableResult func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, times: Int = 1) -> StubBehaviorChain<Result> where Failure : Error
 symbol	TestDoubles	swift.method	CallPattern.thenThrow(_:after:times:)	@discardableResult func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, times: PartialRangeFrom<Int> = 1...) -> CallInteractions where Failure : Error
 symbol	TestDoubles	swift.method	CallPattern.thenThrow(_:after:using:)	@discardableResult func thenThrow<Failure>(_ error: Failure, after delay: Duration, using clock: any StubClock) -> CallInteractions where Failure : Error
 symbol	TestDoubles	swift.method	CallPattern.thenThrowQueue(_:_:)	func thenThrowQueue<Failure>(_ first: Failure, _ rest: Failure...) -> StubBehaviorQueue where Failure : Error
+symbol	TestDoubles	swift.method	CallPattern.thenThrowingStream(bufferingPolicy:)	func thenThrowingStream<Element>(bufferingPolicy: AsyncThrowingStream<Element, any Error>.Continuation.BufferingPolicy = .unbounded) -> AsyncThrowingStreamController<Element> where Result == AsyncThrowingStream<Element, any Error>
 symbol	TestDoubles	swift.method	CallPattern.timings()	func timings() -> [InvocationTiming]
 symbol	TestDoubles	swift.method	CallPattern.verify(_:fileID:filePath:line:column:)	func verify(_ expectedCounts: any RangeExpression<Int> = 1 ... 1, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	TestDoubles	swift.method	CallPattern.verify(_:within:fileID:filePath:line:column:)	func verify(_ expectedCounts: PartialRangeFrom<Int> = 1..., within timeout: Duration, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
@@ -695,6 +717,10 @@ symbol	TestDoubles	swift.method	ManualStub.when(_:fileID:filePath:line:column:)	
 symbol	TestDoubles	swift.method	ManualStub.when(_:isolation:fileID:filePath:line:column:)	func when<Result>(_ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> CallPattern<Result>
 symbol	TestDoubles	swift.method	ManualStub.when(returning:_:fileID:filePath:line:column:)	func when<Result>(returning placeholder: Result, _ call: (T) throws -> Result, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> CallPattern<Result>
 symbol	TestDoubles	swift.method	ManualStub.when(returning:_:isolation:fileID:filePath:line:column:)	func when<Result>(returning placeholder: Result, _ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> CallPattern<Result>
+symbol	TestDoubles	swift.method	ManualStub.whenStream(_:fileID:filePath:line:column:)	func whenStream<Element>(_ call: (T) throws -> AsyncStream<Element>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> CallPattern<AsyncStream<Element>>
+symbol	TestDoubles	swift.method	ManualStub.whenStream(_:isolation:fileID:filePath:line:column:)	func whenStream<Element>(_ call: (T) async throws -> AsyncStream<Element>, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> CallPattern<AsyncStream<Element>>
+symbol	TestDoubles	swift.method	ManualStub.whenThrowingStream(_:fileID:filePath:line:column:)	func whenThrowingStream<Element>(_ call: (T) throws -> AsyncThrowingStream<Element, any Error>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> CallPattern<AsyncThrowingStream<Element, any Error>>
+symbol	TestDoubles	swift.method	ManualStub.whenThrowingStream(_:isolation:fileID:filePath:line:column:)	func whenThrowingStream<Element>(_ call: (T) async throws -> AsyncThrowingStream<Element, any Error>, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> CallPattern<AsyncThrowingStream<Element, any Error>>
 symbol	TestDoubles	swift.method	ManualStubClock.advance(by:)	func advance(by duration: Duration)
 symbol	TestDoubles	swift.method	ManualStubClock.advanceToEnd()	func advanceToEnd()
 symbol	TestDoubles	swift.method	ManualStubClock.sleep(for:)	func sleep(for duration: Duration) async throws
@@ -763,6 +789,10 @@ symbol	TestDoubles	swift.method	Stub.when(returningOptionalSelf:)	func when(retu
 symbol	TestDoubles	swift.method	Stub.when(returningOptionalSelf:isolation:)	func when(returningOptionalSelf call: (P) async throws -> P?, isolation: isolated (any Actor)? = #isolation) async -> StubOptionalSelfResultBuilder
 symbol	TestDoubles	swift.method	Stub.when(returningSelf:)	func when(returningSelf call: (P) throws -> P) -> StubSelfResultBuilder
 symbol	TestDoubles	swift.method	Stub.when(returningSelf:isolation:)	func when(returningSelf call: (P) async throws -> P, isolation: isolated (any Actor)? = #isolation) async -> StubSelfResultBuilder
+symbol	TestDoubles	swift.method	Stub.whenStream(_:fileID:filePath:line:column:)	func whenStream<Element>(_ call: (P) throws -> AsyncStream<Element>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> CallPattern<AsyncStream<Element>>
+symbol	TestDoubles	swift.method	Stub.whenStream(_:isolation:fileID:filePath:line:column:)	func whenStream<Element>(_ call: (P) async throws -> AsyncStream<Element>, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> CallPattern<AsyncStream<Element>>
+symbol	TestDoubles	swift.method	Stub.whenThrowingStream(_:fileID:filePath:line:column:)	func whenThrowingStream<Element>(_ call: (P) throws -> AsyncThrowingStream<Element, any Error>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> CallPattern<AsyncThrowingStream<Element, any Error>>
+symbol	TestDoubles	swift.method	Stub.whenThrowingStream(_:isolation:fileID:filePath:line:column:)	func whenThrowingStream<Element>(_ call: (P) async throws -> AsyncThrowingStream<Element, any Error>, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> CallPattern<AsyncThrowingStream<Element, any Error>>
 symbol	TestDoubles	swift.method	Stub.withValue(_:)	func withValue<Result, Failure>(_ operation: (P) async throws(Failure) -> Result) async throws(Failure) -> Result where Failure : Error
 symbol	TestDoubles	swift.method	Stub.withValue(_:)	func withValue<Result, Failure>(_ operation: (P) throws(Failure) -> Result) throws(Failure) -> Result where Failure : Error
 symbol	TestDoubles	swift.method	StubBehaviorChain.then(times:_:)	@discardableResult func then<Argument>(times: Int = 1, _ handler: @escaping @Sendable (Argument) throws -> Result) -> StubBehaviorChain<Result>
@@ -911,6 +941,8 @@ symbol	TestDoubles	swift.property	AsyncClosureDouble.invocations	var invocations
 symbol	TestDoubles	swift.property	AsyncClosureDouble.mainActorFunction	var mainActorFunction: @MainActor @Sendable (Input) async -> Result { get }
 symbol	TestDoubles	swift.property	AsyncClosureDouble.sendableFunction	var sendableFunction: @Sendable (Input) async -> Result { get }
 symbol	TestDoubles	swift.property	AsyncParameterizedTestDoubleScenario.name	let name: String?
+symbol	TestDoubles	swift.property	AsyncStreamController.stream	let stream: AsyncStream<Element>
+symbol	TestDoubles	swift.property	AsyncStreamController.termination	var termination: AsyncStreamControllerTermination { get }
 symbol	TestDoubles	swift.property	AsyncTestDoubleScenario.name	let name: String?
 symbol	TestDoubles	swift.property	AsyncThrowingClosureCallPattern.callCount	var callCount: Int { get }
 symbol	TestDoubles	swift.property	AsyncThrowingClosureCallPattern.interactions	var interactions: CallInteractions { get }
@@ -921,6 +953,8 @@ symbol	TestDoubles	swift.property	AsyncThrowingClosureDouble.history	var history
 symbol	TestDoubles	swift.property	AsyncThrowingClosureDouble.invocations	var invocations: [Input] { get }
 symbol	TestDoubles	swift.property	AsyncThrowingClosureDouble.mainActorFunction	var mainActorFunction: @MainActor @Sendable (Input) async throws -> Result { get }
 symbol	TestDoubles	swift.property	AsyncThrowingClosureDouble.sendableFunction	var sendableFunction: @Sendable (Input) async throws -> Result { get }
+symbol	TestDoubles	swift.property	AsyncThrowingStreamController.stream	let stream: AsyncThrowingStream<Element, any Error>
+symbol	TestDoubles	swift.property	AsyncThrowingStreamController.termination	var termination: AsyncStreamControllerTermination { get }
 symbol	TestDoubles	swift.property	AsyncTypedThrowingClosureDouble.function	var function: Function { get }
 symbol	TestDoubles	swift.property	AsyncTypedThrowingClosureDouble.history	var history: InteractionHistory { get }
 symbol	TestDoubles	swift.property	AsyncTypedThrowingClosureDouble.invocations	var invocations: [Input] { get }
@@ -1330,14 +1364,15 @@ symbol	TestDoubles	swift.typealias	VariadicTypedThrowingClosureDouble	typealias 
 symbol	TestDoubles@Swift	swift.type.method	RangeExpression.exactly(_:)	static func exactly(_ count: Int) -> Self
 symbol	TestDoubles@Swift	swift.type.property	RangeExpression.never	static var never: Self { get }
 symbol	TestDoublesTesting	swift.init	TestDoubleScope.init(strictness:)	init(strictness: TestDoubleStrictness = .noUnusedStubs)
-symbol	TestDoublesTesting	swift.init	TestDoubleStrictness.init(rawValue:)	init(rawValue: UInt8)
+symbol	TestDoublesTesting	swift.init	TestDoubleStrictness.init(rawValue:)	init(rawValue: UInt16)
 symbol	TestDoublesTesting	swift.method	TestDoubleScope.provideScope(for:testCase:performing:)	func provideScope(for test: Test, testCase: Test.Case?, performing function: () async throws -> Void) async throws
 symbol	TestDoublesTesting	swift.property	TestDoubleScope.strictness	let strictness: TestDoubleStrictness
-symbol	TestDoublesTesting	swift.property	TestDoubleStrictness.rawValue	let rawValue: UInt8
+symbol	TestDoublesTesting	swift.property	TestDoubleStrictness.rawValue	let rawValue: UInt16
 symbol	TestDoublesTesting	swift.struct	TestDoubleScope	struct TestDoubleScope
 symbol	TestDoublesTesting	swift.struct	TestDoubleStrictness	struct TestDoubleStrictness
 symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.noEscapedTestDoubles	static let noEscapedTestDoubles: TestDoubleStrictness
 symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.noMoreInteractions	static let noMoreInteractions: TestDoubleStrictness
+symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.noOpenStreamControllers	static let noOpenStreamControllers: TestDoubleStrictness
 symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.noPendingCallbackCaptures	static let noPendingCallbackCaptures: TestDoubleStrictness
 symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.noPendingSuspensions	static let noPendingSuspensions: TestDoubleStrictness
 symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.noUnconsumedBehaviorQueues	static let noUnconsumedBehaviorQueues: TestDoubleStrictness

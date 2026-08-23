@@ -120,6 +120,43 @@ private func makeScopedSuspendedTestDoubleStub() throws -> Stub<any ScopedSuspen
         #expect(TestDoubleStrictness.strict.contains(.noEscapedTestDoubles))
         #expect(TestDoubleStrictness.strict.contains(.noUnfinishedAsyncInvocations))
         #expect(TestDoubleStrictness.strict.contains(.noUnconsumedInvocationStreams))
+        #expect(TestDoubleStrictness.strict.contains(.noOpenStreamControllers))
+    }
+
+    @Test func scopeReportsOpenStreamControllers() {
+        let session = TestDoubleSession()
+        let diagnostics = TestDoubleTestingContext.$session.withValue(session) {
+            let controller = AsyncStreamController<Int>().named("updates")
+            return withExtendedLifetime(controller) {
+                session.diagnostics(
+                    checkingUnusedRegistrations: false,
+                    checkingUnverifiedInteractions: false,
+                    checkingOpenStreamControllers: true
+                )
+            }
+        }
+
+        #expect(
+            diagnostics.contains {
+                $0.contains("stream controller 'updates'")
+                    && $0.contains("has not been finished or cancelled")
+            }
+        )
+    }
+
+    @Test func scopeAcceptsFinishedStreamControllers() {
+        let session = TestDoubleSession()
+        let diagnostics = TestDoubleTestingContext.$session.withValue(session) {
+            let controller = AsyncThrowingStreamController<Int>().named("updates")
+            controller.finish()
+            return session.diagnostics(
+                checkingUnusedRegistrations: false,
+                checkingUnverifiedInteractions: false,
+                checkingOpenStreamControllers: true
+            )
+        }
+
+        #expect(diagnostics.isEmpty)
     }
 
     @Test(.testDoubles(strictness: []))

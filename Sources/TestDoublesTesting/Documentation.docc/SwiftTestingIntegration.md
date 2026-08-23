@@ -33,7 +33,8 @@ catch-all matcher.
 Use `.strictTestDoubles` when every recorded call must also be explicitly
 verified. It also reports finite behavior queues with responses left,
 `thenSuspend()` calls still parked, and `CallbackCapture` values still retaining
-callbacks at teardown:
+callbacks at teardown. Controlled async streams must also be finished or
+cancelled before the test returns:
 
 ```swift
 @Test(.strictTestDoubles)
@@ -57,6 +58,8 @@ Explicit `named(_:)` labels take precedence.
 For a focused policy, use a `TestDoubleStrictness` option such as
 `@Test(.testDoubles(strictness: .noMoreInteractions))` or
 `@Test(.testDoubles(strictness: .noPendingSuspensions))`.
+Use `.noOpenStreamControllers` when that is the only stream lifecycle policy
+the test needs.
 A double created in a `Task.detached` does not inherit the test scope; verify
 that double explicitly instead. The scope reports issues at teardown but does
 not consume invocations, registrations, queued responses, suspended calls, or

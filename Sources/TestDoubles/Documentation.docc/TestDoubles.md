@@ -198,6 +198,9 @@ isolation. See
 - ``MainActorTypedThrowingClosureDouble``
 - ``MainActorAsyncTypedThrowingClosureDouble``
 - ``CallbackCapture``
+- ``AsyncStreamController``
+- ``AsyncThrowingStreamController``
+- ``AsyncStreamControllerTermination``
 
 ### Value and Optional Matchers
 

@@ -391,6 +391,24 @@ need an async requirement and fail closed on a synchronous one. See
 [Async Behaviors](Sources/TestDoubles/Documentation.docc/Articles/AsyncBehaviors.md)
 for the full contract.
 
+For dependencies that return `AsyncStream` or `AsyncThrowingStream`, keep the
+sequence itself under test control:
+
+```swift
+let events = stub.whenStream { $0.events() }
+let controller = events.thenStream(bufferingPolicy: .bufferingNewest(10))
+
+controller.yield(.connected)
+controller.yield(.message("Hello"))
+controller.finish()
+
+events.verify()
+```
+
+`thenThrowingStream()` adds `finish(throwing:)`. Both controllers expose whether
+the consumer finished or cancelled iteration, and strict Swift Testing scopes
+report controllers that remain open at teardown.
+
 ### Verify what happened
 
 When the interaction is the outcome, as with analytics, persistence, or

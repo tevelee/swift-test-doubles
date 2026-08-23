@@ -6,10 +6,10 @@
     /// A collection of automatic checks for a ``TestDoubleScope``.
     public struct TestDoubleStrictness: OptionSet, Sendable {
         /// The raw option value.
-        public let rawValue: UInt8
+        public let rawValue: UInt16
 
         /// Creates a collection of automatic test-double checks.
-        public init(rawValue: UInt8) {
+        public init(rawValue: UInt16) {
             self.rawValue = rawValue
         }
 
@@ -38,6 +38,9 @@
         /// Reports invocation streams that have matching calls left unread.
         public static let noUnconsumedInvocationStreams = Self(rawValue: 1 << 7)
 
+        /// Reports controlled streams that were neither finished nor cancelled.
+        public static let noOpenStreamControllers = Self(rawValue: 1 << 8)
+
         /// Applies every automatic test-double check.
         public static let strict: Self = [
             .noUnusedStubs,
@@ -47,7 +50,8 @@
             .noPendingCallbackCaptures,
             .noEscapedTestDoubles,
             .noUnfinishedAsyncInvocations,
-            .noUnconsumedInvocationStreams
+            .noUnconsumedInvocationStreams,
+            .noOpenStreamControllers
         ]
     }
 
@@ -123,6 +127,9 @@
                 ),
                 checkingUnconsumedInvocationStreams: strictness.contains(
                     .noUnconsumedInvocationStreams
+                ),
+                checkingOpenStreamControllers: strictness.contains(
+                    .noOpenStreamControllers
                 )
             )
         }

@@ -118,6 +118,11 @@ public protocol ImportedDataSource: Sendable {
     func loadData() async throws -> Data
 }
 
+public protocol EventStreamSource: Sendable {
+    func integers() -> AsyncStream<Int>
+    func labels() -> AsyncThrowingStream<String, any Error>
+}
+
 /// A typical application boundary that combines several Foundation values
 /// originating in distinct library-evolution modules.
 public protocol FoundationArchiveGateway {
