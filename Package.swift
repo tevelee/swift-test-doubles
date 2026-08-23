@@ -314,6 +314,11 @@ private func allTargets(
                         "IssueReporting": "MacroTestingIssueReporting"
                     ],
                     condition: .when(traits: ["StubbableMacros"])
+                ),
+                .product(
+                    name: "IssueReporting",
+                    package: "swift-issue-reporting",
+                    condition: .when(traits: ["StubbableMacros"])
                 )
             ],
             swiftSettings: [

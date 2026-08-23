@@ -47,7 +47,12 @@
                 extension ManualStub where T == StubbableMacroServiceStubConformer {
                     /// Tries runtime synthesis, then uses this compiled conformer when needed.
                     static func automatic() -> Stub<any StubbableMacroService> {
-                        Stub(fallingBackTo: StubbableMacroServiceStubConformer.self, erasingWith: { $0 })
+                        Stub(
+                            fallingBackTo: StubbableMacroServiceStubConformer.self,
+                            erasingWith: {
+                                $0
+                            }
+                        )
                     }
                 }
                 """
@@ -85,7 +90,12 @@
                 extension ManualStub where T == StubbableActorServiceStubConformer {
                     /// Tries runtime synthesis, then uses this compiled conformer when needed.
                     static func automatic() -> Stub<any StubbableActorService> {
-                        Stub(fallingBackTo: StubbableActorServiceStubConformer.self, erasingWith: { $0 })
+                        Stub(
+                            fallingBackTo: StubbableActorServiceStubConformer.self,
+                            erasingWith: {
+                                $0
+                            }
+                        )
                     }
                 }
                 """

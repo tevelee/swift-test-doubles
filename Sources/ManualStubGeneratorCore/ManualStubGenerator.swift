@@ -44,7 +44,12 @@ package struct ManualStubGenerator {
             extension ManualStub where T == \(conformerName) {
                 /// Tries runtime synthesis, then uses this compiled conformer when needed.
                 static func automatic() -> Stub<any \(protocolName)> {
-                    Stub(fallingBackTo: \(conformerName).self, erasingWith: { $0 })
+                    Stub(
+                        fallingBackTo: \(conformerName).self,
+                        erasingWith: {
+                            $0
+                        }
+                    )
                 }
             }
             """ + "\n"

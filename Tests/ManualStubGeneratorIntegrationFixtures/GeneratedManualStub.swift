@@ -30,7 +30,12 @@ typealias GeneratedManualStubServiceStub = ManualStub<GeneratedManualStubService
 extension ManualStub where T == GeneratedManualStubServiceStubConformer {
     /// Tries runtime synthesis, then uses this compiled conformer when needed.
     static func automatic() -> Stub<any GeneratedManualStubService> {
-        Stub(fallingBackTo: GeneratedManualStubServiceStubConformer.self, erasingWith: { $0 })
+        Stub(
+            fallingBackTo: GeneratedManualStubServiceStubConformer.self,
+            erasingWith: {
+                $0
+            }
+        )
     }
 }
 
@@ -47,7 +52,12 @@ typealias GeneratedManualStubCounterStub = ManualStub<GeneratedManualStubCounter
 extension ManualStub where T == GeneratedManualStubCounterStubConformer {
     /// Tries runtime synthesis, then uses this compiled conformer when needed.
     static func automatic() -> Stub<any GeneratedManualStubCounter> {
-        Stub(fallingBackTo: GeneratedManualStubCounterStubConformer.self, erasingWith: { $0 })
+        Stub(
+            fallingBackTo: GeneratedManualStubCounterStubConformer.self,
+            erasingWith: {
+                $0
+            }
+        )
     }
 }
 
@@ -62,7 +72,12 @@ typealias GeneratedOpaqueResultServiceStub = ManualStub<GeneratedOpaqueResultSer
 extension ManualStub where T == GeneratedOpaqueResultServiceStubConformer {
     /// Tries runtime synthesis, then uses this compiled conformer when needed.
     static func automatic() -> Stub<any GeneratedOpaqueResultService> {
-        Stub(fallingBackTo: GeneratedOpaqueResultServiceStubConformer.self, erasingWith: { $0 })
+        Stub(
+            fallingBackTo: GeneratedOpaqueResultServiceStubConformer.self,
+            erasingWith: {
+                $0
+            }
+        )
     }
 }
 
@@ -79,6 +94,11 @@ typealias GeneratedActorServiceStub = ManualStub<GeneratedActorServiceStubConfor
 extension ManualStub where T == GeneratedActorServiceStubConformer {
     /// Tries runtime synthesis, then uses this compiled conformer when needed.
     static func automatic() -> Stub<any GeneratedActorService> {
-        Stub(fallingBackTo: GeneratedActorServiceStubConformer.self, erasingWith: { $0 })
+        Stub(
+            fallingBackTo: GeneratedActorServiceStubConformer.self,
+            erasingWith: {
+                $0
+            }
+        )
     }
 }

@@ -30,9 +30,10 @@ import Testing
         )
         #expect(
             output.contains(
-                "Stub(fallingBackTo: RendererStubConformer.self, erasingWith: { $0 })"
+                "fallingBackTo: RendererStubConformer.self"
             )
         )
+        #expect(output.contains("erasingWith: {\n"))
         #expect(output.contains("ManualRouteID") == false)
     }
 
