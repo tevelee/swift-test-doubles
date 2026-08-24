@@ -1,6 +1,14 @@
 // swift-tools-version: 6.3
 
 import PackageDescription
+import Foundation
+
+let excludedConsumerTests =
+    ProcessInfo.processInfo.environment[
+        "TESTDOUBLES_EXCLUDE_STREAM_CONSUMER_TESTS"
+    ] == "1"
+    ? ["AsyncStreamControllerConsumerTests.swift"]
+    : []
 
 let package = Package(
     name: "RuntimeConsumerClient",
@@ -23,7 +31,8 @@ let package = Package(
                     name: "TestDoubles",
                     package: "swift-test-doubles"
                 )
-            ]
+            ],
+            exclude: excludedConsumerTests
         )
     ]
 )
