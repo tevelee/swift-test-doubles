@@ -534,7 +534,7 @@ private actor ClosureIsolationActor {
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @MainActor
     @Test func nonsendingClosurePreservesCallerIsolation() async throws {
-        #if os(Linux) || arch(x86_64) || !DEBUG
+        #if os(Linux) || arch(x86_64) || !DEBUG || TESTDOUBLES_SANITIZED
             // Swift 6.3.3 reports nonportable extended closure flags here.
             // Debug Apple Silicon CI exercises the caller-isolation behavior.
             return

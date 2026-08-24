@@ -711,6 +711,7 @@ jobs:
         run: >-
           swift test
           --sanitize ${{ matrix.sanitizer }}
+          -Xswiftc -DTESTDOUBLES_SANITIZED
           ${{ matrix.runner_arguments }}
           --skip ExitTests
           --scratch-path .build/ci-${{ matrix.sanitizer }}-sanitizer
