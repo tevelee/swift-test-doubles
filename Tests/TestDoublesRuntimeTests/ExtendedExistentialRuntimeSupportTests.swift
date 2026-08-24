@@ -1,5 +1,5 @@
 import TestDoublesRuntime
-import TestDoublesRuntimeMetadata
+
 import Testing
 
 struct ExtendedExistentialRuntimeSupportTests {

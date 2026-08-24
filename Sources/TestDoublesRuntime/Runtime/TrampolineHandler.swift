@@ -1,6 +1,5 @@
 import CTestDoublesTrampoline
 import InternalRuntimeContract
-import TestDoublesRuntimeMetadata
 
 @_cdecl("td_swift_trampoline_handler")
 func td_swift_trampoline_handler(_ rawFrame: UnsafeMutablePointer<TDCallFrame>?) {

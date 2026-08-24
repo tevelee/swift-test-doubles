@@ -4,7 +4,6 @@ import TestDoublesResilientFixtures
 import Testing
 @testable import TestDoubles
 @testable import TestDoublesRuntime
-@testable import TestDoublesRuntimeMetadata
 
 private final class WeakReadReference: @unchecked Sendable {
     weak var value: ReadLifetimeReference?

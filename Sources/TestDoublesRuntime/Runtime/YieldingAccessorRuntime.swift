@@ -1,7 +1,5 @@
 import CTestDoublesTrampoline
 import InternalRuntimeContract
-import TestDoublesRuntimeMetadata
-import TestDoublesRuntimeSupport
 
 /// Distinguishes retained coroutine states that otherwise share one lifecycle.
 package enum YieldingAccessorKind: Equatable {

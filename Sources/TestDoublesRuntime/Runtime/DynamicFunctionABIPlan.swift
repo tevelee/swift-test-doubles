@@ -1,6 +1,3 @@
-import TestDoublesRuntimeMetadata
-import TestDoublesRuntimeSupport
-
 /// The bounded direct-closure argument layout accepted by the dynamic bridge.
 ///
 /// A stack-bearing plan contains exactly one complete general-purpose word at

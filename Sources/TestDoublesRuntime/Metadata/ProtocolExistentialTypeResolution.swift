@@ -1,5 +1,4 @@
 import Echo
-import TestDoublesRuntimeSupport
 
 func swiftTypeByNominalName(_ name: String) -> Any.Type? {
     for prefix in nominalMangledPrefixes(for: name) {

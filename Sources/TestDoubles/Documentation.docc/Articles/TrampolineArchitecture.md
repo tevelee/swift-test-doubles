@@ -14,13 +14,13 @@ state expected by the caller.
 This design keeps the package small: TestDoubles does not emit Swift source,
 compile a conformer, or generate a matrix of typed thunks for each protocol.
 The public library owns recorder semantics and diagnostics. Its internal
-`TestDoublesRuntimeMetadata` target owns protocol discovery, descriptor
-resolution, and validation. `TestDoublesRuntime` owns fabricated witnesses,
+`TestDoublesRuntime` target owns protocol discovery, descriptor resolution,
+validation, and fabricated witnesses,
 trampoline callbacks, raw value transport, and opaque preparation; it receives
 source-level schemas and effects through the package contract, then returns
 semantic methods and materializable storage to the public layer. Invocation
 receives semantic decisions through a package-scoped endpoint rather than
-depending on a recorder. Both runtime targets depend on Echo's semantic
+depending on a recorder. The runtime target depends on Echo's semantic
 reflection APIs and use its raw metadata or value-storage APIs only where the
 runtime operation requires them, alongside the C/assembly trampoline.
 

@@ -1,6 +1,4 @@
 import EchoRuntimeReflection
-import TestDoublesRuntimeMetadata
-import TestDoublesRuntimeSupport
 
 package enum FunctionBridgeDirection: Sendable, Equatable {
     case directToGeneric

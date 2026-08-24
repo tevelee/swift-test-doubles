@@ -2,7 +2,6 @@ import CTestDoublesTrampoline
 import EchoRuntimeReflection
 import EchoRuntimeSupport
 import InternalRuntimeContract
-import TestDoublesRuntimeMetadata
 
 @_cdecl("td_swift_modify_trampoline_handler")
 func td_swift_modify_trampoline_handler(

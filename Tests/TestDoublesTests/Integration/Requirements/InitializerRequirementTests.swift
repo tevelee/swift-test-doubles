@@ -1,5 +1,5 @@
 import TestDoublesRuntime
-import TestDoublesRuntimeMetadata
+
 import InternalRuntimeContract
 import Testing
 @testable import TestDoubles

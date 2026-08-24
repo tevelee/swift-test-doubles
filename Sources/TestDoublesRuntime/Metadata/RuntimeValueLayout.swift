@@ -1,7 +1,6 @@
 // Swift ABI classification used by the runtime trampoline.
 import Echo
 import Foundation
-import TestDoublesRuntimeSupport
 
 package enum ABIClass: Equatable, Sendable {
     case void

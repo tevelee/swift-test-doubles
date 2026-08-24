@@ -1,5 +1,5 @@
 import Testing
-@testable import TestDoublesRuntimeSupport
+@testable import TestDoublesRuntime
 
 @Suite struct RuntimeSymbolsTests {
     @Test func successfulRuntimeTypeResolutionIsCached() {
@@ -209,4 +209,3 @@ import Testing
         #expect(RuntimeSymbols.compatibilityDemangle("$sSiN") == nil)
     }
 }
-import TestDoublesRuntime

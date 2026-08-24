@@ -1,6 +1,5 @@
 import Echo
 import EchoRuntimeSupport
-import TestDoublesRuntimeMetadata
 
 /// Creates valid placeholder values for matcher recording and runtime fallback returns.
 package enum PlaceholderValue {

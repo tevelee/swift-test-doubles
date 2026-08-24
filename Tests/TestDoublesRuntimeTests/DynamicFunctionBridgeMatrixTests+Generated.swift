@@ -2,7 +2,6 @@
 // Shared support for the independently diagnosable fixed-arity suites.
 
 import TestDoublesRuntime
-import TestDoublesRuntimeMetadata
 import EchoRuntimeSupport
 
 enum GeneratedBridgeMatrixError: Error {

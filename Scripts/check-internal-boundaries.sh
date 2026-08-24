@@ -29,7 +29,7 @@ check_absent() {
 }
 
 check_public_runtime_imports() {
-  local pattern="${import_prefix}import[[:space:]]+(TestDoublesRuntime|TestDoublesRuntimeMetadata|TestDoublesRuntimeSupport)\\b"
+  local pattern="${import_prefix}import[[:space:]]+TestDoublesRuntime\\b"
   local matches=''
   local file
   local file_matches
@@ -73,11 +73,6 @@ check_absent \
   Sources/TestDoublesRuntime
 
 check_absent \
-  '^[[:space:]]*(@[[:alnum:]_]+(\([^)]*\))?[[:space:]]+)*@_exported[[:space:]]+import\b' \
-  'Runtime metadata must not re-export implementation dependencies:' \
-  Sources/TestDoublesRuntimeMetadata
-
-check_absent \
   '\.vwt\.(initializeWithCopy|destroy)\b' \
   'The execution runtime must use EchoRuntimeSupport value operations:' \
   Sources/TestDoublesRuntime
@@ -95,7 +90,7 @@ check_absent \
   Sources/TestDoubles
 
 check_absent \
-  "${import_prefix}import[[:space:]]+(TestDoublesRuntime|TestDoublesRuntimeMetadata|TestDoublesRuntimeSupport|Echo|EchoRuntimeReflection|EchoRuntimeSupport|CTestDoublesTrampoline)\\b" \
+  "${import_prefix}import[[:space:]]+(TestDoublesRuntime|Echo|EchoRuntimeReflection|EchoRuntimeSupport|CTestDoublesTrampoline)\\b" \
   'ManualStub must remain a source-level semantic API:' \
   Sources/TestDoubles/Doubles/ManualStub.swift
 

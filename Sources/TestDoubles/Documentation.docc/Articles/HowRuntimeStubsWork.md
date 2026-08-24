@@ -18,14 +18,14 @@ operation that can match arguments, run a handler, and return a value.
 
 The product keeps those responsibilities in separate internal layers.
 `TestDoubles` owns the recorder, matching, verification, and public
-diagnostics. `TestDoublesRuntimeMetadata` owns protocol metadata inspection,
-signature discovery, and validation. `TestDoublesRuntime` owns witness
-fabrication, ABI decoding and encoding, callback lifetime, and opaque
+diagnostics. `TestDoublesRuntime` owns protocol metadata inspection,
+signature discovery, validation, witness fabrication, ABI decoding and
+encoding, callback lifetime, and opaque
 preparation. The public layer sends source-level requirement schemas, effects,
 and associated-type bindings to Runtime; it receives semantic methods for the
 recorder plus a materializable plan whose descriptors and layouts stay private.
 Execution asks a package-scoped semantic endpoint what the recorder decided,
-but neither runtime target depends on recorder or public test-double types.
+but the runtime target does not depend on recorder or public test-double types.
 Echo sits below those runtime layers in two deliberately distinct forms:
 semantic function and value-layout reflection, and low-level temporary value
 storage. Raw metadata stays behind those APIs unless discovery or witness-table

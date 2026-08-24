@@ -3,8 +3,6 @@
 // variadic function type to Any.
 // swiftlint:disable file_length
 
-import TestDoublesRuntimeMetadata
-
 func dynamicallyBoxFunctionArgument(
     function: UnsafeRawPointer,
     context: UnsafeRawPointer?,

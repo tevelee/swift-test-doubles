@@ -32,4 +32,3 @@ struct RetainedRuntimeStateTests {
         #expect(weakState == nil)
     }
 }
-import TestDoublesRuntimeMetadata

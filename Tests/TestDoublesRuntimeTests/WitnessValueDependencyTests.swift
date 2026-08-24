@@ -1,5 +1,5 @@
 import Testing
-@testable import TestDoublesRuntimeMetadata
+@testable import TestDoublesRuntime
 
 private protocol FirstDependencyScope {
     associatedtype Value
@@ -230,4 +230,3 @@ private protocol SecondDependencyScope {
         )
     }
 }
-import TestDoublesRuntime

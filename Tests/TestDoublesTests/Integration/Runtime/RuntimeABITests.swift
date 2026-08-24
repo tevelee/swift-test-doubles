@@ -1,5 +1,5 @@
 import Testing
-import TestDoublesRuntimeSupport
+import TestDoublesRuntime
 @testable import TestDoubles
 
 struct LargeABIResult: Equatable, Sendable {
@@ -893,5 +893,3 @@ private func makeExtendedAsyncStub() throws -> Stub<any ExtendedAsyncABIProbe> {
         )
     )
 }
-import TestDoublesRuntime
-import TestDoublesRuntimeMetadata

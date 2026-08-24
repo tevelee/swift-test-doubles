@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import TestDoublesRuntimeMetadata
+@testable import TestDoublesRuntime
 import TestDoublesFixtures
 import TestDoublesResilientFixtures
 
@@ -650,4 +650,3 @@ private indirect enum RecursiveValueBox<Value> {
 /// exercise the "resolves the argument, then fails the conformance check"
 /// path rather than failing earlier at "can't even resolve this name."
 struct NotHashableProbe {}
-import TestDoublesRuntime

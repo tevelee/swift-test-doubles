@@ -2,7 +2,6 @@ import CTestDoublesTrampoline
 import Echo
 import EchoRuntimeReflection
 import Foundation
-import TestDoublesRuntimeMetadata
 
 // WASI has neither this trampoline's assembly nor executable memory for a
 // fabricated veneer, so these three get real (unreachable-in-practice)

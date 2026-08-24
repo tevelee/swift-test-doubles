@@ -1,6 +1,5 @@
 import TestDoublesRuntime
-import TestDoublesRuntimeMetadata
-import TestDoublesRuntimeSupport
+
 import Testing
 @testable import TestDoubles
 

@@ -48,4 +48,3 @@ struct FunctionPointerAuthenticationTests {
         #expect(mixed.effects.isAsync)
     }
 }
-import TestDoublesRuntimeMetadata

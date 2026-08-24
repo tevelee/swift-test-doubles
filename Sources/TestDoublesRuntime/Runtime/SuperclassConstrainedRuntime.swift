@@ -1,5 +1,3 @@
-import TestDoublesRuntimeMetadata
-import TestDoublesRuntimeSupport
 #if canImport(ObjectiveC)
     import Foundation
     import ObjectiveC

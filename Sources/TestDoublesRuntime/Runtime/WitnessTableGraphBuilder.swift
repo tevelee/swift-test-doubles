@@ -1,7 +1,5 @@
 import CTestDoublesTrampoline
 import Echo
-import TestDoublesRuntimeMetadata
-import TestDoublesRuntimeSupport
 
 package struct FabricatedWitnessTableGraph {
     let tables: [ProtocolLayout.DescriptorID: UnsafeMutableRawPointer]

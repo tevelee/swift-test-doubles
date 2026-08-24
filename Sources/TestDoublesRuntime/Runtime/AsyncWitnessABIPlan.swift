@@ -1,7 +1,5 @@
 import CTestDoublesTrampoline
 import EchoRuntimeReflection
-import TestDoublesRuntimeMetadata
-import TestDoublesRuntimeSupport
 
 package struct AsyncWitnessStackPlan: Equatable, Sendable {
     package let decodedStackByteCount: Int

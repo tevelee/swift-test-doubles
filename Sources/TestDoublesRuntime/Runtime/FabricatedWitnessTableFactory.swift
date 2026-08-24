@@ -1,4 +1,3 @@
-import TestDoublesRuntimeMetadata
 /// Builds one complete fabricated conformance graph and publishes its callable
 /// trampolines. The public target supplies only validated metadata and an
 /// opaque semantic endpoint.

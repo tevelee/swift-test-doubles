@@ -631,4 +631,3 @@ where P: ExternalReferenceAssociatedProbe, Element: AnyObject {
     await probe.consumeAsynchronously(argument)
 }
 import TestDoublesRuntime
-import TestDoublesRuntimeMetadata

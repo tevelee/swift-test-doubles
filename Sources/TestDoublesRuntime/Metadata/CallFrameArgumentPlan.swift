@@ -1,5 +1,4 @@
 import EchoRuntimeReflection
-import TestDoublesRuntimeSupport
 
 /// One direct value fragment carried by a general-purpose or vector register.
 /// `byteCount` records occupied width independently of the register bank.

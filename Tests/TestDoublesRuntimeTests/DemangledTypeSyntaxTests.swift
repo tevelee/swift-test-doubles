@@ -1,5 +1,5 @@
 import Testing
-@testable import TestDoublesRuntimeMetadata
+@testable import TestDoublesRuntime
 
 @Suite struct DemangledTypeSyntaxTests {
     @Test func sourceFunctionPreservesNestedGenericAndTypedThrowsSyntax() throws {
@@ -78,4 +78,3 @@ import Testing
         )
     }
 }
-import TestDoublesRuntime

@@ -43,9 +43,7 @@ source_roots = (
     "InternalRuntimeContract",
     "TestDoubles",
     "TestDoublesTesting",
-    "TestDoublesRuntimeMetadata",
     "TestDoublesRuntime",
-    "TestDoublesRuntimeSupport",
     "CTestDoublesTrampoline",
 )
 totals = {root: {"covered": 0, "count": 0, "files": 0} for root in source_roots}

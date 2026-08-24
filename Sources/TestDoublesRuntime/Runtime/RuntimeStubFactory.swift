@@ -1,5 +1,4 @@
 import InternalRuntimeContract
-import TestDoublesRuntimeMetadata
 
 /// Builds an opaque fabricated existential from validated semantic inputs.
 /// Owns the complete ABI construction transaction: witness tables, resource
@@ -104,7 +103,7 @@ package enum RuntimeStubFactory {
     /// Creates an opaque payload owner for values that must retain runtime
     /// resources while a semantic recorder holds the generated value.
     package static func makePayload(resources: AnyObject) -> AnyObject {
-        TestDoublesRuntimeMetadata.FabricatedPayload(resources: resources)
+        FabricatedPayload(resources: resources)
     }
 
     /// Synthesizes a source-level placeholder without exposing its runtime

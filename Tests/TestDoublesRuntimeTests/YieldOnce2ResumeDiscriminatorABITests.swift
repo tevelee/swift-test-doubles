@@ -378,4 +378,3 @@ import Testing
     }()
 
 #endif
-import TestDoublesRuntimeMetadata

@@ -1,5 +1,4 @@
 import InternalRuntimeContract
-import TestDoublesRuntimeMetadata
 
 enum SynchronousAccessorRole {
     case read

@@ -1,5 +1,5 @@
 import Testing
-@testable import TestDoublesRuntimeMetadata
+@testable import TestDoublesRuntime
 
 @Suite struct ReabstractionThunkRegistryTests {
     /// This exact shape has no reabstraction thunk in the test binary. A
@@ -71,4 +71,3 @@ import Testing
         }
     }
 }
-import TestDoublesRuntime

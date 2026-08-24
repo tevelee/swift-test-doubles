@@ -164,4 +164,3 @@ private final class TransportReference {}
         return call.error!.moveInitializedValue(as: Failure.self)
     }
 }
-import TestDoublesRuntimeMetadata

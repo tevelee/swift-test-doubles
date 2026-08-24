@@ -1,5 +1,4 @@
 import InternalRuntimeContract
-import TestDoublesRuntimeMetadata
 
 /// Encodes results whose storage depends on the dynamically generated payload.
 package enum DependentResultEncoder {

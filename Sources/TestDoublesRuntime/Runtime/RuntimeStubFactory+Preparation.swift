@@ -1,5 +1,4 @@
 import InternalRuntimeContract
-import TestDoublesRuntimeMetadata
 /// Runtime preparation operations behind the opaque stub-factory boundary.
 ///
 /// The public target supplies contract-level requirement schemas and effect
@@ -55,7 +54,7 @@ extension RuntimeStubFactory {
             layout: shape.layout,
             representation: shape.representation
         )
-        let methods = try TestDoublesRuntimeMetadata.discoverMethods(
+        let methods = try TestDoublesRuntime.discoverMethods(
             witnessTables: source.witnessTables,
             layout: shape.layout,
             associatedTypeBindings: shape.associatedTypeBindings,
@@ -418,7 +417,7 @@ extension RuntimeStubFactory {
         associatedTypeBindings: AssociatedTypeBindings,
         getterEffectPolicy: GetterEffectDiscoveryPolicy
     ) throws -> [MethodDescriptor] {
-        try TestDoublesRuntimeMetadata.discoverMethods(
+        try TestDoublesRuntime.discoverMethods(
             witnessTables: try LinkedWitnessTableGraph.discover(in: layout),
             layout: layout,
             associatedTypeBindings: associatedTypeBindings,
@@ -441,7 +440,7 @@ extension RuntimeStubFactory {
             layout: layout,
             representation: representation
         )
-        let methods = try TestDoublesRuntimeMetadata.discoverMethods(
+        let methods = try TestDoublesRuntime.discoverMethods(
             witnessTables: forwardingTarget.witnessTables,
             layout: layout,
             associatedTypeBindings: associatedTypeBindings,
@@ -464,7 +463,7 @@ extension RuntimeStubFactory {
         bindings: AssociatedTypeBindings,
         containsAssociatedTypes: Bool
     ) throws -> MethodDescriptor {
-        try TestDoublesRuntimeMetadata.makeExplicitMethodDescriptor(
+        try TestDoublesRuntime.makeExplicitMethodDescriptor(
             schema: schema,
             index: index,
             witnessIndex: witnessIndex,
@@ -480,7 +479,7 @@ extension RuntimeStubFactory {
         layout: ProtocolLayout,
         associatedTypeBindings: AssociatedTypeBindings
     ) throws {
-        try TestDoublesRuntimeMetadata.validateExplicitRequirementsAgainstLinkedConformances(
+        try TestDoublesRuntime.validateExplicitRequirementsAgainstLinkedConformances(
             methods,
             layout: layout,
             associatedTypeBindings: associatedTypeBindings

@@ -837,4 +837,3 @@ private func invokeClassMarker<P: ExternalClassSelfArgumentProbe>(_ value: P) ->
     value.marker()
 }
 import TestDoublesRuntime
-import TestDoublesRuntimeMetadata

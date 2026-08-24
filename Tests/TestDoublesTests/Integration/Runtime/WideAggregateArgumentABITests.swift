@@ -1,5 +1,5 @@
 import Testing
-import TestDoublesRuntimeMetadata
+import TestDoublesRuntime
 @testable import TestDoubles
 
 /// Four words, the widest explosion Swift still passes in registers.

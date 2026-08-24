@@ -1,7 +1,6 @@
 import CTestDoublesTrampoline
 import EchoRuntimeReflection
 import Foundation
-import TestDoublesRuntimeSupport
 
 package final class ReabstractionThunkRegistry: @unchecked Sendable {
     package static let shared = ReabstractionThunkRegistry()

@@ -1,7 +1,6 @@
 import Echo
 import EchoRuntimeReflection
 import EchoRuntimeSupport
-import TestDoublesRuntimeMetadata
 
 extension FunctionReabstraction {
     package static func canInitializeDirectValue(of type: Any.Type) -> Bool {

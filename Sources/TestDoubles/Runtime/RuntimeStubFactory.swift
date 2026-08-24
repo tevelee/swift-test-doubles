@@ -1,7 +1,6 @@
 import InternalRuntimeContract
 #if TESTDOUBLES_RUNTIME_STUBS
     import TestDoublesRuntime
-    import TestDoublesRuntimeSupport
 #endif
 
 /// The public target's opaque gateway to runtime-generated existential values.
@@ -13,7 +12,7 @@ import InternalRuntimeContract
 enum RuntimeStubFactory {
     #if TESTDOUBLES_RUNTIME_STUBS
         static func takeGlobalInvocationSequence() -> UInt64 {
-            RuntimeSymbols.nextGlobalInvocationSequence()
+            TestDoublesRuntime.RuntimeSymbols.nextGlobalInvocationSequence()
         }
     #endif
 
@@ -44,7 +43,7 @@ enum RuntimeStubFactory {
     @inline(never)
     static func scrubArgumentRegisters() {
         #if TESTDOUBLES_RUNTIME_STUBS
-            TestDoublesRuntimeSupport.scrubArgumentRegisters()
+            TestDoublesRuntime.scrubArgumentRegisters()
         #endif
     }
 

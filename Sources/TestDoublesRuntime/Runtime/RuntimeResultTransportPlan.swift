@@ -1,4 +1,3 @@
-import TestDoublesRuntimeMetadata
 /// Construction-time decisions needed to move one witness result out of the
 /// generic recorder boundary.
 package struct RuntimeResultTransportPlan: Sendable {

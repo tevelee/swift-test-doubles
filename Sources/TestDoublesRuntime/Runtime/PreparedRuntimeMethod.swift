@@ -1,7 +1,6 @@
 import CTestDoublesTrampoline
 import Foundation
 import InternalRuntimeContract
-import TestDoublesRuntimeMetadata
 
 /// Construction-time and calibrated ABI plans for one fabricated witness
 /// requirement.

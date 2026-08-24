@@ -1,8 +1,6 @@
 import CTestDoublesTrampoline
 import Echo
 import EchoRuntimeReflection
-import TestDoublesRuntimeMetadata
-import TestDoublesRuntimeSupport
 
 package func directFunctionDiscriminator(
     for function: FunctionTypeInfo

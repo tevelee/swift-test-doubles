@@ -173,10 +173,6 @@ private func allTargets(
                     name: "TestDoublesRuntime",
                     condition: .when(traits: ["RuntimeStubs"])
                 ),
-                .target(
-                    name: "TestDoublesRuntimeSupport",
-                    condition: .when(traits: ["RuntimeStubs"])
-                ),
                 .product(name: "IssueReporting", package: "swift-issue-reporting")
             ],
             swiftSettings: [
@@ -197,8 +193,6 @@ private func allTargets(
             name: "TestDoublesRuntime",
             dependencies: [
                 "InternalRuntimeContract",
-                "TestDoublesRuntimeMetadata",
-                "TestDoublesRuntimeSupport",
                 "CTestDoublesTrampoline",
                 .product(name: "Echo", package: "Echo"),
                 .product(
@@ -210,23 +204,6 @@ private func allTargets(
                     package: "Echo"
                 )
             ]
-        ),
-        .target(
-            name: "TestDoublesRuntimeMetadata",
-            dependencies: [
-                "InternalRuntimeContract",
-                "TestDoublesRuntimeSupport",
-                "CTestDoublesTrampoline",
-                .product(name: "Echo", package: "Echo"),
-                .product(
-                    name: "EchoRuntimeReflection",
-                    package: "Echo"
-                )
-            ]
-        ),
-        .target(
-            name: "TestDoublesRuntimeSupport",
-            dependencies: ["CTestDoublesTrampoline"]
         ),
         .target(name: "InternalRuntimeContract"),
         .target(
@@ -272,8 +249,6 @@ private func allTargets(
                 "TestDoubles",
                 "TestDoublesTesting",
                 "TestDoublesRuntime",
-                "TestDoublesRuntimeMetadata",
-                "TestDoublesRuntimeSupport",
                 "InternalRuntimeContract",
                 "ManualStubBuildPluginIntegrationFixtures",
                 "ManualStubGeneratorIntegrationFixtures",
@@ -354,7 +329,6 @@ private func allTargets(
             dependencies: [
                 "TestDoubles",
                 "TestDoublesRuntime",
-                "TestDoublesRuntimeMetadata",
                 "InternalRuntimeContract",
                 "TestDoublesReadFixtures",
                 "TestDoublesResilientFixtures"
@@ -368,8 +342,6 @@ private func allTargets(
             name: "TestDoublesRuntimeTests",
             dependencies: [
                 "TestDoublesRuntime",
-                "TestDoublesRuntimeMetadata",
-                "TestDoublesRuntimeSupport",
                 "TestDoublesFixtures",
                 "TestDoublesResilientFixtures",
                 .product(name: "Echo", package: "Echo"),

@@ -1,7 +1,7 @@
 import TestDoublesFixtures
 import Testing
 @testable import TestDoubles
-@testable import TestDoublesRuntimeMetadata
+@testable import TestDoublesRuntime
 
 /// Keeps each conformer's witness table reachable through release-mode dead-code
 /// elimination, so automatic discovery reaches the requirement itself rather

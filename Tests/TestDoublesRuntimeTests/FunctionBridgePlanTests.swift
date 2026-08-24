@@ -110,4 +110,3 @@ struct FunctionBridgePlanTests {
         #expect(armAnalysis.validated(for: .genericToDirect) != nil)
     }
 }
-import TestDoublesRuntimeMetadata

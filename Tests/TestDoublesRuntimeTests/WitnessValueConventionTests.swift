@@ -1,5 +1,5 @@
 import Testing
-@testable import TestDoublesRuntimeMetadata
+@testable import TestDoublesRuntime
 
 @Suite struct WitnessValueConventionTests {
     @Test func dynamicSelfClassificationCoversEverySupportedShape() {

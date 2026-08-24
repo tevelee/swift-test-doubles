@@ -1,7 +1,7 @@
 import Echo
 import TestDoublesFixtures
 import Testing
-@testable import TestDoublesRuntimeMetadata
+@testable import TestDoublesRuntime
 
 @Suite struct InlineArrayMetadataTests {
     @available(

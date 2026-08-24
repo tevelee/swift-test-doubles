@@ -1,5 +1,4 @@
 import InternalRuntimeContract
-import TestDoublesRuntimeMetadata
 
 struct ResolvedFabricatedInvocation {
     let slot: Int

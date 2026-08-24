@@ -364,8 +364,6 @@ private func dynamicBoxingSource() -> String {
         // variadic function type to Any.
         // swiftlint:disable file_length
 
-        import TestDoublesRuntimeMetadata
-
         \(dynamicDispatcher())
 
         \(untyped)
@@ -578,8 +576,6 @@ private func dynamicBridgeMatrixTestSource(arity: Int) -> String {
 
         import Testing
         import TestDoublesRuntime
-        import TestDoublesRuntimeMetadata
-
         @Suite
         struct DynamicFunctionBridgeArity\(arity)Tests {
         \(untypedTests.indented(by: 4))
@@ -595,7 +591,6 @@ private func dynamicBridgeMatrixSupportSource() -> String {
     // Shared support for the independently diagnosable fixed-arity suites.
 
     import TestDoublesRuntime
-    import TestDoublesRuntimeMetadata
     import EchoRuntimeSupport
 
     enum GeneratedBridgeMatrixError: Error {

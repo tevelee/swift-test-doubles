@@ -1,7 +1,6 @@
 import EchoRuntimeReflection
 import Testing
 @testable import TestDoublesRuntime
-@testable import TestDoublesRuntimeMetadata
 
 private typealias SendingSyntaxClosure =
     @Sendable (sending String) -> sending String

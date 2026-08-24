@@ -3,8 +3,6 @@
 
 import Testing
 import TestDoublesRuntime
-import TestDoublesRuntimeMetadata
-
 @Suite
 struct DynamicFunctionBridgeArity3Tests {
     @Test

@@ -1,7 +1,5 @@
 import EchoRuntimeReflection
 import InternalRuntimeContract
-import TestDoublesRuntimeMetadata
-import TestDoublesRuntimeSupport
 
 package struct YieldOnce2WitnessPlan {
     package let resumeDiscriminator: UInt16

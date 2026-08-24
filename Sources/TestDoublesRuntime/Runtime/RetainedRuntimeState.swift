@@ -1,4 +1,3 @@
-import TestDoublesRuntimeMetadata
 package enum RetainedRuntimeState {
     package static func retain<State: AnyObject>(
         _ state: State

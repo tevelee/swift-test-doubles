@@ -1,5 +1,5 @@
 import Testing
-@testable import TestDoublesRuntimeMetadata
+@testable import TestDoublesRuntime
 
 #if !((os(macOS) || targetEnvironment(macCatalyst)) && arch(x86_64))
     @Suite struct Float16ABIClassificationTests {

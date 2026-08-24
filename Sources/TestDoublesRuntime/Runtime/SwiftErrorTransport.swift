@@ -1,7 +1,6 @@
 import CTestDoublesTrampoline
 import Echo
 import EchoRuntimeSupport
-import TestDoublesRuntimeMetadata
 
 /// Owns the retain/release contract for Swift's heap-allocated error objects.
 package enum SwiftErrorTransport {

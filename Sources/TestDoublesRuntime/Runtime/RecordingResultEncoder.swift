@@ -1,6 +1,5 @@
 import EchoRuntimeSupport
 import InternalRuntimeContract
-import TestDoublesRuntimeMetadata
 
 /// Synthesizes safe temporary results while a requirement is being recorded.
 package enum RecordingResultEncoder {

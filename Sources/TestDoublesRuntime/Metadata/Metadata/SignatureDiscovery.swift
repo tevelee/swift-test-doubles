@@ -1,6 +1,5 @@
 import Echo
 import Foundation
-import TestDoublesRuntimeSupport
 
 package struct GetterEffectHint: @unchecked Sendable {
     package let isThrowing: Bool
