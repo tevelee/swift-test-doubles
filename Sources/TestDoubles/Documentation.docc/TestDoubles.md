@@ -250,6 +250,7 @@ isolation. See
 
 ### Diagnostics and Runtime Internals
 
+- ``TestDoubleIssue``
 - ``StubError``
 - <doc:HowRuntimeStubsWork>
 - <doc:ClosureReabstractionInternals>

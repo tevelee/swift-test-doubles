@@ -107,6 +107,11 @@ conformance	TestDoubles	StubPerformanceDiagnostics.Construction	Swift.Sendable	[
 conformance	TestDoubles	StubPerformanceDiagnostics.Dispatch	Swift.Sendable	[]
 conformance	TestDoubles	StubPerformanceDiagnostics.MethodDispatch	Swift.Sendable	[]
 conformance	TestDoubles	StubSuspension	Swift.Sendable	[{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
+conformance	TestDoubles	TestDoubleIssue	Swift.CustomStringConvertible	[]
+conformance	TestDoubles	TestDoubleIssue	Swift.Sendable	[]
+conformance	TestDoubles	TestDoubleIssue.Kind	Swift.Equatable	[]
+conformance	TestDoubles	TestDoubleIssue.Kind	Swift.Hashable	[]
+conformance	TestDoubles	TestDoubleIssue.Kind	Swift.Sendable	[]
 conformance	TestDoubles	ThrowingClosureCallPattern	Swift.Sendable	[]
 conformance	TestDoubles	ThrowingClosureDouble	Swift.Sendable	[{"kind":"conformance","lhs":"Input","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Input","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Input","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 conformance	TestDoubles	TypedThrowingClosureDouble	Swift.Sendable	[{"kind":"conformance","lhs":"Failure","rhs":"Error","rhsPrecise":"s:s5ErrorP"},{"kind":"conformance","lhs":"Input","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Input","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Input","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
@@ -161,6 +166,7 @@ symbol	TestDoubles	swift.enum	StubConstructionStrategy	enum StubConstructionStra
 symbol	TestDoubles	swift.enum	StubError	enum StubError
 symbol	TestDoubles	swift.enum	StubFailableInitializerBuilder.Outcome	enum Outcome
 symbol	TestDoubles	swift.enum	StubOptionalSelfResultBuilder.Outcome	enum Outcome
+symbol	TestDoubles	swift.enum	TestDoubleIssue.Kind	enum Kind
 symbol	TestDoubles	swift.enum.case	AsyncStreamControllerTermination.active	case active
 symbol	TestDoubles	swift.enum.case	AsyncStreamControllerTermination.cancelled	case cancelled
 symbol	TestDoubles	swift.enum.case	AsyncStreamControllerTermination.finished	case finished
@@ -203,6 +209,15 @@ symbol	TestDoubles	swift.enum.case	StubFailableInitializerBuilder.Outcome.initia
 symbol	TestDoubles	swift.enum.case	StubFailableInitializerBuilder.Outcome.returnNil	case returnNil
 symbol	TestDoubles	swift.enum.case	StubOptionalSelfResultBuilder.Outcome.returnNil	case returnNil
 symbol	TestDoubles	swift.enum.case	StubOptionalSelfResultBuilder.Outcome.returnValue	case returnValue
+symbol	TestDoubles	swift.enum.case	TestDoubleIssue.Kind.escapedTestDouble	case escapedTestDouble
+symbol	TestDoubles	swift.enum.case	TestDoubleIssue.Kind.openStreamController	case openStreamController
+symbol	TestDoubles	swift.enum.case	TestDoubleIssue.Kind.pendingCallbackCapture	case pendingCallbackCapture
+symbol	TestDoubles	swift.enum.case	TestDoubleIssue.Kind.pendingSuspension	case pendingSuspension
+symbol	TestDoubles	swift.enum.case	TestDoubleIssue.Kind.unconsumedBehaviorQueue	case unconsumedBehaviorQueue
+symbol	TestDoubles	swift.enum.case	TestDoubleIssue.Kind.unconsumedInvocationStream	case unconsumedInvocationStream
+symbol	TestDoubles	swift.enum.case	TestDoubleIssue.Kind.unfinishedAsyncInvocations	case unfinishedAsyncInvocations
+symbol	TestDoubles	swift.enum.case	TestDoubleIssue.Kind.unusedRegistrations	case unusedRegistrations
+symbol	TestDoubles	swift.enum.case	TestDoubleIssue.Kind.unverifiedInteractions	case unverifiedInteractions
 symbol	TestDoubles	swift.func.op	Stub.GetterEffect.==(_:_:)	static func == (lhs: `Self`, rhs: `Self`) -> Bool
 symbol	TestDoubles	swift.init	ArgumentCaptor.init()	init()
 symbol	TestDoubles	swift.init	AsyncClosureDouble.init()	init()
@@ -259,6 +274,7 @@ symbol	TestDoubles	swift.init	Stub.init(getterEffects:_:)	convenience init(gette
 symbol	TestDoubles	swift.init	Stub.init(getterEffectsByProtocol:_:)	convenience init(getterEffectsByProtocol firstGroup: ProtocolGetterEffects, _ additionalGroups: ProtocolGetterEffects...) throws(StubError)
 symbol	TestDoubles	swift.init	Stub.init(requirementsByProtocol:)	convenience init(requirementsByProtocol groups: [ProtocolRequirements]) throws(StubError)
 symbol	TestDoubles	swift.init	Stub.init(requirementsByProtocol:_:)	convenience init(requirementsByProtocol firstGroup: ProtocolRequirements, _ additionalGroups: ProtocolRequirements...) throws(StubError)
+symbol	TestDoubles	swift.init	TestDoubleIssue.init(kind:message:testDoubleName:)	init(kind: Kind, message: String, testDoubleName: String? = nil)
 symbol	TestDoubles	swift.init	TestDoubleScenario.init(_:)	init(_ configure: @escaping (Subject) -> Void)
 symbol	TestDoubles	swift.init	TestDoubleScenario.init(named:_:)	init(named name: String, _ configure: @escaping (Subject) -> Void)
 symbol	TestDoubles	swift.init	ThrowingClosureDouble.init()	init()
@@ -1117,6 +1133,10 @@ symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.construction	let co
 symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.description	var description: String { get }
 symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.dispatch	let dispatch: Dispatch
 symbol	TestDoubles	swift.property	StubSuspension.interactions	let interactions: CallInteractions
+symbol	TestDoubles	swift.property	TestDoubleIssue.description	var description: String { get }
+symbol	TestDoubles	swift.property	TestDoubleIssue.kind	let kind: Kind
+symbol	TestDoubles	swift.property	TestDoubleIssue.message	let message: String
+symbol	TestDoubles	swift.property	TestDoubleIssue.testDoubleName	let testDoubleName: String?
 symbol	TestDoubles	swift.property	TestDoubleScenario.name	let name: String?
 symbol	TestDoubles	swift.property	ThrowingClosureCallPattern.callCount	var callCount: Int { get }
 symbol	TestDoubles	swift.property	ThrowingClosureCallPattern.interactions	var interactions: CallInteractions { get }
@@ -1184,6 +1204,7 @@ symbol	TestDoubles	swift.struct	StubPerformanceDiagnostics.Construction	struct C
 symbol	TestDoubles	swift.struct	StubPerformanceDiagnostics.Dispatch	struct Dispatch
 symbol	TestDoubles	swift.struct	StubPerformanceDiagnostics.MethodDispatch	struct MethodDispatch
 symbol	TestDoubles	swift.struct	StubSelfResultBuilder	struct StubSelfResultBuilder
+symbol	TestDoubles	swift.struct	TestDoubleIssue	struct TestDoubleIssue
 symbol	TestDoubles	swift.struct	TestDoubleScenario	struct TestDoubleScenario<Subject>
 symbol	TestDoubles	swift.struct	ThrowingClosureCallPattern	struct ThrowingClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.subscript	ManualRequirementRoute.subscript(dynamicMember:)	subscript<R>(dynamicMember member: String) -> R { get nonmutating set }

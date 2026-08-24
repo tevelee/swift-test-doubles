@@ -106,16 +106,16 @@
                     try await function()
                 }
             } catch {
-                report(diagnostics(from: session))
+                report(issues(from: session))
                 attachFailureArtifacts(from: session)
                 throw error
             }
-            report(diagnostics(from: session))
+            report(issues(from: session))
             attachFailureArtifacts(from: session)
         }
 
-        private func diagnostics(from session: TestDoubleSession) -> [String] {
-            session.diagnostics(
+        private func issues(from session: TestDoubleSession) -> [TestDoubleIssue] {
+            session.issues(
                 checkingUnusedRegistrations: strictness.contains(.noUnusedStubs),
                 checkingUnverifiedInteractions: strictness.contains(.noMoreInteractions),
                 checkingUnconsumedBehaviorQueues: strictness.contains(.noUnconsumedBehaviorQueues),
@@ -134,9 +134,9 @@
             )
         }
 
-        private func report(_ diagnostics: [String]) {
-            for diagnostic in diagnostics {
-                reportIssue("[TestDoubles] \(diagnostic)")
+        private func report(_ issues: [TestDoubleIssue]) {
+            for issue in issues {
+                reportIssue("[TestDoubles] \(issue)")
             }
         }
 

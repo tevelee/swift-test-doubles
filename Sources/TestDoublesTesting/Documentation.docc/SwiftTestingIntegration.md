@@ -28,7 +28,9 @@ func checkoutUsesTheConfiguredGateway() throws {
 
 At teardown, the default scope reports any registration that no invocation
 matched. This catches stale setup and registrations shadowed by an earlier
-catch-all matcher.
+catch-all matcher. Each finding is represented by a structured
+`TestDoubleIssue`, so integrations can classify the condition while preserving
+the existing human-readable diagnostic.
 
 Use `.strictTestDoubles` when every recorded call must also be explicitly
 verified. It also reports finite behavior queues with responses left,

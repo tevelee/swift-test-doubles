@@ -134,25 +134,68 @@ final class TestDoubleFixtureDiffCheck: @unchecked Sendable {
         checkingUnconsumedInvocationStreams: Bool = false,
         checkingOpenStreamControllers: Bool = false
     ) -> [String] {
+        issues(
+            checkingUnusedRegistrations: checkingUnusedRegistrations,
+            checkingUnverifiedInteractions: checkingUnverifiedInteractions,
+            checkingUnconsumedBehaviorQueues: checkingUnconsumedBehaviorQueues,
+            checkingPendingSuspensions: checkingPendingSuspensions,
+            checkingPendingCallbackCaptures: checkingPendingCallbackCaptures,
+            checkingEscapedTestDoubles: checkingEscapedTestDoubles,
+            checkingUnfinishedAsyncInvocations: checkingUnfinishedAsyncInvocations,
+            checkingUnconsumedInvocationStreams: checkingUnconsumedInvocationStreams,
+            checkingOpenStreamControllers: checkingOpenStreamControllers
+        ).map(\.description)
+    }
+
+    /// Returns structured issues for the requested automatic teardown checks.
+    @_spi(Testing) public func issues(
+        checkingUnusedRegistrations: Bool,
+        checkingUnverifiedInteractions: Bool,
+        checkingUnconsumedBehaviorQueues: Bool = false,
+        checkingPendingSuspensions: Bool = false,
+        checkingPendingCallbackCaptures: Bool = false,
+        checkingEscapedTestDoubles: Bool = false,
+        checkingUnfinishedAsyncInvocations: Bool = false,
+        checkingUnconsumedInvocationStreams: Bool = false,
+        checkingOpenStreamControllers: Bool = false
+    ) -> [TestDoubleIssue] {
         let (recorders, teardownChecks, _) = snapshot()
         let recorderDiagnostics = recorders.flatMap { recorder in
-            var diagnostics: [String] = []
+            var issues: [TestDoubleIssue] = []
             if checkingUnusedRegistrations,
                 let diagnostic = recorder.unusedRegistrationsDiagnostic()
             {
-                diagnostics.append(describing(recorder: recorder, diagnostic: diagnostic))
+                issues.append(
+                    TestDoubleIssue(
+                        kind: .unusedRegistrations,
+                        message: diagnostic,
+                        testDoubleName: recorder.testDoubleName
+                    )
+                )
             }
             if checkingUnverifiedInteractions,
                 let diagnostic = recorder.unverifiedInteractionsDiagnostic()
             {
-                diagnostics.append(describing(recorder: recorder, diagnostic: diagnostic))
+                issues.append(
+                    TestDoubleIssue(
+                        kind: .unverifiedInteractions,
+                        message: diagnostic,
+                        testDoubleName: recorder.testDoubleName
+                    )
+                )
             }
             if checkingUnfinishedAsyncInvocations,
                 let diagnostic = recorder.unfinishedAsyncInvocationsDiagnostic()
             {
-                diagnostics.append(describing(recorder: recorder, diagnostic: diagnostic))
+                issues.append(
+                    TestDoubleIssue(
+                        kind: .unfinishedAsyncInvocations,
+                        message: diagnostic,
+                        testDoubleName: recorder.testDoubleName
+                    )
+                )
             }
-            return diagnostics
+            return issues
         }
         var enabledChecks: Set<TestDoubleTeardownCheck.Kind> = []
         if checkingUnconsumedBehaviorQueues { enabledChecks.insert(.behaviorQueue) }
@@ -161,13 +204,17 @@ final class TestDoubleFixtureDiffCheck: @unchecked Sendable {
         if checkingEscapedTestDoubles { enabledChecks.insert(.testDoubleLifetime) }
         if checkingUnconsumedInvocationStreams { enabledChecks.insert(.invocationStream) }
         if checkingOpenStreamControllers { enabledChecks.insert(.streamController) }
-        let lifecycleDiagnostics: [String] = teardownChecks.compactMap { teardownCheck -> String? in
+        let lifecycleIssues: [TestDoubleIssue] = teardownChecks.compactMap { teardownCheck in
             guard enabledChecks.contains(teardownCheck.kind) else {
                 return nil
             }
-            return teardownCheck.makeDiagnostic()
+            guard let diagnostic = teardownCheck.makeDiagnostic() else { return nil }
+            return TestDoubleIssue(
+                kind: issueKind(for: teardownCheck.kind),
+                message: diagnostic
+            )
         }
-        return recorderDiagnostics + lifecycleDiagnostics
+        return recorderDiagnostics + lifecycleIssues
     }
 
     /// Returns nonempty interaction timelines and changed fixture comparisons
@@ -211,9 +258,15 @@ final class TestDoubleFixtureDiffCheck: @unchecked Sendable {
         return (recorders, checks, fixtureDiffChecks)
     }
 
-    private func describing(recorder: StubRecorder, diagnostic: String) -> String {
-        guard let name = recorder.testDoubleName else { return diagnostic }
-        return "Test double '\(name)':\n\(diagnostic)"
+    private func issueKind(for kind: TestDoubleTeardownCheck.Kind) -> TestDoubleIssue.Kind {
+        switch kind {
+            case .behaviorQueue: .unconsumedBehaviorQueue
+            case .suspension: .pendingSuspension
+            case .callbackCapture: .pendingCallbackCapture
+            case .testDoubleLifetime: .escapedTestDouble
+            case .invocationStream: .unconsumedInvocationStream
+            case .streamController: .openStreamController
+        }
     }
 }
 

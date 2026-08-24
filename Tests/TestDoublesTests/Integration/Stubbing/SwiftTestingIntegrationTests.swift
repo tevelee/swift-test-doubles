@@ -98,6 +98,29 @@ private func makeScopedSuspendedTestDoubleStub() throws -> Stub<any ScopedSuspen
             ).contains { $0.contains("Unused stub registrations") })
     }
 
+    @Test func scopeExposesStructuredIssuesWithoutChangingDiagnostics() throws {
+        let session = TestDoubleSession()
+        try TestDoubleTestingContext.$session.withValue(session) {
+            let stub = try makeScopedTestDoubleStub().named("analytics")
+            stub.when { $0.track(42) }.thenDoNothing()
+        }
+
+        let issues = session.issues(
+            checkingUnusedRegistrations: true,
+            checkingUnverifiedInteractions: false
+        )
+        let issue = try #require(issues.first)
+        #expect(issue.kind == .unusedRegistrations)
+        #expect(issue.testDoubleName == "analytics")
+        #expect(issue.message.contains("Unused stub registrations"))
+        #expect(
+            session.diagnostics(
+                checkingUnusedRegistrations: true,
+                checkingUnverifiedInteractions: false
+            ) == issues.map(\.description)
+        )
+    }
+
     @Test func strictScopeReportsUnverifiedInteractions() throws {
         let session = TestDoubleSession()
         try TestDoubleTestingContext.$session.withValue(session) {
