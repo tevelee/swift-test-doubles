@@ -400,6 +400,22 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
         #expect(probe.one(0) == 9)
     }
 
+    @Test func explicitRepetitionKeepsFiniteAndForeverShapesDistinct() throws {
+        let stub = try makeHandlerArityStub()
+        let calls = stub.when { try $0.throwing(Match.any()) }
+            .thenReturn(1, repeating: .times(2))
+            .thenThrow(HandlerError(value: 9), repeating: .once)
+            .thenReturn(3, repeating: .forever)
+
+        let probe: any HandlerArityProbe = stub()
+        #expect(try probe.throwing(0) == 1)
+        #expect(try probe.throwing(0) == 1)
+        #expect(throws: HandlerError(value: 9)) { try probe.throwing(0) }
+        #expect(try probe.throwing(0) == 3)
+        #expect(try probe.throwing(0) == 3)
+        calls.verify(5 ... 5)
+    }
+
     @Test func timesBoundedReturnCanBeTerminal() throws {
         let stub = try makeHandlerArityStub()
         stub.when { $0.one(Match.any()) }.thenReturn(3, times: 2)

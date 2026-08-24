@@ -22,6 +22,12 @@ conformance	TestDoubles	AsyncThrowingClosureCallPattern	Swift.Sendable	[]
 conformance	TestDoubles	AsyncThrowingClosureDouble	Swift.Sendable	[{"kind":"conformance","lhs":"Input","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Input","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Input","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 conformance	TestDoubles	AsyncThrowingStreamController	Swift.Sendable	[]
 conformance	TestDoubles	AsyncTypedThrowingClosureDouble	Swift.Sendable	[{"kind":"conformance","lhs":"Failure","rhs":"Error","rhsPrecise":"s:s5ErrorP"},{"kind":"conformance","lhs":"Input","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Input","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Input","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
+conformance	TestDoubles	BehaviorRepetition.Finite	Swift.Equatable	[]
+conformance	TestDoubles	BehaviorRepetition.Finite	Swift.Hashable	[]
+conformance	TestDoubles	BehaviorRepetition.Finite	Swift.Sendable	[]
+conformance	TestDoubles	BehaviorRepetition.Forever	Swift.Equatable	[]
+conformance	TestDoubles	BehaviorRepetition.Forever	Swift.Hashable	[]
+conformance	TestDoubles	BehaviorRepetition.Forever	Swift.Sendable	[]
 conformance	TestDoubles	CallInteractions	Swift.Sendable	[]
 conformance	TestDoubles	CallPattern	Swift.Sendable	[]
 conformance	TestDoubles	CallbackCapture	Swift.Sendable	[]
@@ -141,6 +147,7 @@ symbol	TestDoubles	swift.class	ThrowingClosureDouble	final class ThrowingClosure
 symbol	TestDoubles	swift.class	TypedThrowingClosureDouble	final class TypedThrowingClosureDouble<Input, Result, Failure> where Failure : Error
 symbol	TestDoubles	swift.class	VoidClosureDouble	final class VoidClosureDouble<Result>
 symbol	TestDoubles	swift.enum	AsyncStreamControllerTermination	enum AsyncStreamControllerTermination
+symbol	TestDoubles	swift.enum	BehaviorRepetition	enum BehaviorRepetition
 symbol	TestDoubles	swift.enum	CompletionOrder.Builder	@resultBuilder enum Builder
 symbol	TestDoubles	swift.enum	FixtureValueRole	enum FixtureValueRole
 symbol	TestDoubles	swift.enum	InteractionTimeline.Dispatch	enum Dispatch
@@ -453,6 +460,8 @@ symbol	TestDoubles	swift.method	CallPattern.thenAwaitCancellation(returning:)	@d
 symbol	TestDoubles	swift.method	CallPattern.thenAwaitCancellation(throwing:)	@discardableResult func thenAwaitCancellation<Failure>(throwing error: Failure) -> ConfiguredCall<Result> where Failure : Error
 symbol	TestDoubles	swift.method	CallPattern.thenCancel(after:returning:using:)	@discardableResult func thenCancel(after delay: Duration, returning value: Result, using clock: any StubClock = StubClocks.continuous) -> ConfiguredCall<Result>
 symbol	TestDoubles	swift.method	CallPattern.thenCancel(after:using:)	@discardableResult func thenCancel(after delay: Duration, using clock: any StubClock = StubClocks.continuous) -> ConfiguredCall<Result>
+symbol	TestDoubles	swift.method	CallPattern.thenDoNothing(after:repeating:)	@discardableResult func thenDoNothing(after delay: Duration? = nil, repeating repetition: BehaviorRepetition.Finite) -> StubBehaviorChain<Void>
+symbol	TestDoubles	swift.method	CallPattern.thenDoNothing(after:repeating:)	@discardableResult func thenDoNothing(after delay: Duration? = nil, repeating repetition: BehaviorRepetition.Forever) -> ConfiguredCall<Void>
 symbol	TestDoubles	swift.method	CallPattern.thenDoNothing(after:times:)	@discardableResult func thenDoNothing(after delay: Duration? = nil, times: Int = 1) -> StubBehaviorChain<Void>
 symbol	TestDoubles	swift.method	CallPattern.thenDoNothing(after:times:)	@discardableResult func thenDoNothing(after delay: Duration? = nil, times: PartialRangeFrom<Int> = 1...) -> ConfiguredCall<Result>
 symbol	TestDoubles	swift.method	CallPattern.thenEscaping(times:_:)	@discardableResult func thenEscaping<FirstArgument, each AdditionalArgument>(times: Int = 1, _ handler: @escaping (FirstArgument, repeat each AdditionalArgument) async throws -> Result) -> StubBehaviorChain<Result>
@@ -464,6 +473,8 @@ symbol	TestDoubles	swift.method	CallPattern.thenForEachCall(times:_:)	@discardab
 symbol	TestDoubles	swift.method	CallPattern.thenForEachCall(times:_:)	@discardableResult func thenForEachCall<each Argument>(times: Int = 1, _ handler: @escaping @Sendable (Int, repeat each Argument) throws -> Result) -> StubBehaviorChain<Result>
 symbol	TestDoubles	swift.method	CallPattern.thenForEachCall(times:_:)	@discardableResult func thenForEachCall<each Argument>(times: PartialRangeFrom<Int> = 1..., _ handler: @escaping (Int, repeat each Argument) async throws -> Result) -> ConfiguredCall<Result>
 symbol	TestDoubles	swift.method	CallPattern.thenForEachCall(times:_:)	@discardableResult func thenForEachCall<each Argument>(times: PartialRangeFrom<Int> = 1..., _ handler: @escaping @Sendable (Int, repeat each Argument) throws -> Result) -> ConfiguredCall<Result>
+symbol	TestDoubles	swift.method	CallPattern.thenForward(repeating:)	@discardableResult func thenForward(repeating repetition: BehaviorRepetition.Finite) -> StubBehaviorChain<Result>
+symbol	TestDoubles	swift.method	CallPattern.thenForward(repeating:)	@discardableResult func thenForward(repeating repetition: BehaviorRepetition.Forever) -> ConfiguredCall<Result>
 symbol	TestDoubles	swift.method	CallPattern.thenForward(times:)	@discardableResult func thenForward(times: Int = 1) -> StubBehaviorChain<Result>
 symbol	TestDoubles	swift.method	CallPattern.thenForward(times:)	@discardableResult func thenForward(times: PartialRangeFrom<Int> = 1...) -> ConfiguredCall<Result>
 symbol	TestDoubles	swift.method	CallPattern.thenInjectFailure(every:throwing:otherwiseReturning:)	@discardableResult func thenInjectFailure<Failure>(every interval: Int, throwing error: Failure, otherwiseReturning value: Result) -> ConfiguredCall<Result> where Failure : Error
@@ -479,11 +490,15 @@ symbol	TestDoubles	swift.method	CallPattern.thenReplay(as:from:)	@discardableRes
 symbol	TestDoubles	swift.method	CallPattern.thenReplay(as:from:matching:redacting:)	@discardableResult func thenReplay<Request, each Argument>(as key: String, from fixture: InteractionFixture, matching request: @escaping @Sendable (repeat each Argument) -> Request, redacting redactor: FixtureRedactor = .none) -> ConfiguredCall<Result> where Result : Sendable, Request : Encodable, Request : Sendable
 symbol	TestDoubles	swift.method	CallPattern.thenReplay(as:from:throwing:)	@discardableResult func thenReplay<Failure>(as key: String, from fixture: InteractionFixture, throwing _: Failure.Type) -> ConfiguredCall<Result> where Result : Sendable, Failure : Decodable, Failure : Error
 symbol	TestDoubles	swift.method	CallPattern.thenReturn(_:_:_:)	@discardableResult func thenReturn(_ first: Result, _ second: Result, _ rest: Result...) -> ConfiguredCall<Result>
+symbol	TestDoubles	swift.method	CallPattern.thenReturn(_:after:repeating:)	@discardableResult func thenReturn(_ value: Result, after delay: Duration? = nil, repeating repetition: BehaviorRepetition.Finite) -> StubBehaviorChain<Result>
+symbol	TestDoubles	swift.method	CallPattern.thenReturn(_:after:repeating:)	@discardableResult func thenReturn(_ value: Result, after delay: Duration? = nil, repeating repetition: BehaviorRepetition.Forever) -> ConfiguredCall<Result>
 symbol	TestDoubles	swift.method	CallPattern.thenReturn(_:after:times:)	@discardableResult func thenReturn(_ value: Result, after delay: Duration? = nil, times: Int = 1) -> StubBehaviorChain<Result>
 symbol	TestDoubles	swift.method	CallPattern.thenReturn(_:after:times:)	@discardableResult func thenReturn(_ value: Result, after delay: Duration? = nil, times: PartialRangeFrom<Int> = 1...) -> ConfiguredCall<Result>
 symbol	TestDoubles	swift.method	CallPattern.thenReturn(_:after:using:)	@discardableResult func thenReturn(_ value: Result, after delay: Duration, using clock: any StubClock) -> ConfiguredCall<Result>
 symbol	TestDoubles	swift.method	CallPattern.thenStream(bufferingPolicy:)	func thenStream<Element>(bufferingPolicy: AsyncStream<Element>.Continuation.BufferingPolicy = .unbounded) -> AsyncStreamController<Element> where Result == AsyncStream<Element>
 symbol	TestDoubles	swift.method	CallPattern.thenSuspend()	func thenSuspend() -> StubSuspension<Result>
+symbol	TestDoubles	swift.method	CallPattern.thenThrow(_:after:repeating:)	@discardableResult func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, repeating repetition: BehaviorRepetition.Finite) -> StubBehaviorChain<Result> where Failure : Error
+symbol	TestDoubles	swift.method	CallPattern.thenThrow(_:after:repeating:)	@discardableResult func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, repeating repetition: BehaviorRepetition.Forever) -> ConfiguredCall<Result> where Failure : Error
 symbol	TestDoubles	swift.method	CallPattern.thenThrow(_:after:times:)	@discardableResult func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, times: Int = 1) -> StubBehaviorChain<Result> where Failure : Error
 symbol	TestDoubles	swift.method	CallPattern.thenThrow(_:after:times:)	@discardableResult func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, times: PartialRangeFrom<Int> = 1...) -> ConfiguredCall<Result> where Failure : Error
 symbol	TestDoubles	swift.method	CallPattern.thenThrow(_:after:using:)	@discardableResult func thenThrow<Failure>(_ error: Failure, after delay: Duration, using clock: any StubClock) -> ConfiguredCall<Result> where Failure : Error
@@ -826,6 +841,8 @@ symbol	TestDoubles	swift.method	StubBehaviorChain.then(times:_:)	@discardableRes
 symbol	TestDoubles	swift.method	StubBehaviorChain.thenAwaitCancellation()	@discardableResult func thenAwaitCancellation() -> ConfiguredCall<Result>
 symbol	TestDoubles	swift.method	StubBehaviorChain.thenAwaitCancellation(returning:)	@discardableResult func thenAwaitCancellation(returning value: Result) -> ConfiguredCall<Result>
 symbol	TestDoubles	swift.method	StubBehaviorChain.thenAwaitCancellation(throwing:)	@discardableResult func thenAwaitCancellation<Failure>(throwing error: Failure) -> ConfiguredCall<Result> where Failure : Error
+symbol	TestDoubles	swift.method	StubBehaviorChain.thenDoNothing(after:repeating:)	@discardableResult func thenDoNothing(after delay: Duration? = nil, repeating repetition: BehaviorRepetition.Finite) -> StubBehaviorChain<Result>
+symbol	TestDoubles	swift.method	StubBehaviorChain.thenDoNothing(after:repeating:)	@discardableResult func thenDoNothing(after delay: Duration? = nil, repeating repetition: BehaviorRepetition.Forever) -> ConfiguredCall<Void>
 symbol	TestDoubles	swift.method	StubBehaviorChain.thenDoNothing(after:times:)	@discardableResult func thenDoNothing(after delay: Duration? = nil, times: Int = 1) -> StubBehaviorChain<Result>
 symbol	TestDoubles	swift.method	StubBehaviorChain.thenDoNothing(after:times:)	@discardableResult func thenDoNothing(after delay: Duration? = nil, times: PartialRangeFrom<Int> = 1...) -> ConfiguredCall<Result>
 symbol	TestDoubles	swift.method	StubBehaviorChain.thenEscaping(times:_:)	@discardableResult func thenEscaping<FirstArgument, each AdditionalArgument>(times: Int = 1, _ handler: @escaping (FirstArgument, repeat each AdditionalArgument) async throws -> Result) -> StubBehaviorChain<Result>
@@ -837,12 +854,18 @@ symbol	TestDoubles	swift.method	StubBehaviorChain.thenForEachCall(times:_:)	@dis
 symbol	TestDoubles	swift.method	StubBehaviorChain.thenForEachCall(times:_:)	@discardableResult func thenForEachCall<each Argument>(times: Int = 1, _ handler: @escaping @Sendable (Int, repeat each Argument) throws -> Result) -> StubBehaviorChain<Result>
 symbol	TestDoubles	swift.method	StubBehaviorChain.thenForEachCall(times:_:)	@discardableResult func thenForEachCall<each Argument>(times: PartialRangeFrom<Int> = 1..., _ handler: @escaping (Int, repeat each Argument) async throws -> Result) -> ConfiguredCall<Result>
 symbol	TestDoubles	swift.method	StubBehaviorChain.thenForEachCall(times:_:)	@discardableResult func thenForEachCall<each Argument>(times: PartialRangeFrom<Int> = 1..., _ handler: @escaping @Sendable (Int, repeat each Argument) throws -> Result) -> ConfiguredCall<Result>
+symbol	TestDoubles	swift.method	StubBehaviorChain.thenForward(repeating:)	@discardableResult func thenForward(repeating repetition: BehaviorRepetition.Finite) -> StubBehaviorChain<Result>
+symbol	TestDoubles	swift.method	StubBehaviorChain.thenForward(repeating:)	@discardableResult func thenForward(repeating repetition: BehaviorRepetition.Forever) -> ConfiguredCall<Result>
 symbol	TestDoubles	swift.method	StubBehaviorChain.thenForward(times:)	@discardableResult func thenForward(times: Int = 1) -> StubBehaviorChain<Result>
 symbol	TestDoubles	swift.method	StubBehaviorChain.thenForward(times:)	@discardableResult func thenForward(times: PartialRangeFrom<Int> = 1...) -> ConfiguredCall<Result>
 symbol	TestDoubles	swift.method	StubBehaviorChain.thenNeverReturn()	@discardableResult func thenNeverReturn() -> ConfiguredCall<Result>
 symbol	TestDoubles	swift.method	StubBehaviorChain.thenReturn(_:_:_:)	@discardableResult func thenReturn(_ first: Result, _ second: Result, _ rest: Result...) -> ConfiguredCall<Result>
+symbol	TestDoubles	swift.method	StubBehaviorChain.thenReturn(_:after:repeating:)	@discardableResult func thenReturn(_ value: Result, after delay: Duration? = nil, repeating repetition: BehaviorRepetition.Finite) -> StubBehaviorChain<Result>
+symbol	TestDoubles	swift.method	StubBehaviorChain.thenReturn(_:after:repeating:)	@discardableResult func thenReturn(_ value: Result, after delay: Duration? = nil, repeating repetition: BehaviorRepetition.Forever) -> ConfiguredCall<Result>
 symbol	TestDoubles	swift.method	StubBehaviorChain.thenReturn(_:after:times:)	@discardableResult func thenReturn(_ value: Result, after delay: Duration? = nil, times: Int = 1) -> StubBehaviorChain<Result>
 symbol	TestDoubles	swift.method	StubBehaviorChain.thenReturn(_:after:times:)	@discardableResult func thenReturn(_ value: Result, after delay: Duration? = nil, times: PartialRangeFrom<Int> = 1...) -> ConfiguredCall<Result>
+symbol	TestDoubles	swift.method	StubBehaviorChain.thenThrow(_:after:repeating:)	@discardableResult func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, repeating repetition: BehaviorRepetition.Finite) -> StubBehaviorChain<Result> where Failure : Error
+symbol	TestDoubles	swift.method	StubBehaviorChain.thenThrow(_:after:repeating:)	@discardableResult func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, repeating repetition: BehaviorRepetition.Forever) -> ConfiguredCall<Result> where Failure : Error
 symbol	TestDoubles	swift.method	StubBehaviorChain.thenThrow(_:after:times:)	@discardableResult func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, times: Int = 1) -> StubBehaviorChain<Result> where Failure : Error
 symbol	TestDoubles	swift.method	StubBehaviorChain.thenThrow(_:after:times:)	@discardableResult func thenThrow<Failure>(_ error: Failure, after delay: Duration? = nil, times: PartialRangeFrom<Int> = 1...) -> ConfiguredCall<Result> where Failure : Error
 symbol	TestDoubles	swift.method	StubBehaviorQueue.assertExhausted(fileID:filePath:line:column:)	func assertExhausted(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
@@ -1120,6 +1143,8 @@ symbol	TestDoubles	swift.struct	AsyncClosureCallPattern	struct AsyncClosureCallP
 symbol	TestDoubles	swift.struct	AsyncParameterizedTestDoubleScenario	struct AsyncParameterizedTestDoubleScenario<Subject, Parameter>
 symbol	TestDoubles	swift.struct	AsyncTestDoubleScenario	struct AsyncTestDoubleScenario<Subject>
 symbol	TestDoubles	swift.struct	AsyncThrowingClosureCallPattern	struct AsyncThrowingClosureCallPattern<Input, Result>
+symbol	TestDoubles	swift.struct	BehaviorRepetition.Finite	struct Finite
+symbol	TestDoubles	swift.struct	BehaviorRepetition.Forever	struct Forever
 symbol	TestDoubles	swift.struct	CallInteractions	struct CallInteractions
 symbol	TestDoubles	swift.struct	CallPattern	struct CallPattern<Result>
 symbol	TestDoubles	swift.struct	ClientDoublePreset	struct ClientDoublePreset<Client>
@@ -1163,6 +1188,7 @@ symbol	TestDoubles	swift.struct	ThrowingClosureCallPattern	struct ThrowingClosur
 symbol	TestDoubles	swift.subscript	ManualRequirementRoute.subscript(dynamicMember:)	subscript<R>(dynamicMember member: String) -> R { get nonmutating set }
 symbol	TestDoubles	swift.subscript	ManualStub.subscript(dynamicMember:)	subscript<R>(dynamicMember member: String) -> R { get set }
 symbol	TestDoubles	swift.subscript	ManualThrowingRequirementRoute.subscript(dynamicMember:)	subscript<R>(dynamicMember member: String) -> R { get throws }
+symbol	TestDoubles	swift.type.method	BehaviorRepetition.Finite.times(_:)	static func times(_ count: Int) -> BehaviorRepetition.Finite
 symbol	TestDoubles	swift.type.method	CompletionOrder.Builder.buildArray(_:)	static func buildArray(_ components: [[Expectation]]) -> [Expectation]
 symbol	TestDoubles	swift.type.method	CompletionOrder.Builder.buildBlock(_:)	static func buildBlock(_ components: [Expectation]...) -> [Expectation]
 symbol	TestDoubles	swift.type.method	CompletionOrder.Builder.buildEither(first:)	static func buildEither(first component: [Expectation]) -> [Expectation]
@@ -1324,6 +1350,8 @@ symbol	TestDoubles	swift.type.method	Stub.Requirement.subscriptSetter(indexedBy:
 symbol	TestDoubles	swift.type.method	Stub.make(_:)	static func make(_ configure: (Stub<P>) -> Void) -> P
 symbol	TestDoubles	swift.type.method	Stub.make(_:isolation:)	static func make(_ configure: (Stub<P>) async -> Void, isolation: isolated (any Actor)? = #isolation) async -> P
 symbol	TestDoubles	swift.type.method	Stub.prewarm()	static func prewarm() throws(StubError)
+symbol	TestDoubles	swift.type.property	BehaviorRepetition.Finite.once	static let once: BehaviorRepetition.Finite
+symbol	TestDoubles	swift.type.property	BehaviorRepetition.Forever.forever	static let forever: BehaviorRepetition.Forever
 symbol	TestDoubles	swift.type.property	FixtureRedactor.none	static let none: FixtureRedactor
 symbol	TestDoubles	swift.type.property	InteractionFixture.currentSchemaVersion	static let currentSchemaVersion: Int
 symbol	TestDoubles	swift.type.property	Stub.Requirement.Value.dynamicSelf	static var dynamicSelf: `Self` { get }

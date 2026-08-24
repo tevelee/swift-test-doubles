@@ -542,8 +542,12 @@ loads.verify(3 ... 3)
 
 Matching calls consume the configured behaviors in order. A bare intermediate
 behavior runs exactly once, while the bare trailing behavior repeats. Use
-`times: 2` for another exact finite run or `times: 1...` when you want to make
-the unbounded terminal explicit. The terminal returns ``ConfiguredCall``, an
+`repeating: .times(2)` for an exact finite run and
+`repeating: .forever` for an explicit terminal fallback. The distinct
+``BehaviorRepetition/Finite`` and ``BehaviorRepetition/Forever`` types make the
+chain shape compiler-checked; `.once` is the concise finite spelling. Existing
+`times:` forms remain available for source compatibility. The terminal returns
+``ConfiguredCall``, an
 observation-only handle that supports typed result and outcome queries,
 `verify`, `arguments()`, and `stream()` without allowing another behavior after
 an unbounded answer. Use its `interactions` property when explicit result
