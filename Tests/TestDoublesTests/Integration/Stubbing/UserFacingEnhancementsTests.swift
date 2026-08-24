@@ -96,7 +96,7 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
 }
 
 @Suite struct UserFacingEnhancementsTests {
-    @Test func canonicalDoubleNamesMaterializeValues() throws {
+    @Test func canonicalDoubleNamesMaterializeValues() async throws {
         let compiled = CompiledStub<EnhancementForwarderStub>()
         compiled.when { $0.value(for: Match.any()) }.thenReturn("compiled")
         #expect(compiled.makeValue().value(for: "key") == "compiled")
@@ -105,9 +105,29 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
         stub.when { $0.value(for: Match.any()) }.thenReturn("generated")
         #expect(stub.makeValue().value(for: "key") == "generated")
         #expect(stub.withGeneratedValue { $0.value(for: "key") } == "generated")
+        #expect(
+            await stub.withGeneratedValue { value async in
+                await Task.yield()
+                return value.value(for: "key")
+            } == "generated"
+        )
 
         let clock = TestDoubleClock()
         #expect(clock.pendingSleepCount == 0)
+    }
+
+    @Test func canonicalSendableValueNamesSupportScopedOperations() async throws {
+        let stub = try Stub<any EnhancementClockVerifier>()
+        stub.when { $0.notify(Match.any()) }.thenReturn(())
+
+        stub.makeValue().notify(1)
+        stub.withGeneratedValue { $0.notify(2) }
+        await stub.withGeneratedValue { value async in
+            await Task.yield()
+            value.notify(3)
+        }
+
+        stub.verify(3 ... 3) { $0.notify(Match.any()) }
     }
 
     @Test func secondaryTypesAreDiscoverableThroughNamespaces() throws {
