@@ -546,7 +546,7 @@ public struct CallPattern<Result>: Sendable {
     }
 
     /// Returns `value` after `delay` measured by `clock` for every matching
-    /// invocation. Use ``ManualStubClock`` to advance time deterministically.
+    /// invocation. Use ``TestDoubleClock`` to advance time deterministically.
     @discardableResult
     public func thenReturn(
         _ value: Result,

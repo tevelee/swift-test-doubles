@@ -1,6 +1,6 @@
 import InternalRuntimeContract
 
-/// Opaque recorder key used only by source-level `ManualStub` forwarding.
+/// Opaque recorder key used only by source-level `CompiledStub` forwarding.
 ///
 /// The manual path deliberately never exposes or inspects a witness ABI
 /// descriptor. The recorder unwraps this token at its semantic boundary.

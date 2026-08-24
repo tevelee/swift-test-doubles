@@ -4,11 +4,11 @@ Write a small conforming struct and get full control over your test doubles.
 
 ## Overview
 
-``ManualStub`` is the escape hatch for protocols ``Stub`` can't represent:
+``CompiledStub`` is the escape hatch for protocols ``Stub`` can't represent:
 new language features, requirement shapes the runtime trampoline does not
 cover, or platforms the runtime strategy does not run on. You write a struct
 that conforms to your protocol and delegates each requirement to a
-``ManualStub``. The library handles stub registration, argument matching,
+``CompiledStub``. The library handles stub registration, argument matching,
 call recording, and verification through the same recorder ``Stub`` uses
 internally.
 
@@ -16,7 +16,7 @@ Construction diagnostics that report an unsupported protocol shape,
 unavailable executable trampoline, or unsupported runtime type kind point here
 as the supported fallback. A missing linked conformer is different: first
 anchor an existing conformance as a protocol existential or provide explicit
-``Stub/Requirement`` values. Use `ManualStub` when no conformer exists or the
+``Stub/Requirement`` values. Use `CompiledStub` when no conformer exists or the
 requirement itself is outside ``Stub``'s runtime boundary.
 
 - A protocol requirement uses a shape ``Stub`` rejects during construction —
@@ -31,7 +31,7 @@ requirement itself is outside ``Stub``'s runtime boundary.
 ```swift
 // 1. Define your stub struct
 struct MyServiceStubConformer: MyService, ManualStubConformer {
-    let stub: ManualStub<Self>
+    let stub: CompiledStub<Self>
 
     func fetch(id: Int) -> String { stub.requirements.fetch(id: id) }
     func reset() { stub.requirements.reset() }
@@ -40,7 +40,7 @@ struct MyServiceStubConformer: MyService, ManualStubConformer {
     }
 }
 
-typealias MyServiceStub = ManualStub<MyServiceStubConformer>
+typealias MyServiceStub = CompiledStub<MyServiceStubConformer>
 
 // 2. Configure and use in your test
 let stub = MyServiceStub()
@@ -142,7 +142,7 @@ instead of producing an empty source file.
 
 The generator deliberately rejects static and initializer requirements. Both
 need process-wide state rather than the test-local recorder owned by a
-``ManualStub``, which makes an implicit generated implementation unsafe when
+``CompiledStub``, which makes an implicit generated implementation unsafe when
 tests run in parallel. Write a custom conformer when your application has an
 explicitly scoped way to satisfy one of those requirements. Recognized
 declarations that cannot be forwarded also produce an error instead of being
@@ -176,7 +176,7 @@ Add the macro product to the target that declares the protocol:
 )
 ```
 
-Then annotate the protocol and configure the generated `ManualStub` normally:
+Then annotate the protocol and configure the generated `CompiledStub` normally:
 
 ```swift
 import TestDoubles
@@ -199,13 +199,13 @@ controller alias, and the same `WeatherServiceStub.automatic()` factory as the
 command plugin.
 The macro is deliberately a convenience layer over the same explicit
 forwarding code as the command plugin: generated source stays inspectable, and
-the hand-written ``ManualStub`` escape hatches remain available for requirement
+the hand-written ``CompiledStub`` escape hatches remain available for requirement
 shapes that need custom forwarding.
 
 ### Forward requirements
 
 Non-throwing methods and getters, synchronous or asynchronous, use
-``ManualStub/requirements``:
+``CompiledStub/requirements``:
 
 ```swift
 func fetch(id: Int) -> String { stub.requirements.fetch(id: id) }
@@ -224,7 +224,7 @@ var displayName: String {
 ```
 
 Throwing methods and throwing getters use
-``ManualStub/throwingRequirements``:
+``CompiledStub/throwingRequirements``:
 
 ```swift
 func save(_ item: Item) throws {
@@ -240,7 +240,7 @@ subscript getter purely on `async` or `throws`. Splitting throwing access onto
 ``ManualThrowingRequirementRoute`` keeps non-throwing and throwing forwarding
 paths separate while allowing both synchronous and asynchronous method calls.
 The namespace also prevents protocol requirements such as `reset()` from
-colliding with ``ManualStub``'s own control API.
+colliding with ``CompiledStub``'s own control API.
 
 Use the explicit fallback methods when a dynamic-member route cannot express
 the requirement, especially async property getters:
@@ -277,7 +277,7 @@ func refresh(_ id: Int) async throws(ServiceError) -> Item {
 ```
 
 The configured handler must throw exactly that error type. A different error
-cannot cross Swift's typed-throws boundary, so `ManualStub` fails closed with an
+cannot cross Swift's typed-throws boundary, so `CompiledStub` fails closed with an
 expected and actual type diagnostic. Use the untyped
 `throwingRequirements` dynamic-member route only for requirements declared
 with ordinary untyped `throws`.
@@ -309,7 +309,7 @@ func load(_ id: Int) throws(ServiceError) -> Item {
 
 ### Tradeoffs
 
-ManualStub is ordinary Swift. It avoids runtime metadata, witness table
+CompiledStub is ordinary Swift. It avoids runtime metadata, witness table
 patching, and runtime code generation entirely.
 
 It also stays outside the internal runtime implementation: manual forwarding
@@ -352,7 +352,7 @@ a "No stub configured" failure the first time it is exercised.
 
 - ``ManualStubConformer`` — protocol your stub struct conforms to; provides
   `init(stub:)` for free via the synthesized memberwise initializer.
-- ``ManualStub`` — the stub container; holds registrations and the call log,
+- ``CompiledStub`` — the stub container; holds registrations and the call log,
   and provides `when`, immediate or eventual `verify`, `verifyInOrder`,
   `verifyNoMoreInteractions`, `clearRecordedInvocations`, and `reset` with the
   same semantics as ``Stub``.

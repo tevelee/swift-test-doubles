@@ -644,7 +644,7 @@ public final class InvocationOrder: @unchecked Sendable {
     /// Verifies the next in-order interaction on a manual stub.
     @discardableResult
     public func verify<T, Result>(
-        _ stub: ManualStub<T>,
+        _ stub: CompiledStub<T>,
         _ call: (T) throws -> Result,
         fileID: StaticString = #fileID,
         filePath: StaticString = #filePath,
@@ -665,7 +665,7 @@ public final class InvocationOrder: @unchecked Sendable {
     /// Verifies the next in-order async interaction on a manual stub.
     @discardableResult
     public func verify<T, Result>(
-        _ stub: ManualStub<T>,
+        _ stub: CompiledStub<T>,
         _ call: (T) async throws -> Result,
         isolation: isolated (any Actor)? = #isolation,
         fileID: StaticString = #fileID,
@@ -689,7 +689,7 @@ public final class InvocationOrder: @unchecked Sendable {
     /// verification.
     ///
     /// This is the cross-double counterpart to `Stub.verifyNoMoreInteractions()`
-    /// and `ManualStub.verifyNoMoreInteractions()`: a test that checks several
+    /// and `CompiledStub.verifyNoMoreInteractions()`: a test that checks several
     /// doubles together through one `InvocationOrder` can close them out
     /// together too, instead of calling each double's own method in turn.
     ///

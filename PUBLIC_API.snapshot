@@ -25,6 +25,7 @@ conformance	TestDoubles	ClientStubEndpoints	Swift.Sendable	[]
 conformance	TestDoubles	ClosureArgumentHistory	Swift.Sendable	[{"kind":"conformance","lhs":"Input","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Input","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Input","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 conformance	TestDoubles	ClosureCallPattern	Swift.Sendable	[]
 conformance	TestDoubles	ClosureDouble	Swift.Sendable	[{"kind":"conformance","lhs":"Input","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Input","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Input","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
+conformance	TestDoubles	CompiledStub	Swift.Sendable	[]
 conformance	TestDoubles	CompletionOrder	Swift.Sendable	[]
 conformance	TestDoubles	CompletionOrder.Expectation	Swift.Sendable	[]
 conformance	TestDoubles	ConfiguredCall	Swift.Sendable	[]
@@ -64,9 +65,6 @@ conformance	TestDoubles	InvocationStream	_Concurrency.AsyncSequence	[]
 conformance	TestDoubles	InvocationStream.Iterator	_Concurrency.AsyncIteratorProtocol	[]
 conformance	TestDoubles	InvocationTiming	Swift.Identifiable	[]
 conformance	TestDoubles	InvocationTiming	Swift.Sendable	[]
-conformance	TestDoubles	ManualStub	Swift.Sendable	[]
-conformance	TestDoubles	ManualStubClock	Swift.Sendable	[]
-conformance	TestDoubles	ManualStubClock	s:11TestDoubles9StubClockP	[]
 conformance	TestDoubles	NonescapingCallbackRecorder	Swift.Sendable	[{"kind":"conformance","lhs":"Input","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Input","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Input","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 conformance	TestDoubles	RecordingSession	Swift.Sendable	[]
 conformance	TestDoubles	Stub.AssociatedTypeBinding	Swift.Sendable	[]
@@ -99,6 +97,8 @@ conformance	TestDoubles	StubPerformanceDiagnostics.Construction	Swift.Sendable	[
 conformance	TestDoubles	StubPerformanceDiagnostics.Dispatch	Swift.Sendable	[]
 conformance	TestDoubles	StubPerformanceDiagnostics.MethodDispatch	Swift.Sendable	[]
 conformance	TestDoubles	StubSuspension	Swift.Sendable	[{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
+conformance	TestDoubles	TestDoubleClock	Swift.Sendable	[]
+conformance	TestDoubles	TestDoubleClock	s:11TestDoubles9StubClockP	[]
 conformance	TestDoubles	TestDoubleIssue	Swift.CustomStringConvertible	[]
 conformance	TestDoubles	TestDoubleIssue	Swift.Sendable	[]
 conformance	TestDoubles	TestDoubleIssue.Kind	Swift.Equatable	[]
@@ -127,12 +127,11 @@ symbol	TestDoubles	swift.class	AsyncThrowingStreamController	final class AsyncTh
 symbol	TestDoubles	swift.class	AsyncTypedThrowingClosureDouble	final class AsyncTypedThrowingClosureDouble<Input, Result, Failure> where Failure : Error
 symbol	TestDoubles	swift.class	CallbackCapture	final class CallbackCapture<Value>
 symbol	TestDoubles	swift.class	ClosureDouble	final class ClosureDouble<Input, Result>
+symbol	TestDoubles	swift.class	CompiledStub	@dynamicMemberLookup final class CompiledStub<T>
 symbol	TestDoubles	swift.class	CompletionOrder	final class CompletionOrder
 symbol	TestDoubles	swift.class	Dummy	final class Dummy<P>
 symbol	TestDoubles	swift.class	InoutClosureDouble	final class InoutClosureDouble<Value, Result>
 symbol	TestDoubles	swift.class	InvocationOrder	final class InvocationOrder
-symbol	TestDoubles	swift.class	ManualStub	@dynamicMemberLookup final class ManualStub<T>
-symbol	TestDoubles	swift.class	ManualStubClock	final class ManualStubClock
 symbol	TestDoubles	swift.class	NonescapingCallbackRecorder	final class NonescapingCallbackRecorder<Input, Result>
 symbol	TestDoubles	swift.class	RecordingSession	final class RecordingSession
 symbol	TestDoubles	swift.class	Spy	final class Spy<P>
@@ -140,6 +139,7 @@ symbol	TestDoubles	swift.class	Stub	class Stub<P>
 symbol	TestDoubles	swift.class	Stub.Invocation	final class Invocation
 symbol	TestDoubles	swift.class	StubBehaviorQueue	final class StubBehaviorQueue
 symbol	TestDoubles	swift.class	StubSuspension	final class StubSuspension<Result>
+symbol	TestDoubles	swift.class	TestDoubleClock	final class TestDoubleClock
 symbol	TestDoubles	swift.class	ThrowingClosureDouble	final class ThrowingClosureDouble<Input, Result>
 symbol	TestDoubles	swift.class	TypedThrowingClosureDouble	final class TypedThrowingClosureDouble<Input, Result, Failure> where Failure : Error
 symbol	TestDoubles	swift.class	VoidClosureDouble	final class VoidClosureDouble<Result>
@@ -235,6 +235,9 @@ symbol	TestDoubles	swift.init	CallbackCapture.init()	init()
 symbol	TestDoubles	swift.init	ClientDoublePreset.init(_:)	init(_ materialize: @escaping (ClientStubEndpoints<Client>) -> Client)
 symbol	TestDoubles	swift.init	ClosureDouble.init()	init()
 symbol	TestDoubles	swift.init	ClosureDouble.init(forwardingTo:)	init(forwardingTo target: @escaping @Sendable (Input) -> Result)
+symbol	TestDoubles	swift.init	CompiledStub.init()	convenience init()
+symbol	TestDoubles	swift.init	CompiledStub.init(_:)	convenience init(_ materialize: @escaping (ClientStubEndpoints<T>) -> T)
+symbol	TestDoubles	swift.init	CompiledStub.init(forwardingTo:_:)	convenience init(forwardingTo live: T, _ materialize: @escaping (ClientStubEndpoints<T>) -> T)
 symbol	TestDoubles	swift.init	CompletionOrder.init()	init()
 symbol	TestDoubles	swift.init	CompletionOrder.init(_:)	@discardableResult convenience init(@CompletionOrder.Builder _ expectations: () -> [Expectation])
 symbol	TestDoubles	swift.init	Dummy.init()	convenience init() throws(StubError)
@@ -251,11 +254,7 @@ symbol	TestDoubles	swift.init	InvocationOrder.init(exhaustive:fileID:filePath:li
 symbol	TestDoubles	swift.init	InvocationOrder.init(exhaustive:fileID:filePath:line:column:_:)	@discardableResult convenience init(exhaustive: Bool = false, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column, _ verification: (InvocationOrder) async throws -> Void) async rethrows
 symbol	TestDoubles	swift.init	InvocationOrder.init(exhaustive:fileID:filePath:line:column:_:)	@discardableResult convenience init(exhaustive: Bool = false, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column, _ verification: (InvocationOrder) throws -> Void) rethrows
 symbol	TestDoubles	swift.init	InvocationOrder.init(exhaustive:isolation:fileID:filePath:line:column:_:)	@discardableResult convenience init(exhaustive: Bool = false, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column, @InvocationOrder.Builder _ expectations: () async throws -> [Expectation]) async rethrows
-symbol	TestDoubles	swift.init	ManualStub.init()	convenience init()
-symbol	TestDoubles	swift.init	ManualStub.init(_:)	convenience init(_ materialize: @escaping (ClientStubEndpoints<T>) -> T)
-symbol	TestDoubles	swift.init	ManualStub.init(forwardingTo:_:)	convenience init(forwardingTo live: T, _ materialize: @escaping (ClientStubEndpoints<T>) -> T)
-symbol	TestDoubles	swift.init	ManualStubClock.init()	init()
-symbol	TestDoubles	swift.init	ManualStubConformer.init(stub:)	init(stub: ManualStub<Self>)
+symbol	TestDoubles	swift.init	ManualStubConformer.init(stub:)	init(stub: CompiledStub<Self>)
 symbol	TestDoubles	swift.init	NonescapingCallbackRecorder.init()	init()
 symbol	TestDoubles	swift.init	ParameterizedTestDoubleScenario.init(_:)	init(_ configure: @escaping (Subject, Parameter) -> Void)
 symbol	TestDoubles	swift.init	ParameterizedTestDoubleScenario.init(named:_:)	init(named name: String, _ configure: @escaping (Subject, Parameter) -> Void)
@@ -272,6 +271,7 @@ symbol	TestDoubles	swift.init	Stub.init(getterEffects:_:)	convenience init(gette
 symbol	TestDoubles	swift.init	Stub.init(getterEffectsByProtocol:_:)	convenience init(getterEffectsByProtocol firstGroup: ProtocolGetterEffects, _ additionalGroups: ProtocolGetterEffects...) throws(StubError)
 symbol	TestDoubles	swift.init	Stub.init(requirementsByProtocol:)	convenience init(requirementsByProtocol groups: [ProtocolRequirements]) throws(StubError)
 symbol	TestDoubles	swift.init	Stub.init(requirementsByProtocol:_:)	convenience init(requirementsByProtocol firstGroup: ProtocolRequirements, _ additionalGroups: ProtocolRequirements...) throws(StubError)
+symbol	TestDoubles	swift.init	TestDoubleClock.init()	init()
 symbol	TestDoubles	swift.init	TestDoubleIssue.init(kind:message:testDoubleName:)	init(kind: Kind, message: String, testDoubleName: String? = nil)
 symbol	TestDoubles	swift.init	TestDoubleScenario.init(_:)	init(_ configure: @escaping (Subject) -> Void)
 symbol	TestDoubles	swift.init	TestDoubleScenario.init(named:_:)	init(named name: String, _ configure: @escaping (Subject) -> Void)
@@ -640,6 +640,56 @@ symbol	TestDoubles	swift.method	ClosureDouble.when(_:describedBy:fileID:filePath
 symbol	TestDoubles	swift.method	ClosureDouble.when(equal:fileID:filePath:line:column:)	func when(equal value: Input, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> ClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	ClosureDouble.whenAny(fileID:filePath:line:column:)	func whenAny(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> ClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	ClosureDouble.whenArguments(_:describedBy:fileID:filePath:line:column:)	func whenArguments<each Argument>(_ matcher: @escaping @Sendable (repeat each Argument) -> Bool, describedBy description: String = "predicate", fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> ClosureCallPattern<Input, Result> where Input == (repeat each Argument)
+symbol	TestDoubles	swift.method	CompiledStub.call(_:function:)	func call<each Argument, R>(_ args: repeat each Argument, function: String = #function) -> R
+symbol	TestDoubles	swift.method	CompiledStub.call(_:function:)	func call<each Argument, R>(_ args: repeat each Argument, function: String = #function) async -> R
+symbol	TestDoubles	swift.method	CompiledStub.call(_:function:)	func call<each Argument>(_ args: repeat each Argument, function: String = #function)
+symbol	TestDoubles	swift.method	CompiledStub.call(_:function:)	func call<each Argument>(_ args: repeat each Argument, function: String = #function) async
+symbol	TestDoubles	swift.method	CompiledStub.callAsFunction()	func callAsFunction() -> T
+symbol	TestDoubles	swift.method	CompiledStub.captureCallStacks(maxFrames:)	@discardableResult func captureCallStacks(maxFrames: Int = 32) -> Self
+symbol	TestDoubles	swift.method	CompiledStub.clearConfiguredBehaviors()	func clearConfiguredBehaviors()
+symbol	TestDoubles	swift.method	CompiledStub.clearRecordedInvocations()	func clearRecordedInvocations()
+symbol	TestDoubles	swift.method	CompiledStub.describeInteractions()	func describeInteractions() -> String
+symbol	TestDoubles	swift.method	CompiledStub.interactionTimeline()	func interactionTimeline() -> InteractionTimeline
+symbol	TestDoubles	swift.method	CompiledStub.makeValue()	func makeValue() -> T
+symbol	TestDoubles	swift.method	CompiledStub.named(_:)	@discardableResult func named(_ name: String) -> Self
+symbol	TestDoubles	swift.method	CompiledStub.reset()	func reset()
+symbol	TestDoubles	swift.method	CompiledStub.throwingCall(_:function:)	func throwingCall<each Argument, R>(_ args: repeat each Argument, function: String = #function) async throws -> R
+symbol	TestDoubles	swift.method	CompiledStub.throwingCall(_:function:)	func throwingCall<each Argument, R>(_ args: repeat each Argument, function: String = #function) throws -> R
+symbol	TestDoubles	swift.method	CompiledStub.throwingCall(_:function:)	func throwingCall<each Argument>(_ args: repeat each Argument, function: String = #function) async throws
+symbol	TestDoubles	swift.method	CompiledStub.throwingCall(_:function:)	func throwingCall<each Argument>(_ args: repeat each Argument, function: String = #function) throws
+symbol	TestDoubles	swift.method	CompiledStub.throwingCall(_:throwing:function:)	func throwingCall<each Argument, Failure>(_ args: repeat each Argument, throwing failureType: Failure.Type, function: String = #function) async throws(Failure) where Failure : Error
+symbol	TestDoubles	swift.method	CompiledStub.throwingCall(_:throwing:function:)	func throwingCall<each Argument, Failure>(_ args: repeat each Argument, throwing failureType: Failure.Type, function: String = #function) throws(Failure) where Failure : Error
+symbol	TestDoubles	swift.method	CompiledStub.throwingCall(_:throwing:function:)	func throwingCall<each Argument, R, Failure>(_ args: repeat each Argument, throwing failureType: Failure.Type, function: String = #function) async throws(Failure) -> R where Failure : Error
+symbol	TestDoubles	swift.method	CompiledStub.throwingCall(_:throwing:function:)	func throwingCall<each Argument, R, Failure>(_ args: repeat each Argument, throwing failureType: Failure.Type, function: String = #function) throws(Failure) -> R where Failure : Error
+symbol	TestDoubles	swift.method	CompiledStub.verify(_:_:fileID:filePath:line:column:)	func verify(_ expectedCounts: any RangeExpression<Int> = 1 ... 1, _ call: (inout T) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
+symbol	TestDoubles	swift.method	CompiledStub.verify(_:_:fileID:filePath:line:column:)	func verify<Result>(_ expectedCounts: any RangeExpression<Int> = 1 ... 1, _ call: (T) throws -> Result, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
+symbol	TestDoubles	swift.method	CompiledStub.verify(_:_:isolation:fileID:filePath:line:column:)	func verify<Result>(_ expectedCounts: any RangeExpression<Int> = 1 ... 1, _ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
+symbol	TestDoubles	swift.method	CompiledStub.verify(_:returning:_:fileID:filePath:line:column:)	func verify<Result>(_ expectedCounts: any RangeExpression<Int> = 1 ... 1, returning placeholder: Result, _ call: (T) throws -> Result, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
+symbol	TestDoubles	swift.method	CompiledStub.verify(_:returning:_:isolation:fileID:filePath:line:column:)	func verify<Result>(_ expectedCounts: any RangeExpression<Int> = 1 ... 1, returning placeholder: Result, _ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
+symbol	TestDoubles	swift.method	CompiledStub.verify(_:within:_:isolation:fileID:filePath:line:column:)	func verify(_ expectedCounts: PartialRangeFrom<Int> = 1..., within timeout: Duration, _ call: (inout T) throws -> Void, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
+symbol	TestDoubles	swift.method	CompiledStub.verify(_:within:_:isolation:fileID:filePath:line:column:)	func verify<Result>(_ expectedCounts: PartialRangeFrom<Int> = 1..., within timeout: Duration, _ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
+symbol	TestDoubles	swift.method	CompiledStub.verify(_:within:_:isolation:fileID:filePath:line:column:)	func verify<Result>(_ expectedCounts: PartialRangeFrom<Int> = 1..., within timeout: Duration, _ call: (T) throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
+symbol	TestDoubles	swift.method	CompiledStub.verify(_:within:returning:_:isolation:fileID:filePath:line:column:)	func verify<Result>(_ expectedCounts: PartialRangeFrom<Int> = 1..., within timeout: Duration, returning placeholder: Result, _ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
+symbol	TestDoubles	swift.method	CompiledStub.verify(_:within:returning:_:isolation:fileID:filePath:line:column:)	func verify<Result>(_ expectedCounts: PartialRangeFrom<Int> = 1..., within timeout: Duration, returning placeholder: Result, _ call: (T) throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
+symbol	TestDoubles	swift.method	CompiledStub.verify(_:within:using:_:isolation:fileID:filePath:line:column:)	func verify<Result>(_ expectedCounts: PartialRangeFrom<Int> = 1..., within timeout: Duration, using clock: any StubClock, _ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
+symbol	TestDoubles	swift.method	CompiledStub.verify(_:within:using:_:isolation:fileID:filePath:line:column:)	func verify<Result>(_ expectedCounts: PartialRangeFrom<Int> = 1..., within timeout: Duration, using clock: any StubClock, _ call: (T) throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
+symbol	TestDoubles	swift.method	CompiledStub.verifyExactlyInOrder(_:fileID:filePath:line:column:)	func verifyExactlyInOrder(_ calls: (T) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
+symbol	TestDoubles	swift.method	CompiledStub.verifyExactlyInOrder(_:isolation:fileID:filePath:line:column:)	func verifyExactlyInOrder(_ calls: (T) async throws -> Void, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
+symbol	TestDoubles	swift.method	CompiledStub.verifyExactlyInOrder(mutating:fileID:filePath:line:column:)	func verifyExactlyInOrder(mutating calls: (inout T) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
+symbol	TestDoubles	swift.method	CompiledStub.verifyInOrder(_:fileID:filePath:line:column:)	func verifyInOrder(_ calls: (T) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
+symbol	TestDoubles	swift.method	CompiledStub.verifyInOrder(_:isolation:fileID:filePath:line:column:)	func verifyInOrder(_ calls: (T) async throws -> Void, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
+symbol	TestDoubles	swift.method	CompiledStub.verifyInOrder(mutating:fileID:filePath:line:column:)	func verifyInOrder(mutating calls: (inout T) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
+symbol	TestDoubles	swift.method	CompiledStub.verifyNoMoreInteractions(fileID:filePath:line:column:)	func verifyNoMoreInteractions(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
+symbol	TestDoubles	swift.method	CompiledStub.verifyNoUnusedStubs(fileID:filePath:line:column:)	func verifyNoUnusedStubs(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
+symbol	TestDoubles	swift.method	CompiledStub.when(_:fileID:filePath:line:column:)	func when(_ call: (inout T) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> CallPattern<Void>
+symbol	TestDoubles	swift.method	CompiledStub.when(_:fileID:filePath:line:column:)	func when<Result>(_ call: (T) throws -> Result, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> CallPattern<Result>
+symbol	TestDoubles	swift.method	CompiledStub.when(_:isolation:fileID:filePath:line:column:)	func when<Result>(_ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> CallPattern<Result>
+symbol	TestDoubles	swift.method	CompiledStub.when(returning:_:fileID:filePath:line:column:)	func when<Result>(returning placeholder: Result, _ call: (T) throws -> Result, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> CallPattern<Result>
+symbol	TestDoubles	swift.method	CompiledStub.when(returning:_:isolation:fileID:filePath:line:column:)	func when<Result>(returning placeholder: Result, _ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> CallPattern<Result>
+symbol	TestDoubles	swift.method	CompiledStub.whenStream(_:fileID:filePath:line:column:)	func whenStream<Element>(_ call: (T) throws -> AsyncStream<Element>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> CallPattern<AsyncStream<Element>>
+symbol	TestDoubles	swift.method	CompiledStub.whenStream(_:isolation:fileID:filePath:line:column:)	func whenStream<Element>(_ call: (T) async throws -> AsyncStream<Element>, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> CallPattern<AsyncStream<Element>>
+symbol	TestDoubles	swift.method	CompiledStub.whenThrowingStream(_:fileID:filePath:line:column:)	func whenThrowingStream<Element>(_ call: (T) throws -> AsyncThrowingStream<Element, any Error>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> CallPattern<AsyncThrowingStream<Element, any Error>>
+symbol	TestDoubles	swift.method	CompiledStub.whenThrowingStream(_:isolation:fileID:filePath:line:column:)	func whenThrowingStream<Element>(_ call: (T) async throws -> AsyncThrowingStream<Element, any Error>, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> CallPattern<AsyncThrowingStream<Element, any Error>>
 symbol	TestDoubles	swift.method	CompletionOrder.verify(_:fileID:filePath:line:column:)	@discardableResult func verify(_ interactions: CallInteractions, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> Self
 symbol	TestDoubles	swift.method	CompletionOrder.verify(_:fileID:filePath:line:column:)	@discardableResult func verify<Result>(_ configuredCall: ConfiguredCall<Result>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> Self
 symbol	TestDoubles	swift.method	CompletionOrder.verify(_:fileID:filePath:line:column:)	@discardableResult func verify<Result>(_ pattern: CallPattern<Result>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> Self
@@ -694,9 +744,9 @@ symbol	TestDoubles	swift.method	InteractionFixture.save(to:)	func save(to url: U
 symbol	TestDoubles	swift.method	InteractionHistory.verify(_:fileID:filePath:line:column:)	func verify(_ expectedCounts: any RangeExpression<Int> = 1 ... 1, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	TestDoubles	swift.method	InteractionHistory.verifyNoMoreInteractions(fileID:filePath:line:column:)	func verifyNoMoreInteractions(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	TestDoubles	swift.method	InvocationOrder.verify(_:_:fileID:filePath:line:column:)	@discardableResult func verify<P, Result>(_ stub: Stub<P>, _ call: (P) throws -> Result, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> Self
-symbol	TestDoubles	swift.method	InvocationOrder.verify(_:_:fileID:filePath:line:column:)	@discardableResult func verify<T, Result>(_ stub: ManualStub<T>, _ call: (T) throws -> Result, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> Self
+symbol	TestDoubles	swift.method	InvocationOrder.verify(_:_:fileID:filePath:line:column:)	@discardableResult func verify<T, Result>(_ stub: CompiledStub<T>, _ call: (T) throws -> Result, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> Self
 symbol	TestDoubles	swift.method	InvocationOrder.verify(_:_:isolation:fileID:filePath:line:column:)	@discardableResult func verify<P, Result>(_ stub: Stub<P>, _ call: (P) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> Self
-symbol	TestDoubles	swift.method	InvocationOrder.verify(_:_:isolation:fileID:filePath:line:column:)	@discardableResult func verify<T, Result>(_ stub: ManualStub<T>, _ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> Self
+symbol	TestDoubles	swift.method	InvocationOrder.verify(_:_:isolation:fileID:filePath:line:column:)	@discardableResult func verify<T, Result>(_ stub: CompiledStub<T>, _ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> Self
 symbol	TestDoubles	swift.method	InvocationOrder.verify(_:fileID:filePath:line:column:)	@discardableResult func verify(_ interactions: CallInteractions, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> Self
 symbol	TestDoubles	swift.method	InvocationOrder.verify(_:fileID:filePath:line:column:)	@discardableResult func verify<Input, Result>(_ pattern: AsyncClosureCallPattern<Input, Result>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> Self
 symbol	TestDoubles	swift.method	InvocationOrder.verify(_:fileID:filePath:line:column:)	@discardableResult func verify<Input, Result>(_ pattern: AsyncThrowingClosureCallPattern<Input, Result>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> Self
@@ -709,59 +759,6 @@ symbol	TestDoubles	swift.method	InvocationStream.Iterator.next()	mutating func n
 symbol	TestDoubles	swift.method	InvocationStream.Iterator.next(within:)	mutating func next(within timeout: Duration) async -> Element?
 symbol	TestDoubles	swift.method	InvocationStream.Iterator.next(within:using:)	mutating func next(within timeout: Duration, using clock: any StubClock) async -> Element?
 symbol	TestDoubles	swift.method	InvocationStream.makeAsyncIterator()	func makeAsyncIterator() -> Iterator
-symbol	TestDoubles	swift.method	ManualStub.call(_:function:)	func call<each Argument, R>(_ args: repeat each Argument, function: String = #function) -> R
-symbol	TestDoubles	swift.method	ManualStub.call(_:function:)	func call<each Argument, R>(_ args: repeat each Argument, function: String = #function) async -> R
-symbol	TestDoubles	swift.method	ManualStub.call(_:function:)	func call<each Argument>(_ args: repeat each Argument, function: String = #function)
-symbol	TestDoubles	swift.method	ManualStub.call(_:function:)	func call<each Argument>(_ args: repeat each Argument, function: String = #function) async
-symbol	TestDoubles	swift.method	ManualStub.callAsFunction()	func callAsFunction() -> T
-symbol	TestDoubles	swift.method	ManualStub.captureCallStacks(maxFrames:)	@discardableResult func captureCallStacks(maxFrames: Int = 32) -> Self
-symbol	TestDoubles	swift.method	ManualStub.clearConfiguredBehaviors()	func clearConfiguredBehaviors()
-symbol	TestDoubles	swift.method	ManualStub.clearRecordedInvocations()	func clearRecordedInvocations()
-symbol	TestDoubles	swift.method	ManualStub.describeInteractions()	func describeInteractions() -> String
-symbol	TestDoubles	swift.method	ManualStub.interactionTimeline()	func interactionTimeline() -> InteractionTimeline
-symbol	TestDoubles	swift.method	ManualStub.named(_:)	@discardableResult func named(_ name: String) -> Self
-symbol	TestDoubles	swift.method	ManualStub.reset()	func reset()
-symbol	TestDoubles	swift.method	ManualStub.throwingCall(_:function:)	func throwingCall<each Argument, R>(_ args: repeat each Argument, function: String = #function) async throws -> R
-symbol	TestDoubles	swift.method	ManualStub.throwingCall(_:function:)	func throwingCall<each Argument, R>(_ args: repeat each Argument, function: String = #function) throws -> R
-symbol	TestDoubles	swift.method	ManualStub.throwingCall(_:function:)	func throwingCall<each Argument>(_ args: repeat each Argument, function: String = #function) async throws
-symbol	TestDoubles	swift.method	ManualStub.throwingCall(_:function:)	func throwingCall<each Argument>(_ args: repeat each Argument, function: String = #function) throws
-symbol	TestDoubles	swift.method	ManualStub.throwingCall(_:throwing:function:)	func throwingCall<each Argument, Failure>(_ args: repeat each Argument, throwing failureType: Failure.Type, function: String = #function) async throws(Failure) where Failure : Error
-symbol	TestDoubles	swift.method	ManualStub.throwingCall(_:throwing:function:)	func throwingCall<each Argument, Failure>(_ args: repeat each Argument, throwing failureType: Failure.Type, function: String = #function) throws(Failure) where Failure : Error
-symbol	TestDoubles	swift.method	ManualStub.throwingCall(_:throwing:function:)	func throwingCall<each Argument, R, Failure>(_ args: repeat each Argument, throwing failureType: Failure.Type, function: String = #function) async throws(Failure) -> R where Failure : Error
-symbol	TestDoubles	swift.method	ManualStub.throwingCall(_:throwing:function:)	func throwingCall<each Argument, R, Failure>(_ args: repeat each Argument, throwing failureType: Failure.Type, function: String = #function) throws(Failure) -> R where Failure : Error
-symbol	TestDoubles	swift.method	ManualStub.verify(_:_:fileID:filePath:line:column:)	func verify(_ expectedCounts: any RangeExpression<Int> = 1 ... 1, _ call: (inout T) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
-symbol	TestDoubles	swift.method	ManualStub.verify(_:_:fileID:filePath:line:column:)	func verify<Result>(_ expectedCounts: any RangeExpression<Int> = 1 ... 1, _ call: (T) throws -> Result, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
-symbol	TestDoubles	swift.method	ManualStub.verify(_:_:isolation:fileID:filePath:line:column:)	func verify<Result>(_ expectedCounts: any RangeExpression<Int> = 1 ... 1, _ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
-symbol	TestDoubles	swift.method	ManualStub.verify(_:returning:_:fileID:filePath:line:column:)	func verify<Result>(_ expectedCounts: any RangeExpression<Int> = 1 ... 1, returning placeholder: Result, _ call: (T) throws -> Result, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
-symbol	TestDoubles	swift.method	ManualStub.verify(_:returning:_:isolation:fileID:filePath:line:column:)	func verify<Result>(_ expectedCounts: any RangeExpression<Int> = 1 ... 1, returning placeholder: Result, _ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
-symbol	TestDoubles	swift.method	ManualStub.verify(_:within:_:isolation:fileID:filePath:line:column:)	func verify(_ expectedCounts: PartialRangeFrom<Int> = 1..., within timeout: Duration, _ call: (inout T) throws -> Void, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
-symbol	TestDoubles	swift.method	ManualStub.verify(_:within:_:isolation:fileID:filePath:line:column:)	func verify<Result>(_ expectedCounts: PartialRangeFrom<Int> = 1..., within timeout: Duration, _ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
-symbol	TestDoubles	swift.method	ManualStub.verify(_:within:_:isolation:fileID:filePath:line:column:)	func verify<Result>(_ expectedCounts: PartialRangeFrom<Int> = 1..., within timeout: Duration, _ call: (T) throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
-symbol	TestDoubles	swift.method	ManualStub.verify(_:within:returning:_:isolation:fileID:filePath:line:column:)	func verify<Result>(_ expectedCounts: PartialRangeFrom<Int> = 1..., within timeout: Duration, returning placeholder: Result, _ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
-symbol	TestDoubles	swift.method	ManualStub.verify(_:within:returning:_:isolation:fileID:filePath:line:column:)	func verify<Result>(_ expectedCounts: PartialRangeFrom<Int> = 1..., within timeout: Duration, returning placeholder: Result, _ call: (T) throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
-symbol	TestDoubles	swift.method	ManualStub.verify(_:within:using:_:isolation:fileID:filePath:line:column:)	func verify<Result>(_ expectedCounts: PartialRangeFrom<Int> = 1..., within timeout: Duration, using clock: any StubClock, _ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
-symbol	TestDoubles	swift.method	ManualStub.verify(_:within:using:_:isolation:fileID:filePath:line:column:)	func verify<Result>(_ expectedCounts: PartialRangeFrom<Int> = 1..., within timeout: Duration, using clock: any StubClock, _ call: (T) throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
-symbol	TestDoubles	swift.method	ManualStub.verifyExactlyInOrder(_:fileID:filePath:line:column:)	func verifyExactlyInOrder(_ calls: (T) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
-symbol	TestDoubles	swift.method	ManualStub.verifyExactlyInOrder(_:isolation:fileID:filePath:line:column:)	func verifyExactlyInOrder(_ calls: (T) async throws -> Void, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
-symbol	TestDoubles	swift.method	ManualStub.verifyExactlyInOrder(mutating:fileID:filePath:line:column:)	func verifyExactlyInOrder(mutating calls: (inout T) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
-symbol	TestDoubles	swift.method	ManualStub.verifyInOrder(_:fileID:filePath:line:column:)	func verifyInOrder(_ calls: (T) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
-symbol	TestDoubles	swift.method	ManualStub.verifyInOrder(_:isolation:fileID:filePath:line:column:)	func verifyInOrder(_ calls: (T) async throws -> Void, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
-symbol	TestDoubles	swift.method	ManualStub.verifyInOrder(mutating:fileID:filePath:line:column:)	func verifyInOrder(mutating calls: (inout T) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
-symbol	TestDoubles	swift.method	ManualStub.verifyNoMoreInteractions(fileID:filePath:line:column:)	func verifyNoMoreInteractions(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
-symbol	TestDoubles	swift.method	ManualStub.verifyNoUnusedStubs(fileID:filePath:line:column:)	func verifyNoUnusedStubs(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
-symbol	TestDoubles	swift.method	ManualStub.when(_:fileID:filePath:line:column:)	func when(_ call: (inout T) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> CallPattern<Void>
-symbol	TestDoubles	swift.method	ManualStub.when(_:fileID:filePath:line:column:)	func when<Result>(_ call: (T) throws -> Result, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> CallPattern<Result>
-symbol	TestDoubles	swift.method	ManualStub.when(_:isolation:fileID:filePath:line:column:)	func when<Result>(_ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> CallPattern<Result>
-symbol	TestDoubles	swift.method	ManualStub.when(returning:_:fileID:filePath:line:column:)	func when<Result>(returning placeholder: Result, _ call: (T) throws -> Result, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> CallPattern<Result>
-symbol	TestDoubles	swift.method	ManualStub.when(returning:_:isolation:fileID:filePath:line:column:)	func when<Result>(returning placeholder: Result, _ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> CallPattern<Result>
-symbol	TestDoubles	swift.method	ManualStub.whenStream(_:fileID:filePath:line:column:)	func whenStream<Element>(_ call: (T) throws -> AsyncStream<Element>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> CallPattern<AsyncStream<Element>>
-symbol	TestDoubles	swift.method	ManualStub.whenStream(_:isolation:fileID:filePath:line:column:)	func whenStream<Element>(_ call: (T) async throws -> AsyncStream<Element>, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> CallPattern<AsyncStream<Element>>
-symbol	TestDoubles	swift.method	ManualStub.whenThrowingStream(_:fileID:filePath:line:column:)	func whenThrowingStream<Element>(_ call: (T) throws -> AsyncThrowingStream<Element, any Error>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> CallPattern<AsyncThrowingStream<Element, any Error>>
-symbol	TestDoubles	swift.method	ManualStub.whenThrowingStream(_:isolation:fileID:filePath:line:column:)	func whenThrowingStream<Element>(_ call: (T) async throws -> AsyncThrowingStream<Element, any Error>, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> CallPattern<AsyncThrowingStream<Element, any Error>>
-symbol	TestDoubles	swift.method	ManualStubClock.advance(by:)	func advance(by duration: Duration)
-symbol	TestDoubles	swift.method	ManualStubClock.advanceToEnd()	func advanceToEnd()
-symbol	TestDoubles	swift.method	ManualStubClock.sleep(for:)	func sleep(for duration: Duration) async throws
-symbol	TestDoubles	swift.method	ManualStubClock.waitForSleepers(atLeast:)	func waitForSleepers(atLeast count: Int) async
 symbol	TestDoubles	swift.method	NonescapingCallbackRecorder.invoke(_:with:)	@discardableResult func invoke(_ callback: Callback, with input: Input) -> Result
 symbol	TestDoubles	swift.method	NonescapingCallbackRecorder.invoke(_:with:)	@discardableResult func invoke<Failure>(_ callback: (Input) throws(Failure) -> Result, with input: Input) throws(Failure) -> Result where Failure : Error
 symbol	TestDoubles	swift.method	NonescapingCallbackRecorder.invoke(_:with:)	func invoke(_ callback: Callback, with inputs: Input...)
@@ -788,6 +785,7 @@ symbol	TestDoubles	swift.method	Stub.clearRecordedInvocations()	func clearRecord
 symbol	TestDoubles	swift.method	Stub.configure(_:)	@discardableResult func configure(_ configure: (Stub<P>) -> Void) -> Self
 symbol	TestDoubles	swift.method	Stub.describeInteractions()	func describeInteractions() -> String
 symbol	TestDoubles	swift.method	Stub.interactionTimeline()	func interactionTimeline() -> InteractionTimeline
+symbol	TestDoubles	swift.method	Stub.makeValue()	func makeValue() -> P
 symbol	TestDoubles	swift.method	Stub.named(_:)	@discardableResult func named(_ name: String) -> Self
 symbol	TestDoubles	swift.method	Stub.reset()	func reset()
 symbol	TestDoubles	swift.method	Stub.verify(_:_:fileID:filePath:line:column:)	func verify(_ expectedCounts: any RangeExpression<Int> = 1 ... 1, _ call: (inout P) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
@@ -827,6 +825,8 @@ symbol	TestDoubles	swift.method	Stub.whenStream(_:fileID:filePath:line:column:)	
 symbol	TestDoubles	swift.method	Stub.whenStream(_:isolation:fileID:filePath:line:column:)	func whenStream<Element>(_ call: (P) async throws -> AsyncStream<Element>, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> CallPattern<AsyncStream<Element>>
 symbol	TestDoubles	swift.method	Stub.whenThrowingStream(_:fileID:filePath:line:column:)	func whenThrowingStream<Element>(_ call: (P) throws -> AsyncThrowingStream<Element, any Error>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> CallPattern<AsyncThrowingStream<Element, any Error>>
 symbol	TestDoubles	swift.method	Stub.whenThrowingStream(_:isolation:fileID:filePath:line:column:)	func whenThrowingStream<Element>(_ call: (P) async throws -> AsyncThrowingStream<Element, any Error>, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> CallPattern<AsyncThrowingStream<Element, any Error>>
+symbol	TestDoubles	swift.method	Stub.withGeneratedValue(_:)	func withGeneratedValue<Result, Failure>(_ operation: (P) async throws(Failure) -> Result) async throws(Failure) -> Result where Failure : Error
+symbol	TestDoubles	swift.method	Stub.withGeneratedValue(_:)	func withGeneratedValue<Result, Failure>(_ operation: (P) throws(Failure) -> Result) throws(Failure) -> Result where Failure : Error
 symbol	TestDoubles	swift.method	Stub.withValue(_:)	func withValue<Result, Failure>(_ operation: (P) async throws(Failure) -> Result) async throws(Failure) -> Result where Failure : Error
 symbol	TestDoubles	swift.method	Stub.withValue(_:)	func withValue<Result, Failure>(_ operation: (P) throws(Failure) -> Result) throws(Failure) -> Result where Failure : Error
 symbol	TestDoubles	swift.method	StubBehaviorChain.then(times:_:)	@discardableResult func then<Argument>(times: Int = 1, _ handler: @escaping @Sendable (Argument) throws -> Result) -> StubBehaviorChain<Result>
@@ -891,6 +891,10 @@ symbol	TestDoubles	swift.method	StubSuspension.resume(throwing:)	func resume<Fai
 symbol	TestDoubles	swift.method	StubSuspension.waitForCall(count:)	func waitForCall(count: Int = 1) async
 symbol	TestDoubles	swift.method	StubSuspension.waitForCall(count:within:fileID:filePath:line:column:)	func waitForCall(count: Int = 1, within timeout: Duration, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
 symbol	TestDoubles	swift.method	StubSuspension.waitForCall(count:within:using:fileID:filePath:line:column:)	func waitForCall(count: Int = 1, within timeout: Duration, using clock: any StubClock, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async
+symbol	TestDoubles	swift.method	TestDoubleClock.advance(by:)	func advance(by duration: Duration)
+symbol	TestDoubles	swift.method	TestDoubleClock.advanceToEnd()	func advanceToEnd()
+symbol	TestDoubles	swift.method	TestDoubleClock.sleep(for:)	func sleep(for duration: Duration) async throws
+symbol	TestDoubles	swift.method	TestDoubleClock.waitForSleepers(atLeast:)	func waitForSleepers(atLeast count: Int) async
 symbol	TestDoubles	swift.method	TestDoubleScenario.appending(_:)	func appending(_ next: `Self`) -> TestDoubleScenario<Subject>
 symbol	TestDoubles	swift.method	TestDoubleScenario.apply(to:)	func apply(to subject: Subject)
 symbol	TestDoubles	swift.method	ThrowingClosureCallPattern.afterEachCall(_:)	func afterEachCall(_ action: @escaping @Sendable (Input) -> Void) -> ThrowingClosureCallPattern<Input, Result>
@@ -1030,6 +1034,10 @@ symbol	TestDoubles	swift.property	ClosureDouble.invocations	var invocations: [In
 symbol	TestDoubles	swift.property	ClosureDouble.mainActorFunction	var mainActorFunction: @MainActor @Sendable (Input) -> Result { get }
 symbol	TestDoubles	swift.property	ClosureDouble.sendableFunction	var sendableFunction: @Sendable (Input) -> Result { get }
 symbol	TestDoubles	swift.property	ClosureDouble.wasCalled	var wasCalled: Bool { get }
+symbol	TestDoubles	swift.property	CompiledStub.history	var history: InteractionHistory { get }
+symbol	TestDoubles	swift.property	CompiledStub.requirements	var requirements: ManualRequirementRoute<T> { get }
+symbol	TestDoubles	swift.property	CompiledStub.throwing	var throwing: ManualThrowingRequirementRoute<T> { get }
+symbol	TestDoubles	swift.property	CompiledStub.throwingRequirements	var throwingRequirements: ManualThrowingRequirementRoute<T> { get }
 symbol	TestDoubles	swift.property	ConfiguredCall.callCount	var callCount: Int { get }
 symbol	TestDoubles	swift.property	ConfiguredCall.forwarded	var forwarded: `Self` { get }
 symbol	TestDoubles	swift.property	ConfiguredCall.interactions	var interactions: CallInteractions { get }
@@ -1076,11 +1084,6 @@ symbol	TestDoubles	swift.property	InvocationTiming.completedAt	let completedAt: 
 symbol	TestDoubles	swift.property	InvocationTiming.duration	let duration: Duration?
 symbol	TestDoubles	swift.property	InvocationTiming.id	let id: UInt64
 symbol	TestDoubles	swift.property	InvocationTiming.startedAt	let startedAt: ContinuousClock.Instant
-symbol	TestDoubles	swift.property	ManualStub.history	var history: InteractionHistory { get }
-symbol	TestDoubles	swift.property	ManualStub.requirements	var requirements: ManualRequirementRoute<T> { get }
-symbol	TestDoubles	swift.property	ManualStub.throwing	var throwing: ManualThrowingRequirementRoute<T> { get }
-symbol	TestDoubles	swift.property	ManualStub.throwingRequirements	var throwingRequirements: ManualThrowingRequirementRoute<T> { get }
-symbol	TestDoubles	swift.property	ManualStubClock.pendingSleepCount	var pendingSleepCount: Int { get }
 symbol	TestDoubles	swift.property	NonescapingCallbackRecorder.callCount	var callCount: Int { get }
 symbol	TestDoubles	swift.property	NonescapingCallbackRecorder.errors	var errors: [any Error] { get }
 symbol	TestDoubles	swift.property	NonescapingCallbackRecorder.invocations	var invocations: [Input] { get }
@@ -1117,6 +1120,7 @@ symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.construction	let co
 symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.description	var description: String { get }
 symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.dispatch	let dispatch: Dispatch
 symbol	TestDoubles	swift.property	StubSuspension.interactions	let interactions: CallInteractions
+symbol	TestDoubles	swift.property	TestDoubleClock.pendingSleepCount	var pendingSleepCount: Int { get }
 symbol	TestDoubles	swift.property	TestDoubleIssue.description	var description: String { get }
 symbol	TestDoubles	swift.property	TestDoubleIssue.kind	let kind: Kind
 symbol	TestDoubles	swift.property	TestDoubleIssue.message	let message: String
@@ -1190,9 +1194,9 @@ symbol	TestDoubles	swift.struct	StubSelfResultBuilder	struct StubSelfResultBuild
 symbol	TestDoubles	swift.struct	TestDoubleIssue	struct TestDoubleIssue
 symbol	TestDoubles	swift.struct	TestDoubleScenario	struct TestDoubleScenario<Subject>
 symbol	TestDoubles	swift.struct	ThrowingClosureCallPattern	struct ThrowingClosureCallPattern<Input, Result>
+symbol	TestDoubles	swift.subscript	CompiledStub.subscript(dynamicMember:)	subscript<R>(dynamicMember member: String) -> R { get set }
 symbol	TestDoubles	swift.subscript	InteractionHistory.subscript(_:)	subscript(position: Index) -> Element { get }
 symbol	TestDoubles	swift.subscript	ManualRequirementRoute.subscript(dynamicMember:)	subscript<R>(dynamicMember member: String) -> R { get nonmutating set }
-symbol	TestDoubles	swift.subscript	ManualStub.subscript(dynamicMember:)	subscript<R>(dynamicMember member: String) -> R { get set }
 symbol	TestDoubles	swift.subscript	ManualThrowingRequirementRoute.subscript(dynamicMember:)	subscript<R>(dynamicMember member: String) -> R { get throws }
 symbol	TestDoubles	swift.type.method	BehaviorRepetition.Finite.times(_:)	static func times(_ count: Int) -> BehaviorRepetition.Finite
 symbol	TestDoubles	swift.type.method	CompletionOrder.Builder.buildArray(_:)	static func buildArray(_ components: [[Expectation]]) -> [Expectation]
@@ -1368,8 +1372,8 @@ symbol	TestDoubles	swift.typealias	AsyncClosureDouble.Function	typealias Functio
 symbol	TestDoubles	swift.typealias	AsyncClosureDouble.Handler	typealias Handler = (Input) async -> Result
 symbol	TestDoubles	swift.typealias	AsyncClosureDouble.Matcher	typealias Matcher = @Sendable (Input) -> Bool
 symbol	TestDoubles	swift.typealias	AsyncClosureSpy	typealias AsyncClosureSpy<Input, Result> = AsyncClosureDouble<Input, Result>
-symbol	TestDoubles	swift.typealias	AsyncManualStubScenario	typealias AsyncManualStubScenario<T> = AsyncTestDoubleScenario<ManualStub<T>>
-symbol	TestDoubles	swift.typealias	AsyncParameterizedManualStubScenario	typealias AsyncParameterizedManualStubScenario<T, Parameter> = AsyncParameterizedTestDoubleScenario<ManualStub<T>, Parameter>
+symbol	TestDoubles	swift.typealias	AsyncManualStubScenario	typealias AsyncManualStubScenario<T> = AsyncTestDoubleScenario<CompiledStub<T>>
+symbol	TestDoubles	swift.typealias	AsyncParameterizedManualStubScenario	typealias AsyncParameterizedManualStubScenario<T, Parameter> = AsyncParameterizedTestDoubleScenario<CompiledStub<T>, Parameter>
 symbol	TestDoubles	swift.typealias	AsyncParameterizedStubScenario	typealias AsyncParameterizedStubScenario<P, Parameter> = AsyncParameterizedTestDoubleScenario<Stub<P>, Parameter>
 symbol	TestDoubles	swift.typealias	AsyncStubScenario	typealias AsyncStubScenario<P> = AsyncTestDoubleScenario<Stub<P>>
 symbol	TestDoubles	swift.typealias	AsyncThrowingClosureDouble.Function	typealias Function = (Input) async throws -> Result
@@ -1381,8 +1385,8 @@ symbol	TestDoubles	swift.typealias	AsyncTypedThrowingClosureDouble.Handler	typea
 symbol	TestDoubles	swift.typealias	AsyncTypedThrowingClosureDouble.Matcher	typealias Matcher = @Sendable (Input) -> Bool
 symbol	TestDoubles	swift.typealias	AsyncTypedThrowingClosureSpy	typealias AsyncTypedThrowingClosureSpy<Input, Result, Failure> = AsyncTypedThrowingClosureDouble<Input, Result, Failure> where Failure : Error
 symbol	TestDoubles	swift.typealias	CallbackCapture.Callback	typealias Callback = (Value) -> Void
-symbol	TestDoubles	swift.typealias	ClientSpy	typealias ClientSpy<Client> = ManualStub<Client>
-symbol	TestDoubles	swift.typealias	ClientStub	typealias ClientStub<Client> = ManualStub<Client>
+symbol	TestDoubles	swift.typealias	ClientSpy	typealias ClientSpy<Client> = CompiledStub<Client>
+symbol	TestDoubles	swift.typealias	ClientStub	typealias ClientStub<Client> = CompiledStub<Client>
 symbol	TestDoubles	swift.typealias	ClosureDouble.Function	typealias Function = (Input) -> Result
 symbol	TestDoubles	swift.typealias	ClosureDouble.Handler	typealias Handler = @Sendable (Input) -> Result
 symbol	TestDoubles	swift.typealias	ClosureDouble.Matcher	typealias Matcher = @Sendable (Input) -> Bool
@@ -1399,7 +1403,9 @@ symbol	TestDoubles	swift.typealias	MainActorAsyncTypedThrowingClosureDouble	type
 symbol	TestDoubles	swift.typealias	MainActorClosureDouble	typealias MainActorClosureDouble<Input, Result> = ClosureDouble<Input, Result> where Input : Sendable, Result : Sendable
 symbol	TestDoubles	swift.typealias	MainActorThrowingClosureDouble	typealias MainActorThrowingClosureDouble<Input, Result> = ThrowingClosureDouble<Input, Result> where Input : Sendable, Result : Sendable
 symbol	TestDoubles	swift.typealias	MainActorTypedThrowingClosureDouble	typealias MainActorTypedThrowingClosureDouble<Input, Result, Failure> = TypedThrowingClosureDouble<Input, Result, Failure> where Input : Sendable, Result : Sendable, Failure : Error
-symbol	TestDoubles	swift.typealias	ManualStubScenario	typealias ManualStubScenario<T> = TestDoubleScenario<ManualStub<T>>
+symbol	TestDoubles	swift.typealias	ManualStub	typealias ManualStub<T> = CompiledStub<T>
+symbol	TestDoubles	swift.typealias	ManualStubClock	typealias ManualStubClock = TestDoubleClock
+symbol	TestDoubles	swift.typealias	ManualStubScenario	typealias ManualStubScenario<T> = TestDoubleScenario<CompiledStub<T>>
 symbol	TestDoubles	swift.typealias	Match.Capture	typealias Capture<Value> = ArgumentCaptor<Value>
 symbol	TestDoubles	swift.typealias	NonescapingCallbackRecorder.Callback	typealias Callback = (Input) -> Result
 symbol	TestDoubles	swift.typealias	ParameterPackAsyncClosureDouble	typealias ParameterPackAsyncClosureDouble<each Argument, Result> = AsyncClosureDouble<(repeat each Argument), Result>
@@ -1408,7 +1414,7 @@ symbol	TestDoubles	swift.typealias	ParameterPackAsyncTypedThrowingClosureDouble	
 symbol	TestDoubles	swift.typealias	ParameterPackClosureDouble	typealias ParameterPackClosureDouble<each Argument, Result> = ClosureDouble<(repeat each Argument), Result>
 symbol	TestDoubles	swift.typealias	ParameterPackThrowingClosureDouble	typealias ParameterPackThrowingClosureDouble<each Argument, Result> = ThrowingClosureDouble<(repeat each Argument), Result>
 symbol	TestDoubles	swift.typealias	ParameterPackTypedThrowingClosureDouble	typealias ParameterPackTypedThrowingClosureDouble<each Argument, Result, Failure> = TypedThrowingClosureDouble<(repeat each Argument), Result, Failure> where Failure : Error
-symbol	TestDoubles	swift.typealias	ParameterizedManualStubScenario	typealias ParameterizedManualStubScenario<T, Parameter> = ParameterizedTestDoubleScenario<ManualStub<T>, Parameter>
+symbol	TestDoubles	swift.typealias	ParameterizedManualStubScenario	typealias ParameterizedManualStubScenario<T, Parameter> = ParameterizedTestDoubleScenario<CompiledStub<T>, Parameter>
 symbol	TestDoubles	swift.typealias	ParameterizedStubScenario	typealias ParameterizedStubScenario<P, Parameter> = ParameterizedTestDoubleScenario<Stub<P>, Parameter>
 symbol	TestDoubles	swift.typealias	SendableAsyncClosureDouble	typealias SendableAsyncClosureDouble<Input, Result> = AsyncClosureDouble<Input, Result> where Input : Sendable, Result : Sendable
 symbol	TestDoubles	swift.typealias	SendableAsyncThrowingClosureDouble	typealias SendableAsyncThrowingClosureDouble<Input, Result> = AsyncThrowingClosureDouble<Input, Result> where Input : Sendable, Result : Sendable

@@ -526,7 +526,7 @@ await loader.when {
 ```
 
 `thenThrow` and `thenDoNothing` accept the same `after:` argument. Pass a
-``ManualStubClock`` through the `using:` overload when the delay itself must be
+``TestDoubleClock`` through the `using:` overload when the delay itself must be
 deterministic.
 
 #### Model a wedged dependency
@@ -581,7 +581,7 @@ await stub.when {
 }.thenCancel(after: .milliseconds(200), returning: 0)
 ```
 
-Pass a ``ManualStubClock`` with `using:` to advance the cancellation deadline
+Pass a ``TestDoubleClock`` with `using:` to advance the cancellation deadline
 without real sleeps.
 
 #### Resume the call from the test
@@ -853,7 +853,7 @@ before the clear.
 - Use ``Spy`` when a real implementation should remain the default.
 - Use ``Dummy`` when the exercised path must not touch a protocol, concrete
   value, or function dependency.
-- Use ``ManualStub`` when the runtime trampoline cannot represent the
+- Use ``CompiledStub`` when the runtime trampoline cannot represent the
   requirement or cannot run on the platform.
 - Use a closure double when an injected function needs behavior or interaction
   verification; use ``Dummy`` when it must remain unused.

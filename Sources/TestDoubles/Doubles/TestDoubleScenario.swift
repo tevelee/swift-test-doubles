@@ -47,8 +47,8 @@ public struct TestDoubleScenario<Subject> {
 /// Reusable synchronous configuration for a runtime-generated ``Stub``.
 public typealias StubScenario<P> = TestDoubleScenario<Stub<P>>
 
-/// Reusable synchronous configuration for a ``ManualStub``.
-public typealias ManualStubScenario<T> = TestDoubleScenario<ManualStub<T>>
+/// Reusable synchronous configuration for a ``CompiledStub``.
+public typealias ManualStubScenario<T> = TestDoubleScenario<CompiledStub<T>>
 
 /// A reusable synchronous scenario that receives test-specific input when it
 /// is applied.
@@ -91,9 +91,9 @@ public struct ParameterizedTestDoubleScenario<Subject, Parameter> {
 public typealias ParameterizedStubScenario<P, Parameter> =
     ParameterizedTestDoubleScenario<Stub<P>, Parameter>
 
-/// A parameterized scenario for a ``ManualStub``.
+/// A parameterized scenario for a ``CompiledStub``.
 public typealias ParameterizedManualStubScenario<T, Parameter> =
-    ParameterizedTestDoubleScenario<ManualStub<T>, Parameter>
+    ParameterizedTestDoubleScenario<CompiledStub<T>, Parameter>
 
 /// Reusable asynchronous configuration for a test double.
 ///
@@ -139,8 +139,8 @@ public struct AsyncTestDoubleScenario<Subject> {
 /// Reusable asynchronous configuration for a runtime-generated ``Stub``.
 public typealias AsyncStubScenario<P> = AsyncTestDoubleScenario<Stub<P>>
 
-/// Reusable asynchronous configuration for a ``ManualStub``.
-public typealias AsyncManualStubScenario<T> = AsyncTestDoubleScenario<ManualStub<T>>
+/// Reusable asynchronous configuration for a ``CompiledStub``.
+public typealias AsyncManualStubScenario<T> = AsyncTestDoubleScenario<CompiledStub<T>>
 
 /// A reusable asynchronous scenario that receives test-specific input when it
 /// is applied.
@@ -183,6 +183,6 @@ public struct AsyncParameterizedTestDoubleScenario<Subject, Parameter> {
 public typealias AsyncParameterizedStubScenario<P, Parameter> =
     AsyncParameterizedTestDoubleScenario<Stub<P>, Parameter>
 
-/// A parameterized asynchronous scenario for a ``ManualStub``.
+/// A parameterized asynchronous scenario for a ``CompiledStub``.
 public typealias AsyncParameterizedManualStubScenario<T, Parameter> =
-    AsyncParameterizedTestDoubleScenario<ManualStub<T>, Parameter>
+    AsyncParameterizedTestDoubleScenario<CompiledStub<T>, Parameter>

@@ -109,7 +109,7 @@ public struct CallInteractions: Sendable {
 
     /// Waits for matching calls using `clock` rather than wall time.
     ///
-    /// Use ``ManualStubClock`` to advance timeout-sensitive tests
+    /// Use ``TestDoubleClock`` to advance timeout-sensitive tests
     /// deterministically.
     public func verify(
         _ expectedCounts: PartialRangeFrom<Int> = 1...,
@@ -344,7 +344,7 @@ public struct ConfiguredCall<Result>: Sendable {
 
     /// Waits for matching calls using `clock` rather than wall time.
     ///
-    /// Use ``ManualStubClock`` to advance timeout-sensitive tests
+    /// Use ``TestDoubleClock`` to advance timeout-sensitive tests
     /// deterministically.
     public func verify(
         _ expectedCounts: PartialRangeFrom<Int> = 1...,

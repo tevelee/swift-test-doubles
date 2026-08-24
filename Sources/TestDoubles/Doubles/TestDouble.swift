@@ -1,6 +1,6 @@
 import IssueReporting
 
-/// The recording and verification core shared by ``Stub`` and ``ManualStub``.
+/// The recording and verification core shared by ``Stub`` and ``CompiledStub``.
 ///
 /// Both doubles capture invocations through the same `StubRecorder`, so the
 /// recording plumbing and call-count verification live here while each double

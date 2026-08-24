@@ -37,7 +37,7 @@ private struct ImmediateStubClock: StubClock {
 /// Calls remain suspended until the test advances the clock far enough. This
 /// is intentionally small and dependency-free; it can be used anywhere a
 /// test does not already have a project-wide clock abstraction.
-public final class ManualStubClock: StubClock, @unchecked Sendable {
+public final class TestDoubleClock: StubClock, @unchecked Sendable {
     private struct Sleeper {
         let deadline: Duration
         let continuation: CheckedContinuation<Void, any Error>
@@ -182,3 +182,6 @@ public final class ManualStubClock: StubClock, @unchecked Sendable {
         ready.forEach { $0.continuation.resume() }
     }
 }
+
+/// Compatibility spelling for ``TestDoubleClock``.
+public typealias ManualStubClock = TestDoubleClock

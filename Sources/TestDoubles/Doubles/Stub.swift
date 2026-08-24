@@ -45,7 +45,7 @@ public class Stub<P> {
     }
 
     private init<Fallback: ManualStubConformer>(
-        manualFallback: ManualStub<Fallback>,
+        manualFallback: CompiledStub<Fallback>,
         erasingWith erase: @escaping (Fallback) -> P,
         runtimeFallbackReason: StubError,
         constructionPerformance: StubPerformanceDiagnostics.Construction
@@ -92,7 +92,7 @@ public class Stub<P> {
     ///
     /// Runtime synthesis is attempted first. If protocol metadata, executable
     /// memory, platform policy, or a requirement shape prevents it, the stub
-    /// constructs `Fallback` through `ManualStub` and keeps the same `Stub`
+    /// constructs `Fallback` through `CompiledStub` and keeps the same `Stub`
     /// configuration, verification, and interaction API.
     ///
     /// Prefer the generated `YourProtocolStub.automatic()` factory when using
@@ -109,7 +109,7 @@ public class Stub<P> {
             self.init(prepared: prepared)
         } catch {
             let runtimeFailedAt = ContinuousClock.now
-            let fallback = ManualStub<Fallback>()
+            let fallback = CompiledStub<Fallback>()
             let fallbackMaterializedAt = ContinuousClock.now
             self.init(
                 manualFallback: fallback,

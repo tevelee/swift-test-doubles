@@ -1,5 +1,5 @@
 /// The collision-free dynamic-member route returned by
-/// ``ManualStub/requirements``.
+/// ``CompiledStub/requirements``.
 @dynamicMemberLookup
 public struct ManualRequirementRoute<T> {
     let stub: ManualStub<T>
@@ -74,7 +74,7 @@ public struct ManualMethodProxy<T> {
 }
 
 /// The collision-free dynamic-member route returned by
-/// ``ManualStub/throwingRequirements``.
+/// ``CompiledStub/throwingRequirements``.
 @dynamicMemberLookup
 public struct ManualThrowingRequirementRoute<T> {
     let stub: ManualStub<T>

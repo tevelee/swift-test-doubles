@@ -92,7 +92,7 @@ public final class CallbackCapture<Value>: @unchecked Sendable {
 
     /// Waits for captured callbacks using `clock` rather than wall time.
     ///
-    /// Use ``ManualStubClock`` to advance timeout-sensitive tests
+    /// Use ``TestDoubleClock`` to advance timeout-sensitive tests
     /// deterministically.
     public func waitForCallback(
         count: Int = 1,

@@ -328,7 +328,7 @@ class existential to `AnyObject` and dynamically casting it back is unsupported
 because the erased value no longer carries those tables.
 
 An extracted existential metatype carries the witness-table pointer but has no
-retain/release hook for the fabricated graph. `Stub.withValue(_:)` therefore
+retain/release hook for the fabricated graph. `Stub.withGeneratedValue(_:)` therefore
 keeps an owning generated value alive for scoped metatype use. Escaping that
 metatype beyond the operation is unsupported.
 

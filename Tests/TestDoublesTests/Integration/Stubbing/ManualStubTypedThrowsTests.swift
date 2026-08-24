@@ -181,7 +181,7 @@ private struct ManualTypedThrowsServiceStub: ManualTypedThrowsService, ManualStu
 
         private func assertTypedMismatchDiagnostic(_ result: ExitTest.Result) throws {
             let diagnostic = try requireStandardErrorDiagnostic(from: result)
-            #expect(diagnostic.contains("Typed ManualStub handler error mismatch"))
+            #expect(diagnostic.contains("Typed CompiledStub handler error mismatch"))
             #expect(diagnostic.contains("expected ManualStubTypedFailure"))
             #expect(diagnostic.contains("got ManualStubUnexpectedFailure"))
             #expect(diagnostic.contains("untyped"))

@@ -16,12 +16,12 @@ For construction examples and requirement-order recipes, see
 | Ordinary protocol methods, getters, setters, subscripts, inheritance, and compositions | Automatic discovery from linked conformers or resilient requirement symbols; explicit requirements otherwise | Compositions use one group per declaring protocol. |
 | Effectful getters | Automatic discovery plus complete ``Stub/GetterEffect`` hints, or explicit requirements | Swift metadata omits getter throwing behavior. Concrete typed throws is supported through an explicit `signatureOf:` accessor closure. |
 | Swift 6.3 `read` accessors | Configure and verify them like synchronous nonthrowing getters | Stub yields the configured result; Spy forwards the target coroutine when no registration matches; Dummy supports unused dependencies and still rejects invocation. |
-| Static requirements, initializers, and dynamic `Self` | Dedicated builders support `Self` results; automatic discovery supports direct and single-`Optional` arguments for bounded instance methods | Use `Stub.withValue(_:)` when passing a generated metatype to code under test. |
+| Static requirements, initializers, and dynamic `Self` | Dedicated builders support `Self` results; automatic discovery supports direct and single-`Optional` arguments for bounded instance methods | Use `Stub.withGeneratedValue(_:)` when passing a generated metatype to code under test. |
 | Bounded primary associated types | Supported for the documented direct, recursive standard-library container, linked generic-nominal, concrete-reference, setter, initializer, and associated-error slices | See <doc:BoundAssociatedTypes> for exact supported and rejected shapes. |
 | Copyable `InlineArray` values | Automatic metadata discovery and ABI transport for canonical nonnegative integer counts | Small integer arrays use general-purpose registers, homogeneous floating-point arrays use floating-point registers, zero-count values use no registers, and large values use indirect storage. |
 | Function arguments and results | Automatic for concrete native Swift closures, C function pointers, blocks, and documented structural containers; explicit compiler-typed adapter otherwise | See <doc:FunctionValues>; top-level nonescaping, thin, declaration-level consuming or `inout`, dependent, and parameter-pack closure shapes remain fail-closed. |
 | ABI-uncertain imported results | Explicit compiler-typed adapters preserve the client return convention for ordinary methods and synchronous getters or subscripts | Automatic construction remains fail-closed; typed-error buffers and ABI-uncertain arguments require a manual double. |
-| Unsupported dependent shapes, native Swift-only superclasses, and device-only execution policy | Use ``ManualStub`` or a hand-written fake | These stay fail-closed instead of guessing at ABI behavior. |
+| Unsupported dependent shapes, native Swift-only superclasses, and device-only execution policy | Use ``CompiledStub`` or a hand-written fake | These stay fail-closed instead of guessing at ABI behavior. |
 
 ### Construction
 
@@ -78,7 +78,7 @@ appends ``Stub/Invocation``.
 A direct nonescaping `@autoclosure` is rejected during construction. Its closure
 can capture stack storage, while automatic recording and matching retain the
 decoded value after the call. Declare that parameter `@escaping`, or use
-``ManualStub`` or a hand-written fake.
+``CompiledStub`` or a hand-written fake.
 
 The bounded associated-type path uses
 ``Stub/Requirement/Value/associatedType(named:)`` for a direct dependent value,
@@ -389,7 +389,7 @@ nominal wrappers around the same tuple remain one whole, calibratable value.
 Likewise, a `get set` property whose value is ABI-uncertain cannot be prepared,
 even when a test only assigns it: its required getter still returns the same
 uncertain type. Model a write-only boundary as a method, or use
-``ManualStub`` when the property contract must remain unchanged.
+``CompiledStub`` when the property contract must remain unchanged.
 Automatic and linked mangled-type discovery also reconstruct metadata for
 other public, top-level generic nominal types whose parameters carry protocol
 conformance requirements, not only unconstrained ones. A `struct Box<T:
@@ -547,7 +547,7 @@ device, so Android remains provisional.
 
 Physical iOS, tvOS, visionOS, and watchOS devices are unsupported because the
 runtime generates executable trampoline code and CI cannot exercise device
-execution policy. `ManualStub` remains available when building for those
+execution policy. `CompiledStub` remains available when building for those
 devices. Linux CI uses the tagged Echo dependency without patching dependency
 checkouts. The README installation section lists the complete supported platform
 policy.
@@ -646,7 +646,7 @@ process-stable because Swift's generic-metadata caches may retain it after the
 value is gone.
 
 An existential metatype extracted with `type(of:)` does not retain the payload.
-Use `Stub.withValue(_:)` to keep a generated value alive while passing its
+Use `Stub.withGeneratedValue(_:)` to keep a generated value alive while passing its
 metatype to code under test, and do not let that metatype escape the operation.
 Successful initializer results receive their own payload and may outlive both
 the source value and the ``Stub``.

@@ -118,7 +118,7 @@ public struct InvocationStream<Element>: AsyncSequence {
         /// Waits up to `timeout` for the next matching invocation.
         ///
         /// Returns `nil` when the timeout expires or the awaiting task is
-        /// cancelled. Use the clock-aware overload with ``ManualStubClock``
+        /// cancelled. Use the clock-aware overload with ``TestDoubleClock``
         /// when the timeout itself must be deterministic.
         public mutating func next(within timeout: Duration) async -> Element? {
             await next(within: timeout, using: StubClocks.continuous)

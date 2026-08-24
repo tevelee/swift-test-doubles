@@ -23,7 +23,7 @@ struct DummyInvocationTests {
         #expect(
             known.contains("A dummy may only be passed to code paths that do not use it")
         )
-        #expect(known.contains("replace the dummy with `Stub`, `ManualStub`, or a hand-written fake"))
+        #expect(known.contains("replace the dummy with `Stub`, `CompiledStub`, or a hand-written fake"))
         #expect(unknown.contains("unknown requirement at dispatch slot 9"))
     }
 }

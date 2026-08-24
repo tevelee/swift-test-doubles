@@ -4,7 +4,7 @@ import Foundation
 import TestDoubles
 
 struct GeneratedManualStubServiceStubConformer: GeneratedManualStubService, ManualStubConformer {
-    let stub: ManualStub<Self>
+    let stub: CompiledStub<Self>
 
     func render(_ value: Int) -> String { stub.call(value) }
 
@@ -25,9 +25,9 @@ struct GeneratedManualStubServiceStubConformer: GeneratedManualStubService, Manu
     }
 }
 
-typealias GeneratedManualStubServiceStub = ManualStub<GeneratedManualStubServiceStubConformer>
+typealias GeneratedManualStubServiceStub = CompiledStub<GeneratedManualStubServiceStubConformer>
 
-extension ManualStub where T == GeneratedManualStubServiceStubConformer {
+extension CompiledStub where T == GeneratedManualStubServiceStubConformer {
     /// Tries runtime synthesis, then uses this compiled conformer when needed.
     static func automatic() -> Stub<any GeneratedManualStubService> {
         Stub(
@@ -40,16 +40,16 @@ extension ManualStub where T == GeneratedManualStubServiceStubConformer {
 }
 
 struct GeneratedManualStubCounterStubConformer: GeneratedManualStubCounter, ManualStubConformer {
-    let stub: ManualStub<Self>
+    let stub: CompiledStub<Self>
 
     func increment(by amount: Int) { stub.call(amount) }
 
     var value: Int { stub.call() }
 }
 
-typealias GeneratedManualStubCounterStub = ManualStub<GeneratedManualStubCounterStubConformer>
+typealias GeneratedManualStubCounterStub = CompiledStub<GeneratedManualStubCounterStubConformer>
 
-extension ManualStub where T == GeneratedManualStubCounterStubConformer {
+extension CompiledStub where T == GeneratedManualStubCounterStubConformer {
     /// Tries runtime synthesis, then uses this compiled conformer when needed.
     static func automatic() -> Stub<any GeneratedManualStubCounter> {
         Stub(
@@ -62,14 +62,14 @@ extension ManualStub where T == GeneratedManualStubCounterStubConformer {
 }
 
 struct GeneratedOpaqueResultServiceStubConformer: GeneratedOpaqueResultService, ManualStubConformer {
-    let stub: ManualStub<Self>
+    let stub: CompiledStub<Self>
 
     func load() -> Data { stub.call() }
 }
 
-typealias GeneratedOpaqueResultServiceStub = ManualStub<GeneratedOpaqueResultServiceStubConformer>
+typealias GeneratedOpaqueResultServiceStub = CompiledStub<GeneratedOpaqueResultServiceStubConformer>
 
-extension ManualStub where T == GeneratedOpaqueResultServiceStubConformer {
+extension CompiledStub where T == GeneratedOpaqueResultServiceStubConformer {
     /// Tries runtime synthesis, then uses this compiled conformer when needed.
     static func automatic() -> Stub<any GeneratedOpaqueResultService> {
         Stub(
@@ -82,16 +82,16 @@ extension ManualStub where T == GeneratedOpaqueResultServiceStubConformer {
 }
 
 actor GeneratedActorServiceStubConformer: GeneratedActorService, ManualStubConformer {
-    let stub: ManualStub<GeneratedActorServiceStubConformer>
+    let stub: CompiledStub<GeneratedActorServiceStubConformer>
 
-    init(stub: ManualStub<GeneratedActorServiceStubConformer>) { self.stub = stub }
+    init(stub: CompiledStub<GeneratedActorServiceStubConformer>) { self.stub = stub }
 
     func load(_ identifier: Int) -> String { stub.call(identifier) }
 }
 
-typealias GeneratedActorServiceStub = ManualStub<GeneratedActorServiceStubConformer>
+typealias GeneratedActorServiceStub = CompiledStub<GeneratedActorServiceStubConformer>
 
-extension ManualStub where T == GeneratedActorServiceStubConformer {
+extension CompiledStub where T == GeneratedActorServiceStubConformer {
     /// Tries runtime synthesis, then uses this compiled conformer when needed.
     static func automatic() -> Stub<any GeneratedActorService> {
         Stub(

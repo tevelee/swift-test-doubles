@@ -139,7 +139,7 @@ the delay, the stub cancels the task that called it and throws
 `CancellationError`.
 
 ```swift
-let clock = ManualStubClock()
+let clock = TestDoubleClock()
 let stub = try Stub<any FeedService>()
 await stub.when { try await $0.loadFeed() }
     .thenCancel(after: .seconds(1), using: clock)
@@ -155,7 +155,7 @@ await #expect(throws: CancellationError.self) { try await task.value }
 For a nonthrowing async requirement,
 ``CallPattern/thenCancel(after:returning:using:)`` returns an explicit fallback
 after marking the caller cancelled. The same overloads are available on async
-closure-call patterns. A ``ManualStubClock`` makes both forms deterministic.
+closure-call patterns. A ``TestDoubleClock`` makes both forms deterministic.
 
 ### Control completion from the test
 
@@ -192,7 +192,7 @@ The composed ``StubSuspension/interactions`` view verifies and inspects every
 matching invocation, including calls that are still parked.
 Prefer ``StubSuspension/waitForCall(count:within:fileID:filePath:line:column:)``
 in tests that should fail instead of hanging when the call never arrives. Its
-clock-aware overload accepts ``ManualStubClock`` for deterministic timeout
+clock-aware overload accepts ``TestDoubleClock`` for deterministic timeout
 coverage.
 
 Because the handle is the only thing that completes a parked call, ordering is

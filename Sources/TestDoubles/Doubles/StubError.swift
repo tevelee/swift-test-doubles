@@ -1,7 +1,7 @@
 /// Errors reported while constructing a runtime-generated test double.
 public enum StubError: Error, Sendable, CustomStringConvertible {
     private static let manualStubbingRecovery =
-        "Recovery: Use `ManualStub` with a hand-written `ManualStubConformer`, or write a "
+        "Recovery: Use `CompiledStub` with a hand-written `ManualStubConformer`, or write a "
         + "hand-written fake, when this protocol must be stubbed."
 
     /// Reports only the recovery that applies on the platform under test.
@@ -181,7 +181,7 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                 return "Could not discover the signature of '\(protocolName)' requirement \(requirementIndex). \(details)\n"
                     + "Recovery: Prefer a `Stub.Requirement` using `signatureOf:` when it "
                     + "supports the declaration. Use a source-less factory only when "
-                    + "necessary and match the ABI shape exactly. Otherwise use `ManualStub` "
+                    + "necessary and match the ABI shape exactly. Otherwise use `CompiledStub` "
                     + "with a hand-written `ManualStubConformer`."
 
             case .trampolineAllocationFailed(let requirementIndex):

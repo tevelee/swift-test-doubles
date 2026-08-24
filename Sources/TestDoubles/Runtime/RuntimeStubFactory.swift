@@ -226,7 +226,7 @@ enum RuntimeStubFactory {
 #if !TESTDOUBLES_RUNTIME_STUBS
     private let runtimeStubsDisabledReason =
         "Runtime-generated test doubles are disabled for this build. "
-        + "Enable the package's default `RuntimeStubs` trait, or use `ManualStub`."
+        + "Enable the package's default `RuntimeStubs` trait, or use `CompiledStub`."
 
     private func runtimeStubsDisabledError(protocolName: String) -> StubError {
         .unsupportedProtocolShape(
@@ -600,7 +600,7 @@ final class DummyInvocationEndpoint: RuntimeInvocationEndpoint,
             ?? "unknown requirement at dispatch slot \(slot)"
         return "[TestDoubles] Dummy<\(typeDescription)> was invoked through \(requirementDescription). "
             + "A dummy may only be passed to code paths that do not use it. If this invocation is "
-            + "expected, replace the dummy with `Stub`, `ManualStub`, or a hand-written fake."
+            + "expected, replace the dummy with `Stub`, `CompiledStub`, or a hand-written fake."
     }
 }
 

@@ -26,7 +26,7 @@
                 }
 
                 struct StubbableMacroServiceStubConformer: StubbableMacroService, ManualStubConformer {
-                    let stub: ManualStub<Self>
+                    let stub: CompiledStub<Self>
 
                     func fetch(_ identifier: Int) -> String {
                         stub.call(identifier)
@@ -42,9 +42,9 @@
                     }
                 }
 
-                typealias StubbableMacroServiceStub = ManualStub<StubbableMacroServiceStubConformer>
+                typealias StubbableMacroServiceStub = CompiledStub<StubbableMacroServiceStubConformer>
 
-                extension ManualStub where T == StubbableMacroServiceStubConformer {
+                extension CompiledStub where T == StubbableMacroServiceStubConformer {
                     /// Tries runtime synthesis, then uses this compiled conformer when needed.
                     static func automatic() -> Stub<any StubbableMacroService> {
                         Stub(
@@ -74,9 +74,9 @@
                 }
 
                 actor StubbableActorServiceStubConformer: StubbableActorService, ManualStubConformer {
-                    let stub: ManualStub<StubbableActorServiceStubConformer>
+                    let stub: CompiledStub<StubbableActorServiceStubConformer>
 
-                    init(stub: ManualStub<StubbableActorServiceStubConformer>) {
+                    init(stub: CompiledStub<StubbableActorServiceStubConformer>) {
                         self.stub = stub
                     }
 
@@ -85,9 +85,9 @@
                     }
                 }
 
-                typealias StubbableActorServiceStub = ManualStub<StubbableActorServiceStubConformer>
+                typealias StubbableActorServiceStub = CompiledStub<StubbableActorServiceStubConformer>
 
-                extension ManualStub where T == StubbableActorServiceStubConformer {
+                extension CompiledStub where T == StubbableActorServiceStubConformer {
                     /// Tries runtime synthesis, then uses this compiled conformer when needed.
                     static func automatic() -> Stub<any StubbableActorService> {
                         Stub(

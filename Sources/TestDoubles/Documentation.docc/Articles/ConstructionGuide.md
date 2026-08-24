@@ -353,12 +353,12 @@ stub.when(initializer: {
 ```
 
 Initializer handlers may be synchronous or async and may throw when the
-requirement throws. Use `Stub.withValue(_:)` when passing a generated metatype
+requirement throws. Use `Stub.withGeneratedValue(_:)` when passing a generated metatype
 into code under test; it keeps the witness tables and executable trampolines
 alive for the operation:
 
 ```swift
-try await stub.withValue { value in
+try await stub.withGeneratedValue { value in
     try await service.run(factory: type(of: value))
 }
 ```
@@ -447,5 +447,5 @@ xcodebuild test -scheme YourApp -destination 'platform=macOS' RUNTIME_EXCEPTION_
 ```
 
 Physical devices and `wasm32-unknown-wasip1` never permit the mapping, and no
-setting changes that. Use ``ManualStub`` there, as described in
+setting changes that. Use ``CompiledStub`` there, as described in
 <doc:ManualStubbing>.

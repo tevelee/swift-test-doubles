@@ -25,7 +25,7 @@
 ///
 /// let client: APIClient = stub()
 /// ```
-public typealias ClientStub<Client> = ManualStub<Client>
+public typealias ClientStub<Client> = CompiledStub<Client>
 
 /// A test-double controller that records a closure-field client's calls and
 /// forwards unmatched endpoints to a live client.
@@ -46,7 +46,7 @@ public typealias ClientStub<Client> = ManualStub<Client>
 ///     )
 /// }
 /// ```
-public typealias ClientSpy<Client> = ManualStub<Client>
+public typealias ClientSpy<Client> = CompiledStub<Client>
 
 extension ManualStub {
     /// Creates a stub for a concrete closure-field dependency value.

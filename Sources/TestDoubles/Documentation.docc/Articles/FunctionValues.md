@@ -56,7 +56,7 @@ nominal parameters. Declaration-level borrowing is also supported. An
 escaping autoclosure parameter, including one declared directly on a protocol
 requirement, uses the same closure bridge. Automatic `Stub` rejects a
 nonescaping direct autoclosure before it can retain a closure that captures
-stack storage; declare the parameter `@escaping` or use `ManualStub` or a
+stack storage; declare the parameter `@escaping` or use `CompiledStub` or a
 hand-written fake. For a direct requirement, bind a
 closure-typed `Match` expression inside the recording closure before invoking
 the requirement, then invoke the matcher inside the autoclosure. Writing

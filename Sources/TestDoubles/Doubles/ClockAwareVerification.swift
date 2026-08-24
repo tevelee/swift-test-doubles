@@ -1,6 +1,6 @@
 extension Stub {
     /// Waits for matching synchronous calls using `clock` rather than wall
-    /// time. ``ManualStubClock`` makes timeout tests deterministic.
+    /// time. ``TestDoubleClock`` makes timeout tests deterministic.
     public func verify<Result>(
         _ expectedCounts: PartialRangeFrom<Int> = 1...,
         within timeout: Duration,

@@ -44,7 +44,7 @@ whole client. An endpoint without a matching behavior fails with the same
 diagnostic as an unconfigured protocol or manual stub requirement.
 
 This path does not inspect protocol metadata, fabricate a witness table, or use
-the runtime trampoline. It is available wherever ``ManualStub`` is available,
+the runtime trampoline. It is available wherever ``CompiledStub`` is available,
 including targets that disable the `RuntimeStubs` package trait.
 
 ### Choose endpoint effects
@@ -390,7 +390,7 @@ value.
 
 ### Reuse client configurations
 
-Because ``ClientStub`` is a ``ManualStub`` specialization, synchronous and
+Because ``ClientStub`` is a ``CompiledStub`` specialization, synchronous and
 asynchronous manual-stub scenarios can configure it:
 
 ```swift

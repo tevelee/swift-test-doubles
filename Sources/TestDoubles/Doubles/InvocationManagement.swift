@@ -86,7 +86,7 @@ extension ManualStub {
     /// and recorded invocations.
     ///
     /// Hand-written conformers should forward a protocol requirement named
-    /// `reset` through ``ManualStub/requirements`` so it cannot collide with
+    /// `reset` through ``CompiledStub/requirements`` so it cannot collide with
     /// this control operation.
     public func reset() {
         clearConfiguredBehaviors()

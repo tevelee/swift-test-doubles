@@ -19,6 +19,14 @@ struct RealEnhancementForwarder: EnhancementForwarder {
     func value(for key: String) -> String { "live-\(key)" }
 }
 
+private struct EnhancementForwarderStub: EnhancementForwarder, ManualStubConformer {
+    let stub: CompiledStub<Self>
+
+    func value(for key: String) -> String {
+        stub.requirements.value(for: key)
+    }
+}
+
 protocol EnhancementThrowingAsyncLoader {
     func load() async throws -> Int
 }
@@ -88,6 +96,20 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
 }
 
 @Suite struct UserFacingEnhancementsTests {
+    @Test func canonicalDoubleNamesMaterializeValues() throws {
+        let compiled = CompiledStub<EnhancementForwarderStub>()
+        compiled.when { $0.value(for: Match.any()) }.thenReturn("compiled")
+        #expect(compiled.makeValue().value(for: "key") == "compiled")
+
+        let stub = try Stub<any EnhancementForwarder>()
+        stub.when { $0.value(for: Match.any()) }.thenReturn("generated")
+        #expect(stub.makeValue().value(for: "key") == "generated")
+        #expect(stub.withGeneratedValue { $0.value(for: "key") } == "generated")
+
+        let clock = TestDoubleClock()
+        #expect(clock.pendingSleepCount == 0)
+    }
+
     @Test func secondaryTypesAreDiscoverableThroughNamespaces() throws {
         let stub = try Stub<any EnhancementForwarder>()
         let configured: TestDouble.ConfiguredCall<String> = stub.when {

@@ -75,7 +75,7 @@ let call = try #require(await iterator.next(within: .seconds(1)))
 
 The pattern's matchers determine which calls the stream observes. Reading it
 does not mark a call verified or commit captures. A timed `next` returns `nil`
-when its timeout expires; its clock-aware overload accepts ``ManualStubClock``.
+when its timeout expires; its clock-aware overload accepts ``TestDoubleClock``.
 Cancelling a task awaiting `next()` also returns `nil` and removes its waiter
 immediately. In a `.strictTestDoubles` scope, matching calls left unread are
 reported at teardown; cancelling the awaiting task intentionally ends the
@@ -161,7 +161,7 @@ let stub = try Stub<any Analytics>()
 ```
 
 Subsequent timeline events expose the capped symbols through `callStack`.
-`ManualStub`, saved call patterns, and terminal interaction handles provide the
+`CompiledStub`, saved call patterns, and terminal interaction handles provide the
 same opt-in method; enabling it through a pattern applies to its whole double.
 WASI has no thread stack-symbolization API, so capture is a no-op on that
 platform.
@@ -220,7 +220,7 @@ issue on a mismatch, consume configured behavior, advance a chain, or commit
 captures, so it is safe to call as often as needed. It is the right tool for
 custom assertions; keep `verify` and `verifyInOrder` when a count or order is
 the expectation and their diagnostics add value. The same ``CallPattern`` API
-is available from ``Stub``, ``Spy``, and ``ManualStub``.
+is available from ``Stub``, ``Spy``, and ``CompiledStub``.
 
 ### Order interactions across doubles
 
@@ -256,7 +256,7 @@ double to appear in the sequence. Omit the flag for subsequence verification,
 where unrelated calls may appear before, between, or after the listed
 expectations, just as with `verifyInOrder`. Ordering is by a process-wide
 sequence stamped on every recorded call, so it holds across `Stub`, `Spy`, and
-`ManualStub`, and across sync and async requirements. A step that finds no later
+`CompiledStub`, and across sync and async requirements. A step that finds no later
 matching call reports a test issue at its own source location and leaves the
 cursor unchanged; successful steps commit their captors.
 
@@ -282,7 +282,7 @@ registered with ``Match/Placeholders``; saving a pattern through the
 `InvocationOrder` has its own ``InvocationOrder/verifyNoMoreInteractions(fileID:filePath:line:column:)``,
 which remains the explicit strict terminator for the older fluent chain. It
 reports the same per-double diagnostic as `Stub.verifyNoMoreInteractions()` and
-`ManualStub.verifyNoMoreInteractions()`, for every double this session verified
+`CompiledStub.verifyNoMoreInteractions()`, for every double this session verified
 at least once. A double the session never touched is out of scope, even if it
 has recorded calls of its own — check that one directly.
 
@@ -359,7 +359,7 @@ stub.clearConfiguredBehaviors()
 stub.when { $0.track(event: Match.any(), value: Match.any()) }.thenReturn(())  // fresh
 ```
 
-`reset()` on ``Stub``, ``Spy``, and ``ManualStub`` does both at once, restoring
+`reset()` on ``Stub``, ``Spy``, and ``CompiledStub`` does both at once, restoring
 the just-constructed state so one double can be reconfigured from scratch
 across parameterized cases:
 

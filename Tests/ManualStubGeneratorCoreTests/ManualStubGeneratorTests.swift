@@ -20,7 +20,7 @@ import Testing
         #expect(output.contains("struct RendererStubConformer"))
         #expect(
             output.contains(
-                "typealias RendererStub = ManualStub<RendererStubConformer>"
+                "typealias RendererStub = CompiledStub<RendererStubConformer>"
             )
         )
         #expect(
@@ -90,7 +90,7 @@ import Testing
         )
         #expect(
             output.contains(
-                "init(stub: ManualStub<ImageLoaderStubConformer>) { self.stub = stub }"
+                "init(stub: CompiledStub<ImageLoaderStubConformer>) { self.stub = stub }"
             )
         )
         #expect(output.contains("struct ImageLoaderStubConformer") == false)

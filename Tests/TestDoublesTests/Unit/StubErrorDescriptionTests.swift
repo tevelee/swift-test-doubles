@@ -106,7 +106,7 @@ private let stubErrorDescriptions: [(StubError, String)] = [
         "Could not discover the signature of 'Service' requirement 2. No replacement was observed.\n"
             + "Recovery: Prefer a `Stub.Requirement` using `signatureOf:` when it "
             + "supports the declaration. Use a source-less factory only when "
-            + "necessary and match the ABI shape exactly. Otherwise use `ManualStub` "
+            + "necessary and match the ABI shape exactly. Otherwise use `CompiledStub` "
             + "with a hand-written `ManualStubConformer`."
     ),
     (
@@ -126,7 +126,7 @@ private let stubErrorDescriptions: [(StubError, String)] = [
 ]
 
 private let manualStubbingRecovery =
-    "Recovery: Use `ManualStub` with a hand-written `ManualStubConformer`, or write a "
+    "Recovery: Use `CompiledStub` with a hand-written `ManualStubConformer`, or write a "
     + "hand-written fake, when this protocol must be stubbed."
 
 // Mirrors the branch `StubError` reports on the platform under test.

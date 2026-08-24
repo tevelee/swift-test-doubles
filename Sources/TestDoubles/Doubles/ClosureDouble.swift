@@ -340,7 +340,7 @@ public final class ClosureDouble<Input, Result> {
     }
 
     /// Invokes the double. A call is recorded before its configured behavior
-    /// runs, matching ``Stub`` and ``ManualStub`` observation semantics.
+    /// runs, matching ``Stub`` and ``CompiledStub`` observation semantics.
     public func callAsFunction(_ input: Input) -> Result {
         guard let forwardingTarget else {
             return storage.dispatchMethod(route: route, args: [input])

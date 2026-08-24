@@ -20,8 +20,8 @@ package struct ManualStubGenerator {
         let conformerKind = declaration.inheritsActor ? "actor" : "struct"
         var members = [
             declaration.inheritsActor
-                ? "let stub: ManualStub<\(conformerName)>\n\n    init(stub: ManualStub<\(conformerName)>) { self.stub = stub }"
-                : "let stub: ManualStub<Self>"
+                ? "let stub: CompiledStub<\(conformerName)>\n\n    init(stub: CompiledStub<\(conformerName)>) { self.stub = stub }"
+                : "let stub: CompiledStub<Self>"
         ]
         for requirement in requirements {
             try requireInstanceRequirement(requirement)
@@ -39,9 +39,9 @@ package struct ManualStubGenerator {
                 \(members.joined(separator: "\n\n    "))
             }
 
-            typealias \(stubName) = ManualStub<\(conformerName)>
+            typealias \(stubName) = CompiledStub<\(conformerName)>
 
-            extension ManualStub where T == \(conformerName) {
+            extension CompiledStub where T == \(conformerName) {
                 /// Tries runtime synthesis, then uses this compiled conformer when needed.
                 static func automatic() -> Stub<any \(protocolName)> {
                     Stub(

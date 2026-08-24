@@ -80,7 +80,7 @@ isolation. See
 - ``InteractionHistory``
 - ``InteractionTimeline``
 - ``StubClock``
-- ``ManualStubClock``
+- ``TestDoubleClock``
 - <doc:FunctionValues>
 
 ### Inspecting and Ordering Interactions
@@ -128,7 +128,7 @@ isolation. See
 
 ### Manual Stubbing
 
-- ``ManualStub``
+- ``CompiledStub``
 - ``ManualStubConformer``
 - ``ManualRequirementRoute``
 - ``ManualThrowingRequirementRoute``

@@ -2,11 +2,11 @@
 ///
 /// Conform your stub struct to both your protocol and
 /// `ManualStubConformer`, and
-/// forward each requirement to a `ManualStub<Self>`:
+/// forward each requirement to a `CompiledStub<Self>`:
 ///
 /// ```swift
 /// struct MyServiceStub: MyService, ManualStubConformer {
-///     let stub: ManualStub<Self>
+///     let stub: CompiledStub<Self>
 ///     func fetch(id: Int) -> String { stub.requirements.fetch(id: id) }
 ///     func reset() { stub.requirements.reset() }
 /// }
@@ -17,33 +17,33 @@ public protocol ManualStubConformer {
     /// Creates a conformer backed by `stub`.
     ///
     /// Most stub structs satisfy this requirement with a synthesized
-    /// memberwise initializer for a stored `let stub: ManualStub<Self>`.
-    init(stub: ManualStub<Self>)
+    /// memberwise initializer for a stored `let stub: CompiledStub<Self>`.
+    init(stub: CompiledStub<Self>)
 }
 
 /// An explicitly constructed test double backed by the shared recording and
 /// behavior engine.
 ///
-/// Unlike ``Stub``, `ManualStub` never introspects a witness table or generates
+/// Unlike ``Stub``, `CompiledStub` never introspects a witness table or generates
 /// executable code. A ``ManualStubConformer`` can forward protocol
 /// requirements explicitly, while ``ClientStub`` constructs closure-field
 /// dependency values through ``ClientStubEndpoints``. Both paths use the same
 /// matching, verification, and diagnostic behavior as ``Stub``.
 ///
 /// ```swift
-/// let stub = ManualStub<MyServiceStub>()
+/// let stub = CompiledStub<MyServiceStub>()
 /// stub.when { $0.fetch(id: Match.equal(42)) }.thenReturn("Alice")
 ///
 /// let service: any MyService = stub()
 /// // service.fetch(id: 42) == "Alice"
 /// ```
 @dynamicMemberLookup
-public final class ManualStub<T>: @unchecked Sendable {
+public final class CompiledStub<T>: @unchecked Sendable {
     let recorder: StubRecorder
-    private let materializer: (ManualStub<T>) -> T
+    private let materializer: (CompiledStub<T>) -> T
 
     init(
-        materializing materializer: @escaping (ManualStub<T>) -> T,
+        materializing materializer: @escaping (CompiledStub<T>) -> T,
         allowsForwardingFallback: Bool = false
     ) {
         recorder = StubRecorder(
@@ -70,7 +70,7 @@ public final class ManualStub<T>: @unchecked Sendable {
     /// Assigns a name used in automatic test-double teardown diagnostics.
     ///
     /// ```swift
-    /// let service = ManualStub<MyServiceStub>().named("service")
+    /// let service = CompiledStub<MyServiceStub>().named("service")
     /// ```
     @discardableResult
     public func named(_ name: String) -> Self {
@@ -91,7 +91,7 @@ public final class ManualStub<T>: @unchecked Sendable {
     /// A collision-free namespace for forwarding non-throwing requirements.
     ///
     /// Use this route from hand-written conformers so requirement names never
-    /// collide with `ManualStub`'s configuration and verification API:
+    /// collide with `CompiledStub`'s configuration and verification API:
     ///
     /// ```swift
     /// func reset() { stub.requirements.reset() }
@@ -560,7 +560,7 @@ public final class ManualStub<T>: @unchecked Sendable {
                 )
             case .forwarding:
                 preconditionFailure(
-                    "[TestDoubles] ManualStub cannot dispatch a forwarding Spy fallback."
+                    "[TestDoubles] CompiledStub cannot dispatch a forwarding Spy fallback."
                 )
         }
     }
@@ -572,14 +572,17 @@ public final class ManualStub<T>: @unchecked Sendable {
         forwardingMethod: String
     ) -> Never {
         fatalError(
-            "[TestDoubles] Typed ManualStub handler error mismatch for '\(method)': "
+            "[TestDoubles] Typed CompiledStub handler error mismatch for '\(method)': "
                 + "expected \(expected), got \(type(of: actual)). Configure a \(expected) "
                 + "error or use the untyped `\(forwardingMethod)` overload."
         )
     }
 }
 
-extension ManualStub where T: ManualStubConformer {
+/// Compatibility spelling for ``CompiledStub``.
+public typealias ManualStub<T> = CompiledStub<T>
+
+extension CompiledStub where T: ManualStubConformer {
     /// Creates an empty manual stub backed by `T.init(stub:)`.
     ///
     /// No requirements are validated up front. Each requirement is discovered
