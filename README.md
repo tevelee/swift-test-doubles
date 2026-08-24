@@ -382,19 +382,17 @@ non-closure configuration inputs, and initialized immutable closure defaults.
 Name global, imported, or generic closure-alias fields in `aliasedEndpoints` so
 the generated wiring can use their declared function type directly.
 
-The generated namespace also exposes a fail-closed concrete `testValue`, built
-on the same `ClientDoublePreset.testValue()` shown above, ready for
-closure-client ecosystems such as swift-dependencies and TCA without an
-integration module:
+Use the hand-written preset directly with swift-dependencies, TCA, or another
+environment-style dependency system. No TestDoubles macro is involved:
 
 ```swift
 extension APIClient: TestDependencyKey {
-    static var testValue: Self { APIClientDoubles.testValue }
+    static var testValue: Self { apiClients.testValue() }
 }
 
 @Test(
     .dependencies {
-        $0.apiClient = await APIClientDoubles.preset.testValue { stub in
+        $0.apiClient = await apiClients.testValue { stub in
             await stub.when { try await $0.fetch(Match.equal(42)) }
                 .thenReturn(Data())
         }
@@ -406,9 +404,12 @@ func loadsFromTheConfiguredDependency() async throws {
 }
 ```
 
-If the generated preset needs non-closure inputs, the namespace emits a
-matching `testValue(...)` function. TCA tests can assign either form directly
-through `store.dependencies`.
+The macro-generated namespace is shorthand for the same API:
+`APIClientDoubles.testValue` is equivalent to `apiClients.testValue()`, and
+`APIClientDoubles.preset.testValue { ... }` is equivalent to the configured
+manual form above. If the generated preset needs non-closure inputs, the
+namespace emits a matching `testValue(...)` function. TCA tests can assign
+either form directly through `store.dependencies`.
 
 ### Control async timing
 

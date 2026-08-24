@@ -13,6 +13,17 @@ private struct ManualOnlyServiceStub: ManualOnlyService, ManualStubConformer {
     }
 }
 
+private struct ManualClosureClient: Sendable {
+    var load: @Sendable (Int) async -> String
+}
+
+private let manualClosureClientTestValues =
+    ClientDoublePreset<ManualClosureClient> { endpoints in
+        ManualClosureClient(
+            load: endpoints.asyncFunction("load")
+        )
+    }
+
 @Test
 func manualStubWorksWithoutRuntimeFabrication() {
     let stub = ManualStub<ManualOnlyServiceStub>()
@@ -48,4 +59,14 @@ func automaticStubUsesCompiledFallbackWithoutRuntimeTrait() {
     #expect(stub().value(for: 7) == "seven")
     #expect(stub.constructionStrategy == .compiledFallback)
     #expect(stub.runtimeFallbackReason?.description.contains("RuntimeStubs") == true)
+}
+
+@Test
+func closureClientTestValueNeedsNeitherRuntimeFabricationNorMacros() async {
+    let client = await manualClosureClientTestValues.testValue { stub in
+        await stub.when { await $0.load(Match.equal(42)) }
+            .thenReturn("forty-two")
+    }
+
+    #expect(await client.load(42) == "forty-two")
 }

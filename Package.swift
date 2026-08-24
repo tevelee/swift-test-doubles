@@ -49,8 +49,8 @@ let package = Package(
             "0.1.1" ..< "0.2.0"
         ),
         .package(
-            url: "https://github.com/pointfreeco/xctest-dynamic-overlay",
-            from: "1.11.0"
+            url: "https://github.com/pointfreeco/swift-issue-reporting",
+            from: "2.0.0"
         ),
         .package(
             url: "https://github.com/swiftlang/swift-syntax.git",
@@ -177,7 +177,7 @@ private func allTargets(
                     name: "TestDoublesRuntimeSupport",
                     condition: .when(traits: ["RuntimeStubs"])
                 ),
-                .product(name: "IssueReporting", package: "xctest-dynamic-overlay")
+                .product(name: "IssueReporting", package: "swift-issue-reporting")
             ],
             swiftSettings: [
                 .define(
@@ -190,7 +190,7 @@ private func allTargets(
             name: "TestDoublesTesting",
             dependencies: [
                 "TestDoubles",
-                .product(name: "IssueReporting", package: "xctest-dynamic-overlay")
+                .product(name: "IssueReporting", package: "swift-issue-reporting")
             ]
         ),
         .target(
@@ -282,6 +282,15 @@ private func allTargets(
                 .target(
                     name: "TestDoublesMacros",
                     condition: .when(traits: ["StubbableMacros"])
+                ),
+                .product(
+                    name: "IssueReportingTestSupport",
+                    package: "swift-issue-reporting",
+                    // MacroTesting's SnapshotTesting dependency also provides
+                    // this module name through XCTestDynamicOverlay.
+                    moduleAliases: [
+                        "IssueReportingTestSupport": "TestDoublesIssueReportingTestSupport"
+                    ]
                 )
             ],
             swiftSettings: [
@@ -301,11 +310,14 @@ private func allTargets(
                 .product(
                     name: "MacroTesting",
                     package: "swift-macro-testing",
+                    moduleAliases: [
+                        "IssueReporting": "MacroTestingIssueReporting"
+                    ],
                     condition: .when(traits: ["StubbableMacros"])
                 ),
                 .product(
                     name: "IssueReporting",
-                    package: "xctest-dynamic-overlay",
+                    package: "swift-issue-reporting",
                     condition: .when(traits: ["StubbableMacros"])
                 )
             ],

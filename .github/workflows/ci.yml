@@ -160,8 +160,6 @@ jobs:
           --scratch-path .build/ci-current
       - name: Test external runtime consumer
         run: Scripts/validate-runtime-consumer.sh
-      - name: Test swift-dependencies client integration
-        run: Scripts/validate-dependencies-client.sh
   linux:
     name: Swift 6.3 / Ubuntu 24.04 / ${{ matrix.architecture }}
     strategy:
@@ -201,9 +199,6 @@ jobs:
           --scratch-path .build/manual-only
       - name: Test external runtime consumer
         run: Scripts/validate-runtime-consumer.sh
-      - name: Test swift-dependencies client integration
-        if: matrix.architecture == 'x86_64'
-        run: Scripts/validate-dependencies-client.sh
       - name: Test debug
         run: >-
           swift test

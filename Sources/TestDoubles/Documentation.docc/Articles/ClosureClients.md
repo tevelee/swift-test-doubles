@@ -227,38 +227,26 @@ closures retain their recorder even though the controller is not returned.
 build or use them: construct the preset by hand, as shown above, wherever a
 concrete fail-closed value is all a test or a dependency key needs.
 
-### Install generated values in swift-dependencies and TCA
+### Install test values in swift-dependencies and TCA
 
-`@StubbableClient` is an opt-in convenience that derives a `ClientDoublePreset`
-from a closure-field struct's stored properties instead of writing the
-`ClientDoublePreset` initializer by hand. Its generated namespace exposes the
-same fail-closed concrete `testValue`, built on `ClientDoublePreset.testValue()`
-under the hood. Use either the manual preset or the macro-generated namespace
-to implement a swift-dependencies test key without coupling the client or
-TestDoubles to that package:
+The manual preset can supply a swift-dependencies test key directly. This form
+uses no TestDoubles macro:
 
 ```swift
 import Dependencies
 
 extension APIClient: TestDependencyKey {
-    static var testValue: Self { APIClientDoubles.testValue }
+    static var testValue: Self { apiClients.testValue() }
 }
 ```
 
-The same value can be assigned directly to a key-path dependency, including a
-TCA `TestStore` dependency:
-
-```swift
-store.dependencies.apiClient = APIClientDoubles.testValue
-```
-
-For a configured Swift Testing override, build the concrete value from the
-generated preset inside the dependency trait:
+For a configured Swift Testing override, build the concrete value inside the
+dependency trait:
 
 ```swift
 @Test(
     .dependencies {
-        $0.apiClient = await APIClientDoubles.preset.testValue { stub in
+        $0.apiClient = await apiClients.testValue { stub in
             await stub.when { try await $0.fetchUser(Match.equal(42)) }
                 .thenReturn(testUser)
         }
@@ -270,8 +258,18 @@ func loadsTheUser() async throws {
 }
 ```
 
-Clients whose generated preset requires non-closure inputs receive a matching
-`testValue(...)` function instead of a property.
+TCA uses the same dependency values. Materialize a manual preset and assign the
+result through `store.dependencies`:
+
+```swift
+store.dependencies.apiClient = apiClients.testValue()
+```
+
+`@StubbableClient` is an optional convenience for deriving the preset wiring.
+When enabled, `APIClientDoubles.testValue` is equivalent to
+`apiClients.testValue()` in these examples. Clients whose generated preset
+requires non-closure inputs receive a matching `testValue(...)` function
+instead of a property.
 
 When the `StubbableMacros` package trait is enabled, `@StubbableClient` can
 derive the preset from stored closure fields:
