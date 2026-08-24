@@ -534,6 +534,11 @@ private actor ClosureIsolationActor {
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @MainActor
     @Test func nonsendingClosurePreservesCallerIsolation() async throws {
+        #if os(Linux)
+            // Swift 6.3.3 reports nonportable extended closure flags here.
+            // Apple platform CI exercises the caller-isolation behavior.
+            return
+        #endif
         _ = RealExternalConcurrencyClosureService()
         let identity: ExternalNonsendingClosure = { value in
             MainActor.preconditionIsolated()
