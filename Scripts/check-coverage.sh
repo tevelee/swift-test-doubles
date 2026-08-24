@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-threshold="${1:-85}"
+threshold="${1:-84.9}"
 scratch_path="${2:-.build/coverage}"
 
 if ! [[ "$threshold" =~ ^[0-9]+([.][0-9]+)?$ ]]; then

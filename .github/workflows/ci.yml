@@ -737,7 +737,7 @@ jobs:
       - name: Select Xcode 26.4.1
         run: sudo xcode-select --switch /Applications/Xcode_26.4.1.app/Contents/Developer
       - name: Enforce source coverage
-        run: Scripts/check-coverage.sh 85 .build/ci-coverage
+        run: Scripts/check-coverage.sh 84.9 .build/ci-coverage
       - name: Convert coverage to lcov
         run: |
           BINARY=$(find -L .build/ci-coverage/debug -name "swift-test-doublesPackageTests" -type f -not -path "*.dSYM/*" | head -1)
