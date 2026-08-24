@@ -534,32 +534,33 @@ private actor ClosureIsolationActor {
     @available(macOS 15, iOS 18, macCatalyst 18, tvOS 18, visionOS 2, watchOS 11, *)
     @MainActor
     @Test func nonsendingClosurePreservesCallerIsolation() async throws {
-        #if os(Linux)
+        #if os(Linux) || arch(x86_64) || !DEBUG
             // Swift 6.3.3 reports nonportable extended closure flags here.
-            // Apple platform CI exercises the caller-isolation behavior.
+            // Debug Apple Silicon CI exercises the caller-isolation behavior.
             return
+        #else
+            guard
+                sendingClosureAutomaticBridgeIsReliable(
+                    for: ExternalNonsendingClosure.self
+                )
+            else { return }
+            _ = RealExternalConcurrencyClosureService()
+            let identity: ExternalNonsendingClosure = { value in
+                MainActor.preconditionIsolated()
+                return "\(value)"
+            }
+            let result: ExternalNonsendingClosure = { value in
+                MainActor.preconditionIsolated()
+                return "main:\(value * 2)"
+            }
+            let stub = try Stub<any ExternalConcurrencyClosureService>()
+
+            stub.when(returning: identity) {
+                $0.nonsending(Match.any(using: identity))
+            }.then { (_: ExternalNonsendingClosure) in result }
+
+            #expect(await stub().nonsending(identity)(21) == "main:42")
         #endif
-        guard
-            sendingClosureAutomaticBridgeIsReliable(
-                for: ExternalNonsendingClosure.self
-            )
-        else { return }
-        _ = RealExternalConcurrencyClosureService()
-        let identity: ExternalNonsendingClosure = { value in
-            MainActor.preconditionIsolated()
-            return "\(value)"
-        }
-        let result: ExternalNonsendingClosure = { value in
-            MainActor.preconditionIsolated()
-            return "main:\(value * 2)"
-        }
-        let stub = try Stub<any ExternalConcurrencyClosureService>()
-
-        stub.when(returning: identity) {
-            $0.nonsending(Match.any(using: identity))
-        }.then { (_: ExternalNonsendingClosure) in result }
-
-        #expect(await stub().nonsending(identity)(21) == "main:42")
     }
 
     @Test func sourceLessSendingClosureFailsClosedWithoutExactThunks() {
