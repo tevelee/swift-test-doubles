@@ -127,6 +127,74 @@ enum MatcherContext {
 /// occupying the module's global function namespace.
 public enum Match {}
 
+/// Captures matching argument values for later inspection.
+///
+/// Pass ``capture()`` or ``capture(using:)`` inside a `when` or `verify`
+/// expression, then inspect the snapshot returned by ``values``.
+public final class ArgumentCaptor<Value> {
+    private let lock = NSLock()
+    private var storage: [Value] = []
+
+    /// All captured values, in call order.
+    public var values: [Value] { withLock { storage } }
+
+    /// The first captured value.
+    public var first: Value? { withLock { storage.first } }
+
+    /// The most recently captured value.
+    public var last: Value? { withLock { storage.last } }
+
+    /// Creates an empty argument captor.
+    public init() {}
+
+    /// Returns a matcher placeholder that captures each matching argument.
+    ///
+    /// This overload synthesizes a valid recording placeholder. For reference,
+    /// existential, or other unsupported types, use ``capture(using:)``.
+    public func capture() -> Value {
+        MatcherContext.append(CaptureMatcher(captor: self))
+        return MatcherContext.returning(
+            synthesizedPlaceholder(
+                for: "ArgumentCaptor.capture()",
+                fallback: "ArgumentCaptor.capture(using:)"
+            )
+        )
+    }
+
+    /// Returns a matcher placeholder that captures each matching argument.
+    ///
+    /// Use this overload when ``capture()`` cannot safely synthesize a value.
+    /// The placeholder is never captured.
+    public func capture(using placeholder: Value) -> Value {
+        MatcherContext.append(CaptureMatcher(captor: self))
+        return MatcherContext.returning(placeholder)
+    }
+
+    /// Removes all previously captured values.
+    public func removeAll() {
+        withLock { storage.removeAll() }
+    }
+
+    /// Removes all previously captured values.
+    public func reset() {
+        removeAll()
+    }
+
+    func append(_ value: Value) {
+        withLock { storage.append(value) }
+    }
+
+    private func withLock<Result>(_ operation: () -> Result) -> Result {
+        lock.lock()
+        defer { lock.unlock() }
+        return operation()
+    }
+}
+
+/// An argument captor uses a lock to serialize its storage. It can cross
+/// concurrency domains when its captured values can do so safely as well.
+extension ArgumentCaptor: @unchecked Sendable where Value: Sendable {}
+
 extension Match {
     /// Matches any argument of type `T`.
     ///
@@ -196,68 +264,9 @@ extension Match {
         return MatcherContext.returning(placeholder)
     }
 
-    /// Captures matching argument values for later inspection.
-    public final class Capture<T> {
-        private let lock = NSLock()
-        private var storage: [T] = []
-
-        /// All captured values, in call order.
-        public var values: [T] { withLock { storage } }
-
-        /// The first captured value.
-        public var first: T? { withLock { storage.first } }
-
-        /// The most recently captured value.
-        public var last: T? { withLock { storage.last } }
-
-        /// Creates an empty capture.
-        public init() {}
-
-        /// Returns a matcher placeholder that captures each matching argument.
-        ///
-        /// This overload synthesizes a valid recording placeholder. For reference,
-        /// existential, or other unsupported types, use ``capture(using:)``.
-        public func capture() -> T {
-            MatcherContext.append(CaptureMatcher(capture: self))
-            return MatcherContext.returning(
-                synthesizedPlaceholder(
-                    for: "Match.Capture.capture()",
-                    fallback: "Match.Capture.capture(using:)"
-                )
-            )
-        }
-
-        /// Returns a matcher placeholder that captures each matching argument.
-        ///
-        /// Use this overload when ``capture()`` cannot safely synthesize a value,
-        /// such as for reference or existential types. The placeholder is never captured.
-        ///
-        /// - Parameter placeholder: A valid value accepted by the stubbed requirement.
-        public func capture(using placeholder: T) -> T {
-            MatcherContext.append(CaptureMatcher(capture: self))
-            return MatcherContext.returning(placeholder)
-        }
-
-        /// Removes all previously captured values.
-        public func reset() {
-            withLock { storage.removeAll() }
-        }
-
-        func append(_ value: T) {
-            withLock { storage.append(value) }
-        }
-
-        private func withLock<Result>(_ operation: () -> Result) -> Result {
-            lock.lock()
-            defer { lock.unlock() }
-            return operation()
-        }
-    }
+    /// Compatibility spelling for ``ArgumentCaptor``.
+    public typealias Capture<Value> = ArgumentCaptor<Value>
 }
-
-/// A capture uses a lock to serialize its storage. It can cross concurrency
-/// domains only when its captured values can do so safely as well.
-extension Match.Capture: @unchecked Sendable where T: Sendable {}
 
 /// Synthesizes the recording placeholder a matcher returns at its call site,
 /// preferring a suite-wide registered factory, or traps pointing at the

@@ -351,7 +351,7 @@ Nested matchers remain one positional matcher. This also makes capture and a
 constraint compose safely:
 
 ```swift
-let positiveIDs = Match.Capture<Int>()
+let positiveIDs = ArgumentCaptor<Int>()
 
 stub.when {
     $0.load(
@@ -364,7 +364,7 @@ stub.when {
 ```
 
 Only arguments accepted by the complete `allOf` expression are captured.
-``Match/Capture`` exposes `values`, `first`, `last`, and `reset()`.
+``ArgumentCaptor`` exposes `values`, `first`, `last`, `removeAll()`, and `reset()`.
 
 For placeholders used throughout a suite, register one exact-type factory:
 

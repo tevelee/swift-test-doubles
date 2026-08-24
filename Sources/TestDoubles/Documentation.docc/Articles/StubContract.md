@@ -237,7 +237,7 @@ immediately and defaults to `1 ... 1`, meaning exactly once. It accepts any
 `RangeExpression<Int>`: use `1...`, `...2`, or `2...4` to express lower bounds,
 upper bounds, and closed ranges directly. `.exactly(2)` and `.never` are
 secondary conveniences for the two cases that ranges spell less clearly. A
-``Match/Capture`` in the verification call captures matching arguments for
+``ArgumentCaptor`` in the verification call captures matching arguments for
 later assertions. A failed count expectation is reported through
 IssueReporting at the caller's file, line, and column, allowing Swift Testing
 or XCTest to record a normal issue without terminating the process. Call
@@ -279,7 +279,7 @@ requirement, or violating the runtime ABI contract remains fatal.
 
 ### Matcher recording placeholders
 
-`Match.any()`, `Match.matching(description:where:)`, and ``Match/Capture/capture()``
+`Match.any()`, `Match.matching(description:where:)`, and ``ArgumentCaptor/capture()``
 synthesize valid temporary values while the `when` or `verify` closure records
 an invocation. TestDoubles initializes only layouts it can form safely, such as
 supported scalar, tuple, enum/optional, metatype, string, array, and recursively
@@ -289,7 +289,7 @@ A reference, existential, function, recursive value, or another unsupported
 layout cannot be fabricated as a valid Swift value. Pass a valid value accepted
 by the requirement to `Match.any(using:)`,
 `Match.matching(using:description:where:)`, or
-``Match/Capture/capture(using:)``. That value exists only to make the recorded
+``ArgumentCaptor/capture(using:)``. That value exists only to make the recorded
 protocol call valid; it does not participate in matching and is not captured.
 
 A requirement result may also need a valid value while the `when` or `verify`
@@ -632,7 +632,7 @@ When `P` conforms to `Sendable`, `stub()` resolves to a `Sendable`-constrained
 overload, so the returned existential may cross isolation domains with the
 compiler checking that guarantee. When `P` does not conform to `Sendable`,
 keep the generated value on the isolation domain that configured it.
-``Match/Capture`` is conditionally `Sendable` when its captured value is
+``ArgumentCaptor`` is conditionally `Sendable` when its captured value is
 `Sendable`.
 
 The generated existential retains its payload, recorder, fabricated witness

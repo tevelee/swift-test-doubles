@@ -188,13 +188,13 @@ protocol OptionalMatcherPlaceholderService {
         _ = service.find(id: 7)
         _ = service.find(id: 13)
 
-        let ids = Match.Capture<Int>()
+        let ids = ArgumentCaptor<Int>()
         stub.verify(.exactly(2)) { $0.find(id: ids.capture()) }
 
         #expect(ids.values == [7, 13])
         #expect(ids.first == 7)
         #expect(ids.last == 13)
-        ids.reset()
+        ids.removeAll()
         #expect(ids.values.isEmpty)
     }
 
@@ -233,7 +233,7 @@ protocol OptionalMatcherPlaceholderService {
         let counts = Match.Capture<Int>()
         let matcher = ProjectionMatcher(
             label: "count",
-            matchers: [CaptureMatcher(capture: counts)]
+            matchers: [CaptureMatcher(captor: counts)]
         ) { value in
             projections.increment()
             return (value as? [Int])?.count

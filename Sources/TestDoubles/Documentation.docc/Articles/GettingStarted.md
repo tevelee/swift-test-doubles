@@ -183,7 +183,7 @@ stub.when {
     })
 }.thenReturn("active")
 
-let users = Match.Capture<ReferenceUser>()
+let users = ArgumentCaptor<ReferenceUser>()
 stub.verify { $0.save(user: users.capture(using: placeholder)) }
 ```
 
@@ -259,8 +259,8 @@ let notifications: any NotificationService = stub()
 try notifications.send(to: 1, message: "Welcome")
 try notifications.send(to: 2, message: "Try again")
 
-let recipients = Match.Capture<Int>()
-let messages = Match.Capture<String>()
+let recipients = ArgumentCaptor<Int>()
+let messages = ArgumentCaptor<String>()
 stub.verify(2 ... 2) {
     try $0.send(to: recipients.capture(), message: messages.capture())
 }

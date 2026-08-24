@@ -150,7 +150,7 @@ protocol requirement.
 
 Function values cannot be synthesized as recording placeholders. Use
 ``Match/any(using:)``, `Match.matching(using:description:where:)``, or
-``Match/Capture/capture(using:)`` for a function argument. Use
+``ArgumentCaptor/capture(using:)`` for a function argument. Use
 `when(returning:_:)` and `verify(_:returning:_:)` for a function result.
 
 When a callback is the first of several arguments, use the synchronous or

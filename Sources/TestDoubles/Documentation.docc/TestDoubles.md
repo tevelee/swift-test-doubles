@@ -152,7 +152,7 @@ isolation. See
 - ``CustomMatcher``
 - ``Match/custom(_:)``
 - ``Match/custom(using:_:)``
-- ``Match/Capture``
+- ``ArgumentCaptor``
 - ``ClosureDouble``
 - ``ClosureCallPattern``
 - ``VoidClosureDouble``

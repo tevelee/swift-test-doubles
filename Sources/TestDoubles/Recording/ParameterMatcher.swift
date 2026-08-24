@@ -109,12 +109,12 @@ struct AnyMatcher: ParameterMatcher {
 }
 
 struct CaptureMatcher<T>: ParameterMatcher {
-    let capture: Match.Capture<T>
+    let captor: ArgumentCaptor<T>
 
     func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
         guard let value = value as? T else { return nil }
         return PreparedMatcherTransaction {
-            capture.append(value)
+            captor.append(value)
         }
     }
 
