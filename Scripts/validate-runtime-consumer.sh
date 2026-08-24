@@ -15,10 +15,15 @@ fi
     --package-path "$root/Tests/RuntimeConsumerClient" \
     --scratch-path "$root/.build/runtime-consumer"
 
+# Xcode 26.6 can crash in LoadableByAddress when it batch-compiles the async
+# stream and closure consumer tests as multiple primary files. Compile each
+# source independently while retaining the same debug and release coverage.
 "${swift_command[@]}" test \
     --package-path "$root/Tests/RuntimeConsumerClient" \
-    --scratch-path "$root/.build/runtime-consumer"
+    --scratch-path "$root/.build/runtime-consumer" \
+    -Xswiftc -disable-batch-mode
 "${swift_command[@]}" test \
     -c release \
     --package-path "$root/Tests/RuntimeConsumerClient" \
-    --scratch-path "$root/.build/runtime-consumer"
+    --scratch-path "$root/.build/runtime-consumer" \
+    -Xswiftc -disable-batch-mode
