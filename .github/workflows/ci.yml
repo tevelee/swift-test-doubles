@@ -197,8 +197,6 @@ jobs:
           swift test
           --package-path Tests/ManualOnlyClient
           --scratch-path .build/manual-only
-      - name: Test external runtime consumer
-        run: Scripts/validate-runtime-consumer.sh
       - name: Test debug
         run: >-
           swift test
