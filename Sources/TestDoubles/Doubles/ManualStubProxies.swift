@@ -102,11 +102,6 @@ public struct ManualThrowingRequirementRoute<T> {
     }
 }
 
-/// Compatibility name for ``ManualThrowingRequirementRoute``.
-@available(*, deprecated, renamed: "ManualThrowingRequirementRoute")
-public typealias ManualThrowingRoute<T> =
-    ManualThrowingRequirementRoute<T>
-
 /// A dynamic-call proxy used by throwing manual requirement forwarding.
 @dynamicCallable
 @_documentation(visibility: internal)
