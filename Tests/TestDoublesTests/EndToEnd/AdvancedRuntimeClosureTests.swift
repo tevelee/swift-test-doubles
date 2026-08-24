@@ -539,6 +539,11 @@ private actor ClosureIsolationActor {
             // Apple platform CI exercises the caller-isolation behavior.
             return
         #endif
+        guard
+            sendingClosureAutomaticBridgeIsReliable(
+                for: ExternalNonsendingClosure.self
+            )
+        else { return }
         _ = RealExternalConcurrencyClosureService()
         let identity: ExternalNonsendingClosure = { value in
             MainActor.preconditionIsolated()
