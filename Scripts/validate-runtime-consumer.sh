@@ -15,10 +15,10 @@ fi
     --package-path "$root/Tests/RuntimeConsumerClient" \
     --scratch-path "$root/.build/runtime-consumer"
 
-# Xcode 26.6 crashes in LoadableByAddress while compiling the external async
-# stream consumer. The root debug and release suites already exercise that API;
-# retain the other out-of-package checks until the compiler bug is fixed.
-export TESTDOUBLES_EXCLUDE_STREAM_CONSUMER_TESTS=1
+# Xcode 26.6 crashes in LoadableByAddress while compiling several external ABI
+# stress fixtures. The root debug and release suites exercise those APIs. Keep
+# this check focused on compiling and running an ordinary out-of-package client.
+export TESTDOUBLES_MINIMAL_RUNTIME_CONSUMER_TESTS=1
 
 "${swift_command[@]}" test \
     --package-path "$root/Tests/RuntimeConsumerClient" \

@@ -1,5 +1,11 @@
 import Foundation
 
+/// A deliberately simple imported protocol used to smoke-test ordinary
+/// out-of-package consumers independently of resilient ABI stress fixtures.
+public protocol RuntimeConsumerSmokeService: Sendable {
+    func value(for identifier: Int) -> Int
+}
+
 /// A value whose client ABI is resilient to this module's future evolution.
 public struct ExternalReservation: Comparable, Equatable, Sendable {
     public let start: UInt64

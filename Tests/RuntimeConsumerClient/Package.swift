@@ -3,11 +3,21 @@
 import PackageDescription
 import Foundation
 
-let excludedConsumerTests =
+let minimalRuntimeConsumerTests =
     ProcessInfo.processInfo.environment[
-        "TESTDOUBLES_EXCLUDE_STREAM_CONSUMER_TESTS"
+        "TESTDOUBLES_MINIMAL_RUNTIME_CONSUMER_TESTS"
     ] == "1"
-    ? ["AsyncStreamControllerConsumerTests.swift"]
+
+let excludedConsumerTests =
+    minimalRuntimeConsumerTests
+    ? [
+        "AsyncStreamControllerConsumerTests.swift",
+        "ClosureArgumentConsumerTests.swift",
+        "ExistentialArgumentConsumerTests.swift",
+        "NestedValueConsumerTests.swift",
+        "PointerConsumerTests.swift",
+        "RuntimeConsumerClientTests.swift"
+    ]
     : []
 
 let package = Package(
