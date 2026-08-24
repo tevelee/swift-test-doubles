@@ -270,7 +270,7 @@ extension ClosureCallPattern {
     public func thenArguments<each Argument>(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (repeat each Argument) -> Result
-    ) -> CallInteractions
+    ) -> ConfiguredCall<Result>
     where Input == (repeat each Argument) {
         then(times: times) { (input: Input) in
             handler(repeat each input)
@@ -305,7 +305,7 @@ extension ClosureCallPattern {
                 Int,
                 repeat each Argument
             ) -> Result
-    ) -> CallInteractions
+    ) -> ConfiguredCall<Result>
     where Input == (repeat each Argument) {
         thenForEachCall(times: times) { (count: Int, input: Input) in
             handler(count, repeat each input)
@@ -338,7 +338,7 @@ extension ThrowingClosureCallPattern {
             @escaping @Sendable (
                 repeat each Argument
             ) throws -> Result
-    ) -> CallInteractions
+    ) -> ConfiguredCall<Result>
     where Input == (repeat each Argument) {
         then(times: times) { (input: Input) in
             try handler(repeat each input)
@@ -373,7 +373,7 @@ extension ThrowingClosureCallPattern {
                 Int,
                 repeat each Argument
             ) throws -> Result
-    ) -> CallInteractions
+    ) -> ConfiguredCall<Result>
     where Input == (repeat each Argument) {
         thenForEachCall(times: times) { (count: Int, input: Input) in
             try handler(count, repeat each input)
@@ -400,7 +400,7 @@ extension AsyncClosureCallPattern {
     public func thenArguments<each Argument>(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (repeat each Argument) -> Result
-    ) -> CallInteractions
+    ) -> ConfiguredCall<Result>
     where Input == (repeat each Argument) {
         then(times: times) { (input: Input) in
             handler(repeat each input)
@@ -426,7 +426,7 @@ extension AsyncClosureCallPattern {
     public func thenArguments<each Argument>(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping (repeat each Argument) async -> Result
-    ) -> CallInteractions
+    ) -> ConfiguredCall<Result>
     where Input == (repeat each Argument) {
         then(times: times) { (input: Input) in
             await handler(repeat each input)
@@ -461,7 +461,7 @@ extension AsyncClosureCallPattern {
                 Int,
                 repeat each Argument
             ) async -> Result
-    ) -> CallInteractions
+    ) -> ConfiguredCall<Result>
     where Input == (repeat each Argument) {
         thenForEachCall(times: times) { (count: Int, input: Input) in
             await handler(count, repeat each input)
@@ -494,7 +494,7 @@ extension AsyncThrowingClosureCallPattern {
             @escaping @Sendable (
                 repeat each Argument
             ) throws -> Result
-    ) -> CallInteractions
+    ) -> ConfiguredCall<Result>
     where Input == (repeat each Argument) {
         then(times: times) { (input: Input) in
             try handler(repeat each input)
@@ -526,7 +526,7 @@ extension AsyncThrowingClosureCallPattern {
             @escaping (
                 repeat each Argument
             ) async throws -> Result
-    ) -> CallInteractions
+    ) -> ConfiguredCall<Result>
     where Input == (repeat each Argument) {
         then(times: times) { (input: Input) in
             try await handler(repeat each input)
@@ -561,7 +561,7 @@ extension AsyncThrowingClosureCallPattern {
                 Int,
                 repeat each Argument
             ) async throws -> Result
-    ) -> CallInteractions
+    ) -> ConfiguredCall<Result>
     where Input == (repeat each Argument) {
         thenForEachCall(times: times) { (count: Int, input: Input) in
             try await handler(count, repeat each input)

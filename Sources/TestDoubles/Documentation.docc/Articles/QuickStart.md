@@ -413,9 +413,9 @@ let calls = await loader.when {
 ```
 
 Finite behavior returns a ``StubBehaviorChain`` so another behavior can
-follow. An unbounded terminal returns observation-only ``CallInteractions``;
-it supports `verify`, `arguments()`, and `stream()` but deliberately has no
-behavior methods.
+follow. An unbounded terminal returns observation-only ``ConfiguredCall``; it
+supports typed result and outcome queries, `verify`, `arguments()`, and
+`stream()` but deliberately has no behavior methods.
 
 Several return values are shorthand for a chain whose final value repeats:
 
@@ -690,7 +690,7 @@ InvocationOrder(exhaustive: true) {
 
 Without `exhaustive: true`, unrelated calls may appear before, between, or
 after the expected sequence. The builder also supports direct invocations,
-conditionals, loops, async calls, and terminal ``CallInteractions`` values.
+conditionals, loops, async calls, and terminal ``ConfiguredCall`` values.
 
 ### Forward through a spy
 

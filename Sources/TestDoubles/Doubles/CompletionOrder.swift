@@ -125,6 +125,23 @@ public final class CompletionOrder: @unchecked Sendable {
             )
         }
 
+        /// Adds a result-typed terminal behavior handle.
+        public static func buildExpression<Result>(
+            _ configuredCall: ConfiguredCall<Result>,
+            fileID: StaticString = #fileID,
+            filePath: StaticString = #filePath,
+            line: UInt = #line,
+            column: UInt = #column
+        ) -> [Expectation] {
+            buildExpression(
+                configuredCall.interactions,
+                fileID: fileID,
+                filePath: filePath,
+                line: line,
+                column: column
+            )
+        }
+
         /// Combines expressions in source order.
         public static func buildBlock(
             _ components: [Expectation]...
@@ -239,6 +256,24 @@ public final class CompletionOrder: @unchecked Sendable {
             column: column
         )
         return self
+    }
+
+    /// Verifies a result-typed terminal handle after the previous completion.
+    @discardableResult
+    public func verify<Result>(
+        _ configuredCall: ConfiguredCall<Result>,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) -> Self {
+        verify(
+            configuredCall.interactions,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
     }
 
     private func advance(

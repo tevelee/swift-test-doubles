@@ -164,7 +164,7 @@ public struct InoutClosureCallPattern<Value, Result>: Sendable {
                 value: value,
                 result: result
             )
-        }
+        }.interactions
     }
 
     /// Returns `result` without changing the argument.
@@ -196,7 +196,7 @@ public struct InoutClosureCallPattern<Value, Result>: Sendable {
     /// Forwards every matching call through an `inout` closure spy.
     @discardableResult
     public func thenForward() -> CallInteractions {
-        base.thenForward()
+        base.thenForward().interactions
     }
 }
 
@@ -267,7 +267,7 @@ public struct InoutClosureBehaviorChain<Value, Result> {
                 value: value,
                 result: result
             )
-        }
+        }.interactions
     }
 
     /// Appends `result` without changing the argument.
@@ -307,7 +307,7 @@ public struct InoutClosureBehaviorChain<Value, Result> {
     public func thenForward(
         times: PartialRangeFrom<Int> = 1...
     ) -> CallInteractions {
-        base.thenForward(times: times)
+        base.thenForward(times: times).interactions
     }
 }
 

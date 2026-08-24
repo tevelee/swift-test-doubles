@@ -14,7 +14,7 @@ extension ThrowingClosureCallPattern {
     public func then(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (Input) throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.then(times: times, handler)
     }
 
@@ -33,7 +33,7 @@ extension ThrowingClosureCallPattern {
     public func then(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable () throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.then(times: times, handler)
     }
 
@@ -52,7 +52,7 @@ extension ThrowingClosureCallPattern {
     public func thenForEachCall(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (Int, Input) throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenForEachCall(times: times, handler)
     }
 
@@ -71,7 +71,7 @@ extension ThrowingClosureCallPattern {
     public func thenForEachCall(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (Int) throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenForEachCall(times: times, handler)
     }
 
@@ -90,7 +90,7 @@ extension ThrowingClosureCallPattern {
     public func thenThrow<Failure: Error>(
         _ error: Failure,
         times: PartialRangeFrom<Int> = 1...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenThrow(error, times: times)
     }
 
@@ -119,7 +119,7 @@ extension AsyncClosureCallPattern {
     public func then(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (Input) -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.then(times: times, handler)
     }
 
@@ -138,7 +138,7 @@ extension AsyncClosureCallPattern {
     public func then(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping (Input) async -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.then(times: times, handler)
     }
 
@@ -157,7 +157,7 @@ extension AsyncClosureCallPattern {
     public func then(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable () -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.then(times: times, handler)
     }
 
@@ -177,7 +177,7 @@ extension AsyncClosureCallPattern {
     public func then(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping () async -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.then(times: times, handler)
     }
 
@@ -186,7 +186,7 @@ extension AsyncClosureCallPattern {
     public func thenForEachCall(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (Int, Input) -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenForEachCall(times: times, handler)
     }
 
@@ -205,7 +205,7 @@ extension AsyncClosureCallPattern {
     public func thenForEachCall(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (Int) -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenForEachCall(times: times, handler)
     }
 
@@ -225,7 +225,7 @@ extension AsyncClosureCallPattern {
     public func thenForEachCall(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping (Int, Input) async -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenForEachCall(times: times, handler)
     }
 
@@ -246,7 +246,7 @@ extension AsyncClosureCallPattern {
     public func thenForEachCall(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping (Int) async -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenForEachCall(times: times, handler)
     }
 
@@ -278,7 +278,7 @@ extension AsyncThrowingClosureCallPattern {
     public func then(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (Input) throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.then(times: times, handler)
     }
 
@@ -297,7 +297,7 @@ extension AsyncThrowingClosureCallPattern {
     public func then(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping (Input) async throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.then(times: times, handler)
     }
 
@@ -316,7 +316,7 @@ extension AsyncThrowingClosureCallPattern {
     public func then(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable () throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.then(times: times, handler)
     }
 
@@ -336,7 +336,7 @@ extension AsyncThrowingClosureCallPattern {
     public func then(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping () async throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.then(times: times, handler)
     }
 
@@ -345,7 +345,7 @@ extension AsyncThrowingClosureCallPattern {
     public func thenForEachCall(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (Int, Input) throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenForEachCall(times: times, handler)
     }
 
@@ -364,7 +364,7 @@ extension AsyncThrowingClosureCallPattern {
     public func thenForEachCall(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (Int) throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenForEachCall(times: times, handler)
     }
 
@@ -384,7 +384,7 @@ extension AsyncThrowingClosureCallPattern {
     public func thenForEachCall(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping (Int, Input) async throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenForEachCall(times: times, handler)
     }
 
@@ -405,7 +405,7 @@ extension AsyncThrowingClosureCallPattern {
     public func thenForEachCall(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping (Int) async throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenForEachCall(times: times, handler)
     }
 
@@ -437,7 +437,7 @@ extension AsyncThrowingClosureCallPattern {
         _ error: Failure,
         after delay: Duration? = nil,
         times: PartialRangeFrom<Int> = 1...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenThrow(error, after: delay, times: times)
     }
 
@@ -447,7 +447,7 @@ extension AsyncThrowingClosureCallPattern {
         _ error: Failure,
         after delay: Duration,
         using clock: any StubClock
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenThrow(error, after: delay, using: clock)
     }
 
@@ -472,7 +472,7 @@ extension ThrowingClosureCallPattern where Result == Void {
     @discardableResult
     public func thenDoNothing(
         times: PartialRangeFrom<Int> = 1...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenDoNothing(times: times)
     }
 }
@@ -493,13 +493,13 @@ extension AsyncClosureCallPattern where Result == Void {
     public func thenDoNothing(
         after delay: Duration? = nil,
         times: PartialRangeFrom<Int> = 1...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenDoNothing(after: delay, times: times)
     }
 
     /// Waits for cancellation, then completes the invocation.
     @discardableResult
-    public func thenAwaitCancellation() -> CallInteractions {
+    public func thenAwaitCancellation() -> ConfiguredCall<Result> {
         base.thenAwaitCancellation()
     }
 }
@@ -520,7 +520,7 @@ extension AsyncThrowingClosureCallPattern where Result == Void {
     public func thenDoNothing(
         after delay: Duration? = nil,
         times: PartialRangeFrom<Int> = 1...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenDoNothing(after: delay, times: times)
     }
 }

@@ -543,10 +543,12 @@ loads.verify(3 ... 3)
 Matching calls consume the configured behaviors in order. A bare intermediate
 behavior runs exactly once, while the bare trailing behavior repeats. Use
 `times: 2` for another exact finite run or `times: 1...` when you want to make
-the unbounded terminal explicit. The terminal returns ``CallInteractions``, an
-observation-only handle that supports `verify`, `arguments()`, and `stream()`
-without allowing another behavior after an unbounded answer. Passing several
-values to one `thenReturn` remains shorthand for a return-only chain.
+the unbounded terminal explicit. The terminal returns ``ConfiguredCall``, an
+observation-only handle that supports typed result and outcome queries,
+`verify`, `arguments()`, and `stream()` without allowing another behavior after
+an unbounded answer. Use its `interactions` property when explicit result
+erasure is needed. Passing several values to one `thenReturn` remains shorthand
+for a return-only chain.
 Reservation is internally synchronized, and each registration owns its own
 chain. Behavior that depends on arguments or richer state belongs in a `then`
 handler: synchronous handlers and matcher predicates are `@Sendable`, async
@@ -578,9 +580,10 @@ let loads = await stub.when { try await $0.load(url: Match.any()) }
     .thenReturn("offline")
 ```
 
-The same ``CallInteractions`` result is available from custom `then` handlers,
-`thenForEachCall`, forwarding, cancellation, record/replay, and initializer or
-dynamic-`Self` builders. Handles with additional responsibilities compose that
+The same ``ConfiguredCall`` result is available from custom `then` handlers,
+`thenForEachCall`, forwarding, cancellation, and record/replay. Initializer and
+dynamic-`Self` builders remain ``CallInteractions`` because their result is an
+erased adapter boundary. Handles with additional responsibilities compose that
 view: ``StubSuspension/interactions`` keeps resume control beside verification,
 and ``StubBehaviorQueue/interactions`` keeps exhaustion state beside the calls
 that consumed it.
@@ -609,10 +612,10 @@ twoCalls.verify(2 ... 2)
 #expect(twos.arguments() == [2, 2])
 ```
 
-The terminal result is the same ``CallInteractions`` used by a protocol stub,
-so ranges, eventual verification, streams, and ``InvocationOrder`` compose
-without closure-specific alternatives. ``VoidClosureDouble`` applies the same
-model to `() -> Result`.
+The terminal result is the same ``ConfiguredCall`` used by a protocol stub, so
+ranges, eventual verification, typed outcomes, streams, and
+``InvocationOrder`` compose without closure-specific alternatives.
+``VoidClosureDouble`` applies the same model to `() -> Result`.
 
 Choose an effect-aware double for throwing or asynchronous injected functions:
 

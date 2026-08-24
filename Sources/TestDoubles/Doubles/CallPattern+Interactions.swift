@@ -2,6 +2,10 @@ import IssueReporting
 
 /// Interaction queries and verification for a recorded call pattern.
 extension CallPattern {
+    var configuredCall: ConfiguredCall<Result> {
+        ConfiguredCall(recorder: recorder, recording: recording, origin: origin)
+    }
+
     /// An observation-only view of the invocations matching this pattern.
     ///
     /// Behavior configuration remains available on the pattern itself. Use

@@ -22,7 +22,7 @@ extension StubBehaviorChain where Result == Void {
     public func thenDoNothing(
         after delay: Duration? = nil,
         times: PartialRangeFrom<Int> = 1...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         thenReturn((), after: delay, times: times)
     }
 }

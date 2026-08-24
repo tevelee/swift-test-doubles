@@ -62,18 +62,20 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
         #expect(error == HandlerError(value: -1))
     }
 
-    @Test func terminalInteractionsInferTypedResultsFromContext() throws {
+    @Test func configuredCallsPreserveResultTypesAndEraseExplicitly() throws {
         let stub = try makeHandlerArityStub()
         let calls = stub.when { $0.one(Match.any()) }.thenReturn(42)
         let probe: any HandlerArityProbe = stub()
 
         #expect(probe.one(0) == 42)
-        let results: [Int] = calls.results()
-        #expect(results == [42])
-        guard case .returned(42) = calls.lastOutcome(as: Int.self) else {
+        #expect(calls.results() == [42])
+        guard case .returned(42) = calls.lastOutcome else {
             Issue.record("Expected the terminal interaction to return 42")
             return
         }
+
+        let erased: CallInteractions = calls.interactions
+        #expect(erased.results(as: Int.self) == [42])
     }
 
     @Test func invocationTimingRecordsEntryCompletionAndDuration() throws {
@@ -411,7 +413,7 @@ private enum FixedBehaviorOutcome: Equatable, Sendable {
     // `thenThrow` with no `times:` left standalone, or the variadic
     // thenReturn(_:_:_:), whose last entry is always unbounded) is a compile
     // error in one fluent expression: every overload that produces an
-    // unbounded entry returns `CallInteractions`, which deliberately has no
+    // unbounded entry returns `ConfiguredCall`, which deliberately has no
     // behavior methods. A captured `StubBehaviorChain` can still reach an
     // append across separate statements, though — see
     // UnstubbedBehaviorExitTests.appendingAfterUnbounded for the runtime

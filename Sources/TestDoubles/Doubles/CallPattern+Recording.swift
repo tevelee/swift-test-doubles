@@ -24,14 +24,14 @@ extension CallPattern where Result: Encodable & Sendable {
         as key: String,
         into session: RecordingSession,
         calling handler: @escaping @Sendable (repeat each Argument) throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         requireOrdinaryResult()
         addStubBehavior { arguments, methodName in
             let result = try invokeTypedHandler(handler, with: arguments, method: methodName)
             session.recordSuccess(result, as: key)
             return result
         }
-        return interactions
+        return configuredCall
     }
 
     /// Records both a successful result and a caller-defined, Codable request
@@ -43,7 +43,7 @@ extension CallPattern where Result: Encodable & Sendable {
         into session: RecordingSession,
         recording request: @escaping @Sendable (repeat each Argument) -> Request,
         calling handler: @escaping @Sendable (repeat each Argument) throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         requireOrdinaryResult()
         addStubBehavior { arguments, methodName in
             let result = try invokeTypedHandler(handler, with: arguments, method: methodName)
@@ -56,7 +56,7 @@ extension CallPattern where Result: Encodable & Sendable {
             session.recordSuccess(result, recording: recordedRequest, as: key)
             return result
         }
-        return interactions
+        return configuredCall
     }
 
     /// Records successful results and errors of `Failure` into `session`.
@@ -70,7 +70,7 @@ extension CallPattern where Result: Encodable & Sendable {
         into session: RecordingSession,
         recordingErrorsAs _: Failure.Type,
         calling handler: @escaping @Sendable (repeat each Argument) throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         requireOrdinaryResult()
         addStubBehavior { arguments, methodName in
             do {
@@ -82,7 +82,7 @@ extension CallPattern where Result: Encodable & Sendable {
                 throw error
             }
         }
-        return interactions
+        return configuredCall
     }
 
     /// Async counterpart to `thenRecord(as:into:recordingErrorsAs:calling:)`.
@@ -92,7 +92,7 @@ extension CallPattern where Result: Encodable & Sendable {
         into session: RecordingSession,
         recordingErrorsAs _: Failure.Type,
         calling handler: @escaping (repeat each Argument) async throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         requireOrdinaryResult()
         addAsyncStubBehavior { arguments, methodName in
             do {
@@ -104,24 +104,24 @@ extension CallPattern where Result: Encodable & Sendable {
                 throw error
             }
         }
-        return interactions
+        return configuredCall
     }
 
-    /// The async form of ``thenRecord(as:into:calling:)-9smp6``, for an async
+    /// The async form of ``thenRecord(as:into:calling:)-6wml3``, for an async
     /// requirement forwarding to an async real dependency.
     @discardableResult
     public func thenRecord<each Argument>(
         as key: String,
         into session: RecordingSession,
         calling handler: @escaping (repeat each Argument) async throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         requireOrdinaryResult()
         addAsyncStubBehavior { arguments, methodName in
             let result = try await invokeTypedHandler(handler, with: arguments, method: methodName)
             session.recordSuccess(result, as: key)
             return result
         }
-        return interactions
+        return configuredCall
     }
 }
 
@@ -138,7 +138,7 @@ extension CallPattern where Result: Decodable {
     public func thenReplay(
         as key: String,
         from fixture: InteractionFixture
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         requireOrdinaryResult()
         let values = fixture.decodedResults(as: key, resultType: Result.self)
         guard let first = values.first else {
@@ -153,7 +153,7 @@ extension CallPattern where Result: Decodable {
             values.dropLast().map { (fixedAnswer(.success($0), after: nil), .exactly(1)) }
             + [(fixedAnswer(.success(values.last ?? first), after: nil), .unbounded)]
         _ = makeBehaviorChain(answers)
-        return interactions
+        return configuredCall
     }
 
     /// Replays a fixture result selected by an encoded request value.
@@ -168,7 +168,7 @@ extension CallPattern where Result: Decodable {
         from fixture: InteractionFixture,
         matching request: @escaping @Sendable (repeat each Argument) -> Request,
         redacting redactor: FixtureRedactor = .none
-    ) -> CallInteractions where Result: Sendable {
+    ) -> ConfiguredCall<Result> where Result: Sendable {
         requireOrdinaryResult()
         let cursor = InteractionFixtureReplayCursor()
         let recorder = recorder
@@ -194,7 +194,7 @@ extension CallPattern where Result: Decodable {
             recorder.requireReturnValueMatchesRuntimeType(value, for: methodIndex)
             return value
         }
-        return interactions
+        return configuredCall
     }
 
     /// Replays successful results and recorded `Failure` values in fixture order.
@@ -206,7 +206,7 @@ extension CallPattern where Result: Decodable {
         as key: String,
         from fixture: InteractionFixture,
         throwing _: Failure.Type
-    ) -> CallInteractions where Result: Sendable {
+    ) -> ConfiguredCall<Result> where Result: Sendable {
         requireOrdinaryResult()
         let outcomes = fixture.decodedOutcomes(
             as: key,
@@ -231,7 +231,7 @@ extension CallPattern where Result: Decodable {
                     throw error
             }
         }
-        return interactions
+        return configuredCall
     }
 }
 

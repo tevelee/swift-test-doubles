@@ -8,7 +8,7 @@ extension CallPattern {
     public func thenCancel(
         after delay: Duration,
         using clock: any StubClock = StubClocks.continuous
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         let method = requireAsyncRequirement(configuring: "thenCancel")
         requireValidThrownError(CancellationError(), for: method)
         _ = makeBehaviorChain([
@@ -17,7 +17,7 @@ extension CallPattern {
                 .unbounded
             )
         ])
-        return interactions
+        return configuredCall
     }
 
     /// Cancels the calling task after `delay`, then returns `value`.
@@ -29,7 +29,7 @@ extension CallPattern {
         after delay: Duration,
         returning value: Result,
         using clock: any StubClock = StubClocks.continuous
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         let method = requireAsyncRequirement(configuring: "thenCancel")
         guard method.isThrowing == false else {
             preconditionFailure(
@@ -52,7 +52,7 @@ extension CallPattern {
                 .unbounded
             )
         ])
-        return interactions
+        return configuredCall
     }
 }
 
@@ -63,7 +63,7 @@ extension AsyncClosureCallPattern {
         after delay: Duration,
         returning value: Result,
         using clock: any StubClock = StubClocks.continuous
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenCancel(after: delay, returning: value, using: clock)
     }
 }
@@ -74,7 +74,7 @@ extension AsyncThrowingClosureCallPattern {
     public func thenCancel(
         after delay: Duration,
         using clock: any StubClock = StubClocks.continuous
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenCancel(after: delay, using: clock)
     }
 }

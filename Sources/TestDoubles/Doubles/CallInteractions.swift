@@ -1,13 +1,16 @@
-/// An observation-only handle for every invocation matching one recorded call.
+/// A result-erased observation handle for every invocation matching one
+/// recorded call.
 ///
-/// Terminal behaviors return this value so a complete fluent configuration can
-/// be saved and inspected later. Unbounded fixed terminals additionally prevent
-/// another behavior from being appended:
+/// Ordinary terminal behaviors return ``ConfiguredCall`` and expose this view
+/// through its `interactions` property. Initializer, dynamic-`Self`, and
+/// adapter boundaries return this value directly. A complete fluent
+/// configuration can therefore still be erased, saved, and inspected later:
 ///
 /// ```swift
-/// let loads = stub.when { try $0.load() }
+/// let configuredLoads = stub.when { try $0.load() }
 ///     .thenThrow(APIError(), times: 2)
 ///     .thenReturn("fallback")
+/// let loads = configuredLoads.interactions
 ///
 /// loads.verify(3...)
 /// ```
@@ -222,5 +225,216 @@ public struct CallInteractions: Sendable {
             matchesEmptyArgumentsExactly: recording.matchesEmptyArgumentsExactly,
             origin: origin
         )
+    }
+}
+
+/// A result-typed, observation-only handle for a configured call.
+///
+/// Ordinary terminal behaviors return this value so result and outcome
+/// queries retain their static result type:
+///
+/// ```swift
+/// let loads = stub.when { try $0.load() }
+///     .thenReturn("fallback")
+///
+/// let values = loads.results()
+/// let outcomes = loads.outcomes()
+/// ```
+///
+/// Use ``interactions`` to explicitly erase the result type when storing
+/// heterogeneous configured calls or passing one to an API that accepts
+/// ``CallInteractions``.
+public struct ConfiguredCall<Result>: Sendable {
+    let recorder: StubRecorder
+    let recording: RecordedCall
+    let origin: InvocationOrigin?
+
+    init(
+        recorder: StubRecorder,
+        recording: RecordedCall,
+        origin: InvocationOrigin? = nil
+    ) {
+        self.recorder = recorder
+        self.recording = recording
+        self.origin = origin
+    }
+
+    private var pattern: CallPattern<Result> {
+        CallPattern(recorder: recorder, recording: recording, origin: origin)
+    }
+
+    /// A result-erased view of the invocations matching this configured call.
+    public var interactions: CallInteractions {
+        CallInteractions(recorder: recorder, recording: recording, origin: origin)
+    }
+
+    /// The number of recorded invocations matching this call.
+    ///
+    /// Reading the count does not mark calls as verified or commit captures.
+    public var callCount: Int {
+        pattern.callCount
+    }
+
+    /// Whether at least one recorded invocation matches this call.
+    ///
+    /// Reading this value does not mark calls as verified or commit captures.
+    public var wasCalled: Bool {
+        pattern.wasCalled
+    }
+
+    /// Matching interactions that a spy delegated to its real target.
+    ///
+    /// This view is empty for a stub without a forwarding target.
+    public var forwarded: Self {
+        Self(recorder: recorder, recording: recording, origin: .forwarded)
+    }
+
+    /// Matching interactions answered by configured behavior rather than
+    /// delegated to a spy's real target.
+    ///
+    /// This is every interaction for an ordinary or manual stub. For a spy it
+    /// excludes unmatched calls and explicit `thenForward()` behavior.
+    public var stubbed: Self {
+        Self(recorder: recorder, recording: recording, origin: .stubbed)
+    }
+
+    /// Verifies how many recorded invocations match this call, expecting
+    /// exactly one by default.
+    ///
+    /// Successful verification marks every matching call as verified and
+    /// commits captures. A mismatch is reported at the caller's source
+    /// location without terminating the test process.
+    public func verify(
+        _ expectedCounts: any RangeExpression<Int> = 1 ... 1,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) {
+        pattern.verify(
+            expectedCounts,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
+    /// Waits up to `timeout` for the lower-bound count of matching calls.
+    ///
+    /// Eventual verification accepts a lower bound because it becomes true
+    /// monotonically as calls arrive.
+    public func verify(
+        _ expectedCounts: PartialRangeFrom<Int> = 1...,
+        within timeout: Duration,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) async {
+        await pattern.verify(
+            expectedCounts,
+            within: timeout,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
+    /// Waits for matching calls using `clock` rather than wall time.
+    ///
+    /// Use ``ManualStubClock`` to advance timeout-sensitive tests
+    /// deterministically.
+    public func verify(
+        _ expectedCounts: PartialRangeFrom<Int> = 1...,
+        within timeout: Duration,
+        using clock: any StubClock,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) async {
+        await pattern.verify(
+            expectedCounts,
+            within: timeout,
+            using: clock,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
+    /// Returns matching invocation arguments as typed tuples, in call order.
+    ///
+    /// Annotate the result to select the tuple shape. This is a pure query: it
+    /// does not verify calls, consume behavior, or commit captures.
+    public func arguments<each Argument>() -> [(repeat each Argument)] {
+        pattern.arguments()
+    }
+
+    /// Returned values from completed matching calls, in invocation order.
+    ///
+    /// Pending, throwing, forwarded, and ABI-opaque outcomes are omitted.
+    public func results() -> [Result] {
+        pattern.results()
+    }
+
+    /// Errors thrown by completed matching calls, in invocation order.
+    public func errors() -> [any Error] {
+        pattern.errors()
+    }
+
+    /// Errors of `Failure` thrown by completed matching calls.
+    public func errors<Failure: Error>(
+        ofType type: Failure.Type
+    ) -> [Failure] {
+        pattern.errors(ofType: type)
+    }
+
+    /// Completion states for all matching calls, in invocation order.
+    public func outcomes() -> [InvocationOutcome<Result>] {
+        pattern.outcomes()
+    }
+
+    /// The most recently entered matching call's completion state.
+    public var lastOutcome: InvocationOutcome<Result>? {
+        pattern.lastOutcome
+    }
+
+    /// Monotonic timing information for matching calls, in invocation order.
+    public func timings() -> [InvocationTiming] {
+        pattern.timings()
+    }
+
+    /// Waits until at least `count` matching calls have completed.
+    ///
+    /// A timeout reports an issue at this call site. Waiting is event-driven
+    /// and does not mark calls as verified.
+    public func waitForCompletion(
+        count: Int = 1,
+        within timeout: Duration,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) async {
+        await pattern.waitForCompletion(
+            count: count,
+            within: timeout,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
+    }
+
+    /// Returns a stream of future matching invocation arguments.
+    ///
+    /// Calls recorded before this method returns are deliberately excluded.
+    /// Streaming is observational: it does not verify calls or commit captures.
+    public func stream<each Argument>() -> InvocationStream<(repeat each Argument)> {
+        pattern.stream()
     }
 }

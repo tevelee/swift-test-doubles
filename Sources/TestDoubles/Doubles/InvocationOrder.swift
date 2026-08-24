@@ -44,14 +44,16 @@ public final class InvocationOrder: @unchecked Sendable {
     /// A type-erased saved interaction used by ``Builder``.
     ///
     /// Values are created implicitly from call patterns and
-    /// ``CallInteractions`` inside a scoped `InvocationOrder`.
+    /// ``ConfiguredCall`` and ``CallInteractions`` inside a scoped
+    /// `InvocationOrder`.
     public struct Expectation: Sendable {
         fileprivate let interactions: CallInteractions
         fileprivate let location: StubSourceLocation
     }
 
     /// Builds an ordered list from direct test-double invocations, saved call
-    /// patterns, and terminal ``CallInteractions`` values.
+    /// patterns, and terminal ``ConfiguredCall`` or ``CallInteractions``
+    /// values.
     @resultBuilder
     public enum Builder {
         /// Adds a general saved call pattern to the ordered expectation.
@@ -150,6 +152,24 @@ public final class InvocationOrder: @unchecked Sendable {
         ) -> [Expectation] {
             expectation(
                 interactions,
+                fileID: fileID,
+                filePath: filePath,
+                line: line,
+                column: column
+            )
+        }
+
+        /// Adds a result-typed terminal behavior handle to the ordered
+        /// expectation.
+        public static func buildExpression<Result>(
+            _ configuredCall: ConfiguredCall<Result>,
+            fileID: StaticString = #fileID,
+            filePath: StaticString = #filePath,
+            line: UInt = #line,
+            column: UInt = #column
+        ) -> [Expectation] {
+            buildExpression(
+                configuredCall.interactions,
                 fileID: fileID,
                 filePath: filePath,
                 line: line,
@@ -557,6 +577,25 @@ public final class InvocationOrder: @unchecked Sendable {
             column: column
         )
         return self
+    }
+
+    /// Verifies that `configuredCall` has a matching call after the
+    /// previously verified interaction.
+    @discardableResult
+    public func verify<Result>(
+        _ configuredCall: ConfiguredCall<Result>,
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) -> Self {
+        verify(
+            configuredCall.interactions,
+            fileID: fileID,
+            filePath: filePath,
+            line: line,
+            column: column
+        )
     }
 
     /// Verifies the next in-order interaction on a runtime stub or spy.

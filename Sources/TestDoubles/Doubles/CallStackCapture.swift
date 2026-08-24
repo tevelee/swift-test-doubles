@@ -41,3 +41,12 @@ extension CallInteractions {
         return self
     }
 }
+
+extension ConfiguredCall {
+    /// Enables double-wide call-stack capture for subsequent invocations.
+    @discardableResult
+    public func captureCallStacks(maxFrames: Int = 32) -> Self {
+        recorder.captureCallStacks(maxFrames: maxFrames)
+        return self
+    }
+}

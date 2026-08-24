@@ -116,9 +116,12 @@ generic result is `.unavailable`; this principally covers dependent dynamic
 `.unavailable`: retaining their borrowed result beyond coroutine resume would
 violate the accessor's ownership boundary.
 
-A terminal ``CallInteractions`` handle no longer carries the result generic,
-so its `results(as:)`, `outcomes(as:)`, and `lastOutcome(as:)` methods infer
-the type from an assignment or accept it explicitly.
+Ordinary terminal behaviors return ``ConfiguredCall``, which retains the
+result generic so `results()`, `outcomes()`, and `lastOutcome` need no type
+annotation. Its `interactions` property explicitly erases that generic to
+``CallInteractions`` for heterogeneous storage and adapter boundaries.
+Initializer and dynamic-`Self` builders remain erased because those results
+cannot be represented by one ordinary static result type.
 
 Each pattern and terminal handle also exposes `timings()`. Its
 ``InvocationTiming`` values use a monotonic `ContinuousClock` instant for
@@ -243,10 +246,11 @@ sequence stamped on every recorded call, so it holds across `Stub`, `Spy`, and
 matching call reports a test issue at its own source location and leaves the
 cursor unchanged; successful steps commit their captors.
 
-Both a ``CallPattern`` saved directly from `when` and the
-``CallInteractions`` returned by a terminal `then` method can be listed
-directly instead of repeating a call. This is useful when the same description
-also configures behavior, reads arguments, or uses rich matchers:
+Both a ``CallPattern`` saved directly from `when` and the ``ConfiguredCall``
+returned by an ordinary terminal `then` method can be listed directly instead
+of repeating a call. Erased ``CallInteractions`` handles work as well. This is
+useful when the same description also configures behavior, reads arguments, or
+uses rich matchers:
 
 ```swift
 InvocationOrder(exhaustive: true) {

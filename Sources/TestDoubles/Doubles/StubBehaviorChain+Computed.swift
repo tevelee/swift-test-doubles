@@ -28,10 +28,10 @@ extension StubBehaviorChain {
                 FirstArgument,
                 repeat each AdditionalArgument
             ) throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         validateUnboundedRepeatCount(times)
         sequence.append(escapingImmediateAnswer(handler), times: .unbounded)
-        return interactions
+        return configuredCall
     }
 
     /// Appends an asynchronous handler for `times` matching invocations while
@@ -63,10 +63,10 @@ extension StubBehaviorChain {
                 FirstArgument,
                 repeat each AdditionalArgument
             ) async throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         validateUnboundedRepeatCount(times)
         sequence.append(escapingSuspendingAnswer(handler), times: .unbounded)
-        return interactions
+        return configuredCall
     }
 
     /// Appends a handler for `times` matching invocations whose sole argument
@@ -90,10 +90,10 @@ extension StubBehaviorChain {
     public func then<Argument>(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (Argument) throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         validateUnboundedRepeatCount(times)
         sequence.append(unaryImmediateAnswer(handler), times: .unbounded)
-        return interactions
+        return configuredCall
     }
 
     /// Appends a typed handler for `times` matching invocations.
@@ -115,10 +115,10 @@ extension StubBehaviorChain {
     public func then<each Argument>(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (repeat each Argument) throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         validateUnboundedRepeatCount(times)
         sequence.append(packedImmediateAnswer(handler), times: .unbounded)
-        return interactions
+        return configuredCall
     }
 
     /// Appends an asynchronous typed handler for `times` matching invocations.
@@ -141,9 +141,9 @@ extension StubBehaviorChain {
     public func then<each Argument>(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping (repeat each Argument) async throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         validateUnboundedRepeatCount(times)
         sequence.append(packedSuspendingAnswer(handler), times: .unbounded)
-        return interactions
+        return configuredCall
     }
 }

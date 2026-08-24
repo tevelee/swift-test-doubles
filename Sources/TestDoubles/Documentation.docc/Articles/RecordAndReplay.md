@@ -68,8 +68,9 @@ recorded under `key`, in recording order — exactly like a `thenReturn(_:_:_:)`
 chain built from playback: the last recorded response repeats for every call
 after that. `key` must match the one recording used and have at least one
 recorded call, or this halts with a diagnostic naming the missing key. Both
-recording and replay terminals return ``CallInteractions`` so their configured
-calls can be verified without repeating the capture closure.
+recording and replay terminals return ``ConfiguredCall`` so their configured
+calls retain typed result queries and can be verified without repeating the
+capture closure.
 
 ### Redact requests and migrate old fixtures
 

@@ -48,11 +48,11 @@ extension CallPattern {
     public func thenForEachCall<each Argument>(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (Int, repeat each Argument) throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         requireOrdinaryResult()
         validateUnboundedRepeatCount(times)
         _ = makeBehaviorChain([(countingImmediateAnswer(handler), .unbounded)])
-        return interactions
+        return configuredCall
     }
 
     /// Asynchronously handles `times` matching invocations with a running call
@@ -76,11 +76,11 @@ extension CallPattern {
     public func thenForEachCall<each Argument>(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping (Int, repeat each Argument) async throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         requireOrdinaryResult()
         validateUnboundedRepeatCount(times)
         _ = makeBehaviorChain([(countingSuspendingAnswer(handler), .unbounded)])
-        return interactions
+        return configuredCall
     }
 }
 
@@ -108,10 +108,10 @@ extension StubBehaviorChain {
     public func thenForEachCall<each Argument>(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (Int, repeat each Argument) throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         validateUnboundedRepeatCount(times)
         sequence.append(countingImmediateAnswer(handler), times: .unbounded)
-        return interactions
+        return configuredCall
     }
 
     /// Appends an asynchronous counted handler for `times` matching
@@ -135,9 +135,9 @@ extension StubBehaviorChain {
     public func thenForEachCall<each Argument>(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping (Int, repeat each Argument) async throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         validateUnboundedRepeatCount(times)
         sequence.append(countingSuspendingAnswer(handler), times: .unbounded)
-        return interactions
+        return configuredCall
     }
 }

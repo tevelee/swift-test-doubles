@@ -106,7 +106,7 @@ public struct ThrowingClosureCallPattern<Input, Result>: Sendable {
     public func thenReturn(
         _ value: Result,
         times: PartialRangeFrom<Int> = 1...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenReturn(value, times: times)
     }
 
@@ -116,7 +116,7 @@ public struct ThrowingClosureCallPattern<Input, Result>: Sendable {
         _ first: Result,
         _ second: Result,
         _ rest: Result...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         appendRepeatingValues(base: base, first: first, second: second, rest: rest)
     }
 
@@ -130,7 +130,7 @@ public struct ThrowingClosureCallPattern<Input, Result>: Sendable {
 
     /// Halts with an actionable diagnostic for every matching invocation.
     @discardableResult
-    public func thenFatalError(_ message: String? = nil) -> CallInteractions {
+    public func thenFatalError(_ message: String? = nil) -> ConfiguredCall<Result> {
         base.thenFatalError(message)
     }
 }
@@ -247,7 +247,7 @@ public struct AsyncClosureCallPattern<Input, Result>: Sendable {
         _ value: Result,
         after delay: Duration? = nil,
         times: PartialRangeFrom<Int> = 1...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenReturn(value, after: delay, times: times)
     }
 
@@ -257,7 +257,7 @@ public struct AsyncClosureCallPattern<Input, Result>: Sendable {
         _ first: Result,
         _ second: Result,
         _ rest: Result...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         appendRepeatingValues(base: base, first: first, second: second, rest: rest)
     }
 
@@ -267,7 +267,7 @@ public struct AsyncClosureCallPattern<Input, Result>: Sendable {
         _ value: Result,
         after delay: Duration,
         using clock: any StubClock
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenReturn(value, after: delay, using: clock)
     }
 
@@ -281,13 +281,13 @@ public struct AsyncClosureCallPattern<Input, Result>: Sendable {
 
     /// Halts with an actionable diagnostic for every matching invocation.
     @discardableResult
-    public func thenFatalError(_ message: String? = nil) -> CallInteractions {
+    public func thenFatalError(_ message: String? = nil) -> ConfiguredCall<Result> {
         base.thenFatalError(message)
     }
 
     /// Parks every matching invocation without ever completing it.
     @discardableResult
-    public func thenNeverReturn() -> CallInteractions {
+    public func thenNeverReturn() -> ConfiguredCall<Result> {
         base.thenNeverReturn()
     }
 
@@ -300,7 +300,7 @@ public struct AsyncClosureCallPattern<Input, Result>: Sendable {
     @discardableResult
     public func thenAwaitCancellation(
         returning value: Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenAwaitCancellation(returning: value)
     }
 }
@@ -415,7 +415,7 @@ public struct AsyncThrowingClosureCallPattern<Input, Result>: Sendable {
         _ value: Result,
         after delay: Duration? = nil,
         times: PartialRangeFrom<Int> = 1...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenReturn(value, after: delay, times: times)
     }
 
@@ -425,7 +425,7 @@ public struct AsyncThrowingClosureCallPattern<Input, Result>: Sendable {
         _ first: Result,
         _ second: Result,
         _ rest: Result...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         appendRepeatingValues(base: base, first: first, second: second, rest: rest)
     }
 
@@ -435,7 +435,7 @@ public struct AsyncThrowingClosureCallPattern<Input, Result>: Sendable {
         _ value: Result,
         after delay: Duration,
         using clock: any StubClock
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenReturn(value, after: delay, using: clock)
     }
 
@@ -449,13 +449,13 @@ public struct AsyncThrowingClosureCallPattern<Input, Result>: Sendable {
 
     /// Halts with an actionable diagnostic for every matching invocation.
     @discardableResult
-    public func thenFatalError(_ message: String? = nil) -> CallInteractions {
+    public func thenFatalError(_ message: String? = nil) -> ConfiguredCall<Result> {
         base.thenFatalError(message)
     }
 
     /// Parks every matching invocation without ever completing it.
     @discardableResult
-    public func thenNeverReturn() -> CallInteractions {
+    public func thenNeverReturn() -> ConfiguredCall<Result> {
         base.thenNeverReturn()
     }
 
@@ -466,7 +466,7 @@ public struct AsyncThrowingClosureCallPattern<Input, Result>: Sendable {
 
     /// Waits for cancellation and uses the requirement's throwing outcome.
     @discardableResult
-    public func thenAwaitCancellation() -> CallInteractions {
+    public func thenAwaitCancellation() -> ConfiguredCall<Result> {
         base.thenAwaitCancellation()
     }
 
@@ -474,7 +474,7 @@ public struct AsyncThrowingClosureCallPattern<Input, Result>: Sendable {
     @discardableResult
     public func thenAwaitCancellation(
         returning value: Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenAwaitCancellation(returning: value)
     }
 
@@ -482,7 +482,7 @@ public struct AsyncThrowingClosureCallPattern<Input, Result>: Sendable {
     @discardableResult
     public func thenAwaitCancellation<Failure: Error>(
         throwing error: Failure
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenAwaitCancellation(throwing: error)
     }
 }
@@ -492,7 +492,7 @@ private func appendRepeatingValues<Result>(
     first: Result,
     second: Result,
     rest: [Result]
-) -> CallInteractions {
+) -> ConfiguredCall<Result> {
     let values = [first, second] + rest
     for value in values {
         base.recorder.requireReturnValueMatchesRuntimeType(
@@ -504,7 +504,7 @@ private func appendRepeatingValues<Result>(
         values.dropLast().map { (.value(.success($0)), .exactly(1)) }
             + [(.value(.success(rest.last ?? second)), .unbounded)]
     )
-    return base.interactions
+    return base.configuredCall
 }
 
 private func makeClosureBehaviorQueue<Result>(

@@ -10,7 +10,7 @@ extension CallPattern {
         every interval: Int,
         throwing error: Failure,
         otherwiseReturning value: Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         precondition(
             interval > 0,
             "[TestDoubles] thenInjectFailure(every:) requires a positive interval."
@@ -40,7 +40,7 @@ extension CallPattern {
         seed: UInt64,
         throwing error: Failure,
         otherwiseReturning value: Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         precondition(
             probability.isFinite && (0 ... 1).contains(probability),
             "[TestDoubles] thenInjectFailure(probability:) requires a finite value from 0 through 1."
@@ -64,7 +64,7 @@ extension CallPattern {
         seed: UInt64,
         error: Failure,
         value: Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         let schedule = StubBehaviorRegistry.FaultInjectionSchedule(
             rule: rule,
             seed: seed,
@@ -74,7 +74,7 @@ extension CallPattern {
         _ = makeBehaviorChain([
             (.faultInjection(schedule), .unbounded)
         ])
-        return interactions
+        return configuredCall
     }
 }
 
@@ -85,7 +85,7 @@ extension ThrowingClosureCallPattern {
         every interval: Int,
         throwing error: Failure,
         otherwiseReturning value: Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenInjectFailure(
             every: interval,
             throwing: error,
@@ -100,7 +100,7 @@ extension ThrowingClosureCallPattern {
         seed: UInt64,
         throwing error: Failure,
         otherwiseReturning value: Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenInjectFailure(
             probability: probability,
             seed: seed,
@@ -117,7 +117,7 @@ extension AsyncThrowingClosureCallPattern {
         every interval: Int,
         throwing error: Failure,
         otherwiseReturning value: Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenInjectFailure(
             every: interval,
             throwing: error,
@@ -132,7 +132,7 @@ extension AsyncThrowingClosureCallPattern {
         seed: UInt64,
         throwing error: Failure,
         otherwiseReturning value: Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenInjectFailure(
             probability: probability,
             seed: seed,

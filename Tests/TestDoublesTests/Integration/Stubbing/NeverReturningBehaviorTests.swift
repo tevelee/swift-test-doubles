@@ -77,7 +77,7 @@ private actor CompletionFlag {
         // The invocation is recorded before the call parks, so eventual
         // verification observes it even though it never completes.
         await calls.verify(1..., within: .seconds(1))
-        let outcomes = calls.outcomes(as: String.self)
+        let outcomes = calls.outcomes()
         #expect(outcomes.count == 1)
         guard case .pending = outcomes[0] else {
             Issue.record("Expected a parked invocation to remain pending")

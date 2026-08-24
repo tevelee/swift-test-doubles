@@ -32,7 +32,7 @@ extension ClosureCallPattern {
     @discardableResult
     public func thenForward(
         times: PartialRangeFrom<Int> = 1...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenForward(times: times)
     }
 }
@@ -51,7 +51,7 @@ extension ThrowingClosureCallPattern {
     @discardableResult
     public func thenForward(
         times: PartialRangeFrom<Int> = 1...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenForward(times: times)
     }
 }
@@ -70,7 +70,7 @@ extension AsyncClosureCallPattern {
     @discardableResult
     public func thenForward(
         times: PartialRangeFrom<Int> = 1...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenForward(times: times)
     }
 }
@@ -90,7 +90,7 @@ extension AsyncThrowingClosureCallPattern {
     @discardableResult
     public func thenForward(
         times: PartialRangeFrom<Int> = 1...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenForward(times: times)
     }
 }

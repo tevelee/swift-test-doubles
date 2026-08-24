@@ -70,6 +70,7 @@ isolation. See
 - ``StubConstructionStrategy``
 - ``Spy``
 - ``CallPattern``
+- ``ConfiguredCall``
 - ``CallInteractions``
 - ``StubBehaviorChain``
 - ``StubBehaviorQueue``

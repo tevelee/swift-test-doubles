@@ -1,6 +1,6 @@
 import Foundation
 
-/// Captures results produced by ``CallPattern/thenRecord(as:into:calling:)-9smp6``
+/// Captures results produced by ``CallPattern/thenRecord(as:into:calling:)-8unkm``
 /// so they can be replayed later with ``CallPattern/thenReplay(as:from:)``.
 ///
 /// Attach one session to a `Spy` wrapping a real dependency, record a test

@@ -36,7 +36,7 @@ public struct CallPattern<Result>: Sendable {
     //   .thenReturn(x, times: 1...)  // explicit unbounded
     //
     // The bounded shape returns a `StubBehaviorChain` so more behaviors can
-    // be appended; the unbounded shape returns `CallInteractions`, since
+    // be appended; the unbounded shape returns `ConfiguredCall`, since
     // another behavior cannot sensibly follow "every call from here on," but
     // the configured call should remain available for verification and
     // inspection. The bounded overload is marked `@_disfavoredOverload`.
@@ -85,7 +85,7 @@ public struct CallPattern<Result>: Sendable {
         _ value: Result,
         after delay: Duration? = nil,
         times: PartialRangeFrom<Int> = 1...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         requireOrdinaryResult()
         recorder.requireReturnValueMatchesRuntimeType(
             value,
@@ -93,7 +93,7 @@ public struct CallPattern<Result>: Sendable {
         )
         validateUnboundedRepeatCount(times)
         _ = makeBehaviorChain([(fixedAnswer(.success(value), after: delay), .unbounded)])
-        return interactions
+        return configuredCall
     }
 
     /// Returns the listed values to consecutive matching invocations in
@@ -114,7 +114,7 @@ public struct CallPattern<Result>: Sendable {
         _ first: Result,
         _ second: Result,
         _ rest: Result...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         requireOrdinaryResult()
         let values = [first, second] + rest
         for value in values {
@@ -127,7 +127,7 @@ public struct CallPattern<Result>: Sendable {
             values.dropLast().map { (.value(.success($0)), .exactly(1)) }
                 + [(.value(.success(rest.last ?? second)), .unbounded)]
         )
-        return interactions
+        return configuredCall
     }
 
     // MARK: - thenThrow
@@ -164,12 +164,12 @@ public struct CallPattern<Result>: Sendable {
         _ error: Failure,
         after delay: Duration? = nil,
         times: PartialRangeFrom<Int> = 1...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         let method = requireOrdinaryResult()
         requireValidThrownError(error, for: method)
         validateUnboundedRepeatCount(times)
         _ = makeBehaviorChain([(fixedAnswer(.failure(error), after: delay), .unbounded)])
-        return interactions
+        return configuredCall
     }
 
     /// Halts the process with an actionable diagnostic for every matching
@@ -183,10 +183,10 @@ public struct CallPattern<Result>: Sendable {
     /// stub, the same as an unstubbed call; `message` is an optional
     /// addendum explaining why this call is unexpected.
     @discardableResult
-    public func thenFatalError(_ message: String? = nil) -> CallInteractions {
+    public func thenFatalError(_ message: String? = nil) -> ConfiguredCall<Result> {
         requireOrdinaryResult()
         _ = makeBehaviorChain([(.fatal(message: message), .unbounded)])
-        return interactions
+        return configuredCall
     }
 
     /// Parks every matching invocation from here on, never completing it, to
@@ -200,10 +200,10 @@ public struct CallPattern<Result>: Sendable {
     /// invocation is recorded before parking, so verification (including
     /// `verify(_:within:)`) observes calls that never complete.
     @discardableResult
-    public func thenNeverReturn() -> CallInteractions {
+    public func thenNeverReturn() -> ConfiguredCall<Result> {
         requireOrdinaryResult()
         _ = makeBehaviorChain([(neverAnswer(), .unbounded)])
-        return interactions
+        return configuredCall
     }
 
     /// Forwards `times` matching invocations to the spy's real target.
@@ -236,11 +236,11 @@ public struct CallPattern<Result>: Sendable {
     @discardableResult
     public func thenForward(
         times: PartialRangeFrom<Int> = 1...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         requireOrdinaryResult()
         validateUnboundedRepeatCount(times)
         _ = makeBehaviorChain([(forwardAnswer(), .unbounded)])
-        return interactions
+        return configuredCall
     }
 
     /// Parks every matching invocation from here on and hands control to the
@@ -286,11 +286,11 @@ public struct CallPattern<Result>: Sendable {
     /// completes immediately, and the invocation is recorded before parking,
     /// so verification observes calls still awaiting cancellation.
     @discardableResult
-    public func thenAwaitCancellation() -> CallInteractions {
+    public func thenAwaitCancellation() -> ConfiguredCall<Result> {
         requireOrdinaryResult()
         requireImplicitCancellationOutcome(returning: Result.self)
         _ = makeBehaviorChain([(awaitCancellationAnswer(nil), .unbounded)])
-        return interactions
+        return configuredCall
     }
 
     /// Parks every matching invocation from here on until its task is
@@ -298,14 +298,14 @@ public struct CallPattern<Result>: Sendable {
     /// unbounded `thenReturn`/`thenThrow`. See
     /// ``CallPattern/thenAwaitCancellation()`` for the full contract.
     @discardableResult
-    public func thenAwaitCancellation(returning value: Result) -> CallInteractions {
+    public func thenAwaitCancellation(returning value: Result) -> ConfiguredCall<Result> {
         requireOrdinaryResult()
         recorder.requireReturnValueMatchesRuntimeType(
             value,
             for: recording.methodIndex
         )
         _ = makeBehaviorChain([(awaitCancellationAnswer(.success(value)), .unbounded)])
-        return interactions
+        return configuredCall
     }
 
     /// Parks every matching invocation from here on until its task is
@@ -315,11 +315,11 @@ public struct CallPattern<Result>: Sendable {
     @discardableResult
     public func thenAwaitCancellation<Failure: Error>(
         throwing error: Failure
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         let method = requireOrdinaryResult()
         requireValidThrownError(error, for: method)
         _ = makeBehaviorChain([(awaitCancellationAnswer(.failure(error)), .unbounded)])
-        return interactions
+        return configuredCall
     }
 
     /// Handles `times` matching invocations while preserving an escaping
@@ -353,11 +353,11 @@ public struct CallPattern<Result>: Sendable {
                 FirstArgument,
                 repeat each AdditionalArgument
             ) throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         requireOrdinaryResult()
         validateUnboundedRepeatCount(times)
         _ = makeBehaviorChain([(escapingImmediateAnswer(handler), .unbounded)])
-        return interactions
+        return configuredCall
     }
 
     /// Asynchronously handles `times` matching invocations while preserving
@@ -388,11 +388,11 @@ public struct CallPattern<Result>: Sendable {
                 FirstArgument,
                 repeat each AdditionalArgument
             ) async throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         requireOrdinaryResult()
         validateUnboundedRepeatCount(times)
         _ = makeBehaviorChain([(escapingSuspendingAnswer(handler), .unbounded)])
-        return interactions
+        return configuredCall
     }
 
     /// Handles `times` matching invocations whose sole argument needs to
@@ -417,11 +417,11 @@ public struct CallPattern<Result>: Sendable {
     public func then<Argument>(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (Argument) throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         requireOrdinaryResult()
         validateUnboundedRepeatCount(times)
         _ = makeBehaviorChain([(unaryImmediateAnswer(handler), .unbounded)])
-        return interactions
+        return configuredCall
     }
 
     /// Handles `times` matching invocations with typed arguments.
@@ -451,11 +451,11 @@ public struct CallPattern<Result>: Sendable {
     public func then<each Argument>(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (repeat each Argument) throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         requireOrdinaryResult()
         validateUnboundedRepeatCount(times)
         _ = makeBehaviorChain([(packedImmediateAnswer(handler), .unbounded)])
-        return interactions
+        return configuredCall
     }
 
     /// Asynchronously handles `times` matching invocations with typed
@@ -486,11 +486,11 @@ public struct CallPattern<Result>: Sendable {
     public func then<each Argument>(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping (repeat each Argument) async throws -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         requireOrdinaryResult()
         validateUnboundedRepeatCount(times)
         _ = makeBehaviorChain([(packedSuspendingAnswer(handler), .unbounded)])
-        return interactions
+        return configuredCall
     }
 
     @discardableResult
@@ -552,13 +552,13 @@ public struct CallPattern<Result>: Sendable {
         _ value: Result,
         after delay: Duration,
         using clock: any StubClock
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         requireOrdinaryResult()
         recorder.requireReturnValueMatchesRuntimeType(value, for: recording.methodIndex)
         _ = makeBehaviorChain([
             (fixedAnswer(.success(value), after: delay, using: clock), .unbounded)
         ])
-        return interactions
+        return configuredCall
     }
 
     /// Throws `error` after `delay` measured by `clock` for every matching
@@ -568,13 +568,13 @@ public struct CallPattern<Result>: Sendable {
         _ error: Failure,
         after delay: Duration,
         using clock: any StubClock
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         let method = requireOrdinaryResult()
         requireValidThrownError(error, for: method)
         _ = makeBehaviorChain([
             (fixedAnswer(.failure(error), after: delay, using: clock), .unbounded)
         ])
-        return interactions
+        return configuredCall
     }
 
     /// Configures a finite, inspectable queue of errors.
@@ -616,7 +616,7 @@ extension CallPattern where Result == Void {
     public func thenDoNothing(
         after delay: Duration? = nil,
         times: PartialRangeFrom<Int> = 1...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         thenReturn((), after: delay, times: times)
     }
 }
@@ -662,6 +662,10 @@ public struct StubBehaviorChain<Result> {
         CallInteractions(recorder: recorder, recording: recording)
     }
 
+    var configuredCall: ConfiguredCall<Result> {
+        ConfiguredCall(recorder: recorder, recording: recording)
+    }
+
     /// Appends a fixed return value for `times` consecutive matching
     /// invocations.
     ///
@@ -694,14 +698,14 @@ public struct StubBehaviorChain<Result> {
         _ value: Result,
         after delay: Duration? = nil,
         times: PartialRangeFrom<Int> = 1...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         recorder.requireReturnValueMatchesRuntimeType(
             value,
             for: recording.methodIndex
         )
         validateUnboundedRepeatCount(times)
         sequence.append(fixedAnswer(.success(value), after: delay), times: .unbounded)
-        return interactions
+        return configuredCall
     }
 
     /// Appends fixed return values to the behavior chain, in order, then
@@ -718,7 +722,7 @@ public struct StubBehaviorChain<Result> {
         _ first: Result,
         _ second: Result,
         _ rest: Result...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         let values = [first, second] + rest
         for value in values {
             recorder.requireReturnValueMatchesRuntimeType(
@@ -728,7 +732,7 @@ public struct StubBehaviorChain<Result> {
         }
         sequence.append(contentsOf: values.dropLast().map { .value(.success($0)) })
         sequence.append(.value(.success(rest.last ?? second)), times: .unbounded)
-        return interactions
+        return configuredCall
     }
 
     /// Appends a fixed error for `times` consecutive matching invocations.
@@ -760,12 +764,12 @@ public struct StubBehaviorChain<Result> {
         _ error: Failure,
         after delay: Duration? = nil,
         times: PartialRangeFrom<Int> = 1...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         let method = requireRuntimeMethod()
         requireValidThrownError(error, for: method)
         validateUnboundedRepeatCount(times)
         sequence.append(fixedAnswer(.failure(error), after: delay), times: .unbounded)
-        return interactions
+        return configuredCall
     }
 
     /// Halts the process with an actionable diagnostic for every matching
@@ -773,18 +777,18 @@ public struct StubBehaviorChain<Result> {
     /// terminal, like the unbounded `thenReturn`/`thenThrow`. See
     /// ``CallPattern/thenFatalError(_:)``.
     @discardableResult
-    public func thenFatalError(_ message: String? = nil) -> CallInteractions {
+    public func thenFatalError(_ message: String? = nil) -> ConfiguredCall<Result> {
         sequence.append(.fatal(message: message), times: .unbounded)
-        return interactions
+        return configuredCall
     }
 
     /// Parks every matching invocation from here on, never completing it.
     /// This is terminal, like the unbounded `thenReturn`/`thenThrow`. See
     /// ``CallPattern/thenNeverReturn()`` for the full contract.
     @discardableResult
-    public func thenNeverReturn() -> CallInteractions {
+    public func thenNeverReturn() -> ConfiguredCall<Result> {
         sequence.append(neverAnswer(), times: .unbounded)
-        return interactions
+        return configuredCall
     }
 
     /// Forwards `times` matching invocations to the spy's real target.
@@ -808,10 +812,10 @@ public struct StubBehaviorChain<Result> {
     @discardableResult
     public func thenForward(
         times: PartialRangeFrom<Int> = 1...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         validateUnboundedRepeatCount(times)
         sequence.append(forwardAnswer(), times: .unbounded)
-        return interactions
+        return configuredCall
     }
 
     /// Parks every matching invocation from here on until its task is
@@ -819,10 +823,10 @@ public struct StubBehaviorChain<Result> {
     /// This is terminal, like the unbounded `thenReturn`/`thenThrow`. See
     /// ``CallPattern/thenAwaitCancellation()`` for the full contract.
     @discardableResult
-    public func thenAwaitCancellation() -> CallInteractions {
+    public func thenAwaitCancellation() -> ConfiguredCall<Result> {
         requireImplicitCancellationOutcome(returning: Result.self)
         sequence.append(awaitCancellationAnswer(nil), times: .unbounded)
-        return interactions
+        return configuredCall
     }
 
     /// Parks every matching invocation from here on until its task is
@@ -830,13 +834,13 @@ public struct StubBehaviorChain<Result> {
     /// unbounded `thenReturn`/`thenThrow`. See
     /// ``CallPattern/thenAwaitCancellation()`` for the full contract.
     @discardableResult
-    public func thenAwaitCancellation(returning value: Result) -> CallInteractions {
+    public func thenAwaitCancellation(returning value: Result) -> ConfiguredCall<Result> {
         recorder.requireReturnValueMatchesRuntimeType(
             value,
             for: recording.methodIndex
         )
         sequence.append(awaitCancellationAnswer(.success(value)), times: .unbounded)
-        return interactions
+        return configuredCall
     }
 
     /// Parks every matching invocation from here on until its task is
@@ -846,10 +850,10 @@ public struct StubBehaviorChain<Result> {
     @discardableResult
     public func thenAwaitCancellation<Failure: Error>(
         throwing error: Failure
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         let method = requireRuntimeMethod()
         requireValidThrownError(error, for: method)
         sequence.append(awaitCancellationAnswer(.failure(error)), times: .unbounded)
-        return interactions
+        return configuredCall
     }
 }

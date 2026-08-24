@@ -117,7 +117,7 @@ public struct ClosureCallPattern<Input, Result>: Sendable {
     public func thenReturn(
         _ value: Result,
         times: PartialRangeFrom<Int> = 1...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenReturn(value, times: times)
     }
 
@@ -127,7 +127,7 @@ public struct ClosureCallPattern<Input, Result>: Sendable {
         _ first: Result,
         _ second: Result,
         _ rest: Result...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         let values = [first, second] + rest
         for value in values {
             base.recorder.requireReturnValueMatchesRuntimeType(
@@ -139,7 +139,7 @@ public struct ClosureCallPattern<Input, Result>: Sendable {
             values.dropLast().map { (.value(.success($0)), .exactly(1)) }
                 + [(.value(.success(rest.last ?? second)), .unbounded)]
         )
-        return interactions
+        return base.configuredCall
     }
 
     /// Computes `times` matching results from the closure's typed input.
@@ -161,7 +161,7 @@ public struct ClosureCallPattern<Input, Result>: Sendable {
     public func then(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (Input) -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.then(times: times, handler)
     }
 
@@ -181,7 +181,7 @@ public struct ClosureCallPattern<Input, Result>: Sendable {
     public func then(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable () -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.then(times: times, handler)
     }
 
@@ -202,7 +202,7 @@ public struct ClosureCallPattern<Input, Result>: Sendable {
     public func thenForEachCall(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (Int, Input) -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenForEachCall(times: times, handler)
     }
 
@@ -223,7 +223,7 @@ public struct ClosureCallPattern<Input, Result>: Sendable {
     public func thenForEachCall(
         times: PartialRangeFrom<Int> = 1...,
         _ handler: @escaping @Sendable (Int) -> Result
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenForEachCall(times: times, handler)
     }
 
@@ -246,7 +246,7 @@ public struct ClosureCallPattern<Input, Result>: Sendable {
 
     /// Halts with an actionable diagnostic for every matching invocation.
     @discardableResult
-    public func thenFatalError(_ message: String? = nil) -> CallInteractions {
+    public func thenFatalError(_ message: String? = nil) -> ConfiguredCall<Result> {
         base.thenFatalError(message)
     }
 }
@@ -266,7 +266,7 @@ extension ClosureCallPattern where Result == Void {
     @discardableResult
     public func thenDoNothing(
         times: PartialRangeFrom<Int> = 1...
-    ) -> CallInteractions {
+    ) -> ConfiguredCall<Result> {
         base.thenDoNothing(times: times)
     }
 }
