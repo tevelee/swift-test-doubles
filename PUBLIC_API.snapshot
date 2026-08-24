@@ -52,8 +52,12 @@ conformance	TestDoubles	InoutClosureOutcome	Swift.Sendable	[{"kind":"conformance
 conformance	TestDoubles	InteractionFixture	Swift.Decodable	[]
 conformance	TestDoubles	InteractionFixture	Swift.Encodable	[]
 conformance	TestDoubles	InteractionFixture	Swift.Sendable	[]
+conformance	TestDoubles	InteractionHistory	Swift.BidirectionalCollection	[]
+conformance	TestDoubles	InteractionHistory	Swift.Collection	[]
 conformance	TestDoubles	InteractionHistory	Swift.CustomStringConvertible	[]
+conformance	TestDoubles	InteractionHistory	Swift.RandomAccessCollection	[]
 conformance	TestDoubles	InteractionHistory	Swift.Sendable	[]
+conformance	TestDoubles	InteractionHistory	Swift.Sequence	[]
 conformance	TestDoubles	InteractionTimeline	Swift.CustomStringConvertible	[]
 conformance	TestDoubles	InteractionTimeline	Swift.Sendable	[]
 conformance	TestDoubles	InteractionTimeline.Dispatch	Swift.Equatable	[]
@@ -62,6 +66,9 @@ conformance	TestDoubles	InteractionTimeline.Dispatch	Swift.RawRepresentable	[]
 conformance	TestDoubles	InteractionTimeline.Dispatch	Swift.Sendable	[]
 conformance	TestDoubles	InteractionTimeline.Event	Swift.Identifiable	[]
 conformance	TestDoubles	InteractionTimeline.Event	Swift.Sendable	[]
+conformance	TestDoubles	InteractionTimeline.Event.Outcome	Swift.Equatable	[]
+conformance	TestDoubles	InteractionTimeline.Event.Outcome	Swift.Hashable	[]
+conformance	TestDoubles	InteractionTimeline.Event.Outcome	Swift.Sendable	[]
 conformance	TestDoubles	InvocationOrder	Swift.Sendable	[]
 conformance	TestDoubles	InvocationOrder.Expectation	Swift.Sendable	[]
 conformance	TestDoubles	InvocationOutcome	Swift.Sendable	[]
@@ -156,6 +163,7 @@ symbol	TestDoubles	swift.enum	BehaviorRepetition	enum BehaviorRepetition
 symbol	TestDoubles	swift.enum	CompletionOrder.Builder	@resultBuilder enum Builder
 symbol	TestDoubles	swift.enum	FixtureValueRole	enum FixtureValueRole
 symbol	TestDoubles	swift.enum	InteractionTimeline.Dispatch	enum Dispatch
+symbol	TestDoubles	swift.enum	InteractionTimeline.Event.Outcome	enum Outcome
 symbol	TestDoubles	swift.enum	InvocationOrder.Builder	@resultBuilder enum Builder
 symbol	TestDoubles	swift.enum	InvocationOutcome	enum InvocationOutcome<Value>
 symbol	TestDoubles	swift.enum	Match	enum Match
@@ -175,6 +183,11 @@ symbol	TestDoubles	swift.enum.case	FixtureValueRole.request	case request
 symbol	TestDoubles	swift.enum.case	FixtureValueRole.result	case result
 symbol	TestDoubles	swift.enum.case	InteractionTimeline.Dispatch.forwarded	case forwarded
 symbol	TestDoubles	swift.enum.case	InteractionTimeline.Dispatch.stubbed	case stubbed
+symbol	TestDoubles	swift.enum.case	InteractionTimeline.Event.Outcome.forwarded	case forwarded
+symbol	TestDoubles	swift.enum.case	InteractionTimeline.Event.Outcome.pending	case pending
+symbol	TestDoubles	swift.enum.case	InteractionTimeline.Event.Outcome.returned	case returned
+symbol	TestDoubles	swift.enum.case	InteractionTimeline.Event.Outcome.threw	case threw
+symbol	TestDoubles	swift.enum.case	InteractionTimeline.Event.Outcome.unavailable	case unavailable
 symbol	TestDoubles	swift.enum.case	InvocationOutcome.forwarded	case forwarded
 symbol	TestDoubles	swift.enum.case	InvocationOutcome.pending	case pending
 symbol	TestDoubles	swift.enum.case	InvocationOutcome.returned(_:)	case returned(Value)
@@ -1071,7 +1084,9 @@ symbol	TestDoubles	swift.property	InoutClosureOutcome.value	let value: Value
 symbol	TestDoubles	swift.property	InteractionHistory.callCount	var callCount: Int { get }
 symbol	TestDoubles	swift.property	InteractionHistory.completionTimeline	var completionTimeline: InteractionTimeline { get }
 symbol	TestDoubles	swift.property	InteractionHistory.description	var description: String { get }
+symbol	TestDoubles	swift.property	InteractionHistory.endIndex	var endIndex: Index { get }
 symbol	TestDoubles	swift.property	InteractionHistory.forwarded	var forwarded: `Self` { get }
+symbol	TestDoubles	swift.property	InteractionHistory.startIndex	var startIndex: Index { get }
 symbol	TestDoubles	swift.property	InteractionHistory.stubbed	var stubbed: `Self` { get }
 symbol	TestDoubles	swift.property	InteractionHistory.timeline	var timeline: InteractionTimeline { get }
 symbol	TestDoubles	swift.property	InteractionHistory.wasCalled	var wasCalled: Bool { get }
@@ -1079,9 +1094,11 @@ symbol	TestDoubles	swift.property	InteractionTimeline.Event.arguments	let argume
 symbol	TestDoubles	swift.property	InteractionTimeline.Event.callStack	let callStack: [String]?
 symbol	TestDoubles	swift.property	InteractionTimeline.Event.completedAt	let completedAt: ContinuousClock.Instant?
 symbol	TestDoubles	swift.property	InteractionTimeline.Event.completionSequence	let completionSequence: UInt64?
+symbol	TestDoubles	swift.property	InteractionTimeline.Event.didThrow	var didThrow: Bool { get }
 symbol	TestDoubles	swift.property	InteractionTimeline.Event.dispatch	let dispatch: Dispatch
 symbol	TestDoubles	swift.property	InteractionTimeline.Event.duration	let duration: Duration?
 symbol	TestDoubles	swift.property	InteractionTimeline.Event.id	let id: UInt64
+symbol	TestDoubles	swift.property	InteractionTimeline.Event.outcome	let outcome: Outcome
 symbol	TestDoubles	swift.property	InteractionTimeline.Event.registration	let registration: String?
 symbol	TestDoubles	swift.property	InteractionTimeline.Event.requirement	let requirement: String
 symbol	TestDoubles	swift.property	InteractionTimeline.Event.startedAt	let startedAt: ContinuousClock.Instant
@@ -1207,6 +1224,7 @@ symbol	TestDoubles	swift.struct	StubSelfResultBuilder	struct StubSelfResultBuild
 symbol	TestDoubles	swift.struct	TestDoubleIssue	struct TestDoubleIssue
 symbol	TestDoubles	swift.struct	TestDoubleScenario	struct TestDoubleScenario<Subject>
 symbol	TestDoubles	swift.struct	ThrowingClosureCallPattern	struct ThrowingClosureCallPattern<Input, Result>
+symbol	TestDoubles	swift.subscript	InteractionHistory.subscript(_:)	subscript(position: Index) -> Element { get }
 symbol	TestDoubles	swift.subscript	ManualRequirementRoute.subscript(dynamicMember:)	subscript<R>(dynamicMember member: String) -> R { get nonmutating set }
 symbol	TestDoubles	swift.subscript	ManualStub.subscript(dynamicMember:)	subscript<R>(dynamicMember member: String) -> R { get set }
 symbol	TestDoubles	swift.subscript	ManualThrowingRequirementRoute.subscript(dynamicMember:)	subscript<R>(dynamicMember member: String) -> R { get throws }
@@ -1407,6 +1425,8 @@ symbol	TestDoubles	swift.typealias	InoutClosureDouble.Function	typealias Functio
 symbol	TestDoubles	swift.typealias	InoutClosureDouble.Handler	typealias Handler = @Sendable (inout Value) -> Result
 symbol	TestDoubles	swift.typealias	InoutClosureDouble.Matcher	typealias Matcher = @Sendable (Value) -> Bool
 symbol	TestDoubles	swift.typealias	InoutClosureSpy	typealias InoutClosureSpy<Value, Result> = InoutClosureDouble<Value, Result>
+symbol	TestDoubles	swift.typealias	InteractionHistory.Element	typealias Element = InteractionTimeline.Event
+symbol	TestDoubles	swift.typealias	InteractionHistory.Index	typealias Index = Int
 symbol	TestDoubles	swift.typealias	MainActorAsyncClosureDouble	typealias MainActorAsyncClosureDouble<Input, Result> = AsyncClosureDouble<Input, Result> where Input : Sendable, Result : Sendable
 symbol	TestDoubles	swift.typealias	MainActorAsyncThrowingClosureDouble	typealias MainActorAsyncThrowingClosureDouble<Input, Result> = AsyncThrowingClosureDouble<Input, Result> where Input : Sendable, Result : Sendable
 symbol	TestDoubles	swift.typealias	MainActorAsyncTypedThrowingClosureDouble	typealias MainActorAsyncTypedThrowingClosureDouble<Input, Result, Failure> = AsyncTypedThrowingClosureDouble<Input, Result, Failure> where Input : Sendable, Result : Sendable, Failure : Error

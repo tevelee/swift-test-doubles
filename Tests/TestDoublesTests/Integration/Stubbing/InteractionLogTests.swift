@@ -7,11 +7,17 @@ import Testing
 protocol InteractionLogAnalytics {
     func track(event: String, value: Int)
     func flush()
+    func fail() throws
 }
 
 struct RealInteractionLogAnalytics: InteractionLogAnalytics {
     func track(event: String, value: Int) {}
     func flush() {}
+    func fail() throws {}
+}
+
+private enum InteractionLogError: Error {
+    case failed
 }
 
 private protocol ManualInteractionLogService {
@@ -128,5 +134,24 @@ private struct ManualInteractionLogServiceStub: ManualInteractionLogService, Man
                 && $0.description.contains("between 2 calls and 3 calls")
                 && $0.description.contains("got 1")
         }
+    }
+
+    @Test func wholeDoubleHistoryIsAStableCollectionSnapshot() throws {
+        let stub = try Stub<any InteractionLogAnalytics>()
+        stub.when { $0.flush() }.thenDoNothing()
+        stub.when { try $0.fail() }.thenThrow(InteractionLogError.failed)
+
+        let analytics: any InteractionLogAnalytics = stub()
+        analytics.flush()
+        let snapshot = stub.history
+        #expect(snapshot.count == 1)
+        #expect(snapshot.first?.outcome == .returned)
+        #expect(snapshot.first?.didThrow == false)
+
+        #expect(throws: InteractionLogError.self) { try analytics.fail() }
+
+        #expect(snapshot.count == 1)
+        #expect(stub.history.count == 2)
+        #expect(stub.history.filter(\.didThrow).map(\.requirement) == ["fail()"])
     }
 }

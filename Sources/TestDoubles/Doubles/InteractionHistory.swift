@@ -13,15 +13,45 @@ import IssueReporting
 /// print(spy.history.timeline)
 /// ```
 ///
-/// Every query is observational. Successful verification marks the matching
-/// calls as verified for `verifyNoMoreInteractions()`.
-public struct InteractionHistory: Sendable, CustomStringConvertible {
+/// Each access to `history` captures an immutable snapshot. Every query is
+/// observational. Successful verification marks the snapshot's matching calls
+/// as verified for `verifyNoMoreInteractions()`.
+public struct InteractionHistory: Sendable, CustomStringConvertible, RandomAccessCollection {
+    /// One event in the captured interaction snapshot.
+    public typealias Element = InteractionTimeline.Event
+
+    /// An integer offset into the captured interaction snapshot.
+    public typealias Index = Int
+
     let recorder: StubRecorder
+    private let calls: [RecordedCall]
+    private let events: [Element]
     let origin: InvocationOrigin?
 
     init(recorder: StubRecorder, origin: InvocationOrigin? = nil) {
+        let calls = recorder.interactionHistoryCalls(origin: origin)
         self.recorder = recorder
+        self.calls = calls
+        events = InteractionTimeline(calls: calls).events
         self.origin = origin
+    }
+
+    private init(recorder: StubRecorder, calls: [RecordedCall], origin: InvocationOrigin?) {
+        self.recorder = recorder
+        self.calls = calls
+        events = InteractionTimeline(calls: calls).events
+        self.origin = origin
+    }
+
+    /// The first valid index in this snapshot.
+    public var startIndex: Index { events.startIndex }
+
+    /// The snapshot's past-the-end index.
+    public var endIndex: Index { events.endIndex }
+
+    /// Returns the event at `position`.
+    public subscript(position: Index) -> Element {
+        events[position]
     }
 
     /// The number of calls in this history view.
@@ -42,7 +72,11 @@ public struct InteractionHistory: Sendable, CustomStringConvertible {
     ///
     /// This view is empty for a stub without a forwarding target.
     public var forwarded: Self {
-        Self(recorder: recorder, origin: .forwarded)
+        Self(
+            recorder: recorder,
+            calls: calls.filter { $0.origin == .forwarded },
+            origin: .forwarded
+        )
     }
 
     /// Calls answered by configured behavior rather than delegated to a spy's
@@ -50,12 +84,16 @@ public struct InteractionHistory: Sendable, CustomStringConvertible {
     ///
     /// This is every call for an ordinary or manual stub.
     public var stubbed: Self {
-        Self(recorder: recorder, origin: .stubbed)
+        Self(
+            recorder: recorder,
+            calls: calls.filter { $0.origin == .stubbed },
+            origin: .stubbed
+        )
     }
 
     /// A chronological diagnostic view of the calls in this history.
     public var timeline: InteractionTimeline {
-        InteractionTimeline(calls: calls)
+        InteractionTimeline(events: events)
     }
 
     /// A diagnostic timeline sorted by handler completion rather than entry.
@@ -110,7 +148,7 @@ public struct InteractionHistory: Sendable, CustomStringConvertible {
         column: UInt = #column
     ) {
         guard
-            let diagnostic = recorder.unverifiedInteractionsDiagnostic(origin: origin)
+            let diagnostic = recorder.unverifiedInteractionsDiagnostic(in: calls)
         else {
             return
         }
@@ -121,10 +159,6 @@ public struct InteractionHistory: Sendable, CustomStringConvertible {
             line: line,
             column: column
         )
-    }
-
-    private var calls: [RecordedCall] {
-        recorder.interactionHistoryCalls(origin: origin)
     }
 
     private var dispatchExpectationDescription: String {

@@ -546,6 +546,10 @@ struct InvocationLedger {
     }
 
     func unverifiedCalls() -> [RecordedCall] {
+        unverifiedCalls(in: calls)
+    }
+
+    func unverifiedCalls(in calls: [RecordedCall]) -> [RecordedCall] {
         calls.filter { call in
             guard let id = call.id else { return true }
             return verifiedCallIDs.contains(id) == false

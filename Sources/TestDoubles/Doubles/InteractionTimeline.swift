@@ -29,6 +29,20 @@ public struct InteractionTimeline: Sendable, CustomStringConvertible {
 
     /// One call-boundary event in global process order.
     public struct Event: Sendable, Identifiable {
+        /// A coarse completion state that does not expose recorded values.
+        public enum Outcome: Sendable, Hashable {
+            /// The invocation has entered but not completed.
+            case pending
+            /// The invocation returned normally.
+            case returned
+            /// The invocation threw an error.
+            case threw
+            /// A spy delegated the invocation to its target.
+            case forwarded
+            /// The invocation's result could not be recorded.
+            case unavailable
+        }
+
         /// The process-global order shared by all test doubles.
         public let id: UInt64
         /// The process-global completion order, or `nil` while pending.
@@ -51,6 +65,10 @@ public struct InteractionTimeline: Sendable, CustomStringConvertible {
         public let completedAt: ContinuousClock.Instant?
         /// Elapsed time from entry to completion, or `nil` while pending.
         public let duration: Duration?
+        /// The invocation's coarse completion state.
+        public let outcome: Outcome
+        /// Whether the invocation completed by throwing an error.
+        public var didThrow: Bool { outcome == .threw }
     }
 
     /// Events in global call order.
@@ -81,9 +99,14 @@ public struct InteractionTimeline: Sendable, CustomStringConvertible {
                 callStack: call.callStack,
                 startedAt: startedAt,
                 completedAt: call.completedAt,
-                duration: call.completedAt.map { startedAt.duration(to: $0) }
+                duration: call.completedAt.map { startedAt.duration(to: $0) },
+                outcome: Event.Outcome(call.outcome)
             )
         }
+    }
+
+    init(events: [Event]) {
+        self.events = events
     }
 
     /// A compact, human-readable trace suitable for test-failure output.
@@ -98,6 +121,18 @@ public struct InteractionTimeline: Sendable, CustomStringConvertible {
                 let registration = event.registration.map { " via \($0)" } ?? ""
                 return "  #\(event.id) \(event.dispatch.rawValue) \(event.requirement)(\(arguments))\(registration)"
             }).joined(separator: "\n")
+    }
+}
+
+extension InteractionTimeline.Event.Outcome {
+    init(_ outcome: RecordedCallOutcome) {
+        switch outcome {
+            case .pending: self = .pending
+            case .returned: self = .returned
+            case .threw: self = .threw
+            case .forwarded: self = .forwarded
+            case .unavailable: self = .unavailable
+        }
     }
 }
 

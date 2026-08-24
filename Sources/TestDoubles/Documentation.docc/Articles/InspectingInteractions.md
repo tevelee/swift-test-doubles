@@ -181,6 +181,20 @@ spy.history.forwarded.verify(1...)
 spy.history.stubbed.verify()
 ```
 
+Each `history` access is an immutable random-access collection snapshot whose
+elements are ``InteractionTimeline/Event`` values. Save one when several
+assertions must describe the same moment, or fetch `history` again to include
+new calls:
+
+```swift
+let snapshot = stub.history
+let failures = snapshot.filter(\.didThrow)
+let slowCalls = snapshot.filter { ($0.duration ?? .zero) > .milliseconds(100) }
+```
+
+An event's coarse `outcome` distinguishes pending, returned, thrown,
+forwarded, and unavailable results without retaining user values or errors.
+
 Its `description` is a human-readable, ordered log of every invocation — one
 call per line, with arguments woven back into the requirement's labels — so a
 call reads the way it was written:

@@ -312,6 +312,12 @@ extension StubRecorder {
         )
     }
 
+    func unverifiedInteractionsDiagnostic(in calls: [RecordedCall]) -> String? {
+        StubRecorderDiagnostics.unverifiedInteractions(
+            withLockedPolicy { $0.invocationLedger.unverifiedCalls(in: calls) }
+        )
+    }
+
     func unusedRegistrationsDiagnostic() -> String? {
         let signatures = withLockedPolicy {
             $0.behaviorRegistry.unusedRegistrationSignatures()
