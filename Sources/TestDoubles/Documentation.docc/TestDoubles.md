@@ -66,6 +66,7 @@ isolation. See
 
 ### Runtime Stub API
 
+- ``TestDouble``
 - ``Stub``
 - ``StubConstructionStrategy``
 - ``Spy``

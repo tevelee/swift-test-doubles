@@ -5,18 +5,18 @@ import IssueReporting
 /// Both doubles capture invocations through the same `StubRecorder`, so the
 /// recording plumbing and call-count verification live here while each double
 /// keeps its own public API surface.
-protocol TestDouble {
+protocol TestDoubleController {
     associatedtype Generated
     var recorder: StubRecorder { get }
     func materializeForRecording() -> Generated
 }
 
-extension Stub: TestDouble {}
-extension ManualStub: TestDouble {}
+extension Stub: TestDoubleController {}
+extension ManualStub: TestDoubleController {}
 
 // MARK: - Recording
 
-extension TestDouble {
+extension TestDoubleController {
     func recordInvocation<Result>(
         _ call: (Generated) throws -> Result
     ) -> RecordedCall {
@@ -165,7 +165,7 @@ extension TestDouble {
 
 // MARK: - Verification
 
-extension TestDouble {
+extension TestDoubleController {
     func verifyCallCount(
         _ expectedCounts: any RangeExpression<Int>,
         recording: RecordedCall,

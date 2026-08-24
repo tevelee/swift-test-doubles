@@ -88,6 +88,23 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
 }
 
 @Suite struct UserFacingEnhancementsTests {
+    @Test func secondaryTypesAreDiscoverableThroughNamespaces() throws {
+        let stub = try Stub<any EnhancementForwarder>()
+        let configured: TestDouble.ConfiguredCall<String> = stub.when {
+            $0.value(for: Match.any())
+        }.thenReturn("stubbed")
+        let history: TestDouble.Interactions = stub.history
+        let strategy: Stub<any EnhancementForwarder>.ConstructionStrategy =
+            stub.constructionStrategy
+
+        #expect(configured.callCount == 0)
+        #expect(history.isEmpty)
+        if case .runtimeGenerated = strategy {
+        } else {
+            Issue.record("Expected runtime-generated construction")
+        }
+    }
+
     @Test func closureDoubleRecordsAndInjectsAUnaryClosure() {
         let formatter = ClosureDouble<Int, String>()
         let twos = formatter.when(equal: 2)
