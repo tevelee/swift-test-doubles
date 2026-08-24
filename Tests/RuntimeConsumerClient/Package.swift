@@ -23,12 +23,6 @@ let package = Package(
                     name: "TestDoubles",
                     package: "swift-test-doubles"
                 )
-            ],
-            // Swift 6.3.3's Linux frontend crashes in LoadableByAddress when it
-            // batches this external-consumer suite. Compile each primary file
-            // separately until that toolchain bug is fixed.
-            swiftSettings: [
-                .unsafeFlags(["-disable-batch-mode"])
             ]
         )
     ]
