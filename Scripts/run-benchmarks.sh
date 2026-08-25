@@ -17,9 +17,18 @@ if [[ -z "${TEST_DOUBLES_BENCHMARK_REVISION:-}" ]]; then
   export TEST_DOUBLES_BENCHMARK_REVISION
 fi
 
+swift_arguments=()
+if [[ "${TEST_DOUBLES_BENCHMARK_DISABLE_LOADABLE_BY_ADDRESS:-0}" == "1" ]]; then
+  swift_arguments+=(
+    -Xswiftc -Xllvm
+    -Xswiftc -sil-disable-pass=LoadableByAddress
+  )
+fi
+
 exec swift run \
   --package-path "$repository_root/Benchmarks" \
   --scratch-path "$repository_root/.build/benchmarks" \
   --configuration release \
+  "${swift_arguments[@]}" \
   TestDoublesBenchmarks \
   "$@"

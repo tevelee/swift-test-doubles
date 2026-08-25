@@ -35,6 +35,8 @@ jobs:
     name: Runtime regression check
     runs-on: macos-26
     timeout-minutes: 30
+    env:
+      TEST_DOUBLES_BENCHMARK_DISABLE_LOADABLE_BY_ADDRESS: 1
     steps:
       - name: Check out baseline
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -90,6 +92,9 @@ jobs:
           # Otherwise an Echo update is measured as a TestDoubles regression.
           cp candidate/Package.resolved baseline/Benchmarks/Package.resolved
           cp candidate/Package.resolved candidate/Benchmarks/Package.resolved
+          # Use the candidate runner on both sides so workflow-only compiler
+          # workarounds are applied symmetrically to the baseline and candidate.
+          cp candidate/Scripts/run-benchmarks.sh baseline/Scripts/run-benchmarks.sh
       - name: Build benchmark drivers
         if: steps.relevance.outputs.should_benchmark == 'true'
         run: |
