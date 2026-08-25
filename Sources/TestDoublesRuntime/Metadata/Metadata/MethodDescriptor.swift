@@ -20,14 +20,14 @@ package struct MethodDescriptor: Sendable {
     package let argumentIsVariadic: [Bool]
     /// Source-level autoclosure parameters, represented by one closure in the ABI.
     package let argumentIsAutoclosure: [Bool]
-    package let result: WitnessValueDescriptor
+    package var result: WitnessValueDescriptor
     package let effects: RequirementEffects
     package let selfIsClassConstrained: Bool
     /// Additional witness-table words carried by protocol-constrained
     /// requirement-level generic parameters. The recorder can leave them
     /// opaque, while forwarding must account for them explicitly.
     package let methodGenericConformanceWitnessCount: Int
-    package let typedWitnessAdapterFactory: TypedWitnessAdapterFactory?
+    package var typedWitnessAdapterFactory: TypedWitnessAdapterFactory?
 
     package init(
         kind: StubRequirementKind,

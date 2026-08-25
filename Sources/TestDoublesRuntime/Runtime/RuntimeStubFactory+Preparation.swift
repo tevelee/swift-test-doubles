@@ -18,11 +18,14 @@ extension RuntimeStubFactory {
             return cached
         }
         let shape = try prepareProtocolShape(request.shape)
-        let methods = try methods(
-            for: request.requirements,
-            getterEffects: request.getterEffects,
-            shape: shape,
-            typeDescription: request.shape.typeDescription
+        let methods = try applyingAutomaticRequirementAdapters(
+            request.automaticRequirementAdapters,
+            to: methods(
+                for: request.requirements,
+                getterEffects: request.getterEffects,
+                shape: shape,
+                typeDescription: request.shape.typeDescription
+            )
         )
         if request.shape.callerAssociatedTypeBindings.isEmpty == false {
             try validateCallerBoundAssociatedTypeUse(methods, layout: shape.layout)
@@ -54,11 +57,14 @@ extension RuntimeStubFactory {
             layout: shape.layout,
             representation: shape.representation
         )
-        let methods = try TestDoublesRuntime.discoverMethods(
-            witnessTables: source.witnessTables,
-            layout: shape.layout,
-            associatedTypeBindings: shape.associatedTypeBindings,
-            getterEffectPolicy: getterEffectPolicy
+        let methods = try applyingAutomaticRequirementAdapters(
+            request.automaticRequirementAdapters,
+            to: TestDoublesRuntime.discoverMethods(
+                witnessTables: source.witnessTables,
+                layout: shape.layout,
+                associatedTypeBindings: shape.associatedTypeBindings,
+                getterEffectPolicy: getterEffectPolicy
+            )
         )
         if request.shape.callerAssociatedTypeBindings.isEmpty == false {
             try validateCallerBoundAssociatedTypeUse(methods, layout: shape.layout)
@@ -205,6 +211,64 @@ extension RuntimeStubFactory {
                     associatedTypeBindings: shape.associatedTypeBindings
                 )
                 return methods
+        }
+    }
+
+    private static func applyingAutomaticRequirementAdapters(
+        _ adapters: [RuntimeAutomaticRequirementAdapter],
+        to discoveredMethods: [MethodDescriptor]
+    ) -> [MethodDescriptor] {
+        guard adapters.isEmpty == false else { return discoveredMethods }
+
+        return discoveredMethods.map { discoveredMethod in
+            var method = discoveredMethod
+            guard method.typedErrorType == nil,
+                runtimeUncertainConcreteResultUnsupportedReason(for: method) != nil,
+                let adapter = adapters.first(where: {
+                    automaticAdapterResult($0, matches: method)
+                })
+            else {
+                return method
+            }
+            if method.typedWitnessAdapterFactory == nil {
+                guard automaticAdapterArguments(adapter, match: method) else {
+                    return method
+                }
+                method.typedWitnessAdapterFactory = typedWitnessAdapterFactory(
+                    from: adapter.typedWitnessAdapter
+                )
+            }
+            switch adapter.resultTransport {
+                case .direct:
+                    method.result = method.result.withLayout(
+                        abiClass(for: adapter.resultType)
+                    )
+                case .indirect:
+                    method.result = method.result.withLayout(.indirect)
+            }
+            return method
+        }
+    }
+
+    private static func automaticAdapterResult(
+        _ adapter: RuntimeAutomaticRequirementAdapter,
+        matches method: MethodDescriptor
+    ) -> Bool {
+        guard adapter.kind.rawValue == method.kind.rawValue,
+            adapter.isThrowing == method.isThrowing,
+            adapter.isAsync == method.isAsync,
+            ObjectIdentifier(adapter.resultType) == ObjectIdentifier(method.returnType)
+        else { return false }
+        return true
+    }
+
+    private static func automaticAdapterArguments(
+        _ adapter: RuntimeAutomaticRequirementAdapter,
+        match method: MethodDescriptor
+    ) -> Bool {
+        guard adapter.argumentTypes.count == method.argumentTypes.count else { return false }
+        return zip(adapter.argumentTypes, method.argumentTypes).allSatisfy {
+            ObjectIdentifier($0.0) == ObjectIdentifier($0.1)
         }
     }
 

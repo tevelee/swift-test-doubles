@@ -45,6 +45,43 @@ package enum RuntimeExplicitRequirementInput: @unchecked Sendable {
     case grouped([RuntimeExplicitRequirementGroup])
 }
 
+/// A compiler-emitted adapter that automatic discovery may attach to one
+/// exactly matching requirement when runtime result transport is ambiguous.
+package struct RuntimeAutomaticRequirementAdapter: @unchecked Sendable {
+    /// The concrete adapter's compiler-selected result convention. Async
+    /// dispatch also uses it to locate the trailing invocation argument.
+    package enum ResultTransport: Hashable, Sendable {
+        case direct
+        case indirect
+    }
+
+    package let kind: RuntimeRequirementKind
+    package let argumentTypes: [Any.Type]
+    package let resultType: Any.Type
+    package let resultTransport: ResultTransport
+    package let isThrowing: Bool
+    package let isAsync: Bool
+    package let typedWitnessAdapter: RuntimeTypedWitnessAdapterToken
+
+    package init(
+        kind: RuntimeRequirementKind,
+        argumentTypes: [Any.Type],
+        resultType: Any.Type,
+        resultTransport: ResultTransport,
+        isThrowing: Bool,
+        isAsync: Bool,
+        typedWitnessAdapter: RuntimeTypedWitnessAdapterToken
+    ) {
+        self.kind = kind
+        self.argumentTypes = argumentTypes
+        self.resultType = resultType
+        self.resultTransport = resultTransport
+        self.isThrowing = isThrowing
+        self.isAsync = isAsync
+        self.typedWitnessAdapter = typedWitnessAdapter
+    }
+}
+
 /// Explicit requirement schemas supplied for one declaring protocol.
 package struct RuntimeExplicitRequirementGroup: @unchecked Sendable {
     package let declaringProtocol: Any.Type
@@ -100,15 +137,18 @@ package struct RuntimeStubPreparationRequest: @unchecked Sendable {
     package let shape: RuntimeProtocolShapeRequest
     package let requirements: RuntimeExplicitRequirementInput
     package let getterEffects: RuntimeGetterEffectInput
+    package let automaticRequirementAdapters: [RuntimeAutomaticRequirementAdapter]
 
     package init(
         shape: RuntimeProtocolShapeRequest,
         requirements: RuntimeExplicitRequirementInput,
-        getterEffects: RuntimeGetterEffectInput
+        getterEffects: RuntimeGetterEffectInput,
+        automaticRequirementAdapters: [RuntimeAutomaticRequirementAdapter]
     ) {
         self.shape = shape
         self.requirements = requirements
         self.getterEffects = getterEffects
+        self.automaticRequirementAdapters = automaticRequirementAdapters
     }
 }
 

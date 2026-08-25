@@ -54,49 +54,7 @@ enum BuiltInRecordingPlaceholders {
         if let unit = measurementUnit(for: type) {
             return unit
         }
-        return switch type {
-            case is URL.Type:
-                URL(filePath: "/test-doubles-placeholder")
-            #if canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))
-                case is URLRequest.Type:
-                    URLRequest(url: URL(filePath: "/test-doubles-placeholder"))
-            #endif
-            case is Data.Type:
-                Data([0x54, 0x44])
-            case is Date.Type:
-                Date(timeIntervalSinceReferenceDate: 1)
-            case is UUID.Type:
-                UUID(uuidString: "54455354-444F-5542-4C45-530000000001")
-            case is Calendar.Type:
-                Calendar(identifier: .gregorian)
-            case is Locale.Type:
-                Locale(identifier: "en_US_POSIX")
-            case is TimeZone.Type:
-                TimeZone(secondsFromGMT: 0)
-            case is IndexPath.Type:
-                IndexPath(index: 0)
-            case is IndexSet.Type:
-                IndexSet(integer: 0)
-            case is DateInterval.Type:
-                DateInterval(
-                    start: Date(timeIntervalSinceReferenceDate: 1),
-                    duration: 1
-                )
-            case is CharacterSet.Type:
-                CharacterSet(charactersIn: "A")
-            case is Decimal.Type:
-                Decimal(1)
-            case is Notification.Name.Type:
-                Notification.Name("TestDoubles.Placeholder")
-            case is Notification.Type:
-                Notification(name: Notification.Name("TestDoubles.Placeholder"))
-            case is AttributedString.Type:
-                AttributedString("test-doubles-placeholder")
-            case is PersonNameComponents.Type:
-                personNameComponents()
-            default:
-                nil
-        }
+        return BuiltInFoundationValueCatalog.placeholder(for: type)
     }
 
     private static func measurementUnit(for type: Any.Type) -> Any? {
@@ -148,13 +106,6 @@ enum BuiltInRecordingPlaceholders {
             default:
                 nil
         }
-    }
-
-    private static func personNameComponents() -> PersonNameComponents {
-        var components = PersonNameComponents()
-        components.givenName = "Test"
-        components.familyName = "Doubles"
-        return components
     }
 
     #if canImport(Dispatch)

@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking) && !os(Android)
+    import FoundationNetworking
+#endif
 
 /// A deliberately simple imported protocol used to smoke-test ordinary
 /// out-of-package consumers independently of resilient ABI stress fixtures.
@@ -122,6 +125,32 @@ public protocol ReservationSource {
 
 public protocol ImportedDataSource: Sendable {
     func loadData() async throws -> Data
+}
+
+public protocol CommonFoundationResultSource: Sendable {
+    var currentURL: URL { get }
+    func data() -> Data
+    func date() throws -> Date
+    func identifier() async -> UUID
+    func interval() async throws -> DateInterval
+    func calendar() async throws -> Calendar
+    func locale() -> Locale
+    func timeZone() throws -> TimeZone
+    func indexPath() async -> IndexPath
+    func indexSet() async throws -> IndexSet
+    func characterSet() -> CharacterSet
+    func decimal() throws -> Decimal
+    func notificationName() async -> Notification.Name
+    func notification() async throws -> Notification
+    func attributedString() -> AttributedString
+    func personNameComponents() async throws -> PersonNameComponents
+    #if canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))
+        func request() async throws -> URLRequest
+    #endif
+}
+
+public protocol ParameterizedFoundationResultSource: Sendable {
+    func identifier(for value: Int) async -> UUID
 }
 
 public protocol EventStreamSource: Sendable {
@@ -562,6 +591,46 @@ public struct LiveImportedDataSource: ImportedDataSource {
     public func loadData() async throws -> Data {
         Data([1, 2, 3])
     }
+}
+
+public struct LiveCommonFoundationResultSource: CommonFoundationResultSource {
+    public init() {}
+
+    public var currentURL: URL { URL(fileURLWithPath: "/live") }
+    public func data() -> Data { Data() }
+    public func date() throws -> Date { Date(timeIntervalSinceReferenceDate: 0) }
+    public func identifier() async -> UUID { UUID() }
+    public func interval() async throws -> DateInterval {
+        DateInterval(start: Date(timeIntervalSinceReferenceDate: 0), duration: 1)
+    }
+    public func calendar() async throws -> Calendar { Calendar(identifier: .gregorian) }
+    public func locale() -> Locale { Locale(identifier: "en_US_POSIX") }
+    public func timeZone() throws -> TimeZone { TimeZone(secondsFromGMT: 0)! }
+    public func indexPath() async -> IndexPath { IndexPath(index: 0) }
+    public func indexSet() async throws -> IndexSet { IndexSet(integer: 0) }
+    public func characterSet() -> CharacterSet { CharacterSet(charactersIn: "A") }
+    public func decimal() throws -> Decimal { Decimal(1) }
+    public func notificationName() async -> Notification.Name {
+        Notification.Name("live")
+    }
+    public func notification() async throws -> Notification {
+        Notification(name: Notification.Name("live"))
+    }
+    public func attributedString() -> AttributedString { AttributedString("live") }
+    public func personNameComponents() async throws -> PersonNameComponents {
+        PersonNameComponents()
+    }
+    #if canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))
+        public func request() async throws -> URLRequest {
+            URLRequest(url: URL(fileURLWithPath: "/live"))
+        }
+    #endif
+}
+
+public struct LiveParameterizedFoundationResultSource: ParameterizedFoundationResultSource {
+    public init() {}
+
+    public func identifier(for value: Int) async -> UUID { UUID() }
 }
 
 public struct LiveFoundationArchiveGateway: FoundationArchiveGateway {

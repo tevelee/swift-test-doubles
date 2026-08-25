@@ -884,6 +884,9 @@ What's supported:
   or `AnyObject`-constrained parameters.
 - Explicit compiler-typed adapters for ABI-uncertain imported or resilient
   method and getter results, including async throwing Foundation values.
+- Automatic compiler-typed adapters for zero-argument methods and getters that
+  return values from the built-in Foundation placeholder catalog, including
+  `Data`, `URL`, `Date`, and `UUID`.
 
 Key limitations:
 

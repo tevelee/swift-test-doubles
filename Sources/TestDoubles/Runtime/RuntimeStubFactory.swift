@@ -51,6 +51,24 @@ enum RuntimeStubFactory {
         _ adapter: Adapter,
         invocationType: Stub<P>.Invocation.Type
     ) -> RuntimeTypedWitnessAdapterToken {
+        makeTypedWitnessAdapter(
+            adapter,
+            invocationType: invocationType,
+            makeInvocation: { endpoint, slot in
+                invocationType.init(endpoint: endpoint, slot: slot)
+            }
+        )
+    }
+
+    static func makeTypedWitnessAdapter<Invocation: AnyObject, Adapter>(
+        _ adapter: Adapter,
+        invocationType: Invocation.Type,
+        makeInvocation:
+            @escaping @Sendable (
+                any RuntimeInvocationEndpoint,
+                Int
+            ) -> Invocation
+    ) -> RuntimeTypedWitnessAdapterToken {
         var adapter = adapter
         let word = withUnsafeBytes(of: &adapter) { bytes in
             guard bytes.count >= MemoryLayout<UInt>.size else { return UInt(0) }
@@ -60,9 +78,7 @@ enum RuntimeStubFactory {
             functionType: Adapter.self,
             invocationType: invocationType,
             entryPoint: word,
-            makeInvocation: { endpoint, slot in
-                invocationType.init(endpoint: endpoint, slot: slot)
-            }
+            makeInvocation: makeInvocation
         )
         return RuntimeTypedWitnessAdapterToken(payload: source)
     }
@@ -292,7 +308,8 @@ extension Stub {
                     to: target,
                     request: runtimePreparationRequest(
                         requirements: .automatic,
-                        getterEffects: runtimeGetterEffects(getterEffects)
+                        getterEffects: runtimeGetterEffects(getterEffects),
+                        automaticRequirementAdapters: []
                     )
                 )
             return plan
@@ -451,14 +468,17 @@ extension Stub {
     private static func runtimePreparationRequest(
         callerAssociatedTypeBindings: [AssociatedTypeBinding] = [],
         requirements: RuntimeExplicitRequirementInput,
-        getterEffects: RuntimeGetterEffectInput
+        getterEffects: RuntimeGetterEffectInput,
+        automaticRequirementAdapters: [RuntimeAutomaticRequirementAdapter] =
+            BuiltInResultAdapters.all
     ) -> RuntimeStubPreparationRequest {
         RuntimeStubPreparationRequest(
             shape: runtimeShapeRequest(
                 callerAssociatedTypeBindings: callerAssociatedTypeBindings
             ),
             requirements: requirements,
-            getterEffects: getterEffects
+            getterEffects: getterEffects,
+            automaticRequirementAdapters: automaticRequirementAdapters
         )
     }
 

@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Explicit compiler-typed witness adapters can transport ABI-uncertain imported
   and resilient method or getter results, including asynchronous throwing
   Foundation values, without guessing their direct or indirect return convention.
+- Automatic stubs reuse the built-in Foundation placeholder catalog to install
+  compiler-emitted result adapters for zero-argument methods and getters. Common
+  results such as `Data`, `URL`, `Date`, and `UUID` no longer need an explicit
+  `Requirement`.
 - `thenStream()` and `thenThrowingStream()` return controllers for yielding,
   finishing, failing, buffering, and observing cancellation of stubbed async
   sequences, with strict-scope detection of controllers left open at teardown.

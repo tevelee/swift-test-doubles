@@ -265,7 +265,7 @@ private func validateInferredRequirementSignature(
     }
 }
 
-private func typedWitnessAdapterFactory(
+package func typedWitnessAdapterFactory(
     from token: RuntimeTypedWitnessAdapterToken?
 ) -> TypedWitnessAdapterFactory? {
     guard let token else { return nil }

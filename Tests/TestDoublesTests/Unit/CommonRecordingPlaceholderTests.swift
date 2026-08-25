@@ -85,6 +85,20 @@ struct CommonRecordingPlaceholderTests {
         #expect(person.familyName == "Doubles")
     }
 
+    @Test func automaticFoundationResultAdaptersShareThePlaceholderCatalog() {
+        let resultTypes = Dictionary(
+            grouping: BuiltInResultAdapters.all,
+            by: { ObjectIdentifier($0.resultType) }
+        ).values.compactMap { $0.first?.resultType }
+
+        for resultType in resultTypes {
+            #expect(
+                BuiltInFoundationValueCatalog.placeholder(for: resultType) != nil,
+                "Missing a recording placeholder for \(String(reflecting: resultType))"
+            )
+        }
+    }
+
     #if canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))
         @Test func urlRequestUsesTheBuiltInURL() throws {
             let request = try #require(

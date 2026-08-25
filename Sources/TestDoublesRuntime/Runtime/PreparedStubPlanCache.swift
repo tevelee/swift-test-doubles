@@ -69,6 +69,18 @@ enum PreparedStubPlanCache {
             let requirements: [Requirement]
         }
 
+        struct AutomaticRequirementAdapter: Hashable {
+            let kind: RuntimeRequirementKind
+            let argumentTypes: [ObjectIdentifier]
+            let resultType: ObjectIdentifier
+            let resultTransport: RuntimeAutomaticRequirementAdapter.ResultTransport
+            let isThrowing: Bool
+            let isAsync: Bool
+            let functionType: ObjectIdentifier
+            let invocationType: ObjectIdentifier
+            let entryPoint: UInt
+        }
+
         enum Requirements: Hashable {
             case automatic
             case flat([Requirement])
@@ -79,6 +91,7 @@ enum PreparedStubPlanCache {
         let associatedTypeBindings: [AssociatedTypeBinding]
         let requirements: Requirements
         let getterEffects: GetterEffects
+        let automaticRequirementAdapters: [AutomaticRequirementAdapter]
     }
 
     private final class Storage: @unchecked Sendable {
@@ -139,6 +152,32 @@ enum PreparedStubPlanCache {
                             )
                         })
             }
+        var automaticRequirementAdapters: [Key.AutomaticRequirementAdapter] = []
+        automaticRequirementAdapters.reserveCapacity(
+            request.automaticRequirementAdapters.count
+        )
+        for adapter in request.automaticRequirementAdapters {
+            guard
+                let source = adapter.typedWitnessAdapter.payload(
+                    as: RuntimeTypedWitnessAdapterSource.self
+                )
+            else {
+                return nil
+            }
+            automaticRequirementAdapters.append(
+                Key.AutomaticRequirementAdapter(
+                    kind: adapter.kind,
+                    argumentTypes: adapter.argumentTypes.map(ObjectIdentifier.init),
+                    resultType: ObjectIdentifier(adapter.resultType),
+                    resultTransport: adapter.resultTransport,
+                    isThrowing: adapter.isThrowing,
+                    isAsync: adapter.isAsync,
+                    functionType: ObjectIdentifier(source.functionType),
+                    invocationType: ObjectIdentifier(source.invocationType),
+                    entryPoint: source.entryPoint
+                )
+            )
+        }
         return Key(
             protocolType: ObjectIdentifier(request.shape.protocolType),
             associatedTypeBindings:
@@ -152,7 +191,8 @@ enum PreparedStubPlanCache {
                     )
                 },
             requirements: requirements,
-            getterEffects: getterEffects
+            getterEffects: getterEffects,
+            automaticRequirementAdapters: automaticRequirementAdapters
         )
     }
 

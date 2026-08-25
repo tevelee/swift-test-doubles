@@ -236,15 +236,17 @@ unconfigured spy cannot be the first observation of an ambiguous method for
 the same reason.
 
 The same ambiguity in a concrete result has no incoming frame bytes from which
-to calibrate a client convention. To avoid writing a direct register result
-where the caller supplied storage, construction rejects a protocol with such a
-result before it can be invoked. Fixed-layout results, including
-reference-backed collections, remain supported. Use a hand-written test double
-for an ABI-uncertain third-party result until Swift exposes its frozen-ness to
-the runtime. The same fail-closed rule applies to a typed error. A top-level
-tuple with an ABI-uncertain element is also rejected because Swift lowers tuple
-elements independently; an Optional or nominal wrapper around that tuple is
-one whole value and can use ordinary calibration.
+to calibrate a client convention. Automatic discovery can install one of the
+compiler-emitted adapters shipped for zero-argument methods and getters whose
+result is in the built-in Foundation placeholder catalog. The catalog records
+the compiler's direct or indirect transport alongside the adapter, which is
+also needed to place its invocation object correctly for async calls. Other
+ambiguous results are rejected before invocation. An explicit compiler-typed
+adapter covers compatible requirements outside the catalog; otherwise use a
+hand-written test double. The same fail-closed rule applies to a typed error. A
+top-level tuple with an ABI-uncertain element is also rejected because Swift
+lowers tuple elements independently; an Optional or nominal wrapper around
+that tuple is one whole value and can use ordinary calibration.
 
 For an async call, the entry trampoline preserves the caller continuation,
 creates a Swift task continuation around recorder dispatch, and resumes through

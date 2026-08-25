@@ -76,7 +76,9 @@ public class Stub<P> {
     /// single-root protocol and must appear in protocol requirement order. Use
     /// `init(requirementsByProtocol:)` for multi-root compositions. Linked
     /// witnesses and resilient requirement symbols also validate every
-    /// reliably discoverable explicit signature component.
+    /// reliably discoverable explicit signature component. Automatic discovery
+    /// installs compiler-typed adapters for zero-argument methods and getters
+    /// returning values from the built-in Foundation placeholder catalog.
     public convenience init(_ requirements: Requirement...) throws(StubError) {
         let prepared = try withStubConstructionError(for: P.self) {
             if requirements.isEmpty {

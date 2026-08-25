@@ -137,6 +137,15 @@ package struct WitnessValueDescriptor: Sendable {
     package let convention: WitnessValueConvention
     package let dependency: WitnessValueDependency
     package let layout: ABIClass
+
+    package func withLayout(_ layout: ABIClass) -> Self {
+        Self(
+            type: type,
+            convention: convention,
+            dependency: dependency,
+            layout: layout
+        )
+    }
 }
 
 /// An incoming witness value and the ownership convention applied after it is

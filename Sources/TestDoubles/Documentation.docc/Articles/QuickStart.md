@@ -163,17 +163,36 @@ or forwarded call.
 An imported non-`@frozen` value can be an argument because the matcher call
 gives TestDoubles bytes to compare with the caller's frame. The same value as a
 result cannot be calibrated: the caller has already chosen registers or result
-storage before a fabricated witness can observe anything. To prevent a wrong
-return convention from corrupting memory, automatic `Stub` construction
-rejects a protocol with an ABI-uncertain imported result or typed error.
+storage before a fabricated witness can observe anything. For common
+Foundation leaves, TestDoubles solves that problem automatically. The built-in
+placeholder catalog also contains compiler-emitted result adapters for
+zero-argument methods and getters across synchronous, throwing, async, and
+async-throwing requirements:
 
-This can occur with a Foundation value such as `URL`, or with a non-frozen
-struct or enum from your own library-evolution framework. It also includes a
-generic struct or enum because the runtime cannot see the outer declaration's
-`@frozen` status. It is not a matcher configuration problem, so
-adding more `Match.any(using:)` calls will not make a return value safe. Supply
-an explicit requirement with an exact compiler-typed `@convention(thin)`
-adapter when the requirement has room for its trailing ``Stub/Invocation``:
+```swift
+protocol Loader {
+    func load() async throws -> Data
+}
+
+let loader = try Stub<any Loader>()
+await loader.when { try await $0.load() }.thenReturn(Data())
+
+#expect(try await loader().load() == Data())
+```
+
+The catalog covers `URL`, `Data`, `Date`, `UUID`, `Calendar`, `Locale`,
+`TimeZone`, `IndexPath`, `IndexSet`, `DateInterval`, `CharacterSet`, `Decimal`,
+notification values, `AttributedString`, `PersonNameComponents`, and
+`URLRequest` where available. Each entry records the return transport selected
+by the compiler; no application compiler flag or runtime ABI guess is involved.
+
+An explicit adapter is still needed for a non-frozen type outside that catalog,
+or when the requirement has arguments. The same limitation applies to a generic
+struct or enum because the runtime cannot see the outer declaration's `@frozen`
+status. It is not a matcher configuration problem, so adding more
+`Match.any(using:)` calls will not make a return value safe. Supply an explicit
+requirement with an exact compiler-typed `@convention(thin)` adapter when the
+requirement has room for its trailing ``Stub/Invocation``:
 
 ```swift
 let adapter:

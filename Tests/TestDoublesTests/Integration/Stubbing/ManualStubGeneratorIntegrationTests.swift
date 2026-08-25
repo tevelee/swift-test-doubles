@@ -38,16 +38,14 @@ import TestDoubles
         #expect(stub.runtimeFallbackReason == nil)
     }
 
-    @Test func automaticFactoryFallsBackForAnOpaqueImportedResult() {
+    @Test func automaticFactoryUsesRuntimeSynthesisForABuiltInImportedResult() {
         let stub = GeneratedOpaqueResultServiceStub.automatic()
         let expected = Data([2, 3, 5, 7])
         stub.when(returning: expected) { $0.load() }.thenReturn(expected)
 
         #expect(stub().load() == expected)
-        #expect(stub.constructionStrategy == .compiledFallback)
-        #expect(
-            stub.runtimeFallbackReason?.description.contains("ABI-uncertain result") == true
-        )
+        #expect(stub.constructionStrategy == .runtimeGenerated)
+        #expect(stub.runtimeFallbackReason == nil)
     }
 
     @Test func automaticFactoryUsesAGenuineActorForActorProtocols() async {
