@@ -150,16 +150,16 @@ private func adapterFunction(for entry: Entry) -> String {
         ) {
             let synchronous:
                 @convention(thin) (BuiltInResultInvocation) -> \(entry.type) =
-                    { invocation in invocation.call() }
+                    { invocation in invocation.call(returning: \(entry.type).self) as! \(entry.type) }
             let synchronousThrowing:
                 @convention(thin) (BuiltInResultInvocation) throws -> \(entry.type) =
-                    { invocation in try invocation.callThrowing() }
+                    { invocation in try invocation.callThrowing(returning: \(entry.type).self) as! \(entry.type) }
             let asynchronous:
                 @convention(thin) (BuiltInResultInvocation) async -> \(entry.type) =
-                    { invocation in await invocation.call() }
+                    { invocation in await invocation.call() as! \(entry.type) }
             let asynchronousThrowing:
                 @convention(thin) (BuiltInResultInvocation) async throws -> \(entry.type) =
-                    { invocation in try await invocation.callThrowing() }
+                    { invocation in try await invocation.callThrowing() as! \(entry.type) }
             append(
                 returning: \(entry.type).self,
                 resultTransport: .\(entry.transport.rawValue),
@@ -184,6 +184,9 @@ private func generatedSource() -> String {
             import FoundationNetworking
         #endif
         import InternalRuntimeContract
+
+        // The catalog fixes the result type for each compiler-typed adapter.
+        // swiftlint:disable force_cast
 
         enum BuiltInFoundationValueCatalog {
             static func placeholder(for type: Any.Type) -> Any? {
@@ -211,6 +214,7 @@ private func generatedSource() -> String {
 
         \(functions.split(separator: "\n", omittingEmptySubsequences: false).map { "    " + $0 }.joined(separator: "\n"))
         }
+        // swiftlint:enable force_cast
         """ + "\n"
 }
 

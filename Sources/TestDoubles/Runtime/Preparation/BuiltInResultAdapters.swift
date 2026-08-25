@@ -101,9 +101,9 @@ final class BuiltInResultInvocation: @unchecked Sendable {
         self.slot = slot
     }
 
-    func call<Result>(returning resultType: Result.Type = Result.self) -> Result {
+    func call(returning resultType: Any.Type) -> Any {
         do {
-            return try endpoint.dispatchTyped(request, as: resultType)
+            return try dispatchErased(returning: resultType)
         } catch {
             fatalError(
                 "[TestDoubles] A nonthrowing built-in result adapter for '\(methodName)' threw \(error)."
@@ -111,17 +111,13 @@ final class BuiltInResultInvocation: @unchecked Sendable {
         }
     }
 
-    func callThrowing<Result>(
-        returning resultType: Result.Type = Result.self
-    ) throws -> Result {
-        try endpoint.dispatchTyped(request, as: resultType)
+    func callThrowing(returning resultType: Any.Type) throws -> Any {
+        try dispatchErased(returning: resultType)
     }
 
-    func call<Result>(
-        returning resultType: Result.Type = Result.self
-    ) async -> Result {
+    func call() async -> Any {
         do {
-            return try await callAsync(returning: resultType)
+            return try await callAsync()
         } catch {
             fatalError(
                 "[TestDoubles] A nonthrowing async built-in result adapter for '\(methodName)' threw \(error)."
@@ -129,10 +125,8 @@ final class BuiltInResultInvocation: @unchecked Sendable {
         }
     }
 
-    func callThrowing<Result>(
-        returning resultType: Result.Type = Result.self
-    ) async throws -> Result {
-        try await callAsync(returning: resultType)
+    func callThrowing() async throws -> Any {
+        try await callAsync()
     }
 
     private var request: RuntimeInvocationRequest {
@@ -141,28 +135,23 @@ final class BuiltInResultInvocation: @unchecked Sendable {
 
     private var methodName: String { endpoint.methodName(at: slot) }
 
-    private func callAsync<Result>(returning resultType: Result.Type) async throws -> Result {
+    private func dispatchErased(returning resultType: Any.Type) throws -> Any {
+        func dispatch<Result>(as resultType: Result.Type) throws -> Any {
+            try endpoint.dispatchTyped(request, as: resultType)
+        }
+        return try _openExistential(resultType, do: dispatch)
+    }
+
+    private func callAsync() async throws -> Any {
         switch endpoint.prepareAsyncDispatch(request) {
             case .recording:
-                return requireStubbedResult(
-                    endpoint.recordingAccessorResult(at: slot),
-                    as: resultType,
-                    method: methodName
-                )
+                return endpoint.recordingAccessorResult(at: slot)
             case .immediate(.success(let result)):
-                return requireStubbedResult(
-                    result,
-                    as: resultType,
-                    method: methodName
-                )
+                return result
             case .immediate(.failure(let error)):
                 throw error
             case .suspending(let handler):
-                return requireStubbedResult(
-                    try await handler([]),
-                    as: resultType,
-                    method: methodName
-                )
+                return try await handler([])
             case .forwarding:
                 preconditionFailure(
                     "[TestDoubles] Built-in result adapters cannot dispatch a forwarding Spy fallback."

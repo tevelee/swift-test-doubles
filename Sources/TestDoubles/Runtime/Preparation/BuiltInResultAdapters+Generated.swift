@@ -6,6 +6,9 @@ import Foundation
 #endif
 import InternalRuntimeContract
 
+// The catalog fixes the result type for each compiler-typed adapter.
+// swiftlint:disable force_cast
+
 enum BuiltInFoundationValueCatalog {
     static func placeholder(for type: Any.Type) -> Any? {
         switch type {
@@ -87,13 +90,13 @@ extension BuiltInResultAdapters {
         to adapters: inout [RuntimeAutomaticRequirementAdapter]
     ) {
         let synchronous: @convention(thin) (BuiltInResultInvocation) -> URL =
-            { invocation in invocation.call() }
+            { invocation in invocation.call(returning: URL.self) as! URL }
         let synchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> URL =
-            { invocation in try invocation.callThrowing() }
+            { invocation in try invocation.callThrowing(returning: URL.self) as! URL }
         let asynchronous: @convention(thin) (BuiltInResultInvocation) async -> URL =
-            { invocation in await invocation.call() }
+            { invocation in await invocation.call() as! URL }
         let asynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> URL =
-            { invocation in try await invocation.callThrowing() }
+            { invocation in try await invocation.callThrowing() as! URL }
         append(
             returning: URL.self,
             resultTransport: .indirect,
@@ -109,13 +112,13 @@ extension BuiltInResultAdapters {
         to adapters: inout [RuntimeAutomaticRequirementAdapter]
     ) {
         let synchronous: @convention(thin) (BuiltInResultInvocation) -> Data =
-            { invocation in invocation.call() }
+            { invocation in invocation.call(returning: Data.self) as! Data }
         let synchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> Data =
-            { invocation in try invocation.callThrowing() }
+            { invocation in try invocation.callThrowing(returning: Data.self) as! Data }
         let asynchronous: @convention(thin) (BuiltInResultInvocation) async -> Data =
-            { invocation in await invocation.call() }
+            { invocation in await invocation.call() as! Data }
         let asynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> Data =
-            { invocation in try await invocation.callThrowing() }
+            { invocation in try await invocation.callThrowing() as! Data }
         append(
             returning: Data.self,
             resultTransport: .direct,
@@ -131,13 +134,13 @@ extension BuiltInResultAdapters {
         to adapters: inout [RuntimeAutomaticRequirementAdapter]
     ) {
         let synchronous: @convention(thin) (BuiltInResultInvocation) -> Date =
-            { invocation in invocation.call() }
+            { invocation in invocation.call(returning: Date.self) as! Date }
         let synchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> Date =
-            { invocation in try invocation.callThrowing() }
+            { invocation in try invocation.callThrowing(returning: Date.self) as! Date }
         let asynchronous: @convention(thin) (BuiltInResultInvocation) async -> Date =
-            { invocation in await invocation.call() }
+            { invocation in await invocation.call() as! Date }
         let asynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> Date =
-            { invocation in try await invocation.callThrowing() }
+            { invocation in try await invocation.callThrowing() as! Date }
         append(
             returning: Date.self,
             resultTransport: .indirect,
@@ -153,13 +156,13 @@ extension BuiltInResultAdapters {
         to adapters: inout [RuntimeAutomaticRequirementAdapter]
     ) {
         let synchronous: @convention(thin) (BuiltInResultInvocation) -> UUID =
-            { invocation in invocation.call() }
+            { invocation in invocation.call(returning: UUID.self) as! UUID }
         let synchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> UUID =
-            { invocation in try invocation.callThrowing() }
+            { invocation in try invocation.callThrowing(returning: UUID.self) as! UUID }
         let asynchronous: @convention(thin) (BuiltInResultInvocation) async -> UUID =
-            { invocation in await invocation.call() }
+            { invocation in await invocation.call() as! UUID }
         let asynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> UUID =
-            { invocation in try await invocation.callThrowing() }
+            { invocation in try await invocation.callThrowing() as! UUID }
         append(
             returning: UUID.self,
             resultTransport: .indirect,
@@ -175,13 +178,13 @@ extension BuiltInResultAdapters {
         to adapters: inout [RuntimeAutomaticRequirementAdapter]
     ) {
         let synchronous: @convention(thin) (BuiltInResultInvocation) -> Calendar =
-            { invocation in invocation.call() }
+            { invocation in invocation.call(returning: Calendar.self) as! Calendar }
         let synchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> Calendar =
-            { invocation in try invocation.callThrowing() }
+            { invocation in try invocation.callThrowing(returning: Calendar.self) as! Calendar }
         let asynchronous: @convention(thin) (BuiltInResultInvocation) async -> Calendar =
-            { invocation in await invocation.call() }
+            { invocation in await invocation.call() as! Calendar }
         let asynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> Calendar =
-            { invocation in try await invocation.callThrowing() }
+            { invocation in try await invocation.callThrowing() as! Calendar }
         append(
             returning: Calendar.self,
             resultTransport: .indirect,
@@ -197,13 +200,13 @@ extension BuiltInResultAdapters {
         to adapters: inout [RuntimeAutomaticRequirementAdapter]
     ) {
         let synchronous: @convention(thin) (BuiltInResultInvocation) -> Locale =
-            { invocation in invocation.call() }
+            { invocation in invocation.call(returning: Locale.self) as! Locale }
         let synchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> Locale =
-            { invocation in try invocation.callThrowing() }
+            { invocation in try invocation.callThrowing(returning: Locale.self) as! Locale }
         let asynchronous: @convention(thin) (BuiltInResultInvocation) async -> Locale =
-            { invocation in await invocation.call() }
+            { invocation in await invocation.call() as! Locale }
         let asynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> Locale =
-            { invocation in try await invocation.callThrowing() }
+            { invocation in try await invocation.callThrowing() as! Locale }
         append(
             returning: Locale.self,
             resultTransport: .indirect,
@@ -219,13 +222,13 @@ extension BuiltInResultAdapters {
         to adapters: inout [RuntimeAutomaticRequirementAdapter]
     ) {
         let synchronous: @convention(thin) (BuiltInResultInvocation) -> TimeZone =
-            { invocation in invocation.call() }
+            { invocation in invocation.call(returning: TimeZone.self) as! TimeZone }
         let synchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> TimeZone =
-            { invocation in try invocation.callThrowing() }
+            { invocation in try invocation.callThrowing(returning: TimeZone.self) as! TimeZone }
         let asynchronous: @convention(thin) (BuiltInResultInvocation) async -> TimeZone =
-            { invocation in await invocation.call() }
+            { invocation in await invocation.call() as! TimeZone }
         let asynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> TimeZone =
-            { invocation in try await invocation.callThrowing() }
+            { invocation in try await invocation.callThrowing() as! TimeZone }
         append(
             returning: TimeZone.self,
             resultTransport: .indirect,
@@ -241,13 +244,13 @@ extension BuiltInResultAdapters {
         to adapters: inout [RuntimeAutomaticRequirementAdapter]
     ) {
         let synchronous: @convention(thin) (BuiltInResultInvocation) -> IndexPath =
-            { invocation in invocation.call() }
+            { invocation in invocation.call(returning: IndexPath.self) as! IndexPath }
         let synchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> IndexPath =
-            { invocation in try invocation.callThrowing() }
+            { invocation in try invocation.callThrowing(returning: IndexPath.self) as! IndexPath }
         let asynchronous: @convention(thin) (BuiltInResultInvocation) async -> IndexPath =
-            { invocation in await invocation.call() }
+            { invocation in await invocation.call() as! IndexPath }
         let asynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> IndexPath =
-            { invocation in try await invocation.callThrowing() }
+            { invocation in try await invocation.callThrowing() as! IndexPath }
         append(
             returning: IndexPath.self,
             resultTransport: .indirect,
@@ -263,13 +266,13 @@ extension BuiltInResultAdapters {
         to adapters: inout [RuntimeAutomaticRequirementAdapter]
     ) {
         let synchronous: @convention(thin) (BuiltInResultInvocation) -> IndexSet =
-            { invocation in invocation.call() }
+            { invocation in invocation.call(returning: IndexSet.self) as! IndexSet }
         let synchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> IndexSet =
-            { invocation in try invocation.callThrowing() }
+            { invocation in try invocation.callThrowing(returning: IndexSet.self) as! IndexSet }
         let asynchronous: @convention(thin) (BuiltInResultInvocation) async -> IndexSet =
-            { invocation in await invocation.call() }
+            { invocation in await invocation.call() as! IndexSet }
         let asynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> IndexSet =
-            { invocation in try await invocation.callThrowing() }
+            { invocation in try await invocation.callThrowing() as! IndexSet }
         append(
             returning: IndexSet.self,
             resultTransport: .indirect,
@@ -285,13 +288,13 @@ extension BuiltInResultAdapters {
         to adapters: inout [RuntimeAutomaticRequirementAdapter]
     ) {
         let synchronous: @convention(thin) (BuiltInResultInvocation) -> DateInterval =
-            { invocation in invocation.call() }
+            { invocation in invocation.call(returning: DateInterval.self) as! DateInterval }
         let synchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> DateInterval =
-            { invocation in try invocation.callThrowing() }
+            { invocation in try invocation.callThrowing(returning: DateInterval.self) as! DateInterval }
         let asynchronous: @convention(thin) (BuiltInResultInvocation) async -> DateInterval =
-            { invocation in await invocation.call() }
+            { invocation in await invocation.call() as! DateInterval }
         let asynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> DateInterval =
-            { invocation in try await invocation.callThrowing() }
+            { invocation in try await invocation.callThrowing() as! DateInterval }
         append(
             returning: DateInterval.self,
             resultTransport: .indirect,
@@ -307,13 +310,13 @@ extension BuiltInResultAdapters {
         to adapters: inout [RuntimeAutomaticRequirementAdapter]
     ) {
         let synchronous: @convention(thin) (BuiltInResultInvocation) -> CharacterSet =
-            { invocation in invocation.call() }
+            { invocation in invocation.call(returning: CharacterSet.self) as! CharacterSet }
         let synchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> CharacterSet =
-            { invocation in try invocation.callThrowing() }
+            { invocation in try invocation.callThrowing(returning: CharacterSet.self) as! CharacterSet }
         let asynchronous: @convention(thin) (BuiltInResultInvocation) async -> CharacterSet =
-            { invocation in await invocation.call() }
+            { invocation in await invocation.call() as! CharacterSet }
         let asynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> CharacterSet =
-            { invocation in try await invocation.callThrowing() }
+            { invocation in try await invocation.callThrowing() as! CharacterSet }
         append(
             returning: CharacterSet.self,
             resultTransport: .indirect,
@@ -329,13 +332,13 @@ extension BuiltInResultAdapters {
         to adapters: inout [RuntimeAutomaticRequirementAdapter]
     ) {
         let synchronous: @convention(thin) (BuiltInResultInvocation) -> Decimal =
-            { invocation in invocation.call() }
+            { invocation in invocation.call(returning: Decimal.self) as! Decimal }
         let synchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> Decimal =
-            { invocation in try invocation.callThrowing() }
+            { invocation in try invocation.callThrowing(returning: Decimal.self) as! Decimal }
         let asynchronous: @convention(thin) (BuiltInResultInvocation) async -> Decimal =
-            { invocation in await invocation.call() }
+            { invocation in await invocation.call() as! Decimal }
         let asynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> Decimal =
-            { invocation in try await invocation.callThrowing() }
+            { invocation in try await invocation.callThrowing() as! Decimal }
         append(
             returning: Decimal.self,
             resultTransport: .direct,
@@ -351,13 +354,13 @@ extension BuiltInResultAdapters {
         to adapters: inout [RuntimeAutomaticRequirementAdapter]
     ) {
         let synchronous: @convention(thin) (BuiltInResultInvocation) -> Notification.Name =
-            { invocation in invocation.call() }
+            { invocation in invocation.call(returning: Notification.Name.self) as! Notification.Name }
         let synchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> Notification.Name =
-            { invocation in try invocation.callThrowing() }
+            { invocation in try invocation.callThrowing(returning: Notification.Name.self) as! Notification.Name }
         let asynchronous: @convention(thin) (BuiltInResultInvocation) async -> Notification.Name =
-            { invocation in await invocation.call() }
+            { invocation in await invocation.call() as! Notification.Name }
         let asynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> Notification.Name =
-            { invocation in try await invocation.callThrowing() }
+            { invocation in try await invocation.callThrowing() as! Notification.Name }
         append(
             returning: Notification.Name.self,
             resultTransport: .direct,
@@ -373,13 +376,13 @@ extension BuiltInResultAdapters {
         to adapters: inout [RuntimeAutomaticRequirementAdapter]
     ) {
         let synchronous: @convention(thin) (BuiltInResultInvocation) -> Notification =
-            { invocation in invocation.call() }
+            { invocation in invocation.call(returning: Notification.self) as! Notification }
         let synchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> Notification =
-            { invocation in try invocation.callThrowing() }
+            { invocation in try invocation.callThrowing(returning: Notification.self) as! Notification }
         let asynchronous: @convention(thin) (BuiltInResultInvocation) async -> Notification =
-            { invocation in await invocation.call() }
+            { invocation in await invocation.call() as! Notification }
         let asynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> Notification =
-            { invocation in try await invocation.callThrowing() }
+            { invocation in try await invocation.callThrowing() as! Notification }
         append(
             returning: Notification.self,
             resultTransport: .indirect,
@@ -395,13 +398,13 @@ extension BuiltInResultAdapters {
         to adapters: inout [RuntimeAutomaticRequirementAdapter]
     ) {
         let synchronous: @convention(thin) (BuiltInResultInvocation) -> AttributedString =
-            { invocation in invocation.call() }
+            { invocation in invocation.call(returning: AttributedString.self) as! AttributedString }
         let synchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> AttributedString =
-            { invocation in try invocation.callThrowing() }
+            { invocation in try invocation.callThrowing(returning: AttributedString.self) as! AttributedString }
         let asynchronous: @convention(thin) (BuiltInResultInvocation) async -> AttributedString =
-            { invocation in await invocation.call() }
+            { invocation in await invocation.call() as! AttributedString }
         let asynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> AttributedString =
-            { invocation in try await invocation.callThrowing() }
+            { invocation in try await invocation.callThrowing() as! AttributedString }
         append(
             returning: AttributedString.self,
             resultTransport: .indirect,
@@ -417,13 +420,13 @@ extension BuiltInResultAdapters {
         to adapters: inout [RuntimeAutomaticRequirementAdapter]
     ) {
         let synchronous: @convention(thin) (BuiltInResultInvocation) -> PersonNameComponents =
-            { invocation in invocation.call() }
+            { invocation in invocation.call(returning: PersonNameComponents.self) as! PersonNameComponents }
         let synchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> PersonNameComponents =
-            { invocation in try invocation.callThrowing() }
+            { invocation in try invocation.callThrowing(returning: PersonNameComponents.self) as! PersonNameComponents }
         let asynchronous: @convention(thin) (BuiltInResultInvocation) async -> PersonNameComponents =
-            { invocation in await invocation.call() }
+            { invocation in await invocation.call() as! PersonNameComponents }
         let asynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> PersonNameComponents =
-            { invocation in try await invocation.callThrowing() }
+            { invocation in try await invocation.callThrowing() as! PersonNameComponents }
         append(
             returning: PersonNameComponents.self,
             resultTransport: .indirect,
@@ -440,13 +443,13 @@ extension BuiltInResultAdapters {
             to adapters: inout [RuntimeAutomaticRequirementAdapter]
         ) {
             let synchronous: @convention(thin) (BuiltInResultInvocation) -> URLRequest =
-                { invocation in invocation.call() }
+                { invocation in invocation.call(returning: URLRequest.self) as! URLRequest }
             let synchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> URLRequest =
-                { invocation in try invocation.callThrowing() }
+                { invocation in try invocation.callThrowing(returning: URLRequest.self) as! URLRequest }
             let asynchronous: @convention(thin) (BuiltInResultInvocation) async -> URLRequest =
-                { invocation in await invocation.call() }
+                { invocation in await invocation.call() as! URLRequest }
             let asynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> URLRequest =
-                { invocation in try await invocation.callThrowing() }
+                { invocation in try await invocation.callThrowing() as! URLRequest }
             append(
                 returning: URLRequest.self,
                 resultTransport: .indirect,
@@ -459,3 +462,4 @@ extension BuiltInResultAdapters {
         }
     #endif
 }
+// swiftlint:enable force_cast
