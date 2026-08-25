@@ -9,31 +9,35 @@ import InternalRuntimeContract
 // The catalog fixes the result type for each compiler-typed adapter.
 // swiftlint:disable force_cast
 
-private let builtInDecimalSynchronous: @convention(thin) (BuiltInResultInvocation) -> Decimal =
-    { invocation in invocation.call(returning: Decimal.self) as! Decimal }
+#if !os(WASI)
+    private let builtInDecimalSynchronous: @convention(thin) (BuiltInResultInvocation) -> Decimal =
+        { invocation in invocation.call(returning: Decimal.self) as! Decimal }
 
-private let builtInDecimalSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> Decimal =
-    { invocation in try invocation.callThrowing(returning: Decimal.self) as! Decimal }
+    private let builtInDecimalSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> Decimal =
+        { invocation in try invocation.callThrowing(returning: Decimal.self) as! Decimal }
 
-private let builtInDecimalAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> Decimal =
-    { invocation in await invocation.call() as! Decimal }
+    private let builtInDecimalAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> Decimal =
+        { invocation in await invocation.call() as! Decimal }
 
-private let builtInDecimalAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> Decimal =
-    { invocation in try await invocation.callThrowing() as! Decimal }
+    private let builtInDecimalAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> Decimal =
+        { invocation in try await invocation.callThrowing() as! Decimal }
+#endif
 
 extension BuiltInResultAdapters {
-    static func appendDecimal(
-        to adapters: inout [RuntimeAutomaticRequirementAdapter]
-    ) {
-        append(
-            returning: Decimal.self,
-            resultTransport: .direct,
-            synchronous: token(for: builtInDecimalSynchronous),
-            synchronousThrowing: token(for: builtInDecimalSynchronousThrowing),
-            asynchronous: token(for: builtInDecimalAsynchronous),
-            asynchronousThrowing: token(for: builtInDecimalAsynchronousThrowing),
-            to: &adapters
-        )
-    }
+    #if !os(WASI)
+        static func appendDecimal(
+            to adapters: inout [RuntimeAutomaticRequirementAdapter]
+        ) {
+            append(
+                returning: Decimal.self,
+                resultTransport: .direct,
+                synchronous: token(for: builtInDecimalSynchronous),
+                synchronousThrowing: token(for: builtInDecimalSynchronousThrowing),
+                asynchronous: token(for: builtInDecimalAsynchronous),
+                asynchronousThrowing: token(for: builtInDecimalAsynchronousThrowing),
+                to: &adapters
+            )
+        }
+    #endif
 }
 // swiftlint:enable force_cast

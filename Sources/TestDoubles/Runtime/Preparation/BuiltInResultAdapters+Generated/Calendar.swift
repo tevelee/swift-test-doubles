@@ -9,7 +9,7 @@ import InternalRuntimeContract
 // The catalog fixes the result type for each compiler-typed adapter.
 // swiftlint:disable force_cast
 
-#if compiler(>=6.4)
+#if (!os(WASI)) && compiler(>=6.4)
     private let builtInCalendarSynchronous: @convention(thin) (BuiltInResultInvocation) -> Calendar =
         { invocation in invocation.call(returning: Calendar.self) as! Calendar }
 
@@ -24,7 +24,7 @@ import InternalRuntimeContract
 #endif
 
 extension BuiltInResultAdapters {
-    #if compiler(>=6.4)
+    #if (!os(WASI)) && compiler(>=6.4)
         static func appendCalendar(
             to adapters: inout [RuntimeAutomaticRequirementAdapter]
         ) {

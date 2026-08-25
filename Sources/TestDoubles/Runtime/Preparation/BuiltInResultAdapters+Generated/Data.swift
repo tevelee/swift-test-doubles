@@ -9,31 +9,35 @@ import InternalRuntimeContract
 // The catalog fixes the result type for each compiler-typed adapter.
 // swiftlint:disable force_cast
 
-private let builtInDataSynchronous: @convention(thin) (BuiltInResultInvocation) -> Data =
-    { invocation in invocation.call(returning: Data.self) as! Data }
+#if !os(WASI)
+    private let builtInDataSynchronous: @convention(thin) (BuiltInResultInvocation) -> Data =
+        { invocation in invocation.call(returning: Data.self) as! Data }
 
-private let builtInDataSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> Data =
-    { invocation in try invocation.callThrowing(returning: Data.self) as! Data }
+    private let builtInDataSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> Data =
+        { invocation in try invocation.callThrowing(returning: Data.self) as! Data }
 
-private let builtInDataAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> Data =
-    { invocation in await invocation.call() as! Data }
+    private let builtInDataAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> Data =
+        { invocation in await invocation.call() as! Data }
 
-private let builtInDataAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> Data =
-    { invocation in try await invocation.callThrowing() as! Data }
+    private let builtInDataAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> Data =
+        { invocation in try await invocation.callThrowing() as! Data }
+#endif
 
 extension BuiltInResultAdapters {
-    static func appendData(
-        to adapters: inout [RuntimeAutomaticRequirementAdapter]
-    ) {
-        append(
-            returning: Data.self,
-            resultTransport: .direct,
-            synchronous: token(for: builtInDataSynchronous),
-            synchronousThrowing: token(for: builtInDataSynchronousThrowing),
-            asynchronous: token(for: builtInDataAsynchronous),
-            asynchronousThrowing: token(for: builtInDataAsynchronousThrowing),
-            to: &adapters
-        )
-    }
+    #if !os(WASI)
+        static func appendData(
+            to adapters: inout [RuntimeAutomaticRequirementAdapter]
+        ) {
+            append(
+                returning: Data.self,
+                resultTransport: .direct,
+                synchronous: token(for: builtInDataSynchronous),
+                synchronousThrowing: token(for: builtInDataSynchronousThrowing),
+                asynchronous: token(for: builtInDataAsynchronous),
+                asynchronousThrowing: token(for: builtInDataAsynchronousThrowing),
+                to: &adapters
+            )
+        }
+    #endif
 }
 // swiftlint:enable force_cast

@@ -146,10 +146,14 @@ private func appendCalls() -> String {
 }
 
 private func adapterCondition(for entry: Entry) -> String? {
-    guard entry.transport == .indirect else { return entry.condition }
+    let platformCondition = "!os(WASI)"
+    let baseCondition =
+        entry.condition.map {
+            "(\($0)) && \(platformCondition)"
+        } ?? platformCondition
+    guard entry.transport == .indirect else { return baseCondition }
     let compilerCondition = "compiler(>=6.4)"
-    guard let condition = entry.condition else { return compilerCondition }
-    return "(\(condition)) && \(compilerCondition)"
+    return "(\(baseCondition)) && \(compilerCondition)"
 }
 
 private func adapterFunction(for entry: Entry) -> String {

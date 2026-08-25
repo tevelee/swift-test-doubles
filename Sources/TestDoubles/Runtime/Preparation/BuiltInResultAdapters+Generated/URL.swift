@@ -9,7 +9,7 @@ import InternalRuntimeContract
 // The catalog fixes the result type for each compiler-typed adapter.
 // swiftlint:disable force_cast
 
-#if compiler(>=6.4)
+#if (!os(WASI)) && compiler(>=6.4)
     private let builtInURLSynchronous: @convention(thin) (BuiltInResultInvocation) -> URL =
         { invocation in invocation.call(returning: URL.self) as! URL }
 
@@ -24,7 +24,7 @@ import InternalRuntimeContract
 #endif
 
 extension BuiltInResultAdapters {
-    #if compiler(>=6.4)
+    #if (!os(WASI)) && compiler(>=6.4)
         static func appendURL(
             to adapters: inout [RuntimeAutomaticRequirementAdapter]
         ) {
