@@ -93,16 +93,22 @@ jobs:
       - name: Build benchmark drivers
         if: steps.relevance.outputs.should_benchmark == 'true'
         run: |
+          # Swift 6.3.1 can crash in LoadableByAddress while compiling an older
+          # adapter baseline. Apply the same frontend workaround to both sides.
           swift build \
             --package-path baseline/Benchmarks \
             --scratch-path baseline/.build/benchmarks \
             --configuration release \
-            --product TestDoublesBenchmarks
+            --product TestDoublesBenchmarks \
+            -Xswiftc -Xfrontend \
+            -Xswiftc -disable-large-loadable-types-reg2mem
           swift build \
             --package-path candidate/Benchmarks \
             --scratch-path candidate/.build/benchmarks \
             --configuration release \
-            --product TestDoublesBenchmarks
+            --product TestDoublesBenchmarks \
+            -Xswiftc -Xfrontend \
+            -Xswiftc -disable-large-loadable-types-reg2mem
       - name: Run paired benchmark trials
         if: steps.relevance.outputs.should_benchmark == 'true'
         run: |
