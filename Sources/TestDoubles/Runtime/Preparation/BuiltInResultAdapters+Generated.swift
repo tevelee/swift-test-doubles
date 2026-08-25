@@ -62,49 +62,49 @@ extension BuiltInResultAdapters {
     static func appendFoundationAdapters(
         to adapters: inout [RuntimeAutomaticRequirementAdapter]
     ) {
-        #if compiler(>=6.3.3)
+        #if compiler(>=6.4)
             appendURL(to: &adapters)
         #endif
         appendData(to: &adapters)
-        #if compiler(>=6.3.3)
+        #if compiler(>=6.4)
             appendDate(to: &adapters)
         #endif
-        #if compiler(>=6.3.3)
+        #if compiler(>=6.4)
             appendUUID(to: &adapters)
         #endif
-        #if compiler(>=6.3.3)
+        #if compiler(>=6.4)
             appendCalendar(to: &adapters)
         #endif
-        #if compiler(>=6.3.3)
+        #if compiler(>=6.4)
             appendLocale(to: &adapters)
         #endif
-        #if compiler(>=6.3.3)
+        #if compiler(>=6.4)
             appendTimeZone(to: &adapters)
         #endif
-        #if compiler(>=6.3.3)
+        #if compiler(>=6.4)
             appendIndexPath(to: &adapters)
         #endif
-        #if compiler(>=6.3.3)
+        #if compiler(>=6.4)
             appendIndexSet(to: &adapters)
         #endif
-        #if compiler(>=6.3.3)
+        #if compiler(>=6.4)
             appendDateInterval(to: &adapters)
         #endif
-        #if compiler(>=6.3.3)
+        #if compiler(>=6.4)
             appendCharacterSet(to: &adapters)
         #endif
         appendDecimal(to: &adapters)
         appendNotificationName(to: &adapters)
-        #if compiler(>=6.3.3)
+        #if compiler(>=6.4)
             appendNotification(to: &adapters)
         #endif
-        #if compiler(>=6.3.3)
+        #if compiler(>=6.4)
             appendAttributedString(to: &adapters)
         #endif
-        #if compiler(>=6.3.3)
+        #if compiler(>=6.4)
             appendPersonNameComponents(to: &adapters)
         #endif
-        #if (canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))) && compiler(>=6.3.3)
+        #if (canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))) && compiler(>=6.4)
             appendURLRequest(to: &adapters)
         #endif
     }

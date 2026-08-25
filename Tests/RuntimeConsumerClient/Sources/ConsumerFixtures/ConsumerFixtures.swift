@@ -127,6 +127,7 @@ public protocol ImportedDataSource: Sendable {
     func loadData() async throws -> Data
 }
 
+@available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
 public protocol CommonFoundationResultSource: Sendable {
     var currentURL: URL { get }
     func data() -> Data
@@ -593,6 +594,7 @@ public struct LiveImportedDataSource: ImportedDataSource {
     }
 }
 
+@available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
 public struct LiveCommonFoundationResultSource: CommonFoundationResultSource {
     public init() {}
 

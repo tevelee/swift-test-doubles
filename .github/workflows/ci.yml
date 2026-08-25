@@ -54,6 +54,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - uses: ./.github/actions/brew-bundle
       - name: Check generated fixed-arity sources
         run: xcrun swift Scripts/generate-fixed-arity.swift --check
       - name: Check generated built-in result adapters
@@ -64,7 +65,6 @@ jobs:
         run: Scripts/check-internal-boundaries.sh
       - name: Check benchmark dependency lock
         run: bash Scripts/check-benchmark-dependencies.sh
-      - uses: ./.github/actions/brew-bundle
       - name: Check manual-stub command generation
         run: Scripts/check-manual-stub-generator.sh
       - name: Run swift-format

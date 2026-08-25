@@ -9,7 +9,7 @@ import InternalRuntimeContract
 // The catalog fixes the result type for each compiler-typed adapter.
 // swiftlint:disable force_cast
 
-#if compiler(>=6.3.3)
+#if compiler(>=6.4)
     private let builtInDateSynchronous: @convention(thin) (BuiltInResultInvocation) -> Date =
         { invocation in invocation.call(returning: Date.self) as! Date }
 
@@ -24,7 +24,7 @@ import InternalRuntimeContract
 #endif
 
 extension BuiltInResultAdapters {
-    #if compiler(>=6.3.3)
+    #if compiler(>=6.4)
         static func appendDate(
             to adapters: inout [RuntimeAutomaticRequirementAdapter]
         ) {

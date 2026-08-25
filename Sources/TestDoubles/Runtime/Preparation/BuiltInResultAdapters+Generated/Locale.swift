@@ -9,7 +9,7 @@ import InternalRuntimeContract
 // The catalog fixes the result type for each compiler-typed adapter.
 // swiftlint:disable force_cast
 
-#if compiler(>=6.3.3)
+#if compiler(>=6.4)
     private let builtInLocaleSynchronous: @convention(thin) (BuiltInResultInvocation) -> Locale =
         { invocation in invocation.call(returning: Locale.self) as! Locale }
 
@@ -24,7 +24,7 @@ import InternalRuntimeContract
 #endif
 
 extension BuiltInResultAdapters {
-    #if compiler(>=6.3.3)
+    #if compiler(>=6.4)
         static func appendLocale(
             to adapters: inout [RuntimeAutomaticRequirementAdapter]
         ) {

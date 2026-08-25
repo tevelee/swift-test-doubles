@@ -9,7 +9,7 @@ import InternalRuntimeContract
 // The catalog fixes the result type for each compiler-typed adapter.
 // swiftlint:disable force_cast
 
-#if compiler(>=6.3.3)
+#if compiler(>=6.4)
     private let builtInIndexSetSynchronous: @convention(thin) (BuiltInResultInvocation) -> IndexSet =
         { invocation in invocation.call(returning: IndexSet.self) as! IndexSet }
 
@@ -24,7 +24,7 @@ import InternalRuntimeContract
 #endif
 
 extension BuiltInResultAdapters {
-    #if compiler(>=6.3.3)
+    #if compiler(>=6.4)
         static func appendIndexSet(
             to adapters: inout [RuntimeAutomaticRequirementAdapter]
         ) {

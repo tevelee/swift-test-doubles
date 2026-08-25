@@ -9,7 +9,7 @@ import InternalRuntimeContract
 // The catalog fixes the result type for each compiler-typed adapter.
 // swiftlint:disable force_cast
 
-#if (canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))) && compiler(>=6.3.3)
+#if (canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))) && compiler(>=6.4)
     private let builtInURLRequestSynchronous: @convention(thin) (BuiltInResultInvocation) -> URLRequest =
         { invocation in invocation.call(returning: URLRequest.self) as! URLRequest }
 
@@ -24,7 +24,7 @@ import InternalRuntimeContract
 #endif
 
 extension BuiltInResultAdapters {
-    #if (canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))) && compiler(>=6.3.3)
+    #if (canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))) && compiler(>=6.4)
         static func appendURLRequest(
             to adapters: inout [RuntimeAutomaticRequirementAdapter]
         ) {

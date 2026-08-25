@@ -886,8 +886,8 @@ What's supported:
   method and getter results, including async throwing Foundation values.
 - Automatic compiler-typed adapters for zero-argument methods and getters that
   return values from the built-in Foundation placeholder catalog, including
-  `Data`, `URL`, `Date`, and `UUID`. Swift 6.3.1 includes direct-transport
-  entries such as `Data`; indirect entries require Swift 6.3.3 or newer.
+  `Data`, `URL`, `Date`, and `UUID`. Swift 6.3 includes direct-transport entries
+  such as `Data`; indirect entries require Swift 6.4 or newer.
 
 Key limitations:
 

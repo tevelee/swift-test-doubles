@@ -9,7 +9,7 @@ import InternalRuntimeContract
 // The catalog fixes the result type for each compiler-typed adapter.
 // swiftlint:disable force_cast
 
-#if compiler(>=6.3.3)
+#if compiler(>=6.4)
     private let builtInCharacterSetSynchronous: @convention(thin) (BuiltInResultInvocation) -> CharacterSet =
         { invocation in invocation.call(returning: CharacterSet.self) as! CharacterSet }
 
@@ -24,7 +24,7 @@ import InternalRuntimeContract
 #endif
 
 extension BuiltInResultAdapters {
-    #if compiler(>=6.3.3)
+    #if compiler(>=6.4)
         static func appendCharacterSet(
             to adapters: inout [RuntimeAutomaticRequirementAdapter]
         ) {

@@ -17,8 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automatic stubs reuse the built-in Foundation placeholder catalog to install
   compiler-emitted result adapters for zero-argument methods and getters. Common
   results such as `Data`, `URL`, `Date`, and `UUID` no longer need an explicit
-  `Requirement`. Swift 6.3.1 exposes direct-transport entries such as `Data`;
-  indirect entries require Swift 6.3.3 or newer.
+  `Requirement`. Swift 6.3 exposes direct-transport entries such as `Data`;
+  indirect entries require Swift 6.4 or newer.
 - `thenStream()` and `thenThrowingStream()` return controllers for yielding,
   finishing, failing, buffering, and observing cancellation of stubbed async
   sequences, with strict-scope detection of controllers left open at teardown.

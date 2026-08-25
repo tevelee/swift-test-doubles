@@ -147,7 +147,7 @@ private func appendCalls() -> String {
 
 private func adapterCondition(for entry: Entry) -> String? {
     guard entry.transport == .indirect else { return entry.condition }
-    let compilerCondition = "compiler(>=6.3.3)"
+    let compilerCondition = "compiler(>=6.4)"
     guard let condition = entry.condition else { return compilerCondition }
     return "(\(condition)) && \(compilerCondition)"
 }
