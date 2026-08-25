@@ -3,7 +3,7 @@ import Foundation
 import Testing
 
 #if !os(WASI)
-    private protocol DirectFoundationResultSource {
+    protocol DirectFoundationResultSource {
         func data() -> Data
         func throwingData() throws -> Data
         func asyncData() async -> Data
@@ -20,7 +20,7 @@ import Testing
         func asyncThrowingNotificationName() async throws -> Notification.Name
     }
 
-    private struct LinkedDirectFoundationResultSource: DirectFoundationResultSource {
+    struct LinkedDirectFoundationResultSource: DirectFoundationResultSource {
         func data() -> Data { Data() }
         func throwingData() throws -> Data { Data() }
         func asyncData() async -> Data { Data() }
