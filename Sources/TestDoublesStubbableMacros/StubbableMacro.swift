@@ -58,20 +58,16 @@
             }
             let conformer = String(source[..<aliasSeparator.lowerBound])
             let aliasAndExtension = String(source[aliasSeparator.upperBound...])
-            guard let extensionSeparator = aliasAndExtension.range(of: "\n\nextension ") else {
-                return [
-                    DeclSyntax(stringLiteral: conformer),
-                    DeclSyntax(stringLiteral: "typealias " + aliasAndExtension)
-                ]
-            }
-            let alias = "typealias " + aliasAndExtension[..<extensionSeparator.lowerBound]
-            let generatedExtension =
-                "extension "
-                + aliasAndExtension[extensionSeparator.upperBound...]
+            // Peer macros cannot introduce extensions. The standalone source
+            // generator's automatic factory follows the alias, so keep that
+            // factory exclusive to generated source files.
+            let aliasEnd =
+                aliasAndExtension.range(of: "\n\nextension ")?.lowerBound
+                ?? aliasAndExtension.endIndex
+            let alias = "typealias " + aliasAndExtension[..<aliasEnd]
             return [
                 DeclSyntax(stringLiteral: conformer),
-                DeclSyntax(stringLiteral: alias),
-                DeclSyntax(stringLiteral: generatedExtension)
+                DeclSyntax(stringLiteral: alias)
             ]
         }
 

@@ -116,6 +116,12 @@ jobs:
           -c release
           --filter ExitTests
           --scratch-path .build/ci
+      - name: Compile and test Stubbable macro expansion on macOS
+        run: >-
+          swift test
+          --traits StubbableMacros
+          --filter StubbableMacroMacOSCompilationTests
+          --scratch-path .build/ci
       - name: Validate documentation
         run: Scripts/validate-documentation.sh
       - name: Check public API
@@ -157,6 +163,12 @@ jobs:
           --parallel
           --experimental-maximum-parallelization-width 4
           --skip ExitTests
+          --scratch-path .build/ci-current
+      - name: Compile and test Stubbable macro expansion on macOS
+        run: >-
+          swift test
+          --traits StubbableMacros
+          --filter StubbableMacroMacOSCompilationTests
           --scratch-path .build/ci-current
       - name: Test external runtime consumer
         run: Scripts/validate-runtime-consumer.sh

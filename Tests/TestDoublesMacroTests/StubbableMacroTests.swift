@@ -43,18 +43,6 @@
                 }
 
                 typealias StubbableMacroServiceStub = CompiledStub<StubbableMacroServiceStubConformer>
-
-                extension CompiledStub where T == StubbableMacroServiceStubConformer {
-                    /// Tries runtime synthesis, then uses this compiled conformer when needed.
-                    static func automatic() -> Stub<any StubbableMacroService> {
-                        Stub(
-                            fallingBackTo: StubbableMacroServiceStubConformer.self,
-                            erasingWith: {
-                                $0
-                            }
-                        )
-                    }
-                }
                 """
             }
         }
@@ -86,18 +74,6 @@
                 }
 
                 typealias StubbableActorServiceStub = CompiledStub<StubbableActorServiceStubConformer>
-
-                extension CompiledStub where T == StubbableActorServiceStubConformer {
-                    /// Tries runtime synthesis, then uses this compiled conformer when needed.
-                    static func automatic() -> Stub<any StubbableActorService> {
-                        Stub(
-                            fallingBackTo: StubbableActorServiceStubConformer.self,
-                            erasingWith: {
-                                $0
-                            }
-                        )
-                    }
-                }
                 """
             }
         }

@@ -96,7 +96,8 @@ public class Stub<P> {
     /// configuration, verification, and interaction API.
     ///
     /// Prefer the generated `YourProtocolStub.automatic()` factory when using
-    /// `@Stubbable` or `ManualStubGenerator`.
+    /// `ManualStubGenerator`. A peer macro cannot introduce the constrained
+    /// extension required for this convenience.
     public convenience init<Fallback: ManualStubConformer>(
         fallingBackTo _: Fallback.Type,
         erasingWith erase: @escaping (Fallback) -> P

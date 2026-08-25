@@ -194,9 +194,21 @@ let service: any WeatherService = stub()
 // service.forecast(for: "Budapest") == "Sunny"
 ```
 
-`@Stubbable` emits `WeatherServiceStubConformer`, the `WeatherServiceStub`
-controller alias, and the same `WeatherServiceStub.automatic()` factory as the
-command plugin.
+`@Stubbable` emits `WeatherServiceStubConformer` and the `WeatherServiceStub`
+controller alias. The command plugin additionally emits
+`WeatherServiceStub.automatic()` because generated source files can declare the
+required constrained extension; Swift does not allow a peer macro to introduce
+that extension.
+To combine runtime synthesis with the macro-generated compiled fallback, call
+the underlying initializer directly:
+
+```swift
+let automatic = Stub<any WeatherService>(
+    fallingBackTo: WeatherServiceStubConformer.self,
+    erasingWith: { $0 }
+)
+```
+
 The macro is deliberately a convenience layer over the same explicit
 forwarding code as the command plugin: generated source stays inspectable, and
 the hand-written ``CompiledStub`` escape hatches remain available for requirement
