@@ -62,23 +62,49 @@ extension BuiltInResultAdapters {
     static func appendFoundationAdapters(
         to adapters: inout [RuntimeAutomaticRequirementAdapter]
     ) {
-        appendURL(to: &adapters)
+        #if compiler(>=6.3.3)
+            appendURL(to: &adapters)
+        #endif
         appendData(to: &adapters)
-        appendDate(to: &adapters)
-        appendUUID(to: &adapters)
-        appendCalendar(to: &adapters)
-        appendLocale(to: &adapters)
-        appendTimeZone(to: &adapters)
-        appendIndexPath(to: &adapters)
-        appendIndexSet(to: &adapters)
-        appendDateInterval(to: &adapters)
-        appendCharacterSet(to: &adapters)
+        #if compiler(>=6.3.3)
+            appendDate(to: &adapters)
+        #endif
+        #if compiler(>=6.3.3)
+            appendUUID(to: &adapters)
+        #endif
+        #if compiler(>=6.3.3)
+            appendCalendar(to: &adapters)
+        #endif
+        #if compiler(>=6.3.3)
+            appendLocale(to: &adapters)
+        #endif
+        #if compiler(>=6.3.3)
+            appendTimeZone(to: &adapters)
+        #endif
+        #if compiler(>=6.3.3)
+            appendIndexPath(to: &adapters)
+        #endif
+        #if compiler(>=6.3.3)
+            appendIndexSet(to: &adapters)
+        #endif
+        #if compiler(>=6.3.3)
+            appendDateInterval(to: &adapters)
+        #endif
+        #if compiler(>=6.3.3)
+            appendCharacterSet(to: &adapters)
+        #endif
         appendDecimal(to: &adapters)
         appendNotificationName(to: &adapters)
-        appendNotification(to: &adapters)
-        appendAttributedString(to: &adapters)
-        appendPersonNameComponents(to: &adapters)
-        #if canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))
+        #if compiler(>=6.3.3)
+            appendNotification(to: &adapters)
+        #endif
+        #if compiler(>=6.3.3)
+            appendAttributedString(to: &adapters)
+        #endif
+        #if compiler(>=6.3.3)
+            appendPersonNameComponents(to: &adapters)
+        #endif
+        #if (canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))) && compiler(>=6.3.3)
             appendURLRequest(to: &adapters)
         #endif
     }

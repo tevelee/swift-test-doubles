@@ -185,6 +185,8 @@ The catalog covers `URL`, `Data`, `Date`, `UUID`, `Calendar`, `Locale`,
 notification values, `AttributedString`, `PersonNameComponents`, and
 `URLRequest` where available. Each entry records the return transport selected
 by the compiler; no application compiler flag or runtime ABI guess is involved.
+Swift 6.3.1 exposes the direct-transport entries, including `Data`, `Decimal`,
+and `Notification.Name`; Swift 6.3.3 and newer also expose the indirect entries.
 
 An explicit adapter is still needed for a non-frozen type outside that catalog,
 or when the requirement has arguments. The same limitation applies to a generic

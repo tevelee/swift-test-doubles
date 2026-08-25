@@ -9,31 +9,35 @@ import InternalRuntimeContract
 // The catalog fixes the result type for each compiler-typed adapter.
 // swiftlint:disable force_cast
 
-private let builtInTimeZoneSynchronous: @convention(thin) (BuiltInResultInvocation) -> TimeZone =
-    { invocation in invocation.call(returning: TimeZone.self) as! TimeZone }
+#if compiler(>=6.3.3)
+    private let builtInTimeZoneSynchronous: @convention(thin) (BuiltInResultInvocation) -> TimeZone =
+        { invocation in invocation.call(returning: TimeZone.self) as! TimeZone }
 
-private let builtInTimeZoneSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> TimeZone =
-    { invocation in try invocation.callThrowing(returning: TimeZone.self) as! TimeZone }
+    private let builtInTimeZoneSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> TimeZone =
+        { invocation in try invocation.callThrowing(returning: TimeZone.self) as! TimeZone }
 
-private let builtInTimeZoneAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> TimeZone =
-    { invocation in await invocation.call() as! TimeZone }
+    private let builtInTimeZoneAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> TimeZone =
+        { invocation in await invocation.call() as! TimeZone }
 
-private let builtInTimeZoneAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> TimeZone =
-    { invocation in try await invocation.callThrowing() as! TimeZone }
+    private let builtInTimeZoneAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> TimeZone =
+        { invocation in try await invocation.callThrowing() as! TimeZone }
+#endif
 
 extension BuiltInResultAdapters {
-    static func appendTimeZone(
-        to adapters: inout [RuntimeAutomaticRequirementAdapter]
-    ) {
-        append(
-            returning: TimeZone.self,
-            resultTransport: .indirect,
-            synchronous: token(for: builtInTimeZoneSynchronous),
-            synchronousThrowing: token(for: builtInTimeZoneSynchronousThrowing),
-            asynchronous: token(for: builtInTimeZoneAsynchronous),
-            asynchronousThrowing: token(for: builtInTimeZoneAsynchronousThrowing),
-            to: &adapters
-        )
-    }
+    #if compiler(>=6.3.3)
+        static func appendTimeZone(
+            to adapters: inout [RuntimeAutomaticRequirementAdapter]
+        ) {
+            append(
+                returning: TimeZone.self,
+                resultTransport: .indirect,
+                synchronous: token(for: builtInTimeZoneSynchronous),
+                synchronousThrowing: token(for: builtInTimeZoneSynchronousThrowing),
+                asynchronous: token(for: builtInTimeZoneAsynchronous),
+                asynchronousThrowing: token(for: builtInTimeZoneAsynchronousThrowing),
+                to: &adapters
+            )
+        }
+    #endif
 }
 // swiftlint:enable force_cast

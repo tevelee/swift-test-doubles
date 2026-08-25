@@ -9,31 +9,35 @@ import InternalRuntimeContract
 // The catalog fixes the result type for each compiler-typed adapter.
 // swiftlint:disable force_cast
 
-private let builtInDateIntervalSynchronous: @convention(thin) (BuiltInResultInvocation) -> DateInterval =
-    { invocation in invocation.call(returning: DateInterval.self) as! DateInterval }
+#if compiler(>=6.3.3)
+    private let builtInDateIntervalSynchronous: @convention(thin) (BuiltInResultInvocation) -> DateInterval =
+        { invocation in invocation.call(returning: DateInterval.self) as! DateInterval }
 
-private let builtInDateIntervalSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> DateInterval =
-    { invocation in try invocation.callThrowing(returning: DateInterval.self) as! DateInterval }
+    private let builtInDateIntervalSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> DateInterval =
+        { invocation in try invocation.callThrowing(returning: DateInterval.self) as! DateInterval }
 
-private let builtInDateIntervalAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> DateInterval =
-    { invocation in await invocation.call() as! DateInterval }
+    private let builtInDateIntervalAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> DateInterval =
+        { invocation in await invocation.call() as! DateInterval }
 
-private let builtInDateIntervalAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> DateInterval =
-    { invocation in try await invocation.callThrowing() as! DateInterval }
+    private let builtInDateIntervalAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> DateInterval =
+        { invocation in try await invocation.callThrowing() as! DateInterval }
+#endif
 
 extension BuiltInResultAdapters {
-    static func appendDateInterval(
-        to adapters: inout [RuntimeAutomaticRequirementAdapter]
-    ) {
-        append(
-            returning: DateInterval.self,
-            resultTransport: .indirect,
-            synchronous: token(for: builtInDateIntervalSynchronous),
-            synchronousThrowing: token(for: builtInDateIntervalSynchronousThrowing),
-            asynchronous: token(for: builtInDateIntervalAsynchronous),
-            asynchronousThrowing: token(for: builtInDateIntervalAsynchronousThrowing),
-            to: &adapters
-        )
-    }
+    #if compiler(>=6.3.3)
+        static func appendDateInterval(
+            to adapters: inout [RuntimeAutomaticRequirementAdapter]
+        ) {
+            append(
+                returning: DateInterval.self,
+                resultTransport: .indirect,
+                synchronous: token(for: builtInDateIntervalSynchronous),
+                synchronousThrowing: token(for: builtInDateIntervalSynchronousThrowing),
+                asynchronous: token(for: builtInDateIntervalAsynchronous),
+                asynchronousThrowing: token(for: builtInDateIntervalAsynchronousThrowing),
+                to: &adapters
+            )
+        }
+    #endif
 }
 // swiftlint:enable force_cast

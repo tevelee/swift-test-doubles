@@ -9,31 +9,35 @@ import InternalRuntimeContract
 // The catalog fixes the result type for each compiler-typed adapter.
 // swiftlint:disable force_cast
 
-private let builtInPersonNameComponentsSynchronous: @convention(thin) (BuiltInResultInvocation) -> PersonNameComponents =
-    { invocation in invocation.call(returning: PersonNameComponents.self) as! PersonNameComponents }
+#if compiler(>=6.3.3)
+    private let builtInPersonNameComponentsSynchronous: @convention(thin) (BuiltInResultInvocation) -> PersonNameComponents =
+        { invocation in invocation.call(returning: PersonNameComponents.self) as! PersonNameComponents }
 
-private let builtInPersonNameComponentsSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> PersonNameComponents =
-    { invocation in try invocation.callThrowing(returning: PersonNameComponents.self) as! PersonNameComponents }
+    private let builtInPersonNameComponentsSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> PersonNameComponents =
+        { invocation in try invocation.callThrowing(returning: PersonNameComponents.self) as! PersonNameComponents }
 
-private let builtInPersonNameComponentsAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> PersonNameComponents =
-    { invocation in await invocation.call() as! PersonNameComponents }
+    private let builtInPersonNameComponentsAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> PersonNameComponents =
+        { invocation in await invocation.call() as! PersonNameComponents }
 
-private let builtInPersonNameComponentsAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> PersonNameComponents =
-    { invocation in try await invocation.callThrowing() as! PersonNameComponents }
+    private let builtInPersonNameComponentsAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> PersonNameComponents =
+        { invocation in try await invocation.callThrowing() as! PersonNameComponents }
+#endif
 
 extension BuiltInResultAdapters {
-    static func appendPersonNameComponents(
-        to adapters: inout [RuntimeAutomaticRequirementAdapter]
-    ) {
-        append(
-            returning: PersonNameComponents.self,
-            resultTransport: .indirect,
-            synchronous: token(for: builtInPersonNameComponentsSynchronous),
-            synchronousThrowing: token(for: builtInPersonNameComponentsSynchronousThrowing),
-            asynchronous: token(for: builtInPersonNameComponentsAsynchronous),
-            asynchronousThrowing: token(for: builtInPersonNameComponentsAsynchronousThrowing),
-            to: &adapters
-        )
-    }
+    #if compiler(>=6.3.3)
+        static func appendPersonNameComponents(
+            to adapters: inout [RuntimeAutomaticRequirementAdapter]
+        ) {
+            append(
+                returning: PersonNameComponents.self,
+                resultTransport: .indirect,
+                synchronous: token(for: builtInPersonNameComponentsSynchronous),
+                synchronousThrowing: token(for: builtInPersonNameComponentsSynchronousThrowing),
+                asynchronous: token(for: builtInPersonNameComponentsAsynchronous),
+                asynchronousThrowing: token(for: builtInPersonNameComponentsAsynchronousThrowing),
+                to: &adapters
+            )
+        }
+    #endif
 }
 // swiftlint:enable force_cast

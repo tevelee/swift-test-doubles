@@ -9,31 +9,35 @@ import InternalRuntimeContract
 // The catalog fixes the result type for each compiler-typed adapter.
 // swiftlint:disable force_cast
 
-private let builtInUUIDSynchronous: @convention(thin) (BuiltInResultInvocation) -> UUID =
-    { invocation in invocation.call(returning: UUID.self) as! UUID }
+#if compiler(>=6.3.3)
+    private let builtInUUIDSynchronous: @convention(thin) (BuiltInResultInvocation) -> UUID =
+        { invocation in invocation.call(returning: UUID.self) as! UUID }
 
-private let builtInUUIDSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> UUID =
-    { invocation in try invocation.callThrowing(returning: UUID.self) as! UUID }
+    private let builtInUUIDSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> UUID =
+        { invocation in try invocation.callThrowing(returning: UUID.self) as! UUID }
 
-private let builtInUUIDAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> UUID =
-    { invocation in await invocation.call() as! UUID }
+    private let builtInUUIDAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> UUID =
+        { invocation in await invocation.call() as! UUID }
 
-private let builtInUUIDAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> UUID =
-    { invocation in try await invocation.callThrowing() as! UUID }
+    private let builtInUUIDAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> UUID =
+        { invocation in try await invocation.callThrowing() as! UUID }
+#endif
 
 extension BuiltInResultAdapters {
-    static func appendUUID(
-        to adapters: inout [RuntimeAutomaticRequirementAdapter]
-    ) {
-        append(
-            returning: UUID.self,
-            resultTransport: .indirect,
-            synchronous: token(for: builtInUUIDSynchronous),
-            synchronousThrowing: token(for: builtInUUIDSynchronousThrowing),
-            asynchronous: token(for: builtInUUIDAsynchronous),
-            asynchronousThrowing: token(for: builtInUUIDAsynchronousThrowing),
-            to: &adapters
-        )
-    }
+    #if compiler(>=6.3.3)
+        static func appendUUID(
+            to adapters: inout [RuntimeAutomaticRequirementAdapter]
+        ) {
+            append(
+                returning: UUID.self,
+                resultTransport: .indirect,
+                synchronous: token(for: builtInUUIDSynchronous),
+                synchronousThrowing: token(for: builtInUUIDSynchronousThrowing),
+                asynchronous: token(for: builtInUUIDAsynchronous),
+                asynchronousThrowing: token(for: builtInUUIDAsynchronousThrowing),
+                to: &adapters
+            )
+        }
+    #endif
 }
 // swiftlint:enable force_cast

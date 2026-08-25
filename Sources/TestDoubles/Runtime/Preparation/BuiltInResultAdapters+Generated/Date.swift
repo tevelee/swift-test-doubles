@@ -9,31 +9,35 @@ import InternalRuntimeContract
 // The catalog fixes the result type for each compiler-typed adapter.
 // swiftlint:disable force_cast
 
-private let builtInDateSynchronous: @convention(thin) (BuiltInResultInvocation) -> Date =
-    { invocation in invocation.call(returning: Date.self) as! Date }
+#if compiler(>=6.3.3)
+    private let builtInDateSynchronous: @convention(thin) (BuiltInResultInvocation) -> Date =
+        { invocation in invocation.call(returning: Date.self) as! Date }
 
-private let builtInDateSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> Date =
-    { invocation in try invocation.callThrowing(returning: Date.self) as! Date }
+    private let builtInDateSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> Date =
+        { invocation in try invocation.callThrowing(returning: Date.self) as! Date }
 
-private let builtInDateAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> Date =
-    { invocation in await invocation.call() as! Date }
+    private let builtInDateAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> Date =
+        { invocation in await invocation.call() as! Date }
 
-private let builtInDateAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> Date =
-    { invocation in try await invocation.callThrowing() as! Date }
+    private let builtInDateAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> Date =
+        { invocation in try await invocation.callThrowing() as! Date }
+#endif
 
 extension BuiltInResultAdapters {
-    static func appendDate(
-        to adapters: inout [RuntimeAutomaticRequirementAdapter]
-    ) {
-        append(
-            returning: Date.self,
-            resultTransport: .indirect,
-            synchronous: token(for: builtInDateSynchronous),
-            synchronousThrowing: token(for: builtInDateSynchronousThrowing),
-            asynchronous: token(for: builtInDateAsynchronous),
-            asynchronousThrowing: token(for: builtInDateAsynchronousThrowing),
-            to: &adapters
-        )
-    }
+    #if compiler(>=6.3.3)
+        static func appendDate(
+            to adapters: inout [RuntimeAutomaticRequirementAdapter]
+        ) {
+            append(
+                returning: Date.self,
+                resultTransport: .indirect,
+                synchronous: token(for: builtInDateSynchronous),
+                synchronousThrowing: token(for: builtInDateSynchronousThrowing),
+                asynchronous: token(for: builtInDateAsynchronous),
+                asynchronousThrowing: token(for: builtInDateAsynchronousThrowing),
+                to: &adapters
+            )
+        }
+    #endif
 }
 // swiftlint:enable force_cast

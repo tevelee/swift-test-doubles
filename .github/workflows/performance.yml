@@ -100,15 +100,15 @@ jobs:
             --scratch-path baseline/.build/benchmarks \
             --configuration release \
             --product TestDoublesBenchmarks \
-            -Xswiftc -Xfrontend \
-            -Xswiftc -disable-large-loadable-types-reg2mem
+            -Xswiftc -Xllvm \
+            -Xswiftc -sil-disable-pass=LoadableByAddress
           swift build \
             --package-path candidate/Benchmarks \
             --scratch-path candidate/.build/benchmarks \
             --configuration release \
             --product TestDoublesBenchmarks \
-            -Xswiftc -Xfrontend \
-            -Xswiftc -disable-large-loadable-types-reg2mem
+            -Xswiftc -Xllvm \
+            -Xswiftc -sil-disable-pass=LoadableByAddress
       - name: Run paired benchmark trials
         if: steps.relevance.outputs.should_benchmark == 'true'
         run: |

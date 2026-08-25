@@ -9,31 +9,35 @@ import InternalRuntimeContract
 // The catalog fixes the result type for each compiler-typed adapter.
 // swiftlint:disable force_cast
 
-private let builtInCharacterSetSynchronous: @convention(thin) (BuiltInResultInvocation) -> CharacterSet =
-    { invocation in invocation.call(returning: CharacterSet.self) as! CharacterSet }
+#if compiler(>=6.3.3)
+    private let builtInCharacterSetSynchronous: @convention(thin) (BuiltInResultInvocation) -> CharacterSet =
+        { invocation in invocation.call(returning: CharacterSet.self) as! CharacterSet }
 
-private let builtInCharacterSetSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> CharacterSet =
-    { invocation in try invocation.callThrowing(returning: CharacterSet.self) as! CharacterSet }
+    private let builtInCharacterSetSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> CharacterSet =
+        { invocation in try invocation.callThrowing(returning: CharacterSet.self) as! CharacterSet }
 
-private let builtInCharacterSetAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> CharacterSet =
-    { invocation in await invocation.call() as! CharacterSet }
+    private let builtInCharacterSetAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> CharacterSet =
+        { invocation in await invocation.call() as! CharacterSet }
 
-private let builtInCharacterSetAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> CharacterSet =
-    { invocation in try await invocation.callThrowing() as! CharacterSet }
+    private let builtInCharacterSetAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> CharacterSet =
+        { invocation in try await invocation.callThrowing() as! CharacterSet }
+#endif
 
 extension BuiltInResultAdapters {
-    static func appendCharacterSet(
-        to adapters: inout [RuntimeAutomaticRequirementAdapter]
-    ) {
-        append(
-            returning: CharacterSet.self,
-            resultTransport: .indirect,
-            synchronous: token(for: builtInCharacterSetSynchronous),
-            synchronousThrowing: token(for: builtInCharacterSetSynchronousThrowing),
-            asynchronous: token(for: builtInCharacterSetAsynchronous),
-            asynchronousThrowing: token(for: builtInCharacterSetAsynchronousThrowing),
-            to: &adapters
-        )
-    }
+    #if compiler(>=6.3.3)
+        static func appendCharacterSet(
+            to adapters: inout [RuntimeAutomaticRequirementAdapter]
+        ) {
+            append(
+                returning: CharacterSet.self,
+                resultTransport: .indirect,
+                synchronous: token(for: builtInCharacterSetSynchronous),
+                synchronousThrowing: token(for: builtInCharacterSetSynchronousThrowing),
+                asynchronous: token(for: builtInCharacterSetAsynchronous),
+                asynchronousThrowing: token(for: builtInCharacterSetAsynchronousThrowing),
+                to: &adapters
+            )
+        }
+    #endif
 }
 // swiftlint:enable force_cast

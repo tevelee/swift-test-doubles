@@ -9,31 +9,35 @@ import InternalRuntimeContract
 // The catalog fixes the result type for each compiler-typed adapter.
 // swiftlint:disable force_cast
 
-private let builtInNotificationSynchronous: @convention(thin) (BuiltInResultInvocation) -> Notification =
-    { invocation in invocation.call(returning: Notification.self) as! Notification }
+#if compiler(>=6.3.3)
+    private let builtInNotificationSynchronous: @convention(thin) (BuiltInResultInvocation) -> Notification =
+        { invocation in invocation.call(returning: Notification.self) as! Notification }
 
-private let builtInNotificationSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> Notification =
-    { invocation in try invocation.callThrowing(returning: Notification.self) as! Notification }
+    private let builtInNotificationSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> Notification =
+        { invocation in try invocation.callThrowing(returning: Notification.self) as! Notification }
 
-private let builtInNotificationAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> Notification =
-    { invocation in await invocation.call() as! Notification }
+    private let builtInNotificationAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> Notification =
+        { invocation in await invocation.call() as! Notification }
 
-private let builtInNotificationAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> Notification =
-    { invocation in try await invocation.callThrowing() as! Notification }
+    private let builtInNotificationAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> Notification =
+        { invocation in try await invocation.callThrowing() as! Notification }
+#endif
 
 extension BuiltInResultAdapters {
-    static func appendNotification(
-        to adapters: inout [RuntimeAutomaticRequirementAdapter]
-    ) {
-        append(
-            returning: Notification.self,
-            resultTransport: .indirect,
-            synchronous: token(for: builtInNotificationSynchronous),
-            synchronousThrowing: token(for: builtInNotificationSynchronousThrowing),
-            asynchronous: token(for: builtInNotificationAsynchronous),
-            asynchronousThrowing: token(for: builtInNotificationAsynchronousThrowing),
-            to: &adapters
-        )
-    }
+    #if compiler(>=6.3.3)
+        static func appendNotification(
+            to adapters: inout [RuntimeAutomaticRequirementAdapter]
+        ) {
+            append(
+                returning: Notification.self,
+                resultTransport: .indirect,
+                synchronous: token(for: builtInNotificationSynchronous),
+                synchronousThrowing: token(for: builtInNotificationSynchronousThrowing),
+                asynchronous: token(for: builtInNotificationAsynchronous),
+                asynchronousThrowing: token(for: builtInNotificationAsynchronousThrowing),
+                to: &adapters
+            )
+        }
+    #endif
 }
 // swiftlint:enable force_cast

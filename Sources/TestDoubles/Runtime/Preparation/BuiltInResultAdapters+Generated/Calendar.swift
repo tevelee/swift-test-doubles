@@ -9,31 +9,35 @@ import InternalRuntimeContract
 // The catalog fixes the result type for each compiler-typed adapter.
 // swiftlint:disable force_cast
 
-private let builtInCalendarSynchronous: @convention(thin) (BuiltInResultInvocation) -> Calendar =
-    { invocation in invocation.call(returning: Calendar.self) as! Calendar }
+#if compiler(>=6.3.3)
+    private let builtInCalendarSynchronous: @convention(thin) (BuiltInResultInvocation) -> Calendar =
+        { invocation in invocation.call(returning: Calendar.self) as! Calendar }
 
-private let builtInCalendarSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> Calendar =
-    { invocation in try invocation.callThrowing(returning: Calendar.self) as! Calendar }
+    private let builtInCalendarSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> Calendar =
+        { invocation in try invocation.callThrowing(returning: Calendar.self) as! Calendar }
 
-private let builtInCalendarAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> Calendar =
-    { invocation in await invocation.call() as! Calendar }
+    private let builtInCalendarAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> Calendar =
+        { invocation in await invocation.call() as! Calendar }
 
-private let builtInCalendarAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> Calendar =
-    { invocation in try await invocation.callThrowing() as! Calendar }
+    private let builtInCalendarAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> Calendar =
+        { invocation in try await invocation.callThrowing() as! Calendar }
+#endif
 
 extension BuiltInResultAdapters {
-    static func appendCalendar(
-        to adapters: inout [RuntimeAutomaticRequirementAdapter]
-    ) {
-        append(
-            returning: Calendar.self,
-            resultTransport: .indirect,
-            synchronous: token(for: builtInCalendarSynchronous),
-            synchronousThrowing: token(for: builtInCalendarSynchronousThrowing),
-            asynchronous: token(for: builtInCalendarAsynchronous),
-            asynchronousThrowing: token(for: builtInCalendarAsynchronousThrowing),
-            to: &adapters
-        )
-    }
+    #if compiler(>=6.3.3)
+        static func appendCalendar(
+            to adapters: inout [RuntimeAutomaticRequirementAdapter]
+        ) {
+            append(
+                returning: Calendar.self,
+                resultTransport: .indirect,
+                synchronous: token(for: builtInCalendarSynchronous),
+                synchronousThrowing: token(for: builtInCalendarSynchronousThrowing),
+                asynchronous: token(for: builtInCalendarAsynchronous),
+                asynchronousThrowing: token(for: builtInCalendarAsynchronousThrowing),
+                to: &adapters
+            )
+        }
+    #endif
 }
 // swiftlint:enable force_cast

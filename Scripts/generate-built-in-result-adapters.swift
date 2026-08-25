@@ -140,9 +140,16 @@ private func appendCalls() -> String {
     entries.map { entry in
         conditionallyWrap(
             "append\(entry.functionSuffix)(to: &adapters)",
-            condition: entry.condition
+            condition: adapterCondition(for: entry)
         )
     }.joined(separator: "\n")
+}
+
+private func adapterCondition(for entry: Entry) -> String? {
+    guard entry.transport == .indirect else { return entry.condition }
+    let compilerCondition = "compiler(>=6.3.3)"
+    guard let condition = entry.condition else { return compilerCondition }
+    return "(\(condition)) && \(compilerCondition)"
 }
 
 private func adapterFunction(for entry: Entry) -> String {
@@ -161,7 +168,7 @@ private func adapterFunction(for entry: Entry) -> String {
             )
         }
         """
-    return conditionallyWrap(function, condition: entry.condition)
+    return conditionallyWrap(function, condition: adapterCondition(for: entry))
 }
 
 private func adapterImplementations(for entry: Entry) -> String {
@@ -182,7 +189,7 @@ private func adapterImplementations(for entry: Entry) -> String {
             @convention(thin) (BuiltInResultInvocation) async throws -> \(entry.type) =
                 { invocation in try await invocation.callThrowing() as! \(entry.type) }
         """
-    return conditionallyWrap(functions, condition: entry.condition)
+    return conditionallyWrap(functions, condition: adapterCondition(for: entry))
 }
 
 private func generatedCatalogSource() -> String {

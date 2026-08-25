@@ -9,31 +9,35 @@ import InternalRuntimeContract
 // The catalog fixes the result type for each compiler-typed adapter.
 // swiftlint:disable force_cast
 
-private let builtInIndexSetSynchronous: @convention(thin) (BuiltInResultInvocation) -> IndexSet =
-    { invocation in invocation.call(returning: IndexSet.self) as! IndexSet }
+#if compiler(>=6.3.3)
+    private let builtInIndexSetSynchronous: @convention(thin) (BuiltInResultInvocation) -> IndexSet =
+        { invocation in invocation.call(returning: IndexSet.self) as! IndexSet }
 
-private let builtInIndexSetSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> IndexSet =
-    { invocation in try invocation.callThrowing(returning: IndexSet.self) as! IndexSet }
+    private let builtInIndexSetSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> IndexSet =
+        { invocation in try invocation.callThrowing(returning: IndexSet.self) as! IndexSet }
 
-private let builtInIndexSetAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> IndexSet =
-    { invocation in await invocation.call() as! IndexSet }
+    private let builtInIndexSetAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> IndexSet =
+        { invocation in await invocation.call() as! IndexSet }
 
-private let builtInIndexSetAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> IndexSet =
-    { invocation in try await invocation.callThrowing() as! IndexSet }
+    private let builtInIndexSetAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> IndexSet =
+        { invocation in try await invocation.callThrowing() as! IndexSet }
+#endif
 
 extension BuiltInResultAdapters {
-    static func appendIndexSet(
-        to adapters: inout [RuntimeAutomaticRequirementAdapter]
-    ) {
-        append(
-            returning: IndexSet.self,
-            resultTransport: .indirect,
-            synchronous: token(for: builtInIndexSetSynchronous),
-            synchronousThrowing: token(for: builtInIndexSetSynchronousThrowing),
-            asynchronous: token(for: builtInIndexSetAsynchronous),
-            asynchronousThrowing: token(for: builtInIndexSetAsynchronousThrowing),
-            to: &adapters
-        )
-    }
+    #if compiler(>=6.3.3)
+        static func appendIndexSet(
+            to adapters: inout [RuntimeAutomaticRequirementAdapter]
+        ) {
+            append(
+                returning: IndexSet.self,
+                resultTransport: .indirect,
+                synchronous: token(for: builtInIndexSetSynchronous),
+                synchronousThrowing: token(for: builtInIndexSetSynchronousThrowing),
+                asynchronous: token(for: builtInIndexSetAsynchronous),
+                asynchronousThrowing: token(for: builtInIndexSetAsynchronousThrowing),
+                to: &adapters
+            )
+        }
+    #endif
 }
 // swiftlint:enable force_cast

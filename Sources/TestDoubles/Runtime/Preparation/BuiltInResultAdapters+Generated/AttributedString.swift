@@ -9,31 +9,35 @@ import InternalRuntimeContract
 // The catalog fixes the result type for each compiler-typed adapter.
 // swiftlint:disable force_cast
 
-private let builtInAttributedStringSynchronous: @convention(thin) (BuiltInResultInvocation) -> AttributedString =
-    { invocation in invocation.call(returning: AttributedString.self) as! AttributedString }
+#if compiler(>=6.3.3)
+    private let builtInAttributedStringSynchronous: @convention(thin) (BuiltInResultInvocation) -> AttributedString =
+        { invocation in invocation.call(returning: AttributedString.self) as! AttributedString }
 
-private let builtInAttributedStringSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> AttributedString =
-    { invocation in try invocation.callThrowing(returning: AttributedString.self) as! AttributedString }
+    private let builtInAttributedStringSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> AttributedString =
+        { invocation in try invocation.callThrowing(returning: AttributedString.self) as! AttributedString }
 
-private let builtInAttributedStringAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> AttributedString =
-    { invocation in await invocation.call() as! AttributedString }
+    private let builtInAttributedStringAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> AttributedString =
+        { invocation in await invocation.call() as! AttributedString }
 
-private let builtInAttributedStringAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> AttributedString =
-    { invocation in try await invocation.callThrowing() as! AttributedString }
+    private let builtInAttributedStringAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> AttributedString =
+        { invocation in try await invocation.callThrowing() as! AttributedString }
+#endif
 
 extension BuiltInResultAdapters {
-    static func appendAttributedString(
-        to adapters: inout [RuntimeAutomaticRequirementAdapter]
-    ) {
-        append(
-            returning: AttributedString.self,
-            resultTransport: .indirect,
-            synchronous: token(for: builtInAttributedStringSynchronous),
-            synchronousThrowing: token(for: builtInAttributedStringSynchronousThrowing),
-            asynchronous: token(for: builtInAttributedStringAsynchronous),
-            asynchronousThrowing: token(for: builtInAttributedStringAsynchronousThrowing),
-            to: &adapters
-        )
-    }
+    #if compiler(>=6.3.3)
+        static func appendAttributedString(
+            to adapters: inout [RuntimeAutomaticRequirementAdapter]
+        ) {
+            append(
+                returning: AttributedString.self,
+                resultTransport: .indirect,
+                synchronous: token(for: builtInAttributedStringSynchronous),
+                synchronousThrowing: token(for: builtInAttributedStringSynchronousThrowing),
+                asynchronous: token(for: builtInAttributedStringAsynchronous),
+                asynchronousThrowing: token(for: builtInAttributedStringAsynchronousThrowing),
+                to: &adapters
+            )
+        }
+    #endif
 }
 // swiftlint:enable force_cast

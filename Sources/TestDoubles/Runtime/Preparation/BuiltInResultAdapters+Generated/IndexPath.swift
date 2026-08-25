@@ -9,31 +9,35 @@ import InternalRuntimeContract
 // The catalog fixes the result type for each compiler-typed adapter.
 // swiftlint:disable force_cast
 
-private let builtInIndexPathSynchronous: @convention(thin) (BuiltInResultInvocation) -> IndexPath =
-    { invocation in invocation.call(returning: IndexPath.self) as! IndexPath }
+#if compiler(>=6.3.3)
+    private let builtInIndexPathSynchronous: @convention(thin) (BuiltInResultInvocation) -> IndexPath =
+        { invocation in invocation.call(returning: IndexPath.self) as! IndexPath }
 
-private let builtInIndexPathSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> IndexPath =
-    { invocation in try invocation.callThrowing(returning: IndexPath.self) as! IndexPath }
+    private let builtInIndexPathSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> IndexPath =
+        { invocation in try invocation.callThrowing(returning: IndexPath.self) as! IndexPath }
 
-private let builtInIndexPathAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> IndexPath =
-    { invocation in await invocation.call() as! IndexPath }
+    private let builtInIndexPathAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> IndexPath =
+        { invocation in await invocation.call() as! IndexPath }
 
-private let builtInIndexPathAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> IndexPath =
-    { invocation in try await invocation.callThrowing() as! IndexPath }
+    private let builtInIndexPathAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> IndexPath =
+        { invocation in try await invocation.callThrowing() as! IndexPath }
+#endif
 
 extension BuiltInResultAdapters {
-    static func appendIndexPath(
-        to adapters: inout [RuntimeAutomaticRequirementAdapter]
-    ) {
-        append(
-            returning: IndexPath.self,
-            resultTransport: .indirect,
-            synchronous: token(for: builtInIndexPathSynchronous),
-            synchronousThrowing: token(for: builtInIndexPathSynchronousThrowing),
-            asynchronous: token(for: builtInIndexPathAsynchronous),
-            asynchronousThrowing: token(for: builtInIndexPathAsynchronousThrowing),
-            to: &adapters
-        )
-    }
+    #if compiler(>=6.3.3)
+        static func appendIndexPath(
+            to adapters: inout [RuntimeAutomaticRequirementAdapter]
+        ) {
+            append(
+                returning: IndexPath.self,
+                resultTransport: .indirect,
+                synchronous: token(for: builtInIndexPathSynchronous),
+                synchronousThrowing: token(for: builtInIndexPathSynchronousThrowing),
+                asynchronous: token(for: builtInIndexPathAsynchronous),
+                asynchronousThrowing: token(for: builtInIndexPathAsynchronousThrowing),
+                to: &adapters
+            )
+        }
+    #endif
 }
 // swiftlint:enable force_cast

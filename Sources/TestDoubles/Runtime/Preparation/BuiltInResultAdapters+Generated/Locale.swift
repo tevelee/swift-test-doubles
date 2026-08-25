@@ -9,31 +9,35 @@ import InternalRuntimeContract
 // The catalog fixes the result type for each compiler-typed adapter.
 // swiftlint:disable force_cast
 
-private let builtInLocaleSynchronous: @convention(thin) (BuiltInResultInvocation) -> Locale =
-    { invocation in invocation.call(returning: Locale.self) as! Locale }
+#if compiler(>=6.3.3)
+    private let builtInLocaleSynchronous: @convention(thin) (BuiltInResultInvocation) -> Locale =
+        { invocation in invocation.call(returning: Locale.self) as! Locale }
 
-private let builtInLocaleSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> Locale =
-    { invocation in try invocation.callThrowing(returning: Locale.self) as! Locale }
+    private let builtInLocaleSynchronousThrowing: @convention(thin) (BuiltInResultInvocation) throws -> Locale =
+        { invocation in try invocation.callThrowing(returning: Locale.self) as! Locale }
 
-private let builtInLocaleAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> Locale =
-    { invocation in await invocation.call() as! Locale }
+    private let builtInLocaleAsynchronous: @convention(thin) (BuiltInResultInvocation) async -> Locale =
+        { invocation in await invocation.call() as! Locale }
 
-private let builtInLocaleAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> Locale =
-    { invocation in try await invocation.callThrowing() as! Locale }
+    private let builtInLocaleAsynchronousThrowing: @convention(thin) (BuiltInResultInvocation) async throws -> Locale =
+        { invocation in try await invocation.callThrowing() as! Locale }
+#endif
 
 extension BuiltInResultAdapters {
-    static func appendLocale(
-        to adapters: inout [RuntimeAutomaticRequirementAdapter]
-    ) {
-        append(
-            returning: Locale.self,
-            resultTransport: .indirect,
-            synchronous: token(for: builtInLocaleSynchronous),
-            synchronousThrowing: token(for: builtInLocaleSynchronousThrowing),
-            asynchronous: token(for: builtInLocaleAsynchronous),
-            asynchronousThrowing: token(for: builtInLocaleAsynchronousThrowing),
-            to: &adapters
-        )
-    }
+    #if compiler(>=6.3.3)
+        static func appendLocale(
+            to adapters: inout [RuntimeAutomaticRequirementAdapter]
+        ) {
+            append(
+                returning: Locale.self,
+                resultTransport: .indirect,
+                synchronous: token(for: builtInLocaleSynchronous),
+                synchronousThrowing: token(for: builtInLocaleSynchronousThrowing),
+                asynchronous: token(for: builtInLocaleAsynchronous),
+                asynchronousThrowing: token(for: builtInLocaleAsynchronousThrowing),
+                to: &adapters
+            )
+        }
+    #endif
 }
 // swiftlint:enable force_cast
