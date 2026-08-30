@@ -276,6 +276,13 @@ private func allTargets(
             ]
         ),
         .testTarget(
+            name: "TestDoublesXCTestTests",
+            dependencies: [
+                "TestDoubles",
+                "TestDoublesTesting"
+            ]
+        ),
+        .testTarget(
             name: "TestDoublesMacroTests",
             dependencies: [
                 .target(

@@ -115,22 +115,9 @@
         }
 
         private func issues(from session: TestDoubleSession) -> [TestDoubleIssue] {
-            session.issues(
-                checkingUnusedRegistrations: strictness.contains(.noUnusedStubs),
-                checkingUnverifiedInteractions: strictness.contains(.noMoreInteractions),
-                checkingUnconsumedBehaviorQueues: strictness.contains(.noUnconsumedBehaviorQueues),
-                checkingPendingSuspensions: strictness.contains(.noPendingSuspensions),
-                checkingPendingCallbackCaptures: strictness.contains(.noPendingCallbackCaptures),
-                checkingEscapedTestDoubles: strictness.contains(.noEscapedTestDoubles),
-                checkingUnfinishedAsyncInvocations: strictness.contains(
-                    .noUnfinishedAsyncInvocations
-                ),
-                checkingUnconsumedInvocationStreams: strictness.contains(
-                    .noUnconsumedInvocationStreams
-                ),
-                checkingOpenStreamControllers: strictness.contains(
-                    .noOpenStreamControllers
-                )
+            ScopedTestDoubleValidation.issues(
+                from: session,
+                checking: strictness
             )
         }
 
@@ -159,6 +146,11 @@
 
         /// Applies the specified teardown checks to doubles created in this test.
         public static func testDoubles(strictness: TestDoubleStrictness) -> Self {
+            Self(strictness: strictness)
+        }
+
+        /// Applies the specified teardown checks to doubles created in this test.
+        public static func testDoubles(_ strictness: TestDoubleStrictness) -> Self {
             Self(strictness: strictness)
         }
     }
