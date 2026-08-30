@@ -9,8 +9,8 @@ import Testing
         ).testDoubleFailure
 
         #expect(empty.phase == .recording)
-        #expect(empty.code == .recordingFailed)
-        #expect(empty.context.fields == [.init(key: "recordedRequirementCount", value: "0")])
+        #expect(empty.code == .noRecordedRequirement)
+        #expect(empty.context.fields == [.init(key: .recordedRequirementCount, value: "0")])
         #expect(
             empty.description
                 == "[TestDoubles] The recording closure did not invoke a protocol requirement. "
@@ -21,8 +21,8 @@ import Testing
         )
 
         #expect(multiple.phase == .recording)
-        #expect(multiple.code == .recordingFailed)
-        #expect(multiple.context.fields == [.init(key: "recordedRequirementCount", value: "2")])
+        #expect(multiple.code == .multipleRecordedRequirements)
+        #expect(multiple.context.fields == [.init(key: .recordedRequirementCount, value: "2")])
         #expect(
             multiple.description
                 == "[TestDoubles] The recording closure invoked 2 protocol requirements, "
@@ -34,36 +34,42 @@ import Testing
     @Test func configurationFailuresRetainExactRenderingAndActionableFields() {
         assertConfigurationFailure(
             .missingRecordedRequirement,
+            code: .missingConfiguredRequirement,
             fields: [],
             description: "[TestDoubles] The recording closure must invoke a requirement."
         )
         assertConfigurationFailure(
             .requiresThrowingRequirement(feature: "thenThrow"),
-            fields: [.init(key: "feature", value: "thenThrow")],
+            code: .requiresThrowingRequirement,
+            fields: [.init(key: .feature, value: "thenThrow")],
             description: "[TestDoubles] thenThrow requires a throwing requirement."
         )
         assertConfigurationFailure(
             .requiresNonnegativeDelay(feature: "after:"),
-            fields: [.init(key: "feature", value: "after:")],
+            code: .requiresNonnegativeDelay,
+            fields: [.init(key: .feature, value: "after:")],
             description: "[TestDoubles] after: requires a nonnegative delay."
         )
         assertConfigurationFailure(
             .requiresNonnegativeDelay(feature: "thenCancel(after:)"),
-            fields: [.init(key: "feature", value: "thenCancel(after:)")],
+            code: .requiresNonnegativeDelay,
+            fields: [.init(key: .feature, value: "thenCancel(after:)")],
             description: "[TestDoubles] thenCancel(after:) requires a nonnegative delay."
         )
         assertConfigurationFailure(
             .requiresForwardingTarget(feature: "thenForward"),
+            code: .requiresForwardingTarget,
             fields: [
-                .init(key: "feature", value: "thenForward"),
-                .init(key: "requiredDoubleKind", value: "Spy")
+                .init(key: .feature, value: "thenForward"),
+                .init(key: .requiredDoubleKind, value: "Spy")
             ],
             description: "[TestDoubles] thenForward requires a Spy with a forwarding "
                 + "target; this test double has none."
         )
         assertConfigurationFailure(
             .requiresExplicitCancellationValue(feature: "thenAwaitCancellation"),
-            fields: [.init(key: "feature", value: "thenAwaitCancellation")],
+            code: .requiresExplicitCancellationValue,
+            fields: [.init(key: .feature, value: "thenAwaitCancellation")],
             description: "[TestDoubles] thenAwaitCancellation on a non-throwing requirement "
                 + "with a result needs a value to complete with; use "
                 + "thenAwaitCancellation(returning:)."
@@ -73,9 +79,10 @@ import Testing
                 feature: "thenNeverReturn",
                 requirement: "load()"
             ),
+            code: .requiresAsyncRequirement,
             fields: [
-                .init(key: "feature", value: "thenNeverReturn"),
-                .init(key: "requirement", value: "load()")
+                .init(key: .feature, value: "thenNeverReturn"),
+                .init(key: .requirement, value: "load()")
             ],
             description: "[TestDoubles] thenNeverReturn requires an async requirement; "
                 + "load() completes synchronously."
@@ -84,6 +91,7 @@ import Testing
 
     private func assertConfigurationFailure(
         _ failure: StubConfigurationFailure,
+        code: TestDoubleFailure.Code,
         fields: [TestDoubleFailure.Context.Field],
         description: String,
         sourceLocation: SourceLocation = #_sourceLocation
@@ -91,7 +99,7 @@ import Testing
         let structuredFailure = failure.testDoubleFailure
 
         #expect(structuredFailure.phase == .configuration, sourceLocation: sourceLocation)
-        #expect(structuredFailure.code == .invalidConfiguration, sourceLocation: sourceLocation)
+        #expect(structuredFailure.code == code, sourceLocation: sourceLocation)
         #expect(structuredFailure.context.fields == fields, sourceLocation: sourceLocation)
         #expect(structuredFailure.description == description, sourceLocation: sourceLocation)
     }

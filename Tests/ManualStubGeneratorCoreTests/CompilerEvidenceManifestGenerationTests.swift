@@ -52,7 +52,23 @@ import Testing
         #expect(output.contains("name: \"count()\""))
         #expect(output.contains("runtimeEligibility: .compilerDescribed"))
         #expect(output.contains("runtimeEligibility: .requiresRuntimeDiscovery"))
-        #expect(output.contains("compiledFallbackEligibility: .generatedConformer"))
+        #expect(output.contains("compiledFallbackEligibility: .compiledConformer"))
+    }
+
+    @Test func accessorNamesAndFunctionTypesProduceValidEvidence() throws {
+        let output = try ManualStubGenerator(
+            protocolName: "Transforming",
+            source: """
+                protocol Transforming {
+                    var offset: Int { get }
+                    func transform(_ body: (Int) -> String)
+                }
+                """
+        ).render(importingTestDoubles: false)
+
+        #expect(output.contains(".getter(Int.self)"))
+        #expect(output.contains(".setter(Int.self)") == false)
+        #expect(output.contains(".method(((Int) -> String).self, returning: Void.self)"))
     }
 
     @Test func routesActorProtocolsDirectlyToTheirCompiledConformer() throws {
@@ -70,6 +86,6 @@ import Testing
                 "runtimeConstruction: .unavailable(reason: \"Actor protocols require a genuine actor instance.\")"
             )
         )
-        #expect(output.contains("compiledFallbackEligibility: .generatedConformer"))
+        #expect(output.contains("compiledFallbackEligibility: .compiledConformer"))
     }
 }

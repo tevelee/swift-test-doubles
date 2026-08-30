@@ -32,7 +32,7 @@ public enum TestDouble {
         return try Stub<P>()
     }
 
-    /// Creates a runtime-first stub backed by a generated compiled controller.
+    /// Creates an evidence-routed stub backed by a compiled controller.
     ///
     /// - Parameter controllerType: The generated `CompiledStub` alias to use
     ///   when runtime construction is unavailable.

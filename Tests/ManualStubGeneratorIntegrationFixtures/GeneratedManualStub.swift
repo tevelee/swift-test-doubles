@@ -17,7 +17,7 @@ struct GeneratedManualStubServiceStubConformer: GeneratedManualStubService, Auto
             .subscriptGetter(indexedBy: Int.self, returning: String.self),
             .subscriptSetter(indexedBy: Int.self, assigning: String.self)
         ]),
-        compiledFallbackEligibility: .generatedConformer,
+        compiledFallbackEligibility: .compiledConformer,
         sourceSupport: StubSourceSupportReport(
             protocolName: "GeneratedManualStubService",
             requirements: [
@@ -27,7 +27,7 @@ struct GeneratedManualStubServiceStubConformer: GeneratedManualStubService, Auto
                     kind: .method,
                     declarationIndex: 0,
                     runtimeEligibility: .compilerDescribed,
-                    compiledEligibility: .generatedConformer
+                    compiledEligibility: .compiledConformer
                 ),
                 StubRequirementSupport(
                     declaringProtocol: "GeneratedManualStubService",
@@ -35,7 +35,7 @@ struct GeneratedManualStubServiceStubConformer: GeneratedManualStubService, Auto
                     kind: .method,
                     declarationIndex: 1,
                     runtimeEligibility: .compilerDescribed,
-                    compiledEligibility: .generatedConformer
+                    compiledEligibility: .compiledConformer
                 ),
                 StubRequirementSupport(
                     declaringProtocol: "GeneratedManualStubService",
@@ -43,7 +43,7 @@ struct GeneratedManualStubServiceStubConformer: GeneratedManualStubService, Auto
                     kind: .method,
                     declarationIndex: 2,
                     runtimeEligibility: .compilerDescribed,
-                    compiledEligibility: .generatedConformer
+                    compiledEligibility: .compiledConformer
                 ),
                 StubRequirementSupport(
                     declaringProtocol: "GeneratedManualStubService",
@@ -51,7 +51,7 @@ struct GeneratedManualStubServiceStubConformer: GeneratedManualStubService, Auto
                     kind: .method,
                     declarationIndex: 3,
                     runtimeEligibility: .compilerDescribed,
-                    compiledEligibility: .generatedConformer
+                    compiledEligibility: .compiledConformer
                 ),
                 StubRequirementSupport(
                     declaringProtocol: "GeneratedManualStubService",
@@ -59,7 +59,7 @@ struct GeneratedManualStubServiceStubConformer: GeneratedManualStubService, Auto
                     kind: .getter,
                     declarationIndex: 4,
                     runtimeEligibility: .compilerDescribed,
-                    compiledEligibility: .generatedConformer
+                    compiledEligibility: .compiledConformer
                 ),
                 StubRequirementSupport(
                     declaringProtocol: "GeneratedManualStubService",
@@ -67,7 +67,7 @@ struct GeneratedManualStubServiceStubConformer: GeneratedManualStubService, Auto
                     kind: .setter,
                     declarationIndex: 5,
                     runtimeEligibility: .compilerDescribed,
-                    compiledEligibility: .generatedConformer
+                    compiledEligibility: .compiledConformer
                 ),
                 StubRequirementSupport(
                     declaringProtocol: "GeneratedManualStubService",
@@ -75,7 +75,7 @@ struct GeneratedManualStubServiceStubConformer: GeneratedManualStubService, Auto
                     kind: .getter,
                     declarationIndex: 6,
                     runtimeEligibility: .compilerDescribed,
-                    compiledEligibility: .generatedConformer
+                    compiledEligibility: .compiledConformer
                 ),
                 StubRequirementSupport(
                     declaringProtocol: "GeneratedManualStubService",
@@ -83,7 +83,7 @@ struct GeneratedManualStubServiceStubConformer: GeneratedManualStubService, Auto
                     kind: .setter,
                     declarationIndex: 7,
                     runtimeEligibility: .compilerDescribed,
-                    compiledEligibility: .generatedConformer
+                    compiledEligibility: .compiledConformer
                 )
             ]
         )
@@ -122,7 +122,7 @@ struct GeneratedManualStubCounterStubConformer: GeneratedManualStubCounter, Auto
             .method(Int.self, returning: Void.self),
             .getter(Int.self)
         ]),
-        compiledFallbackEligibility: .generatedConformer,
+        compiledFallbackEligibility: .compiledConformer,
         sourceSupport: StubSourceSupportReport(
             protocolName: "GeneratedManualStubCounter",
             requirements: [
@@ -132,7 +132,7 @@ struct GeneratedManualStubCounterStubConformer: GeneratedManualStubCounter, Auto
                     kind: .method,
                     declarationIndex: 0,
                     runtimeEligibility: .compilerDescribed,
-                    compiledEligibility: .generatedConformer
+                    compiledEligibility: .compiledConformer
                 ),
                 StubRequirementSupport(
                     declaringProtocol: "GeneratedManualStubCounter",
@@ -140,7 +140,7 @@ struct GeneratedManualStubCounterStubConformer: GeneratedManualStubCounter, Auto
                     kind: .getter,
                     declarationIndex: 1,
                     runtimeEligibility: .compilerDescribed,
-                    compiledEligibility: .generatedConformer
+                    compiledEligibility: .compiledConformer
                 )
             ]
         )
@@ -164,7 +164,7 @@ struct GeneratedOpaqueResultServiceStubConformer: GeneratedOpaqueResultService, 
         runtimeConstruction: .requirements([
             .method(returning: Data.self)
         ]),
-        compiledFallbackEligibility: .generatedConformer,
+        compiledFallbackEligibility: .compiledConformer,
         sourceSupport: StubSourceSupportReport(
             protocolName: "GeneratedOpaqueResultService",
             requirements: [
@@ -174,7 +174,7 @@ struct GeneratedOpaqueResultServiceStubConformer: GeneratedOpaqueResultService, 
                     kind: .method,
                     declarationIndex: 0,
                     runtimeEligibility: .compilerDescribed,
-                    compiledEligibility: .generatedConformer
+                    compiledEligibility: .compiledConformer
                 )
             ]
         )
@@ -194,7 +194,7 @@ actor GeneratedActorServiceStubConformer: GeneratedActorService, AutomaticStubCo
 
     static let compilerEvidence: StubCompilerEvidence<StubbedProtocol> = StubCompilerEvidence(
         runtimeConstruction: .unavailable(reason: "Actor protocols require a genuine actor instance."),
-        compiledFallbackEligibility: .generatedConformer,
+        compiledFallbackEligibility: .compiledConformer,
         sourceSupport: StubSourceSupportReport(
             protocolName: "GeneratedActorService",
             requirements: [
@@ -204,7 +204,7 @@ actor GeneratedActorServiceStubConformer: GeneratedActorService, AutomaticStubCo
                     kind: .method,
                     declarationIndex: 0,
                     runtimeEligibility: .unavailable(reason: "Actor protocols require a genuine actor instance."),
-                    compiledEligibility: .generatedConformer
+                    compiledEligibility: .compiledConformer
                 )
             ]
         )

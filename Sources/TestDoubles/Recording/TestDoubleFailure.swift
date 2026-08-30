@@ -15,77 +15,68 @@ struct TestDoubleFailure: Error, Sendable, CustomStringConvertible {
     }
 
     /// A stable, machine-readable identifier for a failure kind.
-    struct Code: RawRepresentable, Sendable, Hashable {
-        let rawValue: String
-
-        init(rawValue: String) {
-            self.rawValue = rawValue
-        }
-
-        init(_ rawValue: String) {
-            self.init(rawValue: rawValue)
-        }
-
-        static let typeIsNotProtocol = Self("construction.type-is-not-protocol")
-        static let dummyValueNotSynthesizable = Self(
-            "construction.dummy-value-not-synthesizable"
-        )
-        static let compositionRequiresGroupedRequirements = Self(
+    enum Code: String, Sendable, Hashable {
+        case typeIsNotProtocol = "construction.type-is-not-protocol"
+        case dummyValueNotSynthesizable = "construction.dummy-value-not-synthesizable"
+        case compositionRequiresGroupedRequirements =
             "construction.composition-requires-grouped-requirements"
-        )
-        static let compositionRequiresGroupedGetterEffects = Self(
+        case compositionRequiresGroupedGetterEffects =
             "construction.composition-requires-grouped-getter-effects"
-        )
-        static let invalidProtocolRequirementGroup = Self(
+        case invalidProtocolRequirementGroup =
             "construction.invalid-protocol-requirement-group"
-        )
-        static let missingProtocolRequirementGroup = Self(
+        case missingProtocolRequirementGroup =
             "construction.missing-protocol-requirement-group"
-        )
-        static let duplicateProtocolRequirementGroup = Self(
+        case duplicateProtocolRequirementGroup =
             "construction.duplicate-protocol-requirement-group"
-        )
-        static let foreignProtocolRequirementGroup = Self(
+        case foreignProtocolRequirementGroup =
             "construction.foreign-protocol-requirement-group"
-        )
-        static let invalidProtocolGetterEffectGroup = Self(
+        case invalidProtocolGetterEffectGroup =
             "construction.invalid-protocol-getter-effect-group"
-        )
-        static let missingProtocolGetterEffectGroup = Self(
+        case missingProtocolGetterEffectGroup =
             "construction.missing-protocol-getter-effect-group"
-        )
-        static let duplicateProtocolGetterEffectGroup = Self(
+        case duplicateProtocolGetterEffectGroup =
             "construction.duplicate-protocol-getter-effect-group"
-        )
-        static let foreignProtocolGetterEffectGroup = Self(
+        case foreignProtocolGetterEffectGroup =
             "construction.foreign-protocol-getter-effect-group"
-        )
-        static let getterEffectCountMismatch = Self(
-            "construction.getter-effect-count-mismatch"
-        )
-        static let unsupportedProtocolShape = Self("construction.unsupported-protocol-shape")
-        static let noConformanceFound = Self("construction.no-conformance-found")
-        static let requirementCountMismatch = Self("construction.requirement-count-mismatch")
-        static let requirementMismatch = Self("construction.requirement-mismatch")
-        static let signatureDiscoveryFailed = Self("construction.signature-discovery-failed")
-        static let trampolineAllocationFailed = Self(
-            "construction.trampoline-allocation-failed"
-        )
-        static let unsupportedTypeKind = Self("construction.unsupported-type-kind")
-
-        // Initial vocabulary for later recording, configuration, dispatch,
-        // and verification adapters. More specific codes can be added as
-        // those paths migrate without changing the failure interface.
-        static let recordingFailed = Self("recording.failed")
-        static let invalidConfiguration = Self("configuration.invalid")
-        static let dispatchFailed = Self("dispatch.failed")
-        static let verificationFailed = Self("verification.failed")
+        case getterEffectCountMismatch = "construction.getter-effect-count-mismatch"
+        case unsupportedProtocolShape = "construction.unsupported-protocol-shape"
+        case noConformanceFound = "construction.no-conformance-found"
+        case requirementCountMismatch = "construction.requirement-count-mismatch"
+        case requirementMismatch = "construction.requirement-mismatch"
+        case signatureDiscoveryFailed = "construction.signature-discovery-failed"
+        case trampolineAllocationFailed = "construction.trampoline-allocation-failed"
+        case unsupportedTypeKind = "construction.unsupported-type-kind"
+        case noRecordedRequirement = "recording.no-requirement"
+        case multipleRecordedRequirements = "recording.multiple-requirements"
+        case missingConfiguredRequirement = "configuration.missing-requirement"
+        case requiresThrowingRequirement = "configuration.requires-throwing-requirement"
+        case requiresNonnegativeDelay = "configuration.requires-nonnegative-delay"
+        case requiresForwardingTarget = "configuration.requires-forwarding-target"
+        case requiresExplicitCancellationValue =
+            "configuration.requires-explicit-cancellation-value"
+        case requiresAsyncRequirement = "configuration.requires-async-requirement"
     }
 
     /// Human-readable context plus structured values for tools and tests.
     struct Context: Sendable {
         struct Field: Sendable, Equatable {
-            let key: String
+            enum Key: String, Sendable {
+                case actual
+                case argumentCount
+                case details
+                case expected
+                case feature
+                case protocolName
+                case reason
+                case recordedRequirementCount
+                case requiredDoubleKind
+                case requirement
+                case requirementIndex
+                case typeDescription
+                case typeName
+            }
+
+            let key: Key
             let value: String
         }
 

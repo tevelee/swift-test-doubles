@@ -24,7 +24,10 @@ public struct StubCompilerEvidence<P>: Sendable {
     /// The generated runtime construction recipe.
     public let runtimeConstruction: RuntimeConstruction
 
-    /// Whether generated source also emitted a complete compiled conformer.
+    /// Report-only eligibility for a complete compiler-checked fallback.
+    ///
+    /// ``RuntimeConstruction`` selects the construction attempt. This value
+    /// explains the generated source capability and does not override routing.
     public let compiledFallbackEligibility: StubCompiledEligibility
 
     /// Human-readable source-level eligibility for each requirement.

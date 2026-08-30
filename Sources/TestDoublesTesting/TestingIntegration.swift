@@ -43,15 +43,10 @@
 
         /// Applies every automatic test-double check.
         public static let strict: Self = [
+            .lifecycle,
             .noUnusedStubs,
             .noMoreInteractions,
-            .noUnconsumedBehaviorQueues,
-            .noPendingSuspensions,
-            .noPendingCallbackCaptures,
-            .noEscapedTestDoubles,
-            .noUnfinishedAsyncInvocations,
-            .noUnconsumedInvocationStreams,
-            .noOpenStreamControllers
+            .noEscapedTestDoubles
         ]
     }
 
@@ -101,17 +96,13 @@
             let session = TestDoubleSession(
                 automaticNamePrefix: automaticNamePrefix
             )
-            do {
-                try await TestDoubleTestingContext.$session.withValue(session) {
-                    try await function()
-                }
-            } catch {
+            defer {
                 report(issues(from: session))
                 attachFailureArtifacts(from: session)
-                throw error
             }
-            report(issues(from: session))
-            attachFailureArtifacts(from: session)
+            try await TestDoubleTestingContext.$session.withValue(session) {
+                try await function()
+            }
         }
 
         private func issues(from session: TestDoubleSession) -> [TestDoubleIssue] {

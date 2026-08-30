@@ -17,7 +17,7 @@ private struct EvidenceParameterizedDataSourceStubConformer:
         runtimeConstruction: .requirements([
             .method(String.self, returning: Data.self, isThrowing: true)
         ]),
-        compiledFallbackEligibility: .generatedConformer,
+        compiledFallbackEligibility: .compiledConformer,
         sourceSupport: StubSourceSupportReport(
             protocolName: "EvidenceParameterizedDataSource",
             requirements: [
@@ -27,7 +27,7 @@ private struct EvidenceParameterizedDataSourceStubConformer:
                     kind: .method,
                     declarationIndex: 0,
                     runtimeEligibility: .compilerDescribed,
-                    compiledEligibility: .generatedConformer
+                    compiledEligibility: .compiledConformer
                 )
             ]
         )
@@ -58,7 +58,7 @@ private struct EvidenceParameterizedSubscriptSourceStubConformer:
             .subscriptGetter(indexedBy: Int.self, String.self, returning: Data.self),
             .subscriptSetter(indexedBy: Int.self, String.self, assigning: Data.self)
         ]),
-        compiledFallbackEligibility: .generatedConformer,
+        compiledFallbackEligibility: .compiledConformer,
         sourceSupport: StubSourceSupportReport(
             protocolName: "EvidenceParameterizedSubscriptSource",
             requirements: []
@@ -88,7 +88,7 @@ private struct EvidenceUnavailableSourceStubConformer:
 
     static let compilerEvidence = StubCompilerEvidence<StubbedProtocol>(
         runtimeConstruction: .unavailable(reason: "Compiler evidence requires compiled dispatch."),
-        compiledFallbackEligibility: .generatedConformer,
+        compiledFallbackEligibility: .compiledConformer,
         sourceSupport: StubSourceSupportReport(
             protocolName: "EvidenceUnavailableSource",
             requirements: []
@@ -163,6 +163,15 @@ private struct DefaultEvidenceSourceStubConformer:
         #expect(
             DefaultEvidenceSourceStubConformer.compilerEvidence.runtimeEligibility
                 == .requiresRuntimeDiscovery
+        )
+        #expect(DefaultEvidenceSourceStubConformer.compilerEvidence.sourceSupport.isComplete == false)
+        #expect(
+            DefaultEvidenceSourceStubConformer.compilerEvidence.sourceSupport
+                .runtimeIsCompilerDescribed == false
+        )
+        #expect(
+            DefaultEvidenceSourceStubConformer.compilerEvidence.sourceSupport
+                .hasCompleteCompiledFallback == false
         )
 
         let stub = CompiledStub<DefaultEvidenceSourceStubConformer>.automatic()

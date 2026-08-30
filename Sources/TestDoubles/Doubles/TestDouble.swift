@@ -20,11 +20,13 @@ enum RecordingCardinalityFailure {
 
     var testDoubleFailure: TestDoubleFailure {
         let count: Int
+        let code: TestDoubleFailure.Code
         let message: String
 
         switch self {
             case .noRecordedRequirement:
                 count = 0
+                code = .noRecordedRequirement
                 message =
                     "[TestDoubles] The recording closure did not invoke a protocol requirement. "
                     + "Call exactly one requirement inside `when` or `verify`. "
@@ -34,6 +36,7 @@ enum RecordingCardinalityFailure {
 
             case .multipleRecordedRequirements(let recordedRequirementCount):
                 count = recordedRequirementCount
+                code = .multipleRecordedRequirements
                 message =
                     "[TestDoubles] The recording closure invoked "
                     + "\(recordedRequirementCount) protocol requirements, "
@@ -43,11 +46,11 @@ enum RecordingCardinalityFailure {
 
         return TestDoubleFailure(
             phase: .recording,
-            code: .recordingFailed,
+            code: code,
             context: .init(
                 message: message,
                 fields: [
-                    .init(key: "recordedRequirementCount", value: String(count))
+                    .init(key: .recordedRequirementCount, value: String(count))
                 ]
             )
         )

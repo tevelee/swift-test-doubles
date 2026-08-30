@@ -79,32 +79,23 @@
             _ operation: () throws(Failure) -> Result
         ) throws(Failure) -> Result {
             let session = TestDoubleSession(automaticNamePrefix: name)
+            defer {
+                ScopedTestDoubleValidation.report(
+                    ScopedTestDoubleValidation.issues(
+                        from: session,
+                        checking: strictness
+                    ),
+                    fileID: fileID,
+                    filePath: filePath,
+                    line: line,
+                    column: column
+                )
+            }
             do {
-                let result = try TestDoubleTestingContext.$session.withValue(session) {
+                return try TestDoubleTestingContext.$session.withValue(session) {
                     try operation()
                 }
-                ScopedTestDoubleValidation.report(
-                    ScopedTestDoubleValidation.issues(
-                        from: session,
-                        checking: strictness
-                    ),
-                    fileID: fileID,
-                    filePath: filePath,
-                    line: line,
-                    column: column
-                )
-                return result
             } catch let error as Failure {
-                ScopedTestDoubleValidation.report(
-                    ScopedTestDoubleValidation.issues(
-                        from: session,
-                        checking: strictness
-                    ),
-                    fileID: fileID,
-                    filePath: filePath,
-                    line: line,
-                    column: column
-                )
                 throw error
             } catch {
                 preconditionFailure(
@@ -125,32 +116,23 @@
             _ operation: () async throws(Failure) -> Result
         ) async throws(Failure) -> Result {
             let session = TestDoubleSession(automaticNamePrefix: name)
+            defer {
+                ScopedTestDoubleValidation.report(
+                    ScopedTestDoubleValidation.issues(
+                        from: session,
+                        checking: strictness
+                    ),
+                    fileID: fileID,
+                    filePath: filePath,
+                    line: line,
+                    column: column
+                )
+            }
             do {
-                let result = try await TestDoubleTestingContext.$session.withValue(session) {
+                return try await TestDoubleTestingContext.$session.withValue(session) {
                     try await operation()
                 }
-                ScopedTestDoubleValidation.report(
-                    ScopedTestDoubleValidation.issues(
-                        from: session,
-                        checking: strictness
-                    ),
-                    fileID: fileID,
-                    filePath: filePath,
-                    line: line,
-                    column: column
-                )
-                return result
             } catch let error as Failure {
-                ScopedTestDoubleValidation.report(
-                    ScopedTestDoubleValidation.issues(
-                        from: session,
-                        checking: strictness
-                    ),
-                    fileID: fileID,
-                    filePath: filePath,
-                    line: line,
-                    column: column
-                )
                 throw error
             } catch {
                 preconditionFailure(

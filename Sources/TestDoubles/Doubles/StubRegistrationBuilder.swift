@@ -10,28 +10,33 @@ enum StubConfigurationFailure {
 
     var testDoubleFailure: TestDoubleFailure {
         let message: String
+        let code: TestDoubleFailure.Code
         let fields: [TestDoubleFailure.Context.Field]
 
         switch self {
             case .missingRecordedRequirement:
                 message = "[TestDoubles] The recording closure must invoke a requirement."
+                code = .missingConfiguredRequirement
                 fields = []
 
             case .requiresThrowingRequirement(let feature):
                 message = "[TestDoubles] \(feature) requires a throwing requirement."
-                fields = [.init(key: "feature", value: feature)]
+                code = .requiresThrowingRequirement
+                fields = [.init(key: .feature, value: feature)]
 
             case .requiresNonnegativeDelay(let feature):
                 message = "[TestDoubles] \(feature) requires a nonnegative delay."
-                fields = [.init(key: "feature", value: feature)]
+                code = .requiresNonnegativeDelay
+                fields = [.init(key: .feature, value: feature)]
 
             case .requiresForwardingTarget(let feature):
                 message =
                     "[TestDoubles] \(feature) requires a Spy with a forwarding "
                     + "target; this test double has none."
+                code = .requiresForwardingTarget
                 fields = [
-                    .init(key: "feature", value: feature),
-                    .init(key: "requiredDoubleKind", value: "Spy")
+                    .init(key: .feature, value: feature),
+                    .init(key: .requiredDoubleKind, value: "Spy")
                 ]
 
             case .requiresExplicitCancellationValue(let feature):
@@ -39,21 +44,23 @@ enum StubConfigurationFailure {
                     "[TestDoubles] \(feature) on a non-throwing requirement "
                     + "with a result needs a value to complete with; use "
                     + "thenAwaitCancellation(returning:)."
-                fields = [.init(key: "feature", value: feature)]
+                code = .requiresExplicitCancellationValue
+                fields = [.init(key: .feature, value: feature)]
 
             case .requiresAsyncRequirement(let feature, let requirement):
                 message =
                     "[TestDoubles] \(feature) requires an async requirement; "
                     + "\(requirement) completes synchronously."
+                code = .requiresAsyncRequirement
                 fields = [
-                    .init(key: "feature", value: feature),
-                    .init(key: "requirement", value: requirement)
+                    .init(key: .feature, value: feature),
+                    .init(key: .requirement, value: requirement)
                 ]
         }
 
         return TestDoubleFailure(
             phase: .configuration,
-            code: .invalidConfiguration,
+            code: code,
             context: .init(message: message, fields: fields)
         )
     }

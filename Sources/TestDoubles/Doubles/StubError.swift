@@ -1,5 +1,5 @@
 /// Errors reported while constructing a runtime-generated test double.
-public enum StubError: Error, Sendable, CustomStringConvertible {
+public enum StubError: Error, Sendable, Equatable, CustomStringConvertible {
     private static let manualStubbingRecovery =
         "Recovery: Use `CompiledStub` with a hand-written `ManualStubConformer`, or write a "
         + "hand-written fake, when this protocol must be stubbed."
@@ -121,7 +121,7 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                 return Self.constructionFailure(
                     code: .typeIsNotProtocol,
                     message: "Could not extract a protocol from '\(typeDescription)'.",
-                    fields: [.init(key: "typeDescription", value: typeDescription)],
+                    fields: [.init(key: .typeDescription, value: typeDescription)],
                     recovery: .inline(
                         "Use a protocol existential such as `any YourProtocol` as the generic argument."
                     )
@@ -131,7 +131,7 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                 return Self.constructionFailure(
                     code: .dummyValueNotSynthesizable,
                     message: "Could not safely synthesize a dummy value for '\(typeDescription)'.",
-                    fields: [.init(key: "typeDescription", value: typeDescription)],
+                    fields: [.init(key: .typeDescription, value: typeDescription)],
                     recovery: .inline(
                         "Use `Dummy.make(using:)` or `Dummy.init(using:)` to supply a valid placeholder."
                     )
@@ -141,7 +141,7 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                 return Self.constructionFailure(
                     code: .compositionRequiresGroupedRequirements,
                     message: "Protocol composition '\(typeDescription)' requires grouped explicit requirements.",
-                    fields: [.init(key: "typeDescription", value: typeDescription)],
+                    fields: [.init(key: .typeDescription, value: typeDescription)],
                     recovery: .inline(
                         "Use `init(requirementsByProtocol:)` with one `ProtocolRequirements.requirements(declaredBy:_:)` group per declaring protocol."
                     )
@@ -151,7 +151,7 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                 return Self.constructionFailure(
                     code: .compositionRequiresGroupedGetterEffects,
                     message: "Protocol composition '\(typeDescription)' requires grouped getter effects.",
-                    fields: [.init(key: "typeDescription", value: typeDescription)],
+                    fields: [.init(key: .typeDescription, value: typeDescription)],
                     recovery: .inline(
                         "Use `init(getterEffectsByProtocol:)` with one `ProtocolGetterEffects.effects(declaredBy:_:)` group per protocol that declares getters."
                     )
@@ -161,7 +161,7 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                 return Self.constructionFailure(
                     code: .invalidProtocolRequirementGroup,
                     message: "'\(typeDescription)' does not identify one protocol.",
-                    fields: [.init(key: "typeDescription", value: typeDescription)],
+                    fields: [.init(key: .typeDescription, value: typeDescription)],
                     recovery: .inline(
                         "Each explicit requirement group must use `YourProtocol.self`."
                     )
@@ -171,7 +171,7 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                 return Self.constructionFailure(
                     code: .missingProtocolRequirementGroup,
                     message: "Missing explicit requirements for protocol '\(protocolName)'.",
-                    fields: [.init(key: "protocolName", value: protocolName)],
+                    fields: [.init(key: .protocolName, value: protocolName)],
                     recovery: .inline(
                         "Supply exactly one group for every protocol that directly declares callable requirements."
                     )
@@ -181,7 +181,7 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                 return Self.constructionFailure(
                     code: .duplicateProtocolRequirementGroup,
                     message: "Explicit requirements for protocol '\(protocolName)' were supplied more than once.",
-                    fields: [.init(key: "protocolName", value: protocolName)],
+                    fields: [.init(key: .protocolName, value: protocolName)],
                     recovery: .inline("Combine them into one group.")
                 )
 
@@ -190,8 +190,8 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                     code: .foreignProtocolRequirementGroup,
                     message: "Protocol '\(protocolName)' does not directly declare callable requirements in '\(typeDescription)'.",
                     fields: [
-                        .init(key: "protocolName", value: protocolName),
-                        .init(key: "typeDescription", value: typeDescription)
+                        .init(key: .protocolName, value: protocolName),
+                        .init(key: .typeDescription, value: typeDescription)
                     ],
                     recovery: .inline("Remove that explicit requirement group.")
                 )
@@ -200,7 +200,7 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                 return Self.constructionFailure(
                     code: .invalidProtocolGetterEffectGroup,
                     message: "'\(typeDescription)' does not identify one protocol.",
-                    fields: [.init(key: "typeDescription", value: typeDescription)],
+                    fields: [.init(key: .typeDescription, value: typeDescription)],
                     recovery: .inline("Each getter-effect group must use `YourProtocol.self`.")
                 )
 
@@ -208,7 +208,7 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                 return Self.constructionFailure(
                     code: .missingProtocolGetterEffectGroup,
                     message: "Missing getter effects for protocol '\(protocolName)'.",
-                    fields: [.init(key: "protocolName", value: protocolName)],
+                    fields: [.init(key: .protocolName, value: protocolName)],
                     recovery: .inline(
                         "Supply exactly one group for every protocol that directly declares getters."
                     )
@@ -218,7 +218,7 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                 return Self.constructionFailure(
                     code: .duplicateProtocolGetterEffectGroup,
                     message: "Getter effects for protocol '\(protocolName)' were supplied more than once.",
-                    fields: [.init(key: "protocolName", value: protocolName)],
+                    fields: [.init(key: .protocolName, value: protocolName)],
                     recovery: .inline("Combine them into one group.")
                 )
 
@@ -227,8 +227,8 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                     code: .foreignProtocolGetterEffectGroup,
                     message: "Protocol '\(protocolName)' does not directly declare getters in '\(typeDescription)'.",
                     fields: [
-                        .init(key: "protocolName", value: protocolName),
-                        .init(key: "typeDescription", value: typeDescription)
+                        .init(key: .protocolName, value: protocolName),
+                        .init(key: .typeDescription, value: typeDescription)
                     ],
                     recovery: .inline("Remove that getter-effect group.")
                 )
@@ -238,9 +238,9 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                     code: .getterEffectCountMismatch,
                     message: "Expected \(expected) getter effects for '\(protocolName)', but received \(actual).",
                     fields: [
-                        .init(key: "protocolName", value: protocolName),
-                        .init(key: "expected", value: String(expected)),
-                        .init(key: "actual", value: String(actual))
+                        .init(key: .protocolName, value: protocolName),
+                        .init(key: .expected, value: String(expected)),
+                        .init(key: .actual, value: String(actual))
                     ],
                     recovery: .inline("Supply one effect for every getter in declaration order.")
                 )
@@ -250,8 +250,8 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                     code: .unsupportedProtocolShape,
                     message: "Protocol '\(protocolName)' is not supported. \(reason)",
                     fields: [
-                        .init(key: "protocolName", value: protocolName),
-                        .init(key: "reason", value: reason)
+                        .init(key: .protocolName, value: protocolName),
+                        .init(key: .reason, value: reason)
                     ],
                     recovery: .nextLine(Self.manualStubbingRecovery)
                 )
@@ -260,7 +260,7 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                 return Self.constructionFailure(
                     code: .noConformanceFound,
                     message: "Automatic discovery found neither a linked conformer nor resilient requirement symbols for '\(protocolName)'.",
-                    fields: [.init(key: "protocolName", value: protocolName)],
+                    fields: [.init(key: .protocolName, value: protocolName)],
                     recovery: .nextLine(
                         "Choose a construction path:\n"
                             + "1. Linked conformer: Link and reference a concrete conforming instance as a protocol existential, then use `try Stub<any P>()`. TestDoubles inspects it; it does not invoke it.\n"
@@ -278,9 +278,9 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                     code: .requirementCountMismatch,
                     message: "Expected \(expected) requirements for '\(protocolName)', but received \(actual).",
                     fields: [
-                        .init(key: "protocolName", value: protocolName),
-                        .init(key: "expected", value: String(expected)),
-                        .init(key: "actual", value: String(actual))
+                        .init(key: .protocolName, value: protocolName),
+                        .init(key: .expected, value: String(expected)),
+                        .init(key: .actual, value: String(actual))
                     ],
                     recovery: .inline(
                         "Supply every mockable requirement in declaration order."
@@ -297,10 +297,10 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                     code: .requirementMismatch,
                     message: "Requirement \(requirementIndex) for '\(protocolName)' is `\(expected)`, but the supplied `Stub.Requirement` describes `\(actual)`.",
                     fields: [
-                        .init(key: "protocolName", value: protocolName),
-                        .init(key: "requirementIndex", value: String(requirementIndex)),
-                        .init(key: "expected", value: expected),
-                        .init(key: "actual", value: actual)
+                        .init(key: .protocolName, value: protocolName),
+                        .init(key: .requirementIndex, value: String(requirementIndex)),
+                        .init(key: .expected, value: expected),
+                        .init(key: .actual, value: actual)
                     ],
                     recovery: .inline(
                         "Update that requirement to match the protocol declaration."
@@ -312,9 +312,9 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                     code: .signatureDiscoveryFailed,
                     message: "Could not discover the signature of '\(protocolName)' requirement \(requirementIndex). \(details)",
                     fields: [
-                        .init(key: "protocolName", value: protocolName),
-                        .init(key: "requirementIndex", value: String(requirementIndex)),
-                        .init(key: "details", value: details)
+                        .init(key: .protocolName, value: protocolName),
+                        .init(key: .requirementIndex, value: String(requirementIndex)),
+                        .init(key: .details, value: details)
                     ],
                     recovery: .nextLine(
                         "Recovery: Prefer a `Stub.Requirement` using `signatureOf:` when it "
@@ -333,7 +333,7 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                         + "runtime reached, not a requirement it rejects; every protocol reports the "
                         + "slot it happened to start with.",
                     fields: [
-                        .init(key: "requirementIndex", value: String(requirementIndex))
+                        .init(key: .requirementIndex, value: String(requirementIndex))
                     ],
                     recovery: .nextLine(Self.executableMemoryRecovery)
                 )
@@ -342,7 +342,7 @@ public enum StubError: Error, Sendable, CustomStringConvertible {
                 return Self.constructionFailure(
                     code: .unsupportedTypeKind,
                     message: "Stub does not support the runtime type kind used by '\(typeName)'.",
-                    fields: [.init(key: "typeName", value: typeName)],
+                    fields: [.init(key: .typeName, value: typeName)],
                     recovery: .nextLine(Self.manualStubbingRecovery)
                 )
         }

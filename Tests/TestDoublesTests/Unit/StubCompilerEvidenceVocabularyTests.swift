@@ -37,13 +37,13 @@ actor CompilerEvidenceActorProbeStubConformer:
             kind: .method,
             declarationIndex: 0,
             runtimeEligibility: .compilerDescribed,
-            compiledEligibility: .generatedConformer
+            compiledEligibility: .compiledConformer
         )
         let manifest = StubCompilerEvidence<Probe>(
             runtimeConstruction: .requirements([
                 .method(Int.self, returning: String.self)
             ]),
-            compiledFallbackEligibility: .generatedConformer,
+            compiledFallbackEligibility: .compiledConformer,
             sourceSupport: StubSourceSupportReport(
                 protocolName: "CompilerEvidenceProbe",
                 requirements: [support]
@@ -51,7 +51,7 @@ actor CompilerEvidenceActorProbeStubConformer:
         )
 
         #expect(manifest.runtimeEligibility == .compilerDescribed)
-        #expect(manifest.compiledFallbackEligibility == .generatedConformer)
+        #expect(manifest.compiledFallbackEligibility == .compiledConformer)
         #expect(manifest.sourceSupport.runtimeIsCompilerDescribed)
         #expect(manifest.sourceSupport.hasCompleteCompiledFallback)
         #expect(manifest.sourceSupport.needsRuntimeDiscovery == false)
@@ -99,6 +99,7 @@ actor CompilerEvidenceActorProbeStubConformer:
 
         #expect(stub.constructionReport.protocolName.contains("CompilerEvidenceProbe"))
         #expect(stub.constructionReport.strategy == .runtimeGenerated)
+        #expect(stub.constructionReport.runtimeFailure == nil)
         #expect(stub.constructionReport.runtimeFailureDescription == nil)
     }
 
@@ -109,6 +110,7 @@ actor CompilerEvidenceActorProbeStubConformer:
         )
 
         #expect(stub.constructionReport.strategy == .compiledFallback)
+        #expect(stub.constructionReport.runtimeFailure == stub.runtimeFallbackReason)
         #expect(
             stub.constructionReport.runtimeFailureDescription?.contains(
                 "Actor protocols require a genuine actor instance"

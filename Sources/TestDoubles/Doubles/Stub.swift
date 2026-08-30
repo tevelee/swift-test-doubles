@@ -1,5 +1,5 @@
 /// The implementation route selected while constructing a ``Stub``.
-public enum StubConstructionStrategy: Sendable {
+public enum StubConstructionStrategy: Sendable, Equatable {
     /// The protocol existential was synthesized at runtime.
     case runtimeGenerated
 
@@ -103,15 +103,28 @@ public class Stub<P> {
     /// `ManualStubGenerator` or `@Stubbable`. Generated conformers provide the
     /// compiler-typed existential erasure required by the shared factory.
     public convenience init<Fallback: ManualStubConformer>(
-        fallingBackTo _: Fallback.Type,
+        fallingBackTo fallbackType: Fallback.Type,
         erasingWith erase: @escaping (Fallback) -> P
+    ) {
+        self.init(
+            fallingBackTo: fallbackType,
+            erasingWith: erase,
+            preparingRuntime: { () throws(StubError) -> PreparedStub in
+                try withStubConstructionError(for: P.self) {
+                    try Self.prepare()
+                }
+            }
+        )
+    }
+
+    private convenience init<Fallback: ManualStubConformer>(
+        fallingBackTo _: Fallback.Type,
+        erasingWith erase: @escaping (Fallback) -> P,
+        preparingRuntime: () throws(StubError) -> PreparedStub
     ) {
         let constructionStartedAt = ContinuousClock.now
         do {
-            let prepared = try withStubConstructionError(for: P.self) {
-                try Self.prepare()
-            }
-            self.init(prepared: prepared)
+            self.init(prepared: try preparingRuntime())
         } catch {
             let runtimeFailedAt = ContinuousClock.now
             let fallback = CompiledStub<Fallback>()
@@ -133,46 +146,31 @@ public class Stub<P> {
     }
 
     convenience init<Fallback: ManualStubConformer>(
-        fallingBackTo _: Fallback.Type,
+        fallingBackTo fallbackType: Fallback.Type,
         erasingWith erase: @escaping (Fallback) -> P,
         compilerEvidence: StubCompilerEvidence<P>
     ) {
-        let constructionStartedAt = ContinuousClock.now
-        do {
-            let prepared = try withStubConstructionError(for: P.self) {
-                switch compilerEvidence.runtimeConstruction {
-                    case .automaticDiscovery:
-                        try Self.prepare()
-                    case .requirements(let requirements):
-                        try Self.prepare(requirements: requirements)
-                    case .groupedRequirements(let groups):
-                        try Self.prepare(requirementGroups: groups)
-                    case .unavailable(let reason):
-                        throw StubError.unsupportedProtocolShape(
-                            protocolName: String(reflecting: P.self),
-                            reason: reason
-                        )
+        self.init(
+            fallingBackTo: fallbackType,
+            erasingWith: erase,
+            preparingRuntime: { () throws(StubError) -> PreparedStub in
+                try withStubConstructionError(for: P.self) {
+                    switch compilerEvidence.runtimeConstruction {
+                        case .automaticDiscovery:
+                            try Self.prepare()
+                        case .requirements(let requirements):
+                            try Self.prepare(requirements: requirements)
+                        case .groupedRequirements(let groups):
+                            try Self.prepare(requirementGroups: groups)
+                        case .unavailable(let reason):
+                            throw StubError.unsupportedProtocolShape(
+                                protocolName: String(reflecting: P.self),
+                                reason: reason
+                            )
+                    }
                 }
             }
-            self.init(prepared: prepared)
-        } catch {
-            let runtimeFailedAt = ContinuousClock.now
-            let fallback = CompiledStub<Fallback>()
-            let fallbackMaterializedAt = ContinuousClock.now
-            self.init(
-                manualFallback: fallback,
-                erasingWith: erase,
-                runtimeFallbackReason: error,
-                constructionPerformance: StubPerformanceDiagnostics.Construction(
-                    planPreparationDuration: constructionStartedAt.duration(
-                        to: runtimeFailedAt
-                    ),
-                    materializationDuration: runtimeFailedAt.duration(
-                        to: fallbackMaterializedAt
-                    )
-                )
-            )
-        }
+        )
     }
 
     /// Creates a stub using a concrete conformer's witness tables to discover

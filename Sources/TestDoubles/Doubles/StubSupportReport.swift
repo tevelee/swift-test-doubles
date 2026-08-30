@@ -17,8 +17,8 @@ public enum StubRuntimeEligibility: Sendable, Equatable {
 
 /// How source-level evidence qualifies one requirement for compiled fallback.
 public enum StubCompiledEligibility: Sendable, Equatable {
-    /// A compiler-generated conformer can dispatch the requirement.
-    case generatedConformer
+    /// A compiler-checked conformer can dispatch the requirement.
+    case compiledConformer
 
     /// No generated conformer can dispatch the requirement.
     case unavailable(reason: String)
@@ -86,37 +86,45 @@ public struct StubSourceSupportReport: Sendable, Equatable {
     /// The generated protocol's source-level name.
     public let protocolName: String
 
+    /// Whether `requirements` describes the protocol's complete requirement set.
+    public let isComplete: Bool
+
     /// Requirements in stable source order.
     public let requirements: [StubRequirementSupport]
 
     /// Creates a source-level report in stable requirement order.
     public init(
         protocolName: String,
+        isComplete: Bool = true,
         requirements: [StubRequirementSupport]
     ) {
         self.protocolName = protocolName
+        self.isComplete = isComplete
         self.requirements = requirements
     }
 
     /// Whether every requirement has a compiler-described runtime recipe.
     public var runtimeIsCompilerDescribed: Bool {
-        requirements.allSatisfy {
-            $0.runtimeEligibility == .compilerDescribed
-        }
+        isComplete
+            && requirements.allSatisfy {
+                $0.runtimeEligibility == .compilerDescribed
+            }
     }
 
     /// Whether any requirement still depends on runtime signature discovery.
     public var needsRuntimeDiscovery: Bool {
-        requirements.contains {
-            $0.runtimeEligibility == .requiresRuntimeDiscovery
-        }
+        isComplete == false
+            || requirements.contains {
+                $0.runtimeEligibility == .requiresRuntimeDiscovery
+            }
     }
 
     /// Whether a generated conformer covers every requirement.
     public var hasCompleteCompiledFallback: Bool {
-        requirements.allSatisfy {
-            $0.compiledEligibility == .generatedConformer
-        }
+        isComplete
+            && requirements.allSatisfy {
+                $0.compiledEligibility == .compiledConformer
+            }
     }
 }
 
@@ -127,12 +135,7 @@ public struct StubSourceSupportReport: Sendable, Equatable {
 /// attempt is made.
 public struct StubConstructionReport: Sendable, Equatable {
     /// The selected implementation route.
-    public enum Strategy: Sendable, Equatable {
-        /// The protocol existential was synthesized by the runtime.
-        case runtimeGenerated
-        /// A compiler-generated or hand-written conformer was selected.
-        case compiledFallback
-    }
+    public typealias Strategy = StubConstructionStrategy
 
     /// The runtime protocol existential that was requested.
     public let protocolName: String
@@ -141,8 +144,10 @@ public struct StubConstructionReport: Sendable, Equatable {
     public let strategy: Strategy
 
     /// The runtime failure preserved when compiled fallback was selected.
-    public let runtimeFailureDescription: String?
+    public let runtimeFailure: StubError?
 
+    /// The rendered runtime failure, or `nil` when runtime construction succeeded.
+    public var runtimeFailureDescription: String? { runtimeFailure?.description }
 }
 
 extension Stub {
@@ -151,17 +156,10 @@ extension Stub {
     /// Runtime-generated stubs have no failure description. Compiled fallbacks
     /// preserve the same diagnostic exposed by ``runtimeFallbackReason``.
     public var constructionReport: StubConstructionReport {
-        let strategy: StubConstructionReport.Strategy
-        switch constructionStrategy {
-            case .runtimeGenerated:
-                strategy = .runtimeGenerated
-            case .compiledFallback:
-                strategy = .compiledFallback
-        }
         return StubConstructionReport(
             protocolName: String(reflecting: P.self),
-            strategy: strategy,
-            runtimeFailureDescription: runtimeFallbackReason?.description
+            strategy: constructionStrategy,
+            runtimeFailure: runtimeFallbackReason
         )
     }
 }

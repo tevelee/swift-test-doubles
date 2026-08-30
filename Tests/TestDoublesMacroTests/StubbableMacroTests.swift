@@ -34,7 +34,7 @@
                             .getter(String.self),
                             .setter(String.self)
                         ]),
-                        compiledFallbackEligibility: .generatedConformer,
+                        compiledFallbackEligibility: .compiledConformer,
                         sourceSupport: StubSourceSupportReport(
                             protocolName: "StubbableMacroService",
                             requirements: [
@@ -44,7 +44,7 @@
                                     kind: .method,
                                     declarationIndex: 0,
                                     runtimeEligibility: .compilerDescribed,
-                                    compiledEligibility: .generatedConformer
+                                    compiledEligibility: .compiledConformer
                                 ),
                                 StubRequirementSupport(
                                     declaringProtocol: "StubbableMacroService",
@@ -52,7 +52,7 @@
                                     kind: .getter,
                                     declarationIndex: 1,
                                     runtimeEligibility: .compilerDescribed,
-                                    compiledEligibility: .generatedConformer
+                                    compiledEligibility: .compiledConformer
                                 ),
                                 StubRequirementSupport(
                                     declaringProtocol: "StubbableMacroService",
@@ -60,7 +60,7 @@
                                     kind: .setter,
                                     declarationIndex: 2,
                                     runtimeEligibility: .compilerDescribed,
-                                    compiledEligibility: .generatedConformer
+                                    compiledEligibility: .compiledConformer
                                 )
                             ]
                         )
@@ -110,7 +110,7 @@
 
                     static let compilerEvidence: StubCompilerEvidence<StubbedProtocol> = StubCompilerEvidence(
                         runtimeConstruction: .unavailable(reason: "Actor protocols require a genuine actor instance."),
-                        compiledFallbackEligibility: .generatedConformer,
+                        compiledFallbackEligibility: .compiledConformer,
                         sourceSupport: StubSourceSupportReport(
                             protocolName: "StubbableActorService",
                             requirements: [
@@ -120,7 +120,7 @@
                                     kind: .method,
                                     declarationIndex: 0,
                                     runtimeEligibility: .unavailable(reason: "Actor protocols require a genuine actor instance."),
-                                    compiledEligibility: .generatedConformer
+                                    compiledEligibility: .compiledConformer
                                 )
                             ]
                         )

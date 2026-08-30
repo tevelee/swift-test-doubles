@@ -617,26 +617,50 @@ extension StubRecorder {
         }
         guard candidates.allSatisfy({ $0.isEmpty == false }) else { return nil }
 
-        var solutions: [[Int]] = []
-        var assignment = Array(repeating: -1, count: matchers.count)
-        var used = Set<Int>()
+        func completeAssignment(
+            excluding excludedEdge: (matcher: Int, argument: Int)? = nil
+        ) -> [Int]? {
+            var argumentOwners = [Int?](repeating: nil, count: arguments.count)
 
-        func search(_ matcherIndex: Int) {
-            guard solutions.count < 2 else { return }
-            guard matcherIndex < matchers.count else {
-                solutions.append(assignment)
-                return
+            func assign(_ matcherIndex: Int, visited: inout Set<Int>) -> Bool {
+                for argumentIndex in candidates[matcherIndex] {
+                    if excludedEdge?.matcher == matcherIndex,
+                        excludedEdge?.argument == argumentIndex
+                    {
+                        continue
+                    }
+                    guard visited.insert(argumentIndex).inserted else { continue }
+                    if let currentOwner = argumentOwners[argumentIndex] {
+                        guard assign(currentOwner, visited: &visited) else { continue }
+                    }
+                    argumentOwners[argumentIndex] = matcherIndex
+                    return true
+                }
+                return false
             }
-            for argumentIndex in candidates[matcherIndex] where used.contains(argumentIndex) == false {
-                used.insert(argumentIndex)
-                assignment[matcherIndex] = argumentIndex
-                search(matcherIndex + 1)
-                used.remove(argumentIndex)
+
+            for matcherIndex in matchers.indices {
+                var visited = Set<Int>()
+                guard assign(matcherIndex, visited: &visited) else { return nil }
             }
+
+            var assignment = [Int](repeating: -1, count: matchers.count)
+            for (argumentIndex, matcherIndex) in argumentOwners.enumerated() {
+                if let matcherIndex {
+                    assignment[matcherIndex] = argumentIndex
+                }
+            }
+            return assignment
         }
 
-        search(0)
-        guard solutions.count == 1, let positions = solutions.first else { return nil }
+        guard let positions = completeAssignment() else { return nil }
+        for (matcherIndex, argumentIndex) in positions.enumerated() {
+            if completeAssignment(
+                excluding: (matcher: matcherIndex, argument: argumentIndex)
+            ) != nil {
+                return nil
+            }
+        }
 
         var resolved = [ParameterMatcher?](repeating: nil, count: arguments.count)
         for (matcher, argumentIndex) in zip(matchers, positions) {

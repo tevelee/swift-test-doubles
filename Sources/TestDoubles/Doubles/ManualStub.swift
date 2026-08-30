@@ -49,9 +49,10 @@ extension AutomaticStubConformer {
     public static var compilerEvidence: StubCompilerEvidence<StubbedProtocol> {
         StubCompilerEvidence(
             runtimeConstruction: .automaticDiscovery,
-            compiledFallbackEligibility: .generatedConformer,
+            compiledFallbackEligibility: .compiledConformer,
             sourceSupport: StubSourceSupportReport(
                 protocolName: String(reflecting: StubbedProtocol.self),
+                isComplete: false,
                 requirements: []
             )
         )
@@ -638,11 +639,12 @@ extension CompiledStub where T: AutomaticStubConformer {
         T.compilerEvidence
     }
 
-    /// Creates a runtime-first stub with this compiled conformer as fallback.
+    /// Creates an evidence-routed stub with this compiled conformer as fallback.
     ///
-    /// Runtime synthesis is attempted first. When the runtime cannot safely
-    /// synthesize the protocol existential, the compiler-generated erasure
-    /// witness constructs `T` through ``CompiledStub`` instead.
+    /// Compiler evidence selects explicit runtime requirements, validated
+    /// discovery, or an immediate compiled fallback. When an eligible runtime
+    /// attempt fails, the compiler-generated erasure witness constructs `T`
+    /// through ``CompiledStub`` instead.
     public static func automatic() -> Stub<T.StubbedProtocol> {
         Stub(
             fallingBackTo: T.self,

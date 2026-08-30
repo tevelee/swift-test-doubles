@@ -7,8 +7,8 @@ import Testing
         case stopped
     }
 
-    @Test func lexicalScopeReturnsSynchronousResult() throws {
-        let result = try TestDouble.withScope(checking: .strict) {
+    @Test func lexicalScopeReturnsSynchronousResult() {
+        let result = TestDouble.withScope(checking: .strict) {
             let double = ClosureDouble<Int, Int>()
             let call = double.when(equal: 21).thenReturn(42)
 
@@ -20,8 +20,8 @@ import Testing
         #expect(result == 42)
     }
 
-    @Test func lexicalScopeReturnsAsynchronousResult() async throws {
-        let result = try await TestDouble.withScope(checking: .strict) {
+    @Test func lexicalScopeReturnsAsynchronousResult() async {
+        let result = await TestDouble.withScope(checking: .strict) {
             let double = AsyncClosureDouble<Int, Int>()
             let call = double.when(equal: 21).thenReturn(42)
 
@@ -41,8 +41,8 @@ import Testing
         }
     }
 
-    @Test func structuredChildTasksInheritScopeButDetachedTasksDoNot() async throws {
-        try await TestDouble.withScope(checking: []) {
+    @Test func structuredChildTasksInheritScopeButDetachedTasksDoNot() async {
+        await TestDouble.withScope(checking: []) {
             #expect(TestDoubleTestingContext.session != nil)
             #expect(await Task { TestDoubleTestingContext.session != nil }.value)
             #expect(await Task.detached { TestDoubleTestingContext.session == nil }.value)

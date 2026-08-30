@@ -7,8 +7,8 @@ final class XCTestScopedValidationTests: XCTestCase {
         case stopped
     }
 
-    func testSynchronousScopeReturnsItsResult() throws {
-        let result = try TestDouble.withScope(checking: .strict) {
+    func testSynchronousScopeReturnsItsResult() {
+        let result = TestDouble.withScope(checking: .strict) {
             let double = ClosureDouble<Int, Int>()
             let call = double.when(equal: 21).thenReturn(42)
 
@@ -20,8 +20,8 @@ final class XCTestScopedValidationTests: XCTestCase {
         XCTAssertEqual(result, 42)
     }
 
-    func testAsynchronousScopeReturnsItsResult() async throws {
-        let result = try await TestDouble.withScope(checking: .strict) {
+    func testAsynchronousScopeReturnsItsResult() async {
+        let result = await TestDouble.withScope(checking: .strict) {
             let double = AsyncClosureDouble<Int, Int>()
             let call = double.when(equal: 21).thenReturn(42)
 

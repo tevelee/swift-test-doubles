@@ -23,12 +23,12 @@ import Testing
         )
         let failure = TestDoubleFailure(
             phase: .recording,
-            code: .recordingFailed,
+            code: .noRecordedRequirement,
             context: TestDoubleFailure.Context(
                 message: "Could not record the invocation.",
                 fields: [
-                    .init(key: "requirement", value: "load(id:)"),
-                    .init(key: "argumentCount", value: "1")
+                    .init(key: .requirement, value: "load(id:)"),
+                    .init(key: .argumentCount, value: "1")
                 ],
                 sourceLocation: location
             )
@@ -36,8 +36,8 @@ import Testing
 
         #expect(failure.description == "Could not record the invocation.")
         #expect(failure.phase == .recording)
-        #expect(failure.code.rawValue == "recording.failed")
-        #expect(failure.context.fields[0].key == "requirement")
+        #expect(failure.code.rawValue == "recording.no-requirement")
+        #expect(failure.context.fields[0].key == .requirement)
         #expect(failure.context.fields[0].value == "load(id:)")
         #expect(failure.context.sourceLocation?.line == 42)
         #expect(failure.context.sourceLocation?.column == 7)
@@ -59,7 +59,7 @@ import Testing
     ) {
         let failure = TestDoubleFailure(
             phase: .configuration,
-            code: .invalidConfiguration,
+            code: .requiresNonnegativeDelay,
             context: .init(
                 message: recovery.placement == .inline
                     ? "The value is invalid."
@@ -82,10 +82,10 @@ import Testing
         #expect(failure.code == .requirementMismatch)
         #expect(
             failure.context.fields == [
-                .init(key: "protocolName", value: "Service"),
-                .init(key: "requirementIndex", value: "1"),
-                .init(key: "expected", value: "method"),
-                .init(key: "actual", value: "getter")
+                .init(key: .protocolName, value: "Service"),
+                .init(key: .requirementIndex, value: "1"),
+                .init(key: .expected, value: "method"),
+                .init(key: .actual, value: "getter")
             ]
         )
         #expect(

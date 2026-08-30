@@ -95,14 +95,14 @@ package struct ManualStubGenerator {
                 "                    kind: .\(requirement.kind),",
                 "                    declarationIndex: \(index),",
                 "                    runtimeEligibility: \(runtimeEligibility),",
-                "                    compiledEligibility: .generatedConformer",
+                "                    compiledEligibility: .compiledConformer",
                 "                )"
             ].joined(separator: "\n")
         }.joined(separator: ",\n")
         return [
             "static let compilerEvidence: StubCompilerEvidence<StubbedProtocol> = StubCompilerEvidence(",
             "        runtimeConstruction: \(runtimeConstruction),",
-            "        compiledFallbackEligibility: .generatedConformer,",
+            "        compiledFallbackEligibility: .compiledConformer,",
             "        sourceSupport: StubSourceSupportReport(",
             "            protocolName: \"\(protocolName)\",",
             "            requirements: [",
@@ -118,7 +118,7 @@ package struct ManualStubGenerator {
             if isFunctionRequirement(requirement) {
                 count += 1
             } else if isPropertyRequirement(requirement) || isSubscriptRequirement(requirement) {
-                count += requirement.contains("set") ? 2 : 1
+                count += hasAccessor("set", in: requirement) ? 2 : 1
             }
         }
     }
@@ -186,7 +186,7 @@ package struct ManualStubGenerator {
                 tail.split(separator: ":", maxSplits: 1).first.map(String.init)?
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? "property"
             var result = [DescribedRequirement(name: name, kind: "getter", expression: nil)]
-            if requirement.contains("set") {
+            if hasAccessor("set", in: requirement) {
                 result.append(
                     DescribedRequirement(name: name, kind: "setter", expression: nil)
                 )
@@ -197,7 +197,7 @@ package struct ManualStubGenerator {
             var result = [
                 DescribedRequirement(name: "subscript", kind: "getter", expression: nil)
             ]
-            if requirement.contains("set") {
+            if hasAccessor("set", in: requirement) {
                 result.append(
                     DescribedRequirement(name: "subscript", kind: "setter", expression: nil)
                 )
@@ -252,7 +252,7 @@ package struct ManualStubGenerator {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let type = bodyless[bodyless.index(after: colon)...]
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard isSafelySpelledType(type), requirement.contains("get") else { return nil }
+        guard isSafelySpelledType(type), hasAccessor("get", in: requirement) else { return nil }
         let getterEffects = effects(in: accessorSuffix(requirement, accessor: "get"))
         guard typedFailureType(in: getterEffects) == nil else { return nil }
         var options = [String]()
@@ -266,7 +266,7 @@ package struct ManualStubGenerator {
                 expression: ".getter(\(metatype(type))\(optionSuffix))"
             )
         ]
-        if requirement.contains("set") {
+        if hasAccessor("set", in: requirement) {
             result.append(
                 DescribedRequirement(
                     name: name,
@@ -305,7 +305,7 @@ package struct ManualStubGenerator {
                 expression: ".subscriptGetter(indexedBy: \(indexPrefix)returning: \(metatype(result))\(optionSuffix))"
             )
         ]
-        if requirement.contains("set") {
+        if hasAccessor("set", in: requirement) {
             descriptions.append(
                 DescribedRequirement(
                     name: "subscript",
@@ -367,7 +367,17 @@ package struct ManualStubGenerator {
     }
 
     private func metatype(_ type: String) -> String {
-        type.hasPrefix("any ") ? "(\(type)).self" : "\(type).self"
+        type.hasPrefix("any ") || type.contains("->") || type.contains(" & ")
+            ? "(\(type)).self"
+            : "\(type).self"
+    }
+
+    private func hasAccessor(_ accessor: Substring, in requirement: String) -> Bool {
+        requirement.split { character in
+            character.isLetter == false
+                && character.isNumber == false
+                && character != "_"
+        }.contains(accessor)
     }
 
     private func restrictedAccessPrefix() -> String {
@@ -501,21 +511,21 @@ package struct ManualStubGenerator {
         let type = bodyless[bodyless.index(after: colon)...].trimmingCharacters(
             in: .whitespaces
         )
-        guard requirement.contains("get") else { return nil }
+        guard hasAccessor("get", in: requirement) else { return nil }
         let getterEffects = effects(in: accessorSuffix(requirement, accessor: "get"))
         let getter = forwardingInvocation(
             receiver: receiver,
             arguments: [],
             effects: getterEffects
         )
-        if requirement.contains("set") == false,
+        if hasAccessor("set", in: requirement) == false,
             getterEffects.contains("async") == false,
             getterEffects.contains("throws") == false
         {
             return "\(prefix)var \(name): \(type) { \(getter) }"
         }
         var accessors = ["get { \(getter) }"]
-        if requirement.contains("set") {
+        if hasAccessor("set", in: requirement) {
             accessors.append(
                 "set { \(forwardingInvocation(receiver: receiver, arguments: ["newValue"], effects: "")) }"
             )
@@ -544,14 +554,14 @@ package struct ManualStubGenerator {
             arguments: arguments,
             effects: getterEffects
         )
-        if requirement.contains("set") == false,
+        if hasAccessor("set", in: requirement) == false,
             getterEffects.contains("async") == false,
             getterEffects.contains("throws") == false
         {
             return "\(prefix)\(header) \(type) { \(getter) }"
         }
         var accessors = ["get { \(getter) }"]
-        if requirement.contains("set") {
+        if hasAccessor("set", in: requirement) {
             accessors.append(
                 "set { \(forwardingInvocation(receiver: receiver, arguments: arguments + ["newValue"], effects: "")) }"
             )
