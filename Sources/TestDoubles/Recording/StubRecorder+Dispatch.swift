@@ -1,6 +1,16 @@
 import InternalRuntimeContract
 import Foundation
 
+extension RuntimeArgumentCalibration {
+    fileprivate func matchesPlaceholderBytes(of argument: Any) -> Bool {
+        func matches<Value>(_ value: Value) -> Bool {
+            guard let expected = bytes(for: Value.self) else { return false }
+            return withUnsafeBytes(of: value) { Array($0) } == expected
+        }
+        return _openExistential(argument, do: matches)
+    }
+}
+
 extension StubRecorder {
     func dispatchTyped<Result>(
         manualMethod: ManualMethod,
@@ -509,7 +519,9 @@ extension StubRecorder {
     }
 
     private func recordPlaceholder(method: Int, name: String, args: [Any]) {
-        var matchers = MatcherContext.takeMatchers()
+        let recording = MatcherContext.takeRecording()
+        var matchers = recording.matchers
+        var matcherPositionsWereInferred = false
         let runtimeMethod = runtimeMethod(for: method)
         if matchers.isEmpty == false,
             let runtimeMethod,
@@ -535,6 +547,18 @@ extension StubRecorder {
                     + "$0.requirement(matcher())."
             )
         }
+        if matchers.isEmpty == false,
+            matchers.count != args.count,
+            runtimeMethod?.argumentIsVariadic.contains(true) != true,
+            let resolved = mixedLiteralMatchers(
+                matchers: matchers,
+                calibrations: recording.calibrations,
+                arguments: args
+            )
+        {
+            matchers = resolved
+            matcherPositionsWereInferred = true
+        }
         if matchers.isEmpty == false, matchers.count != args.count {
             let variadicGuidance =
                 runtimeMethod?.argumentIsVariadic.contains(true) == true
@@ -542,14 +566,15 @@ extension StubRecorder {
                 : ""
             fatalError(
                 "[TestDoubles] Recording \(name) used \(matchers.count) Match expression(s) for "
-                    + "\(args.count) argument(s). Use either literals for every argument or exactly one "
-                    + "Match expression per argument; do not mix them. Rewrite a pinned literal with "
-                    + "Match.equal(_:) or Match.identical(to:).\(variadicGuidance)"
+                    + "\(args.count) argument(s), but their positions could not be determined safely. "
+                    + "Rewrite each pinned literal with Match.equal(_:) or Match.identical(to:) so "
+                    + "every argument has an explicit Match expression.\(variadicGuidance)"
             )
         }
         if runtimeMethod?.kind == .setter,
             args.count > 1,
             matchers.count == args.count,
+            matcherPositionsWereInferred == false,
             let valueMatcher = matchers.last
         {
             // Swift evaluates a subscript assignment's index expressions
@@ -572,6 +597,55 @@ extension StubRecorder {
             ),
             to: self
         )
+    }
+
+    /// Resolves a partial matcher list only when its placeholder values have
+    /// one unique assignment to the decoded runtime arguments. A collision is
+    /// intentionally rejected: guessing would silently install a matcher at
+    /// the wrong argument position.
+    private func mixedLiteralMatchers(
+        matchers: [ParameterMatcher],
+        calibrations: [RuntimeArgumentCalibration],
+        arguments: [Any]
+    ) -> [ParameterMatcher]? {
+        guard matchers.count == calibrations.count else { return nil }
+
+        let candidates = calibrations.map { calibration in
+            arguments.indices.filter {
+                calibration.matchesPlaceholderBytes(of: arguments[$0])
+            }
+        }
+        guard candidates.allSatisfy({ $0.isEmpty == false }) else { return nil }
+
+        var solutions: [[Int]] = []
+        var assignment = Array(repeating: -1, count: matchers.count)
+        var used = Set<Int>()
+
+        func search(_ matcherIndex: Int) {
+            guard solutions.count < 2 else { return }
+            guard matcherIndex < matchers.count else {
+                solutions.append(assignment)
+                return
+            }
+            for argumentIndex in candidates[matcherIndex] where used.contains(argumentIndex) == false {
+                used.insert(argumentIndex)
+                assignment[matcherIndex] = argumentIndex
+                search(matcherIndex + 1)
+                used.remove(argumentIndex)
+            }
+        }
+
+        search(0)
+        guard solutions.count == 1, let positions = solutions.first else { return nil }
+
+        var resolved = [ParameterMatcher?](repeating: nil, count: arguments.count)
+        for (matcher, argumentIndex) in zip(matchers, positions) {
+            resolved[argumentIndex] = matcher
+        }
+        for argumentIndex in arguments.indices where resolved[argumentIndex] == nil {
+            resolved[argumentIndex] = literalMatcher(for: arguments[argumentIndex])
+        }
+        return resolved.compactMap { $0 }
     }
 
     private func variadicMatchers(

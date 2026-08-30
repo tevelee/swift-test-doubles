@@ -25,12 +25,17 @@ private final class MatcherRecording: @unchecked Sendable {
     }
 
     func takeMatchers() -> [ParameterMatcher] {
+        takeRecording().matchers
+    }
+
+    func takeRecording() -> (matchers: [ParameterMatcher], calibrations: [RuntimeArgumentCalibration]) {
         lock.lock()
         defer { lock.unlock() }
         let matchers = storage
+        let recordedCalibrations = calibrations
         storage.removeAll(keepingCapacity: true)
         calibrations.removeAll(keepingCapacity: true)
-        return matchers
+        return (matchers, recordedCalibrations)
     }
 }
 
@@ -116,6 +121,17 @@ enum MatcherContext {
     /// all pending matchers belong to the invocation entering the recorder.
     static func takeMatchers() -> [ParameterMatcher] {
         activeRecording?.takeMatchers() ?? []
+    }
+
+    /// Removes and returns the matchers formed since the previous captured
+    /// invocation together with the concrete placeholder bytes Swift passed
+    /// to the requirement. The paired calibration is used only to prove a
+    /// unique argument position for mixed literal-and-matcher recordings.
+    static func takeRecording() -> (
+        matchers: [ParameterMatcher],
+        calibrations: [RuntimeArgumentCalibration]
+    ) {
+        activeRecording?.takeRecording() ?? ([], [])
     }
 }
 

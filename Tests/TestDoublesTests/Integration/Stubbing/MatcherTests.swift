@@ -6,12 +6,14 @@ import TestDoublesFixtures
 protocol MatcherService {
     func find(id: Int) -> String
     func search(query: String, limit: Int) -> [String]
+    func range(lower: Int, upper: Int) -> String
     func resolve(_ value: SameDescriptionMatcherValue) -> String
 }
 
 struct RealMatcherService: MatcherService {
     func find(id: Int) -> String { "" }
     func search(query: String, limit: Int) -> [String] { [] }
+    func range(lower: Int, upper: Int) -> String { "" }
     func resolve(_ value: SameDescriptionMatcherValue) -> String { "" }
 }
 
@@ -81,6 +83,27 @@ protocol OptionalMatcherPlaceholderService {
 
         #expect(stub().find(id: 42) == "exact")
         #expect(stub().find(id: 1) == "fallback")
+    }
+
+    @Test func mixedLiteralAndMatcherRecordingInfersAUniquePosition() throws {
+        let stub = try Stub<any MatcherService>()
+        stub.when {
+            $0.search(query: "users", limit: Match.any())
+        }.thenReturn(["matched"])
+
+        #expect(stub().search(query: "users", limit: 25) == ["matched"])
+        stub.verify {
+            $0.search(query: "users", limit: Match.greaterThan(20))
+        }
+    }
+
+    @Test func mixedSameTypedArgumentsWorkWhenThePositionIsUnambiguous() throws {
+        let stub = try Stub<any MatcherService>()
+        stub.when {
+            $0.range(lower: 10, upper: Match.equal(20))
+        }.thenReturn("matched")
+
+        #expect(stub().range(lower: 10, upper: 20) == "matched")
     }
 
     @Test func literalEquatableValuesUseEqualityInsteadOfTheirDescription() throws {
@@ -297,18 +320,18 @@ protocol OptionalMatcherPlaceholderService {
 
 #if compiler(>=6.2) && (os(macOS) || os(Linux) || targetEnvironment(macCatalyst))
     @Suite struct MatcherExitTests {
-        @Test func mixedLiteralAndMatcherRecordingFailsBeforeRegistration() async throws {
+        @Test func ambiguousMixedLiteralAndMatcherRecordingFailsBeforeRegistration() async throws {
             let result = try await #require(
                 processExitsWith: .failure,
                 observing: [\.standardErrorContent]
             ) {
                 let stub = try Stub<any MatcherService>()
                 _ = stub.when {
-                    $0.search(query: "literal", limit: Match.any())
+                    $0.range(lower: 0, upper: Match.any())
                 }
             }
             let diagnostic = try requireStandardErrorDiagnostic(from: result)
-            #expect(diagnostic.contains("Use either literals for every argument"))
+            #expect(diagnostic.contains("positions could not be determined safely"))
             #expect(diagnostic.contains("Match.equal(_:)"))
         }
 
