@@ -12,17 +12,16 @@ getter's throwing convention. Use explicit requirements when neither runtime
 signature source is available, or when the test needs to describe an
 effectful getter precisely.
 
-When a generated conformer is available, its `automatic()` factory keeps one
-nonthrowing construction call across runtime-capable hosts and compiled-only
-destinations. It attempts runtime construction first and falls back to the
-generated conformer after any ``StubError``:
+When a generated conformer is available, use the unified construction facade
+for one nonthrowing call across runtime-capable hosts and compiled-only
+destinations:
 
 ```swift
-let stub = UserRepositoryStub.automatic()
+let stub = TestDouble.stub(using: UserRepositoryStub.self)
 
 #expect(
-    stub.constructionStrategy == .runtimeGenerated
-        || stub.constructionStrategy == .compiledFallback
+    stub.constructionReport.strategy == .runtimeGenerated
+        || stub.constructionReport.strategy == .compiledFallback
 )
 ```
 
@@ -31,6 +30,37 @@ interaction, and verification surface. ``Stub/runtimeFallbackReason`` is `nil`
 for the runtime route and preserves the triggering error for the compiled
 route. Use `UserRepositoryStub()` when the test deliberately requires manual
 dispatch rather than automatic selection.
+
+Generated source also carries a compiler-evidence manifest. Inspect it before
+construction when a test harness or compatibility report needs to explain the
+available routes without probing an ABI:
+
+```swift
+let support = UserRepositoryStub.compilerEvidence.sourceSupport
+
+for requirement in support.requirements {
+    print(requirement.name, requirement.runtimeEligibility)
+}
+```
+
+The manifest contains compiler-typed ``Stub/Requirement`` values when the
+generator can describe every runtime requirement safely. Parameterized methods,
+getters, setters, and subscripts therefore keep their compiler-known argument
+and result types, including resilient Foundation results. Unsupported source
+shapes retain runtime discovery or select the generated compiled conformer;
+the manifest never exposes or guesses direct-versus-indirect ABI transport.
+
+After construction, ``Stub/constructionReport`` provides a stable report of
+the route actually selected and any runtime failure that triggered fallback:
+
+```swift
+switch stub.constructionReport.strategy {
+case .runtimeGenerated:
+    break
+case .compiledFallback:
+    print(stub.constructionReport.runtimeFailureDescription ?? "fallback selected")
+}
+```
 
 For the complete support boundary, see <doc:StubContract>. For bounded
 associated-type signatures, see <doc:BoundAssociatedTypes>.

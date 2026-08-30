@@ -85,10 +85,19 @@ objects — must use a `Match` expression for every argument. `Match.any(using:)
 and `Match.matching(using:description:where:)` accept an explicit recording
 placeholder when the library cannot synthesize one safely.
 
-Do not mix the two styles in one call. For example, rewrite
-`find(id: 42, scope: Match.any())` as
-`find(id: Match.equal(42), scope: Match.any())`; TestDoubles rejects a mixed
-recording immediately so it cannot become a stub that never matches.
+Literals and `Match` expressions can be mixed when TestDoubles can
+unambiguously associate every matcher with one argument. This keeps common
+calls concise:
+
+```swift
+stub.when {
+    $0.find(id: 42, scope: Match.any())
+}.thenReturn("Alice")
+```
+
+When same-typed arguments make that association ambiguous, TestDoubles rejects
+the recording instead of guessing. Rewrite the literals with `Match.equal(_:)` or
+`Match.identical(to:)` so every position is explicit.
 
 A variadic protocol requirement is one array at the witness boundary, even
 though its call syntax has separate elements. Write one matcher for every

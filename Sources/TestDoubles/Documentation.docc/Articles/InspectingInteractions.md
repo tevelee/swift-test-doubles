@@ -317,34 +317,37 @@ matcher such as `Match.any()`, or the identical accepted set at every argument
 position) and never guessing through opaque predicates, so correct
 specific-before-broad ordering is never flagged.
 
-### Register recording placeholders once
+### Scope recording placeholders to a test
 
 The recording pass behind every `when` and one-shot `verify` closure
 needs one valid temporary value per argument and result. TestDoubles synthesizes
 these for most value types, but class instances and existentials normally take a
 value at each site through the `using:` and `returning:` overloads.
-``Match/Placeholders`` supplies that value once for a whole suite instead:
+``Match/Placeholders`` can supply that value lexically for one test:
 
 ```swift
 protocol Directory {
     func displayName(for user: User) -> String   // User is a class
 }
 
-Match.Placeholders.register { User(name: "placeholder") }
-
-let stub = try Stub<any Directory>()
-// No Match.any(using:) needed: the registered factory supplies the recording value.
-stub.when { $0.displayName(for: Match.any()) }.thenReturn("Blob")
+try Match.Placeholders.withFactory({ User(name: "placeholder") }) {
+    let stub = try Stub<any Directory>()
+    // No Match.any(using:) needed inside this task-local scope.
+    stub.when { $0.displayName(for: Match.any()) }.thenReturn("Blob")
+}
 ```
 
-A registered value is used only while recording; it is never matched against,
-returned from a stubbed call, or retained past the recording pass. Precedence is
-explicit `using:`/`returning:` values first, then registered factories, then
-synthesized values, so a registration is a default that per-call values still
-override. Factories match the exact registered type, so an existential and each
-concrete class register separately. The registry is process-wide: register in
-suite setup, or ``Match/Placeholders/unregister(_:)`` on the way out, rather
-than registering inside individual parallel tests.
+A factory value is used only while recording; it is never matched against,
+returned from a stubbed call, or retained past the recording pass. Structured
+child tasks inherit the scope and detached tasks do not. Nested scopes may
+override one exact type while retaining factories for other types. Precedence
+is explicit `using:`/`returning:` values first, then task-scoped factories,
+process-global registrations, and synthesized values.
+
+``Match/Placeholders/register(_:_:)`` remains available for suite-wide setup.
+Its registry is process-global, so prefer ``Match/Placeholders/withFactory(_:operation:)``
+inside individual or parallel tests, and unregister suite defaults when they
+are no longer needed.
 
 ### Reset a double between cases
 

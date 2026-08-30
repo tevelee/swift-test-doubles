@@ -225,10 +225,13 @@ fallbacks; an earlier registration shadows any later one it overlaps with.
 For a literal-only recording, `Equatable` values use `==`, reference values
 (including optional references) use identity, and metatypes use equality. A
 value without one of those relations, such as a closure, must use a `Match`
-expression. Every argument in one recording must use the same style: either all
-literals or one `Match` expression per argument. A mixed recording stops at
-registration with a rewrite hint instead of installing a pattern that can never
-match.
+expression. Literals and `Match` expressions may be mixed when the recorded
+placeholder bytes prove one unique argument position for every matcher. If
+same-typed values make more than one assignment possible, recording stops with
+a rewrite hint instead of guessing. Use `Match.equal(_:)` or
+`Match.identical(to:)` for each pinned value to make an ambiguous call fully
+explicit. Variadic and deferred `@autoclosure` arguments retain their dedicated
+recording rules.
 
 ### Verification
 

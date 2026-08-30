@@ -24,7 +24,7 @@ enum AuthError: Error { case invalidCredentials }
 ```
 
 ```swift
-let auth = try Stub<any AuthService>()
+let auth = try TestDouble.stub(of: (any AuthService).self)
 
 await auth.when { try await $0.signIn(user: Match.equal("blob"), password: Match.equal("sekret")) }
     .thenReturn("session-42")
@@ -75,22 +75,25 @@ instead of an approximation that silently misbehaves. The boundary is wide
 beyond it with the same API.
 
 When a protocol must work both inside and outside that runtime boundary,
-generate its manual conformer and use the generated `automatic()` factory:
+generate its manual conformer and use the unified construction facade:
 
 ```swift
-let weather = WeatherServiceStub.automatic()
+let weather = TestDouble.stub(using: WeatherServiceStub.self)
 weather.when { $0.forecast(for: "Budapest") }.thenReturn("Sunny")
 
 let service: any WeatherService = weather()
 #expect(service.forecast(for: "Budapest") == "Sunny")
 ```
 
-It tries runtime synthesis first, then transparently uses the compiled
-conformer for unsupported requirement shapes, physical Apple devices, WASI,
-or restricted executable-memory environments. Both routes return `Stub<any
+Compiler evidence selects explicit runtime requirements, validated discovery,
+or an immediate compiled fallback. An eligible runtime attempt that fails on
+an unsupported shape, physical Apple device, WASI, or restricted
+executable-memory environment transparently uses the conformer. Every route returns `Stub<any
 WeatherService>`, so configuration and verification stay unchanged.
-`constructionStrategy` reports which route was selected, and
-`runtimeFallbackReason` preserves the runtime diagnostic. Calling
+`constructionReport` reports which route was selected and preserves the
+runtime diagnostic. `WeatherServiceStub.compilerEvidence.sourceSupport`
+provides the generator's per-requirement preflight report without attempting
+runtime construction. Calling
 `WeatherServiceStub()` directly remains the explicit always-manual choice.
 
 ## What you can do
@@ -169,13 +172,12 @@ and `Match.endsWith` match collections; `Match.hasPrefix`, `Match.hasSuffix`,
 `Match.anyOf`, and `Match.oneOf` compose matchers with boolean logic.
 Composition stays positional, so
 `Match.allOf(events.capture(), Match.hasPrefix("purchase"))` captures only the
-arguments that satisfy the whole expression. Use matcher functions for every
-argument of a registration or none — a call cannot mix bare literals and
-matchers. Literal-only registrations use `==` for `Equatable` values, identity
-for references (including optionals), and equality for metatypes. A closure or
-other value without a generic equality relation needs an explicit matcher, and
-a mixed registration stops at `when` with a rewrite hint rather than becoming a
-nonmatching stub.
+arguments that satisfy the whole expression. Literals and matchers may share a
+call when TestDoubles can unambiguously associate each matcher with one
+argument. Literal positions use `==` for `Equatable` values, identity for
+references (including optionals), and equality for metatypes. If same-typed
+values make matcher placement ambiguous, registration stops with a rewrite hint; spell pinned values with
+`Match.equal(_:)` or `Match.identical(to:)` to make every position explicit.
 
 ### Simulate failure and recovery
 

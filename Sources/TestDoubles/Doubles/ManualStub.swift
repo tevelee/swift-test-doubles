@@ -46,6 +46,7 @@ public protocol AutomaticStubConformer: ManualStubConformer {
 }
 
 extension AutomaticStubConformer {
+    /// Default evidence for a hand-written conformer that relies on runtime discovery.
     public static var compilerEvidence: StubCompilerEvidence<StubbedProtocol> {
         StubCompilerEvidence(
             runtimeConstruction: .automaticDiscovery,

@@ -119,8 +119,10 @@ Every argument in one recorded invocation must either use a matcher or use its
 literal value. Literals compare `Equatable` values with `==`, reference values
 (including optional references) by identity, and metatypes by equality. Values
 without a generic equality relation, such as closures, need a `Match`
-expression. Do not mix the two styles in one call: TestDoubles rejects a mixed
-recording immediately; rewrite a pinned value as `Match.equal(value)` or
+expression. Literals and matchers may share a call when TestDoubles can
+unambiguously associate every matcher with one argument. If same-typed values
+make placement ambiguous, TestDoubles rejects the recording instead of
+guessing; rewrite each pinned value as `Match.equal(value)` or
 `Match.identical(to: object)`.
 
 For a call involving an ABI-uncertain concrete value, prefer the matcher form
@@ -874,8 +876,27 @@ func checkoutHasNoSurpriseInteractions() throws {
 ```
 
 Individual policies are available through
-`testDoubles(strictness:)`. The `TestDoublesTesting` product's documentation
-covers the complete option set and task-inheritance behavior.
+`testDoubles(strictness:)`. Use the positional shorthand and the lifecycle
+preset when unfinished resources matter but unused setup and unverified calls
+do not:
+
+```swift
+@Test(.testDoubles(.lifecycle))
+func checkoutFinishesAsyncResources() async throws {
+    // Checks queues, suspensions, callbacks, invocations, and streams.
+}
+```
+
+XCTest and custom harnesses can apply the same checks lexically:
+
+```swift
+try await TestDouble.withScope(checking: .lifecycle) {
+    // Structured child tasks inherit this scope; detached tasks do not.
+}
+```
+
+The `TestDoublesTesting` product's documentation covers the complete option set
+and task-inheritance behavior.
 
 ### Reset between cases
 

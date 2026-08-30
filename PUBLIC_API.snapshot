@@ -80,10 +80,17 @@ conformance	TestDoubles	Stub.Requirement.Value	Swift.Sendable	[]
 conformance	TestDoubles	StubBehaviorChain	Swift.Sendable	[{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 conformance	TestDoubles	StubBehaviorQueue	Swift.Sendable	[]
 conformance	TestDoubles	StubClock	Swift.Sendable	[]
+conformance	TestDoubles	StubCompiledEligibility	Swift.Equatable	[]
+conformance	TestDoubles	StubCompiledEligibility	Swift.Sendable	[]
+conformance	TestDoubles	StubCompilerEvidence	Swift.Sendable	[]
+conformance	TestDoubles	StubCompilerEvidence.RuntimeConstruction	Swift.Sendable	[]
+conformance	TestDoubles	StubConstructionReport	Swift.Equatable	[]
+conformance	TestDoubles	StubConstructionReport	Swift.Sendable	[]
 conformance	TestDoubles	StubConstructionStrategy	Swift.Equatable	[]
 conformance	TestDoubles	StubConstructionStrategy	Swift.Hashable	[]
 conformance	TestDoubles	StubConstructionStrategy	Swift.Sendable	[]
 conformance	TestDoubles	StubError	Swift.CustomStringConvertible	[]
+conformance	TestDoubles	StubError	Swift.Equatable	[]
 conformance	TestDoubles	StubError	Swift.Error	[]
 conformance	TestDoubles	StubError	Swift.Sendable	[]
 conformance	TestDoubles	StubFailableInitializerBuilder.Outcome	Swift.Equatable	[]
@@ -97,6 +104,15 @@ conformance	TestDoubles	StubPerformanceDiagnostics	Swift.Sendable	[]
 conformance	TestDoubles	StubPerformanceDiagnostics.Construction	Swift.Sendable	[]
 conformance	TestDoubles	StubPerformanceDiagnostics.Dispatch	Swift.Sendable	[]
 conformance	TestDoubles	StubPerformanceDiagnostics.MethodDispatch	Swift.Sendable	[]
+conformance	TestDoubles	StubRequirementSupport	Swift.Equatable	[]
+conformance	TestDoubles	StubRequirementSupport	Swift.Sendable	[]
+conformance	TestDoubles	StubRuntimeEligibility	Swift.Equatable	[]
+conformance	TestDoubles	StubRuntimeEligibility	Swift.Sendable	[]
+conformance	TestDoubles	StubSourceRequirementKind	Swift.Equatable	[]
+conformance	TestDoubles	StubSourceRequirementKind	Swift.Hashable	[]
+conformance	TestDoubles	StubSourceRequirementKind	Swift.Sendable	[]
+conformance	TestDoubles	StubSourceSupportReport	Swift.Equatable	[]
+conformance	TestDoubles	StubSourceSupportReport	Swift.Sendable	[]
 conformance	TestDoubles	StubSuspension	Swift.Sendable	[{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 conformance	TestDoubles	TestDoubleClock	Swift.Sendable	[]
 conformance	TestDoubles	TestDoubleClock	s:11TestDoubles9StubClockP	[]
@@ -157,10 +173,14 @@ symbol	TestDoubles	swift.enum	Match	enum Match
 symbol	TestDoubles	swift.enum	Match.Placeholders	enum Placeholders
 symbol	TestDoubles	swift.enum	Stub.GetterEffect	enum GetterEffect
 symbol	TestDoubles	swift.enum	StubClocks	enum StubClocks
+symbol	TestDoubles	swift.enum	StubCompiledEligibility	enum StubCompiledEligibility
+symbol	TestDoubles	swift.enum	StubCompilerEvidence.RuntimeConstruction	enum RuntimeConstruction
 symbol	TestDoubles	swift.enum	StubConstructionStrategy	enum StubConstructionStrategy
 symbol	TestDoubles	swift.enum	StubError	enum StubError
 symbol	TestDoubles	swift.enum	StubFailableInitializerBuilder.Outcome	enum Outcome
 symbol	TestDoubles	swift.enum	StubOptionalSelfResultBuilder.Outcome	enum Outcome
+symbol	TestDoubles	swift.enum	StubRuntimeEligibility	enum StubRuntimeEligibility
+symbol	TestDoubles	swift.enum	StubSourceRequirementKind	enum StubSourceRequirementKind
 symbol	TestDoubles	swift.enum	TestDouble	enum TestDouble
 symbol	TestDoubles	swift.enum	TestDoubleIssue.Kind	enum Kind
 symbol	TestDoubles	swift.enum.case	AsyncStreamControllerTermination.active	case active
@@ -184,6 +204,12 @@ symbol	TestDoubles	swift.enum.case	InvocationOutcome.unavailable	case unavailabl
 symbol	TestDoubles	swift.enum.case	Stub.GetterEffect.nonthrowing	case nonthrowing
 symbol	TestDoubles	swift.enum.case	Stub.GetterEffect.throwing	case throwing
 symbol	TestDoubles	swift.enum.case	Stub.GetterEffect.typedThrowing(_:)	case typedThrowing(any Error.Type)
+symbol	TestDoubles	swift.enum.case	StubCompiledEligibility.compiledConformer	case compiledConformer
+symbol	TestDoubles	swift.enum.case	StubCompiledEligibility.unavailable(reason:)	case unavailable(reason: String)
+symbol	TestDoubles	swift.enum.case	StubCompilerEvidence.RuntimeConstruction.automaticDiscovery	case automaticDiscovery
+symbol	TestDoubles	swift.enum.case	StubCompilerEvidence.RuntimeConstruction.groupedRequirements(_:)	case groupedRequirements([Stub<P>.ProtocolRequirements])
+symbol	TestDoubles	swift.enum.case	StubCompilerEvidence.RuntimeConstruction.requirements(_:)	case requirements([Stub<P>.Requirement])
+symbol	TestDoubles	swift.enum.case	StubCompilerEvidence.RuntimeConstruction.unavailable(reason:)	case unavailable(reason: String)
 symbol	TestDoubles	swift.enum.case	StubConstructionStrategy.compiledFallback	case compiledFallback
 symbol	TestDoubles	swift.enum.case	StubConstructionStrategy.runtimeGenerated	case runtimeGenerated
 symbol	TestDoubles	swift.enum.case	StubError.compositionRequiresGroupedGetterEffects(typeDescription:)	case compositionRequiresGroupedGetterEffects(typeDescription: String)
@@ -210,6 +236,13 @@ symbol	TestDoubles	swift.enum.case	StubFailableInitializerBuilder.Outcome.initia
 symbol	TestDoubles	swift.enum.case	StubFailableInitializerBuilder.Outcome.returnNil	case returnNil
 symbol	TestDoubles	swift.enum.case	StubOptionalSelfResultBuilder.Outcome.returnNil	case returnNil
 symbol	TestDoubles	swift.enum.case	StubOptionalSelfResultBuilder.Outcome.returnValue	case returnValue
+symbol	TestDoubles	swift.enum.case	StubRuntimeEligibility.compilerDescribed	case compilerDescribed
+symbol	TestDoubles	swift.enum.case	StubRuntimeEligibility.requiresRuntimeDiscovery	case requiresRuntimeDiscovery
+symbol	TestDoubles	swift.enum.case	StubRuntimeEligibility.unavailable(reason:)	case unavailable(reason: String)
+symbol	TestDoubles	swift.enum.case	StubSourceRequirementKind.getter	case getter
+symbol	TestDoubles	swift.enum.case	StubSourceRequirementKind.initializer	case initializer
+symbol	TestDoubles	swift.enum.case	StubSourceRequirementKind.method	case method
+symbol	TestDoubles	swift.enum.case	StubSourceRequirementKind.setter	case setter
 symbol	TestDoubles	swift.enum.case	TestDoubleIssue.Kind.escapedTestDouble	case escapedTestDouble
 symbol	TestDoubles	swift.enum.case	TestDoubleIssue.Kind.openStreamController	case openStreamController
 symbol	TestDoubles	swift.enum.case	TestDoubleIssue.Kind.pendingCallbackCapture	case pendingCallbackCapture
@@ -268,11 +301,14 @@ symbol	TestDoubles	swift.init	Spy.init(forwardingTo:getterEffectsByProtocol:_:)	
 symbol	TestDoubles	swift.init	Stub.init(_:)	convenience init(_ requirements: Requirement...) throws(StubError)
 symbol	TestDoubles	swift.init	Stub.init(associatedTypes:_:)	convenience init(associatedTypes: [AssociatedTypeBinding], _ requirements: Requirement...) throws(StubError)
 symbol	TestDoubles	swift.init	Stub.init(discoveringFrom:)	convenience init(discoveringFrom conformer: P) throws(StubError)
-symbol	TestDoubles	swift.init	Stub.init(fallingBackTo:erasingWith:)	convenience init<Fallback>(fallingBackTo _: Fallback.Type, erasingWith erase: @escaping (Fallback) -> P) where Fallback : ManualStubConformer
+symbol	TestDoubles	swift.init	Stub.init(fallingBackTo:erasingWith:)	convenience init<Fallback>(fallingBackTo fallbackType: Fallback.Type, erasingWith erase: @escaping (Fallback) -> P) where Fallback : ManualStubConformer
 symbol	TestDoubles	swift.init	Stub.init(getterEffects:_:)	convenience init(getterEffects firstEffect: GetterEffect, _ additionalEffects: GetterEffect...) throws(StubError)
 symbol	TestDoubles	swift.init	Stub.init(getterEffectsByProtocol:_:)	convenience init(getterEffectsByProtocol firstGroup: ProtocolGetterEffects, _ additionalGroups: ProtocolGetterEffects...) throws(StubError)
 symbol	TestDoubles	swift.init	Stub.init(requirementsByProtocol:)	convenience init(requirementsByProtocol groups: [ProtocolRequirements]) throws(StubError)
 symbol	TestDoubles	swift.init	Stub.init(requirementsByProtocol:_:)	convenience init(requirementsByProtocol firstGroup: ProtocolRequirements, _ additionalGroups: ProtocolRequirements...) throws(StubError)
+symbol	TestDoubles	swift.init	StubCompilerEvidence.init(runtimeConstruction:compiledFallbackEligibility:sourceSupport:)	init(runtimeConstruction: RuntimeConstruction, compiledFallbackEligibility: StubCompiledEligibility, sourceSupport: StubSourceSupportReport)
+symbol	TestDoubles	swift.init	StubRequirementSupport.init(declaringProtocol:name:kind:declarationIndex:runtimeEligibility:compiledEligibility:)	init(declaringProtocol: String, name: String, kind: StubSourceRequirementKind, declarationIndex: Int, runtimeEligibility: StubRuntimeEligibility, compiledEligibility: StubCompiledEligibility)
+symbol	TestDoubles	swift.init	StubSourceSupportReport.init(protocolName:isComplete:requirements:)	init(protocolName: String, isComplete: Bool = true, requirements: [StubRequirementSupport])
 symbol	TestDoubles	swift.init	TestDoubleClock.init()	init()
 symbol	TestDoubles	swift.init	TestDoubleIssue.init(kind:message:testDoubleName:)	init(kind: Kind, message: String, testDoubleName: String? = nil)
 symbol	TestDoubles	swift.init	TestDoubleScenario.init(_:)	init(_ configure: @escaping (Subject) -> Void)
@@ -1091,6 +1127,7 @@ symbol	TestDoubles	swift.property	NonescapingCallbackRecorder.errors	var errors:
 symbol	TestDoubles	swift.property	NonescapingCallbackRecorder.invocations	var invocations: [Input] { get }
 symbol	TestDoubles	swift.property	NonescapingCallbackRecorder.results	var results: [Result] { get }
 symbol	TestDoubles	swift.property	ParameterizedTestDoubleScenario.name	let name: String?
+symbol	TestDoubles	swift.property	Stub.constructionReport	var constructionReport: StubConstructionReport { get }
 symbol	TestDoubles	swift.property	Stub.constructionStrategy	let constructionStrategy: StubConstructionStrategy
 symbol	TestDoubles	swift.property	Stub.history	var history: InteractionHistory { get }
 symbol	TestDoubles	swift.property	Stub.performanceDiagnostics	var performanceDiagnostics: StubPerformanceDiagnostics { get }
@@ -1100,6 +1137,14 @@ symbol	TestDoubles	swift.property	StubBehaviorChain.interactions	var interaction
 symbol	TestDoubles	swift.property	StubBehaviorQueue.interactions	let interactions: CallInteractions
 symbol	TestDoubles	swift.property	StubBehaviorQueue.isExhausted	var isExhausted: Bool { get }
 symbol	TestDoubles	swift.property	StubBehaviorQueue.remainingAnswerCount	var remainingAnswerCount: Int? { get }
+symbol	TestDoubles	swift.property	StubCompilerEvidence.compiledFallbackEligibility	let compiledFallbackEligibility: StubCompiledEligibility
+symbol	TestDoubles	swift.property	StubCompilerEvidence.runtimeConstruction	let runtimeConstruction: RuntimeConstruction
+symbol	TestDoubles	swift.property	StubCompilerEvidence.runtimeEligibility	var runtimeEligibility: StubRuntimeEligibility { get }
+symbol	TestDoubles	swift.property	StubCompilerEvidence.sourceSupport	let sourceSupport: StubSourceSupportReport
+symbol	TestDoubles	swift.property	StubConstructionReport.protocolName	let protocolName: String
+symbol	TestDoubles	swift.property	StubConstructionReport.runtimeFailure	let runtimeFailure: StubError?
+symbol	TestDoubles	swift.property	StubConstructionReport.runtimeFailureDescription	var runtimeFailureDescription: String? { get }
+symbol	TestDoubles	swift.property	StubConstructionReport.strategy	let strategy: Strategy
 symbol	TestDoubles	swift.property	StubError.description	var description: String { get }
 symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.Construction.materializationDuration	let materializationDuration: Duration
 symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.Construction.planPreparationDuration	let planPreparationDuration: Duration
@@ -1121,6 +1166,18 @@ symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.MethodDispatch.tota
 symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.construction	let construction: Construction
 symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.description	var description: String { get }
 symbol	TestDoubles	swift.property	StubPerformanceDiagnostics.dispatch	let dispatch: Dispatch
+symbol	TestDoubles	swift.property	StubRequirementSupport.compiledEligibility	let compiledEligibility: StubCompiledEligibility
+symbol	TestDoubles	swift.property	StubRequirementSupport.declarationIndex	let declarationIndex: Int
+symbol	TestDoubles	swift.property	StubRequirementSupport.declaringProtocol	let declaringProtocol: String
+symbol	TestDoubles	swift.property	StubRequirementSupport.kind	let kind: StubSourceRequirementKind
+symbol	TestDoubles	swift.property	StubRequirementSupport.name	let name: String
+symbol	TestDoubles	swift.property	StubRequirementSupport.runtimeEligibility	let runtimeEligibility: StubRuntimeEligibility
+symbol	TestDoubles	swift.property	StubSourceSupportReport.hasCompleteCompiledFallback	var hasCompleteCompiledFallback: Bool { get }
+symbol	TestDoubles	swift.property	StubSourceSupportReport.isComplete	let isComplete: Bool
+symbol	TestDoubles	swift.property	StubSourceSupportReport.needsRuntimeDiscovery	var needsRuntimeDiscovery: Bool { get }
+symbol	TestDoubles	swift.property	StubSourceSupportReport.protocolName	let protocolName: String
+symbol	TestDoubles	swift.property	StubSourceSupportReport.requirements	let requirements: [StubRequirementSupport]
+symbol	TestDoubles	swift.property	StubSourceSupportReport.runtimeIsCompilerDescribed	var runtimeIsCompilerDescribed: Bool { get }
 symbol	TestDoubles	swift.property	StubSuspension.interactions	let interactions: CallInteractions
 symbol	TestDoubles	swift.property	TestDoubleClock.pendingSleepCount	var pendingSleepCount: Int { get }
 symbol	TestDoubles	swift.property	TestDoubleIssue.description	var description: String { get }
@@ -1186,6 +1243,8 @@ symbol	TestDoubles	swift.struct	Stub.ProtocolRequirements	struct ProtocolRequire
 symbol	TestDoubles	swift.struct	Stub.Requirement	struct Requirement
 symbol	TestDoubles	swift.struct	Stub.Requirement.Value	struct Value
 symbol	TestDoubles	swift.struct	StubBehaviorChain	struct StubBehaviorChain<Result>
+symbol	TestDoubles	swift.struct	StubCompilerEvidence	struct StubCompilerEvidence<P>
+symbol	TestDoubles	swift.struct	StubConstructionReport	struct StubConstructionReport
 symbol	TestDoubles	swift.struct	StubFailableInitializerBuilder	struct StubFailableInitializerBuilder
 symbol	TestDoubles	swift.struct	StubInitializerBuilder	struct StubInitializerBuilder
 symbol	TestDoubles	swift.struct	StubOptionalSelfResultBuilder	struct StubOptionalSelfResultBuilder
@@ -1193,7 +1252,9 @@ symbol	TestDoubles	swift.struct	StubPerformanceDiagnostics	struct StubPerformanc
 symbol	TestDoubles	swift.struct	StubPerformanceDiagnostics.Construction	struct Construction
 symbol	TestDoubles	swift.struct	StubPerformanceDiagnostics.Dispatch	struct Dispatch
 symbol	TestDoubles	swift.struct	StubPerformanceDiagnostics.MethodDispatch	struct MethodDispatch
+symbol	TestDoubles	swift.struct	StubRequirementSupport	struct StubRequirementSupport
 symbol	TestDoubles	swift.struct	StubSelfResultBuilder	struct StubSelfResultBuilder
+symbol	TestDoubles	swift.struct	StubSourceSupportReport	struct StubSourceSupportReport
 symbol	TestDoubles	swift.struct	TestDoubleIssue	struct TestDoubleIssue
 symbol	TestDoubles	swift.struct	TestDoubleScenario	struct TestDoubleScenario<Subject>
 symbol	TestDoubles	swift.struct	ThrowingClosureCallPattern	struct ThrowingClosureCallPattern<Input, Result>
@@ -1237,6 +1298,8 @@ symbol	TestDoubles	swift.type.method	InvocationOrder.Builder.buildLimitedAvailab
 symbol	TestDoubles	swift.type.method	InvocationOrder.Builder.buildOptional(_:)	static func buildOptional(_ component: [Expectation]?) -> [Expectation]
 symbol	TestDoubles	swift.type.method	Match.Placeholders.register(_:_:)	static func register<Value>(_ type: Value.Type = Value.self, _ make: @escaping @Sendable () -> Value)
 symbol	TestDoubles	swift.type.method	Match.Placeholders.unregister(_:)	static func unregister<Value>(_ type: Value.Type)
+symbol	TestDoubles	swift.type.method	Match.Placeholders.withFactory(_:isolation:operation:)	static func withFactory<Value, Result, Failure>(_ make: @escaping @Sendable () -> Value, isolation: isolated (any Actor)? = #isolation, operation: () async throws(Failure) -> Result) async throws(Failure) -> Result where Failure : Error
+symbol	TestDoubles	swift.type.method	Match.Placeholders.withFactory(_:operation:)	static func withFactory<Value, Result, Failure>(_ make: @escaping @Sendable () -> Value, operation: () throws(Failure) -> Result) throws(Failure) -> Result where Failure : Error
 symbol	TestDoubles	swift.type.method	Match.allOf(_:_:)	static func allOf<T>(_ first: @autoclosure () -> T, _ second: @autoclosure () -> T) -> T
 symbol	TestDoubles	swift.type.method	Match.allOf(_:_:_:)	static func allOf<T>(_ first: @autoclosure () -> T, _ second: @autoclosure () -> T, _ third: @autoclosure () -> T) -> T
 symbol	TestDoubles	swift.type.method	Match.allOf(_:_:_:_:)	static func allOf<T>(_ first: @autoclosure () -> T, _ second: @autoclosure () -> T, _ third: @autoclosure () -> T, _ fourth: @autoclosure () -> T) -> T
@@ -1365,8 +1428,15 @@ symbol	TestDoubles	swift.type.method	Stub.Requirement.subscriptSetter(indexedBy:
 symbol	TestDoubles	swift.type.method	Stub.make(_:)	static func make(_ configure: (Stub<P>) -> Void) -> P
 symbol	TestDoubles	swift.type.method	Stub.make(_:isolation:)	static func make(_ configure: (Stub<P>) async -> Void, isolation: isolated (any Actor)? = #isolation) async -> P
 symbol	TestDoubles	swift.type.method	Stub.prewarm()	static func prewarm() throws(StubError)
+symbol	TestDoubles	swift.type.method	TestDouble.compiled(_:)	static func compiled<T>(_ controllerType: CompiledStub<T>.Type) -> CompiledStub<T> where T : ManualStubConformer
+symbol	TestDoubles	swift.type.method	TestDouble.dummy(of:)	static func dummy<P>(of protocolType: P.Type) throws(StubError) -> Dummy<P>
+symbol	TestDoubles	swift.type.method	TestDouble.spy(of:forwardingTo:)	static func spy<P>(of protocolType: P.Type, forwardingTo target: P) throws(StubError) -> Spy<P>
+symbol	TestDoubles	swift.type.method	TestDouble.stub(of:)	static func stub<P>(of protocolType: P.Type) throws(StubError) -> Stub<P>
+symbol	TestDoubles	swift.type.method	TestDouble.stub(using:)	static func stub<T>(using controllerType: CompiledStub<T>.Type) -> Stub<T.StubbedProtocol> where T : AutomaticStubConformer
+symbol	TestDoubles	swift.type.property	AutomaticStubConformer.compilerEvidence	static var compilerEvidence: StubCompilerEvidence<StubbedProtocol> { get }
 symbol	TestDoubles	swift.type.property	BehaviorRepetition.Finite.once	static let once: BehaviorRepetition.Finite
 symbol	TestDoubles	swift.type.property	BehaviorRepetition.Forever.forever	static let forever: BehaviorRepetition.Forever
+symbol	TestDoubles	swift.type.property	CompiledStub.compilerEvidence	static var compilerEvidence: StubCompilerEvidence<T.StubbedProtocol> { get }
 symbol	TestDoubles	swift.type.property	FixtureRedactor.none	static let none: FixtureRedactor
 symbol	TestDoubles	swift.type.property	InteractionFixture.currentSchemaVersion	static let currentSchemaVersion: Int
 symbol	TestDoubles	swift.type.property	Stub.Requirement.Value.dynamicSelf	static var dynamicSelf: `Self` { get }
@@ -1426,6 +1496,7 @@ symbol	TestDoubles	swift.typealias	SendableAsyncThrowingClosureDouble	typealias 
 symbol	TestDoubles	swift.typealias	SendableClosureDouble	typealias SendableClosureDouble<Input, Result> = ClosureDouble<Input, Result> where Input : Sendable, Result : Sendable
 symbol	TestDoubles	swift.typealias	SendableThrowingClosureDouble	typealias SendableThrowingClosureDouble<Input, Result> = ThrowingClosureDouble<Input, Result> where Input : Sendable, Result : Sendable
 symbol	TestDoubles	swift.typealias	Stub.ConstructionStrategy	typealias ConstructionStrategy = StubConstructionStrategy
+symbol	TestDoubles	swift.typealias	StubConstructionReport.Strategy	typealias Strategy = StubConstructionStrategy
 symbol	TestDoubles	swift.typealias	StubScenario	typealias StubScenario<P> = TestDoubleScenario<Stub<P>>
 symbol	TestDoubles	swift.typealias	TestDouble.ConfiguredCall	typealias ConfiguredCall<Result> = TestDoubles.ConfiguredCall<Result>
 symbol	TestDoubles	swift.typealias	TestDouble.Interactions	typealias Interactions = InteractionHistory
@@ -1456,6 +1527,7 @@ symbol	TestDoublesTesting	swift.property	TestDoubleScope.strictness	let strictne
 symbol	TestDoublesTesting	swift.property	TestDoubleStrictness.rawValue	let rawValue: UInt16
 symbol	TestDoublesTesting	swift.struct	TestDoubleScope	struct TestDoubleScope
 symbol	TestDoublesTesting	swift.struct	TestDoubleStrictness	struct TestDoubleStrictness
+symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.lifecycle	static let lifecycle: `Self`
 symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.noEscapedTestDoubles	static let noEscapedTestDoubles: TestDoubleStrictness
 symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.noMoreInteractions	static let noMoreInteractions: TestDoubleStrictness
 symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.noOpenStreamControllers	static let noOpenStreamControllers: TestDoubleStrictness
@@ -1466,6 +1538,9 @@ symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.noUnconsumedI
 symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.noUnfinishedAsyncInvocations	static let noUnfinishedAsyncInvocations: TestDoubleStrictness
 symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.noUnusedStubs	static let noUnusedStubs: TestDoubleStrictness
 symbol	TestDoublesTesting	swift.type.property	TestDoubleStrictness.strict	static let strict: `Self`
+symbol	TestDoublesTesting@TestDoubles	swift.type.method	TestDouble.withScope(checking:named:fileID:filePath:line:column:_:)	static func withScope<Result, Failure>(checking strictness: TestDoubleStrictness = .noUnusedStubs, named name: String = #function, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column, _ operation: () throws(Failure) -> Result) throws(Failure) -> Result where Failure : Error
+symbol	TestDoublesTesting@TestDoubles	swift.type.method	TestDouble.withScope(checking:named:isolation:fileID:filePath:line:column:_:)	static func withScope<Result, Failure>(checking strictness: TestDoubleStrictness = .noUnusedStubs, named name: String = #function, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column, _ operation: () async throws(Failure) -> Result) async throws(Failure) -> Result where Failure : Error
+symbol	TestDoublesTesting@Testing	swift.type.method	Trait.testDoubles(_:)	static func testDoubles(_ strictness: TestDoubleStrictness) -> Self
 symbol	TestDoublesTesting@Testing	swift.type.method	Trait.testDoubles(strictness:)	static func testDoubles(strictness: TestDoubleStrictness) -> Self
 symbol	TestDoublesTesting@Testing	swift.type.property	Trait.strictTestDoubles	static var strictTestDoubles: Self { get }
 symbol	TestDoublesTesting@Testing	swift.type.property	Trait.testDoubles	static var testDoubles: Self { get }

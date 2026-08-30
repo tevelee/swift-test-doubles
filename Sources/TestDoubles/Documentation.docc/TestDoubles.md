@@ -69,6 +69,9 @@ isolation. See
 - ``TestDouble``
 - ``Stub``
 - ``StubConstructionStrategy``
+- ``StubConstructionReport``
+- ``StubCompilerEvidence``
+- ``StubSourceSupportReport``
 - ``Spy``
 - ``CallPattern``
 - ``ConfiguredCall``
@@ -116,6 +119,9 @@ isolation. See
 - ``Stub/AssociatedTypeBinding``
 - ``Stub/GetterEffect``
 - ``Stub/ProtocolGetterEffects``
+- ``StubRequirementSupport``
+- ``StubRuntimeEligibility``
+- ``StubCompiledEligibility``
 - <doc:ConstructionGuide>
 - <doc:BoundAssociatedTypes>
 
