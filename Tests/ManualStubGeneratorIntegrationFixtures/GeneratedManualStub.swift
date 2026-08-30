@@ -6,6 +6,89 @@ import TestDoubles
 struct GeneratedManualStubServiceStubConformer: GeneratedManualStubService, AutomaticStubConformer {
     typealias StubbedProtocol = any GeneratedManualStubService
 
+    static let compilerEvidence: StubCompilerEvidence<StubbedProtocol> = StubCompilerEvidence(
+        runtimeConstruction: .requirements([
+            .method(Int.self, returning: String.self),
+            .method(String.self, returning: String.self),
+            .method(Int.self, returning: Void.self, throwing: GeneratedManualStubFailure.self),
+            .method(Int.self, returning: String.self, throwing: GeneratedManualStubFailure.self, isAsync: true),
+            .getter(Int.self),
+            .setter(Int.self),
+            .subscriptGetter(indexedBy: Int.self, returning: String.self),
+            .subscriptSetter(indexedBy: Int.self, assigning: String.self)
+        ]),
+        compiledFallbackEligibility: .generatedConformer,
+        sourceSupport: StubSourceSupportReport(
+            protocolName: "GeneratedManualStubService",
+            requirements: [
+                StubRequirementSupport(
+                    declaringProtocol: "GeneratedManualStubService",
+                    name: "render(_:)",
+                    kind: .method,
+                    declarationIndex: 0,
+                    runtimeEligibility: .compilerDescribed,
+                    compiledEligibility: .generatedConformer
+                ),
+                StubRequirementSupport(
+                    declaringProtocol: "GeneratedManualStubService",
+                    name: "render(_:)",
+                    kind: .method,
+                    declarationIndex: 1,
+                    runtimeEligibility: .compilerDescribed,
+                    compiledEligibility: .generatedConformer
+                ),
+                StubRequirementSupport(
+                    declaringProtocol: "GeneratedManualStubService",
+                    name: "save(_:)",
+                    kind: .method,
+                    declarationIndex: 2,
+                    runtimeEligibility: .compilerDescribed,
+                    compiledEligibility: .generatedConformer
+                ),
+                StubRequirementSupport(
+                    declaringProtocol: "GeneratedManualStubService",
+                    name: "refresh(_:)",
+                    kind: .method,
+                    declarationIndex: 3,
+                    runtimeEligibility: .compilerDescribed,
+                    compiledEligibility: .generatedConformer
+                ),
+                StubRequirementSupport(
+                    declaringProtocol: "GeneratedManualStubService",
+                    name: "count",
+                    kind: .getter,
+                    declarationIndex: 4,
+                    runtimeEligibility: .compilerDescribed,
+                    compiledEligibility: .generatedConformer
+                ),
+                StubRequirementSupport(
+                    declaringProtocol: "GeneratedManualStubService",
+                    name: "count",
+                    kind: .setter,
+                    declarationIndex: 5,
+                    runtimeEligibility: .compilerDescribed,
+                    compiledEligibility: .generatedConformer
+                ),
+                StubRequirementSupport(
+                    declaringProtocol: "GeneratedManualStubService",
+                    name: "subscript",
+                    kind: .getter,
+                    declarationIndex: 6,
+                    runtimeEligibility: .compilerDescribed,
+                    compiledEligibility: .generatedConformer
+                ),
+                StubRequirementSupport(
+                    declaringProtocol: "GeneratedManualStubService",
+                    name: "subscript",
+                    kind: .setter,
+                    declarationIndex: 7,
+                    runtimeEligibility: .compilerDescribed,
+                    compiledEligibility: .generatedConformer
+                )
+            ]
+        )
+    )
+
     let stub: CompiledStub<Self>
 
     static func eraseToStubbedProtocol(_ conformer: GeneratedManualStubServiceStubConformer) -> StubbedProtocol { conformer }
@@ -34,6 +117,35 @@ typealias GeneratedManualStubServiceStub = CompiledStub<GeneratedManualStubServi
 struct GeneratedManualStubCounterStubConformer: GeneratedManualStubCounter, AutomaticStubConformer {
     typealias StubbedProtocol = any GeneratedManualStubCounter
 
+    static let compilerEvidence: StubCompilerEvidence<StubbedProtocol> = StubCompilerEvidence(
+        runtimeConstruction: .requirements([
+            .method(Int.self, returning: Void.self),
+            .getter(Int.self)
+        ]),
+        compiledFallbackEligibility: .generatedConformer,
+        sourceSupport: StubSourceSupportReport(
+            protocolName: "GeneratedManualStubCounter",
+            requirements: [
+                StubRequirementSupport(
+                    declaringProtocol: "GeneratedManualStubCounter",
+                    name: "increment(by:)",
+                    kind: .method,
+                    declarationIndex: 0,
+                    runtimeEligibility: .compilerDescribed,
+                    compiledEligibility: .generatedConformer
+                ),
+                StubRequirementSupport(
+                    declaringProtocol: "GeneratedManualStubCounter",
+                    name: "value",
+                    kind: .getter,
+                    declarationIndex: 1,
+                    runtimeEligibility: .compilerDescribed,
+                    compiledEligibility: .generatedConformer
+                )
+            ]
+        )
+    )
+
     let stub: CompiledStub<Self>
 
     static func eraseToStubbedProtocol(_ conformer: GeneratedManualStubCounterStubConformer) -> StubbedProtocol { conformer }
@@ -48,6 +160,26 @@ typealias GeneratedManualStubCounterStub = CompiledStub<GeneratedManualStubCount
 struct GeneratedOpaqueResultServiceStubConformer: GeneratedOpaqueResultService, AutomaticStubConformer {
     typealias StubbedProtocol = any GeneratedOpaqueResultService
 
+    static let compilerEvidence: StubCompilerEvidence<StubbedProtocol> = StubCompilerEvidence(
+        runtimeConstruction: .requirements([
+            .method(returning: Data.self)
+        ]),
+        compiledFallbackEligibility: .generatedConformer,
+        sourceSupport: StubSourceSupportReport(
+            protocolName: "GeneratedOpaqueResultService",
+            requirements: [
+                StubRequirementSupport(
+                    declaringProtocol: "GeneratedOpaqueResultService",
+                    name: "load()",
+                    kind: .method,
+                    declarationIndex: 0,
+                    runtimeEligibility: .compilerDescribed,
+                    compiledEligibility: .generatedConformer
+                )
+            ]
+        )
+    )
+
     let stub: CompiledStub<Self>
 
     static func eraseToStubbedProtocol(_ conformer: GeneratedOpaqueResultServiceStubConformer) -> StubbedProtocol { conformer }
@@ -59,6 +191,24 @@ typealias GeneratedOpaqueResultServiceStub = CompiledStub<GeneratedOpaqueResultS
 
 actor GeneratedActorServiceStubConformer: GeneratedActorService, AutomaticStubConformer {
     typealias StubbedProtocol = any GeneratedActorService
+
+    static let compilerEvidence: StubCompilerEvidence<StubbedProtocol> = StubCompilerEvidence(
+        runtimeConstruction: .unavailable(reason: "Actor protocols require a genuine actor instance."),
+        compiledFallbackEligibility: .generatedConformer,
+        sourceSupport: StubSourceSupportReport(
+            protocolName: "GeneratedActorService",
+            requirements: [
+                StubRequirementSupport(
+                    declaringProtocol: "GeneratedActorService",
+                    name: "load(_:)",
+                    kind: .method,
+                    declarationIndex: 0,
+                    runtimeEligibility: .unavailable(reason: "Actor protocols require a genuine actor instance."),
+                    compiledEligibility: .generatedConformer
+                )
+            ]
+        )
+    )
 
     let stub: CompiledStub<GeneratedActorServiceStubConformer>
 

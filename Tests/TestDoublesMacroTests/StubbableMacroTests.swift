@@ -28,6 +28,44 @@
                 struct StubbableMacroServiceStubConformer: StubbableMacroService, AutomaticStubConformer {
                     typealias StubbedProtocol = any StubbableMacroService
 
+                    static let compilerEvidence: StubCompilerEvidence<StubbedProtocol> = StubCompilerEvidence(
+                        runtimeConstruction: .requirements([
+                            .method(Int.self, returning: String.self),
+                            .getter(String.self),
+                            .setter(String.self)
+                        ]),
+                        compiledFallbackEligibility: .generatedConformer,
+                        sourceSupport: StubSourceSupportReport(
+                            protocolName: "StubbableMacroService",
+                            requirements: [
+                                StubRequirementSupport(
+                                    declaringProtocol: "StubbableMacroService",
+                                    name: "fetch(_:)",
+                                    kind: .method,
+                                    declarationIndex: 0,
+                                    runtimeEligibility: .compilerDescribed,
+                                    compiledEligibility: .generatedConformer
+                                ),
+                                StubRequirementSupport(
+                                    declaringProtocol: "StubbableMacroService",
+                                    name: "displayName",
+                                    kind: .getter,
+                                    declarationIndex: 1,
+                                    runtimeEligibility: .compilerDescribed,
+                                    compiledEligibility: .generatedConformer
+                                ),
+                                StubRequirementSupport(
+                                    declaringProtocol: "StubbableMacroService",
+                                    name: "displayName",
+                                    kind: .setter,
+                                    declarationIndex: 2,
+                                    runtimeEligibility: .compilerDescribed,
+                                    compiledEligibility: .generatedConformer
+                                )
+                            ]
+                        )
+                    )
+
                     let stub: CompiledStub<Self>
 
                     static func eraseToStubbedProtocol(_ conformer: StubbableMacroServiceStubConformer) -> StubbedProtocol {
@@ -69,6 +107,24 @@
 
                 actor StubbableActorServiceStubConformer: StubbableActorService, AutomaticStubConformer {
                     typealias StubbedProtocol = any StubbableActorService
+
+                    static let compilerEvidence: StubCompilerEvidence<StubbedProtocol> = StubCompilerEvidence(
+                        runtimeConstruction: .unavailable(reason: "Actor protocols require a genuine actor instance."),
+                        compiledFallbackEligibility: .generatedConformer,
+                        sourceSupport: StubSourceSupportReport(
+                            protocolName: "StubbableActorService",
+                            requirements: [
+                                StubRequirementSupport(
+                                    declaringProtocol: "StubbableActorService",
+                                    name: "fetch(_:)",
+                                    kind: .method,
+                                    declarationIndex: 0,
+                                    runtimeEligibility: .unavailable(reason: "Actor protocols require a genuine actor instance."),
+                                    compiledEligibility: .generatedConformer
+                                )
+                            ]
+                        )
+                    )
 
                     let stub: CompiledStub<StubbableActorServiceStubConformer>
 

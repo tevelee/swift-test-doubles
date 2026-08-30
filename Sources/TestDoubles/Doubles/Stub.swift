@@ -132,6 +132,49 @@ public class Stub<P> {
         }
     }
 
+    convenience init<Fallback: ManualStubConformer>(
+        fallingBackTo _: Fallback.Type,
+        erasingWith erase: @escaping (Fallback) -> P,
+        compilerEvidence: StubCompilerEvidence<P>
+    ) {
+        let constructionStartedAt = ContinuousClock.now
+        do {
+            let prepared = try withStubConstructionError(for: P.self) {
+                switch compilerEvidence.runtimeConstruction {
+                    case .automaticDiscovery:
+                        try Self.prepare()
+                    case .requirements(let requirements):
+                        try Self.prepare(requirements: requirements)
+                    case .groupedRequirements(let groups):
+                        try Self.prepare(requirementGroups: groups)
+                    case .unavailable(let reason):
+                        throw StubError.unsupportedProtocolShape(
+                            protocolName: String(reflecting: P.self),
+                            reason: reason
+                        )
+                }
+            }
+            self.init(prepared: prepared)
+        } catch {
+            let runtimeFailedAt = ContinuousClock.now
+            let fallback = CompiledStub<Fallback>()
+            let fallbackMaterializedAt = ContinuousClock.now
+            self.init(
+                manualFallback: fallback,
+                erasingWith: erase,
+                runtimeFallbackReason: error,
+                constructionPerformance: StubPerformanceDiagnostics.Construction(
+                    planPreparationDuration: constructionStartedAt.duration(
+                        to: runtimeFailedAt
+                    ),
+                    materializationDuration: runtimeFailedAt.duration(
+                        to: fallbackMaterializedAt
+                    )
+                )
+            )
+        }
+    }
+
     /// Creates a stub using a concrete conformer's witness tables to discover
     /// its requirement signatures.
     ///

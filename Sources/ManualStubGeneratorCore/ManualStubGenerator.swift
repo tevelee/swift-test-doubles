@@ -21,6 +21,10 @@ package struct ManualStubGenerator {
         let accessPrefix = restrictedAccessPrefix()
         var members = [
             "typealias StubbedProtocol = any \(protocolName)",
+            compilerEvidenceMember(
+                declaration: declaration,
+                requirements: requirements
+            ),
             declaration.inheritsActor
                 ? "let stub: CompiledStub<\(conformerName)>\n\n    init(stub: CompiledStub<\(conformerName)>) { self.stub = stub }"
                 : "let stub: CompiledStub<Self>",
@@ -44,6 +48,326 @@ package struct ManualStubGenerator {
 
             \(accessPrefix)typealias \(stubName) = CompiledStub<\(conformerName)>
             """ + "\n"
+    }
+
+    private struct DescribedRequirement {
+        let name: String
+        let kind: String
+        let expression: String?
+    }
+
+    private func compilerEvidenceMember(
+        declaration: SwiftProtocolDeclaration,
+        requirements: [String]
+    ) -> String {
+        let described = requirements.flatMap(sourceRequirements)
+        let expressions = described.compactMap(\.expression)
+        let hasCompleteDescription =
+            expressions.count == callableRequirementCount(in: requirements)
+            && requirements.allSatisfy(isCallableRequirement)
+            && declaration.inheritedTypeNames.allSatisfy {
+                ["Actor", "AnyObject", "Sendable"].contains($0)
+            }
+        let actorReason = "Actor protocols require a genuine actor instance."
+        let runtimeConstruction: String
+        if declaration.inheritsActor {
+            runtimeConstruction = ".unavailable(reason: \"\(actorReason)\")"
+        } else if hasCompleteDescription {
+            let expressions = expressions.map { "            \($0)" }
+                .joined(separator: ",\n")
+            runtimeConstruction = ".requirements([\n\(expressions)\n        ])"
+        } else {
+            runtimeConstruction = ".automaticDiscovery"
+        }
+        let support = described.enumerated().map { index, requirement in
+            let runtimeEligibility: String
+            if declaration.inheritsActor {
+                runtimeEligibility = ".unavailable(reason: \"\(actorReason)\")"
+            } else if requirement.expression != nil {
+                runtimeEligibility = ".compilerDescribed"
+            } else {
+                runtimeEligibility = ".requiresRuntimeDiscovery"
+            }
+            return [
+                "                StubRequirementSupport(",
+                "                    declaringProtocol: \"\(protocolName)\",",
+                "                    name: \"\(requirement.name)\",",
+                "                    kind: .\(requirement.kind),",
+                "                    declarationIndex: \(index),",
+                "                    runtimeEligibility: \(runtimeEligibility),",
+                "                    compiledEligibility: .generatedConformer",
+                "                )"
+            ].joined(separator: "\n")
+        }.joined(separator: ",\n")
+        return [
+            "static let compilerEvidence: StubCompilerEvidence<StubbedProtocol> = StubCompilerEvidence(",
+            "        runtimeConstruction: \(runtimeConstruction),",
+            "        compiledFallbackEligibility: .generatedConformer,",
+            "        sourceSupport: StubSourceSupportReport(",
+            "            protocolName: \"\(protocolName)\",",
+            "            requirements: [",
+            support,
+            "            ]",
+            "        )",
+            ")"
+        ].joined(separator: "\n")
+    }
+
+    private func callableRequirementCount(in requirements: [String]) -> Int {
+        requirements.reduce(into: 0) { count, requirement in
+            if isFunctionRequirement(requirement) {
+                count += 1
+            } else if isPropertyRequirement(requirement) || isSubscriptRequirement(requirement) {
+                count += requirement.contains("set") ? 2 : 1
+            }
+        }
+    }
+
+    private func isCallableRequirement(_ requirement: String) -> Bool {
+        isFunctionRequirement(requirement)
+            || isPropertyRequirement(requirement)
+            || isSubscriptRequirement(requirement)
+    }
+
+    private func isFunctionRequirement(_ requirement: String) -> Bool {
+        requirement.contains(" func ") || requirement.hasPrefix("func ")
+            || requirement.hasPrefix("static func ")
+            || requirement.hasPrefix("class func ")
+    }
+
+    private func isPropertyRequirement(_ requirement: String) -> Bool {
+        requirement.contains(" var ") || requirement.hasPrefix("var ")
+            || requirement.hasPrefix("static var ")
+            || requirement.hasPrefix("class var ")
+    }
+
+    private func isSubscriptRequirement(_ requirement: String) -> Bool {
+        requirement.contains("subscript")
+    }
+
+    private func describedRequirements(_ requirement: String) -> [DescribedRequirement] {
+        if isFunctionRequirement(requirement) {
+            return describedFunction(requirement).map { [$0] } ?? []
+        }
+        if isPropertyRequirement(requirement) {
+            return describedProperty(requirement) ?? []
+        }
+        if isSubscriptRequirement(requirement) {
+            return describedSubscript(requirement) ?? []
+        }
+        return []
+    }
+
+    private func sourceRequirements(_ requirement: String) -> [DescribedRequirement] {
+        let described = describedRequirements(requirement)
+        if described.isEmpty == false { return described }
+        if let funcRange = requirement.range(of: "func "),
+            let opening = requirement[funcRange.upperBound...].firstIndex(of: "("),
+            let closing = matchingParen(in: requirement, opening: opening)
+        {
+            let baseName =
+                requirement[funcRange.upperBound ..< opening]
+                .split(separator: "<").first.map(String.init)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? "method"
+            let labels = parameterLabels(in: requirement[opening ... closing])
+            return [
+                DescribedRequirement(
+                    name: labels.isEmpty
+                        ? "\(baseName)()"
+                        : "\(baseName)(\(labels.map { "\($0):" }.joined()))",
+                    kind: "method",
+                    expression: nil
+                )
+            ]
+        }
+        if let varRange = requirement.range(of: "var ") {
+            let tail = requirement[varRange.upperBound...]
+            let name =
+                tail.split(separator: ":", maxSplits: 1).first.map(String.init)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? "property"
+            var result = [DescribedRequirement(name: name, kind: "getter", expression: nil)]
+            if requirement.contains("set") {
+                result.append(
+                    DescribedRequirement(name: name, kind: "setter", expression: nil)
+                )
+            }
+            return result
+        }
+        if requirement.contains("subscript") {
+            var result = [
+                DescribedRequirement(name: "subscript", kind: "getter", expression: nil)
+            ]
+            if requirement.contains("set") {
+                result.append(
+                    DescribedRequirement(name: "subscript", kind: "setter", expression: nil)
+                )
+            }
+            return result
+        }
+        return []
+    }
+
+    private func describedFunction(_ requirement: String) -> DescribedRequirement? {
+        guard let funcRange = requirement.range(of: "func "),
+            let opening = requirement[funcRange.upperBound...].firstIndex(of: "("),
+            let closing = matchingParen(in: requirement, opening: opening),
+            requirement[funcRange.upperBound ..< opening].contains("<") == false,
+            let parameterTypes = parameterTypes(in: requirement[opening ... closing])
+        else { return nil }
+        let suffix = String(requirement[closing...])
+        guard let resultType = resultType(in: suffix) else { return nil }
+        let effects = effects(in: suffix)
+        let isAsync = effects.contains("async")
+        let isThrowing = effects.contains("throws")
+        let arguments = parameterTypes.map(metatype).joined(separator: ", ")
+        let prefix = arguments.isEmpty ? "" : "\(arguments), "
+        let expression: String
+        if let failureType = typedFailureType(in: effects) {
+            expression = ".method(\(prefix)returning: \(metatype(resultType)), throwing: \(metatype(failureType))\(isAsync ? ", isAsync: true" : ""))"
+        } else {
+            var options = [String]()
+            if isThrowing { options.append("isThrowing: true") }
+            if isAsync { options.append("isAsync: true") }
+            let optionSuffix = options.isEmpty ? "" : ", \(options.joined(separator: ", "))"
+            expression = ".method(\(prefix)returning: \(metatype(resultType))\(optionSuffix))"
+        }
+        let baseName = requirement[funcRange.upperBound ..< opening]
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let labels = parameterLabels(in: requirement[opening ... closing])
+        return DescribedRequirement(
+            name: labels.isEmpty ? "\(baseName)()" : "\(baseName)(\(labels.map { "\($0):" }.joined()))",
+            kind: "method",
+            expression: expression
+        )
+    }
+
+    private func describedProperty(_ requirement: String) -> [DescribedRequirement]? {
+        let bodyless =
+            requirement.components(separatedBy: "{").first?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? requirement
+        guard let varRange = bodyless.range(of: "var "),
+            let colon = bodyless[varRange.upperBound...].firstIndex(of: ":")
+        else { return nil }
+        let name = bodyless[varRange.upperBound ..< colon]
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let type = bodyless[bodyless.index(after: colon)...]
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isSafelySpelledType(type), requirement.contains("get") else { return nil }
+        let getterEffects = effects(in: accessorSuffix(requirement, accessor: "get"))
+        guard typedFailureType(in: getterEffects) == nil else { return nil }
+        var options = [String]()
+        if getterEffects.contains("throws") { options.append("isThrowing: true") }
+        if getterEffects.contains("async") { options.append("isAsync: true") }
+        let optionSuffix = options.isEmpty ? "" : ", \(options.joined(separator: ", "))"
+        var result = [
+            DescribedRequirement(
+                name: name,
+                kind: "getter",
+                expression: ".getter(\(metatype(type))\(optionSuffix))"
+            )
+        ]
+        if requirement.contains("set") {
+            result.append(
+                DescribedRequirement(
+                    name: name,
+                    kind: "setter",
+                    expression: ".setter(\(metatype(type)))"
+                )
+            )
+        }
+        return result
+    }
+
+    private func describedSubscript(_ requirement: String) -> [DescribedRequirement]? {
+        guard let subscriptRange = requirement.range(of: "subscript"),
+            let opening = requirement[subscriptRange.upperBound...].firstIndex(of: "("),
+            let closing = matchingParen(in: requirement, opening: opening),
+            let arrow = requirement[closing...].range(of: "->"),
+            let parameterTypes = parameterTypes(in: requirement[opening ... closing])
+        else { return nil }
+        let result =
+            requirement[arrow.upperBound...]
+            .components(separatedBy: "{").first?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard isSafelySpelledType(result) else { return nil }
+        let getterEffects = effects(in: accessorSuffix(requirement, accessor: "get"))
+        guard typedFailureType(in: getterEffects) == nil else { return nil }
+        let indices = parameterTypes.map(metatype).joined(separator: ", ")
+        let indexPrefix = indices.isEmpty ? "" : "\(indices), "
+        var options = [String]()
+        if getterEffects.contains("throws") { options.append("isThrowing: true") }
+        if getterEffects.contains("async") { options.append("isAsync: true") }
+        let optionSuffix = options.isEmpty ? "" : ", \(options.joined(separator: ", "))"
+        var descriptions = [
+            DescribedRequirement(
+                name: "subscript",
+                kind: "getter",
+                expression: ".subscriptGetter(indexedBy: \(indexPrefix)returning: \(metatype(result))\(optionSuffix))"
+            )
+        ]
+        if requirement.contains("set") {
+            descriptions.append(
+                DescribedRequirement(
+                    name: "subscript",
+                    kind: "setter",
+                    expression: ".subscriptSetter(indexedBy: \(indexPrefix)assigning: \(metatype(result)))"
+                )
+            )
+        }
+        return descriptions
+    }
+
+    private func parameterTypes(in parameters: Substring) -> [String]? {
+        let body = String(parameters.dropFirst().dropLast())
+        if body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return [] }
+        var result = [String]()
+        for parameter in splitTopLevel(body, on: ",") {
+            guard let colon = parameter.firstIndex(of: ":") else { return nil }
+            let type = parameter[parameter.index(after: colon)...]
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard isSafelySpelledType(type), type.hasPrefix("inout ") == false else {
+                return nil
+            }
+            result.append(type)
+        }
+        return result
+    }
+
+    private func parameterLabels(in parameters: Substring) -> [String] {
+        let body = String(parameters.dropFirst().dropLast())
+        guard body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
+            return []
+        }
+        return splitTopLevel(body, on: ",").compactMap { parameter in
+            guard let colon = parameter.firstIndex(of: ":") else { return nil }
+            return parameter[..<colon].split(whereSeparator: \.isWhitespace).first.map(String.init)
+        }
+    }
+
+    private func resultType(in suffix: String) -> String? {
+        guard let arrow = suffix.range(of: "->") else { return "Void" }
+        let type =
+            suffix[arrow.upperBound...]
+            .components(separatedBy: " where ").first?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return isSafelySpelledType(type) ? type : nil
+    }
+
+    private func isSafelySpelledType(_ type: String) -> Bool {
+        type.isEmpty == false
+            && type.contains("...") == false
+            && type.contains("=") == false
+            && type.contains("@") == false
+            && type.contains("Self") == false
+            && type.contains("some ") == false
+            && type.contains("each ") == false
+            && type.hasPrefix("isolated ") == false
+            && type.hasPrefix("borrowing ") == false
+            && type.hasPrefix("consuming ") == false
+    }
+
+    private func metatype(_ type: String) -> String {
+        type.hasPrefix("any ") ? "(\(type)).self" : "\(type).self"
     }
 
     private func restrictedAccessPrefix() -> String {

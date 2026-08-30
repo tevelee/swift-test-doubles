@@ -32,11 +32,30 @@ public protocol AutomaticStubConformer: ManualStubConformer {
     /// The protocol existential represented by this conformer.
     associatedtype StubbedProtocol
 
+    /// Compiler-emitted evidence for runtime construction and compiled fallback.
+    ///
+    /// Existing hand-written conformers receive a source-compatible default
+    /// that preserves runtime discovery before using their compiled fallback.
+    static var compilerEvidence: StubCompilerEvidence<StubbedProtocol> { get }
+
     /// Erases a compiled conformer to its protocol existential.
     ///
     /// - Parameter conformer: The compiler-backed conformer to erase.
     /// - Returns: The conformer represented as ``StubbedProtocol``.
     static func eraseToStubbedProtocol(_ conformer: Self) -> StubbedProtocol
+}
+
+extension AutomaticStubConformer {
+    public static var compilerEvidence: StubCompilerEvidence<StubbedProtocol> {
+        StubCompilerEvidence(
+            runtimeConstruction: .automaticDiscovery,
+            compiledFallbackEligibility: .generatedConformer,
+            sourceSupport: StubSourceSupportReport(
+                protocolName: String(reflecting: StubbedProtocol.self),
+                requirements: []
+            )
+        )
+    }
 }
 
 /// An explicitly constructed test double backed by the shared recording and
@@ -611,6 +630,14 @@ extension CompiledStub where T: ManualStubConformer {
 }
 
 extension CompiledStub where T: AutomaticStubConformer {
+    /// Compiler-emitted construction and source-support evidence for this stub.
+    ///
+    /// Generated aliases expose this directly, for example
+    /// `WeatherServiceStub.compilerEvidence.sourceSupport`.
+    public static var compilerEvidence: StubCompilerEvidence<T.StubbedProtocol> {
+        T.compilerEvidence
+    }
+
     /// Creates a runtime-first stub with this compiled conformer as fallback.
     ///
     /// Runtime synthesis is attempted first. When the runtime cannot safely
@@ -619,7 +646,8 @@ extension CompiledStub where T: AutomaticStubConformer {
     public static func automatic() -> Stub<T.StubbedProtocol> {
         Stub(
             fallingBackTo: T.self,
-            erasingWith: T.eraseToStubbedProtocol
+            erasingWith: T.eraseToStubbedProtocol,
+            compilerEvidence: T.compilerEvidence
         )
     }
 }
