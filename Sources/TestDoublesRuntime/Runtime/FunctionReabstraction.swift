@@ -2,6 +2,7 @@ import CTestDoublesTrampoline
 import EchoRuntimeReflection
 import EchoRuntimeSupport
 import Foundation
+import InternalRuntimeContract
 
 /// Restores the concrete calling convention of function values that crossed
 /// the recorder's generic `Any` boundary. Swift emits both directions of this
@@ -10,7 +11,8 @@ import Foundation
 package enum FunctionReabstraction {
     package static func prepare(
         type: Any.Type,
-        direction: FunctionBridgeDirection
+        direction: FunctionBridgeDirection,
+        resultTransportEvidenceCatalog: CompilerResultTransportEvidenceCatalog = .empty
     ) -> PreparedFunctionReabstraction? {
         guard let function = FunctionTypeInfo(reflecting: type),
             let convention = function.convention
@@ -39,7 +41,10 @@ package enum FunctionReabstraction {
                 break
         }
 
-        let analysis = FunctionBridgeAnalysis(function)
+        let analysis = FunctionBridgeAnalysis(
+            function,
+            resultTransportEvidenceCatalog: resultTransportEvidenceCatalog
+        )
         if let bridge = analysis.validated(for: direction),
             let discriminator = directFunctionDiscriminator(for: function)
         {
@@ -92,25 +97,37 @@ package enum FunctionReabstraction {
         ReabstractionThunkRegistry.shared.hasBothDirections(for: type)
     }
 
-    package static func hasDirectToGenericBridge(_ function: FunctionTypeInfo) -> Bool {
+    package static func hasDirectToGenericBridge(
+        _ function: FunctionTypeInfo,
+        resultTransportEvidenceCatalog: CompilerResultTransportEvidenceCatalog = .empty
+    ) -> Bool {
         guard typedThrowingFunctionRuntimeUnsupportedReason(function) == nil,
             automaticClosureUnsupportedReason(function) == nil
         else {
             return false
         }
-        return canDynamicallyBoxFunctionArgument(function)
+        return FunctionBridgeAnalysis(
+            function,
+            resultTransportEvidenceCatalog: resultTransportEvidenceCatalog
+        ).validated(for: .directToGeneric) != nil
             || ReabstractionThunkRegistry.shared.directToGeneric(
                 for: function.type
             ) != nil
     }
 
-    package static func hasGenericToDirectBridge(_ function: FunctionTypeInfo) -> Bool {
+    package static func hasGenericToDirectBridge(
+        _ function: FunctionTypeInfo,
+        resultTransportEvidenceCatalog: CompilerResultTransportEvidenceCatalog = .empty
+    ) -> Bool {
         guard typedThrowingFunctionRuntimeUnsupportedReason(function) == nil,
             automaticClosureUnsupportedReason(function) == nil
         else {
             return false
         }
-        return canDynamicallyInitializeFunctionResult(function)
+        return FunctionBridgeAnalysis(
+            function,
+            resultTransportEvidenceCatalog: resultTransportEvidenceCatalog
+        ).validated(for: .genericToDirect) != nil
             || ReabstractionThunkRegistry.shared.genericToDirect(
                 for: function.type
             ) != nil
@@ -131,7 +148,10 @@ package enum FunctionReabstraction {
         )
     }
 
-    package static func automaticArgumentUnsupportedReason(for type: Any.Type) -> String? {
+    package static func automaticArgumentUnsupportedReason(
+        for type: Any.Type,
+        resultTransportEvidenceCatalog: CompilerResultTransportEvidenceCatalog = .empty
+    ) -> String? {
         guard let function = FunctionTypeInfo(reflecting: type) else { return nil }
         guard let convention = function.convention else {
             return "The closure has an unknown calling convention."
@@ -153,7 +173,12 @@ package enum FunctionReabstraction {
         guard directFunctionDiscriminator(for: function) != nil else {
             return "The closure's pointer-authentication type spelling cannot be reconstructed safely."
         }
-        guard let reason = dynamicFunctionBridgeUnsupportedReason(function) else {
+        guard
+            let reason = FunctionBridgeAnalysis(
+                function,
+                resultTransportEvidenceCatalog: resultTransportEvidenceCatalog
+            ).unsupportedReason(for: .directToGeneric)
+        else {
             return nil
         }
         guard
@@ -166,7 +191,10 @@ package enum FunctionReabstraction {
         return "No matching compiler-emitted closure reabstraction thunk is linked. \(reason)"
     }
 
-    package static func automaticResultUnsupportedReason(for type: Any.Type) -> String? {
+    package static func automaticResultUnsupportedReason(
+        for type: Any.Type,
+        resultTransportEvidenceCatalog: CompilerResultTransportEvidenceCatalog = .empty
+    ) -> String? {
         guard let function = FunctionTypeInfo(reflecting: type) else { return nil }
         guard let convention = function.convention else {
             return "The closure has an unknown calling convention."
@@ -188,7 +216,11 @@ package enum FunctionReabstraction {
         guard directFunctionDiscriminator(for: function) != nil else {
             return "The closure's pointer-authentication type spelling cannot be reconstructed safely."
         }
-        guard let reason = dynamicFunctionReturnBridgeUnsupportedReason(function)
+        guard
+            let reason = FunctionBridgeAnalysis(
+                function,
+                resultTransportEvidenceCatalog: resultTransportEvidenceCatalog
+            ).unsupportedReason(for: .genericToDirect)
         else {
             return nil
         }

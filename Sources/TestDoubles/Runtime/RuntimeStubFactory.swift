@@ -309,7 +309,8 @@ extension Stub {
                     request: runtimePreparationRequest(
                         requirements: .automatic,
                         getterEffects: runtimeGetterEffects(getterEffects),
-                        automaticRequirementAdapters: []
+                        automaticRequirementAdapters:
+                            BuiltInResultAdapters.transportEvidenceOnly
                     )
                 )
             return plan

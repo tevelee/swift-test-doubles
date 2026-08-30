@@ -28,10 +28,15 @@ package struct MethodDescriptor: Sendable {
     /// opaque, while forwarding must account for them explicitly.
     package let methodGenericConformanceWitnessCount: Int
     package var typedWitnessAdapterFactory: TypedWitnessAdapterFactory?
-    /// A compiler-emitted built-in adapter established the result's direct or
-    /// indirect client convention even though this method uses the ordinary
-    /// argument trampoline.
-    package var resultTransportIsCompilerProven = false
+    /// Compiler-emitted evidence for an otherwise ABI-uncertain concrete
+    /// result. Retained for reuse by forwarding and recursive transport plans.
+    package var compilerResultTransportEvidence: RuntimeCompilerResultTransportEvidence?
+    /// Every compiler-emitted result-transport fact available to recursive
+    /// planners for nested tuple and function-value results.
+    package var compilerResultTransportEvidenceCatalog: CompilerResultTransportEvidenceCatalog
+    package var resultTransportIsCompilerProven: Bool {
+        compilerResultTransportEvidence != nil
+    }
 
     package init(
         kind: StubRequirementKind,
@@ -56,7 +61,11 @@ package struct MethodDescriptor: Sendable {
         isThrowing: Bool = false,
         isAsync: Bool = false,
         hasReliableThrowing: Bool = true,
-        typedWitnessAdapterFactory: TypedWitnessAdapterFactory? = nil
+        typedWitnessAdapterFactory: TypedWitnessAdapterFactory? = nil,
+        compilerResultTransportEvidence:
+            RuntimeCompilerResultTransportEvidence? = nil,
+        compilerResultTransportEvidenceCatalog:
+            CompilerResultTransportEvidenceCatalog = .empty
     ) {
         self.kind = kind
         self.receiver = receiver
@@ -160,6 +169,9 @@ package struct MethodDescriptor: Sendable {
         self.methodGenericConformanceWitnessCount =
             methodGenericConformanceWitnessCount
         self.typedWitnessAdapterFactory = typedWitnessAdapterFactory
+        self.compilerResultTransportEvidence = compilerResultTransportEvidence
+        self.compilerResultTransportEvidenceCatalog =
+            compilerResultTransportEvidenceCatalog
     }
 
     /// Builds a descriptor from resolved witness values, applying each

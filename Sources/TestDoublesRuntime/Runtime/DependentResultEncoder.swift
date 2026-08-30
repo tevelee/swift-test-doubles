@@ -75,6 +75,11 @@ package enum DependentResultEncoder {
             result,
             expectedType: method.returnType,
             layout: method.returnLayout,
+            transport: RuntimeResultTransportPlan(
+                resultType: method.returnType,
+                resultTransportEvidenceCatalog:
+                    method.compilerResultTransportEvidenceCatalog
+            ),
             context: method.name,
             isAsync: method.isAsync,
             into: frame

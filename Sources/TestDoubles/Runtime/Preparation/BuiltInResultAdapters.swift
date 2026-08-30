@@ -9,6 +9,12 @@ enum BuiltInResultAdapters {
         return adapters
     }()
 
+    /// Result-transport evidence safe to use while preparing a forwarding
+    /// Spy. Executable adapters remain exclusive to non-forwarding Stubs.
+    static let transportEvidenceOnly = all.filter {
+        $0.typedWitnessAdapter == nil
+    }
+
     static func append<Result>(
         returning resultType: Result.Type,
         resultTransport: RuntimeAutomaticRequirementAdapter.ResultTransport,
@@ -60,21 +66,23 @@ enum BuiltInResultAdapters {
                 )
             )
         }
-        for (isThrowing, isAsync) in [
-            (false, false),
-            (true, false),
-            (false, true),
-            (true, true)
-        ] {
-            adapters.append(
-                RuntimeAutomaticRequirementAdapter(
-                    kind: .method,
-                    resultType: resultType,
-                    resultTransport: resultTransport,
-                    isThrowing: isThrowing,
-                    isAsync: isAsync
+        for kind in [RuntimeRequirementKind.method, .getter] {
+            for (isThrowing, isAsync) in [
+                (false, false),
+                (true, false),
+                (false, true),
+                (true, true)
+            ] {
+                adapters.append(
+                    RuntimeAutomaticRequirementAdapter(
+                        kind: kind,
+                        resultType: resultType,
+                        resultTransport: resultTransport,
+                        isThrowing: isThrowing,
+                        isAsync: isAsync
+                    )
                 )
-            )
+            }
         }
     }
 

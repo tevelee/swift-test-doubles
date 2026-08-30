@@ -131,6 +131,36 @@ public protocol ImportedPathDataSource: Sendable {
     func read(path: String) throws -> Data
 }
 
+public protocol ImportedDataSubscriptSource: Sendable {
+    subscript(path: String) -> Data { get }
+}
+
+#if compiler(>=6.4)
+    public protocol ForwardingFoundationResultSource: Sendable {
+        func data(for identifier: Int) -> Data
+        func identifier(for value: Int) -> UUID
+    }
+
+    public struct LiveForwardingFoundationResultSource:
+        ForwardingFoundationResultSource
+    {
+        public init() {}
+
+        public func data(for identifier: Int) -> Data {
+            Data([UInt8(identifier)])
+        }
+
+        public func identifier(for value: Int) -> UUID {
+            UUID(
+                uuid: (
+                    0, 0, 0, 0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0, 0, UInt8(value)
+                )
+            )
+        }
+    }
+#endif
+
 @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
 public protocol CommonFoundationResultSource: Sendable {
     var currentURL: URL { get }
@@ -157,6 +187,37 @@ public protocol CommonFoundationResultSource: Sendable {
 public protocol ParameterizedFoundationResultSource: Sendable {
     func identifier(for value: Int, namespace: String) async -> UUID
 }
+
+public typealias ThrowingDataLoader = @Sendable (String) throws -> Data
+
+public protocol FoundationClosureArgumentSource: Sendable {
+    func byteCount(
+        using loader: @escaping ThrowingDataLoader,
+        path: String
+    ) throws -> Int
+}
+
+public protocol FoundationClosureResultSource: Sendable {
+    func loader() -> ThrowingDataLoader
+}
+
+public protocol UncertainFoundationClosureParameterSource: Sendable {
+    func evaluate(_ transform: @escaping @Sendable (Data) -> Int) -> Int
+}
+
+public typealias ReservationLoader = @Sendable (String) -> ExternalReservation
+
+public protocol UncertainCustomClosureResultSource: Sendable {
+    func loader() -> ReservationLoader
+}
+
+#if compiler(>=6.4)
+    public typealias AsyncIdentifierLoader = @Sendable (Int) async -> UUID
+
+    public protocol AsyncFoundationClosureResultSource: Sendable {
+        func loader() -> AsyncIdentifierLoader
+    }
+#endif
 
 public protocol EventStreamSource: Sendable {
     func integers() -> AsyncStream<Int>

@@ -93,7 +93,8 @@ extension RuntimeStubFactory {
             layout: shape.layout,
             representation: shape.representation,
             associatedTypeBindings: shape.associatedTypeBindings,
-            getterEffectPolicy: getterEffectPolicy
+            getterEffectPolicy: getterEffectPolicy,
+            automaticRequirementAdapters: request.automaticRequirementAdapters
         )
         return try preparedPlan(
             shape: shape,
@@ -216,33 +217,42 @@ extension RuntimeStubFactory {
 
     private static func applyingAutomaticRequirementAdapters(
         _ adapters: [RuntimeAutomaticRequirementAdapter],
-        to discoveredMethods: [MethodDescriptor]
+        to discoveredMethods: [MethodDescriptor],
+        attachingTypedAdapters: Bool = true
     ) -> [MethodDescriptor] {
         guard adapters.isEmpty == false else { return discoveredMethods }
+        let evidenceCatalog = CompilerResultTransportEvidenceCatalog(adapters)
 
         return discoveredMethods.map { discoveredMethod in
             var method = discoveredMethod
+            method.compilerResultTransportEvidenceCatalog = evidenceCatalog
             guard method.typedErrorType == nil,
                 runtimeUncertainConcreteResultUnsupportedReason(for: method) != nil,
                 let adapter = adapters.first(where: {
                     automaticAdapterResult($0, matches: method)
                         && $0.matches(argumentTypes: method.argumentTypes)
-                })
+                }),
+                let evidence = evidenceCatalog.evidence(
+                    for: method.returnType,
+                    isThrowing: method.isThrowing,
+                    isAsync: method.isAsync
+                )
             else {
                 return method
             }
-            if method.typedWitnessAdapterFactory == nil,
+            if attachingTypedAdapters,
+                method.typedWitnessAdapterFactory == nil,
                 let token = adapter.typedWitnessAdapter
             {
                 method.typedWitnessAdapterFactory = typedWitnessAdapterFactory(
                     from: token
                 )
             }
-            method.resultTransportIsCompilerProven = true
-            switch adapter.resultTransport {
+            method.compilerResultTransportEvidence = evidence
+            switch evidence.transport {
                 case .direct:
                     method.result = method.result.withLayout(
-                        abiClass(for: adapter.resultType)
+                        abiClass(for: evidence.resultType)
                     )
                 case .indirect:
                     method.result = method.result.withLayout(.indirect)
@@ -485,7 +495,8 @@ extension RuntimeStubFactory {
         layout: ProtocolLayout,
         representation: StubExistentialRepresentation,
         associatedTypeBindings: AssociatedTypeBindings,
-        getterEffectPolicy: GetterEffectDiscoveryPolicy
+        getterEffectPolicy: GetterEffectDiscoveryPolicy,
+        automaticRequirementAdapters: [RuntimeAutomaticRequirementAdapter]
     ) throws -> (
         methods: [MethodDescriptor],
         forwarder: any RuntimeForwarding
@@ -495,11 +506,15 @@ extension RuntimeStubFactory {
             layout: layout,
             representation: representation
         )
-        let methods = try TestDoublesRuntime.discoverMethods(
-            witnessTables: forwardingTarget.witnessTables,
-            layout: layout,
-            associatedTypeBindings: associatedTypeBindings,
-            getterEffectPolicy: getterEffectPolicy
+        let methods = applyingAutomaticRequirementAdapters(
+            automaticRequirementAdapters,
+            to: try TestDoublesRuntime.discoverMethods(
+                witnessTables: forwardingTarget.witnessTables,
+                layout: layout,
+                associatedTypeBindings: associatedTypeBindings,
+                getterEffectPolicy: getterEffectPolicy
+            ),
+            attachingTypedAdapters: false
         )
         let forwarder = try ProtocolForwarder(
             target: forwardingTarget,

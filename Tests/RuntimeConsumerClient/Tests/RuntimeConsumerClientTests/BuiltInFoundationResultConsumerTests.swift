@@ -23,6 +23,16 @@ import Testing
         stub.verify(2 ... 2) { try $0.read(path: Match.any()) }
     }
 
+    @Test func automaticConstructionTransportsDataResultFromIndexedGetter() throws {
+        let stub = try Stub<any ImportedDataSubscriptSource>()
+        let expected = Data([199, 211, 223])
+        stub.when(returning: Data()) { $0[Match.equal("/fixture")] }
+            .thenReturn(expected)
+
+        #expect(stub()["/fixture"] == expected)
+        stub.verify(returning: Data()) { $0[Match.equal("/fixture")] }
+    }
+
     @Test func automaticConstructionTransportsCommonAsyncThrowingDataResult() async throws {
         let stub = try Stub<any ImportedDataSource>()
         let expected = Data([197, 199, 211])
@@ -144,6 +154,35 @@ import Testing
                 await stub().identifier(for: 257, namespace: "fixture")
                     == expected
             )
+        }
+
+        @Test func forwardingSpyTransportsDirectAndIndirectFoundationResults() throws {
+            let spy = try Spy<any ForwardingFoundationResultSource>(
+                forwardingTo: LiveForwardingFoundationResultSource()
+            )
+            let overriddenData = Data([227, 229, 233])
+            let overriddenIdentifier = UUID(
+                uuidString: "00000000-0000-0000-0000-000000000239"
+            )!
+            spy.when(returning: Data()) { $0.data(for: Match.equal(2)) }
+                .thenReturn(overriddenData)
+            spy.when(returning: UUID()) { $0.identifier(for: Match.equal(3)) }
+                .thenReturn(overriddenIdentifier)
+
+            let source = spy()
+            #expect(source.data(for: 1) == Data([1]))
+            #expect(source.data(for: 2) == overriddenData)
+            #expect(
+                source.identifier(for: 1)
+                    == UUID(
+                        uuidString: "00000000-0000-0000-0000-000000000001"
+                    )!
+            )
+            #expect(source.identifier(for: 3) == overriddenIdentifier)
+            spy.verifyOnlyForwarded {
+                _ = $0.data(for: 1)
+                _ = $0.identifier(for: 1)
+            }
         }
     #endif
 

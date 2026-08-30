@@ -45,27 +45,60 @@ package enum RuntimeExplicitRequirementInput: @unchecked Sendable {
     case grouped([RuntimeExplicitRequirementGroup])
 }
 
-/// Compiler-emitted evidence that automatic discovery may apply when runtime
-/// result transport is ambiguous.
+/// Compiler-emitted evidence for one concrete result and effect combination
+/// whose client transport cannot be reconstructed from runtime metadata.
+package struct RuntimeCompilerResultTransportEvidence: @unchecked Sendable {
+    package enum Transport: Hashable, Sendable {
+        case direct
+        case indirect
+    }
+
+    package let resultType: Any.Type
+    package let transport: Transport
+    package let isThrowing: Bool
+    package let isAsync: Bool
+
+    package init(
+        resultType: Any.Type,
+        transport: Transport,
+        isThrowing: Bool,
+        isAsync: Bool
+    ) {
+        self.resultType = resultType
+        self.transport = transport
+        self.isThrowing = isThrowing
+        self.isAsync = isAsync
+    }
+
+    package func matches(
+        resultType actualResultType: Any.Type,
+        isThrowing actualIsThrowing: Bool,
+        isAsync actualIsAsync: Bool
+    ) -> Bool {
+        ObjectIdentifier(resultType) == ObjectIdentifier(actualResultType)
+            && isThrowing == actualIsThrowing
+            && isAsync == actualIsAsync
+    }
+}
+
+/// Compiler-emitted adapter metadata that automatic discovery may apply when
+/// runtime result transport is ambiguous.
 ///
 /// An exact `argumentTypes` list carries a typed witness adapter. A `nil` list
 /// proves only the result transport and lets an otherwise-supported method use
 /// the ordinary argument trampoline.
 package struct RuntimeAutomaticRequirementAdapter: @unchecked Sendable {
-    /// The concrete adapter's compiler-selected result convention. Async
-    /// dispatch also uses it to locate the trailing invocation argument.
-    package enum ResultTransport: Hashable, Sendable {
-        case direct
-        case indirect
-    }
+    package typealias ResultTransport = RuntimeCompilerResultTransportEvidence.Transport
 
     package let kind: RuntimeRequirementKind
     package let argumentTypes: [Any.Type]?
-    package let resultType: Any.Type
-    package let resultTransport: ResultTransport
-    package let isThrowing: Bool
-    package let isAsync: Bool
+    package let resultTransportEvidence: RuntimeCompilerResultTransportEvidence
     package let typedWitnessAdapter: RuntimeTypedWitnessAdapterToken?
+
+    package var resultType: Any.Type { resultTransportEvidence.resultType }
+    package var resultTransport: ResultTransport { resultTransportEvidence.transport }
+    package var isThrowing: Bool { resultTransportEvidence.isThrowing }
+    package var isAsync: Bool { resultTransportEvidence.isAsync }
 
     package init(
         kind: RuntimeRequirementKind,
@@ -78,10 +111,12 @@ package struct RuntimeAutomaticRequirementAdapter: @unchecked Sendable {
     ) {
         self.kind = kind
         self.argumentTypes = argumentTypes
-        self.resultType = resultType
-        self.resultTransport = resultTransport
-        self.isThrowing = isThrowing
-        self.isAsync = isAsync
+        resultTransportEvidence = RuntimeCompilerResultTransportEvidence(
+            resultType: resultType,
+            transport: resultTransport,
+            isThrowing: isThrowing,
+            isAsync: isAsync
+        )
         self.typedWitnessAdapter = typedWitnessAdapter
     }
 
@@ -94,10 +129,12 @@ package struct RuntimeAutomaticRequirementAdapter: @unchecked Sendable {
     ) {
         self.kind = kind
         argumentTypes = nil
-        self.resultType = resultType
-        self.resultTransport = resultTransport
-        self.isThrowing = isThrowing
-        self.isAsync = isAsync
+        resultTransportEvidence = RuntimeCompilerResultTransportEvidence(
+            resultType: resultType,
+            transport: resultTransport,
+            isThrowing: isThrowing,
+            isAsync: isAsync
+        )
         typedWitnessAdapter = nil
     }
 

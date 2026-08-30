@@ -323,21 +323,15 @@ extension RuntimeStubFactory {
                         reason: "Requirement \(method.index) contains a function argument or result. Supply an explicit Requirement with a compiler-typed `using:` adapter."
                     )
                 }
-                if method.origin == .automatic {
-                    let argumentReason = method.arguments.lazy.compactMap { argument in
-                        FunctionReabstraction.automaticArgumentUnsupportedReason(
-                            for: argument.value.type
-                        )
-                    }.first
-                    let resultReason =
-                        FunctionReabstraction
-                        .automaticResultUnsupportedReason(for: method.returnType)
-                    if let unsupported = argumentReason ?? resultReason {
-                        throw RuntimeConstructionError.unsupportedProtocolShape(
-                            protocolName: protocolName,
-                            reason: "Requirement \(method.index) contains an unsupported automatic function value. \(unsupported)"
-                        )
-                    }
+                if method.origin == .automatic,
+                    let unsupported = automaticFunctionUnsupportedReason(
+                        for: method
+                    )
+                {
+                    throw RuntimeConstructionError.unsupportedProtocolShape(
+                        protocolName: protocolName,
+                        reason: "Requirement \(method.index) contains an unsupported automatic function value. \(unsupported)"
+                    )
                 }
             }
             if let factory = method.typedWitnessAdapterFactory,
@@ -411,6 +405,23 @@ extension RuntimeStubFactory {
         }
 
         return try validateModifyCoroutinePairs(methods: methods, layout: layout)
+    }
+
+    private static func automaticFunctionUnsupportedReason(
+        for method: MethodDescriptor
+    ) -> String? {
+        let catalog = method.compilerResultTransportEvidenceCatalog
+        let argumentReason = method.arguments.lazy.compactMap { argument in
+            FunctionReabstraction.automaticArgumentUnsupportedReason(
+                for: argument.value.type,
+                resultTransportEvidenceCatalog: catalog
+            )
+        }.first
+        return argumentReason
+            ?? FunctionReabstraction.automaticResultUnsupportedReason(
+                for: method.returnType,
+                resultTransportEvidenceCatalog: catalog
+            )
     }
 
     package static func singleProtocolDescriptor(

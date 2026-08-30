@@ -40,7 +40,9 @@ package final class PreparedRuntimeMethod: @unchecked Sendable {
             return [argument.value.layout]
         }
         resultTransport = RuntimeResultTransportPlan(
-            resultType: descriptor.returnType
+            resultType: descriptor.returnType,
+            resultTransportEvidenceCatalog:
+                descriptor.compilerResultTransportEvidenceCatalog
         )
 
         let layouts = argumentLayoutCandidates.compactMap { candidates in

@@ -4,10 +4,14 @@ package struct RuntimeResultTransportPlan: Sendable {
     package let requiresFunctionReabstraction: Bool
     package let functionReabstraction: PreparedFunctionReabstraction?
 
-    package init(resultType: Any.Type) {
+    package init(
+        resultType: Any.Type,
+        resultTransportEvidenceCatalog: CompilerResultTransportEvidenceCatalog = .empty
+    ) {
         functionReabstraction = FunctionReabstraction.prepare(
             type: resultType,
-            direction: .genericToDirect
+            direction: .genericToDirect,
+            resultTransportEvidenceCatalog: resultTransportEvidenceCatalog
         )
         requiresFunctionReabstraction =
             functionReabstraction != nil

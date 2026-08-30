@@ -1,4 +1,5 @@
 import EchoRuntimeReflection
+import InternalRuntimeContract
 
 package enum FunctionBridgeDirection: Sendable, Equatable {
     case directToGeneric
@@ -11,6 +12,7 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
     let architecture: RuntimeArchitecture
     let function: FunctionTypeInfo
     let effects: RuntimeFunctionEffectInfo
+    let resultTransportEvidenceCatalog: CompilerResultTransportEvidenceCatalog
     let parameterTypes: [Any.Type]
     let directArgumentPlan: DynamicFunctionArgumentPlan?
     let resultType: Any.Type
@@ -28,15 +30,28 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
 
     package init(
         _ function: FunctionTypeInfo,
+        resultTransportEvidenceCatalog: CompilerResultTransportEvidenceCatalog = .empty,
         architecture: RuntimeArchitecture = .current
     ) {
         self.architecture = architecture
         self.function = function
         let effects = RuntimeFunctionEffectInfo(function)
         self.effects = effects
+        self.resultTransportEvidenceCatalog = resultTransportEvidenceCatalog
         parameterTypes = function.parameters.map(\.type)
         resultType = function.resultType
-        resultLayout = abiClass(for: function.resultType)
+        let resultTransportEvidence = resultTransportEvidenceCatalog.evidence(
+            for: function.resultType,
+            isThrowing: function.effects.isThrowing,
+            isAsync: function.effects.isAsync
+        )
+        resultLayout =
+            switch resultTransportEvidence?.transport {
+                case .direct, nil:
+                    abiClass(for: function.resultType)
+                case .indirect:
+                    .indirect
+            }
         let typedErrorType = effects.typedErrorType
         self.typedErrorType = typedErrorType
         typedErrorLayout = typedErrorType.map {
@@ -80,7 +95,12 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
         }
         if let reason = uncertainABITransportReason(
             for: resultType,
-            role: "The result"
+            role: "The result",
+            compilerEvidence: resultTransportEvidenceCatalog.evidence(
+                for: resultType,
+                isThrowing: isThrowing,
+                isAsync: isAsync
+            )
         ) {
             return reason
         }
@@ -159,11 +179,17 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
         switch direction {
             case .directToGeneric:
                 parametersCanCrossBoundary = parameterTypes.allSatisfy {
-                    FunctionReabstraction.canInitializeDirectValue(of: $0)
+                    FunctionReabstraction.canInitializeDirectValue(
+                        of: $0,
+                        resultTransportEvidenceCatalog: resultTransportEvidenceCatalog
+                    )
                 }
             case .genericToDirect:
                 parametersCanCrossBoundary = parameterTypes.allSatisfy {
-                    FunctionReabstraction.canBoxDirectResult(of: $0)
+                    FunctionReabstraction.canBoxDirectResult(
+                        of: $0,
+                        resultTransportEvidenceCatalog: resultTransportEvidenceCatalog
+                    )
                 }
         }
         guard parametersCanCrossBoundary else {
@@ -182,11 +208,21 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
         }
         switch direction {
             case .directToGeneric:
-                guard FunctionReabstraction.canBoxDirectResult(of: resultType) else {
+                guard
+                    FunctionReabstraction.canBoxDirectResult(
+                        of: resultType,
+                        resultTransportEvidenceCatalog: resultTransportEvidenceCatalog
+                    )
+                else {
                     return "A function-valued result cannot be boxed recursively."
                 }
             case .genericToDirect:
-                guard FunctionReabstraction.canInitializeDirectValue(of: resultType) else {
+                guard
+                    FunctionReabstraction.canInitializeDirectValue(
+                        of: resultType,
+                        resultTransportEvidenceCatalog: resultTransportEvidenceCatalog
+                    )
+                else {
                     return "A function-valued result cannot be initialized recursively."
                 }
         }
@@ -209,9 +245,12 @@ package struct FunctionBridgeAnalysis: @unchecked Sendable {
 
     private func uncertainABITransportReason(
         for type: Any.Type,
-        role: String
+        role: String,
+        compilerEvidence: RuntimeCompilerResultTransportEvidence? = nil
     ) -> String? {
-        guard hasUncertainArgumentABITransport(for: type) else {
+        guard compilerEvidence == nil,
+            hasUncertainArgumentABITransport(for: type)
+        else {
             return nil
         }
         return "\(role) \(type) may use either direct or indirect client transport. "

@@ -104,7 +104,9 @@ package struct RuntimeArgumentDecodingPlan: Sendable {
                         consumeOwnedArguments ? argument.ownership : .borrowed,
                     functionReabstraction: FunctionReabstraction.prepare(
                         type: argument.value.type,
-                        direction: .directToGeneric
+                        direction: .directToGeneric,
+                        resultTransportEvidenceCatalog:
+                            method.compilerResultTransportEvidenceCatalog
                     )
                 )
             },

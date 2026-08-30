@@ -1,14 +1,31 @@
 import Echo
 import EchoRuntimeReflection
 import EchoRuntimeSupport
+import InternalRuntimeContract
 
 extension FunctionReabstraction {
-    package static func canInitializeDirectValue(of type: Any.Type) -> Bool {
-        canReabstract(type, direction: .genericToDirect, visited: [])
+    package static func canInitializeDirectValue(
+        of type: Any.Type,
+        resultTransportEvidenceCatalog: CompilerResultTransportEvidenceCatalog = .empty
+    ) -> Bool {
+        canReabstract(
+            type,
+            direction: .genericToDirect,
+            resultTransportEvidenceCatalog: resultTransportEvidenceCatalog,
+            visited: []
+        )
     }
 
-    package static func canBoxDirectResult(of type: Any.Type) -> Bool {
-        canReabstract(type, direction: .directToGeneric, visited: [])
+    package static func canBoxDirectResult(
+        of type: Any.Type,
+        resultTransportEvidenceCatalog: CompilerResultTransportEvidenceCatalog = .empty
+    ) -> Bool {
+        canReabstract(
+            type,
+            direction: .directToGeneric,
+            resultTransportEvidenceCatalog: resultTransportEvidenceCatalog,
+            visited: []
+        )
     }
 
     package static func boxDirectValue(
@@ -124,6 +141,7 @@ extension FunctionReabstraction {
     fileprivate static func canReabstract(
         _ type: Any.Type,
         direction: ReabstractionDirection,
+        resultTransportEvidenceCatalog: CompilerResultTransportEvidenceCatalog,
         visited: Set<ObjectIdentifier>
     ) -> Bool {
         if let function = FunctionTypeInfo(reflecting: type) {
@@ -139,9 +157,17 @@ extension FunctionReabstraction {
                     }
                     switch direction {
                         case .directToGeneric:
-                            return hasDirectToGenericBridge(function)
+                            return hasDirectToGenericBridge(
+                                function,
+                                resultTransportEvidenceCatalog:
+                                    resultTransportEvidenceCatalog
+                            )
                         case .genericToDirect:
-                            return hasGenericToDirectBridge(function)
+                            return hasGenericToDirectBridge(
+                                function,
+                                resultTransportEvidenceCatalog:
+                                    resultTransportEvidenceCatalog
+                            )
                     }
             }
         }
@@ -151,6 +177,8 @@ extension FunctionReabstraction {
                 canReabstract(
                     $0.type,
                     direction: direction,
+                    resultTransportEvidenceCatalog:
+                        resultTransportEvidenceCatalog,
                     visited: visited
                 )
             }
@@ -162,6 +190,7 @@ extension FunctionReabstraction {
             return canReabstract(
                 wrapped,
                 direction: direction,
+                resultTransportEvidenceCatalog: resultTransportEvidenceCatalog,
                 visited: visited
             )
         }
