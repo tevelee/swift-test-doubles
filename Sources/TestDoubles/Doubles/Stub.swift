@@ -77,8 +77,10 @@ public class Stub<P> {
     /// `init(requirementsByProtocol:)` for multi-root compositions. Linked
     /// witnesses and resilient requirement symbols also validate every
     /// reliably discoverable explicit signature component. Automatic discovery
-    /// installs compiler-typed adapters for zero-argument methods and getters
-    /// returning values from the built-in Foundation placeholder catalog.
+    /// installs compiler-typed adapters for getters and compiler-proven result
+    /// transport for methods returning values from the built-in Foundation
+    /// placeholder catalog. Those methods may have otherwise-supported
+    /// parameters.
     public convenience init(_ requirements: Requirement...) throws(StubError) {
         let prepared = try withStubConstructionError(for: P.self) {
             if requirements.isEmpty {

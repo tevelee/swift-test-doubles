@@ -7,6 +7,22 @@ import TestDoubles
 import Testing
 
 @Suite struct BuiltInFoundationResultConsumerTests {
+    @Test func automaticConstructionTransportsThrowingDataResultWithArgument() throws {
+        struct Failure: Error {}
+
+        let stub = try Stub<any ImportedPathDataSource>()
+        let expected = Data([191, 193, 197])
+        stub.when { try $0.read(path: "/fixture") }.thenReturn(expected)
+        stub.when { try $0.read(path: Match.any()) }.thenThrow(Failure())
+
+        let source = stub()
+        #expect(throws: Failure.self) {
+            try source.read(path: "/missing")
+        }
+        #expect(try source.read(path: "/fixture") == expected)
+        stub.verify(2 ... 2) { try $0.read(path: Match.any()) }
+    }
+
     @Test func automaticConstructionTransportsCommonAsyncThrowingDataResult() async throws {
         let stub = try Stub<any ImportedDataSource>()
         let expected = Data([197, 199, 211])
@@ -112,25 +128,22 @@ import Testing
     #endif
 
     #if compiler(>=6.4)
-        @Test func explicitParameterizedAdapterReusesBuiltInResultTransport() async throws {
-            let adapter:
-                @convention(thin) (
-                    Int,
-                    Stub<any ParameterizedFoundationResultSource>.Invocation
-                ) async -> UUID = { value, invocation in
-                    await invocation.call(value)
-                }
-            let stub = try Stub<any ParameterizedFoundationResultSource>(
-                .method(Int.self, returning: UUID.self, isAsync: true, using: adapter)
-            )
+        @Test func automaticConstructionTransportsAsyncUUIDResultWithArgument() async throws {
+            let stub = try Stub<any ParameterizedFoundationResultSource>()
             let expected = UUID(
                 uuidString: "00000000-0000-0000-0000-000000000257"
             )!
             await stub.when(returning: expected) {
-                await $0.identifier(for: Match.equal(257))
+                await $0.identifier(
+                    for: Match.equal(257),
+                    namespace: Match.equal("fixture")
+                )
             }.thenReturn(expected)
 
-            #expect(await stub().identifier(for: 257) == expected)
+            #expect(
+                await stub().identifier(for: 257, namespace: "fixture")
+                    == expected
+            )
         }
     #endif
 

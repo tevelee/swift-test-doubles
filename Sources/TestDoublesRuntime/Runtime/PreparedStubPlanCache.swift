@@ -71,14 +71,14 @@ enum PreparedStubPlanCache {
 
         struct AutomaticRequirementAdapter: Hashable {
             let kind: RuntimeRequirementKind
-            let argumentTypes: [ObjectIdentifier]
+            let argumentTypes: [ObjectIdentifier]?
             let resultType: ObjectIdentifier
             let resultTransport: RuntimeAutomaticRequirementAdapter.ResultTransport
             let isThrowing: Bool
             let isAsync: Bool
-            let functionType: ObjectIdentifier
-            let invocationType: ObjectIdentifier
-            let entryPoint: UInt
+            let functionType: ObjectIdentifier?
+            let invocationType: ObjectIdentifier?
+            let entryPoint: UInt?
         }
 
         enum Requirements: Hashable {
@@ -157,24 +157,28 @@ enum PreparedStubPlanCache {
             request.automaticRequirementAdapters.count
         )
         for adapter in request.automaticRequirementAdapters {
-            guard
-                let source = adapter.typedWitnessAdapter.payload(
-                    as: RuntimeTypedWitnessAdapterSource.self
-                )
-            else {
-                return nil
+            let source: RuntimeTypedWitnessAdapterSource?
+            if let token = adapter.typedWitnessAdapter {
+                guard
+                    let payload = token.payload(
+                        as: RuntimeTypedWitnessAdapterSource.self
+                    )
+                else { return nil }
+                source = payload
+            } else {
+                source = nil
             }
             automaticRequirementAdapters.append(
                 Key.AutomaticRequirementAdapter(
                     kind: adapter.kind,
-                    argumentTypes: adapter.argumentTypes.map(ObjectIdentifier.init),
+                    argumentTypes: adapter.argumentTypes?.map(ObjectIdentifier.init),
                     resultType: ObjectIdentifier(adapter.resultType),
                     resultTransport: adapter.resultTransport,
                     isThrowing: adapter.isThrowing,
                     isAsync: adapter.isAsync,
-                    functionType: ObjectIdentifier(source.functionType),
-                    invocationType: ObjectIdentifier(source.invocationType),
-                    entryPoint: source.entryPoint
+                    functionType: source.map { ObjectIdentifier($0.functionType) },
+                    invocationType: source.map { ObjectIdentifier($0.invocationType) },
+                    entryPoint: source?.entryPoint
                 )
             )
         }

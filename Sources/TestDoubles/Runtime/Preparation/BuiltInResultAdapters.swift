@@ -9,8 +9,8 @@ enum BuiltInResultAdapters {
         return adapters
     }()
 
-    static func append(
-        returning resultType: Any.Type,
+    static func append<Result>(
+        returning resultType: Result.Type,
         resultTransport: RuntimeAutomaticRequirementAdapter.ResultTransport,
         synchronous: RuntimeTypedWitnessAdapterToken,
         synchronousThrowing: RuntimeTypedWitnessAdapterToken,
@@ -57,6 +57,22 @@ enum BuiltInResultAdapters {
                     isThrowing: true,
                     isAsync: true,
                     token: asynchronousThrowing
+                )
+            )
+        }
+        for (isThrowing, isAsync) in [
+            (false, false),
+            (true, false),
+            (false, true),
+            (true, true)
+        ] {
+            adapters.append(
+                RuntimeAutomaticRequirementAdapter(
+                    kind: .method,
+                    resultType: resultType,
+                    resultTransport: resultTransport,
+                    isThrowing: isThrowing,
+                    isAsync: isAsync
                 )
             )
         }

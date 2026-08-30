@@ -373,6 +373,7 @@ extension RuntimeStubFactory {
                 )
             }
             if method.typedWitnessAdapterFactory == nil,
+                method.resultTransportIsCompilerProven == false,
                 let reason = runtimeUncertainConcreteResultUnsupportedReason(for: method)
             {
                 throw RuntimeConstructionError.unsupportedProtocolShape(

@@ -127,6 +127,10 @@ public protocol ImportedDataSource: Sendable {
     func loadData() async throws -> Data
 }
 
+public protocol ImportedPathDataSource: Sendable {
+    func read(path: String) throws -> Data
+}
+
 @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
 public protocol CommonFoundationResultSource: Sendable {
     var currentURL: URL { get }
@@ -151,7 +155,7 @@ public protocol CommonFoundationResultSource: Sendable {
 }
 
 public protocol ParameterizedFoundationResultSource: Sendable {
-    func identifier(for value: Int) async -> UUID
+    func identifier(for value: Int, namespace: String) async -> UUID
 }
 
 public protocol EventStreamSource: Sendable {
@@ -632,7 +636,9 @@ public struct LiveCommonFoundationResultSource: CommonFoundationResultSource {
 public struct LiveParameterizedFoundationResultSource: ParameterizedFoundationResultSource {
     public init() {}
 
-    public func identifier(for value: Int) async -> UUID { UUID() }
+    public func identifier(for value: Int, namespace: String) async -> UUID {
+        UUID()
+    }
 }
 
 public struct LiveFoundationArchiveGateway: FoundationArchiveGateway {

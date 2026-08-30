@@ -226,18 +226,19 @@ extension RuntimeStubFactory {
                 runtimeUncertainConcreteResultUnsupportedReason(for: method) != nil,
                 let adapter = adapters.first(where: {
                     automaticAdapterResult($0, matches: method)
+                        && $0.matches(argumentTypes: method.argumentTypes)
                 })
             else {
                 return method
             }
-            if method.typedWitnessAdapterFactory == nil {
-                guard automaticAdapterArguments(adapter, match: method) else {
-                    return method
-                }
+            if method.typedWitnessAdapterFactory == nil,
+                let token = adapter.typedWitnessAdapter
+            {
                 method.typedWitnessAdapterFactory = typedWitnessAdapterFactory(
-                    from: adapter.typedWitnessAdapter
+                    from: token
                 )
             }
+            method.resultTransportIsCompilerProven = true
             switch adapter.resultTransport {
                 case .direct:
                     method.result = method.result.withLayout(
@@ -260,16 +261,6 @@ extension RuntimeStubFactory {
             ObjectIdentifier(adapter.resultType) == ObjectIdentifier(method.returnType)
         else { return false }
         return true
-    }
-
-    private static func automaticAdapterArguments(
-        _ adapter: RuntimeAutomaticRequirementAdapter,
-        match method: MethodDescriptor
-    ) -> Bool {
-        guard adapter.argumentTypes.count == method.argumentTypes.count else { return false }
-        return zip(adapter.argumentTypes, method.argumentTypes).allSatisfy {
-            ObjectIdentifier($0.0) == ObjectIdentifier($0.1)
-        }
     }
 
     private static func explicitMethods(

@@ -45,8 +45,12 @@ package enum RuntimeExplicitRequirementInput: @unchecked Sendable {
     case grouped([RuntimeExplicitRequirementGroup])
 }
 
-/// A compiler-emitted adapter that automatic discovery may attach to one
-/// exactly matching requirement when runtime result transport is ambiguous.
+/// Compiler-emitted evidence that automatic discovery may apply when runtime
+/// result transport is ambiguous.
+///
+/// An exact `argumentTypes` list carries a typed witness adapter. A `nil` list
+/// proves only the result transport and lets an otherwise-supported method use
+/// the ordinary argument trampoline.
 package struct RuntimeAutomaticRequirementAdapter: @unchecked Sendable {
     /// The concrete adapter's compiler-selected result convention. Async
     /// dispatch also uses it to locate the trailing invocation argument.
@@ -56,12 +60,12 @@ package struct RuntimeAutomaticRequirementAdapter: @unchecked Sendable {
     }
 
     package let kind: RuntimeRequirementKind
-    package let argumentTypes: [Any.Type]
+    package let argumentTypes: [Any.Type]?
     package let resultType: Any.Type
     package let resultTransport: ResultTransport
     package let isThrowing: Bool
     package let isAsync: Bool
-    package let typedWitnessAdapter: RuntimeTypedWitnessAdapterToken
+    package let typedWitnessAdapter: RuntimeTypedWitnessAdapterToken?
 
     package init(
         kind: RuntimeRequirementKind,
@@ -79,6 +83,30 @@ package struct RuntimeAutomaticRequirementAdapter: @unchecked Sendable {
         self.isThrowing = isThrowing
         self.isAsync = isAsync
         self.typedWitnessAdapter = typedWitnessAdapter
+    }
+
+    package init(
+        kind: RuntimeRequirementKind,
+        resultType: Any.Type,
+        resultTransport: ResultTransport,
+        isThrowing: Bool,
+        isAsync: Bool
+    ) {
+        self.kind = kind
+        argumentTypes = nil
+        self.resultType = resultType
+        self.resultTransport = resultTransport
+        self.isThrowing = isThrowing
+        self.isAsync = isAsync
+        typedWitnessAdapter = nil
+    }
+
+    package func matches(argumentTypes actualArgumentTypes: [Any.Type]) -> Bool {
+        guard let argumentTypes else { return true }
+        return argumentTypes.count == actualArgumentTypes.count
+            && zip(argumentTypes, actualArgumentTypes).allSatisfy {
+                ObjectIdentifier($0.0) == ObjectIdentifier($0.1)
+            }
     }
 }
 

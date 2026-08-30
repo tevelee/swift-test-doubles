@@ -28,6 +28,10 @@ package struct MethodDescriptor: Sendable {
     /// opaque, while forwarding must account for them explicitly.
     package let methodGenericConformanceWitnessCount: Int
     package var typedWitnessAdapterFactory: TypedWitnessAdapterFactory?
+    /// A compiler-emitted built-in adapter established the result's direct or
+    /// indirect client convention even though this method uses the ordinary
+    /// argument trampoline.
+    package var resultTransportIsCompilerProven = false
 
     package init(
         kind: StubRequirementKind,

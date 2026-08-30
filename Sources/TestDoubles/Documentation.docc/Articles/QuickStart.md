@@ -165,8 +165,8 @@ gives TestDoubles bytes to compare with the caller's frame. The same value as a
 result cannot be calibrated: the caller has already chosen registers or result
 storage before a fabricated witness can observe anything. For common
 Foundation leaves, TestDoubles solves that problem automatically. The built-in
-placeholder catalog also contains compiler-emitted result adapters for
-zero-argument methods and getters across synchronous, throwing, async, and
+placeholder catalog contains compiler-emitted result adapters and transport
+proofs for methods and getters across synchronous, throwing, async, and
 async-throwing requirements:
 
 ```swift
@@ -180,6 +180,20 @@ await loader.when { try await $0.load() }.thenReturn(Data())
 #expect(try await loader().load() == Data())
 ```
 
+Methods may also have any parameter list supported by the ordinary runtime
+trampoline:
+
+```swift
+protocol FileService {
+    func read(path: String) throws -> Data
+}
+
+let files = try Stub<any FileService>()
+files.when { try $0.read(path: Match.any()) }.thenReturn(Data())
+
+#expect(try files().read(path: "/fixture") == Data())
+```
+
 The catalog covers `URL`, `Data`, `Date`, `UUID`, `Calendar`, `Locale`,
 `TimeZone`, `IndexPath`, `IndexSet`, `DateInterval`, `CharacterSet`, `Decimal`,
 notification values, `AttributedString`, `PersonNameComponents`, and
@@ -188,13 +202,13 @@ by the compiler; no application compiler flag or runtime ABI guess is involved.
 Swift 6.3 exposes the direct-transport entries, including `Data`, `Decimal`, and
 `Notification.Name`; Swift 6.4 and newer also expose the indirect entries.
 
-An explicit adapter is still needed for a non-frozen type outside that catalog,
-or when the requirement has arguments. The same limitation applies to a generic
-struct or enum because the runtime cannot see the outer declaration's `@frozen`
-status. It is not a matcher configuration problem, so adding more
-`Match.any(using:)` calls will not make a return value safe. Supply an explicit
-requirement with an exact compiler-typed `@convention(thin)` adapter when the
-requirement has room for its trailing ``Stub/Invocation``:
+An explicit adapter is still needed for a non-frozen type outside that catalog.
+The same limitation applies to a generic struct or enum because the runtime
+cannot see the outer declaration's `@frozen` status. It is not a matcher
+configuration problem, so adding more `Match.any(using:)` calls will not make a
+return value safe. Supply an explicit requirement with an exact compiler-typed
+`@convention(thin)` adapter when the requirement has room for its trailing
+``Stub/Invocation``:
 
 ```swift
 let adapter:
