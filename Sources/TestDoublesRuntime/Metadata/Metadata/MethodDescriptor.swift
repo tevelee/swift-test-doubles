@@ -34,8 +34,11 @@ package struct MethodDescriptor: Sendable {
     /// Every compiler-emitted result-transport fact available to recursive
     /// planners for nested tuple and function-value results.
     package var compilerResultTransportEvidenceCatalog: CompilerResultTransportEvidenceCatalog
+    /// Compiler-proven member-level transport for a structurally lowered tuple.
+    package var compilerStructuralResultPlan: CompilerProvenStructuralResultPlan?
     package var resultTransportIsCompilerProven: Bool {
         compilerResultTransportEvidence != nil
+            || compilerStructuralResultPlan != nil
     }
 
     package init(
@@ -172,6 +175,7 @@ package struct MethodDescriptor: Sendable {
         self.compilerResultTransportEvidence = compilerResultTransportEvidence
         self.compilerResultTransportEvidenceCatalog =
             compilerResultTransportEvidenceCatalog
+        compilerStructuralResultPlan = nil
     }
 
     /// Builds a descriptor from resolved witness values, applying each

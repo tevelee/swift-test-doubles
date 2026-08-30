@@ -50,6 +50,29 @@ package enum RecordingResultEncoder {
         genericParameterTypes: [Any.Type],
         into frame: TrampolineCallFrame
     ) {
+        if let plan = method.compilerStructuralResultPlan {
+            let temporary = ValueStorage(
+                type: method.returnType,
+                minimumByteCount: 16
+            )
+            guard
+                PlaceholderValue.initialize(
+                    type: method.returnType,
+                    at: temporary.storage
+                )
+            else {
+                fatalError(unsupportedPlaceholderMessage(for: method))
+            }
+            temporary.markInitialized()
+            RuntimeValueTransport.encodeOwnedStructuralReturn(
+                from: temporary.storage,
+                plan: plan,
+                context: method.name,
+                into: frame
+            )
+            temporary.markTransferred()
+            return
+        }
         if let (index, runtimeType) = genericResult(
             method.returnConvention,
             genericParameterTypes: genericParameterTypes
@@ -144,6 +167,19 @@ package enum RecordingResultEncoder {
                 layout: method.returnLayout,
                 context: method.name,
                 isAsync: method.isAsync,
+                into: frame
+            )
+        } else if let plan = method.compilerStructuralResultPlan {
+            RuntimeValueTransport.encodeStructuralReturn(
+                value,
+                expectedType: method.returnType,
+                plan: plan,
+                transport: RuntimeResultTransportPlan(
+                    resultType: method.returnType,
+                    resultTransportEvidenceCatalog:
+                        method.compilerResultTransportEvidenceCatalog
+                ),
+                context: method.name,
                 into: frame
             )
         } else {

@@ -226,6 +226,20 @@ extension RuntimeStubFactory {
         return discoveredMethods.map { discoveredMethod in
             var method = discoveredMethod
             method.compilerResultTransportEvidenceCatalog = evidenceCatalog
+            if method.typedErrorType == nil,
+                method.result.convention == .concrete,
+                method.kind != .setter,
+                requiresStructuralABITransport(for: method.returnType),
+                let plan = CompilerProvenStructuralResultPlan(
+                    resultType: method.returnType,
+                    isThrowing: method.isThrowing,
+                    isAsync: method.isAsync,
+                    evidenceCatalog: evidenceCatalog
+                )
+            {
+                method.compilerStructuralResultPlan = plan
+                method.result = method.result.withLayout(plan.directLayout)
+            }
             guard method.typedErrorType == nil,
                 runtimeUncertainConcreteResultUnsupportedReason(for: method) != nil,
                 let adapter = adapters.first(where: {

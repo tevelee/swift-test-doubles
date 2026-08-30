@@ -95,6 +95,67 @@ package enum RuntimeValueTransport {
         )
     }
 
+    /// Encodes a tuple result whose compiler-proven leaves use a mixture of
+    /// ordinary return registers and leading indirect-result destinations.
+    package static func encodeStructuralReturn(
+        _ value: Any,
+        expectedType: Any.Type,
+        plan: CompilerProvenStructuralResultPlan,
+        transport: RuntimeResultTransportPlan,
+        context: String,
+        into frame: TrampolineCallFrame
+    ) {
+        withCopiedValue(
+            value,
+            expectedType: expectedType,
+            transport: transport
+        ) { source in
+            encodeOwnedStructuralReturn(
+                from: source,
+                plan: plan,
+                context: context,
+                into: frame
+            )
+        }
+    }
+
+    /// Consumes the initialized tuple fields at `source`: direct fields move
+    /// into return registers, while indirect fields are copied into caller
+    /// storage and then destroyed in the temporary source.
+    package static func encodeOwnedStructuralReturn(
+        from source: UnsafeMutableRawPointer,
+        plan: CompilerProvenStructuralResultPlan,
+        context: String,
+        into frame: TrampolineCallFrame
+    ) {
+        encodeBorrowedDirectValue(
+            from: source,
+            layout: plan.directLayout,
+            into: frame
+        )
+        let locations = plan.indirectResultLocations()
+        precondition(locations.count == plan.indirectElements.count)
+        for (element, location) in zip(plan.indirectElements, locations) {
+            let destinationWord = UInt(frame.scalarBits(at: location))
+            guard
+                let destination = UnsafeMutableRawPointer(
+                    bitPattern: destinationWord
+                )
+            else {
+                fatalError(
+                    "[TestDoubles] Missing structural indirect return buffer for \(context)."
+                )
+            }
+            let elementSource = source + element.offset
+            ValueOperations.initializeCopy(
+                of: element.type,
+                from: elementSource,
+                to: destination
+            )
+            ValueOperations.destroy(element.type, at: elementSource)
+        }
+    }
+
     package static func encodeReturn(
         _ value: Any,
         expectedType: Any.Type,

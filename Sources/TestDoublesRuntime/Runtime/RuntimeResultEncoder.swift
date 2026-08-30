@@ -10,6 +10,17 @@ package enum RuntimeResultEncoder {
         into frame: TrampolineCallFrame
     ) {
         let method = runtimeMethod.descriptor
+        if let plan = method.compilerStructuralResultPlan {
+            RuntimeValueTransport.encodeStructuralReturn(
+                result,
+                expectedType: method.returnType,
+                plan: plan,
+                transport: runtimeMethod.resultTransport,
+                context: method.name,
+                into: frame
+            )
+            return
+        }
         if case .void = method.returnLayout {
             frame.zeroReturn()
             return

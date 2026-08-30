@@ -36,6 +36,7 @@ package struct WitnessCallTransportPlan: Sendable {
 
     package let argumentLocations: [[CallFrameArgumentLocation]]
     package let asyncIndirectResultLocation: CallFrameArgumentLocation?
+    package let structuralIndirectResultLocations: [CallFrameArgumentLocation]
     /// One location per distinct requirement-level generic parameter, in
     /// parameter-index order. Always immediately follows the visible formal
     /// arguments and precedes `self`/`Self`/`SelfWitnessTable`, so it's
@@ -60,6 +61,16 @@ package struct WitnessCallTransportPlan: Sendable {
         trailingPayload: TrailingPayload = .none,
         architecture: RuntimeArchitecture = .current
     ) {
+        structuralIndirectResultLocations =
+            method.compilerStructuralResultPlan?.indirectResultLocations(
+                initialGeneralPurposeOffset: initialGeneralPurposeOffset
+            ) ?? []
+        precondition(
+            initialGeneralPurposeOffset
+                + structuralIndirectResultLocations.count
+                <= architecture.generalPurposeArgumentRegisterCount,
+            "[TestDoubles] Structural indirect-result storage exceeds the captured general-purpose registers."
+        )
         let hasAsyncIndirectResult: Bool
         if method.isAsync, case .indirect = method.result.layout {
             hasAsyncIndirectResult = true
@@ -101,6 +112,7 @@ package struct WitnessCallTransportPlan: Sendable {
                 )
             },
             initialGeneralPurposeOffset: initialGeneralPurposeOffset
+                + structuralIndirectResultLocations.count
                 + (hasAsyncIndirectResult ? 1 : 0),
             trailingGeneralPurposeWordCount: methodGenericParameterCount
                 + typedErrorWordCount

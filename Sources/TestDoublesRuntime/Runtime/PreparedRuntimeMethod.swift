@@ -291,11 +291,15 @@ package final class PreparedRuntimeMethod: @unchecked Sendable {
         let initialGeneralPurposeOffset =
             initialGeneralPurposeOffset
             ?? (descriptor.isAsync && descriptor.returnLayout == .indirect ? 1 : 0)
+        let structuralResultOffset =
+            descriptor.compilerStructuralResultPlan?.indirectElements.count
+            ?? 0
         let plan = CallFrameArgumentLocationPlan(
             arguments: zip(descriptor.arguments, layouts).map { argument, layout in
                 CallFrameArgumentShape(type: argument.value.type, layout: layout)
             },
-            initialGeneralPurposeOffset: initialGeneralPurposeOffset
+            initialGeneralPurposeOffset:
+                initialGeneralPurposeOffset + structuralResultOffset
         )
         return plan.arguments.last ?? []
     }
