@@ -14,6 +14,46 @@ protocol TestDoubleController {
 extension Stub: TestDoubleController {}
 extension ManualStub: TestDoubleController {}
 
+enum RecordingCardinalityFailure {
+    case noRecordedRequirement
+    case multipleRecordedRequirements(count: Int)
+
+    var testDoubleFailure: TestDoubleFailure {
+        let count: Int
+        let message: String
+
+        switch self {
+            case .noRecordedRequirement:
+                count = 0
+                message =
+                    "[TestDoubles] The recording closure did not invoke a protocol requirement. "
+                    + "Call exactly one requirement inside `when` or `verify`. "
+                    + "If this was a method declared only in a protocol extension, Swift dispatches "
+                    + "it statically and TestDoubles cannot intercept it; declare it as a protocol "
+                    + "requirement instead."
+
+            case .multipleRecordedRequirements(let recordedRequirementCount):
+                count = recordedRequirementCount
+                message =
+                    "[TestDoubles] The recording closure invoked "
+                    + "\(recordedRequirementCount) protocol requirements, "
+                    + "but `when` and `verify` accept exactly one. Split them into separate operations; "
+                    + "use `verifyInOrder` when checking an ordered sequence."
+        }
+
+        return TestDoubleFailure(
+            phase: .recording,
+            code: .recordingFailed,
+            context: .init(
+                message: message,
+                fields: [
+                    .init(key: "recordedRequirementCount", value: String(count))
+                ]
+            )
+        )
+    }
+}
+
 // MARK: - Recording
 
 extension TestDoubleController {
@@ -145,18 +185,14 @@ extension TestDoubleController {
     private func singleRecording(from recordings: [RecordedCall]) -> RecordedCall {
         guard let recording = recordings.first else {
             fatalError(
-                "[TestDoubles] The recording closure did not invoke a protocol requirement. "
-                    + "Call exactly one requirement inside `when` or `verify`. "
-                    + "If this was a method declared only in a protocol extension, Swift dispatches "
-                    + "it statically and TestDoubles cannot intercept it; declare it as a protocol "
-                    + "requirement instead."
+                RecordingCardinalityFailure.noRecordedRequirement.testDoubleFailure.description
             )
         }
         guard recordings.count == 1 else {
             fatalError(
-                "[TestDoubles] The recording closure invoked \(recordings.count) protocol requirements, "
-                    + "but `when` and `verify` accept exactly one. Split them into separate operations; "
-                    + "use `verifyInOrder` when checking an ordered sequence."
+                RecordingCardinalityFailure.multipleRecordedRequirements(
+                    count: recordings.count
+                ).testDoubleFailure.description
             )
         }
         return recording

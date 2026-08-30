@@ -1,5 +1,64 @@
 import InternalRuntimeContract
 
+enum StubConfigurationFailure {
+    case missingRecordedRequirement
+    case requiresThrowingRequirement(feature: String)
+    case requiresNonnegativeDelay(feature: String)
+    case requiresForwardingTarget(feature: String)
+    case requiresExplicitCancellationValue(feature: String)
+    case requiresAsyncRequirement(feature: String, requirement: String)
+
+    var testDoubleFailure: TestDoubleFailure {
+        let message: String
+        let fields: [TestDoubleFailure.Context.Field]
+
+        switch self {
+            case .missingRecordedRequirement:
+                message = "[TestDoubles] The recording closure must invoke a requirement."
+                fields = []
+
+            case .requiresThrowingRequirement(let feature):
+                message = "[TestDoubles] \(feature) requires a throwing requirement."
+                fields = [.init(key: "feature", value: feature)]
+
+            case .requiresNonnegativeDelay(let feature):
+                message = "[TestDoubles] \(feature) requires a nonnegative delay."
+                fields = [.init(key: "feature", value: feature)]
+
+            case .requiresForwardingTarget(let feature):
+                message =
+                    "[TestDoubles] \(feature) requires a Spy with a forwarding "
+                    + "target; this test double has none."
+                fields = [
+                    .init(key: "feature", value: feature),
+                    .init(key: "requiredDoubleKind", value: "Spy")
+                ]
+
+            case .requiresExplicitCancellationValue(let feature):
+                message =
+                    "[TestDoubles] \(feature) on a non-throwing requirement "
+                    + "with a result needs a value to complete with; use "
+                    + "thenAwaitCancellation(returning:)."
+                fields = [.init(key: "feature", value: feature)]
+
+            case .requiresAsyncRequirement(let feature, let requirement):
+                message =
+                    "[TestDoubles] \(feature) requires an async requirement; "
+                    + "\(requirement) completes synchronously."
+                fields = [
+                    .init(key: "feature", value: feature),
+                    .init(key: "requirement", value: requirement)
+                ]
+        }
+
+        return TestDoubleFailure(
+            phase: .configuration,
+            code: .invalidConfiguration,
+            context: .init(message: message, fields: fields)
+        )
+    }
+}
+
 protocol StubRegistrationBuilder {
     var recorder: StubRecorder { get }
     var recording: RecordedCall { get }
@@ -11,7 +70,9 @@ extension StubRegistrationBuilder {
 
     func requireRuntimeMethod() -> RuntimeMethod {
         guard let method = recorder.runtimeMethod(for: recording.methodIndex) else {
-            preconditionFailure("[TestDoubles] The recording closure must invoke a requirement.")
+            preconditionFailure(
+                StubConfigurationFailure.missingRecordedRequirement.testDoubleFailure.description
+            )
         }
         return method
     }
@@ -46,7 +107,11 @@ extension StubRegistrationBuilder {
         for method: RuntimeMethod
     ) {
         guard method.isThrowing else {
-            fatalError("[TestDoubles] thenThrow requires a throwing requirement.")
+            fatalError(
+                StubConfigurationFailure.requiresThrowingRequirement(
+                    feature: "thenThrow"
+                ).testDoubleFailure.description
+            )
         }
         recorder.requireThrownErrorMatchesRuntimeType(error, for: method)
     }
@@ -64,7 +129,9 @@ extension StubRegistrationBuilder {
         requireAsyncRequirement(configuring: "after:")
         precondition(
             delay >= .zero,
-            "[TestDoubles] after: requires a nonnegative delay."
+            StubConfigurationFailure.requiresNonnegativeDelay(
+                feature: "after:"
+            ).testDoubleFailure.description
         )
         return .delayed(result, delay, clock ?? StubClocks.continuous)
     }
@@ -98,7 +165,9 @@ extension StubRegistrationBuilder {
         requireAsyncRequirement(configuring: "thenCancel")
         precondition(
             delay >= .zero,
-            "[TestDoubles] thenCancel(after:) requires a nonnegative delay."
+            StubConfigurationFailure.requiresNonnegativeDelay(
+                feature: "thenCancel(after:)"
+            ).testDoubleFailure.description
         )
         return .cancelAfter(delay, clock, outcome)
     }
@@ -109,8 +178,9 @@ extension StubRegistrationBuilder {
     func forwardAnswer() -> StubRecorder.QueuedAnswer {
         guard recorder.allowsForwardingFallback else {
             fatalError(
-                "[TestDoubles] thenForward requires a Spy with a forwarding "
-                    + "target; this test double has none."
+                StubConfigurationFailure.requiresForwardingTarget(
+                    feature: "thenForward"
+                ).testDoubleFailure.description
             )
         }
         return .forward
@@ -255,9 +325,9 @@ extension StubRegistrationBuilder {
             requireValidThrownError(CancellationError(), for: method)
         } else if resultType != Void.self {
             fatalError(
-                "[TestDoubles] thenAwaitCancellation on a non-throwing requirement "
-                    + "with a result needs a value to complete with; use "
-                    + "thenAwaitCancellation(returning:)."
+                StubConfigurationFailure.requiresExplicitCancellationValue(
+                    feature: "thenAwaitCancellation"
+                ).testDoubleFailure.description
             )
         }
     }
@@ -267,8 +337,10 @@ extension StubRegistrationBuilder {
         let method = requireRuntimeMethod()
         guard method.isAsync else {
             fatalError(
-                "[TestDoubles] \(feature) requires an async requirement; "
-                    + "\(method.name) completes synchronously."
+                StubConfigurationFailure.requiresAsyncRequirement(
+                    feature: feature,
+                    requirement: method.name
+                ).testDoubleFailure.description
             )
         }
         return method
