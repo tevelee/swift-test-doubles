@@ -21,6 +21,24 @@ public protocol ManualStubConformer {
     init(stub: CompiledStub<Self>)
 }
 
+/// A manual stub conformer that can be erased to its protocol existential.
+///
+/// Generated conformers use this refinement to expose
+/// ``CompiledStub/automatic()`` without generating a constrained extension.
+/// The generated erasure witness is compiled in the same source context as
+/// the protocol conformance, so Swift selects the correct existential
+/// representation.
+public protocol AutomaticStubConformer: ManualStubConformer {
+    /// The protocol existential represented by this conformer.
+    associatedtype StubbedProtocol
+
+    /// Erases a compiled conformer to its protocol existential.
+    ///
+    /// - Parameter conformer: The compiler-backed conformer to erase.
+    /// - Returns: The conformer represented as ``StubbedProtocol``.
+    static func eraseToStubbedProtocol(_ conformer: Self) -> StubbedProtocol
+}
+
 /// An explicitly constructed test double backed by the shared recording and
 /// behavior engine.
 ///
@@ -589,5 +607,19 @@ extension CompiledStub where T: ManualStubConformer {
     /// the first time the conformer forwards to it.
     public convenience init() {
         self.init(materializing: { T(stub: $0) })
+    }
+}
+
+extension CompiledStub where T: AutomaticStubConformer {
+    /// Creates a runtime-first stub with this compiled conformer as fallback.
+    ///
+    /// Runtime synthesis is attempted first. When the runtime cannot safely
+    /// synthesize the protocol existential, the compiler-generated erasure
+    /// witness constructs `T` through ``CompiledStub`` instead.
+    public static func automatic() -> Stub<T.StubbedProtocol> {
+        Stub(
+            fallingBackTo: T.self,
+            erasingWith: T.eraseToStubbedProtocol
+        )
     }
 }

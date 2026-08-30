@@ -18,10 +18,13 @@ package struct ManualStubGenerator {
         let conformerName = "\(protocolName)StubConformer"
         let stubName = "\(protocolName)Stub"
         let conformerKind = declaration.inheritsActor ? "actor" : "struct"
+        let accessPrefix = restrictedAccessPrefix()
         var members = [
+            "typealias StubbedProtocol = any \(protocolName)",
             declaration.inheritsActor
                 ? "let stub: CompiledStub<\(conformerName)>\n\n    init(stub: CompiledStub<\(conformerName)>) { self.stub = stub }"
-                : "let stub: CompiledStub<Self>"
+                : "let stub: CompiledStub<Self>",
+            "static func eraseToStubbedProtocol(_ conformer: \(conformerName)) -> StubbedProtocol { conformer }"
         ]
         for requirement in requirements {
             try requireInstanceRequirement(requirement)
@@ -35,24 +38,24 @@ package struct ManualStubGenerator {
         }
         let importBlock = imports.isEmpty ? "" : imports.joined(separator: "\n") + "\n\n"
         return """
-            \(importBlock)\(conformerKind) \(conformerName): \(protocolName), ManualStubConformer {
+            \(importBlock)\(accessPrefix)\(conformerKind) \(conformerName): \(protocolName), AutomaticStubConformer {
                 \(members.joined(separator: "\n\n    "))
             }
 
-            typealias \(stubName) = CompiledStub<\(conformerName)>
-
-            extension CompiledStub where T == \(conformerName) {
-                /// Tries runtime synthesis, then uses this compiled conformer when needed.
-                static func automatic() -> Stub<any \(protocolName)> {
-                    Stub(
-                        fallingBackTo: \(conformerName).self,
-                        erasingWith: {
-                            $0
-                        }
-                    )
-                }
-            }
+            \(accessPrefix)typealias \(stubName) = CompiledStub<\(conformerName)>
             """ + "\n"
+    }
+
+    private func restrictedAccessPrefix() -> String {
+        let normalized = source.split(whereSeparator: \.isWhitespace)
+            .joined(separator: " ")
+        if normalized.contains("fileprivate protocol \(protocolName)") {
+            return "fileprivate "
+        }
+        if normalized.contains("private protocol \(protocolName)") {
+            return "private "
+        }
+        return ""
     }
 
     private func sourceImportLines() -> [String] {

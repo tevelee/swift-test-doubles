@@ -50,21 +50,16 @@
         ) -> [DeclSyntax] {
             guard
                 let aliasSeparator = source.range(
-                    of: "\n\ntypealias ",
+                    of: "\n\n",
                     options: .backwards
                 )
             else {
                 return [DeclSyntax(stringLiteral: source)]
             }
             let conformer = String(source[..<aliasSeparator.lowerBound])
-            let aliasAndExtension = String(source[aliasSeparator.upperBound...])
-            // Peer macros cannot introduce extensions. The standalone source
-            // generator's automatic factory follows the alias, so keep that
-            // factory exclusive to generated source files.
-            let aliasEnd =
-                aliasAndExtension.range(of: "\n\nextension ")?.lowerBound
-                ?? aliasAndExtension.endIndex
-            let alias = "typealias " + aliasAndExtension[..<aliasEnd]
+            let alias = String(source[aliasSeparator.upperBound...])
+            // Peer macros cannot introduce extensions. Automatic factories
+            // come from the library's AutomaticStubConformer extension.
             return [
                 DeclSyntax(stringLiteral: conformer),
                 DeclSyntax(stringLiteral: alias)

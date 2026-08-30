@@ -17,23 +17,25 @@ import Testing
         #expect(output.contains("func render(_ value: Int) -> String { stub.call(value) }"))
         #expect(output.contains("func render(_ value: String) -> String { stub.call(value) }"))
         #expect(output.contains("set { stub.call(value, newValue) }"))
-        #expect(output.contains("struct RendererStubConformer"))
+        #expect(
+            output.contains(
+                "struct RendererStubConformer: Renderer, AutomaticStubConformer"
+            )
+        )
+        #expect(output.contains("typealias StubbedProtocol = any Renderer"))
+        #expect(
+            output.contains(
+                "static func eraseToStubbedProtocol(_ conformer: RendererStubConformer) -> StubbedProtocol"
+            )
+        )
         #expect(
             output.contains(
                 "typealias RendererStub = CompiledStub<RendererStubConformer>"
             )
         )
-        #expect(
-            output.contains(
-                "static func automatic() -> Stub<any Renderer>"
-            )
-        )
-        #expect(
-            output.contains(
-                "fallingBackTo: RendererStubConformer.self"
-            )
-        )
-        #expect(output.contains("erasingWith: {\n"))
+        #expect(output.contains("static func automatic()") == false)
+        #expect(output.contains("fallingBackTo:") == false)
+        #expect(output.contains("erasingWith:") == false)
         #expect(output.contains("ManualRouteID") == false)
     }
 
@@ -73,6 +75,20 @@ import Testing
         #expect(output.hasPrefix("import Foundation\n\n"))
     }
 
+    @Test func preservesRestrictedAccessForMacroPeers() throws {
+        let output = try render(
+            """
+            private protocol SecretSource {
+                func load() -> String
+            }
+            """,
+            protocolName: "SecretSource"
+        )
+
+        #expect(output.contains("private struct SecretSourceStubConformer"))
+        #expect(output.contains("private typealias SecretSourceStub"))
+    }
+
     @Test func actorProtocolsGenerateGenuineActorConformers() throws {
         let output = try render(
             """
@@ -85,7 +101,7 @@ import Testing
 
         #expect(
             output.contains(
-                "actor ImageLoaderStubConformer: ImageLoader, ManualStubConformer"
+                "actor ImageLoaderStubConformer: ImageLoader, AutomaticStubConformer"
             )
         )
         #expect(

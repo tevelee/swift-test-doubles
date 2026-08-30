@@ -100,8 +100,8 @@ public class Stub<P> {
     /// configuration, verification, and interaction API.
     ///
     /// Prefer the generated `YourProtocolStub.automatic()` factory when using
-    /// `ManualStubGenerator`. A peer macro cannot introduce the constrained
-    /// extension required for this convenience.
+    /// `ManualStubGenerator` or `@Stubbable`. Generated conformers provide the
+    /// compiler-typed existential erasure required by the shared factory.
     public convenience init<Fallback: ManualStubConformer>(
         fallingBackTo _: Fallback.Type,
         erasingWith erase: @escaping (Fallback) -> P

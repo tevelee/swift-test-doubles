@@ -25,8 +25,14 @@
                     var displayName: String { get set }
                 }
 
-                struct StubbableMacroServiceStubConformer: StubbableMacroService, ManualStubConformer {
+                struct StubbableMacroServiceStubConformer: StubbableMacroService, AutomaticStubConformer {
+                    typealias StubbedProtocol = any StubbableMacroService
+
                     let stub: CompiledStub<Self>
+
+                    static func eraseToStubbedProtocol(_ conformer: StubbableMacroServiceStubConformer) -> StubbedProtocol {
+                        conformer
+                    }
 
                     func fetch(_ identifier: Int) -> String {
                         stub.call(identifier)
@@ -61,11 +67,17 @@
                     func fetch(_ identifier: Int) -> String
                 }
 
-                actor StubbableActorServiceStubConformer: StubbableActorService, ManualStubConformer {
+                actor StubbableActorServiceStubConformer: StubbableActorService, AutomaticStubConformer {
+                    typealias StubbedProtocol = any StubbableActorService
+
                     let stub: CompiledStub<StubbableActorServiceStubConformer>
 
                     init(stub: CompiledStub<StubbableActorServiceStubConformer>) {
                         self.stub = stub
+                    }
+
+                    static func eraseToStubbedProtocol(_ conformer: StubbableActorServiceStubConformer) -> StubbedProtocol {
+                        conformer
                     }
 
                     func fetch(_ identifier: Int) -> String {

@@ -3,8 +3,12 @@
 import Foundation
 import TestDoubles
 
-struct GeneratedManualStubServiceStubConformer: GeneratedManualStubService, ManualStubConformer {
+struct GeneratedManualStubServiceStubConformer: GeneratedManualStubService, AutomaticStubConformer {
+    typealias StubbedProtocol = any GeneratedManualStubService
+
     let stub: CompiledStub<Self>
+
+    static func eraseToStubbedProtocol(_ conformer: GeneratedManualStubServiceStubConformer) -> StubbedProtocol { conformer }
 
     func render(_ value: Int) -> String { stub.call(value) }
 
@@ -27,20 +31,12 @@ struct GeneratedManualStubServiceStubConformer: GeneratedManualStubService, Manu
 
 typealias GeneratedManualStubServiceStub = CompiledStub<GeneratedManualStubServiceStubConformer>
 
-extension CompiledStub where T == GeneratedManualStubServiceStubConformer {
-    /// Tries runtime synthesis, then uses this compiled conformer when needed.
-    static func automatic() -> Stub<any GeneratedManualStubService> {
-        Stub(
-            fallingBackTo: GeneratedManualStubServiceStubConformer.self,
-            erasingWith: {
-                $0
-            }
-        )
-    }
-}
+struct GeneratedManualStubCounterStubConformer: GeneratedManualStubCounter, AutomaticStubConformer {
+    typealias StubbedProtocol = any GeneratedManualStubCounter
 
-struct GeneratedManualStubCounterStubConformer: GeneratedManualStubCounter, ManualStubConformer {
     let stub: CompiledStub<Self>
+
+    static func eraseToStubbedProtocol(_ conformer: GeneratedManualStubCounterStubConformer) -> StubbedProtocol { conformer }
 
     func increment(by amount: Int) { stub.call(amount) }
 
@@ -49,56 +45,28 @@ struct GeneratedManualStubCounterStubConformer: GeneratedManualStubCounter, Manu
 
 typealias GeneratedManualStubCounterStub = CompiledStub<GeneratedManualStubCounterStubConformer>
 
-extension CompiledStub where T == GeneratedManualStubCounterStubConformer {
-    /// Tries runtime synthesis, then uses this compiled conformer when needed.
-    static func automatic() -> Stub<any GeneratedManualStubCounter> {
-        Stub(
-            fallingBackTo: GeneratedManualStubCounterStubConformer.self,
-            erasingWith: {
-                $0
-            }
-        )
-    }
-}
+struct GeneratedOpaqueResultServiceStubConformer: GeneratedOpaqueResultService, AutomaticStubConformer {
+    typealias StubbedProtocol = any GeneratedOpaqueResultService
 
-struct GeneratedOpaqueResultServiceStubConformer: GeneratedOpaqueResultService, ManualStubConformer {
     let stub: CompiledStub<Self>
+
+    static func eraseToStubbedProtocol(_ conformer: GeneratedOpaqueResultServiceStubConformer) -> StubbedProtocol { conformer }
 
     func load() -> Data { stub.call() }
 }
 
 typealias GeneratedOpaqueResultServiceStub = CompiledStub<GeneratedOpaqueResultServiceStubConformer>
 
-extension CompiledStub where T == GeneratedOpaqueResultServiceStubConformer {
-    /// Tries runtime synthesis, then uses this compiled conformer when needed.
-    static func automatic() -> Stub<any GeneratedOpaqueResultService> {
-        Stub(
-            fallingBackTo: GeneratedOpaqueResultServiceStubConformer.self,
-            erasingWith: {
-                $0
-            }
-        )
-    }
-}
+actor GeneratedActorServiceStubConformer: GeneratedActorService, AutomaticStubConformer {
+    typealias StubbedProtocol = any GeneratedActorService
 
-actor GeneratedActorServiceStubConformer: GeneratedActorService, ManualStubConformer {
     let stub: CompiledStub<GeneratedActorServiceStubConformer>
 
     init(stub: CompiledStub<GeneratedActorServiceStubConformer>) { self.stub = stub }
+
+    static func eraseToStubbedProtocol(_ conformer: GeneratedActorServiceStubConformer) -> StubbedProtocol { conformer }
 
     func load(_ identifier: Int) -> String { stub.call(identifier) }
 }
 
 typealias GeneratedActorServiceStub = CompiledStub<GeneratedActorServiceStubConformer>
-
-extension CompiledStub where T == GeneratedActorServiceStubConformer {
-    /// Tries runtime synthesis, then uses this compiled conformer when needed.
-    static func automatic() -> Stub<any GeneratedActorService> {
-        Stub(
-            fallingBackTo: GeneratedActorServiceStubConformer.self,
-            erasingWith: {
-                $0
-            }
-        )
-    }
-}

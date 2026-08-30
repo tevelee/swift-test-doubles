@@ -11,6 +11,7 @@ conformance	TestDoubles	AsyncThrowingClosureCallPattern	Swift.Sendable	[]
 conformance	TestDoubles	AsyncThrowingClosureDouble	Swift.Sendable	[{"kind":"conformance","lhs":"Input","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Input","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Input","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
 conformance	TestDoubles	AsyncThrowingStreamController	Swift.Sendable	[]
 conformance	TestDoubles	AsyncTypedThrowingClosureDouble	Swift.Sendable	[{"kind":"conformance","lhs":"Failure","rhs":"Error","rhsPrecise":"s:s5ErrorP"},{"kind":"conformance","lhs":"Input","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Input","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Input","rhs":"Sendable","rhsPrecise":"s:s8SendableP"},{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
+conformance	TestDoubles	AutomaticStubConformer	s:11TestDoubles19ManualStubConformerP	[]
 conformance	TestDoubles	BehaviorRepetition.Finite	Swift.Equatable	[]
 conformance	TestDoubles	BehaviorRepetition.Finite	Swift.Hashable	[]
 conformance	TestDoubles	BehaviorRepetition.Finite	Swift.Sendable	[]
@@ -118,6 +119,7 @@ conformance	TestDoublesTesting	TestDoubleStrictness	Swift.OptionSet	[]
 conformance	TestDoublesTesting	TestDoubleStrictness	Swift.RawRepresentable	[]
 conformance	TestDoublesTesting	TestDoubleStrictness	Swift.Sendable	[]
 conformance	TestDoublesTesting	TestDoubleStrictness	Swift.SetAlgebra	[]
+symbol	TestDoubles	swift.associatedtype	AutomaticStubConformer.StubbedProtocol	associatedtype StubbedProtocol
 symbol	TestDoubles	swift.associatedtype	CustomMatcher.Value	associatedtype Value
 symbol	TestDoubles	swift.class	ArgumentCaptor	final class ArgumentCaptor<Value>
 symbol	TestDoubles	swift.class	AsyncClosureDouble	final class AsyncClosureDouble<Input, Result>
@@ -1145,6 +1147,7 @@ symbol	TestDoubles	swift.property	VoidClosureDouble.function	var function: () ->
 symbol	TestDoubles	swift.property	VoidClosureDouble.history	var history: InteractionHistory { get }
 symbol	TestDoubles	swift.property	VoidClosureDouble.interactions	var interactions: CallInteractions { get }
 symbol	TestDoubles	swift.property	VoidClosureDouble.wasCalled	var wasCalled: Bool { get }
+symbol	TestDoubles	swift.protocol	AutomaticStubConformer	protocol AutomaticStubConformer : ManualStubConformer
 symbol	TestDoubles	swift.protocol	CustomMatcher	protocol CustomMatcher<Value> : Sendable
 symbol	TestDoubles	swift.protocol	ManualStubConformer	protocol ManualStubConformer
 symbol	TestDoubles	swift.protocol	StubClock	protocol StubClock : Sendable
@@ -1198,7 +1201,9 @@ symbol	TestDoubles	swift.subscript	CompiledStub.subscript(dynamicMember:)	subscr
 symbol	TestDoubles	swift.subscript	InteractionHistory.subscript(_:)	subscript(position: Index) -> Element { get }
 symbol	TestDoubles	swift.subscript	ManualRequirementRoute.subscript(dynamicMember:)	subscript<R>(dynamicMember member: String) -> R { get nonmutating set }
 symbol	TestDoubles	swift.subscript	ManualThrowingRequirementRoute.subscript(dynamicMember:)	subscript<R>(dynamicMember member: String) -> R { get throws }
+symbol	TestDoubles	swift.type.method	AutomaticStubConformer.eraseToStubbedProtocol(_:)	static func eraseToStubbedProtocol(_ conformer: Self) -> StubbedProtocol
 symbol	TestDoubles	swift.type.method	BehaviorRepetition.Finite.times(_:)	static func times(_ count: Int) -> BehaviorRepetition.Finite
+symbol	TestDoubles	swift.type.method	CompiledStub.automatic()	static func automatic() -> Stub<T.StubbedProtocol>
 symbol	TestDoubles	swift.type.method	CompletionOrder.Builder.buildArray(_:)	static func buildArray(_ components: [[Expectation]]) -> [Expectation]
 symbol	TestDoubles	swift.type.method	CompletionOrder.Builder.buildBlock(_:)	static func buildBlock(_ components: [Expectation]...) -> [Expectation]
 symbol	TestDoubles	swift.type.method	CompletionOrder.Builder.buildEither(first:)	static func buildEither(first component: [Expectation]) -> [Expectation]
