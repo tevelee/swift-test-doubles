@@ -166,8 +166,8 @@ result cannot be calibrated: the caller has already chosen registers or result
 storage before a fabricated witness can observe anything. For common
 Foundation leaves, TestDoubles solves that problem automatically. The built-in
 placeholder catalog contains compiler-emitted result adapters and transport
-proofs for methods and getters across synchronous, throwing, async, and
-async-throwing requirements:
+proofs for methods, indexed getters, and forwarding spies across synchronous,
+throwing, async, and async-throwing requirements:
 
 ```swift
 protocol Loader {
@@ -202,7 +202,16 @@ by the compiler; no application compiler flag or runtime ABI guess is involved.
 Swift 6.3 exposes the direct-transport entries, including `Data`, `Decimal`, and
 `Notification.Name`; Swift 6.4 and newer also expose the indirect entries.
 
-An explicit adapter is still needed for a non-frozen type outside that catalog.
+The proof follows the value through supported closure results and tuple leaves.
+For example, `(Data, Int)`, `(UUID, Int)`, and a returned
+`@Sendable (String) throws -> Data` closure use the compiler-selected transport
+for each resilient leaf. Tuple members may be nested or mix direct registers
+with caller-owned result storage. A custom resilient leaf still fails closed
+unless a generated compiled fallback or explicit adapter supplies a
+compiler-typed boundary.
+
+An explicit adapter or generated compiled fallback is still needed for a
+non-frozen type outside that catalog.
 The same limitation applies to a generic struct or enum because the runtime
 cannot see the outer declaration's `@frozen` status. It is not a matcher
 configuration problem, so adding more `Match.any(using:)` calls will not make a

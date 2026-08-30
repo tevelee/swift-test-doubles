@@ -238,15 +238,19 @@ the same reason.
 The same ambiguity in a concrete result has no incoming frame bytes from which
 to calibrate a client convention. Automatic discovery uses the compiler-emitted
 adapters shipped for built-in Foundation results as transport proofs. A
-zero-argument method or getter dispatches through the adapter itself. A method
-with parameters reuses its compiler-selected direct or indirect result
-transport while the ordinary trampoline decodes its independently validated or
-calibrated arguments. Other ambiguous results are rejected before invocation.
+zero-argument method or getter dispatches through the adapter itself. Methods,
+indexed getters, and forwarding spies reuse compiler-selected direct or
+indirect result transport while the ordinary trampoline decodes independently
+validated or calibrated arguments. The same evidence catalog is available to
+closure reabstraction and recursively decomposes tuple results. A mixed tuple
+maps direct leaves to return registers and compiler-proven indirect leaves to
+their ordered caller-owned output pointers. Other ambiguous results are
+rejected before invocation.
 An explicit compiler-typed adapter covers compatible requirements outside the
 catalog; otherwise use a hand-written test double. The same fail-closed rule
-applies to a typed error. A top-level tuple with an ABI-uncertain element is also
-rejected because Swift lowers tuple elements independently; an Optional or
-nominal wrapper around that tuple is one whole value and can use ordinary
+applies to a typed error. A tuple leaf without compiler transport evidence is
+also rejected because Swift lowers tuple elements independently; an Optional
+or nominal wrapper around that tuple is one whole value and can use ordinary
 calibration.
 
 For an async call, the entry trampoline preserves the caller continuation,

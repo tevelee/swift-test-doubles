@@ -20,7 +20,7 @@ For construction examples and requirement-order recipes, see
 | Bounded primary associated types | Supported for the documented direct, recursive standard-library container, linked generic-nominal, concrete-reference, setter, initializer, and associated-error slices | See <doc:BoundAssociatedTypes> for exact supported and rejected shapes. |
 | Copyable `InlineArray` values | Automatic metadata discovery and ABI transport for canonical nonnegative integer counts | Small integer arrays use general-purpose registers, homogeneous floating-point arrays use floating-point registers, zero-count values use no registers, and large values use indirect storage. |
 | Function arguments and results | Automatic for concrete native Swift closures, C function pointers, blocks, and documented structural containers; explicit compiler-typed adapter otherwise | See <doc:FunctionValues>; top-level nonescaping, thin, declaration-level consuming or `inout`, dependent, and parameter-pack closure shapes remain fail-closed. |
-| ABI-uncertain imported results | Automatic compiler-proven transport covers methods and getters returning built-in Foundation values, including methods with otherwise-supported parameters; explicit adapters cover other ordinary methods and synchronous getters or subscripts | Custom result types and typed-error buffers remain fail-closed. |
+| ABI-uncertain imported results | Automatic compiler-proven transport covers methods, indexed getters, forwarding spies, supported function-value results, and tuple leaves returning built-in Foundation values; explicit adapters or generated compiled fallbacks cover custom results | Unproven custom leaves and typed-error buffers remain fail-closed. |
 | Unsupported dependent shapes, native Swift-only superclasses, and device-only execution policy | Use ``CompiledStub`` or a hand-written fake | These stay fail-closed instead of guessing at ABI behavior. |
 
 ### Construction
@@ -383,9 +383,11 @@ Supported value shapes include integer and floating-point values, direct and
 indirect aggregates, `Void`, existentials, optionals, enums, tuples, metatypes,
 and strings. These source-level types share runtime calling-convention
 machinery; they do not each need a dedicated stubbing API. A top-level tuple
-that contains a value with an ABI-uncertain client convention remains
-unsupported because Swift lowers its elements independently. Optional and
-nominal wrappers around the same tuple remain one whole, calibratable value.
+that contains a compiler-proven Foundation leaf is decomposed recursively,
+including mixed direct and caller-owned indirect result members. A tuple with
+an unproven ABI-uncertain leaf remains unsupported because Swift lowers its
+elements independently. Optional and nominal wrappers around the same tuple
+remain one whole, calibratable value.
 Likewise, a `get set` property whose ABI-uncertain value is outside the built-in
 Foundation catalog cannot be prepared, even when a test only assigns it: its
 required getter still returns the same uncertain type. Model a write-only

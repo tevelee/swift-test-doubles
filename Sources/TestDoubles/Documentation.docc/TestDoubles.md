@@ -130,6 +130,7 @@ isolation. See
 
 - ``CompiledStub``
 - ``ManualStubConformer``
+- ``AutomaticStubConformer``
 - ``ManualRequirementRoute``
 - ``ManualThrowingRequirementRoute``
 

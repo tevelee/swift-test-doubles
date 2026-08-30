@@ -16,10 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Foundation values, without guessing their direct or indirect return convention.
 - Automatic stubs reuse the built-in Foundation placeholder catalog to install
   compiler-emitted result adapters for getters and to prove result transport for
-  methods with or without parameters. Common results such as `Data`, `URL`,
-  `Date`, and `UUID` no longer need an explicit `Requirement`. Swift 6.3 exposes
-  direct-transport entries such as `Data`; indirect entries require Swift 6.4
-  or newer.
+  methods, indexed getters, and forwarding spies. The same proof composes
+  through supported function-value results and tuple leaves, including mixed
+  direct/indirect, nested, throwing, and async tuples. Common results such as
+  `Data`, `URL`, `Date`, and `UUID` no longer need an explicit `Requirement`.
+  Swift 6.3 exposes direct-transport entries such as `Data`; indirect entries
+  require Swift 6.4 or newer.
 - `thenStream()` and `thenThrowingStream()` return controllers for yielding,
   finishing, failing, buffering, and observing cancellation of stubbed async
   sequences, with strict-scope detection of controllers left open at teardown.

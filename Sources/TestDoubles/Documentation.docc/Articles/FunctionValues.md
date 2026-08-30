@@ -63,6 +63,13 @@ the requirement, then invoke the matcher inside the autoclosure. Writing
 `Match.any()` directly there defers the matcher body, so TestDoubles rejects
 the recording with that guidance.
 
+When a closure's inner result is an ABI-uncertain built-in Foundation value,
+automatic discovery reuses the same compiler-emitted transport evidence as an
+ordinary protocol result. This covers closure arguments and returned closures,
+including throwing `Data` results and async indirect `UUID` results. A closure
+parameter whose own resilient value transport is uncertain, or a closure whose
+inner result is a custom resilient type, still fails closed.
+
 Closure values can cross synchronous, throwing, async, and async-throwing
 methods, static methods, initializers, properties, and subscripts. Read-write
 closure properties use the ordinary getter and setter configuration through

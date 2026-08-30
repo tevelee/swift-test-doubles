@@ -195,18 +195,12 @@ let service: any WeatherService = stub()
 ```
 
 `@Stubbable` emits `WeatherServiceStubConformer` and the `WeatherServiceStub`
-controller alias. The command plugin additionally emits
-`WeatherServiceStub.automatic()` because generated source files can declare the
-required constrained extension; Swift does not allow a peer macro to introduce
-that extension.
-To combine runtime synthesis with the macro-generated compiled fallback, call
-the underlying initializer directly:
+controller alias. Like the command plugin output, the generated conformer
+adopts ``AutomaticStubConformer``, so the shared constrained factory is
+available without requiring a peer macro to emit an extension:
 
 ```swift
-let automatic = Stub<any WeatherService>(
-    fallingBackTo: WeatherServiceStubConformer.self,
-    erasingWith: { $0 }
-)
+let automatic = WeatherServiceStub.automatic()
 ```
 
 The macro is deliberately a convenience layer over the same explicit

@@ -886,9 +886,11 @@ What's supported:
   method and getter results, including async throwing Foundation values.
 - Automatic compiler-proven result transport for methods and getters that return
   values from the built-in Foundation placeholder catalog, including `Data`,
-  `URL`, `Date`, and `UUID`. Methods may have any otherwise-supported parameter
-  list. Swift 6.3 includes direct-transport entries such as `Data`; indirect
-  entries require Swift 6.4 or newer.
+  `URL`, `Date`, and `UUID`. Methods, indexed getters, forwarding spies,
+  supported closure results, and tuple leaves may reuse those proofs. Tuples
+  may be nested and mix direct with caller-owned indirect members. Swift 6.3
+  includes direct-transport entries such as `Data`; indirect entries require
+  Swift 6.4 or newer.
 
 Key limitations:
 
