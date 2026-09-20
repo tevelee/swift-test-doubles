@@ -67,6 +67,7 @@ final class StubRecorder: @unchecked Sendable {
     enum SelectedDispatch {
         case behavior(StubEntry.Behavior)
         case forwarding
+        case fatal(message: String?)
     }
 
     var mode: Mode {

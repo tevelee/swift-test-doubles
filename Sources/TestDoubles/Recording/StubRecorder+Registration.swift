@@ -126,30 +126,33 @@ extension StubRecorder {
         scenarioName: String?,
         sideEffects: StubBehaviorRegistry.SideEffects
     ) -> StubEntryRegistrationResult {
-        withLockedPolicy { policy -> StubEntryRegistrationResult in
-            let signature = policy.methodCatalog.diagnosticSignature(
-                method: method,
-                matchers: matchers
-            )
-            let shadowedBy = policy.behaviorRegistry.shadowingSignature(
-                forMethod: method,
-                newMatchers: matchers,
-                newMatchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly
-            )
-            policy.behaviorRegistry.add(
-                method: method,
-                matchers: matchers,
-                matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
-                diagnosticSignature: signature,
-                scenarioName: scenarioName,
-                sourceLocation: location,
-                behavior: behavior,
-                sideEffects: sideEffects
-            )
+        let catalog = withLockedPolicy { $0.methodCatalog }
+        let signature = catalog.diagnosticSignature(method: method, matchers: matchers)
+        let entry = StubEntry(
+            matchers: matchers,
+            matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
+            diagnosticSignature: signature,
+            scenarioName: scenarioName,
+            sourceLocation: location,
+            behavior: behavior,
+            sideEffects: sideEffects
+        )
+        while true {
+            let snapshot = withLockedPolicy { $0.behaviorRegistry.snapshot(for: method) }
+            let prepared = snapshot.preparingToAdd(entry)
+            // Keep replaced index storage alive until after unlocking, too.
+            let committed = withExtendedLifetime(snapshot) {
+                withLockedPolicy { policy in
+                    guard policy.behaviorRegistry.isCurrent(snapshot) else { return false }
+                    policy.behaviorRegistry.add(prepared, for: method)
+                    return true
+                }
+            }
+            guard committed else { continue }
             return StubEntryRegistrationResult(
                 signature: signature,
                 scenarioName: scenarioName,
-                shadowedBy: shadowedBy
+                shadowedBy: prepared.shadowedBy
             )
         }
     }

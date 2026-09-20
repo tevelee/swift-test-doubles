@@ -235,7 +235,8 @@ extension StubRecorder {
 
             let committed:
                 (
-                    PreparedDispatch,
+                    SelectedDispatch,
+                    RecordedCallToken,
                     [InvocationLedgerWaiter],
                     [StubBehaviorRegistry.SideEffect]
                 )? =
@@ -247,9 +248,7 @@ extension StubRecorder {
                         )
                         let selectedDispatch = preparedBehavior(
                             entry.behavior,
-                            method: method,
-                            args: args,
-                            entries: entries
+                            method: method
                         )
                         let origin: InvocationOrigin =
                             if case .forwarding = selectedDispatch {
@@ -272,21 +271,33 @@ extension StubRecorder {
                             runtimePayloadRecorder: self
                         )
                         preparedMatch.matcherTransaction.commitCaptures()
-                        let dispatch: PreparedDispatch =
-                            switch selectedDispatch {
-                                case .behavior(let behavior):
-                                    .behavior(appended.token, behavior)
-                                case .forwarding:
-                                    .forwarding(appended.token)
-                            }
                         return (
-                            dispatch,
+                            selectedDispatch,
+                            appended.token,
                             appended.waiters,
                             entry.sideEffects.before
                         )
                     }
-            guard let (dispatch, waiters, beforeEffects) = committed else {
+            guard let (selectedDispatch, token, waiters, beforeEffects) = committed else {
                 continue
+            }
+            let dispatch: PreparedDispatch
+            switch selectedDispatch {
+                case .behavior(let behavior):
+                    dispatch = .behavior(token, behavior)
+                case .forwarding:
+                    dispatch = .forwarding(token)
+                case .fatal(let message):
+                    // Diagnostics invoke predicates and custom descriptions.
+                    // Build them only after releasing the recorder lock.
+                    let diagnostic = diagnosticMessage(
+                        title: message.map { "Explicit stub failure: \($0)" }
+                            ?? "Explicit stub failure",
+                        method: method,
+                        args: args,
+                        entries: entries
+                    )
+                    dispatch = .behavior(token, .immediate { _ in fatalError(diagnostic) })
             }
             for effect in beforeEffects {
                 effect(args)
@@ -304,9 +315,7 @@ extension StubRecorder {
 
     private func preparedBehavior(
         _ behavior: StubEntry.Behavior,
-        method: RuntimeMethod,
-        args: [Any],
-        entries: [StubEntry]
+        method: RuntimeMethod
     ) -> SelectedDispatch {
         guard case .fixedSequence(let results) = behavior else {
             return .behavior(behavior)
@@ -380,17 +389,7 @@ extension StubRecorder {
                 }
                 return .forwarding
             case .fatal(let message):
-                let diagnostic = diagnosticMessage(
-                    title: message.map { "Explicit stub failure: \($0)" }
-                        ?? "Explicit stub failure",
-                    method: method,
-                    args: args,
-                    entries: entries
-                )
-                return .behavior(
-                    .immediate { _ in
-                        fatalError(diagnostic)
-                    })
+                return .fatal(message: message)
         }
     }
 

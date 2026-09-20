@@ -240,6 +240,34 @@ struct StubBehaviorRegistry {
             }
             return exactMatchIndex.candidateEntryIndices(for: args)
         }
+
+        /// Hashing and equality can execute user code, so prepare the index
+        /// and shadowing diagnostic before reacquiring the recorder lock.
+        func preparingToAdd(_ entry: Entry) -> PreparedRegistration {
+            let shadowed = entries?.first {
+                StubBehaviorRegistry.matchesSuperset(
+                    $0.matchers,
+                    matchesEmptyArgumentsExactly: $0.matchesEmptyArgumentsExactly,
+                    of: entry.matchers,
+                    matchesEmptyArgumentsExactly: entry.matchesEmptyArgumentsExactly
+                )
+            }
+            var index = exactMatchIndex ?? ExactMatchIndex()
+            index.add(entry, at: entries?.count ?? 0)
+            return PreparedRegistration(
+                entry: entry,
+                exactMatchIndex: index,
+                shadowedBy: shadowed.map {
+                    ShadowingRegistration(signature: $0.diagnosticSignature, scenarioName: $0.scenarioName)
+                }
+            )
+        }
+    }
+
+    struct PreparedRegistration {
+        let entry: Entry
+        let exactMatchIndex: ExactMatchIndex
+        let shadowedBy: ShadowingRegistration?
     }
 
     struct PreparedEntryMatch {
@@ -364,7 +392,6 @@ struct StubBehaviorRegistry {
         behavior: Entry.Behavior,
         sideEffects: SideEffects = SideEffects()
     ) {
-        let entryIndex = entriesByMethod[method]?.count ?? 0
         let entry = Entry(
             matchers: matchers,
             matchesEmptyArgumentsExactly: matchesEmptyArgumentsExactly,
@@ -374,11 +401,14 @@ struct StubBehaviorRegistry {
             behavior: behavior,
             sideEffects: sideEffects
         )
-        entriesByMethod[method, default: []].append(
-            entry
-        )
-        exactMatchIndicesByMethod[method, default: ExactMatchIndex()]
-            .add(entry, at: entryIndex)
+        add(snapshot(for: method).preparingToAdd(entry), for: method)
+    }
+
+    /// Commits only prepared storage. The caller must validate the snapshot
+    /// revision while locked; consumption state is intentionally untouched.
+    mutating func add(_ registration: PreparedRegistration, for method: Int) {
+        entriesByMethod[method, default: []].append(registration.entry)
+        exactMatchIndicesByMethod[method] = registration.exactMatchIndex
         revision &+= 1
     }
 
@@ -418,30 +448,6 @@ struct StubBehaviorRegistry {
             }
         }
         return nil
-    }
-
-    /// Reports the diagnostic signature of an already-registered entry for
-    /// `method` that provably shadows a new registration with `newMatchers`,
-    /// or `nil` when none does. A shadowing entry accepts a superset of the
-    /// calls the new one would, so under first-match-wins the new one can
-    /// never be selected.
-    func shadowingSignature(
-        forMethod method: Int,
-        newMatchers: [ParameterMatcher],
-        newMatchesEmptyArgumentsExactly: Bool = false
-    ) -> ShadowingRegistration? {
-        let entry = entriesByMethod[method]?
-            .first {
-                StubBehaviorRegistry.matchesSuperset(
-                    $0.matchers,
-                    matchesEmptyArgumentsExactly: $0.matchesEmptyArgumentsExactly,
-                    of: newMatchers,
-                    matchesEmptyArgumentsExactly: newMatchesEmptyArgumentsExactly
-                )
-            }
-        return entry.map {
-            ShadowingRegistration(signature: $0.diagnosticSignature, scenarioName: $0.scenarioName)
-        }
     }
 
     /// Whether `earlier` accepts every call `later` would, proven soundly.
