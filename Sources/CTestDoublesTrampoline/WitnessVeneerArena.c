@@ -65,6 +65,16 @@ static bool td_publish_code(void *ptr, size_t size) {
 }
 
 static void td_unmap_code_page(void *mapping, size_t size) {
+#if defined(__APPLE__) && defined(__x86_64__)
+  // Rosetta can retain a translated veneer across concurrent unmap/remap of
+  // its address. Revoke access before recycling the mapping so another arena
+  // cannot execute the old veneer with its previous invocation context.
+  // An instruction-cache flush alone does not invalidate that translation.
+  if (mprotect(mapping, size, PROT_NONE) != 0) {
+    // Keep the address reserved if revocation fails; recycling it is unsafe.
+    return;
+  }
+#endif
   munmap(mapping, size);
 }
 #endif

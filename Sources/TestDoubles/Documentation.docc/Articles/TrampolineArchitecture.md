@@ -449,6 +449,12 @@ existential can expose its veneers. Executable-page publication is checked; a
 failed `mprotect` causes construction to fail closed and releases every arena
 page. Custom-executor tests cover handler isolation and caller resumption.
 
+On macOS x86_64, arena teardown revokes page access before unmapping. This
+prevents Rosetta from executing a cached translation of an earlier veneer when
+concurrent arenas reuse an executable address. Flushing the instruction cache
+alone does not prevent this stale-context dispatch. If access revocation fails,
+the mapping stays reserved rather than making its address available for reuse.
+
 Arena pages are mapped with `MAP_JIT` on Apple platforms. That flag makes the
 mapping fail early, and recoverably, in a process that is not permitted to run
 generated code, rather than letting it fail later at execution time. A plain

@@ -3,6 +3,37 @@ import Testing
 
 @Suite("Witness veneer arena")
 struct TrampolineArenaTests {
+    @Test func concurrentPageReuseExecutesTheCurrentInvocation() async throws {
+        // Recycling executable addresses across threads must not reuse a
+        // Rosetta translation containing an earlier arena's invocation.
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for worker in 0 ..< 16 {
+                group.addTask {
+                    let identity: @convention(c) (UInt) -> UInt = { $0 }
+                    let target = unsafeBitCast(identity, to: UnsafeRawPointer.self)
+                    for iteration in 0 ..< 1_024 {
+                        let expected = UInt(worker * 1_024 + iteration + 1)
+                        let invocation = try #require(UnsafeRawPointer(bitPattern: expected))
+                        let arena = try #require(TrampolineFactory.Arena())
+                        let entry = try #require(
+                            arena.makeTyped(
+                                target: target,
+                                invocation: invocation,
+                                invocationArgumentIndex: 0
+                            )
+                        )
+                        try #require(arena.publish())
+                        let call = unsafeBitCast(entry, to: (@convention(c) (UInt) -> UInt).self)
+                        let actual = call(0)
+                        #expect(actual == expected)
+                        arena.destroy()
+                    }
+                }
+            }
+            try await group.waitForAll()
+        }
+    }
+
     @Test func `batches aligned witness veneer kinds into one page`() throws {
         let context = UnsafeMutableRawPointer.allocate(
             byteCount: 32,
