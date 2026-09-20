@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `StubConstructionStrategy` and runtime failure are available for diagnostics.
 - `ArgumentCaptor` exposes `count`, `isEmpty`, and an indexed subscript, so
   captured values can be asserted without going through `values` first.
+- Closure call patterns reach the interaction members that were previously
+  available only on protocol patterns: `forwarded`, `stubbed`,
+  `errors(ofType:)`, `captureCallStacks(maxFrames:)`, and
+  `waitForCompletion(count:within:)`. Standalone closure doubles whose result
+  is an `AsyncStream` or `AsyncThrowingStream` also gain `thenStream()` and
+  `thenThrowingStream()`, matching `Stub` and `ClientStub`.
 
 ## [0.0.3] - 2026-08-02
 

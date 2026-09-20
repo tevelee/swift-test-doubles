@@ -206,6 +206,90 @@ extension CallPattern {
     }
 }
 
+extension ClosureCallPattern {
+    /// Returns a controllable `AsyncStream` for every matching invocation.
+    public func thenStream<Element>(
+        bufferingPolicy: AsyncStream<Element>.Continuation.BufferingPolicy = .unbounded,
+    ) -> AsyncStreamController<Element> where Result == AsyncStream<Element> {
+        let controller = AsyncStreamController<Element>(bufferingPolicy: bufferingPolicy)
+        thenReturn(controller.stream, times: 1...)
+        return controller
+    }
+
+    /// Returns a controllable throwing stream for every matching invocation.
+    public func thenThrowingStream<Element>(
+        bufferingPolicy: AsyncThrowingStream<Element, any Error>.Continuation.BufferingPolicy = .unbounded,
+    ) -> AsyncThrowingStreamController<Element>
+    where Result == AsyncThrowingStream<Element, any Error> {
+        let controller = AsyncThrowingStreamController<Element>(bufferingPolicy: bufferingPolicy)
+        thenReturn(controller.stream, times: 1...)
+        return controller
+    }
+}
+
+extension ThrowingClosureCallPattern {
+    /// Returns a controllable `AsyncStream` for every matching invocation.
+    public func thenStream<Element>(
+        bufferingPolicy: AsyncStream<Element>.Continuation.BufferingPolicy = .unbounded,
+    ) -> AsyncStreamController<Element> where Result == AsyncStream<Element> {
+        let controller = AsyncStreamController<Element>(bufferingPolicy: bufferingPolicy)
+        thenReturn(controller.stream, times: 1...)
+        return controller
+    }
+
+    /// Returns a controllable throwing stream for every matching invocation.
+    public func thenThrowingStream<Element>(
+        bufferingPolicy: AsyncThrowingStream<Element, any Error>.Continuation.BufferingPolicy = .unbounded,
+    ) -> AsyncThrowingStreamController<Element>
+    where Result == AsyncThrowingStream<Element, any Error> {
+        let controller = AsyncThrowingStreamController<Element>(bufferingPolicy: bufferingPolicy)
+        thenReturn(controller.stream, times: 1...)
+        return controller
+    }
+}
+
+extension AsyncClosureCallPattern {
+    /// Returns a controllable `AsyncStream` for every matching invocation.
+    public func thenStream<Element>(
+        bufferingPolicy: AsyncStream<Element>.Continuation.BufferingPolicy = .unbounded,
+    ) -> AsyncStreamController<Element> where Result == AsyncStream<Element> {
+        let controller = AsyncStreamController<Element>(bufferingPolicy: bufferingPolicy)
+        thenReturn(controller.stream, times: 1...)
+        return controller
+    }
+
+    /// Returns a controllable throwing stream for every matching invocation.
+    public func thenThrowingStream<Element>(
+        bufferingPolicy: AsyncThrowingStream<Element, any Error>.Continuation.BufferingPolicy = .unbounded,
+    ) -> AsyncThrowingStreamController<Element>
+    where Result == AsyncThrowingStream<Element, any Error> {
+        let controller = AsyncThrowingStreamController<Element>(bufferingPolicy: bufferingPolicy)
+        thenReturn(controller.stream, times: 1...)
+        return controller
+    }
+}
+
+extension AsyncThrowingClosureCallPattern {
+    /// Returns a controllable `AsyncStream` for every matching invocation.
+    public func thenStream<Element>(
+        bufferingPolicy: AsyncStream<Element>.Continuation.BufferingPolicy = .unbounded,
+    ) -> AsyncStreamController<Element> where Result == AsyncStream<Element> {
+        let controller = AsyncStreamController<Element>(bufferingPolicy: bufferingPolicy)
+        thenReturn(controller.stream, times: 1...)
+        return controller
+    }
+
+    /// Returns a controllable throwing stream for every matching invocation.
+    public func thenThrowingStream<Element>(
+        bufferingPolicy: AsyncThrowingStream<Element, any Error>.Continuation.BufferingPolicy = .unbounded,
+    ) -> AsyncThrowingStreamController<Element>
+    where Result == AsyncThrowingStream<Element, any Error> {
+        let controller = AsyncThrowingStreamController<Element>(bufferingPolicy: bufferingPolicy)
+        thenReturn(controller.stream, times: 1...)
+        return controller
+    }
+}
+
 extension Stub {
     /// Describes a synchronous requirement that returns an `AsyncStream`.
     ///
