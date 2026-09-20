@@ -524,7 +524,7 @@ package struct ManualStubGenerator {
         {
             return "\(prefix)var \(name): \(type) { \(getter) }"
         }
-        var accessors = ["get { \(getter) }"]
+        var accessors = [getterAccessor(effects: getterEffects, body: getter)]
         if hasAccessor("set", in: requirement) {
             accessors.append(
                 "set { \(forwardingInvocation(receiver: receiver, arguments: ["newValue"], effects: "")) }"
@@ -560,13 +560,24 @@ package struct ManualStubGenerator {
         {
             return "\(prefix)\(header) \(type) { \(getter) }"
         }
-        var accessors = ["get { \(getter) }"]
+        var accessors = [getterAccessor(effects: getterEffects, body: getter)]
         if hasAccessor("set", in: requirement) {
             accessors.append(
                 "set { \(forwardingInvocation(receiver: receiver, arguments: arguments + ["newValue"], effects: "")) }"
             )
         }
         return "\(prefix)\(header) \(type) { \(accessors.joined(separator: " ")) }"
+    }
+
+    private func getterAccessor(effects: String, body: String) -> String {
+        var declaration = "get"
+        if effects.contains("async") { declaration += " async" }
+        if let failureType = typedFailureType(in: effects) {
+            declaration += " throws(\(failureType))"
+        } else if effects.contains("throws") {
+            declaration += " throws"
+        }
+        return "\(declaration) { \(body) }"
     }
 
     private func forwardingInvocation(

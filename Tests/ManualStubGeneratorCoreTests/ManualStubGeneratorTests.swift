@@ -60,6 +60,22 @@ import Testing
         )
     }
 
+    @Test func preservesGetterEffectsInPropertiesAndSubscripts() throws {
+        for effects in ["async", "throws", "async throws", "throws(LoadFailure)", "async throws(LoadFailure)"] {
+            let output = try render(
+                """
+                protocol Loader {
+                    var value: Int { get \(effects) }
+                    subscript(_ index: Int) -> Int { get \(effects) }
+                }
+                """,
+                protocolName: "Loader"
+            )
+            #expect(output.contains("var value: Int { get \(effects) {"))
+            #expect(output.contains("subscript(_ index: Int) -> Int { get \(effects) {"))
+        }
+    }
+
     @Test func preservesImportsNeededByGeneratedSignatures() throws {
         let output = try render(
             """
