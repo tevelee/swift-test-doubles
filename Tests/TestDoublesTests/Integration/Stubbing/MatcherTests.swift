@@ -221,6 +221,29 @@ protocol OptionalMatcherPlaceholderService {
         #expect(ids.values.isEmpty)
     }
 
+    @Test func captorReportsCountAndIndexedAccess() throws {
+        let stub = try Stub<any MatcherService>()
+        stub.when { $0.find(id: Match.any()) }.thenReturn("X")
+        let service: any MatcherService = stub()
+
+        let ids = ArgumentCaptor<Int>()
+        #expect(ids.isEmpty)
+        #expect(ids.count == 0)
+
+        _ = service.find(id: 7)
+        _ = service.find(id: 13)
+        stub.verify(.exactly(2)) { $0.find(id: ids.capture()) }
+
+        #expect(ids.count == 2)
+        #expect(ids.isEmpty == false)
+        #expect(ids[0] == 7)
+        #expect(ids[1] == 13)
+
+        ids.removeAll()
+        #expect(ids.count == 0)
+        #expect(ids.isEmpty)
+    }
+
     @Test func captorCommitsOnlyAfterEveryArgumentMatches() throws {
         let stub = try Stub<any MatcherService>()
         stub.when { $0.search(query: Match.any(), limit: Match.any()) }.thenReturn([])

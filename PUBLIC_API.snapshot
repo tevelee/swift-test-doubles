@@ -1015,7 +1015,9 @@ symbol	TestDoubles	swift.method	VoidClosureDouble.verifyNoInteractions(fileID:fi
 symbol	TestDoubles	swift.method	VoidClosureDouble.verifyNoMoreInteractions(fileID:filePath:line:column:)	func verifyNoMoreInteractions(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	TestDoubles	swift.method	VoidClosureDouble.verifyNoUnusedStubs(fileID:filePath:line:column:)	func verifyNoUnusedStubs(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	TestDoubles	swift.method	VoidClosureDouble.when(fileID:filePath:line:column:)	func when(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> ClosureCallPattern<Void, Result>
+symbol	TestDoubles	swift.property	ArgumentCaptor.count	var count: Int { get }
 symbol	TestDoubles	swift.property	ArgumentCaptor.first	var first: Value? { get }
+symbol	TestDoubles	swift.property	ArgumentCaptor.isEmpty	var isEmpty: Bool { get }
 symbol	TestDoubles	swift.property	ArgumentCaptor.last	var last: Value? { get }
 symbol	TestDoubles	swift.property	ArgumentCaptor.values	var values: [Value] { get }
 symbol	TestDoubles	swift.property	AsyncClosureCallPattern.callCount	var callCount: Int { get }
@@ -1258,6 +1260,7 @@ symbol	TestDoubles	swift.struct	StubSourceSupportReport	struct StubSourceSupport
 symbol	TestDoubles	swift.struct	TestDoubleIssue	struct TestDoubleIssue
 symbol	TestDoubles	swift.struct	TestDoubleScenario	struct TestDoubleScenario<Subject>
 symbol	TestDoubles	swift.struct	ThrowingClosureCallPattern	struct ThrowingClosureCallPattern<Input, Result>
+symbol	TestDoubles	swift.subscript	ArgumentCaptor.subscript(_:)	subscript(index: Int) -> Value { get }
 symbol	TestDoubles	swift.subscript	CompiledStub.subscript(dynamicMember:)	subscript<R>(dynamicMember member: String) -> R { get set }
 symbol	TestDoubles	swift.subscript	InteractionHistory.subscript(_:)	subscript(position: Index) -> Element { get }
 symbol	TestDoubles	swift.subscript	ManualRequirementRoute.subscript(dynamicMember:)	subscript<R>(dynamicMember member: String) -> R { get nonmutating set }

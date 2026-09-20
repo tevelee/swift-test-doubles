@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   synthesis and transparently falls back to their compiled conformer while
   preserving the `Stub` configuration and verification API. The selected
   `StubConstructionStrategy` and runtime failure are available for diagnostics.
+- `ArgumentCaptor` exposes `count`, `isEmpty`, and an indexed subscript, so
+  captured values can be asserted without going through `values` first.
 
 ## [0.0.3] - 2026-08-02
 

@@ -160,6 +160,22 @@ public final class ArgumentCaptor<Value> {
     /// The most recently captured value.
     public var last: Value? { withLock { storage.last } }
 
+    /// The number of captured values.
+    public var count: Int { withLock { storage.count } }
+
+    /// Whether no value has been captured yet.
+    public var isEmpty: Bool { withLock { storage.isEmpty } }
+
+    /// The captured value at `index`, in call order.
+    ///
+    /// - Precondition: `index` is within `0 ..< count`. Reading a captor that
+    ///   recorded fewer calls than the test expected traps the same way an
+    ///   out-of-bounds `Array` subscript does; use ``count`` or ``values``
+    ///   when the capture count is itself under test.
+    public subscript(index: Int) -> Value {
+        withLock { storage[index] }
+    }
+
     /// Creates an empty argument captor.
     public init() {}
 
