@@ -1,3 +1,4 @@
+import IssueReporting
 @_spi(Testing) import TestDoubles
 import TestDoublesTesting
 import Testing
@@ -38,6 +39,31 @@ import Testing
             try TestDouble.withScope(checking: []) {
                 throw ExpectedFailure.stopped
             }
+        }
+    }
+
+    @Test func lexicalScopeReportsUnusedRegistrations() {
+        expectReportsIssue {
+            TestDouble.withScope(checking: .noUnusedStubs) {
+                let double = ClosureDouble<Int, Int>()
+                double.when(equal: 21).thenReturn(42)
+            }
+        } matching: {
+            $0.description.contains("Unused stub registrations")
+        }
+    }
+
+    @Test func asynchronousScopeReportsUnusedRegistrationsWhenOperationThrows() async {
+        await expectReportsIssue {
+            await #expect(throws: ExpectedFailure.stopped) {
+                try await TestDouble.withScope(checking: .noUnusedStubs) { () async throws(ExpectedFailure) in
+                    let double = AsyncClosureDouble<Int, Int>()
+                    double.when(equal: 21).thenReturn(42)
+                    throw ExpectedFailure.stopped
+                }
+            }
+        } matching: {
+            $0.description.contains("Unused stub registrations")
         }
     }
 
