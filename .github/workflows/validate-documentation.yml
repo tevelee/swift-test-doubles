@@ -7,16 +7,24 @@ on:
       - "*.md"
       - .github/workflows/validate-documentation.yml
       - .spi.yml
-      - "Sources/**/*.md"
-      - Sources/TestDoubles/Documentation.docc/**
+      - Sources/**
+      - Plugins/**
+      - Package.swift
+      - Package.resolved
+      - Scripts/validate-documentation.sh
+      - Scripts/validate-readme-examples.py
       - "Tests/**/*.md"
   pull_request:
     paths:
       - "*.md"
       - .github/workflows/validate-documentation.yml
       - .spi.yml
-      - "Sources/**/*.md"
-      - Sources/TestDoubles/Documentation.docc/**
+      - Sources/**
+      - Plugins/**
+      - Package.swift
+      - Package.resolved
+      - Scripts/validate-documentation.sh
+      - Scripts/validate-readme-examples.py
       - "Tests/**/*.md"
   workflow_dispatch:
 
@@ -40,3 +48,29 @@ jobs:
         run: sudo xcode-select --switch /Applications/Xcode_26.4.1.app/Contents/Developer
       - name: Validate documentation
         run: Scripts/validate-documentation.sh
+
+  readme-examples:
+    name: README / ${{ matrix.configuration }} / ${{ matrix.mode }}
+    runs-on: macos-26
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [debug, release]
+        mode: [runtime, compiled]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Select Xcode 26.4.1
+        run: sudo xcode-select --switch /Applications/Xcode_26.4.1.app/Contents/Developer
+      - name: Compile and run README examples
+        env:
+          CONFIGURATION: ${{ matrix.configuration }}
+          MODE: ${{ matrix.mode }}
+        run: |
+          args=(--configuration "$CONFIGURATION")
+          if [[ "$MODE" == compiled ]]; then
+            args+=(--disable-runtime)
+          fi
+          python3 Scripts/validate-readme-examples.py "${args[@]}"

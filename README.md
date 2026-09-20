@@ -13,96 +13,148 @@ matching, behavior, recording, and verification vocabulary.
 
 ## Quick start
 
+Requires Swift 6.3+. [Add TestDoubles to your test target](#installation), then
+choose the example that matches your dependency:
+
+| Your dependency | Start with |
+| --- | --- |
+| A protocol with an existing implementation, on a runtime-capable test host | [Protocol stub](#protocol-stub) |
+| A struct containing closures | [Closure client](#closure-client) |
+| A protocol that needs generated conformance or physical-device support | [Generated conformer](#generated-conformer) |
+
+Each example is a complete Swift Testing source file. All three follow the
+same workflow: construct, configure with `when` and `thenReturn`, inject the
+value, and `verify` its calls.
+
+### Protocol stub
+
+Use an existing implementation as the source of the protocol's signatures.
+TestDoubles inspects its conformance without invoking or retaining it:
+
+<!-- readme-example: ProtocolExample -->
 ```swift
+import Testing
 import TestDoubles
 
-protocol AuthService {
-    func signIn(user: String, password: String) async throws -> String
+protocol GreetingService {
+    func greet(_ name: String) -> String
 }
 
-enum AuthError: Error { case invalidCredentials }
-```
-
-```swift
-let auth = try TestDouble.stub(of: (any AuthService).self)
-
-await auth.when { try await $0.signIn(user: Match.equal("blob"), password: Match.equal("sekret")) }
-    .thenReturn("session-42")
-await auth.when { try await $0.signIn(user: Match.any(), password: Match.any()) }
-    .thenThrow(AuthError.invalidCredentials)
-
-// A real `any AuthService`, ready to hand to the code under test.
-let service: any AuthService = auth()
-
-#expect(try await service.signIn(user: "blob", password: "sekret") == "session-42")
-await #expect(throws: AuthError.self) {
-    try await service.signIn(user: "blob", password: "hunter2")
+struct LiveGreetingService: GreetingService {
+    func greet(_ name: String) -> String { "Hello, \(name)!" }
 }
 
-await auth.verify(2 ... 2) { try await $0.signIn(user: Match.any(), password: Match.any()) }
+@Test func protocolStub() throws {
+    let greetings = try Stub<any GreetingService>(
+        discoveringFrom: LiveGreetingService()
+    )
+    greetings.when { $0.greet(Match.equal("Blob")) }.thenReturn("Welcome!")
+    greetings.when { $0.greet(Match.any()) }.thenReturn("Hello!")
+
+    let service: any GreetingService = greetings()
+    #expect(service.greet("Blob") == "Welcome!")
+    #expect(service.greet("Ada") == "Hello!")
+    greetings.verify(2 ... 2) { $0.greet(Match.any()) }
+}
 ```
+<!-- /readme-example -->
 
-There is no `MockAuthService` in this test. Nobody wrote one, no build tool
-generated one, and no macro expanded one. `Stub` built a genuine
-`AuthService` conformance at runtime and returned it as an ordinary
-existential. Sync, throwing, async, and async-throwing requirements all use
-the same vocabulary: `when`, `thenReturn`, `verify`.
+The first matching registration wins: put specific cases before broad
+fallbacks. When the test process already exposes enough signature metadata,
+`try Stub<any GreetingService>()` also works without passing an instance.
+See the [Construction Guide](Sources/TestDoubles/Documentation.docc/Articles/ConstructionGuide.md)
+for that route and for protocols without an existing implementation.
 
-The only thing `Stub` needs is a source for the protocol's signatures. In
-most projects that is your production conformance, which is inspected but
-never invoked. See [how construction finds your protocol's
-signatures](#the-fine-print) for the other paths.
+### Closure client
 
-## Why runtime doubles?
+For a dependency whose operations are stored closures, wire those fields with
+`ClientStub`. This route also works with runtime support disabled:
 
-Every mocking approach in Swift pays for protocol conformance somewhere.
-Hand-written mocks take maintenance every time a protocol changes, code
-generation needs build tooling and generated files that have to stay in sync,
-and macros add compile time and only help with protocols you can annotate.
-
-TestDoubles pays that cost once, inside the library. At test time it reads
-the Swift runtime's own metadata to learn a protocol's requirements,
-fabricates a real witness table for it, and routes every call through a
-hand-written assembly trampoline that reconstructs typed arguments exactly as
-the Swift calling convention laid them out. This works for methods,
-properties, subscripts, initializers, and static requirements, with no
-per-protocol setup of any kind.
-
-The tradeoff: the supported protocol surface is an explicit, CI-tested ABI
-boundary. A shape outside it fails at construction with a precise diagnostic
-instead of an approximation that silently misbehaves. The boundary is wide
-(see [the fine print](#the-fine-print)), and `ManualStub` covers what's
-beyond it with the same API.
-
-When a protocol must work both inside and outside that runtime boundary,
-generate its manual conformer and use the unified construction facade:
-
+<!-- readme-example: ClientExample -->
 ```swift
-let weather = TestDouble.stub(using: WeatherServiceStub.self)
-weather.when { $0.forecast(for: "Budapest") }.thenReturn("Sunny")
+import Testing
+import TestDoubles
 
-let service: any WeatherService = weather()
-#expect(service.forecast(for: "Budapest") == "Sunny")
+struct GreetingClient {
+    var greet: @Sendable (String) -> String
+}
+
+@Test func closureClient() {
+    let greetings = ClientStub<GreetingClient> { endpoints in
+        GreetingClient(greet: endpoints.function("greet"))
+    }
+    greetings.when { $0.greet(Match.any()) }.thenReturn("Welcome!")
+
+    let client = greetings()
+    #expect(client.greet("Blob") == "Welcome!")
+    greetings.verify(1 ... 1) { $0.greet(Match.equal("Blob")) }
+}
 ```
+<!-- /readme-example -->
 
-Compiler evidence selects explicit runtime requirements, validated discovery,
-or an immediate compiled fallback. An eligible runtime attempt that fails on
-an unsupported shape, physical Apple device, WASI, or restricted
-executable-memory environment transparently uses the conformer. Every route returns `Stub<any
-WeatherService>`, so configuration and verification stay unchanged.
-`constructionReport` reports which route was selected and preserves the
-runtime diagnostic. `WeatherServiceStub.compilerEvidence.sourceSupport`
-provides the generator's per-requirement preflight report without attempting
-runtime construction. Calling
-`WeatherServiceStub()` directly remains the explicit always-manual choice.
+See [Closure-Based Dependencies](Sources/TestDoubles/Documentation.docc/Articles/ClosureClients.md)
+for async fields, reusable presets, and forwarding to a live client.
+
+### Generated conformer
+
+Attach the build plugin to the target containing your protocol declaration.
+It generates and compiles the conformer whenever the protocol changes:
+
+<!-- readme-example: PortableTarget -->
+```swift
+.testTarget(
+    name: "PortableExample",
+    dependencies: [
+        .product(name: "TestDoubles", package: "swift-test-doubles")
+    ],
+    plugins: [
+        .plugin(name: "ManualStubBuildPlugin", package: "swift-test-doubles")
+    ]
+)
+```
+<!-- /readme-example -->
+
+Place this source file in `Tests/PortableExample`. The plugin supplies
+`WeatherServiceStub`; no hand-written conformer or macro is needed:
+
+<!-- readme-example: PortableExample -->
+```swift
+import Testing
+import TestDoubles
+
+protocol WeatherService {
+    func forecast(for city: String) -> String
+}
+
+@Test func generatedConformer() {
+    let weather = TestDouble.stub(using: WeatherServiceStub.self)
+    weather.when { $0.forecast(for: Match.any()) }.thenReturn("Sunny")
+
+    let service: any WeatherService = weather()
+    #expect(service.forecast(for: "Budapest") == "Sunny")
+    weather.verify(1 ... 1) { $0.forecast(for: Match.equal("Budapest")) }
+}
+```
+<!-- /readme-example -->
+
+This factory selects runtime construction when supported and otherwise uses
+the generated conformer, including on physical Apple devices and with runtime
+support disabled. Use `WeatherServiceStub()` to always select compiled
+dispatch. See [Manual Stubbing](Sources/TestDoubles/Documentation.docc/Articles/ManualStubbing.md)
+for generation options and supported protocol declarations.
+
+Runtime protocol doubles require a supported test host and protocol shape;
+construction throws a diagnostic when either is unavailable. The
+[Runtime Compatibility](Sources/TestDoubles/Documentation.docc/Articles/RuntimeCompatibility.md)
+article covers platforms, signing, and ABI limits. For the implementation,
+see [How Runtime Stubs Work](Sources/TestDoubles/Documentation.docc/Articles/HowRuntimeStubsWork.md).
 
 ## What you can do
 
 ### Shape responses per argument
 
-Matchers pick the response. More specific registrations win over general
-fallbacks, so you can set a default and override only the cases the test
-cares about.
+Matchers pick the response in registration order. The first matching
+registration wins, so register specific cases before general fallbacks.
 
 ```swift
 protocol FeatureFlags {
@@ -131,34 +183,8 @@ wins, like the cases of a `switch`: register specific matchers first and
 broad fallbacks last, because a catch-all registered first swallows
 everything after it.
 
-Use matcher expressions for every argument when recording a call that involves
-an ABI-uncertain concrete value. The common case is a non-`@frozen` imported
-value from a library-evolution module, but an opaque standard-library generic
-value such as `ArraySlice<Int>` can need the same calibration. Those matchers
-let the runtime establish the client's direct or indirect convention before it
-decodes a real call. Common standard-library and framework values synthesize
-their recording values automatically. These include `StaticString`,
-`AnyHashable`, empty collection wrappers, `any Error`, `URLRequest`,
-notifications, attributed strings, person names, common `Measurement` units,
-and Foundation's URL, data, date, locale, and archive values. Dispatch values
-use `.empty` or `.main`. On Combine platforms, subscriptions, type erasers,
-cancellables, and subjects also work as arguments without fixtures. `Optional`,
-`Result`, and `CurrentValueSubject` recursively synthesize their payloads, so
-they also use ordinary `Match.any()`. Generic wrappers such as `Range<Date>`
-and `ClosedRange<Date>` still need a valid example through `using:`, as does a
-custom value that cannot be synthesized:
-
-```swift
-stub.when {
-    $0.open(
-        Match.any(),
-        at: Match.any(using: importedValue)
-    )
-}.thenReturn(result)
-```
-
-Do this before the first ordinary or forwarded call to that requirement. A
-literal-only recording has no independent calibration value for each argument.
+For imported values or custom types that need recording placeholders, see
+[Quick Start](Sources/TestDoubles/Documentation.docc/Articles/QuickStart.md).
 
 There is a richer vocabulary for common cases. `Match.notEqual(_:)` and
 `Match.identical(to:)` refine equality; `Match.greaterThan`,
@@ -726,206 +752,10 @@ explains how to re-enable `RuntimeStubs`; manual stubs keep the same
 
 ## The fine print
 
-<details>
-<summary><strong>Requirements and platforms</strong></summary>
-
-TestDoubles requires Swift 6.3. Its declared deployment targets are macOS 13+,
-Mac Catalyst 16+, iOS 16+, tvOS 16+, visionOS 1+, and watchOS 9+. CI builds
-against those minima and runtime-tests on pinned macOS 26 arm64 and x86_64
-hosts, Linux arm64 and x86_64 hosts, and the oldest available arm64 simulator
-runtime installed with the pinned Xcode. Android arm64 and x86_64 are
-provisional cross-build targets, and wasm32-unknown-wasip1 is a
-`ManualStub`-only target.
-
-Android support is cross-build validated in CI for debug and release test
-targets with the official Swift 6.3.3 Android SDK and NDK r27d or later. The
-dependency graph must resolve Echo 0.1.1 or newer for Android ELF image
-discovery. CI also runs a focused x86_64 emulator demonstration that fabricates,
-configures, invokes, and verifies a `Stub`. The full test suites do not
-currently execute on an Android emulator or device, so Android remains
-provisional.
-
-Physical iOS, tvOS, visionOS, and watchOS devices cannot run the executable
-runtime trampoline. A generated
-[`ManualStub`](Sources/TestDoubles/Documentation.docc/Articles/ManualStubbing.md)
-provides the same `when`/`then`/`verify` API there, and its `automatic()`
-factory selects that compiled route without changing call sites.
-
-Generated conformers for protocols inheriting `Actor` are actors themselves;
-their `automatic()` factory uses the compiled route so Swift owns the executor
-and actor lifetime. `@MainActor` and custom-global-actor protocols can use
-runtime stubs and forwarding spies while preserving the protocol's actor hop.
-
-A macOS test process must be allowed to map JIT memory. The runtime allocates
-its trampoline pages with `MAP_JIT`, which the kernel rejects with `EINVAL` in
-any process signed with the hardened runtime and without the
-`com.apple.security.cs.allow-jit` entitlement. Construction then fails closed
-with `Could not allocate an executable trampoline for requirement 0`, where the
-index only names the first witness slot that was attempted. Command-line
-`swift test` binaries are unaffected. Xcode app test targets running on **My
-Mac** are affected whenever the host app enables the hardened runtime, because
-the `.xctest` bundle is loaded into that host process. Enable the entitlement
-on the **host app target**, not on the test bundle:
-
-| Fix | Build setting | Xcode UI |
-| --- | --- | --- |
-| Allow JIT (recommended) | `RUNTIME_EXCEPTION_ALLOW_JIT = YES` | Signing & Capabilities, Hardened Runtime, "Allow Execution of JIT-compiled Code" |
-| Drop the hardened runtime from the test configuration | `ENABLE_HARDENED_RUNTIME = NO` | Build Settings, "Enable Hardened Runtime" |
-| Run the tests on a simulator destination | none | pick a simulator instead of My Mac |
-
-```bash
-xcodebuild test -scheme YourApp -destination 'platform=macOS' RUNTIME_EXCEPTION_ALLOW_JIT=YES
-```
-
-Removing `MAP_JIT` is not a workaround. A plain anonymous mapping can still be
-`mprotect`ed to read-execute under the hardened runtime, but executing it
-terminates the process with `SIGKILL` under code-signing enforcement, so the
-runtime maps `MAP_JIT` and reports the mapping failure instead.
-
-WebAssembly (`wasm32-unknown-wasip1`) has no facility for executable memory
-and no register-based calling convention to hand-assemble against, so the
-runtime trampoline cannot run there at all, the same limitation as physical
-Apple devices, but more fundamental: it isn't a policy restriction to route
-around, WASI's own `<sys/mman.h>` rejects even its mmap emulation shim for
-executable pages. `Stub`/`Spy` construction fails closed there with the usual
-actionable `StubError` diagnostic; use `ManualStub` directly or its generated
-`automatic()` factory. CI cross-builds the
-library for `wasm32-unknown-wasip1` in debug and release with the official
-Swift 6.3.1 WASI SDK, and actually runs both a small standalone executable and
-the `TestDoublesWasmTests` suite under `wasmtime`, demonstrating both halves
-of that story: `ManualStub` fully configured, invoked, and verified, and
-`Stub` construction failing closed. The dependency graph must resolve Echo
-0.1.1 or newer, whose C declarations avoid a wasm32 LLVM compiler crash on
-unprototyped functions.
-
-</details>
-
-<details>
-<summary><strong>How construction finds your protocol's signatures</strong></summary>
-
-`try Stub<any P>()` needs a source for the protocol's requirement signatures:
-
-| Available signature source | Construction |
-| --- | --- |
-| A concrete conformer is linked into the test process (usually your production implementation) | `try Stub<any P>()`. The conformance is inspected, never invoked. |
-| The protocol module is built with library evolution and exports resilient requirement symbols | `try Stub<any P>()`; no conformer needed. |
-| Neither | Describe the requirements explicitly with `Stub.Requirement` values; prefer the `signatureOf:` member-reference factories. |
-
-Two cases need a small extra hint:
-
-- **Effectful getters.** Swift's metadata never records whether a getter can
-  throw, so a protocol with `get async` or `get throws` properties takes a
-  `getterEffects:` list at construction, with one `.throwing` or
-  `.nonthrowing` hint per getter. The hints only fix the calling convention;
-  `when` still configures values as usual.
-- **Class and existential values.** `when` and `verify` closures run once to
-  record which requirement they name, and that recording pass needs valid
-  temporary values. TestDoubles synthesizes them for most types; for class
-  instances and existentials you pass any valid instance via the `using:` and
-  `returning:` overloads (for example `Match.any(using: someUser)`). The value is
-  used only during recording. It is never matched against or returned.
-
-See the [Construction Guide](Sources/TestDoubles/Documentation.docc/Articles/ConstructionGuide.md)
-for explicit requirement forms, inheritance ordering, and compositions, and
-[Getting Started](Sources/TestDoubles/Documentation.docc/Articles/GettingStarted.md)
-for worked examples of both hints.
-
-</details>
-
-<details>
-<summary><strong>How it works under the hood</strong></summary>
-
-Construction is a transaction:
-
-1. Requirement signatures are discovered from Swift runtime metadata: a
-   linked conformance's records, or resilient per-requirement descriptor
-   symbols. Nothing is invoked and no external tool runs.
-2. A genuine witness table is fabricated whose entries all land in one fixed
-   trampoline, hand-written in assembly for arm64 and x86_64
-   ([`TestDoublesTrampoline.S`](Sources/CTestDoublesTrampoline/TestDoublesTrampoline.S)).
-3. The trampoline captures the machine state of each call, and the runtime
-   reconstructs typed arguments and results exactly per the Swift calling
-   convention, including async continuations, error channels, and indirect
-   returns.
-4. Every reconstructed call flows through the recorder: matcher selection,
-   behavior replay, and the invocation log that verification reads.
-5. If any step cannot be done exactly, construction throws a `StubError`
-   diagnostic and no partially-built value can escape.
-
-Generated values own their runtime resources, so they stay valid even after
-the `Stub` itself is released. The details live in
-[How Runtime Stubs Work](Sources/TestDoubles/Documentation.docc/Articles/HowRuntimeStubsWork.md),
-[Trampoline Architecture](Sources/TestDoubles/Documentation.docc/Articles/TrampolineArchitecture.md),
-and [ARCHITECTURE.md](ARCHITECTURE.md).
-
-</details>
-
-<details>
-<summary><strong>Support matrix and limitations</strong></summary>
-
-What's supported:
-
-- Instance and static methods, property getters and setters, subscripts, and
-  initializer requirements, in sync, throwing, async, and async-throwing
-  forms, including typed `throws` with a concrete or directly bound associated
-  error type.
-- Protocol inheritance, diamond bases, and multi-protocol compositions;
-  class-constrained protocols, and `NSObject`-backed superclass existentials
-  on Apple platforms.
-- Dynamic `Self` results and automatically discovered direct or single-optional
-  `Self` arguments for nonthrowing instance methods. Bound primary associated
-  types cover recursive `Optional`, `Array`, `Set`, `Dictionary`, and `Result`
-  values, proven linked generic classes, structs, and enums, and the documented
-  concrete-reference slice. Native Swift closures work as arguments and results.
-- Borrowing property and subscript access through Swift 6.3 `read` accessors
-  and Stub-side Swift 6.4 `yielding borrow`, compound assignment and `inout`
-  access through `_modify`, concurrent invocation of generated values, behavior
-  chains, argument captors, ordered and event-driven verification.
-- Requirement-level generic methods, including async and typed-throwing
-  stubs, caller-chosen generic results, and forwarding spies for unconstrained
-  or `AnyObject`-constrained parameters.
-- Explicit compiler-typed adapters for ABI-uncertain imported or resilient
-  method and getter results, including async throwing Foundation values.
-- Automatic compiler-proven result transport for methods and getters that return
-  values from the built-in Foundation placeholder catalog, including `Data`,
-  `URL`, `Date`, and `UUID`. Methods, indexed getters, forwarding spies,
-  supported closure results, and tuple leaves may reuse those proofs. Tuples
-  may be nested and mix direct with caller-owned indirect members. Swift 6.3
-  includes direct-transport entries such as `Data`; indirect entries require
-  Swift 6.4 or newer.
-
-Key limitations:
-
-- Unbound associated types beyond the documented caller-bound slice are
-  rejected. `Self` arguments remain unsupported in explicit schemas, Spies,
-  superclass-constrained existentials, throwing methods, `inout`, and wider or
-  nested wrappers.
-- Async Stub requirements may fill the argument-register banks and use the
-  documented complete integer, floating-point, SIMD, indirect, and
-  platform-correct narrow stack shapes. Async Spy forwarding retains up to
-  eight visible stack words; dynamic closure bridging has a separate one-word
-  stack boundary.
-- Typed-throwing getters require explicit `signatureOf:` requirements and are
-  not forwarded by Spy. Objective-C-only protocols and native-Swift-only
-  superclass constraints are outside the boundary.
-- Protocols that relax `Copyable` or `Escapable` are rejected because recorder
-  values are retained as escaping `Any` payloads.
-- Physical device targets don't run the executable trampoline; use
-  `ManualStub` there.
-- A macOS test host signed with the hardened runtime cannot map the
-  trampoline's JIT pages until the host app carries the
-  `com.apple.security.cs.allow-jit` entitlement
-  (`RUNTIME_EXCEPTION_ALLOW_JIT = YES`).
-
-Everything above fails closed: an unsupported shape throws an actionable
-`StubError` at construction. The precise, normative contract is in the
-[Stub Contract](Sources/TestDoubles/Documentation.docc/Articles/StubContract.md),
-with deep dives in
-[Function Values](Sources/TestDoubles/Documentation.docc/Articles/FunctionValues.md)
-and
-[Bound Associated Types](Sources/TestDoubles/Documentation.docc/Articles/BoundAssociatedTypes.md).
-
-</details>
+See [Runtime Compatibility](Sources/TestDoubles/Documentation.docc/Articles/RuntimeCompatibility.md)
+for platform requirements, host signing, signature discovery, and ABI limits.
+The [Stub Contract](Sources/TestDoubles/Documentation.docc/Articles/StubContract.md)
+is the normative support reference.
 
 ## Beyond the basics
 
@@ -944,6 +774,11 @@ The DocC catalog covers the rest of the surface, with examples:
 - [Stub Contract](Sources/TestDoubles/Documentation.docc/Articles/StubContract.md): the normative support and failure contract, including static and initializer requirements, dynamic `Self`, subscripts, and setters.
 
 ## Contributing
+
+Run `python3 Scripts/validate-readme-examples.py` to compile and execute the
+marked quick-start examples directly from this README. Use `--configuration release` to check optimized builds and
+`--disable-runtime` to check the closure client and generated conformer without runtime support. CI runs all four
+combinations, including the build-plugin target declaration above.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the validation matrix and runtime
 architecture notes, [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community

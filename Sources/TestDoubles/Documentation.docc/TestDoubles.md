@@ -61,6 +61,7 @@ isolation. See
 - <doc:InspectingInteractions>
 - <doc:ForwardingSpies>
 - <doc:StubContract>
+- <doc:RuntimeCompatibility>
 - <doc:ManualStubbing>
 - <doc:ClosureClients>
 
