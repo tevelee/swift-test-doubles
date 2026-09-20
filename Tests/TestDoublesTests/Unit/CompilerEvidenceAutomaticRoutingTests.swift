@@ -2,7 +2,10 @@ import Foundation
 import Testing
 @testable import TestDoubles
 
-private protocol EvidenceParameterizedDataSource {
+// Runtime fixtures stay internal: release optimization can devirtualize a
+// private protocol's calls into its sole compiled conformer, bypassing the
+// fabricated witness table and interpreting its payload as CompiledStub.
+protocol EvidenceParameterizedDataSource {
     func read(path: String) throws -> Data
 }
 
@@ -42,7 +45,8 @@ private struct EvidenceParameterizedDataSourceStubConformer:
     }
 }
 
-private protocol EvidenceParameterizedSubscriptSource {
+// Keep witness dispatch available in optimized test builds (see above).
+protocol EvidenceParameterizedSubscriptSource {
     subscript(section: Int, key: String) -> Data { get set }
 }
 
@@ -102,7 +106,8 @@ private struct EvidenceUnavailableSourceStubConformer:
     func value() -> Int { stub.call() }
 }
 
-private protocol DefaultEvidenceSource {
+// This fixture can also select runtime synthesis through automatic discovery.
+protocol DefaultEvidenceSource {
     func value() -> Int
 }
 

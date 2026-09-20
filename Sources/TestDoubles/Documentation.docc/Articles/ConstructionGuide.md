@@ -128,7 +128,17 @@ construction. It never invokes or retains the conformer. Its requirement
 witnesses must still be linked; when an optimized private conformer omits one,
 use explicit requirements instead.
 
-It can also construct a protocol with no implementation when that protocol was
+Signature discovery does not prevent call-site optimization. In optimized
+tests, keep runtime protocol fixtures internal instead of `private` or
+`fileprivate`: Swift can replace a private protocol's witness call with a
+direct call to its sole known conformer. That bypasses the fabricated witness
+table and can interpret the generated payload as the wrong concrete type.
+Explicit requirements and compiler evidence do not make devirtualized calls
+interceptable. When a protocol must remain private, use
+`CompiledStub<YourConformer>()` directly so calls receive a real conformer;
+`automatic()` can still select runtime synthesis.
+
+Automatic discovery can also construct a protocol with no implementation when it was
 compiled with library evolution and its per-requirement method descriptor
 symbols are present. The metatype and existential records expose the protocol
 descriptor, but do not contain callable types themselves. TestDoubles resolves
