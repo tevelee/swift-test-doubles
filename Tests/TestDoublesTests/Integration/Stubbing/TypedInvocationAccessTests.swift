@@ -226,8 +226,12 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
             var iterator = stream.makeAsyncIterator()
             return await iterator.next()
         }
+        // Bound this by time rather than by a yield count: the iterator task
+        // has to be scheduled before it registers as a waiter, and on a loaded
+        // CI machine a hundred yields can elapse before that happens.
         var isWaiting = false
-        for _ in 0 ..< 100 {
+        let deadline = ContinuousClock.now + .seconds(10)
+        while ContinuousClock.now < deadline {
             if stub.recorder.withLockedPolicy({
                 $0.invocationLedger.pendingWaiterCount(for: 0)
             }) == 1 {
@@ -235,6 +239,7 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
                 break
             }
             await Task.yield()
+            try? await Task.sleep(for: .milliseconds(1))
         }
         #expect(isWaiting)
         next.cancel()
