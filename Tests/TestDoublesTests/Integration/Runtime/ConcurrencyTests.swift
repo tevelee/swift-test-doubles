@@ -260,7 +260,7 @@
             }.thenReturn(10, 20)
             let probe: any ConcurrentInvocationProbe = stub()
 
-            let firstCall = Task.detached(priority: Task.currentPriority) {
+            let firstCall = blockingTask {
                 probe.synchronous(1)
             }
             guard await gate.waitUntilBlockedMatcherEntered(within: 60) else {

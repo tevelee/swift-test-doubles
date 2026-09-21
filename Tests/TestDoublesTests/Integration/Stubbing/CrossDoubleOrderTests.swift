@@ -364,7 +364,7 @@ private final class ConcurrentGatewayStub: @unchecked Sendable {
             let order = InvocationOrder()
             let captor = Match.Capture<Int>()
             let gate = OrderedVerificationGate()
-            let blockedVerification = Task {
+            let blockedVerification = blockingTask {
                 expectReportsIssue {
                     order.verify(gateway.value) {
                         $0.charge(

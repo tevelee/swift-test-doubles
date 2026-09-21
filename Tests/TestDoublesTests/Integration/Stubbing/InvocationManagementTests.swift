@@ -162,7 +162,7 @@ private actor MatcherEvaluationGate {
             }.thenReturn("stale")
             let service: any InvocationManagementService = spy()
 
-            let invocation = Task.detached {
+            let invocation = blockingTask {
                 service.value(for: 7)
             }
             guard await gate.waitUntilMatcherEntered(within: 60) else {
