@@ -214,7 +214,8 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
         #expect(event.1 == 42)
     }
 
-    @Test func streamCancellationFinishesTheAwaitingIterator() async throws {
+    @Test(.timeLimit(.minutes(2)))
+    func streamCancellationFinishesTheAwaitingIterator() async throws {
         let stub = try Stub<any InvocationAccessAnalytics>()
         let allEvents = stub.when {
             $0.track(event: Match.any(), value: Match.any())
@@ -227,10 +228,13 @@ private struct ManualInvocationAccessServiceStub: ManualInvocationAccessService,
             return await iterator.next()
         }
         // Bound this by time rather than by a yield count: the iterator task
-        // has to be scheduled before it registers as a waiter, and on a loaded
-        // CI machine a hundred yields can elapse before that happens.
+        // has to be scheduled before it registers as a waiter, and a hundred
+        // yields can elapse before that happens. Sixty seconds matches the
+        // other concurrency gates in this suite; a run under parallel testing
+        // was observed taking well over ten while sibling tests held the
+        // cooperative pool in long awaits.
         var isWaiting = false
-        let deadline = ContinuousClock.now + .seconds(10)
+        let deadline = ContinuousClock.now + .seconds(60)
         while ContinuousClock.now < deadline {
             if stub.recorder.withLockedPolicy({
                 $0.invocationLedger.pendingWaiterCount(for: 0)
