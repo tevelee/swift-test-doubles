@@ -1,5 +1,6 @@
 import InternalRuntimeContract
 import Foundation
+import IssueReporting
 
 extension RuntimeArgumentCalibration {
     fileprivate func matchesPlaceholderBytes(of argument: Any) -> Bool {
@@ -192,13 +193,14 @@ extension StubRecorder {
                         )
                     )
                 }
-                fatalError(
-                    diagnosticMessage(
-                        title: "No stub configured",
-                        method: method,
-                        args: args,
-                        entries: []
-                    ))
+                return unmatchedDispatch(
+                    title: "No stub configured",
+                    method: method,
+                    args: args,
+                    entries: [],
+                    callStack: callStack,
+                    startedAt: startedAt
+                )
             }
             guard
                 let preparedMatch = StubBehaviorRegistry.firstPreparedEntryMatch(
@@ -220,13 +222,14 @@ extension StubRecorder {
                         )
                     )
                 }
-                fatalError(
-                    diagnosticMessage(
-                        title: "No matching stub",
-                        method: method,
-                        args: args,
-                        entries: entries
-                    ))
+                return unmatchedDispatch(
+                    title: "No matching stub",
+                    method: method,
+                    args: args,
+                    entries: entries,
+                    callStack: callStack,
+                    startedAt: startedAt
+                )
             }
             let entry = entries[preparedMatch.entryIndex]
 
@@ -459,6 +462,87 @@ extension StubRecorder {
             lock.unlock()
             continuation?.resume()
         }
+    }
+
+    /// Answers a call that no registration matched.
+    ///
+    /// The configured ``UnmatchedCallPolicy`` decides between ending the test
+    /// process at the call and reporting the same diagnostic as a test issue.
+    /// Reporting needs a value to return, so a result type that can be neither
+    /// supplied nor synthesized falls back to trapping.
+    private func unmatchedDispatch(
+        title: String,
+        method: RuntimeMethod,
+        args: [Any],
+        entries: [StubEntry],
+        callStack: [String]?,
+        startedAt: ContinuousClock.Instant
+    ) -> PreparedDispatch {
+        let diagnostic = diagnosticMessage(
+            title: title,
+            method: method,
+            args: args,
+            entries: entries
+        )
+        guard
+            case .reportIssue(let recover) = withLockedPolicy({
+                $0.unmatchedCallPolicy
+            }).kind
+        else {
+            fatalError(diagnostic)
+        }
+
+        let resultType = method.returnType
+        let supplied = recover?(resultType).flatMap { value in
+            UnmatchedCallRecovery.value(value, matches: resultType) ? value : nil
+        }
+        guard
+            let recovered = supplied
+                ?? UnmatchedCallRecovery.placeholder(ofType: resultType)
+        else {
+            fatalError(
+                diagnostic + "\n\nRecovery:\n"
+                    + "  This double reports unmatched calls instead of trapping, but "
+                    + "\(String(reflecting: resultType)) has no value to return in place of "
+                    + "the missing behavior. Register this requirement, or supply a value "
+                    + "with `.reportIssue(recoveringWith:)`."
+            )
+        }
+
+        reportIssue(diagnostic)
+        return .behavior(
+            recordUnmatchedInvocation(
+                method: method,
+                args: args,
+                callStack: callStack,
+                startedAt: startedAt
+            ),
+            .fixed(.success(recovered))
+        )
+    }
+
+    /// Records a call answered by unmatched-call recovery rather than by a
+    /// registration, so it still reaches history, timelines, and order checks.
+    private func recordUnmatchedInvocation(
+        method: RuntimeMethod,
+        args: [Any],
+        callStack: [String]?,
+        startedAt: ContinuousClock.Instant
+    ) -> RecordedCallToken {
+        let appended = withLockedPolicy {
+            $0.invocationLedger.append(
+                method: method.index,
+                name: method.name,
+                origin: .stubbed,
+                callStack: callStack,
+                startedAt: startedAt,
+                args: args,
+                argumentConventions: recordingArgumentConventions(for: method),
+                runtimePayloadRecorder: self
+            )
+        }
+        resumeWaiters(appended.waiters, returning: .changed)
+        return appended.token
     }
 
     private func recordForwardedInvocation(

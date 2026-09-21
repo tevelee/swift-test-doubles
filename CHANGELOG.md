@@ -37,6 +37,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `waitForCompletion(count:within:)`. Standalone closure doubles whose result
   is an `AsyncStream` or `AsyncThrowingStream` also gain `thenStream()` and
   `thenThrowingStream()`, matching `Stub` and `ClientStub`.
+- `onUnmatchedCall(_:)` chooses what a double does with a call no registration
+  matched. Doubles still trap by default. `.reportIssue` instead reports the
+  same missing-stub diagnostic as a test issue and recovers with a `Dummy`
+  placeholder, so one missing registration no longer discards every other
+  result in the run; `.reportIssue(recoveringWith:)` supplies values for
+  result types automatic synthesis cannot build. A result type that can be
+  neither supplied nor synthesized still traps, and says why.
 
 ## [0.0.3] - 2026-08-02
 

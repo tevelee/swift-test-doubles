@@ -115,6 +115,23 @@ Non-`Void` suggestions use a deliberate `fatalError("TODO: configure …")`
 handler, so the pasted registration compiles for any result type and keeps the
 unfinished return behavior visible.
 
+That call ends the test process by default, which keeps the diagnostic next to
+the code that made it but discards every other result in the same run. Pass
+``UnmatchedCallPolicy/reportIssue`` to
+``Stub/onUnmatchedCall(_:)`` when a run that keeps going is worth
+more:
+
+```swift
+let gateway = try Stub<any PaymentGateway>().onUnmatchedCall(.reportIssue)
+```
+
+The same diagnostic is then reported as a test issue and the call recovers
+with a ``Dummy`` placeholder, so a `Void` requirement returns, a concrete
+result becomes an unspecified value, and a protocol result becomes a
+fail-on-use existential. A result type that cannot be synthesized has nothing
+to return, so that call still stops the process and says so; supply a value
+for it with ``UnmatchedCallPolicy/reportIssue(recoveringWith:)``.
+
 Every argument in one recorded invocation must either use a matcher or use its
 literal value. Literals compare `Equatable` values with `==`, reference values
 (including optional references) by identity, and metatypes by equality. Values

@@ -80,6 +80,7 @@ isolation. See
 - ``StubBehaviorChain``
 - ``StubBehaviorQueue``
 - ``StubSuspension``
+- ``UnmatchedCallPolicy``
 - ``Stub/Invocation``
 - ``InteractionHistory``
 - ``InteractionTimeline``

@@ -536,6 +536,16 @@ public final class ClosureDouble<Input, Result> {
         clearRecordedInvocations()
     }
 
+    /// Chooses how this double answers a call no registration matched.
+    ///
+    /// - Parameter policy: The policy to apply from the next call on.
+    /// - Returns: This double, so construction and configuration can chain.
+    @discardableResult
+    public func onUnmatchedCall(_ policy: UnmatchedCallPolicy) -> Self {
+        storage.onUnmatchedCall(policy)
+        return self
+    }
+
     /// Returns a human-readable ordered log of every closure invocation.
     public func describeInteractions() -> String {
         storage.describeInteractions()
@@ -708,6 +718,16 @@ public final class VoidClosureDouble<Result> {
     /// Clears configured behavior and recorded invocations.
     public func reset() {
         storage.reset()
+    }
+
+    /// Chooses how this double answers a call no registration matched.
+    ///
+    /// - Parameter policy: The policy to apply from the next call on.
+    /// - Returns: This double, so construction and configuration can chain.
+    @discardableResult
+    public func onUnmatchedCall(_ policy: UnmatchedCallPolicy) -> Self {
+        storage.onUnmatchedCall(policy)
+        return self
     }
 
     /// Returns a human-readable ordered log of every invocation.

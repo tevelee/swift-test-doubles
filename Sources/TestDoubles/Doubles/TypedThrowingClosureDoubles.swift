@@ -137,6 +137,16 @@ public final class TypedThrowingClosureDouble<
     public func reset() {
         base.reset()
     }
+
+    /// Chooses how this double answers a call no registration matched.
+    ///
+    /// - Parameter policy: The policy to apply from the next call on.
+    /// - Returns: This double, so construction and configuration can chain.
+    @discardableResult
+    public func onUnmatchedCall(_ policy: UnmatchedCallPolicy) -> Self {
+        base.onUnmatchedCall(policy)
+        return self
+    }
 }
 
 extension TypedThrowingClosureDouble where Input: Equatable {
@@ -306,6 +316,16 @@ public final class AsyncTypedThrowingClosureDouble<
     /// Clears configured behaviors and calls.
     public func reset() {
         base.reset()
+    }
+
+    /// Chooses how this double answers a call no registration matched.
+    ///
+    /// - Parameter policy: The policy to apply from the next call on.
+    /// - Returns: This double, so construction and configuration can chain.
+    @discardableResult
+    public func onUnmatchedCall(_ policy: UnmatchedCallPolicy) -> Self {
+        base.onUnmatchedCall(policy)
+        return self
     }
 }
 

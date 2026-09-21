@@ -275,6 +275,16 @@ public final class ThrowingClosureDouble<Input, Result> {
         clearRecordedInvocations()
     }
 
+    /// Chooses how this double answers a call no registration matched.
+    ///
+    /// - Parameter policy: The policy to apply from the next call on.
+    /// - Returns: This double, so construction and configuration can chain.
+    @discardableResult
+    public func onUnmatchedCall(_ policy: UnmatchedCallPolicy) -> Self {
+        storage.stub.onUnmatchedCall(policy)
+        return self
+    }
+
     private func pattern(
         matching matcher: ParameterMatcher,
         location: StubSourceLocation? = nil
@@ -426,6 +436,16 @@ public final class AsyncClosureDouble<Input, Result> {
     public func reset() {
         clearConfiguredBehaviors()
         clearRecordedInvocations()
+    }
+
+    /// Chooses how this double answers a call no registration matched.
+    ///
+    /// - Parameter policy: The policy to apply from the next call on.
+    /// - Returns: This double, so construction and configuration can chain.
+    @discardableResult
+    public func onUnmatchedCall(_ policy: UnmatchedCallPolicy) -> Self {
+        storage.stub.onUnmatchedCall(policy)
+        return self
     }
 
     private func pattern(
@@ -581,6 +601,16 @@ public final class AsyncThrowingClosureDouble<Input, Result> {
     public func reset() {
         clearConfiguredBehaviors()
         clearRecordedInvocations()
+    }
+
+    /// Chooses how this double answers a call no registration matched.
+    ///
+    /// - Parameter policy: The policy to apply from the next call on.
+    /// - Returns: This double, so construction and configuration can chain.
+    @discardableResult
+    public func onUnmatchedCall(_ policy: UnmatchedCallPolicy) -> Self {
+        storage.stub.onUnmatchedCall(policy)
+        return self
     }
 
     private func pattern(

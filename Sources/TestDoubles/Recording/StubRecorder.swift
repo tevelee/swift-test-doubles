@@ -12,6 +12,7 @@ final class StubRecorder: @unchecked Sendable {
         var behaviorRegistry = StubBehaviorRegistry()
         var invocationLedger = InvocationLedger()
         var callStackCaptureLimit: Int?
+        var unmatchedCallPolicy: UnmatchedCallPolicy = .trap
     }
 
     private var policy: LockedPolicyState
@@ -89,6 +90,13 @@ final class StubRecorder: @unchecked Sendable {
         lock.withLock {
             guard configuredTestDoubleName == nil else { return }
             configuredTestDoubleName = name
+        }
+    }
+
+    /// Chooses how a call that no registration matched is answered.
+    func setUnmatchedCallPolicy(_ policy: UnmatchedCallPolicy) {
+        withLockedPolicy {
+            $0.unmatchedCallPolicy = policy
         }
     }
 
