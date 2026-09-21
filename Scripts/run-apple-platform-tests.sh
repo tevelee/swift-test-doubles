@@ -45,8 +45,17 @@ disown "$tail_pid" 2>/dev/null || true
 # shellcheck disable=SC2064
 trap "kill $tail_pid 2>/dev/null; rm -f '$log'" EXIT
 
+# Building and booting a simulator is legitimately silent for minutes, so the
+# watchdog stays disarmed until the first test result appears. The stall this
+# catches always happens mid-run, with results already flowing.
+#
+# In practice that limits it to Mac Catalyst, the only destination that hangs
+# and the only one that streams per-test output: under `-quiet` a simulator
+# destination prints just "Testing started", so it never arms and can never
+# report a false stall.
 while kill -0 "$build_pid" 2>/dev/null; do
     sleep "$poll_seconds"
+    grep -q "Test case '" "$log" 2>/dev/null || continue
     now="$(date +%s)"
     modified="$(stat -f %m "$log" 2>/dev/null || echo "$now")"
     quiet=$((now - modified))
