@@ -137,10 +137,15 @@ package enum FabricatedInvocationRegistry {
         identifier: UInt64
     ) {
         let shard = shard(for: key)
-        shard.lock.withLock {
-            guard shard.storage[key]?.identifier == identifier else { return }
-            shard.storage.removeValue(forKey: key)
+        // The removed entry owns the invocation, whose release can cascade
+        // into another fabricated double's deinit and back into this shard.
+        // Hand it out of the critical section and let it die after the
+        // non-recursive lock is dropped.
+        let removed = shard.lock.withLock { () -> Entry? in
+            guard shard.storage[key]?.identifier == identifier else { return nil }
+            return shard.storage.removeValue(forKey: key)
         }
+        withExtendedLifetime(removed) {}
     }
 
     @inline(__always)
