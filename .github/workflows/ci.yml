@@ -622,14 +622,11 @@ jobs:
           fi
       - name: Test
         run: >-
-          xcodebuild
-          -scheme swift-test-doubles-Package
-          -destination '${{ steps.destination.outputs.value }}'
-          -derivedDataPath .build/ci-apple-platform
-          -resultBundlePath .build/results/${{ matrix.cache_key }}.xcresult
-          -parallel-testing-enabled ${{ steps.destination.outputs.parallelism }}
-          -quiet
-          test
+          Scripts/run-apple-platform-tests.sh
+          '${{ steps.destination.outputs.value }}'
+          '${{ steps.destination.outputs.parallelism }}'
+          .build/ci-apple-platform
+          .build/results/${{ matrix.cache_key }}.xcresult
       - name: Upload xcresult
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
