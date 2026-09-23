@@ -162,7 +162,11 @@ private enum ModifyCoroutineRuntime {
                 break
             case .capturing:
                 fatalError(
-                    "[TestDoubles] Compound assignment and inout mutation cannot be captured while configuring or verifying a Stub. Capture the ordinary getter or direct setter instead."
+                    "[TestDoubles] Compound assignment and inout mutation cannot be captured while "
+                        + "configuring or verifying a Stub. Capture the ordinary getter or direct setter "
+                        + "instead, such as `when { $0.count }` and `when { $0.count = Match.any() }`, or "
+                        + "use `whenProperty(initialValue:get:set:)` to back the property with stored "
+                        + "state; compound assignment then works on the stubbed value."
                 )
         }
         guard
