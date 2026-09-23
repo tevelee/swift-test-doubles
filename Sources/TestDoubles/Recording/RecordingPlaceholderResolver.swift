@@ -16,6 +16,12 @@ enum RecordingPlaceholderResolver {
         RecordingPlaceholderResolution().make(type)
     }
 
+    /// Returns a registered, built-in, or composite value for `type` without
+    /// structural synthesis, for runtime recording to use at any depth.
+    static func leafValue(for type: Any.Type) -> Any? {
+        RecordingPlaceholderResolution().nestedLeafValue(type)
+    }
+
     /// Returns a dummy-grade value, consulting registered and built-in
     /// placeholders for any type structural synthesis cannot initialize.
     static func makeDummy<Value>(_ type: Value.Type) -> Value? {
@@ -67,7 +73,7 @@ private final class RecordingPlaceholderResolution {
     }
 
     /// Supplies a nested value that structural synthesis could not initialize.
-    private func nestedLeafValue(_ type: Any.Type) -> Any? {
+    func nestedLeafValue(_ type: Any.Type) -> Any? {
         func open<Value>(_: Value.Type) -> Any? {
             if let registered = Match.Placeholders.make(Value.self) {
                 return registered

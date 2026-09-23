@@ -118,6 +118,14 @@ package enum RuntimeStubFactory {
         PlaceholderValue.make(type, leafValue: leafValue)
     }
 
+    /// Installs the supplier runtime recording consults for nested values
+    /// structural synthesis cannot initialize.
+    package static func installRecordingLeafValue(
+        _ supplier: @escaping @Sendable (Any.Type) -> Any?
+    ) {
+        PlaceholderValue.installRecordingLeafValue(supplier)
+    }
+
     /// Whether `type` is an enum imported from C, such as an `NS_ENUM`.
     package static func isImportedCEnum(_ type: Any.Type) -> Bool {
         PlaceholderValue.isImportedCEnum(type)

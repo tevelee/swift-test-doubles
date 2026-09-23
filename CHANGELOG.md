@@ -87,6 +87,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Notification.Name`, and `UnitDuration`.
 - `Dummy` and placeholder synthesis for imported C enums, such as
   `DateFormatter.Style`, no longer crash the process.
+- Runtime-generated stubs no longer crash when a requirement returns an
+  `AsyncStream`, an `AsyncThrowingStream`, or another non-`@frozen`
+  standard-library or concurrency value. Their reflected storage is a single
+  reference, but every client passes and returns them indirectly; the
+  runtime now lowers them, and any struct or tuple storing one, that way. So
+  `whenStream`/`thenStream()` work on automatically discovered stubs without
+  a compiler-typed adapter. Runtime recording also consults the built-in
+  placeholder catalog for nested values, so results such as a struct
+  holding a stream record without `when(returning:)`.
 - A literal argument of an imported C enum, such as `style: .short` for a
   `DateFormatter.Style` parameter, matches by value. Its synthesized
   `Equatable` conformance is invisible to dynamic casts, so recording used to

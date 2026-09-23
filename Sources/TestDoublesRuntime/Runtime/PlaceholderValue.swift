@@ -1,5 +1,6 @@
 import Echo
 import EchoRuntimeSupport
+import Foundation
 
 /// Supplies a complete value for a type that structural synthesis cannot
 /// initialize itself, such as a class or an opaque framework value.
@@ -49,6 +50,26 @@ package enum PlaceholderValue {
         return storage.assumingMemoryBound(to: T.self).move()
     }
 
+    private static let recordingLeafLock = NSLock()
+    nonisolated(unsafe) private static var installedRecordingLeafValue: (@Sendable (Any.Type) -> Any?)?
+
+    /// Installs the supplier that runtime recording consults for nested
+    /// values structural synthesis cannot initialize, such as the semantic
+    /// target's built-in placeholder catalog.
+    package static func installRecordingLeafValue(
+        _ supplier: @escaping @Sendable (Any.Type) -> Any?
+    ) {
+        recordingLeafLock.withLock { installedRecordingLeafValue = supplier }
+    }
+
+    private static var recordingLeafValue: PlaceholderLeafValue? {
+        recordingLeafLock.lock()
+        let supplier = installedRecordingLeafValue
+        recordingLeafLock.unlock()
+        guard let supplier else { return nil }
+        return { type in supplier(type) }
+    }
+
     /// Initializes a placeholder at `destination` when `type` can be synthesized safely.
     package static func initialize(type: Any.Type, at destination: UnsafeMutableRawPointer) -> Bool {
         var visited: Set<UInt> = []
@@ -56,7 +77,8 @@ package enum PlaceholderValue {
             let plan = initializationPlan(
                 for: type,
                 visited: &visited,
-                includingDummyValues: false
+                includingDummyValues: false,
+                leafValue: recordingLeafValue
             )
         else {
             return false
@@ -76,7 +98,8 @@ package enum PlaceholderValue {
         return initializationPlan(
             for: type,
             visited: &visited,
-            includingDummyValues: false
+            includingDummyValues: false,
+            leafValue: recordingLeafValue
         ) != nil
     }
 

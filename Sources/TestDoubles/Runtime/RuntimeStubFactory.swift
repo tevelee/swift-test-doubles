@@ -190,17 +190,27 @@ enum RuntimeStubFactory {
             }
         }
 
+        /// Gives runtime recording the built-in placeholder catalog once,
+        /// before any runtime-generated double can record a call.
+        private static let recordingLeafValueInstallation: Void = {
+            TestDoublesRuntime.RuntimeStubFactory.installRecordingLeafValue { type in
+                RecordingPlaceholderResolver.leafValue(for: type)
+            }
+        }()
+
         static func prepareStub<P>(
             _ request: RuntimeStubPreparationRequest
         ) throws -> PreparedPlan<P> {
-            PreparedPlan(plan: try TestDoublesRuntime.RuntimeStubFactory.prepareStub(request))
+            recordingLeafValueInstallation
+            return PreparedPlan(plan: try TestDoublesRuntime.RuntimeStubFactory.prepareStub(request))
         }
 
         static func prepareStub<P>(
             discoveringFrom conformer: P,
             _ request: RuntimeStubPreparationRequest
         ) throws -> PreparedPlan<P> {
-            PreparedPlan(
+            recordingLeafValueInstallation
+            return PreparedPlan(
                 plan: try TestDoublesRuntime.RuntimeStubFactory.prepareStub(
                     discoveringFrom: conformer,
                     request
@@ -211,7 +221,8 @@ enum RuntimeStubFactory {
             to target: P,
             request: RuntimeStubPreparationRequest
         ) throws -> PreparedPlan<P> {
-            PreparedPlan(
+            recordingLeafValueInstallation
+            return PreparedPlan(
                 plan: try TestDoublesRuntime.RuntimeStubFactory.prepareForwardingStub(
                     to: target,
                     request: request
