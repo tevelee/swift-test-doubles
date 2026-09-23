@@ -385,6 +385,27 @@ stub.verify { $0.displayName }
 stub.verify { $0.displayName = Match.equal("Blob!") }
 ```
 
+To make the property behave like stored state, back it with
+`whenProperty(initialValue:get:set:)`. Reads return the stored value, writes
+replace it, and every access is still recorded. Compound assignment works too,
+since `_modify` goes through the same getter and setter:
+
+```swift
+let displayName = stub.whenProperty(
+    initialValue: "",
+    get: { $0.displayName },
+    set: { $0.displayName = $1 }
+)
+
+var profile: any MutableProfile = stub()
+profile.displayName = "Blob"
+profile.displayName += "!"
+
+#expect(profile.displayName == "Blob!")
+#expect(displayName.value == "Blob!")
+displayName.setter.verify(2 ... 2)
+```
+
 Swift 6.3's experimental `read` accessor uses the ordinary getter API while
 preserving a borrowed result for the caller:
 

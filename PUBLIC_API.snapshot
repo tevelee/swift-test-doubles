@@ -116,6 +116,7 @@ conformance	TestDoubles	StubSourceRequirementKind	Swift.Sendable	[]
 conformance	TestDoubles	StubSourceSupportReport	Swift.Equatable	[]
 conformance	TestDoubles	StubSourceSupportReport	Swift.Sendable	[]
 conformance	TestDoubles	StubSuspension	Swift.Sendable	[{"kind":"conformance","lhs":"Result","rhs":"Copyable","rhsPrecise":"s:s8CopyableP"},{"kind":"conformance","lhs":"Result","rhs":"Escapable","rhsPrecise":"s:s9EscapableP"},{"kind":"conformance","lhs":"Result","rhs":"Sendable","rhsPrecise":"s:s8SendableP"}]
+conformance	TestDoubles	StubbedProperty	Swift.Sendable	[]
 conformance	TestDoubles	TestDoubleClock	Swift.Sendable	[]
 conformance	TestDoubles	TestDoubleClock	s:11TestDoubles9StubClockP	[]
 conformance	TestDoubles	TestDoubleIssue	Swift.CustomStringConvertible	[]
@@ -162,6 +163,7 @@ symbol	TestDoubles	swift.class	Stub	class Stub<P>
 symbol	TestDoubles	swift.class	Stub.Invocation	final class Invocation
 symbol	TestDoubles	swift.class	StubBehaviorQueue	final class StubBehaviorQueue
 symbol	TestDoubles	swift.class	StubSuspension	final class StubSuspension<Result>
+symbol	TestDoubles	swift.class	StubbedProperty	final class StubbedProperty<Value>
 symbol	TestDoubles	swift.class	TestDoubleClock	final class TestDoubleClock
 symbol	TestDoubles	swift.class	ThrowingClosureDouble	final class ThrowingClosureDouble<Input, Result>
 symbol	TestDoubles	swift.class	TypedThrowingClosureDouble	final class TypedThrowingClosureDouble<Input, Result, Failure> where Failure : Error
@@ -761,6 +763,7 @@ symbol	TestDoubles	swift.method	CompiledStub.when(_:fileID:filePath:line:column:
 symbol	TestDoubles	swift.method	CompiledStub.when(_:isolation:fileID:filePath:line:column:)	func when<Result>(_ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> CallPattern<Result>
 symbol	TestDoubles	swift.method	CompiledStub.when(returning:_:fileID:filePath:line:column:)	func when<Result>(returning placeholder: Result, _ call: (T) throws -> Result, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> CallPattern<Result>
 symbol	TestDoubles	swift.method	CompiledStub.when(returning:_:isolation:fileID:filePath:line:column:)	func when<Result>(returning placeholder: Result, _ call: (T) async throws -> Result, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> CallPattern<Result>
+symbol	TestDoubles	swift.method	CompiledStub.whenProperty(initialValue:get:set:fileID:filePath:line:column:)	@discardableResult func whenProperty<Value>(initialValue: Value, get: (T) throws -> Value, set: (inout T, Value) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> StubbedProperty<Value>
 symbol	TestDoubles	swift.method	CompiledStub.whenStream(_:fileID:filePath:line:column:)	func whenStream<Element>(_ call: (T) throws -> AsyncStream<Element>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> CallPattern<AsyncStream<Element>>
 symbol	TestDoubles	swift.method	CompiledStub.whenStream(_:isolation:fileID:filePath:line:column:)	func whenStream<Element>(_ call: (T) async throws -> AsyncStream<Element>, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> CallPattern<AsyncStream<Element>>
 symbol	TestDoubles	swift.method	CompiledStub.whenThrowingStream(_:fileID:filePath:line:column:)	func whenThrowingStream<Element>(_ call: (T) throws -> AsyncThrowingStream<Element, any Error>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> CallPattern<AsyncThrowingStream<Element, any Error>>
@@ -898,6 +901,7 @@ symbol	TestDoubles	swift.method	Stub.when(returningOptionalSelf:)	func when(retu
 symbol	TestDoubles	swift.method	Stub.when(returningOptionalSelf:isolation:)	func when(returningOptionalSelf call: (P) async throws -> P?, isolation: isolated (any Actor)? = #isolation) async -> StubOptionalSelfResultBuilder
 symbol	TestDoubles	swift.method	Stub.when(returningSelf:)	func when(returningSelf call: (P) throws -> P) -> StubSelfResultBuilder
 symbol	TestDoubles	swift.method	Stub.when(returningSelf:isolation:)	func when(returningSelf call: (P) async throws -> P, isolation: isolated (any Actor)? = #isolation) async -> StubSelfResultBuilder
+symbol	TestDoubles	swift.method	Stub.whenProperty(initialValue:get:set:fileID:filePath:line:column:)	@discardableResult func whenProperty<Value>(initialValue: Value, get: (P) throws -> Value, set: (inout P, Value) throws -> Void, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> StubbedProperty<Value>
 symbol	TestDoubles	swift.method	Stub.whenStream(_:fileID:filePath:line:column:)	func whenStream<Element>(_ call: (P) throws -> AsyncStream<Element>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> CallPattern<AsyncStream<Element>>
 symbol	TestDoubles	swift.method	Stub.whenStream(_:isolation:fileID:filePath:line:column:)	func whenStream<Element>(_ call: (P) async throws -> AsyncStream<Element>, isolation: isolated (any Actor)? = #isolation, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) async -> CallPattern<AsyncStream<Element>>
 symbol	TestDoubles	swift.method	Stub.whenThrowingStream(_:fileID:filePath:line:column:)	func whenThrowingStream<Element>(_ call: (P) throws -> AsyncThrowingStream<Element, any Error>, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> CallPattern<AsyncThrowingStream<Element, any Error>>
@@ -1235,6 +1239,9 @@ symbol	TestDoubles	swift.property	StubSourceSupportReport.protocolName	let proto
 symbol	TestDoubles	swift.property	StubSourceSupportReport.requirements	let requirements: [StubRequirementSupport]
 symbol	TestDoubles	swift.property	StubSourceSupportReport.runtimeIsCompilerDescribed	var runtimeIsCompilerDescribed: Bool { get }
 symbol	TestDoubles	swift.property	StubSuspension.interactions	let interactions: CallInteractions
+symbol	TestDoubles	swift.property	StubbedProperty.getter	let getter: CallPattern<Value>
+symbol	TestDoubles	swift.property	StubbedProperty.setter	let setter: CallPattern<Void>
+symbol	TestDoubles	swift.property	StubbedProperty.value	var value: Value { get set }
 symbol	TestDoubles	swift.property	TestDoubleClock.pendingSleepCount	var pendingSleepCount: Int { get }
 symbol	TestDoubles	swift.property	TestDoubleIssue.description	var description: String { get }
 symbol	TestDoubles	swift.property	TestDoubleIssue.kind	let kind: Kind
