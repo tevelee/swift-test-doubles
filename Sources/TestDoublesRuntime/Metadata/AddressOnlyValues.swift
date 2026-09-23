@@ -42,15 +42,16 @@ private let nonFrozenStandardLibraryTypeNames: Set<String> = [
     "Mirror"
 ]
 
-/// Whether `type` is, or stores inline, a non-`@frozen` standard-library
-/// value. Such a value is address-only for every client, so it is passed and
-/// returned indirectly regardless of its reflected layout.
-func storesNonFrozenStandardLibraryValue(_ type: Any.Type) -> Bool {
+/// Whether `type` is, or stores inline, a value that is address-only for
+/// every client: a non-`@frozen` standard-library value or an opaque
+/// existential such as `Any`. Such a value is passed and returned indirectly
+/// regardless of its reflected layout, including inside an `Optional`.
+func storesAddressOnlyValue(_ type: Any.Type) -> Bool {
     var visited: Set<UInt> = []
-    return storesNonFrozenStandardLibraryValue(type, visited: &visited)
+    return storesAddressOnlyValue(type, visited: &visited)
 }
 
-private func storesNonFrozenStandardLibraryValue(
+private func storesAddressOnlyValue(
     _ type: Any.Type,
     visited: inout Set<UInt>
 ) -> Bool {
@@ -58,9 +59,17 @@ private func storesNonFrozenStandardLibraryValue(
     let key = UInt(bitPattern: metadata.ptr)
     guard visited.insert(key).inserted else { return false }
 
+    // An opaque existential stores its value in an inline buffer or a box
+    // chosen at runtime. Class-constrained and `Error` existentials are a
+    // loadable reference instead.
+    if let existential = metadata as? ExistentialMetadata {
+        return existential.flags.isClassConstraint == false
+            && existential.flags.specialProtocol != .error
+    }
+
     if let tuple = metadata as? TupleMetadata {
         return tuple.elements.contains {
-            storesNonFrozenStandardLibraryValue($0.type, visited: &visited)
+            storesAddressOnlyValue($0.type, visited: &visited)
         }
     }
     if let structure = metadata as? StructMetadata {
@@ -69,7 +78,7 @@ private func storesNonFrozenStandardLibraryValue(
             guard field.hasMangledTypeName,
                 let fieldType = resolvedFieldType(field.mangledTypeName, in: structure)
             else { return false }
-            return storesNonFrozenStandardLibraryValue(fieldType, visited: &visited)
+            return storesAddressOnlyValue(fieldType, visited: &visited)
         }
     }
     if let enumeration = metadata as? EnumMetadata {
@@ -80,7 +89,7 @@ private func storesNonFrozenStandardLibraryValue(
                 record.hasMangledTypeName,
                 let payloadType = resolvedFieldType(record.mangledTypeName, in: enumeration)
             else { return false }
-            return storesNonFrozenStandardLibraryValue(payloadType, visited: &visited)
+            return storesAddressOnlyValue(payloadType, visited: &visited)
         }
     }
     return false
@@ -103,10 +112,10 @@ private func isNonFrozenStandardLibraryType(_ descriptor: any TypeContextDescrip
     return false
 }
 
-/// Memoizes ``storesNonFrozenStandardLibraryValue(_:)``, which walks stored
-/// fields, for layouts computed on dispatch paths.
-final class NonFrozenStandardLibraryValueCache: @unchecked Sendable {
-    static let shared = NonFrozenStandardLibraryValueCache()
+/// Memoizes ``storesAddressOnlyValue(_:)``, which walks stored fields, for
+/// layouts computed on dispatch paths.
+final class AddressOnlyValueCache: @unchecked Sendable {
+    static let shared = AddressOnlyValueCache()
 
     private let lock = NSLock()
     private var results: [ObjectIdentifier: Bool] = [:]
@@ -114,7 +123,7 @@ final class NonFrozenStandardLibraryValueCache: @unchecked Sendable {
     func stores(_ type: Any.Type) -> Bool {
         let key = ObjectIdentifier(type)
         if let cached = lock.withLock({ results[key] }) { return cached }
-        let result = storesNonFrozenStandardLibraryValue(type)
+        let result = storesAddressOnlyValue(type)
         lock.withLock { results[key] = result }
         return result
     }

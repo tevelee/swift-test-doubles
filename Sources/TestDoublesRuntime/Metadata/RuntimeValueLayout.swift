@@ -89,7 +89,7 @@ package func abiClass(for type: Any.Type) -> ABIClass {
     if size == 0 {
         return .void
     }
-    if NonFrozenStandardLibraryValueCache.shared.stores(type) {
+    if AddressOnlyValueCache.shared.stores(type) {
         return .indirect
     }
     if isFloatingPoint(type) {
@@ -159,9 +159,9 @@ private struct ArgumentABIClassificationContext {
 
     mutating func candidates(for type: Any.Type) -> [ABIClass] {
         let direct = abiClass(for: type)
-        // A non-frozen standard-library value is address-only for every
-        // client; no loadable candidate applies.
-        if NonFrozenStandardLibraryValueCache.shared.stores(type) {
+        // A non-frozen standard-library value or an opaque existential is
+        // address-only for every client; no loadable candidate applies.
+        if AddressOnlyValueCache.shared.stores(type) {
             return [.indirect]
         }
 

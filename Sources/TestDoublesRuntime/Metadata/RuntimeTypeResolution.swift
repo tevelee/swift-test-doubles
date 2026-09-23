@@ -34,6 +34,8 @@ private func resolveUncachedRuntimeType(_ syntax: DemangledTypeSyntax) -> Any.Ty
         case "Double", "Swift.Double": return Double.self
         case "Float", "Swift.Float": return Float.self
         case "Error", "Swift.Error": return (any Error).self
+        case "Any", "Swift.Any", "protocol<>": return Any.self
+        case "AnyObject", "Swift.AnyObject": return AnyObject.self
         #if !((os(macOS) || targetEnvironment(macCatalyst)) && arch(x86_64))
             case "Float16", "Swift.Float16": return Float16.self
         #endif

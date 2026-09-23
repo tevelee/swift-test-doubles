@@ -20,6 +20,13 @@ enum BuiltInRecordingPlaceholders {
         if ObjectIdentifier(type) == ObjectIdentifier((any Error).self) {
             return RecordingPlaceholderError()
         }
+        // Exact matches only: every type is an `Any.Type`.
+        if ObjectIdentifier(type) == ObjectIdentifier(Any.self) {
+            return RecordingPlaceholderObject()
+        }
+        if ObjectIdentifier(type) == ObjectIdentifier(AnyObject.self) {
+            return RecordingPlaceholderObject()
+        }
         if let value = standardLibraryValue(for: type) {
             return value
         }
@@ -165,3 +172,6 @@ enum BuiltInRecordingPlaceholders {
 
 /// A valid error value used only while a call-recording closure executes.
 private struct RecordingPlaceholderError: Error {}
+
+/// A valid `Any` or `AnyObject` value used only while recording.
+private final class RecordingPlaceholderObject {}

@@ -123,6 +123,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and a forwarding `Spy` no longer traps on its first call to a method taking a
   `UUID` before any configuration. The remaining calibration diagnostics name
   the argument types that need a `Match` expression.
+- Signatures containing `Any` or `AnyObject`, such as a UserDefaults-style
+  `func value(forKey:) -> Any?`, are discovered instead of failing with
+  "Could not resolve runtime metadata for type 'Swift.Optional<Any>'". An
+  `Optional` of an opaque existential is now passed and returned indirectly,
+  like the existential itself, rather than split across four registers.
 - A literal argument of an imported C enum, such as `style: .short` for a
   `DateFormatter.Style` parameter, matches by value. Its synthesized
   `Equatable` conformance is invisible to dynamic casts, so recording used to
