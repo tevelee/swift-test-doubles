@@ -63,3 +63,7 @@ protocol BuildGeneratedTransformer {
     func visit(_ body: (inout Int) -> Void) -> Int
     func perform(_ work: @Sendable () async -> Void) async
 }
+
+protocol BuildGeneratedAggregator {
+    func sum(_ numbers: some Sequence<Int>) -> Int
+}

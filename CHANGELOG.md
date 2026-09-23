@@ -145,6 +145,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `DateFormatter.Style` parameter, matches by value. Its synthesized
   `Equatable` conformance is invisible to dynamic casts, so recording used to
   trap with "no generic equality".
+- Generated conformers forward an opaque `some P` parameter as `any P`, so
+  one registration matches every concrete argument type. A registration made
+  with `[Int]` for `some Sequence<Int>` previously missed a call passing a
+  `Set<Int>`.
 - The manual stub generator no longer drops the parameters that follow a
   closure-typed parameter: the `>` of a function arrow was counted as a
   closing generic bracket, so `log(_:_:file:line:)` forwarded only its first

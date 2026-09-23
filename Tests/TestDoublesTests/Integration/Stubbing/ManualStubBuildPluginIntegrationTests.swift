@@ -159,4 +159,16 @@ import TestDoubles
         await transformer.perform {}
         stub.verify { $0.map([1, 2], transform: Match.any()) }
     }
+
+    @Test func opaqueParametersShareOneRouteForEveryConcreteType() {
+        let stub = BuildGeneratedAggregatorStub()
+        stub.when { $0.sum(Match.any() as [Int]) }
+            .then { (numbers: any Sequence<Int>) in numbers.reduce(0, +) }
+
+        let aggregator: any BuildGeneratedAggregator = stub()
+
+        #expect(aggregator.sum([1, 2, 3]) == 6)
+        #expect(aggregator.sum(Set([4, 5])) == 9)
+        #expect(aggregator.sum(1 ... 3) == 6)
+    }
 }

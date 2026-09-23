@@ -85,6 +85,9 @@ extension ManualStubGenerator {
     private struct ForwardedParameter {
         let local: String
         let isInout: Bool
+        /// The existential an opaque `some P` parameter forwards as, so every
+        /// concrete argument type shares one stub route.
+        let erasedExistential: String?
         /// A nonescaping `@autoclosure`, evaluated for forwarding.
         let autoclosure: FunctionTypeSyntax?
         /// A nonescaping closure, lent to the stub for the call.
@@ -110,6 +113,9 @@ extension ManualStubGenerator {
             return ForwardedParameter(
                 local: local,
                 isInout: type.hasPrefix("inout "),
+                erasedExistential: type.hasPrefix("some ")
+                    ? "any " + type.dropFirst("some ".count)
+                    : nil,
                 autoclosure: isAutoclosure && escapes == false ? function : nil,
                 borrowedClosure: isAutoclosure == false && escapes == false ? function : nil
             )
@@ -127,6 +133,9 @@ extension ManualStubGenerator {
         }
         if parameter.borrowedClosure != nil {
             return "\(parameter.local)Proxy"
+        }
+        if let existential = parameter.erasedExistential {
+            return "\(parameter.local) as \(existential)"
         }
         return parameter.isInout ? "&\(parameter.local)" : parameter.local
     }

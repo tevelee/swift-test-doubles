@@ -262,6 +262,19 @@ import Testing
         }
     }
 
+    @Test func erasesOpaqueParametersToTheirExistential() throws {
+        let output = try render(
+            """
+            protocol Aggregator {
+                func sum(_ numbers: some Sequence<Int>) -> Int
+            }
+            """,
+            protocolName: "Aggregator"
+        )
+
+        #expect(output.contains("stub.call(numbers as any Sequence<Int>)"))
+    }
+
     @Test func keepsEveryParameterAfterAClosureTypedParameter() throws {
         let output = try render(
             """
