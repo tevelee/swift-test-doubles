@@ -18,6 +18,8 @@ conformance	TestDoubles	BehaviorRepetition.Finite	Swift.Sendable	[]
 conformance	TestDoubles	BehaviorRepetition.Forever	Swift.Equatable	[]
 conformance	TestDoubles	BehaviorRepetition.Forever	Swift.Hashable	[]
 conformance	TestDoubles	BehaviorRepetition.Forever	Swift.Sendable	[]
+conformance	TestDoubles	BorrowedArgument	Swift.Sendable	[]
+conformance	TestDoubles	BorrowedClosure	Swift.Sendable	[]
 conformance	TestDoubles	CallInteractions	Swift.Sendable	[]
 conformance	TestDoubles	CallPattern	Swift.Sendable	[]
 conformance	TestDoubles	CallbackCapture	Swift.Sendable	[]
@@ -144,6 +146,8 @@ symbol	TestDoubles	swift.class	AsyncStreamController	final class AsyncStreamCont
 symbol	TestDoubles	swift.class	AsyncThrowingClosureDouble	final class AsyncThrowingClosureDouble<Input, Result>
 symbol	TestDoubles	swift.class	AsyncThrowingStreamController	final class AsyncThrowingStreamController<Element>
 symbol	TestDoubles	swift.class	AsyncTypedThrowingClosureDouble	final class AsyncTypedThrowingClosureDouble<Input, Result, Failure> where Failure : Error
+symbol	TestDoubles	swift.class	BorrowedArgument	class BorrowedArgument
+symbol	TestDoubles	swift.class	BorrowedClosure	final class BorrowedClosure<Function>
 symbol	TestDoubles	swift.class	CallbackCapture	final class CallbackCapture<Value>
 symbol	TestDoubles	swift.class	ClosureDouble	final class ClosureDouble<Input, Result>
 symbol	TestDoubles	swift.class	CompiledStub	@dynamicMemberLookup final class CompiledStub<T>
@@ -267,6 +271,7 @@ symbol	TestDoubles	swift.init	AsyncThrowingClosureDouble.init(forwardingTo:)	ini
 symbol	TestDoubles	swift.init	AsyncThrowingStreamController.init(bufferingPolicy:)	init(bufferingPolicy: AsyncThrowingStream<Element, any Error>.Continuation.BufferingPolicy = .unbounded)
 symbol	TestDoubles	swift.init	AsyncTypedThrowingClosureDouble.init()	init()
 symbol	TestDoubles	swift.init	AsyncTypedThrowingClosureDouble.init(forwardingTo:)	init(forwardingTo target: @escaping @Sendable (Input) async throws(Failure) -> Result)
+symbol	TestDoubles	swift.init	BorrowedClosure.init(_:parameter:)	init(_ function: Function, parameter: String = "closure")
 symbol	TestDoubles	swift.init	CallbackCapture.init()	init()
 symbol	TestDoubles	swift.init	ClientDoublePreset.init(_:)	init(_ materialize: @escaping (ClientStubEndpoints<Client>) -> Client)
 symbol	TestDoubles	swift.init	ClosureDouble.init()	init()
@@ -497,6 +502,9 @@ symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.when(_:described
 symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.when(equal:fileID:filePath:line:column:)	func when(equal value: Input, fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> AsyncThrowingClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.whenAny(fileID:filePath:line:column:)	func whenAny(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> AsyncThrowingClosureCallPattern<Input, Result>
 symbol	TestDoubles	swift.method	AsyncTypedThrowingClosureDouble.whenArguments(_:describedBy:fileID:filePath:line:column:)	func whenArguments<each Argument>(_ matcher: @escaping @Sendable (repeat each Argument) -> Bool, describedBy description: String = "predicate", fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> AsyncThrowingClosureCallPattern<Input, Result> where Input == (repeat each Argument)
+symbol	TestDoubles	swift.method	BorrowedClosure.callAsFunction(_:)	func callAsFunction<Result, Failure>(_ invoke: (Function) throws(Failure) -> Result) throws(Failure) -> Result where Failure : Error
+symbol	TestDoubles	swift.method	BorrowedClosure.callAsFunction(isolation:_:)	func callAsFunction<Result, Failure>(isolation: isolated (any Actor)? = #isolation, _ invoke: (Function) async throws(Failure) -> Result) async throws(Failure) -> Result where Failure : Error
+symbol	TestDoubles	swift.method	BorrowedClosure.end()	func end()
 symbol	TestDoubles	swift.method	CallInteractions.arguments()	func arguments<each Argument>() -> [(repeat each Argument)]
 symbol	TestDoubles	swift.method	CallInteractions.captureCallStacks(maxFrames:)	@discardableResult func captureCallStacks(maxFrames: Int = 32) -> CallInteractions
 symbol	TestDoubles	swift.method	CallInteractions.errors()	func errors() -> [any Error]
@@ -706,12 +714,16 @@ symbol	TestDoubles	swift.method	CompiledStub.callAsFunction()	func callAsFunctio
 symbol	TestDoubles	swift.method	CompiledStub.captureCallStacks(maxFrames:)	@discardableResult func captureCallStacks(maxFrames: Int = 32) -> Self
 symbol	TestDoubles	swift.method	CompiledStub.clearConfiguredBehaviors()	func clearConfiguredBehaviors()
 symbol	TestDoubles	swift.method	CompiledStub.clearRecordedInvocations()	func clearRecordedInvocations()
+symbol	TestDoubles	swift.method	CompiledStub.deferredArgument(at:_:)	func deferredArgument<Value, Failure>(at position: Int, _ argument: () throws(Failure) -> Value) throws(Failure) -> Value where Failure : Error
+symbol	TestDoubles	swift.method	CompiledStub.deferredAsyncArgument(at:isolation:_:)	func deferredAsyncArgument<Value, Failure>(at position: Int, isolation: isolated (any Actor)? = #isolation, _ argument: () async throws(Failure) -> Value) async throws(Failure) -> Value where Failure : Error
 symbol	TestDoubles	swift.method	CompiledStub.describeInteractions()	func describeInteractions() -> String
 symbol	TestDoubles	swift.method	CompiledStub.interactionTimeline()	func interactionTimeline() -> InteractionTimeline
 symbol	TestDoubles	swift.method	CompiledStub.makeValue()	func makeValue() -> T
 symbol	TestDoubles	swift.method	CompiledStub.named(_:)	@discardableResult func named(_ name: String) -> Self
 symbol	TestDoubles	swift.method	CompiledStub.onUnmatchedCall(_:)	@discardableResult func onUnmatchedCall(_ policy: UnmatchedCallPolicy) -> Self
 symbol	TestDoubles	swift.method	CompiledStub.reset()	func reset()
+symbol	TestDoubles	swift.method	CompiledStub.rethrowingCall(borrowing:function:_:)	func rethrowingCall<Result>(borrowing arguments: BorrowedArgument..., function: String = #function, _ body: () throws -> Result) throws -> Result
+symbol	TestDoubles	swift.method	CompiledStub.rethrowingCall(borrowing:function:isolation:_:)	func rethrowingCall<Result>(borrowing arguments: BorrowedArgument..., function: String = #function, isolation: isolated (any Actor)? = #isolation, _ body: () async throws -> Result) async throws -> Result
 symbol	TestDoubles	swift.method	CompiledStub.throwingCall(_:function:)	func throwingCall<each Argument, R>(_ args: repeat each Argument, function: String = #function) async throws -> R
 symbol	TestDoubles	swift.method	CompiledStub.throwingCall(_:function:)	func throwingCall<each Argument, R>(_ args: repeat each Argument, function: String = #function) throws -> R
 symbol	TestDoubles	swift.method	CompiledStub.throwingCall(_:function:)	func throwingCall<each Argument>(_ args: repeat each Argument, function: String = #function) async throws
@@ -1347,6 +1359,7 @@ symbol	TestDoubles	swift.type.method	Match.allOf(_:_:)	static func allOf<T>(_ fi
 symbol	TestDoubles	swift.type.method	Match.allOf(_:_:_:)	static func allOf<T>(_ first: @autoclosure () -> T, _ second: @autoclosure () -> T, _ third: @autoclosure () -> T) -> T
 symbol	TestDoubles	swift.type.method	Match.allOf(_:_:_:_:)	static func allOf<T>(_ first: @autoclosure () -> T, _ second: @autoclosure () -> T, _ third: @autoclosure () -> T, _ fourth: @autoclosure () -> T) -> T
 symbol	TestDoubles	swift.type.method	Match.any()	static func any<T>() -> T
+symbol	TestDoubles	swift.type.method	Match.any()	static func any<each Argument, Result>() -> @Sendable (repeat each Argument) -> Result
 symbol	TestDoubles	swift.type.method	Match.any(using:)	static func any<T>(using placeholder: T) -> T
 symbol	TestDoubles	swift.type.method	Match.anyOf(_:_:)	static func anyOf<T>(_ first: @autoclosure () -> T, _ second: @autoclosure () -> T) -> T
 symbol	TestDoubles	swift.type.method	Match.anyOf(_:_:_:)	static func anyOf<T>(_ first: @autoclosure () -> T, _ second: @autoclosure () -> T, _ third: @autoclosure () -> T) -> T

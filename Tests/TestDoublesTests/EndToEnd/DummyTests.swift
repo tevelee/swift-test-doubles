@@ -273,7 +273,7 @@ struct DummyTests {
         let stream: AsyncStream<Int> = Dummy.make()
 
         #expect(zone.secondsFromGMT() == 0)
-        #expect(name.rawValue.isEmpty == false)
+        #expect(Notification.Name(name.rawValue) == name)
         #expect(unit == .seconds)
         withExtendedLifetime(stream) {}
     }

@@ -313,6 +313,52 @@ func load(_ id: Int) throws(ServiceError) -> Item {
 }
 ```
 
+### Forward autoclosure and closure parameters
+
+Swift evaluates an `@autoclosure` argument only when the implementation calls
+it, after every other argument. Forward its value through
+``CompiledStub/deferredArgument(at:_:)`` with the argument's zero-based
+position, so a `Match` expression written inside the autoclosure stays paired
+with that argument while a call is recorded:
+
+```swift
+func log(_ level: Level, _ message: @autoclosure () -> String, line: Int) {
+    stub.call(level, stub.deferredArgument(at: 1, message), line)
+}
+
+logger.verify { $0.log(.error, Match.containsSubstring("offline"), line: Match.any()) }
+```
+
+A nonescaping closure parameter cannot be stored, but a stub records every
+argument. Make it escapable for the call and lend it through a
+``BorrowedClosure``. The stub records a proxy that calls through the borrow,
+and ending the borrow before returning releases the original closure. A
+handler can call the closure while the call runs; calling the recorded proxy
+afterwards terminates with a diagnostic:
+
+```swift
+func map(_ values: [Int], transform: (Int) -> Int) -> [Int] {
+    withoutActuallyEscaping(transform) { transform in
+        let borrowed = BorrowedClosure(transform, parameter: "transform")
+        defer { borrowed.end() }
+        return stub.call(values, { (value: Int) -> Int in borrowed { $0(value) } })
+    }
+}
+
+stub.when { $0.map(Match.any(), transform: Match.any()) }
+    .then { (values: [Int], transform: @escaping (Int) -> Int) in values.map(transform) }
+```
+
+`Match.any()` binds to a nonescaping closure parameter, including `inout`,
+`@Sendable`, async, and typed-throwing ones. A `rethrows` requirement forwards
+through ``CompiledStub/rethrowingCall(borrowing:function:_:)``, which rethrows
+an error only when a borrowed closure threw it. A configured behavior that
+throws on its own terminates with a diagnostic instead, because a caller that
+passed a nonthrowing closure cannot handle the error.
+
+The command plugin, build plugin, and `@Stubbable` emit this forwarding for
+you.
+
 ### Tradeoffs
 
 CompiledStub is ordinary Swift. It avoids runtime metadata, witness table

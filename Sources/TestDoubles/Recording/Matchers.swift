@@ -1,10 +1,22 @@
 import Foundation
 import InternalRuntimeContract
 
+/// A calibration type no requirement argument can have.
+private struct UnlocatablePlaceholder {}
+
 private final class MatcherRecording: @unchecked Sendable {
+    /// Matchers an `@autoclosure` argument formed when the forwarding
+    /// implementation evaluated it, after every eager argument.
+    private struct DeferredGroup {
+        let position: Int
+        let matchers: [ParameterMatcher]
+        let calibrations: [RuntimeArgumentCalibration]
+    }
+
     private let lock = NSLock()
     private var storage: [ParameterMatcher] = []
     private var calibrations: [RuntimeArgumentCalibration] = []
+    private var deferred: [DeferredGroup] = []
 
     func append(_ matcher: ParameterMatcher) {
         lock.lock()
@@ -28,13 +40,51 @@ private final class MatcherRecording: @unchecked Sendable {
         takeRecording().matchers
     }
 
-    func takeRecording() -> (matchers: [ParameterMatcher], calibrations: [RuntimeArgumentCalibration]) {
+    func appendDeferred(
+        at position: Int,
+        matchers: [ParameterMatcher],
+        calibrations: [RuntimeArgumentCalibration]
+    ) {
+        lock.lock()
+        deferred.append(
+            DeferredGroup(position: position, matchers: matchers, calibrations: calibrations)
+        )
+        lock.unlock()
+    }
+
+    func takeRecording(
+        argumentCount: Int? = nil
+    ) -> (matchers: [ParameterMatcher], calibrations: [RuntimeArgumentCalibration]) {
         lock.lock()
         defer { lock.unlock() }
-        let matchers = storage
-        let recordedCalibrations = calibrations
+        var matchers = storage
+        var recordedCalibrations = calibrations
+        let groups = deferred.sorted { $0.position < $1.position }
         storage.removeAll(keepingCapacity: true)
         calibrations.removeAll(keepingCapacity: true)
+        deferred.removeAll(keepingCapacity: true)
+        guard groups.isEmpty == false else { return (matchers, recordedCalibrations) }
+
+        let deferredCount = groups.reduce(0) { $0 + $1.matchers.count }
+        let everyArgumentHasOneMatcher =
+            matchers.count + deferredCount == argumentCount
+            && groups.allSatisfy { $0.matchers.count == 1 }
+        if everyArgumentHasOneMatcher {
+            // Positional matching: put each deferred matcher back at the
+            // argument it describes.
+            for group in groups where group.position <= matchers.count {
+                matchers.insert(contentsOf: group.matchers, at: group.position)
+            }
+        } else {
+            // Mixed literals: keep matchers paired with their calibrations so
+            // placeholder bytes can locate each deferred matcher's argument.
+            for group in groups {
+                matchers.append(contentsOf: group.matchers)
+            }
+        }
+        for group in groups {
+            recordedCalibrations.append(contentsOf: group.calibrations)
+        }
         return (matchers, recordedCalibrations)
     }
 }
@@ -98,6 +148,16 @@ enum MatcherContext {
         return placeholder
     }
 
+    /// Records a calibration that never locates an argument, for a matcher
+    /// whose placeholder cannot be abstracted into a calibration value. It
+    /// keeps matchers and calibrations paired; the matcher can still be
+    /// placed positionally when every argument uses a `Match` expression.
+    @inline(never)
+    static func appendUnlocatableCalibration() {
+        activeRecording?.appendCalibration(UnlocatablePlaceholder())
+        RuntimeStubFactory.scrubArgumentRegisters()
+    }
+
     static func currentCalibrations() -> [RuntimeArgumentCalibration] {
         activeRecording?.currentCalibrations() ?? []
     }
@@ -127,11 +187,76 @@ enum MatcherContext {
     /// invocation together with the concrete placeholder bytes Swift passed
     /// to the requirement. The paired calibration is used only to prove a
     /// unique argument position for mixed literal-and-matcher recordings.
-    static func takeRecording() -> (
+    static func takeRecording(
+        argumentCount: Int? = nil
+    ) -> (
         matchers: [ParameterMatcher],
         calibrations: [RuntimeArgumentCalibration]
     ) {
-        activeRecording?.takeRecording() ?? ([], [])
+        activeRecording?.takeRecording(argumentCount: argumentCount) ?? ([], [])
+    }
+
+    /// Evaluates a deferred argument and files the matchers it forms under
+    /// `position`, so they pair with that argument instead of trailing the
+    /// eagerly evaluated ones.
+    static func evaluatingDeferredArgument<Value, Failure: Error>(
+        at position: Int,
+        _ argument: () throws(Failure) -> Value
+    ) throws(Failure) -> Value {
+        guard let parent = activeRecording else { return try argument() }
+        let nested = MatcherRecording()
+        let value: Value
+        do {
+            value = try $activeRecording.withValue(nested) {
+                do {
+                    return try argument()
+                } catch {
+                    throw ClosureFailureTransport(error: error)
+                }
+            }
+        } catch let error as ClosureFailureTransport<Failure> {
+            throw error.error
+        } catch {
+            preconditionFailure("[TestDoubles] Task-local matcher storage unexpectedly threw \(error).")
+        }
+        let recording = nested.takeRecording()
+        parent.appendDeferred(
+            at: position,
+            matchers: recording.matchers,
+            calibrations: recording.calibrations
+        )
+        return value
+    }
+
+    /// Asynchronous variant of ``evaluatingDeferredArgument(at:_:)``.
+    static func evaluatingDeferredArgument<Value, Failure: Error>(
+        at position: Int,
+        isolation: isolated (any Actor)? = #isolation,
+        _ argument: () async throws(Failure) -> Value
+    ) async throws(Failure) -> Value {
+        guard let parent = activeRecording else { return try await argument() }
+        let nested = MatcherRecording()
+        let value: Value
+        do {
+            value = try await $activeRecording.withValue(nested) {
+                do {
+                    return try await argument()
+                } catch {
+                    throw ClosureFailureTransport(error: error)
+                }
+            }
+        } catch let error as ClosureFailureTransport<Failure> {
+            throw error.error
+        } catch {
+            preconditionFailure("[TestDoubles] Task-local matcher storage unexpectedly threw \(error).")
+        }
+        let recording = nested.takeRecording()
+        parent.appendDeferred(
+            at: position,
+            matchers: recording.matchers,
+            calibrations: recording.calibrations
+        )
+        return value
     }
 }
 
@@ -244,9 +369,33 @@ extension Match {
         )
     }
 
+    /// Matches any closure argument, including a nonescaping one.
+    ///
+    /// Swift cannot bind the generic ``Match/any()->T`` to a nonescaping function
+    /// parameter, so this overload supplies an escaping closure that converts
+    /// to any effect, isolation, or `Sendable` variant of the parameter's
+    /// function type. Recording never calls the placeholder; calling it
+    /// terminates the process.
+    ///
+    /// ```swift
+    /// stub.when { $0.map(Match.any(), transform: Match.any()) }
+    /// ```
+    @_disfavoredOverload
+    public static func any<each Argument, Result>() -> @Sendable (repeat each Argument) -> Result {
+        MatcherContext.append(AnyMatcher())
+        let placeholder: @Sendable (repeat each Argument) -> Result = { (_: repeat each Argument) in
+            fatalError(
+                "[TestDoubles] A Match.any() closure placeholder was called. Recording "
+                    + "passes it to the requirement only to describe the call."
+            )
+        }
+        MatcherContext.appendUnlocatableCalibration()
+        return placeholder
+    }
+
     /// Matches any argument of type `T`, using `placeholder` while recording the call.
     ///
-    /// Use this overload when ``Match/any()`` cannot safely synthesize a value, such as
+    /// Use this overload when ``Match/any()->T`` cannot safely synthesize a value, such as
     /// for reference or existential types. The placeholder is never used for matching.
     ///
     /// - Parameter placeholder: A valid value accepted by the stubbed requirement.

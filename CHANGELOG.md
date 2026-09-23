@@ -37,6 +37,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `waitForCompletion(count:within:)`. Standalone closure doubles whose result
   is an `AsyncStream` or `AsyncThrowingStream` also gain `thenStream()` and
   `thenThrowingStream()`, matching `Stub` and `ClientStub`.
+- `CompiledStub.deferredArgument(at:_:)` forwards an `@autoclosure` argument
+  and keeps a `Match` expression inside it paired with its own argument
+  position. Swift evaluates the autoclosure after every other argument, so
+  its matcher was previously checked against the last argument instead.
+- `BorrowedClosure` and `CompiledStub.rethrowingCall(borrowing:function:_:)`
+  let a compiled conformer forward nonescaping closure parameters, including
+  `rethrows` requirements. Handlers can call the closure during the call, and
+  a `rethrows` requirement only rethrows errors the closure threw.
+- `Match.any()` binds to nonescaping closure parameters, including `inout`,
+  `@Sendable`, async, and typed-throwing function types.
 - `onUnmatchedCall(_:)` chooses what a double does with a call no registration
   matched. Doubles still trap by default. `.reportIssue` instead reports the
   same missing-stub diagnostic as a test issue and recovers with a `Dummy`

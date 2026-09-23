@@ -152,7 +152,7 @@ isolation. See
 
 ### Matching and Capture
 
-- ``Match/any()``
+- ``Match/any()->T``
 - ``Match/any(using:)``
 - ``Match/equal(_:)``
 - ``Match/notEqual(_:)``

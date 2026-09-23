@@ -602,7 +602,7 @@ extension StubRecorder {
     }
 
     private func recordPlaceholder(method: Int, name: String, args: [Any]) {
-        let recording = MatcherContext.takeRecording()
+        let recording = MatcherContext.takeRecording(argumentCount: args.count)
         var matchers = recording.matchers
         var matcherPositionsWereInferred = false
         let runtimeMethod = runtimeMethod(for: method)

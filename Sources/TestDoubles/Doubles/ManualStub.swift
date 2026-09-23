@@ -218,6 +218,52 @@ public final class CompiledStub<T>: @unchecked Sendable {
         ManualThrowingRequirementRoute(stub: self)
     }
 
+    // MARK: - Deferred arguments
+
+    /// Evaluates an `@autoclosure` argument so a conformer can forward its value.
+    ///
+    /// Swift evaluates an autoclosure only when the implementation calls it,
+    /// after every other argument. Evaluating it through this method keeps a
+    /// `Match` expression written inside the autoclosure paired with the
+    /// argument at `position` while a call is recorded:
+    ///
+    /// ```swift
+    /// func log(_ level: Level, _ message: @autoclosure () -> String, line: Int) {
+    ///     stub.call(level, stub.deferredArgument(at: 1, message), line)
+    /// }
+    /// ```
+    ///
+    /// Outside recording it simply returns `argument()`. The stub records the
+    /// evaluated value, so handlers and verification see a `String`, not a
+    /// closure.
+    ///
+    /// - Parameters:
+    ///   - position: The zero-based position of the argument in the forwarded
+    ///     argument list.
+    ///   - argument: The autoclosure to evaluate.
+    public func deferredArgument<Value, Failure: Error>(
+        at position: Int,
+        _ argument: () throws(Failure) -> Value
+    ) throws(Failure) -> Value {
+        try MatcherContext.evaluatingDeferredArgument(at: position, argument)
+    }
+
+    /// Evaluates an asynchronous `@autoclosure` argument so a conformer can
+    /// forward its value.
+    ///
+    /// See ``deferredArgument(at:_:)``.
+    public func deferredAsyncArgument<Value, Failure: Error>(
+        at position: Int,
+        isolation: isolated (any Actor)? = #isolation,
+        _ argument: () async throws(Failure) -> Value
+    ) async throws(Failure) -> Value {
+        try await MatcherContext.evaluatingDeferredArgument(
+            at: position,
+            isolation: isolation,
+            argument
+        )
+    }
+
     // MARK: - Explicit fallback methods
     //
     // Always available, and the only way to reach async property getters:
