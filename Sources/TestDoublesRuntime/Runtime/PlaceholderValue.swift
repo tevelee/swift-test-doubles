@@ -112,6 +112,12 @@ package enum PlaceholderValue {
         case emptyEnum(Any.Type)
         case opaqueExistential(OpaqueExistentialKind)
         case payloadEnum(Any.Type, tag: UInt32, payload: InitializationPlan)
+        case indirectPayloadEnum(
+            Any.Type,
+            tag: UInt32,
+            payloadType: Any.Type,
+            payload: InitializationPlan
+        )
         case aggregate([AggregateElement])
         case metatype(UInt)
     }
@@ -219,8 +225,7 @@ package enum PlaceholderValue {
                 return nil
             }
             for (index, record) in records.prefix(payloadCount).enumerated() {
-                guard record.flags.isIndirectCase == false,
-                    record.hasMangledTypeName,
+                guard record.hasMangledTypeName,
                     let payloadType = resolvedFieldType(
                         record.mangledTypeName,
                         in: enumMetadata
@@ -233,6 +238,16 @@ package enum PlaceholderValue {
                     )
                 else {
                     continue
+                }
+                if record.flags.isIndirectCase {
+                    // An indirect case stores a reference to a heap box that
+                    // holds the payload.
+                    return .indirectPayloadEnum(
+                        type,
+                        tag: UInt32(index),
+                        payloadType: payloadType,
+                        payload: payload
+                    )
                 }
                 return .payloadEnum(
                     type,
@@ -343,6 +358,22 @@ package enum PlaceholderValue {
                     preconditionFailure("[TestDoubles] Missing enum metadata for \(type).")
                 }
                 execute(payload, at: destination)
+                metadata.enumVwt.destructiveInjectEnumTag(
+                    for: destination,
+                    tag: tag
+                )
+            case .indirectPayloadEnum(let type, let tag, let payloadType, let payload):
+                guard let metadata = reflect(type) as? EnumMetadata else {
+                    preconditionFailure("[TestDoubles] Missing enum metadata for \(type).")
+                }
+                // The box starts with one strong reference, which the enum
+                // value now owns.
+                let box = swift_allocBox(for: payloadType)
+                execute(payload, at: UnsafeMutableRawPointer(mutating: box.buffer))
+                destination.storeBytes(
+                    of: UnsafeRawPointer(box.heapObj),
+                    as: UnsafeRawPointer.self
+                )
                 metadata.enumVwt.destructiveInjectEnumTag(
                     for: destination,
                     tag: tag

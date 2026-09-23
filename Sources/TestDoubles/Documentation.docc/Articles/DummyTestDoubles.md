@@ -85,8 +85,11 @@ Function values point to a fail-closed body. Invoking one terminates with a
 dummy diagnostic. Function fields nested inside tuples, structs, and direct
 enum payloads use the same behavior.
 
-Automatic synthesis rejects an uninhabited enum, indirect recursive enum,
-arbitrary concrete class, or aggregate containing another unsupported value.
+Indirect cases are supported: the payload is synthesized into a heap box, and
+synthesis picks the first case whose payload does not recurse, such as `.leaf`
+in a tree. Automatic synthesis rejects an uninhabited enum, an enum whose
+every case recurses into itself, an arbitrary concrete class, or an aggregate
+containing another unsupported value.
 Use ``Dummy/init(using:)`` or ``Dummy/make(_:using:)`` to supply one valid
 placeholder at the call site:
 

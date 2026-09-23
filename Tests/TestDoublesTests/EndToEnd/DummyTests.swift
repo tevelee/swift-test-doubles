@@ -5,6 +5,11 @@ import Foundation
 import Testing
 import TestDoubles
 
+private indirect enum DummyTestTree {
+    case leaf(Int)
+    case node(DummyTestTree, DummyTestTree)
+}
+
 private protocol DummyService {
     func value() -> Int
     func load() async -> String
@@ -287,6 +292,14 @@ struct DummyTests {
             #expect(pair.1.statusCode == 200)
         }
     #endif
+
+    @Test func synthesizesIndirectEnumerations() {
+        let tree: DummyTestTree = Dummy.make()
+        guard case .leaf(0) = tree else {
+            Issue.record("Expected the first constructible indirect case")
+            return
+        }
+    }
 
     @Test func synthesizesImportedEnumerations() {
         let style: DateFormatter.Style = Dummy.make()

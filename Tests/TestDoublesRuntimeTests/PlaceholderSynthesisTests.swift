@@ -57,6 +57,21 @@ private indirect enum UnsupportedRecursivePlaceholder {
 
 private final class UnsupportedPlaceholder {}
 
+private indirect enum DummyTree: Equatable {
+    case leaf(Int)
+    case node(DummyTree, DummyTree)
+}
+
+private indirect enum DummyList: Equatable {
+    case cons(Int, DummyList)
+    case end(String)
+}
+
+private enum DummyExpression: Equatable {
+    indirect case sum(Int, Int)
+    case constant(Double)
+}
+
 @Suite struct PlaceholderSynthesisTests {
     @Test func scalarPlaceholdersUseValidZeroValues() {
         #expect(PlaceholderValue.make(Int.self) == 0)
@@ -139,6 +154,20 @@ private final class UnsupportedPlaceholder {}
         #expect(DummyValue.make(DummyFunctionPayload.self) != nil)
         #expect(PlaceholderValue.make(DummyFunctionAggregate.self) == nil)
         #expect(PlaceholderValue.make(DummyFunctionPayload.self) == nil)
+    }
+
+    @Test func dummySynthesisBoxesIndirectEnumPayloads() {
+        #expect(DummyValue.make(DummyTree.self) == .leaf(0))
+        #expect(DummyValue.make(DummyList.self) == .end(""))
+        #expect(DummyValue.make(DummyExpression.self) == .sum(0, 0))
+        #expect(PlaceholderValue.make(DummyTree.self) == nil)
+
+        // Each value owns its own box and releases it normally.
+        for _ in 0 ..< 100 {
+            let tree = DummyValue.make(DummyTree.self)
+            let copy = tree
+            #expect(copy == tree)
+        }
     }
 
     @Test func leafValuesSupplyTypesStructuralSynthesisRejects() throws {

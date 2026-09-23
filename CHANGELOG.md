@@ -115,6 +115,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `HTTPURLResponse`, `URLResponse`, `AsyncStream`, and `AsyncThrowingStream`
   join the catalog, and `Dummy` now uses it for values such as `TimeZone`,
   `Notification.Name`, and `UnitDuration`.
+- `Dummy` builds indirect enums, such as a tree whose cases are all
+  `indirect`, by allocating the heap box for the first case whose payload
+  does not recurse.
 - `Dummy` and placeholder synthesis for imported C enums, such as
   `DateFormatter.Style`, no longer crash the process.
 - Runtime-generated stubs no longer crash when a requirement returns an
