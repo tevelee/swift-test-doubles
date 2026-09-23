@@ -243,7 +243,133 @@ extension Match {
         )
     }
 
+    /// Matches a value whose property at `keyPath` satisfies `matcher`.
+    ///
+    /// ```swift
+    /// stub.when { $0.submit(Match.property(\Order.total, matching: Match.greaterThan(100))) }
+    /// ```
+    ///
+    /// This overload synthesizes the root placeholder used while recording.
+    /// Use ``property(using:_:matching:)`` for reference, existential, or
+    /// other root types that require an explicit placeholder.
+    public static func property<Root, Value>(
+        _ keyPath: KeyPath<Root, Value>,
+        matching matcher: @autoclosure () -> Value
+    ) -> Root {
+        appendPropertyMatcher(keyPath, matching: matcher)
+        return MatcherContext.returning(
+            synthesizedPlaceholder(
+                for: "Match.property(_:matching:)",
+                fallback: "Match.property(using:_:matching:)"
+            )
+        )
+    }
+
+    /// Matches a value whose property at `keyPath` satisfies `matcher`, using
+    /// `placeholder` only while recording the call.
+    public static func property<Root, Value>(
+        using placeholder: Root,
+        _ keyPath: KeyPath<Root, Value>,
+        matching matcher: @autoclosure () -> Value
+    ) -> Root {
+        appendPropertyMatcher(keyPath, matching: matcher)
+        return MatcherContext.returning(placeholder)
+    }
+
+    private static func appendPropertyMatcher<Root, Value>(
+        _ keyPath: KeyPath<Root, Value>,
+        matching matcher: () -> Value
+    ) {
+        let (_, matchers) = MatcherContext.captureNested { matcher() }
+        precondition(
+            matchers.count == 1,
+            "[TestDoubles] Match.property(_:matching:) requires one Match expression for the "
+                + "property, such as Match.greaterThan(10). Use equalTo: for a plain value."
+        )
+        MatcherContext.append(
+            ProjectionMatcher(
+                label: "property(\(keyPath))",
+                matchers: matchers
+            ) { value in
+                guard let root = value as? Root else { return nil }
+                return root[keyPath: keyPath]
+            }
+        )
+    }
+
     // MARK: - Enum cases
+
+    /// Matches the enum case `constructor` creates, applying `matcher` to its
+    /// associated value.
+    ///
+    /// Pass the case itself as the constructor; no case name or extraction
+    /// closure is needed:
+    ///
+    /// ```swift
+    /// stub.verify { $0.navigate(to: Match.enumCase(Route.profile, matching: Match.greaterThan(5))) }
+    /// ```
+    ///
+    /// The case is identified by its name, so cases that share a base name
+    /// with different labels are indistinguishable.
+    public static func enumCase<Enum, Associated>(
+        _ constructor: (Associated) -> Enum,
+        matching matcher: @autoclosure () -> Associated
+    ) -> Enum {
+        let (placeholder, matchers) = MatcherContext.captureNested { matcher() }
+        let sample = constructor(placeholder)
+        let name = requireEnumCaseName(of: sample)
+        appendEnumCaseMatcher(name, associatedValueCount: 1, matchers: matchers) { value in
+            guard let payload = enumCasePayload(of: value, named: name) else { return nil }
+            if payload is Associated { return [payload] }
+            // A single labeled associated value reflects as a one-element tuple.
+            let elements = Mirror(reflecting: payload).children.map(\.value)
+            return elements.count == 1 ? elements : nil
+        }
+        return MatcherContext.returning(sample)
+    }
+
+    /// Matches the enum case `constructor` creates, applying one matcher to
+    /// each of its two associated values.
+    public static func enumCase<Enum, First, Second>(
+        _ constructor: (First, Second) -> Enum,
+        matching first: @autoclosure () -> First,
+        _ second: @autoclosure () -> Second
+    ) -> Enum {
+        let (firstPlaceholder, firstMatchers) = MatcherContext.captureNested { first() }
+        let (secondPlaceholder, secondMatchers) = MatcherContext.captureNested { second() }
+        let sample = constructor(firstPlaceholder, secondPlaceholder)
+        let name = requireEnumCaseName(of: sample)
+        appendEnumCaseMatcher(
+            name,
+            associatedValueCount: 2,
+            matchers: firstMatchers + secondMatchers
+        ) { value in
+            guard let payload = enumCasePayload(of: value, named: name) else { return nil }
+            let elements = Mirror(reflecting: payload).children.map(\.value)
+            return elements.count == 2 ? elements : nil
+        }
+        return MatcherContext.returning(sample)
+    }
+
+    private static func requireEnumCaseName<Enum>(of sample: Enum) -> String {
+        let mirror = Mirror(reflecting: sample)
+        guard mirror.displayStyle == .enum, let name = mirror.children.first?.label else {
+            fatalError(
+                "[TestDoubles] Match.enumCase(_:matching:) needs an enum case with an "
+                    + "associated value, such as Route.profile; \(Enum.self) did not produce one."
+            )
+        }
+        return name
+    }
+
+    private static func enumCasePayload(of value: Any, named name: String) -> Any? {
+        let mirror = Mirror(reflecting: value)
+        guard mirror.displayStyle == .enum,
+            let child = mirror.children.first,
+            child.label == name
+        else { return nil }
+        return child.value
+    }
 
     /// Matches an enum case and applies `matcher` to its associated value.
     ///

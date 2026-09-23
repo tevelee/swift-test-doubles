@@ -68,6 +68,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   argument, including none. `Match.any()` in a variadic position still
   matches exactly one element, which previously left no way to accept a list
   of any length.
+- `Match.enumCase(_:matching:)` takes the enum case itself, as in
+  `Match.enumCase(Route.profile, matching: Match.greaterThan(5))`, instead of
+  a case name and an extraction closure. A two-value overload covers cases
+  such as `.failed(code:message:)`.
+- `Match.property(_:matching:)` applies any matcher to a key-path projection,
+  where `equalTo:` supported only equality.
 - `VoidClosureDouble.whenAny()` matches the other closure doubles' spelling of
   an always-matching registration.
 - `onUnmatchedCall(_:)` chooses what a double does with a call no registration

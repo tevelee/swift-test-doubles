@@ -158,11 +158,35 @@ stub.when {
 }.thenReturn("saved")
 ```
 
+Apply any matcher to the property with `matching:`:
+
+```swift
+stub.when {
+    $0.submit(Match.property(\.total, matching: Match.greaterThan(100)))
+}.thenReturn(.approved)
+```
+
 For a root type that needs an explicit recording value, use
 `Match.property(using:placeholder, \.id, equalTo: 42)`.
 
-Match enum cases by extracting associated values and composing the usual
-matchers:
+Match an enum case by passing the case itself, and compose the usual matchers
+for its associated values:
+
+```swift
+stub.when {
+    $0.handle(
+        Match.enumCase(
+            Update.failed,
+            matching: Match.inRange(400 ... 499),
+            Match.hasPrefix("auth")
+        )
+    )
+}.thenReturn(.retry)
+```
+
+The case is identified by its name. When cases share a base name with
+different labels, or you need a custom extraction, name the case and extract
+its associated values yourself:
 
 ```swift
 stub.when {

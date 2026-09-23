@@ -62,6 +62,7 @@ private struct ReferenceEntryIDMatcher: CustomMatcher {
 private enum DeliveryUpdate {
     case idle
     case queued(id: Int)
+    case retried(Int)
     case failed(code: Int, message: String)
 }
 
@@ -154,6 +155,51 @@ final class LedgerNode {}
         #expect(ledger.classify(.failed(code: 401, message: "auth expired")) == "authentication")
         #expect(ledger.classify(.failed(code: 500, message: "auth failed")) == "other")
         #expect(ledger.classify(.idle) == "other")
+    }
+
+    @Test func enumCaseMatcherTakesTheCaseConstructor() {
+        let stub = ManualStub<DeliveryLedgerStub>()
+        stub.when {
+            $0.classify(Match.enumCase(DeliveryUpdate.queued, matching: Match.greaterThan(40)))
+        }.thenReturn("priority")
+        stub.when {
+            $0.classify(Match.enumCase(DeliveryUpdate.retried, matching: Match.any()))
+        }.thenReturn("retry")
+        stub.when {
+            $0.classify(
+                Match.enumCase(
+                    DeliveryUpdate.failed,
+                    matching: Match.inRange(400 ... 499),
+                    Match.hasPrefix("auth")
+                )
+            )
+        }.thenReturn("authentication")
+        stub.when { $0.classify(Match.any()) }.thenReturn("other")
+        let ledger: any DeliveryLedger = stub()
+
+        #expect(ledger.classify(.queued(id: 42)) == "priority")
+        #expect(ledger.classify(.queued(id: 7)) == "other")
+        #expect(ledger.classify(.retried(3)) == "retry")
+        #expect(ledger.classify(.failed(code: 401, message: "auth expired")) == "authentication")
+        #expect(ledger.classify(.failed(code: 500, message: "auth failed")) == "other")
+        #expect(ledger.classify(.idle) == "other")
+        stub.verify {
+            $0.classify(Match.enumCase(DeliveryUpdate.queued, matching: Match.equal(42)))
+        }
+    }
+
+    @Test func keyPathProjectionAppliesANestedMatcher() throws {
+        _ = RealEntryLedger()
+        let stub = try Stub<any EntryLedger>(
+            .method(LedgerEntry.self, returning: String.self)
+        )
+        stub.when { $0.classify(Match.property(\.id, matching: Match.greaterThan(40))) }
+            .thenReturn("large")
+        stub.when { $0.classify(Match.any()) }.thenReturn("other")
+        let ledger: any EntryLedger = stub()
+
+        #expect(ledger.classify(LedgerEntry(id: 42)) == "large")
+        #expect(ledger.classify(LedgerEntry(id: 7)) == "other")
     }
 
     @Test func keyPathProjectionMatchesAProperty() throws {
