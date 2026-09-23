@@ -19,7 +19,7 @@ extension RuntimeStubFactory {
         }
         let shape = try prepareProtocolShape(request.shape)
         let methods = try applyingAutomaticRequirementAdapters(
-            request.automaticRequirementAdapters,
+            request.automaticRequirementAdapters.adapters,
             to: methods(
                 for: request.requirements,
                 getterEffects: request.getterEffects,
@@ -58,7 +58,7 @@ extension RuntimeStubFactory {
             representation: shape.representation
         )
         let methods = try applyingAutomaticRequirementAdapters(
-            request.automaticRequirementAdapters,
+            request.automaticRequirementAdapters.adapters,
             to: TestDoublesRuntime.discoverMethods(
                 witnessTables: source.witnessTables,
                 layout: shape.layout,
@@ -94,7 +94,7 @@ extension RuntimeStubFactory {
             representation: shape.representation,
             associatedTypeBindings: shape.associatedTypeBindings,
             getterEffectPolicy: getterEffectPolicy,
-            automaticRequirementAdapters: request.automaticRequirementAdapters
+            automaticRequirementAdapters: request.automaticRequirementAdapters.adapters
         )
         return try preparedPlan(
             shape: shape,

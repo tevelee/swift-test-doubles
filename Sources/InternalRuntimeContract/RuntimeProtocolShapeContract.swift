@@ -196,19 +196,42 @@ package struct RuntimeGetterEffectGroup: @unchecked Sendable {
     }
 }
 
+/// An immutable list of automatic requirement adapters, built once and
+/// shared by every request that uses it.
+///
+/// Prepared plans are cached by the set's identity rather than by its
+/// contents, so a steady construction does not rebuild and hash a key for
+/// every adapter. Create each set once and reuse it.
+package final class RuntimeAutomaticRequirementAdapterSet: @unchecked Sendable {
+    package let adapters: [RuntimeAutomaticRequirementAdapter]
+
+    /// Whether plans prepared with this set may be cached: every executable
+    /// adapter must be a structural compiler-emitted source, not a token that
+    /// closes over caller state.
+    package let isCacheable: Bool
+
+    package init(_ adapters: [RuntimeAutomaticRequirementAdapter]) {
+        self.adapters = adapters
+        isCacheable = adapters.allSatisfy { adapter in
+            guard let token = adapter.typedWitnessAdapter else { return true }
+            return token.payload(as: RuntimeTypedWitnessAdapterSource.self) != nil
+        }
+    }
+}
+
 /// The complete source-level input to runtime stub preparation. Free of
 /// layouts, descriptors, witness tables, and ABI transport plans.
 package struct RuntimeStubPreparationRequest: @unchecked Sendable {
     package let shape: RuntimeProtocolShapeRequest
     package let requirements: RuntimeExplicitRequirementInput
     package let getterEffects: RuntimeGetterEffectInput
-    package let automaticRequirementAdapters: [RuntimeAutomaticRequirementAdapter]
+    package let automaticRequirementAdapters: RuntimeAutomaticRequirementAdapterSet
 
     package init(
         shape: RuntimeProtocolShapeRequest,
         requirements: RuntimeExplicitRequirementInput,
         getterEffects: RuntimeGetterEffectInput,
-        automaticRequirementAdapters: [RuntimeAutomaticRequirementAdapter]
+        automaticRequirementAdapters: RuntimeAutomaticRequirementAdapterSet
     ) {
         self.shape = shape
         self.requirements = requirements

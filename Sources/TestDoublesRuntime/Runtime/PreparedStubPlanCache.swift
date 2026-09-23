@@ -69,16 +69,18 @@ enum PreparedStubPlanCache {
             let requirements: [Requirement]
         }
 
-        struct AutomaticRequirementAdapter: Hashable {
-            let kind: RuntimeRequirementKind
-            let argumentTypes: [ObjectIdentifier]?
-            let resultType: ObjectIdentifier
-            let resultTransport: RuntimeAutomaticRequirementAdapter.ResultTransport
-            let isThrowing: Bool
-            let isAsync: Bool
-            let functionType: ObjectIdentifier?
-            let invocationType: ObjectIdentifier?
-            let entryPoint: UInt?
+        /// Identifies an adapter set by reference. The key retains the set,
+        /// so a cached entry's identity can never be reused by another set.
+        struct AutomaticRequirementAdapters: Hashable {
+            let set: RuntimeAutomaticRequirementAdapterSet
+
+            static func == (lhs: Self, rhs: Self) -> Bool {
+                lhs.set === rhs.set
+            }
+
+            func hash(into hasher: inout Hasher) {
+                hasher.combine(ObjectIdentifier(set))
+            }
         }
 
         enum Requirements: Hashable {
@@ -91,7 +93,7 @@ enum PreparedStubPlanCache {
         let associatedTypeBindings: [AssociatedTypeBinding]
         let requirements: Requirements
         let getterEffects: GetterEffects
-        let automaticRequirementAdapters: [AutomaticRequirementAdapter]
+        let automaticRequirementAdapters: AutomaticRequirementAdapters
     }
 
     private final class Storage: @unchecked Sendable {
@@ -152,36 +154,7 @@ enum PreparedStubPlanCache {
                             )
                         })
             }
-        var automaticRequirementAdapters: [Key.AutomaticRequirementAdapter] = []
-        automaticRequirementAdapters.reserveCapacity(
-            request.automaticRequirementAdapters.count
-        )
-        for adapter in request.automaticRequirementAdapters {
-            let source: RuntimeTypedWitnessAdapterSource?
-            if let token = adapter.typedWitnessAdapter {
-                guard
-                    let payload = token.payload(
-                        as: RuntimeTypedWitnessAdapterSource.self
-                    )
-                else { return nil }
-                source = payload
-            } else {
-                source = nil
-            }
-            automaticRequirementAdapters.append(
-                Key.AutomaticRequirementAdapter(
-                    kind: adapter.kind,
-                    argumentTypes: adapter.argumentTypes?.map(ObjectIdentifier.init),
-                    resultType: ObjectIdentifier(adapter.resultType),
-                    resultTransport: adapter.resultTransport,
-                    isThrowing: adapter.isThrowing,
-                    isAsync: adapter.isAsync,
-                    functionType: source.map { ObjectIdentifier($0.functionType) },
-                    invocationType: source.map { ObjectIdentifier($0.invocationType) },
-                    entryPoint: source?.entryPoint
-                )
-            )
-        }
+        guard request.automaticRequirementAdapters.isCacheable else { return nil }
         return Key(
             protocolType: ObjectIdentifier(request.shape.protocolType),
             associatedTypeBindings:
@@ -196,7 +169,9 @@ enum PreparedStubPlanCache {
                 },
             requirements: requirements,
             getterEffects: getterEffects,
-            automaticRequirementAdapters: automaticRequirementAdapters
+            automaticRequirementAdapters: Key.AutomaticRequirementAdapters(
+                set: request.automaticRequirementAdapters
+            )
         )
     }
 

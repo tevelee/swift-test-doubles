@@ -15,6 +15,14 @@ enum BuiltInResultAdapters {
         $0.typedWitnessAdapter == nil
     }
 
+    /// ``all`` as the shared set preparation caches plans by.
+    static let allSet = RuntimeAutomaticRequirementAdapterSet(all)
+
+    /// ``transportEvidenceOnly`` as the shared set preparation caches plans by.
+    static let transportEvidenceOnlySet = RuntimeAutomaticRequirementAdapterSet(
+        transportEvidenceOnly
+    )
+
     static func append<Result>(
         returning resultType: Result.Type,
         resultTransport: RuntimeAutomaticRequirementAdapter.ResultTransport,

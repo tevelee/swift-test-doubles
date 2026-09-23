@@ -362,7 +362,7 @@ extension Stub {
                         requirements: .automatic,
                         getterEffects: runtimeGetterEffects(getterEffects),
                         automaticRequirementAdapters:
-                            BuiltInResultAdapters.transportEvidenceOnly
+                            BuiltInResultAdapters.transportEvidenceOnlySet
                     )
                 )
             return plan
@@ -522,8 +522,8 @@ extension Stub {
         callerAssociatedTypeBindings: [AssociatedTypeBinding] = [],
         requirements: RuntimeExplicitRequirementInput,
         getterEffects: RuntimeGetterEffectInput,
-        automaticRequirementAdapters: [RuntimeAutomaticRequirementAdapter] =
-            BuiltInResultAdapters.all
+        automaticRequirementAdapters: RuntimeAutomaticRequirementAdapterSet =
+            BuiltInResultAdapters.allSet
     ) -> RuntimeStubPreparationRequest {
         RuntimeStubPreparationRequest(
             shape: runtimeShapeRequest(

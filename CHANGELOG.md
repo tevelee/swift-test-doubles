@@ -90,6 +90,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Constructing a runtime stub whose prepared plan is already cached is about
+  a third faster. The plan cache keyed each construction by a value built
+  from every built-in result adapter; it now keys by the identity of the
+  shared adapter set.
 - The ABI-uncertain result diagnostic names the requirement, explains that
   runtime metadata does not record whether the defining module uses library
   evolution, and points at the generated compiled conformer that
