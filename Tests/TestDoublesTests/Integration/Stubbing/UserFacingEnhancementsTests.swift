@@ -306,6 +306,10 @@ private func useLinkedClockVerifier(_ value: any EnhancementClockVerifier) {
 
         let untouched = VoidClosureDouble<Void>()
         untouched.verifyNoInteractions()
+
+        let spelledLikeTheOthers = VoidClosureDouble<Int>()
+        spelledLikeTheOthers.whenAny().thenReturn(7)
+        #expect(spelledLikeTheOthers() == 7)
     }
 
     @Test func finiteBehaviorQueueReportsRemainingAnswers() throws {

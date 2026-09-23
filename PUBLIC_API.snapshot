@@ -1062,6 +1062,7 @@ symbol	TestDoubles	swift.method	VoidClosureDouble.verifyNoInteractions(fileID:fi
 symbol	TestDoubles	swift.method	VoidClosureDouble.verifyNoMoreInteractions(fileID:filePath:line:column:)	func verifyNoMoreInteractions(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	TestDoubles	swift.method	VoidClosureDouble.verifyNoUnusedStubs(fileID:filePath:line:column:)	func verifyNoUnusedStubs(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column)
 symbol	TestDoubles	swift.method	VoidClosureDouble.when(fileID:filePath:line:column:)	func when(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> ClosureCallPattern<Void, Result>
+symbol	TestDoubles	swift.method	VoidClosureDouble.whenAny(fileID:filePath:line:column:)	func whenAny(fileID: StaticString = #fileID, filePath: StaticString = #filePath, line: UInt = #line, column: UInt = #column) -> ClosureCallPattern<Void, Result>
 symbol	TestDoubles	swift.property	ArgumentCaptor.count	var count: Int { get }
 symbol	TestDoubles	swift.property	ArgumentCaptor.first	var first: Value? { get }
 symbol	TestDoubles	swift.property	ArgumentCaptor.isEmpty	var isEmpty: Bool { get }

@@ -623,6 +623,19 @@ public final class VoidClosureDouble<Result> {
         )
     }
 
+    /// Starts an always-matching behavior registration.
+    ///
+    /// The same registration as ``when(fileID:filePath:line:column:)``, spelled
+    /// like the other closure doubles' `whenAny()`.
+    public func whenAny(
+        fileID: StaticString = #fileID,
+        filePath: StaticString = #filePath,
+        line: UInt = #line,
+        column: UInt = #column
+    ) -> ClosureCallPattern<Void, Result> {
+        when(fileID: fileID, filePath: filePath, line: line, column: column)
+    }
+
     /// An observation-only view of every invocation.
     public var interactions: CallInteractions {
         storage.interactions
