@@ -108,13 +108,22 @@ package enum RuntimeStubFactory {
 
     /// Synthesizes a source-level placeholder without exposing its runtime
     /// implementation type to the semantic target.
-    package static func makeRecordingPlaceholder<T>(for type: T.Type) -> T? {
-        PlaceholderValue.make(type)
+    ///
+    /// `leafValue` supplies types that structural synthesis cannot initialize,
+    /// at any depth.
+    package static func makeRecordingPlaceholder<T>(
+        for type: T.Type,
+        leafValue: PlaceholderLeafValue? = nil
+    ) -> T? {
+        PlaceholderValue.make(type, leafValue: leafValue)
     }
 
     /// Synthesizes a valid concrete dummy, including fail-closed function values.
-    package static func makeDummyValue<T>(for type: T.Type) -> T? {
-        DummyValue.make(type)
+    package static func makeDummyValue<T>(
+        for type: T.Type,
+        leafValue: PlaceholderLeafValue? = nil
+    ) -> T? {
+        DummyValue.make(type, leafValue: leafValue)
     }
 
     /// Fabricates one complete conformance graph and materializable

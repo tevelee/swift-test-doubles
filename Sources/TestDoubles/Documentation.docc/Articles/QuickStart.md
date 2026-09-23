@@ -158,7 +158,10 @@ include `StaticString`, `AnyHashable`, empty collection wrappers, `any Error`,
 values. Dispatch values use `.empty` or `.main`. On Combine platforms,
 subscriptions, type erasers, cancellables, and subjects also work as arguments
 without fixtures. `Optional`, `Result`, and `CurrentValueSubject` recursively
-synthesize their payloads and use ordinary `Match.any()`. This does not make an
+synthesize their payloads and use ordinary `Match.any()`. So do custom structs,
+tuples, enums whose every case carries a payload, and closures such as
+completion handlers: a closure placeholder fails on use, and recording never
+calls it. This does not make an
 ABI-uncertain framework value, such as an `AnyPublisher` result, a supported
 result shape. Generic wrappers such as `Range<Date>` and `ClosedRange<Date>`
 still need a valid example through `using:`, as does a custom type without a
@@ -362,8 +365,9 @@ Match.matching(description: "positive") {
 Use ``Match/any(using:)`` or
 ``Match/matching(using:description:where:)`` when the recording pass cannot
 safely synthesize a temporary class, existential, or custom imported value.
-Common standard-library and framework values, along with recursively populated
-`Optional` and `Result` wrappers, use the zero-argument forms. Imported generic
+Common standard-library and framework values, recursively populated
+`Optional` and `Result` wrappers, payload-only enums, and closures use the
+zero-argument forms. Imported generic
 wrappers such as `Range<Date>` and `ClosedRange<Date>` need `using:` even when
 their bounds are common Foundation values. A supplied value is never matched
 against or returned.

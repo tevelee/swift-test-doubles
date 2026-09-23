@@ -155,10 +155,13 @@ Supplying the substituted concrete function type through
 ``Stub/Requirement/Value`` does not erase the dependency recorded by the
 protocol requirement.
 
-Function values cannot be synthesized as recording placeholders. Use
+`Match.any()` synthesizes a fail-on-use closure as the recording placeholder
+for a function argument, so a completion handler needs no example value.
+Recording passes that placeholder to the requirement without calling it. Use
 ``Match/any(using:)``, `Match.matching(using:description:where:)``, or
-``ArgumentCaptor/capture(using:)`` for a function argument. Use
-`when(returning:_:)` and `verify(_:returning:_:)` for a function result.
+``ArgumentCaptor/capture(using:)`` when you want to supply your own value, and
+`when(returning:_:)` and `verify(_:returning:_:)` for a function result on a
+runtime-generated stub.
 
 When a callback is the first of several arguments, use the synchronous or
 asynchronous `thenEscaping(times:_:)` overload so its escaping convention is

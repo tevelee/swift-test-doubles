@@ -24,19 +24,36 @@ enum RuntimeStubFactory {
         #endif
     }
 
-    static func makeRecordingPlaceholder<T>(for type: T.Type) -> T? {
+    /// Synthesizes a recording placeholder structurally. `leafValue` supplies
+    /// nested types that structural synthesis cannot initialize itself.
+    static func makeRecordingPlaceholder<T>(
+        for type: T.Type,
+        leafValue: ((Any.Type) -> Any?)? = nil
+    ) -> T? {
         #if TESTDOUBLES_RUNTIME_STUBS
-            TestDoublesRuntime.RuntimeStubFactory.makeRecordingPlaceholder(for: type)
+            TestDoublesRuntime.RuntimeStubFactory.makeRecordingPlaceholder(
+                for: type,
+                leafValue: leafValue
+            )
         #else
-            sourceRecordingPlaceholder(for: type)
+            sourceRecordingPlaceholder(for: type) ?? leafValue?(type) as? T
         #endif
     }
 
-    static func makeDummyValue<T>(for type: T.Type) -> T? {
+    /// Synthesizes a dummy value structurally, including payload-only enums
+    /// and fail-on-use functions. `leafValue` supplies nested types that
+    /// structural synthesis cannot initialize itself.
+    static func makeDummyValue<T>(
+        for type: T.Type,
+        leafValue: ((Any.Type) -> Any?)? = nil
+    ) -> T? {
         #if TESTDOUBLES_RUNTIME_STUBS
-            TestDoublesRuntime.RuntimeStubFactory.makeDummyValue(for: type)
+            TestDoublesRuntime.RuntimeStubFactory.makeDummyValue(
+                for: type,
+                leafValue: leafValue
+            )
         #else
-            sourceRecordingPlaceholder(for: type)
+            sourceRecordingPlaceholder(for: type) ?? leafValue?(type) as? T
         #endif
     }
 

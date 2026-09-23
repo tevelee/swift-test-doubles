@@ -45,6 +45,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   result types automatic synthesis cannot build. A result type that can be
   neither supplied nor synthesized still traps, and says why.
 
+### Fixed
+
+- Recording no longer traps for payload-only enum results, such as
+  `enum PaymentResult { case approved(String) ... }`, or for closure arguments
+  such as completion handlers. `Match.any()` and result recording fall back to
+  the same values `Dummy` builds: the first constructible enum case and a
+  fail-on-use function.
+- Placeholder and `Dummy` synthesis consult the built-in catalog for nested
+  values reflection cannot build, so tuples and structs containing response
+  classes or other catalog values work, including the
+  `(Data, HTTPURLResponse)` result of `URLSession`-style clients.
+  `HTTPURLResponse`, `URLResponse`, `AsyncStream`, and `AsyncThrowingStream`
+  join the catalog, and `Dummy` now uses it for values such as `TimeZone`,
+  `Notification.Name`, and `UnitDuration`.
+- `Dummy` and placeholder synthesis for imported C enums, such as
+  `DateFormatter.Style`, no longer crash the process.
+
 ## [0.0.3] - 2026-08-02
 
 ### Added

@@ -1,16 +1,27 @@
 import Echo
 import EchoRuntimeSupport
 
+/// Supplies a complete value for a type that structural synthesis cannot
+/// initialize itself, such as a class or an opaque framework value.
+///
+/// The returned value must have exactly the requested dynamic type. Returning
+/// `nil` keeps the type unsupported.
+package typealias PlaceholderLeafValue = (Any.Type) -> Any?
+
 /// Creates valid placeholder values for matcher recording and runtime fallback returns.
 package enum PlaceholderValue {
     /// Creates a placeholder of `type`, or returns `nil` when the type cannot be synthesized safely.
-    package static func make<T>(_ type: T.Type = T.self) -> T? {
-        make(type, includingDummyValues: false)
+    package static func make<T>(
+        _ type: T.Type = T.self,
+        leafValue: PlaceholderLeafValue? = nil
+    ) -> T? {
+        make(type, includingDummyValues: false, leafValue: leafValue)
     }
 
     static func make<T>(
         _ type: T.Type,
-        includingDummyValues: Bool
+        includingDummyValues: Bool,
+        leafValue: PlaceholderLeafValue? = nil
     ) -> T? {
         let storage = ValueStorage.allocate(for: type)
         var visited: Set<UInt> = []
@@ -18,7 +29,8 @@ package enum PlaceholderValue {
             let plan = initializationPlan(
                 for: type,
                 visited: &visited,
-                includingDummyValues: includingDummyValues
+                includingDummyValues: includingDummyValues,
+                leafValue: leafValue
             )
         else {
             storage.deallocate()
@@ -70,6 +82,8 @@ package enum PlaceholderValue {
 
     private indirect enum InitializationPlan {
         case scalar(ScalarInitialization)
+        case suppliedValue(Any, Any.Type)
+        case zeroed
         case collection(CollectionKind, Any.Type)
         case dummyFunction(DummyValue.FunctionPlan)
         case emptyEnum(Any.Type)
@@ -111,10 +125,36 @@ package enum PlaceholderValue {
 
     /// Builds the complete placeholder operation before any destination memory
     /// is initialized, so support checks and initialization cannot drift apart.
+    ///
+    /// A type that structural synthesis rejects is offered to `leafValue`, at
+    /// every depth, before the whole plan fails.
     private static func initializationPlan(
         for type: Any.Type,
         visited: inout Set<UInt>,
-        includingDummyValues: Bool
+        includingDummyValues: Bool,
+        leafValue: PlaceholderLeafValue? = nil
+    ) -> InitializationPlan? {
+        if let plan = structuralPlan(
+            for: type,
+            visited: &visited,
+            includingDummyValues: includingDummyValues,
+            leafValue: leafValue
+        ) {
+            return plan
+        }
+        guard let leafValue, let value = leafValue(type) else { return nil }
+        // The value is copied into storage laid out for `type`, so it must
+        // cast to exactly that static type.
+        func casts<Value>(_: Value.Type) -> Bool { value is Value }
+        guard _openExistential(type, do: casts) else { return nil }
+        return .suppliedValue(value, type)
+    }
+
+    private static func structuralPlan(
+        for type: Any.Type,
+        visited: inout Set<UInt>,
+        includingDummyValues: Bool,
+        leafValue: PlaceholderLeafValue?
     ) -> InitializationPlan? {
         if let scalar = scalarInitialization(for: type) {
             return .scalar(scalar)
@@ -135,6 +175,12 @@ package enum PlaceholderValue {
             return .collection(kind, type)
         }
         if let enumMetadata = metadata as? EnumMetadata {
+            // An imported C enum is laid out as its raw integer and has no
+            // Swift enum witnesses; every bit pattern, including zero, is a
+            // valid value.
+            if isImportedFromC(enumMetadata.descriptor) {
+                return .zeroed
+            }
             if enumMetadata.descriptor.numEmptyCases > 0 {
                 return .emptyEnum(type)
             }
@@ -159,7 +205,8 @@ package enum PlaceholderValue {
                     let payload = initializationPlan(
                         for: payloadType,
                         visited: &visited,
-                        includingDummyValues: includingDummyValues
+                        includingDummyValues: includingDummyValues,
+                        leafValue: leafValue
                     )
                 else {
                     continue
@@ -179,7 +226,8 @@ package enum PlaceholderValue {
                     let plan = initializationPlan(
                         for: element.type,
                         visited: &visited,
-                        includingDummyValues: includingDummyValues
+                        includingDummyValues: includingDummyValues,
+                        leafValue: leafValue
                     )
                 else {
                     return nil
@@ -228,7 +276,8 @@ package enum PlaceholderValue {
                 let plan = initializationPlan(
                     for: fieldType,
                     visited: &visited,
-                    includingDummyValues: includingDummyValues
+                    includingDummyValues: includingDummyValues,
+                    leafValue: leafValue
                 )
             else {
                 return nil
@@ -245,6 +294,11 @@ package enum PlaceholderValue {
         switch plan {
             case .scalar(let scalar):
                 initializeScalar(scalar, at: destination)
+            case .suppliedValue(let value, let type):
+                initializeSupplied(value, as: type, at: destination)
+            case .zeroed:
+                // Storage is zero-filled before any plan executes.
+                break
             case .collection(let kind, let type):
                 initializeEmptyCollection(kind, type: type, at: destination)
             case .dummyFunction(let plan):
@@ -422,6 +476,26 @@ package enum PlaceholderValue {
             initialize([Key: Value](), at: destination)
         }
         _openExistential(value, do: openValue)
+    }
+
+    private static func isImportedFromC(_ descriptor: ContextDescriptor) -> Bool {
+        (descriptor.parent as? ModuleDescriptor)?.name == "__C"
+    }
+
+    private static func initializeSupplied(
+        _ value: Any,
+        as type: Any.Type,
+        at destination: UnsafeMutableRawPointer
+    ) {
+        func open<Value>(_: Value.Type) {
+            guard let typed = value as? Value else {
+                preconditionFailure(
+                    "[TestDoubles] Supplied placeholder \(Swift.type(of: value)) is not \(Value.self)."
+                )
+            }
+            initialize(typed, at: destination)
+        }
+        _openExistential(type, do: open)
     }
 
     private static func initialize<T>(_ value: T, at destination: UnsafeMutableRawPointer) {

@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking) && !os(Android)
+    import FoundationNetworking
+#endif
 import Testing
 @testable import TestDoubles
 
@@ -44,6 +47,20 @@ private final class ExactScopedChild: ExactScopedBase, @unchecked Sendable {}
 private enum PlaceholderScopeFailure: Error {
     case expected
 }
+
+private enum PayloadOnlyOutcome: Equatable {
+    case approved(transactionID: String)
+    case declined(reason: String)
+    case requiresAction(URL)
+}
+
+#if canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))
+    private struct ResponseEnvelope {
+        let receivedAt: Date
+        let response: HTTPURLResponse
+        let body: Data
+    }
+#endif
 
 private func scopedPrecedenceMarker(_ value: ScopedPrecedenceValue?) -> String? {
     guard let value else { return nil }
@@ -287,5 +304,52 @@ private func inheritedScopedMarker() -> Int? {
                 throw PlaceholderScopeFailure.expected
             }
         }
+    }
+
+    @Test func payloadOnlyEnumsUseTheirFirstConstructibleCase() throws {
+        let placeholder = try #require(
+            RecordingPlaceholderResolver.make(PayloadOnlyOutcome.self)
+        )
+
+        #expect(placeholder == .approved(transactionID: ""))
+    }
+
+    @Test func functionValuesUseFailOnUsePlaceholders() {
+        #expect(RecordingPlaceholderResolver.make(((Result<Data, any Error>) -> Void).self) != nil)
+        #expect(RecordingPlaceholderResolver.make((@Sendable () async -> Void).self) != nil)
+        #expect(RecordingPlaceholderResolver.make(((Int) throws -> Int).self) != nil)
+    }
+
+    #if canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))
+        @Test func tuplesResolveFoundationAndResponseLeaves() throws {
+            let placeholder = try #require(
+                RecordingPlaceholderResolver.make((Data, HTTPURLResponse).self)
+            )
+
+            #expect(placeholder.0.count >= 0)
+            #expect(placeholder.1.statusCode == 200)
+        }
+
+        @Test func structsResolveNestedLeavesThatReflectionCannotBuild() throws {
+            let placeholder = try #require(
+                RecordingPlaceholderResolver.make(ResponseEnvelope.self)
+            )
+
+            #expect(placeholder.response.statusCode == 200)
+            #expect(placeholder.body.count >= 0)
+        }
+    #endif
+
+    @Test func asyncStreamsFinishImmediately() async throws {
+        let stream = try #require(RecordingPlaceholderResolver.make(AsyncStream<Int>.self))
+        var elements = 0
+        for await _ in stream { elements += 1 }
+        #expect(elements == 0)
+
+        let throwing = try #require(
+            RecordingPlaceholderResolver.make(AsyncThrowingStream<Int, any Error>.self)
+        )
+        for try await _ in throwing { elements += 1 }
+        #expect(elements == 0)
     }
 }

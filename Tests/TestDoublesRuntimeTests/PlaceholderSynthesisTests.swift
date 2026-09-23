@@ -1,5 +1,19 @@
+import Foundation
 import Testing
 @testable import TestDoublesRuntime
+
+private final class LeafSuppliedReference {
+    let marker: Int
+
+    init(marker: Int) {
+        self.marker = marker
+    }
+}
+
+private struct LeafSuppliedAggregate {
+    let count: Int
+    let reference: LeafSuppliedReference
+}
 
 private struct PlaceholderElement: Equatable, Hashable, Sendable {
     let id: Int
@@ -125,6 +139,38 @@ private final class UnsupportedPlaceholder {}
         #expect(DummyValue.make(DummyFunctionPayload.self) != nil)
         #expect(PlaceholderValue.make(DummyFunctionAggregate.self) == nil)
         #expect(PlaceholderValue.make(DummyFunctionPayload.self) == nil)
+    }
+
+    @Test func leafValuesSupplyTypesStructuralSynthesisRejects() throws {
+        let reference = LeafSuppliedReference(marker: 7)
+        #expect(PlaceholderValue.make(LeafSuppliedAggregate.self) == nil)
+
+        let aggregate = try #require(
+            PlaceholderValue.make(LeafSuppliedAggregate.self) { type in
+                type == LeafSuppliedReference.self ? reference : nil
+            }
+        )
+        let tuple = try #require(
+            PlaceholderValue.make((Int, LeafSuppliedReference).self) { type in
+                type == LeafSuppliedReference.self ? reference : nil
+            }
+        )
+
+        #expect(aggregate.count == 0)
+        #expect(aggregate.reference === reference)
+        #expect(tuple.1 === reference)
+    }
+
+    @Test func leafValuesOfTheWrongTypeAreRejected() {
+        #expect(
+            PlaceholderValue.make(LeafSuppliedAggregate.self) { _ in "not a reference" } == nil
+        )
+    }
+
+    @Test func importedEnumerationsAreZeroInitialized() throws {
+        let style = try #require(PlaceholderValue.make(DateFormatter.Style.self))
+        #expect(style.rawValue == 0)
+        #expect(DummyValue.make(DateFormatter.Style.self) != nil)
     }
 }
 

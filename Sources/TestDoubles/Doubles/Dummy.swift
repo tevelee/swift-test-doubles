@@ -44,7 +44,7 @@ public final class Dummy<P> {
             self.init(value: value)
             return
         }
-        if let value = RuntimeStubFactory.makeDummyValue(for: P.self) {
+        if let value = RecordingPlaceholderResolver.makeDummy(P.self) {
             self.init(value: value)
             return
         }

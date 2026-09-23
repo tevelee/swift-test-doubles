@@ -6,8 +6,20 @@ import Foundation
 /// Resolves valid temporary values for matcher and result recording.
 enum RecordingPlaceholderResolver {
     /// Returns a registered, built-in, composite, or runtime-synthesized value.
+    ///
+    /// Structural synthesis falls back to dummy-grade values, such as the first
+    /// constructible case of a payload-only enum or a fail-on-use function.
+    /// Recording only passes a placeholder to the requirement being described
+    /// and discards whatever the recording closure returns, so neither value
+    /// is ever used as real input or output.
     static func make<Value>(_ type: Value.Type) -> Value? {
         RecordingPlaceholderResolution().make(type)
+    }
+
+    /// Returns a dummy-grade value, consulting registered and built-in
+    /// placeholders for any type structural synthesis cannot initialize.
+    static func makeDummy<Value>(_ type: Value.Type) -> Value? {
+        RecordingPlaceholderResolution().makeDummy(type)
     }
 }
 
@@ -25,6 +37,24 @@ private final class RecordingPlaceholderResolution {
         guard resolving.insert(identifier).inserted else { return nil }
         defer { resolving.remove(identifier) }
 
+        if let leaf = leafValue(type) {
+            return leaf
+        }
+        let leafValue: (Any.Type) -> Any? = { [unowned self] nested in
+            self.nestedLeafValue(nested)
+        }
+        return RuntimeStubFactory.makeRecordingPlaceholder(for: type, leafValue: leafValue)
+            ?? RuntimeStubFactory.makeDummyValue(for: type, leafValue: leafValue)
+    }
+
+    func makeDummy<Value>(_ type: Value.Type) -> Value? {
+        RuntimeStubFactory.makeDummyValue(for: type) { [unowned self] nested in
+            self.nestedLeafValue(nested)
+        }
+    }
+
+    /// Returns a built-in or composite value without structural synthesis.
+    private func leafValue<Value>(_ type: Value.Type) -> Value? {
         if let builtIn = BuiltInRecordingPlaceholders.make(type) {
             return builtIn
         }
@@ -33,7 +63,21 @@ private final class RecordingPlaceholderResolution {
         {
             return value
         }
-        return RuntimeStubFactory.makeRecordingPlaceholder(for: type)
+        return nil
+    }
+
+    /// Supplies a nested value that structural synthesis could not initialize.
+    private func nestedLeafValue(_ type: Any.Type) -> Any? {
+        func open<Value>(_: Value.Type) -> Any? {
+            if let registered = Match.Placeholders.make(Value.self) {
+                return registered
+            }
+            let identifier = ObjectIdentifier(Value.self)
+            guard resolving.insert(identifier).inserted else { return nil }
+            defer { resolving.remove(identifier) }
+            return leafValue(Value.self)
+        }
+        return _openExistential(type, do: open)
     }
 }
 
@@ -118,6 +162,22 @@ extension AnyRandomAccessCollection: CompositeRecordingPlaceholder {
         using _: RecordingPlaceholderResolution
     ) -> Any? {
         Self(EmptyCollection<Element>()) as Any
+    }
+}
+
+extension AsyncStream: CompositeRecordingPlaceholder {
+    fileprivate static func make(
+        using _: RecordingPlaceholderResolution
+    ) -> Any? {
+        Self { $0.finish() } as Any
+    }
+}
+
+extension AsyncThrowingStream: CompositeRecordingPlaceholder where Failure == any Error {
+    fileprivate static func make(
+        using _: RecordingPlaceholderResolution
+    ) -> Any? {
+        Self { $0.finish() } as Any
     }
 }
 

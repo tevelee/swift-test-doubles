@@ -54,7 +54,36 @@ enum BuiltInRecordingPlaceholders {
         if let unit = measurementUnit(for: type) {
             return unit
         }
+        if let response = urlResponse(for: type) {
+            return response
+        }
         return BuiltInFoundationValueCatalog.placeholder(for: type)
+    }
+
+    /// Response classes are references, so they need no result adapter, only
+    /// a valid instance. Match exact types so a subclass is never answered
+    /// with its superclass.
+    private static func urlResponse(for type: Any.Type) -> Any? {
+        #if canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))
+            let url = URL(filePath: "/test-doubles-placeholder")
+            if ObjectIdentifier(type) == ObjectIdentifier(HTTPURLResponse.self) {
+                return HTTPURLResponse(
+                    url: url,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: nil
+                )
+            }
+            if ObjectIdentifier(type) == ObjectIdentifier(URLResponse.self) {
+                return URLResponse(
+                    url: url,
+                    mimeType: nil,
+                    expectedContentLength: 0,
+                    textEncodingName: nil
+                )
+            }
+        #endif
+        return nil
     }
 
     private static func measurementUnit(for type: Any.Type) -> Any? {

@@ -1,3 +1,7 @@
+import Foundation
+#if canImport(FoundationNetworking) && !os(Android)
+    import FoundationNetworking
+#endif
 import Testing
 import TestDoubles
 
@@ -260,6 +264,33 @@ struct DummyTests {
         #expect(container.count == 0)
         withExtendedLifetime(container.transform) {}
         withExtendedLifetime(container.asynchronous) {}
+    }
+
+    @Test func usesBuiltInPlaceholdersForCommonFrameworkValues() {
+        let zone: TimeZone = Dummy.make()
+        let name: Notification.Name = Dummy.make()
+        let unit: UnitDuration = Dummy.make()
+        let stream: AsyncStream<Int> = Dummy.make()
+
+        #expect(zone.secondsFromGMT() == 0)
+        #expect(name.rawValue.isEmpty == false)
+        #expect(unit == .seconds)
+        withExtendedLifetime(stream) {}
+    }
+
+    #if canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))
+        @Test func usesBuiltInPlaceholdersForResponseClasses() {
+            let response: HTTPURLResponse = Dummy.make()
+            let pair: (Data, HTTPURLResponse) = Dummy.make()
+
+            #expect(response.statusCode == 200)
+            #expect(pair.1.statusCode == 200)
+        }
+    #endif
+
+    @Test func synthesizesImportedEnumerations() {
+        let style: DateFormatter.Style = Dummy.make()
+        #expect(DateFormatter.Style(rawValue: style.rawValue) != nil)
     }
 
     @Test func synthesizesOpaqueExistentials() {

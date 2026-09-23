@@ -34,7 +34,8 @@ enum RecordingReturnPlaceholderContext {
             fatalError(
                 "[TestDoubles] Cannot synthesize a recording placeholder for \(type). "
                     + "Use the `returning:` placeholder overload of `when`/`verify`, or "
-                    + "register a suite-wide factory with Match.Placeholders.register."
+                    + "supply a factory with Match.Placeholders.withFactory (scoped to the "
+                    + "current task) or Match.Placeholders.register (process-wide)."
             )
         }
         return placeholder

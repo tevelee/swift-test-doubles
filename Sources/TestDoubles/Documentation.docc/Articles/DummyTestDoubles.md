@@ -71,10 +71,15 @@ returning arbitrary memory. It supports:
 - empty arrays, sets, and dictionaries;
 - tuples and structs when every stored value is synthesizable;
 - enums with an empty case, or with a direct payload case whose payload is
-  synthesizable; and
+  synthesizable;
 - escaping Swift functions, thin functions, C function pointers, and Objective-C
   blocks where available, including async, throwing, typed-throwing, and
-  `@Sendable` Swift function types.
+  `@Sendable` Swift function types;
+- imported C enums, such as `DateFormatter.Style`; and
+- every value in the built-in recording placeholder catalog, such as `URL`,
+  `Date`, `TimeZone`, `Notification.Name`, measurement units,
+  `HTTPURLResponse`, and `AsyncStream`, including when nested in a tuple or
+  struct.
 
 Function values point to a fail-closed body. Invoking one terminates with a
 dummy diagnostic. Function fields nested inside tuples, structs, and direct

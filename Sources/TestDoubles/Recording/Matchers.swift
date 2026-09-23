@@ -307,8 +307,9 @@ func synthesizedPlaceholder<T>(for api: String, fallback: String) -> T {
     guard let placeholder = RecordingPlaceholderResolver.make(T.self) else {
         fatalError(
             "[TestDoubles] \(api) cannot safely synthesize a placeholder for \(T.self). "
-                + "Pass a valid value with \(fallback), or register a suite-wide "
-                + "factory with Match.Placeholders.register."
+                + "Pass a valid value with \(fallback), or supply a "
+                + "factory with Match.Placeholders.withFactory (scoped to the current "
+                + "task) or Match.Placeholders.register (process-wide)."
         )
     }
     return placeholder
