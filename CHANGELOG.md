@@ -20,8 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   through supported function-value results and tuple leaves, including mixed
   direct/indirect, nested, throwing, and async tuples. Common results such as
   `Data`, `URL`, `Date`, and `UUID` no longer need an explicit `Requirement`.
-  Swift 6.3 exposes direct-transport entries such as `Data`; indirect entries
-  require Swift 6.4 or newer.
+  On Apple platforms every entry applies from Swift 6.3; elsewhere, Swift 6.3
+  exposes direct-transport entries such as `Data` and indirect entries require
+  Swift 6.4 or newer.
 - `thenStream()` and `thenThrowingStream()` return controllers for yielding,
   finishing, failing, buffering, and observing cancellation of stubbed async
   sequences, with strict-scope detection of controllers left open at teardown.
@@ -96,6 +97,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a compiler-typed adapter. Runtime recording also consults the built-in
   placeholder catalog for nested values, so results such as a struct
   holding a stream record without `when(returning:)`.
+- On Apple platforms, runtime stubs with Swift 6.3 accept `Date`, `URL`,
+  `UUID`, and the other indirect catalog results. The executable adapters for
+  those types still need Swift 6.4, but their transport is a property of the
+  SDK's library-evolution Foundation, so the evidence alone now applies.
+- Catalog transport evidence also settles arguments of the same types. A
+  literal `URL` or `Date` argument, such as `when { $0.get(url, headers: [:]) }`,
+  no longer traps with "Cannot determine the resilient argument convention",
+  and a forwarding `Spy` no longer traps on its first call to a method taking a
+  `UUID` before any configuration. The remaining calibration diagnostics name
+  the argument types that need a `Match` expression.
 - A literal argument of an imported C enum, such as `style: .short` for a
   `DateFormatter.Style` parameter, matches by value. Its synthesized
   `Equatable` conformance is invisible to dynamic casts, so recording used to

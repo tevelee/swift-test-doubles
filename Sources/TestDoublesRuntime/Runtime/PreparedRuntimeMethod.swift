@@ -35,7 +35,10 @@ package final class PreparedRuntimeMethod: @unchecked Sendable {
         self.descriptor = descriptor
         argumentLayoutCandidates = descriptor.arguments.map { argument in
             if case .concrete = argument.value.convention {
-                return argumentABIClassCandidates(for: argument.value.type)
+                return Self.candidates(
+                    for: argument.value.type,
+                    evidence: descriptor.compilerResultTransportEvidenceCatalog
+                )
             }
             return [argument.value.layout]
         }
@@ -52,6 +55,31 @@ package final class PreparedRuntimeMethod: @unchecked Sendable {
             layouts.count == argumentLayoutCandidates.count
             ? Self.makePlans(for: descriptor, argumentLayouts: layouts)
             : nil
+    }
+
+    /// Every transport still possible for an argument of `type`, narrowed by
+    /// compiler evidence for the same type. A client's transport for a value
+    /// is the same whether it passes or returns it, so result-transport
+    /// evidence settles an argument without a recording call, which lets
+    /// literal arguments and unconfigured spies use Foundation values.
+    private static func candidates(
+        for type: Any.Type,
+        evidence catalog: CompilerResultTransportEvidenceCatalog
+    ) -> [ABIClass] {
+        let candidates = argumentABIClassCandidates(for: type)
+        guard candidates.count > 1,
+            let evidence = catalog.evidence(for: type, isThrowing: false, isAsync: false)
+        else {
+            return candidates
+        }
+        let narrowed: [ABIClass]
+        switch evidence.transport {
+            case .indirect:
+                narrowed = candidates.filter { $0 == .indirect }
+            case .direct:
+                narrowed = candidates.filter { $0 != .indirect }
+        }
+        return narrowed.count == 1 ? narrowed : candidates
     }
 
     package var asyncStackAdjustmentByteCount: Int? {
@@ -112,8 +140,11 @@ package final class PreparedRuntimeMethod: @unchecked Sendable {
         guard calibrations.count == descriptor.arguments.count else {
             fatalError(
                 "[TestDoubles] Cannot determine the resilient argument convention for "
-                    + "\(descriptor.name). Record the call with one Match expression "
-                    + "for every argument so the runtime can calibrate it safely."
+                    + "\(descriptor.name)(\(argumentTypeList)). \(ambiguousArgumentDescription) "
+                    + "may be passed directly or by address, and a literal argument gives the "
+                    + "runtime no placeholder to tell which. Record the call with one Match "
+                    + "expression for every argument, such as Match.equal(value) in place of "
+                    + "each literal, so the runtime can calibrate it safely."
             )
         }
 
@@ -161,12 +192,30 @@ package final class PreparedRuntimeMethod: @unchecked Sendable {
         defer { lock.unlock() }
         guard let plans else {
             fatalError(
-                "[TestDoubles] The resilient argument convention for \(descriptor.name) "
-                    + "has not been calibrated. Configure or verify the method with Match "
-                    + "expressions before invoking it."
+                "[TestDoubles] The resilient argument convention for "
+                    + "\(descriptor.name)(\(argumentTypeList)) has not been calibrated. "
+                    + "\(ambiguousArgumentDescription) may be passed directly or by address. "
+                    + "Configure or verify the method with Match expressions before invoking "
+                    + "it, for example `spy.when { $0.method(Match.any()) }.thenForward()`."
             )
         }
         return plans
+    }
+
+    private var argumentTypeList: String {
+        descriptor.arguments.map { String(describing: $0.value.type) }.joined(separator: ", ")
+    }
+
+    /// Names the arguments whose transport metadata leaves ambiguous.
+    private var ambiguousArgumentDescription: String {
+        let names = zip(descriptor.arguments, argumentLayoutCandidates)
+            .filter { $0.1.count > 1 }
+            .map { String(describing: $0.0.value.type) }
+        switch names.count {
+            case 0: return "An argument"
+            case 1: return "Its \(names[0]) argument"
+            default: return "Its \(names.joined(separator: ", ")) arguments"
+        }
     }
 
     private static func makePlans(

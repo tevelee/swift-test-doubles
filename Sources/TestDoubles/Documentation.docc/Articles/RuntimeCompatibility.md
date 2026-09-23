@@ -159,9 +159,11 @@ What's supported:
   values from the built-in Foundation placeholder catalog, including `Data`,
   `URL`, `Date`, and `UUID`. Methods, indexed getters, forwarding spies,
   supported closure results, and tuple leaves may reuse those proofs. Tuples
-  may be nested and mix direct with caller-owned indirect members. Swift 6.3
-  includes direct-transport entries such as `Data`; indirect entries require
-  Swift 6.4 or newer.
+  may be nested and mix direct with caller-owned indirect members. The same
+  proofs settle arguments of those types, so literals and forwarding spies need
+  no calibration. On Apple platforms every entry applies from Swift 6.3; other
+  platforms need Swift 6.4 or newer for the indirect entries, such as `URL` and
+  `Date`.
 
 Key limitations:
 

@@ -137,12 +137,31 @@ private func placeholderCases() -> String {
 }
 
 private func appendCalls() -> String {
-    entries.map { entry in
-        conditionallyWrap(
-            "append\(entry.functionSuffix)(to: &adapters)",
-            condition: adapterCondition(for: entry)
-        )
+    entries.flatMap { entry in
+        [
+            conditionallyWrap(
+                "append\(entry.functionSuffix)(to: &adapters)",
+                condition: adapterCondition(for: entry)
+            ),
+            conditionallyWrap(
+                "appendTransportEvidence(returning: \(entry.type).self, resultTransport: .\(entry.transport.rawValue), to: &adapters)",
+                condition: evidenceCondition(for: entry)
+            )
+        ]
     }.joined(separator: "\n")
+}
+
+/// Transport evidence needs no executable adapter. On Darwin, Foundation is
+/// built with library evolution, so a non-frozen value's indirect transport
+/// is a property of the SDK rather than of the compiler that emits adapters.
+private func evidenceCondition(for entry: Entry) -> String? {
+    let platformCondition = "!os(WASI)"
+    let baseCondition =
+        entry.condition.map {
+            "(\($0)) && \(platformCondition)"
+        } ?? platformCondition
+    guard entry.transport == .indirect else { return baseCondition }
+    return "(\(baseCondition)) && (canImport(Darwin) || compiler(>=6.4))"
 }
 
 private func adapterCondition(for entry: Entry) -> String? {

@@ -142,8 +142,9 @@ make placement ambiguous, TestDoubles rejects the recording instead of
 guessing; rewrite each pinned value as `Match.equal(value)` or
 `Match.identical(to: object)`.
 
-For a call involving an ABI-uncertain concrete value, prefer the matcher form
-for every argument from the first recording onward. A non-`@frozen` value from
+For a call involving an ABI-uncertain concrete value outside the built-in
+Foundation catalog described below, prefer the matcher form for every argument
+from the first recording onward. A non-`@frozen` value from
 a library-evolution module may be passed directly or by address, and those
 matcher placeholders let TestDoubles calibrate the client's convention before
 it decodes a real call. The same rule applies to an imported generic struct or
@@ -221,8 +222,14 @@ The catalog covers `URL`, `Data`, `Date`, `UUID`, `Calendar`, `Locale`,
 notification values, `AttributedString`, `PersonNameComponents`, and
 `URLRequest` where available. Each entry records the return transport selected
 by the compiler; no application compiler flag or runtime ABI guess is involved.
-Swift 6.3 exposes the direct-transport entries, including `Data`, `Decimal`, and
-`Notification.Name`; Swift 6.4 and newer also expose the indirect entries.
+On Apple platforms every entry applies with Swift 6.3 and newer, because the
+SDK's Foundation is built with library evolution and fixes each transport.
+Elsewhere, Swift 6.3 exposes the direct-transport entries, including `Data`,
+`Decimal`, and `Notification.Name`, and Swift 6.4 and newer also expose the
+indirect entries. A client passes a value the same way it returns it, so the
+same entries also settle arguments: a literal `URL`, `Date`, or `UUID`
+argument, or an unconfigured forwarding spy, needs no `Match` expression to
+calibrate it.
 
 The proof follows the value through supported closure results and tuple leaves.
 For example, `(Data, Int)`, `(UUID, Int)`, and a returned

@@ -66,6 +66,18 @@ enum BuiltInResultAdapters {
                 )
             )
         }
+    }
+
+    /// Appends result-transport evidence without an executable adapter.
+    ///
+    /// Evidence applies to methods of any arity through the ordinary argument
+    /// trampoline, and it also settles the transport of arguments of the same
+    /// type, which is the same for a client's calls and returns.
+    static func appendTransportEvidence<Result>(
+        returning resultType: Result.Type,
+        resultTransport: RuntimeAutomaticRequirementAdapter.ResultTransport,
+        to adapters: inout [RuntimeAutomaticRequirementAdapter]
+    ) {
         for kind in [RuntimeRequirementKind.method, .getter] {
             for (isThrowing, isAsync) in [
                 (false, false),

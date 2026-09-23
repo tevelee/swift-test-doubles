@@ -65,53 +65,104 @@ extension BuiltInResultAdapters {
         #if (!os(WASI)) && compiler(>=6.4)
             appendURL(to: &adapters)
         #endif
+        #if (!os(WASI)) && (canImport(Darwin) || compiler(>=6.4))
+            appendTransportEvidence(returning: URL.self, resultTransport: .indirect, to: &adapters)
+        #endif
         #if !os(WASI)
             appendData(to: &adapters)
+        #endif
+        #if !os(WASI)
+            appendTransportEvidence(returning: Data.self, resultTransport: .direct, to: &adapters)
         #endif
         #if (!os(WASI)) && compiler(>=6.4)
             appendDate(to: &adapters)
         #endif
+        #if (!os(WASI)) && (canImport(Darwin) || compiler(>=6.4))
+            appendTransportEvidence(returning: Date.self, resultTransport: .indirect, to: &adapters)
+        #endif
         #if (!os(WASI)) && compiler(>=6.4)
             appendUUID(to: &adapters)
+        #endif
+        #if (!os(WASI)) && (canImport(Darwin) || compiler(>=6.4))
+            appendTransportEvidence(returning: UUID.self, resultTransport: .indirect, to: &adapters)
         #endif
         #if (!os(WASI)) && compiler(>=6.4)
             appendCalendar(to: &adapters)
         #endif
+        #if (!os(WASI)) && (canImport(Darwin) || compiler(>=6.4))
+            appendTransportEvidence(returning: Calendar.self, resultTransport: .indirect, to: &adapters)
+        #endif
         #if (!os(WASI)) && compiler(>=6.4)
             appendLocale(to: &adapters)
+        #endif
+        #if (!os(WASI)) && (canImport(Darwin) || compiler(>=6.4))
+            appendTransportEvidence(returning: Locale.self, resultTransport: .indirect, to: &adapters)
         #endif
         #if (!os(WASI)) && compiler(>=6.4)
             appendTimeZone(to: &adapters)
         #endif
+        #if (!os(WASI)) && (canImport(Darwin) || compiler(>=6.4))
+            appendTransportEvidence(returning: TimeZone.self, resultTransport: .indirect, to: &adapters)
+        #endif
         #if (!os(WASI)) && compiler(>=6.4)
             appendIndexPath(to: &adapters)
+        #endif
+        #if (!os(WASI)) && (canImport(Darwin) || compiler(>=6.4))
+            appendTransportEvidence(returning: IndexPath.self, resultTransport: .indirect, to: &adapters)
         #endif
         #if (!os(WASI)) && compiler(>=6.4)
             appendIndexSet(to: &adapters)
         #endif
+        #if (!os(WASI)) && (canImport(Darwin) || compiler(>=6.4))
+            appendTransportEvidence(returning: IndexSet.self, resultTransport: .indirect, to: &adapters)
+        #endif
         #if (!os(WASI)) && compiler(>=6.4)
             appendDateInterval(to: &adapters)
         #endif
+        #if (!os(WASI)) && (canImport(Darwin) || compiler(>=6.4))
+            appendTransportEvidence(returning: DateInterval.self, resultTransport: .indirect, to: &adapters)
+        #endif
         #if (!os(WASI)) && compiler(>=6.4)
             appendCharacterSet(to: &adapters)
+        #endif
+        #if (!os(WASI)) && (canImport(Darwin) || compiler(>=6.4))
+            appendTransportEvidence(returning: CharacterSet.self, resultTransport: .indirect, to: &adapters)
         #endif
         #if !os(WASI)
             appendDecimal(to: &adapters)
         #endif
         #if !os(WASI)
+            appendTransportEvidence(returning: Decimal.self, resultTransport: .direct, to: &adapters)
+        #endif
+        #if !os(WASI)
             appendNotificationName(to: &adapters)
+        #endif
+        #if !os(WASI)
+            appendTransportEvidence(returning: Notification.Name.self, resultTransport: .direct, to: &adapters)
         #endif
         #if (!os(WASI)) && compiler(>=6.4)
             appendNotification(to: &adapters)
         #endif
+        #if (!os(WASI)) && (canImport(Darwin) || compiler(>=6.4))
+            appendTransportEvidence(returning: Notification.self, resultTransport: .indirect, to: &adapters)
+        #endif
         #if (!os(WASI)) && compiler(>=6.4)
             appendAttributedString(to: &adapters)
+        #endif
+        #if (!os(WASI)) && (canImport(Darwin) || compiler(>=6.4))
+            appendTransportEvidence(returning: AttributedString.self, resultTransport: .indirect, to: &adapters)
         #endif
         #if (!os(WASI)) && compiler(>=6.4)
             appendPersonNameComponents(to: &adapters)
         #endif
+        #if (!os(WASI)) && (canImport(Darwin) || compiler(>=6.4))
+            appendTransportEvidence(returning: PersonNameComponents.self, resultTransport: .indirect, to: &adapters)
+        #endif
         #if ((canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))) && !os(WASI)) && compiler(>=6.4)
             appendURLRequest(to: &adapters)
+        #endif
+        #if ((canImport(Darwin) || (canImport(FoundationNetworking) && !os(Android))) && !os(WASI)) && (canImport(Darwin) || compiler(>=6.4))
+            appendTransportEvidence(returning: URLRequest.self, resultTransport: .indirect, to: &adapters)
         #endif
     }
 }
