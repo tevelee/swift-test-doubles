@@ -153,6 +153,13 @@ see [How Runtime Stubs Work](Sources/TestDoubles/Documentation.docc/Articles/How
 
 ## What you can do
 
+The examples below construct stubs with `try Stub<any P>()`, which discovers
+the protocol's signatures from a conformer linked into the test process. When
+none exists yet, as in test-first development, pass one with
+`discoveringFrom:` or attach the build plugin and use
+`TestDouble.stub(using: PStub.self)`, as in the
+[Quick start](#quick-start).
+
 ### Shape responses per argument
 
 Matchers pick the response in registration order. The first matching
