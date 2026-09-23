@@ -128,6 +128,27 @@ This bridge supports synchronous, throwing, typed-throwing, asynchronous, and
 asynchronous-throwing aliases. Both `Sendable` and legacy non-`Sendable`
 function aliases are accepted.
 
+A field whose single parameter is a tuple, such as
+`@Sendable ((width: Int, height: Int)) -> Int`, needs the fixed-arity
+``ClientStubEndpoints/unaryFunction(_:)`` family. Swift 6.3 and 6.4 crash
+while compiling the variadic endpoints for that shape. The unary endpoints
+record the tuple as one argument:
+
+```swift
+struct GeometryClient {
+    var area: @Sendable ((width: Int, height: Int)) -> Int
+}
+
+let geometry = ClientStub<GeometryClient> { endpoints in
+    GeometryClient(area: endpoints.unaryFunction("area"))
+}
+geometry.when { $0.area(Match.any()) }
+    .then { (size: (width: Int, height: Int)) in size.width * size.height }
+```
+
+`unaryThrowingFunction(_:)`, `unaryAsyncFunction(_:)`, and
+`unaryAsyncThrowingFunction(_:)` cover the other effects.
+
 ### Forward and selectively override a live client
 
 ``ClientSpy`` delegates unmatched calls while retaining the same configuration,

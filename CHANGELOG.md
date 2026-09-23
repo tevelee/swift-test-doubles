@@ -59,6 +59,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   conformer and alias), protocols isolated to a global actor, refined
   protocols' inherited requirements, `@autoclosure` and nonescaping closure
   parameters, and `rethrows` requirements.
+- `ClientStubEndpoints.unaryFunction(_:)` and its throwing and async variants
+  build single-parameter closure fields. A field whose single parameter is a
+  tuple crashed the Swift 6.3 and 6.4 compilers when built with the variadic
+  endpoints.
 - `onUnmatchedCall(_:)` chooses what a double does with a call no registration
   matched. Doubles still trap by default. `.reportIssue` instead reports the
   same missing-stub diagnostic as a test issue and recovers with a `Dummy`
