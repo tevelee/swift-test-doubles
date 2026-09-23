@@ -4,6 +4,9 @@ import IssueReporting
 
 extension RuntimeArgumentCalibration {
     fileprivate func matchesPlaceholderBytes(of argument: Any) -> Bool {
+        if type == FunctionPlaceholderCalibration.self {
+            return RuntimeStubFactory.isFunctionType(Swift.type(of: argument))
+        }
         func matches<Value>(_ value: Value) -> Bool {
             guard let expected = bytes(for: Value.self) else { return false }
             return withUnsafeBytes(of: value) { Array($0) } == expected

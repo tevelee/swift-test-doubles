@@ -71,7 +71,17 @@ The plugin emits a forwarding implementation named
 Create the alias directly in a test. Generated methods and subscripts use the
 static types of their arguments automatically, so overloads that differ only by
 argument type remain independent. Typed-throws requirements preserve their
-declared failure type instead of erasing it to ordinary `throws`. Protocols
+declared failure type instead of erasing it to ordinary `throws`. Class-bound
+protocols, including ones that refine a class-bound protocol, generate a
+`final class`, so a weak delegate reference works. A refining protocol also
+forwards the requirements it inherits from protocols the generator can see.
+Protocols with associated types generate a generic conformer, such as
+`CacheStub<String, Int>`, erased to the constrained existential when the
+associated types are primary. A protocol isolated to `@MainActor` or another
+global actor generates a `nonisolated` conformer whose witnesses keep that
+isolation. `@autoclosure` and nonescaping closure parameters, including
+`rethrows` requirements, use the forwarding described in
+<doc:ManualStubbing#Forward-autoclosure-and-closure-parameters>. Protocols
 that inherit from `Actor` generate a genuine actor conformer. Their
 `automatic()` factory deliberately selects that compiled fallback because a
 fabricated object cannot safely provide Swift's actor executor or lifetime.
@@ -113,10 +123,44 @@ on standard error, while duplicate protocol names fail generation instead of
 silently overwriting one another. The existing protocol-name form remains
 available when only one declaration should be generated.
 
+When the protocols live in another module of the package, such as the app
+module a test target imports, add `--testable-import` so the generated file can
+see them. `--import` adds an ordinary import. Both options can repeat:
+
+```sh
+swift package plugin --allow-writing-to-package-directory \
+  generate-manual-stub --all Sources/App Tests/AppTests/Stubs.swift \
+  --testable-import App
+```
+
 ### Regenerate automatically during builds
 
-Attach the `ManualStubBuildPlugin` to a target that declares protocols and
-depends on `TestDoubles`:
+Attach the `ManualStubBuildPlugin` to the test target that uses the stubs. The
+plugin generates conformers for the protocols declared in that target and in
+the Swift library targets of the same package it depends on directly,
+importing those modules with `@testable`. Production modules never need to
+depend on `TestDoubles`:
+
+```swift
+.target(name: "App"),
+.testTarget(
+    name: "AppTests",
+    dependencies: [
+        "App",
+        .product(name: "TestDoubles", package: "swift-test-doubles")
+    ],
+    plugins: [
+        .plugin(
+            name: "ManualStubBuildPlugin",
+            package: "swift-test-doubles"
+        )
+    ]
+)
+```
+
+Another module's `private` protocols are skipped. The plugin can also be
+attached to a library target that declares protocols and depends on
+`TestDoubles`, in which case it scans only that target:
 
 ```swift
 .target(

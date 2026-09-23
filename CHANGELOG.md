@@ -47,6 +47,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a `rethrows` requirement only rethrows errors the closure threw.
 - `Match.any()` binds to nonescaping closure parameters, including `inout`,
   `@Sendable`, async, and typed-throwing function types.
+- The `ManualStubBuildPlugin` can be attached to a test target. It then also
+  generates stubs for protocols declared in the same package's library
+  targets that the test target depends on, importing them with `@testable`,
+  so production modules no longer need to depend on TestDoubles.
+- The manual stub generator accepts `--import` and `--testable-import`, so
+  command-plugin output for protocols declared in another module compiles
+  without hand edits.
+- The manual stub generator supports class-bound protocols (generating a
+  `final class`), protocols with associated types (generating a generic
+  conformer and alias), protocols isolated to a global actor, refined
+  protocols' inherited requirements, `@autoclosure` and nonescaping closure
+  parameters, and `rethrows` requirements.
 - `onUnmatchedCall(_:)` chooses what a double does with a call no registration
   matched. Doubles still trap by default. `.reportIssue` instead reports the
   same missing-stub diagnostic as a test issue and recovers with a `Dummy`
@@ -71,6 +83,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Notification.Name`, and `UnitDuration`.
 - `Dummy` and placeholder synthesis for imported C enums, such as
   `DateFormatter.Style`, no longer crash the process.
+- The manual stub generator no longer drops the parameters that follow a
+  closure-typed parameter: the `>` of a function arrow was counted as a
+  closing generic bracket, so `log(_:_:file:line:)` forwarded only its first
+  two arguments.
 
 ## [0.0.3] - 2026-08-02
 

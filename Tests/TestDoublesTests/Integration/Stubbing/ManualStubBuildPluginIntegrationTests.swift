@@ -64,4 +64,99 @@ import TestDoubles
         await #expect(throws: BuildGeneratedGetterFailure.rejected) { try await service[asyncTypedThrowing: 10] }
     }
 
+    @Test func classBoundProtocolsGenerateClassConformersForWeakReferences() {
+        let stub = BuildGeneratedDetailDelegateStub()
+        stub.when { $0.didFinish(text: Match.any()) }.thenDoNothing()
+        stub.when { $0.didCancel() }.thenDoNothing()
+
+        let delegate: any BuildGeneratedDetailDelegate = stub()
+        weak var weakDelegate: (any BuildGeneratedDetailDelegate)? = delegate
+        weakDelegate?.didFinish(text: "done")
+        weakDelegate?.didCancel()
+
+        stub.verify { $0.didFinish(text: "done") }
+        stub.verify { $0.didCancel() }
+        withExtendedLifetime(delegate) {}
+    }
+
+    @MainActor @Test func globalActorProtocolsKeepTheirIsolation() async {
+        let stub = BuildGeneratedRouterStub()
+        stub.when { $0.push(Match.any()) }.thenDoNothing()
+        await stub.when { await $0.present(title: Match.any()) }.thenReturn(true)
+        stub.when { $0.depth }.thenReturn(2)
+
+        let router: any BuildGeneratedRouter = stub()
+        router.push("home")
+
+        #expect(await router.present(title: "Hello"))
+        #expect(router.depth == 2)
+        stub.verify { $0.push("home") }
+    }
+
+    @Test func primaryAssociatedTypesGenerateGenericConformers() {
+        let stub = BuildGeneratedCacheStub<String, Int>()
+        stub.when { $0.value(for: "a") }.thenReturn(1)
+        stub.when { $0.value(for: Match.any()) }.thenReturn(nil)
+        stub.when { $0.store(Match.any(), for: Match.any()) }.thenDoNothing()
+
+        let cache: any BuildGeneratedCache<String, Int> = stub()
+        cache.store(2, for: "b")
+
+        #expect(cache.value(for: "a") == 1)
+        #expect(cache.value(for: "b") == nil)
+        stub.verify { $0.store(2, for: "b") }
+    }
+
+    @Test func autoclosureArgumentsKeepEveryParameterAndPosition() {
+        let stub = BuildGeneratedLoggerStub()
+        stub.when {
+            $0.log(Match.any(), Match.any(), file: Match.any(), line: Match.any())
+        }.thenDoNothing()
+
+        stub().log(.error, "charge failed: offline", file: "Checkout.swift", line: 89)
+
+        stub.verify {
+            $0.log(
+                Match.equal(.error),
+                Match.containsSubstring("offline"),
+                file: Match.equal("Checkout.swift"),
+                line: Match.equal(89)
+            )
+        }
+    }
+
+    @Test func nonescapingClosuresAreLentToHandlers() async throws {
+        let stub = BuildGeneratedTransformerStub()
+        stub.when { $0.map(Match.any(), transform: Match.any()) }
+            .then { (values: [Int], transform: @escaping (Int) -> Int) in values.map(transform) }
+        stub.when { $0.tryMap(Match.any(), transform: Match.any()) }
+            .then { (values: [Int], transform: @escaping (Int) throws -> Int) in
+                try values.map(transform)
+            }
+        stub.when { $0.load(Match.any(), completion: Match.any()) }
+            .then { (path: String, completion: @escaping (Result<Int, any Error>) -> Void) in
+                completion(.success(path.count))
+            }
+        stub.when { $0.visit(Match.any()) }
+            .then { (body: @escaping (inout Int) -> Void) -> Int in
+                var value = 1
+                body(&value)
+                return value
+            }
+        await stub.when { await $0.perform(Match.any()) }
+            .then { (work: @escaping @Sendable () async -> Void) in await work() }
+
+        let transformer: any BuildGeneratedTransformer = stub()
+        #expect(transformer.map([1, 2]) { $0 * 10 } == [10, 20])
+        #expect(try transformer.tryMap([1]) { $0 + 1 } == [2])
+        #expect(throws: BuildGeneratedGetterFailure.rejected) {
+            try transformer.tryMap([1]) { _ in throw BuildGeneratedGetterFailure.rejected }
+        }
+        var loaded: Int?
+        transformer.load("four") { loaded = try? $0.get() }
+        #expect(loaded == 4)
+        #expect(transformer.visit { $0 += 41 } == 42)
+        await transformer.perform {}
+        stub.verify { $0.map([1, 2], transform: Match.any()) }
+    }
 }

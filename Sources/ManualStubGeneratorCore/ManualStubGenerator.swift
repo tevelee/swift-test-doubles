@@ -3,50 +3,66 @@ import Foundation
 package struct ManualStubGenerator {
     package let protocolName: String
     package let source: String
+    /// Protocols declared elsewhere, such as other files of the same module,
+    /// whose requirements a refining protocol inherits.
+    let knownProtocols: [String: SwiftProtocolDeclaration]
 
     package init(protocolName: String, source: String) {
+        self.init(protocolName: protocolName, source: source, knownProtocols: [:])
+    }
+
+    init(
+        protocolName: String,
+        source: String,
+        knownProtocols: [String: SwiftProtocolDeclaration]
+    ) {
         self.protocolName = protocolName
         self.source = source
+        self.knownProtocols = knownProtocols
     }
 
     package func render(
         importingTestDoubles: Bool = true,
-        preservingSourceImports: Bool = true
+        preservingSourceImports: Bool = true,
+        additionalImports: [String] = []
     ) throws -> String {
         let declaration = try protocolDeclaration()
-        let requirements = declaration.body.requirements
-        let conformerName = "\(protocolName)StubConformer"
-        let stubName = "\(protocolName)Stub"
-        let conformerKind = declaration.inheritsActor ? "actor" : "struct"
+        let requirements = inheritedRequirements(of: declaration)
+        let shape = ConformerShape(
+            protocolName: protocolName,
+            declaration: declaration,
+            associatedTypes: requirements.compactMap(AssociatedTypeDeclaration.init),
+            isClassBound: isClassBound(declaration)
+        )
         let accessPrefix = restrictedAccessPrefix()
         var members = [
-            "typealias StubbedProtocol = any \(protocolName)",
+            "typealias StubbedProtocol = \(shape.existential)",
             compilerEvidenceMember(
                 declaration: declaration,
-                requirements: requirements
+                requirements: requirements,
+                isGeneric: shape.isGeneric
             ),
-            declaration.inheritsActor
-                ? "let stub: CompiledStub<\(conformerName)>\n\n    init(stub: CompiledStub<\(conformerName)>) { self.stub = stub }"
-                : "let stub: CompiledStub<Self>",
-            "static func eraseToStubbedProtocol(_ conformer: \(conformerName)) -> StubbedProtocol { conformer }"
+            shape.storedStubMembers,
+            "static func eraseToStubbedProtocol(_ conformer: \(shape.conformerType)) -> StubbedProtocol { conformer }"
         ]
         for requirement in requirements {
             try requireInstanceRequirement(requirement)
             if let member = try forwarder(for: requirement) {
-                members.append(member)
+                members.append(shape.isolating(member, requirement: requirement))
             }
         }
         var imports = preservingSourceImports ? sourceImportLines() : []
+        imports += additionalImports.filter { imports.contains($0) == false }
         if importingTestDoubles, imports.contains("import TestDoubles") == false {
             imports.append("import TestDoubles")
         }
         let importBlock = imports.isEmpty ? "" : imports.joined(separator: "\n") + "\n\n"
         return """
-            \(importBlock)\(accessPrefix)\(conformerKind) \(conformerName): \(protocolName), AutomaticStubConformer {
+            \(importBlock)\(accessPrefix)\(shape.declarationPrefix) \(shape.conformerName)\(shape.genericParameters): \(protocolName), AutomaticStubConformer {
                 \(members.joined(separator: "\n\n    "))
             }
 
-            \(accessPrefix)typealias \(stubName) = CompiledStub<\(conformerName)>
+            \(accessPrefix)typealias \(protocolName)Stub\(shape.genericParameters) = CompiledStub<\(shape.conformerType)>
             """ + "\n"
     }
 
@@ -58,9 +74,16 @@ package struct ManualStubGenerator {
 
     private func compilerEvidenceMember(
         declaration: SwiftProtocolDeclaration,
-        requirements: [String]
+        requirements: [String],
+        isGeneric: Bool
     ) -> String {
-        let described = requirements.flatMap(sourceRequirements)
+        // Requirements that mention an associated type have no concrete
+        // runtime description; they rely on runtime discovery.
+        let described = requirements.flatMap(sourceRequirements).map { requirement in
+            isGeneric
+                ? DescribedRequirement(name: requirement.name, kind: requirement.kind, expression: nil)
+                : requirement
+        }
         let expressions = described.compactMap(\.expression)
         let hasCompleteDescription =
             expressions.count == callableRequirementCount(in: requirements)
@@ -99,8 +122,13 @@ package struct ManualStubGenerator {
                 "                )"
             ].joined(separator: "\n")
         }.joined(separator: ",\n")
+        // Generic types cannot declare static stored properties.
+        let declarationLine =
+            isGeneric
+            ? "static var compilerEvidence: StubCompilerEvidence<StubbedProtocol> { StubCompilerEvidence("
+            : "static let compilerEvidence: StubCompilerEvidence<StubbedProtocol> = StubCompilerEvidence("
         return [
-            "static let compilerEvidence: StubCompilerEvidence<StubbedProtocol> = StubCompilerEvidence(",
+            declarationLine,
             "        runtimeConstruction: \(runtimeConstruction),",
             "        compiledFallbackEligibility: .compiledConformer,",
             "        sourceSupport: StubSourceSupportReport(",
@@ -109,7 +137,7 @@ package struct ManualStubGenerator {
             support,
             "            ]",
             "        )",
-            ")"
+            isGeneric ? ") }" : ")"
         ].joined(separator: "\n")
     }
 
@@ -425,7 +453,7 @@ package struct ManualStubGenerator {
             || requirement.hasPrefix("static func ")
             || requirement.hasPrefix("class func ")
         {
-            guard let result = functionForwarder(requirement) else {
+            guard let result = try functionForwarder(requirement) else {
                 throw unsupported(requirement, because: "the function declaration could not be parsed")
             }
             return result
@@ -449,6 +477,7 @@ package struct ManualStubGenerator {
     }
 
     private func requireInstanceRequirement(_ requirement: String) throws {
+        if requirement.hasPrefix("associatedtype ") { return }
         let declarationKind =
             requirement.range(of: "func ").map { requirement[..<$0.lowerBound] }
             ?? requirement.range(of: "var ").map { requirement[..<$0.lowerBound] }
@@ -473,26 +502,11 @@ package struct ManualStubGenerator {
         }
     }
 
-    private func unsupported(
+    func unsupported(
         _ requirement: String,
         because reason: String
     ) -> ManualStubGeneratorError {
         .unsupportedRequirement(requirement: requirement, reason: reason)
-    }
-
-    private func functionForwarder(_ requirement: String) -> String? {
-        guard let funcRange = requirement.range(of: "func ") else { return nil }
-        let receiver = "stub"
-        guard let opening = requirement[funcRange.upperBound...].firstIndex(of: "(") else {
-            return nil
-        }
-        guard let closing = matchingParen(in: requirement, opening: opening) else {
-            return nil
-        }
-        let arguments = invocationArguments(String(requirement[opening ... closing]))
-        let suffix = String(requirement[closing...])
-        let effects = effects(in: suffix)
-        return "\(requirement) { \(forwardingInvocation(receiver: receiver, arguments: arguments, effects: effects)) }"
     }
 
     private func propertyForwarder(_ requirement: String) -> String? {
@@ -580,7 +594,7 @@ package struct ManualStubGenerator {
         return "\(declaration) { \(body) }"
     }
 
-    private func forwardingInvocation(
+    func forwardingInvocation(
         receiver: String,
         arguments: [String],
         effects: String
@@ -607,7 +621,7 @@ package struct ManualStubGenerator {
         return expression
     }
 
-    private func typedFailureType(in effects: String) -> String? {
+    func typedFailureType(in effects: String) -> String? {
         guard let throwsRange = effects.range(of: "throws(") else {
             return nil
         }
@@ -636,7 +650,7 @@ package struct ManualStubGenerator {
         }
     }
 
-    private func matchingParen(in value: String, opening: String.Index) -> String.Index? {
+    func matchingParen(in value: String, opening: String.Index) -> String.Index? {
         var depth = 0
         for index in value[opening...].indices {
             if value[index] == "(" { depth += 1 }
@@ -648,7 +662,7 @@ package struct ManualStubGenerator {
         return nil
     }
 
-    private func effects(in suffix: String) -> String {
+    func effects(in suffix: String) -> String {
         suffix.components(separatedBy: "->").first ?? suffix
     }
 
@@ -658,13 +672,17 @@ package struct ManualStubGenerator {
     }
 }
 
-private func splitTopLevel(_ value: String, on separator: Character) -> [String] {
+func splitTopLevel(_ value: String, on separator: Character) -> [String] {
     var components = [String]()
     var current = ""
     var depth = 0
+    var previous: Character?
     for character in value {
+        defer { previous = character }
         switch character {
             case "(", "[", "<": depth += 1
+            // The `>` of a function arrow closes nothing.
+            case ">" where previous == "-": break
             case ")", "]", ">": depth -= 1
             default: break
         }
@@ -680,7 +698,7 @@ private func splitTopLevel(_ value: String, on separator: Character) -> [String]
 }
 
 extension String {
-    fileprivate var requirements: [String] {
+    var requirements: [String] {
         var result = [String]()
         var current = ""
         var parentheses = 0

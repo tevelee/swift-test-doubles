@@ -262,6 +262,147 @@ import Testing
         }
     }
 
+    @Test func keepsEveryParameterAfterAClosureTypedParameter() throws {
+        let output = try render(
+            """
+            protocol Logger {
+                func log(_ message: @escaping () -> String, file: String, line: Int)
+            }
+            """,
+            protocolName: "Logger"
+        )
+
+        #expect(output.contains("stub.call(message, file, line)"))
+    }
+
+    @Test func forwardsAutoclosuresThroughTheirPosition() throws {
+        let output = try render(
+            """
+            protocol Logger {
+                func log(_ level: Int, _ message: @autoclosure () -> String, line: Int)
+                func trace(_ message: @autoclosure () throws -> String) rethrows
+            }
+            """,
+            protocolName: "Logger"
+        )
+
+        #expect(output.contains("stub.call(level, stub.deferredArgument(at: 1, message), line)"))
+        #expect(output.contains("try stub.deferredArgument(at: 0, message)"))
+    }
+
+    @Test func lendsNonescapingClosuresAndRethrowsTheirErrors() throws {
+        let output = try render(
+            """
+            protocol Transformer {
+                func map(_ values: [Int], transform: (Int) throws -> Int) rethrows -> [Int]
+            }
+            """,
+            protocolName: "Transformer"
+        )
+
+        #expect(output.contains("try withoutActuallyEscaping(transform) { transform in"))
+        #expect(output.contains("BorrowedClosure(transform, parameter: \"transform\")"))
+        #expect(output.contains("defer { transformBorrow.end() }"))
+        #expect(output.contains("try stub.rethrowingCall(borrowing: transformBorrow)"))
+        #expect(output.contains("stub.throwingCall(values, transformProxy)"))
+    }
+
+    @Test func rejectsRethrowingRequirementsWithoutANonescapingClosure() {
+        #expect(throws: ManualStubGeneratorError.self) {
+            try render(
+                """
+                protocol Loader {
+                    func load(_ body: @escaping () throws -> Void) rethrows
+                }
+                """,
+                protocolName: "Loader"
+            )
+        }
+    }
+
+    @Test func classBoundProtocolsGenerateFinalClasses() throws {
+        let output = try render(
+            """
+            protocol BaseDelegate: AnyObject {
+                func didFinish()
+            }
+
+            protocol DetailDelegate: BaseDelegate {
+                func didCancel()
+            }
+            """,
+            protocolName: "DetailDelegate"
+        )
+
+        #expect(output.contains("final class DetailDelegateStubConformer: DetailDelegate"))
+        #expect(output.contains("init(stub: CompiledStub<DetailDelegateStubConformer>) { self.stub = stub }"))
+        #expect(output.contains("func didCancel() { stub.call() }"))
+        #expect(output.contains("func didFinish() { stub.call() }"))
+    }
+
+    @Test func globalActorProtocolsIsolateEachWitness() throws {
+        let output = try render(
+            """
+            @MainActor public protocol Router {
+                func push(_ screen: String)
+                nonisolated func identifier() -> String
+            }
+            """,
+            protocolName: "Router"
+        )
+
+        #expect(output.contains("nonisolated struct RouterStubConformer: Router"))
+        #expect(output.contains("@MainActor func push(_ screen: String) { stub.call(screen) }"))
+        #expect(output.contains("@MainActor nonisolated") == false)
+    }
+
+    @Test func associatedTypesGenerateGenericConformers() throws {
+        let output = try render(
+            """
+            protocol Cache<Key, Value> {
+                associatedtype Key: Hashable
+                associatedtype Value = String
+                func value(for key: Key) -> Value?
+            }
+            """,
+            protocolName: "Cache"
+        )
+
+        #expect(output.contains("struct CacheStubConformer<Key: Hashable, Value>: Cache"))
+        #expect(output.contains("typealias StubbedProtocol = any Cache<Key, Value>"))
+        #expect(output.contains("static var compilerEvidence"))
+        #expect(output.contains("runtimeConstruction: .automaticDiscovery"))
+        #expect(
+            output.contains(
+                "typealias CacheStub<Key: Hashable, Value> = CompiledStub<CacheStubConformer<Key, Value>>"
+            )
+        )
+    }
+
+    @Test func batchGenerationImportsTheModulesDeclaringItsProtocols() throws {
+        let result = try ManualStubBatchGenerator(
+            sources: [
+                .init(
+                    identifier: "App/Services.swift",
+                    contents: """
+                        import Foundation
+                        protocol Repository { func load() -> Data }
+                        private protocol Hidden { func secret() }
+                        """,
+                    module: "App"
+                )
+            ],
+            additionalImports: ["import Analytics"]
+        ).render()
+
+        #expect(result.generatedProtocolNames == ["Repository"])
+        #expect(result.skippedProtocols.isEmpty)
+        #expect(result.source.contains("import Foundation"))
+        #expect(result.source.contains("@testable import App"))
+        #expect(result.source.contains("import Analytics"))
+        #expect(result.source.contains("import TestDoubles"))
+    }
+
     private func render(_ source: String, protocolName: String) throws -> String {
         try ManualStubGenerator(
             protocolName: protocolName,

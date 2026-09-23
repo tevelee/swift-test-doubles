@@ -5,20 +5,51 @@ func writeError(_ message: String) {
     FileHandle.standardError.write(Data("\(message)\n".utf8))
 }
 
-guard CommandLine.arguments.count == 4 else {
-    writeError(
-        """
-        usage:
-          ManualStubGeneratorTool <protocol-name> <input-swift-file> <output-swift-file>
-          ManualStubGeneratorTool --all <input-swift-file-or-directory> <output-swift-file>
-        """
-    )
+let usage = """
+    usage:
+      ManualStubGeneratorTool <protocol-name> <input-swift-file> <output-swift-file> [options]
+      ManualStubGeneratorTool --all <input-swift-file-or-directory> <output-swift-file> [options]
+
+    options:
+      --import <Module>                Import a module in the generated file.
+      --testable-import <Module>       Import a module with @testable in the generated file.
+      --module-source <Module> <path>  Also generate stubs for protocols declared in
+                                       another module's sources (--all only).
+    """
+
+var positional = [String]()
+var additionalImports = [String]()
+var moduleSources = [(module: String, url: URL)]()
+var remaining = CommandLine.arguments.dropFirst()[...]
+while let argument = remaining.popFirst() {
+    switch argument {
+        case "--import", "--testable-import":
+            guard let module = remaining.popFirst() else {
+                writeError(usage)
+                exit(64)
+            }
+            additionalImports.append(
+                argument == "--import" ? "import \(module)" : "@testable import \(module)"
+            )
+        case "--module-source":
+            guard let module = remaining.popFirst(), let path = remaining.popFirst() else {
+                writeError(usage)
+                exit(64)
+            }
+            moduleSources.append((module, URL(fileURLWithPath: path).standardizedFileURL))
+        default:
+            positional.append(argument)
+    }
+}
+
+guard positional.count == 3 else {
+    writeError(usage)
     exit(64)
 }
 
-let selection = CommandLine.arguments[1]
-let inputURL = URL(fileURLWithPath: CommandLine.arguments[2]).standardizedFileURL
-let outputURL = URL(fileURLWithPath: CommandLine.arguments[3]).standardizedFileURL
+let selection = positional[0]
+let inputURL = URL(fileURLWithPath: positional[1]).standardizedFileURL
+let outputURL = URL(fileURLWithPath: positional[2]).standardizedFileURL
 
 do {
     let output: String
@@ -26,13 +57,25 @@ do {
         guard inputURL != outputURL else {
             throw ToolError.outputOverwritesInput
         }
-        let sources = try sourceFiles(at: inputURL, excluding: outputURL).map {
+        var sources = try sourceFiles(at: inputURL, excluding: outputURL).map {
             try ManualStubBatchGenerator.Source(
                 identifier: $0.path,
                 contents: String(contentsOf: $0, encoding: .utf8)
             )
         }
-        let result = try ManualStubBatchGenerator(sources: sources).render()
+        for moduleSource in moduleSources {
+            sources += try sourceFiles(at: moduleSource.url, excluding: outputURL).map {
+                try ManualStubBatchGenerator.Source(
+                    identifier: $0.path,
+                    contents: String(contentsOf: $0, encoding: .utf8),
+                    module: moduleSource.module
+                )
+            }
+        }
+        let result = try ManualStubBatchGenerator(
+            sources: sources,
+            additionalImports: additionalImports
+        ).render()
         output = result.source
         for skipped in result.skippedProtocols {
             writeError(
@@ -42,10 +85,13 @@ do {
         }
     } else {
         let source = try String(contentsOf: inputURL, encoding: .utf8)
+        guard moduleSources.isEmpty else {
+            throw ToolError.moduleSourceRequiresBatchGeneration
+        }
         output = try ManualStubGenerator(
             protocolName: selection,
             source: source
-        ).render()
+        ).render(additionalImports: additionalImports)
     }
     try FileManager.default.createDirectory(
         at: outputURL.deletingLastPathComponent(),
@@ -99,6 +145,7 @@ func sourceFiles(at inputURL: URL, excluding outputURL: URL) throws -> [URL] {
 enum ToolError: LocalizedError {
     case outputOverwritesInput
     case cannotEnumerateDirectory(String)
+    case moduleSourceRequiresBatchGeneration
 
     var errorDescription: String? {
         switch self {
@@ -106,6 +153,8 @@ enum ToolError: LocalizedError {
                 "the batch output must not overwrite its input source file"
             case .cannotEnumerateDirectory(let path):
                 "could not enumerate source directory \(path)"
+            case .moduleSourceRequiresBatchGeneration:
+                "--module-source requires --all"
         }
     }
 }

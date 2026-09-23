@@ -4,7 +4,7 @@ import PackagePlugin
 @main
 struct ManualStubGeneratorPlugin: CommandPlugin {
     func performCommand(context: PluginContext, arguments: [String]) async throws {
-        guard arguments.count == 3 else {
+        guard arguments.count >= 3 else {
             throw GeneratorError.usage
         }
         let tool = try context.tool(named: "ManualStubGeneratorTool")
@@ -30,6 +30,11 @@ private enum GeneratorError: LocalizedError {
                 usage:
                   swift package plugin --allow-writing-to-package-directory generate-manual-stub <ProtocolName> <source.swift> <output.swift>
                   swift package plugin --allow-writing-to-package-directory generate-manual-stub --all <source.swift-or-directory> <output.swift>
+
+                options:
+                  --import <Module>            Import a module in the generated file.
+                  --testable-import <Module>   Import a module with @testable, for protocols
+                                               declared in another module of the package.
                 """
             case .failed:
                 "ManualStub generation failed."

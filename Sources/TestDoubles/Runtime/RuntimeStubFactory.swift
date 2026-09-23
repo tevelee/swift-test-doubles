@@ -57,6 +57,19 @@ enum RuntimeStubFactory {
         #endif
     }
 
+    /// Whether `type` is a function type. Without runtime support this falls
+    /// back to the type's printed name, which is exact for a bare function
+    /// type.
+    static func isFunctionType(_ type: Any.Type) -> Bool {
+        #if TESTDOUBLES_RUNTIME_STUBS
+            TestDoublesRuntime.RuntimeStubFactory.isFunctionType(type)
+        #else
+            let name = String(reflecting: type)
+            return name.contains("->") && name.hasSuffix(")") == false
+                && (name.hasPrefix("(") || name.hasPrefix("@"))
+        #endif
+    }
+
     @inline(never)
     static func scrubArgumentRegisters() {
         #if TESTDOUBLES_RUNTIME_STUBS

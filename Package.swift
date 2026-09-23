@@ -229,6 +229,19 @@ private func allTargets(
             plugins: [.plugin(name: "ManualStubBuildPlugin")]
         ),
         .target(
+            name: "ManualStubBuildPluginDependencyFixtures",
+            path: "Tests/ManualStubBuildPluginDependencyFixtures"
+        ),
+        .testTarget(
+            name: "ManualStubBuildPluginDependencyTests",
+            dependencies: [
+                "TestDoubles",
+                "ManualStubBuildPluginDependencyFixtures"
+            ],
+            path: "Tests/ManualStubBuildPluginDependencyTests",
+            plugins: [.plugin(name: "ManualStubBuildPlugin")]
+        ),
+        .target(
             name: "TestDoublesResilientFixtures",
             path: "Tests/TestDoublesResilientFixtures",
             swiftSettings: [

@@ -16,6 +16,10 @@ package enum DummyValue {
         let isAsync: Bool
     }
 
+    static func isFunctionType(_ type: Any.Type) -> Bool {
+        reflect(type) is FunctionMetadata
+    }
+
     static func functionPlan(for type: Any.Type) -> FunctionPlan? {
         guard let metadata = reflect(type) as? FunctionMetadata else {
             return nil

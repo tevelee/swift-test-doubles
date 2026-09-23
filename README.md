@@ -97,7 +97,9 @@ for async fields, reusable presets, and forwarding to a live client.
 
 ### Generated conformer
 
-Attach the build plugin to the target containing your protocol declaration.
+Attach the build plugin to your test target. It generates conformers for the
+protocols declared there and in the same package's library targets the test
+target depends on, so your app module needs no dependency on TestDoubles.
 It generates and compiles the conformer whenever the protocol changes:
 
 <!-- readme-example: PortableTarget -->

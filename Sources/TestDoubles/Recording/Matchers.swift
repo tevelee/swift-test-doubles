@@ -1,8 +1,11 @@
 import Foundation
 import InternalRuntimeContract
 
-/// A calibration type no requirement argument can have.
-private struct UnlocatablePlaceholder {}
+/// The calibration recorded for a closure-shaped `Match.any()`, whose
+/// placeholder has no abstractable bytes. It locates any function-typed
+/// argument: closures have no equality, so such an argument always carries a
+/// `Match` expression.
+struct FunctionPlaceholderCalibration {}
 
 private final class MatcherRecording: @unchecked Sendable {
     /// Matchers an `@autoclosure` argument formed when the forwarding
@@ -148,13 +151,12 @@ enum MatcherContext {
         return placeholder
     }
 
-    /// Records a calibration that never locates an argument, for a matcher
-    /// whose placeholder cannot be abstracted into a calibration value. It
-    /// keeps matchers and calibrations paired; the matcher can still be
-    /// placed positionally when every argument uses a `Match` expression.
+    /// Records a calibration for a closure matcher whose placeholder cannot
+    /// be abstracted into a calibration value. It keeps matchers and
+    /// calibrations paired and locates function-typed arguments.
     @inline(never)
-    static func appendUnlocatableCalibration() {
-        activeRecording?.appendCalibration(UnlocatablePlaceholder())
+    static func appendFunctionCalibration() {
+        activeRecording?.appendCalibration(FunctionPlaceholderCalibration())
         RuntimeStubFactory.scrubArgumentRegisters()
     }
 
@@ -389,7 +391,7 @@ extension Match {
                     + "passes it to the requirement only to describe the call."
             )
         }
-        MatcherContext.appendUnlocatableCalibration()
+        MatcherContext.appendFunctionCalibration()
         return placeholder
     }
 
