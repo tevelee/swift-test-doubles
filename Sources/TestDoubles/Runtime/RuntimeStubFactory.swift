@@ -57,6 +57,17 @@ enum RuntimeStubFactory {
         #endif
     }
 
+    /// Whether `type` is an enum imported from C, such as an `NS_ENUM`, whose
+    /// value is exactly its raw integer. Without runtime support no type is
+    /// recognized.
+    static func isImportedCEnum(_ type: Any.Type) -> Bool {
+        #if TESTDOUBLES_RUNTIME_STUBS
+            TestDoublesRuntime.RuntimeStubFactory.isImportedCEnum(type)
+        #else
+            false
+        #endif
+    }
+
     /// Whether `type` is a function type. Without runtime support this falls
     /// back to the type's printed name, which is exact for a bare function
     /// type.

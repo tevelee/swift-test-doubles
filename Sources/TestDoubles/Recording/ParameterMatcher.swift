@@ -154,6 +154,11 @@ func literalMatcher(for value: Any) -> ParameterMatcher {
     if let value = value as? Any.Type {
         return MetatypeMatcher(expected: value)
     }
+    // An imported C enum's synthesized Equatable conformance is not always
+    // visible to dynamic casts, but its value is exactly its raw integer.
+    if RuntimeStubFactory.isImportedCEnum(type(of: value)) {
+        return RawBytesMatcher(expected: value)
+    }
     fatalError(
         "[TestDoubles] Cannot record the literal value of type \(type(of: value)) because it has no "
             + "generic equality. Use Match expressions for every argument in this call, such as "
@@ -220,6 +225,41 @@ private func optionalReferenceValue(
     // a reference. Keeping that proof next to the conversion avoids bridging
     // arbitrary value types through `AnyObject`.
     return .object(currentValue as AnyObject)
+}
+
+/// Matches a value whose type has no generic equality but whose bytes are its
+/// complete identity, such as an imported C enum.
+struct RawBytesMatcher: ParameterMatcher {
+    private let type: Any.Type
+    private let bytes: [UInt8]
+    private let description: String
+
+    init(expected: Any) {
+        type = Swift.type(of: expected)
+        bytes = rawBytes(of: expected)
+        description = String(describing: expected)
+    }
+
+    func prepareMatch(value: Any) -> PreparedMatcherTransaction? {
+        guard ObjectIdentifier(Swift.type(of: value)) == ObjectIdentifier(type) else { return nil }
+        return rawBytes(of: value) == bytes ? .matched : nil
+    }
+
+    var diagnosticDescription: String { "Match.equal(\(description))" }
+
+    var acceptanceIdentity: MatcherAcceptanceIdentity? {
+        MatcherAcceptanceIdentity(
+            Self.self,
+            values: [AnyHashable(ObjectIdentifier(type)), AnyHashable(bytes)]
+        )
+    }
+}
+
+private func rawBytes(of value: Any) -> [UInt8] {
+    func bytes<Value>(_ value: Value) -> [UInt8] {
+        withUnsafeBytes(of: value) { Array($0) }
+    }
+    return _openExistential(value, do: bytes)
 }
 
 struct EqualMatcher<Value: Equatable>: ParameterMatcher {

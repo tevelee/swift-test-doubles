@@ -478,6 +478,12 @@ package enum PlaceholderValue {
         _openExistential(value, do: openValue)
     }
 
+    /// Whether `type` is an enum imported from C, such as an `NS_ENUM`.
+    package static func isImportedCEnum(_ type: Any.Type) -> Bool {
+        guard let metadata = reflect(type) as? EnumMetadata else { return false }
+        return isImportedFromC(metadata.descriptor)
+    }
+
     private static func isImportedFromC(_ descriptor: ContextDescriptor) -> Bool {
         (descriptor.parent as? ModuleDescriptor)?.name == "__C"
     }

@@ -118,6 +118,11 @@ package enum RuntimeStubFactory {
         PlaceholderValue.make(type, leafValue: leafValue)
     }
 
+    /// Whether `type` is an enum imported from C, such as an `NS_ENUM`.
+    package static func isImportedCEnum(_ type: Any.Type) -> Bool {
+        PlaceholderValue.isImportedCEnum(type)
+    }
+
     /// Whether `type` is a function type of any convention.
     package static func isFunctionType(_ type: Any.Type) -> Bool {
         DummyValue.isFunctionType(type)

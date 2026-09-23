@@ -83,6 +83,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Notification.Name`, and `UnitDuration`.
 - `Dummy` and placeholder synthesis for imported C enums, such as
   `DateFormatter.Style`, no longer crash the process.
+- A literal argument of an imported C enum, such as `style: .short` for a
+  `DateFormatter.Style` parameter, matches by value. Its synthesized
+  `Equatable` conformance is invisible to dynamic casts, so recording used to
+  trap with "no generic equality".
 - The manual stub generator no longer drops the parameters that follow a
   closure-typed parameter: the `>` of a function arrow was counted as a
   closing generic bracket, so `log(_:_:file:line:)` forwarded only its first

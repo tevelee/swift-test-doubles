@@ -17,6 +17,7 @@ private protocol CheckoutGateway {
     #endif
     func load(_ url: URL, completion: @escaping (Result<Data, any Error>) -> Void)
     func run(_ work: @escaping @Sendable () async -> Void) async
+    func format(_ date: Date, style: DateFormatter.Style) -> String
 }
 
 private struct CheckoutGatewayStubConformer: CheckoutGateway, ManualStubConformer {
@@ -38,6 +39,10 @@ private struct CheckoutGatewayStubConformer: CheckoutGateway, ManualStubConforme
 
     func run(_ work: @escaping @Sendable () async -> Void) async {
         await stub.call(work)
+    }
+
+    func format(_ date: Date, style: DateFormatter.Style) -> String {
+        stub.call(date, style)
     }
 }
 
@@ -133,6 +138,16 @@ private struct CheckoutClient: Sendable {
         #expect(received.value == 4)
         #expect(performed.value)
         loader.verify { $0.load(Match.equal("four"), completion: Match.any()) }
+    }
+
+    @Test func importedEnumLiteralsMatchByValue() {
+        let gateway = CompiledStub<CheckoutGatewayStubConformer>()
+        gateway.when { $0.format(Match.any(), style: .short) }.thenReturn("short")
+        gateway.when { $0.format(Match.any(), style: Match.any()) }.thenReturn("other")
+
+        #expect(gateway().format(Date(), style: .short) == "short")
+        #expect(gateway().format(Date(), style: .long) == "other")
+        gateway.verify { $0.format(Match.any(), style: .short) }
     }
 
     @Test func asyncClosureArgumentsMatchWithAny() async {
