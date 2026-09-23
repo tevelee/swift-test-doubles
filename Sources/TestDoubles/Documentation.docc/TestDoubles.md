@@ -154,6 +154,7 @@ isolation. See
 
 - ``Match/any()->T``
 - ``Match/any(using:)``
+- ``Match/anyVariadic()``
 - ``Match/equal(_:)``
 - ``Match/notEqual(_:)``
 - ``Match/identical(to:)``

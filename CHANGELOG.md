@@ -64,6 +64,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   build single-parameter closure fields. A field whose single parameter is a
   tuple crashed the Swift 6.3 and 6.4 compilers when built with the variadic
   endpoints.
+- `Match.anyVariadic()` stands for every remaining element of a variadic
+  argument, including none. `Match.any()` in a variadic position still
+  matches exactly one element, which previously left no way to accept a list
+  of any length.
 - `VoidClosureDouble.whenAny()` matches the other closure doubles' spelling of
   an always-matching registration.
 - `onUnmatchedCall(_:)` chooses what a double does with a call no registration

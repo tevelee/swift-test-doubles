@@ -395,6 +395,29 @@ extension Match {
         return placeholder
     }
 
+    /// Matches every remaining element of a variadic argument, including none.
+    ///
+    /// A variadic requirement records one matcher per element, so
+    /// `Match.any()` alone matches exactly one element. Write
+    /// `Match.anyVariadic()` as the last element to accept any number of
+    /// further elements:
+    ///
+    /// ```swift
+    /// stub.when { $0.log(Match.anyVariadic()) }.thenDoNothing()
+    /// stub.when { $0.log(Match.equal("started"), Match.anyVariadic()) }.thenDoNothing()
+    /// ```
+    ///
+    /// Outside a variadic position it behaves like `Match.any()`.
+    public static func anyVariadic<T>() -> T {
+        MatcherContext.append(VariadicRemainderMatcher())
+        return MatcherContext.returning(
+            synthesizedPlaceholder(
+                for: "Match.anyVariadic()",
+                fallback: "Match.any(using:)"
+            )
+        )
+    }
+
     /// Matches any argument of type `T`, using `placeholder` while recording the call.
     ///
     /// Use this overload when ``Match/any()->T`` cannot safely synthesize a value, such as

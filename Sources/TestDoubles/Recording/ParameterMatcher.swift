@@ -462,6 +462,13 @@ struct SomeMatcher: ParameterMatcher {
 /// Applies source-level matcher expressions to the elements of a variadic
 /// argument. Swift lowers the whole argument as one Array, but the recording
 /// closure still evaluates one `Match` expression per written element.
+/// Stands for every remaining element of a variadic argument, including none.
+struct VariadicRemainderMatcher: ParameterMatcher {
+    func prepareMatch(value: Any) -> PreparedMatcherTransaction? { .matched }
+    var diagnosticDescription: String { "Match.anyVariadic()" }
+    var acceptsAnyValue: Bool { true }
+}
+
 struct VariadicElementsMatcher: ParameterMatcher {
     let elements: [ParameterMatcher]
 
@@ -469,10 +476,17 @@ struct VariadicElementsMatcher: ParameterMatcher {
         let reflected = Mirror(reflecting: value)
         guard reflected.displayStyle == .collection else { return nil }
         let values = reflected.children.map(\.value)
-        guard values.count == elements.count else { return nil }
+        let fixed: [ParameterMatcher]
+        if elements.last is VariadicRemainderMatcher {
+            fixed = Array(elements.dropLast())
+            guard values.count >= fixed.count else { return nil }
+        } else {
+            fixed = elements
+            guard values.count == elements.count else { return nil }
+        }
 
         var combined = PreparedMatcherTransaction.matched
-        for (matcher, value) in zip(elements, values) {
+        for (matcher, value) in zip(fixed, values) {
             guard let transaction = matcher.prepareMatch(value: value) else {
                 return nil
             }
@@ -483,6 +497,10 @@ struct VariadicElementsMatcher: ParameterMatcher {
 
     var diagnosticDescription: String {
         "variadic(\(elements.map(\.diagnosticDescription).joined(separator: ", ")))"
+    }
+
+    var acceptsAnyValue: Bool {
+        elements.count == 1 && elements[0] is VariadicRemainderMatcher
     }
 }
 

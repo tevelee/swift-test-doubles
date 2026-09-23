@@ -111,7 +111,13 @@ stub.when {
 
 The registration matches exactly two entries. A call with one or three entries
 does not match it; use literals for an exact list or repeat `Match.any()` for
-each accepted position.
+each accepted position. End the elements with `Match.anyVariadic()` to accept
+any number of further entries, including none:
+
+```swift
+stub.when { $0.record(Match.equal("started"), Match.anyVariadic()) }.thenDoNothing()
+stub.when { $0.record(Match.anyVariadic()) }.thenDoNothing()
+```
 
 An `@autoclosure` requirement records its closure value, not the value its
 body eventually returns. Inside the recording closure, bind a closure-typed

@@ -648,7 +648,7 @@ extension StubRecorder {
         if matchers.isEmpty == false, matchers.count != args.count {
             let variadicGuidance =
                 runtimeMethod?.argumentIsVariadic.contains(true) == true
-                ? " A variadic parameter is one array at runtime; write one Match expression for each element in the recorded call."
+                ? " A variadic parameter is one array at runtime; write one Match expression for each element in the recorded call, or end the elements with Match.anyVariadic() to accept any number of further elements."
                 : ""
             fatalError(
                 "[TestDoubles] Recording \(name) used \(matchers.count) Match expression(s) for "
