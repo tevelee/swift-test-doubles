@@ -545,7 +545,7 @@ private func resolveWitnessValue(
         throw RuntimeConstructionError.signatureDiscoveryFailed(
             protocolName: protocolDescriptor.name,
             requirementIndex: requirementIndex,
-            details: "Could not resolve runtime metadata for type '\(rawName)'. Supply explicit Requirement values."
+            details: unresolvedTypeDetails(rawName)
         )
     }
     return ResolvedWitnessValue(
@@ -829,4 +829,21 @@ private func protocolRequirementKind(
     ProtocolRequirement.Kind(
         rawValue: UInt8(truncatingIfNeeded: flags.bits & 0xF)
     )
+}
+
+private func unresolvedTypeDetails(_ rawName: String) -> String {
+    guard mentionsMethodGenericParameter(rawName) else {
+        return "Could not resolve runtime metadata for type '\(rawName)'. Supply explicit Requirement values."
+    }
+    return "Could not resolve runtime metadata for type '\(rawName)'. It depends on a method "
+        + "generic parameter, as in `func send<R>(_ endpoint: Endpoint<R>) -> R`. A runtime "
+        + "stub supports a generic parameter only directly or as an optional; use a compiled "
+        + "conformer, which the ManualStubBuildPlugin generates and TestDouble.stub(using:) "
+        + "selects automatically."
+}
+
+/// Whether a demangled type name embeds a method generic parameter, which the
+/// demangler spells `A`, `A1`, and so on inside generic arguments.
+private func mentionsMethodGenericParameter(_ typeName: String) -> Bool {
+    typeName.range(of: #"[<, (]A[0-9]*[>,)]"#, options: .regularExpression) != nil
 }

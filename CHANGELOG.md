@@ -88,6 +88,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   result types automatic synthesis cannot build. A result type that can be
   neither supplied nor synthesized still traps, and says why.
 
+### Changed
+
+- The ABI-uncertain result diagnostic names the requirement, explains that
+  runtime metadata does not record whether the defining module uses library
+  evolution, and points at the generated compiled conformer that
+  `TestDouble.stub(using:)` selects automatically.
+- The compound-assignment recording diagnostic shows the getter and direct
+  setter spellings and suggests `whenProperty(initialValue:get:set:)`.
+- Signature discovery explains a type built from a method generic parameter,
+  such as `Endpoint<R>` in `func send<R>(_ endpoint: Endpoint<R>) -> R`, and
+  points at the compiled conformer instead of asking for explicit requirement
+  values that cannot describe it.
+
 ### Fixed
 
 - Recording no longer traps for payload-only enum results, such as

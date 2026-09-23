@@ -372,7 +372,7 @@ extension RuntimeStubFactory {
             {
                 throw RuntimeConstructionError.unsupportedProtocolShape(
                     protocolName: protocolName,
-                    reason: "Requirement \(method.index) has an ABI-uncertain result. \(reason)"
+                    reason: "Requirement \(method.index) (\(method.name)) has an ABI-uncertain result. \(reason)"
                 )
             }
             if let reason = runtimeUncertainTypedErrorUnsupportedReason(for: method) {
